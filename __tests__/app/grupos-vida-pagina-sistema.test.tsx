@@ -1,8 +1,8 @@
 /**
  * First adopters of the layout primitives (docs/design-system.md): the
- * Temporadas list uses the wide page width, the create-season and CSV import
- * forms use the form width, and the import form puts its submit action in the
- * shared action footer.
+ * Temporadas list, the create-season form and the CSV import form use the full
+ * content width; the import page lays its cards out with SeccionesSistema and
+ * puts its submit action in the shared action footer.
  */
 import type { ReactElement } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
@@ -51,19 +51,21 @@ describe('Temporadas list', () => {
 })
 
 describe('Crear temporada', () => {
-  it('uses the form width', async () => {
+  it('uses the full content width and does not wrap the sectioned form in another card', async () => {
     render(<CreateSeasonPage />)
     const formulario = await screen.findByRole('form', { name: 'Temporada' })
-    expect(columnaDe(formulario)).toHaveAttribute('data-ancho', 'form')
+    expect(columnaDe(formulario)).toHaveAttribute('data-ancho', 'default')
+    expect(formulario.closest('.glass-panel')).toBeNull()
     expect(screen.getByText('Ingresa los datos para crear una nueva temporada')).toBeInTheDocument()
   })
 })
 
 describe('Importar grupos', () => {
-  it('uses the form width and puts the submit action in the action footer', async () => {
+  it('uses the full content width, lays out its cards in sections and puts the submit action in the action footer', async () => {
     render(<ImportarGruposPage />)
     const subir = await screen.findByRole('button', { name: 'Subir CSV' })
-    expect(columnaDe(subir)).toHaveAttribute('data-ancho', 'form')
+    expect(columnaDe(subir)).toHaveAttribute('data-ancho', 'default')
+    expect(subir.closest('[data-slot="secciones"]')).not.toBeNull()
     expect(subir.closest('[data-slot="pie-acciones"]')).not.toBeNull()
     expect(subir).toBeDisabled()
 

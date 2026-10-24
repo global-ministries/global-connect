@@ -1,8 +1,8 @@
-import { ContenedorDashboard, TarjetaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingGrupos() {
   return (
-    <ContenedorDashboard titulo="Grupos" descripcion="Cargando información...">
+    <PaginaSistema titulo="Grupos" descripcion="Administra y organiza los grupos de tu comunidad">
       {/* KPIs */}
       <div className="hidden md:grid md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
@@ -23,7 +23,7 @@ export default function LoadingGrupos() {
         <div className="space-y-4">
           <SkeletonSistema ancho="180px" alto="20px" />
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 border border-border rounded-lg">
+            <div key={i} className="flex items-center gap-4 p-4 border border-border rounded-xl">
               <SkeletonSistema ancho="64px" alto="40px" />
               <div className="flex-1 grid grid-cols-4 gap-4">
                 <SkeletonSistema ancho="100%" alto="16px" />
@@ -36,6 +36,6 @@ export default function LoadingGrupos() {
           ))}
         </div>
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

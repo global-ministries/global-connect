@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-import { ContenedorDashboard, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import VistaSaludMiembros from "@/components/grupos/VistaSaludMiembros.client"
 import { obtenerSaludMiembrosGrupo } from "@/lib/actions/asistencia-avanzada.actions"
 import Link from "next/link"
@@ -21,7 +21,7 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
 
     if (!user) {
         return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
                             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -31,7 +31,7 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
                             </Link>
                         </div>
                     </div>
-                </ContenedorDashboard>
+                </PaginaSistema>
 )
     }
 
@@ -50,10 +50,10 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
 
     if (!esLectorSalud || !grupo || !puedeEditar) {
         return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
                     <div className="flex items-center justify-center min-h-[50vh]">
                         <div className="text-center">
-                            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                            <div className="text-danger-text text-6xl mb-4">⚠️</div>
                             <TituloSistema nivel={2}>Sin permisos</TituloSistema>
                             <p className="text-muted-foreground mb-4">No tienes permiso para ver la salud de este grupo.</p>
                             <Link href={`/grupos-vida/${id}`}>
@@ -61,20 +61,20 @@ export default async function SaludMiembrosPage({ params }: { params: Promise<{ 
                             </Link>
                         </div>
                     </div>
-                </ContenedorDashboard>
+                </PaginaSistema>
 )
     }
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo={`Salud del Grupo - ${grupo?.nombre ?? ""}`}
                 descripcion="Seguimiento de asistencia, riesgo y bienestar de los miembros."
-                botonRegreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
+                regreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
             >
                 <VistaSaludMiembros
                     miembros={saludResult.success ? (saludResult.data ?? []) : []}
                     grupoId={id}
                 />
-            </ContenedorDashboard>
+            </PaginaSistema>
 )
 }

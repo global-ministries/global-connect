@@ -137,7 +137,7 @@ export function LiderParejaSelector({
                             type="button"
                             disabled={usuario.ya_es_miembro}
                             onClick={() => handleSeleccionarLider(usuario.id)}
-                            className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors duration-200 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                            className="flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors duration-200 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <div className="relative h-8 w-8 flex-shrink-0 overflow-hidden rounded-full bg-muted">
                                 {usuario.foto_perfil_url ? (
@@ -195,7 +195,7 @@ export function LiderParejaSelector({
                     </div>
 
                     {conyugue ? (
-                        <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                        <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
                             <Heart className="h-4 w-4 text-pink-500" />
                             <div className="flex-1">
                                 <TextoSistema tamaño="sm" className="font-medium">

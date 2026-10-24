@@ -42,4 +42,16 @@ describe('validarEdicionNino', () => {
       errores: ['El nombre es obligatorio.', 'La fecha de nacimiento no es válida.', 'El género es obligatorio.'],
     })
   })
+
+  describe('default date', () => {
+    afterEach(() => jest.useRealTimers())
+
+    it('uses the Caracas date: on a Caracas evening the UTC tomorrow is still in the future', () => {
+      // 2026-10-12 21:00 in Caracas is already 2026-10-13 in UTC.
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-13T01:00:00Z'))
+      const r = validarEdicionNino({ ...base, fechaNacimiento: '2026-10-13' })
+      expect(r).toEqual({ ok: false, errores: ['La fecha de nacimiento no es válida.'] })
+      expect(validarEdicionNino({ ...base, fechaNacimiento: '2026-10-12' }).ok).toBe(true)
+    })
+  })
 })

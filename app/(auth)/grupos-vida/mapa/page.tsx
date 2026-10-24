@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, TarjetaSistema, TextoSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 
 import { MapaGruposVida, type GrupoMapa, type MiembroMapa } from "@/components/grupos-vida/mapa-grupos-vida";
 import { emitMemberMapObservableEvent, splitValidMemberLocations } from "@/components/grupos-vida/mapa-location-model";
@@ -41,9 +41,9 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
     const scopeLabel = scope === "planned" ? "Mostrando grupos planificados" : "Mostrando grupos activos";
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo="Mapa de Grupos de Vida"
-                botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
+                regreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
             >
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                     <TarjetaSistema variante="outlined" className="p-4 sm:p-5">
@@ -135,7 +135,7 @@ export default async function MapaGruposPage({ searchParams }: { searchParams?: 
                         </TextoSistema>
                     </TarjetaSistema>
                 )}
-            </ContenedorDashboard>
+            </PaginaSistema>
 );
 }
 

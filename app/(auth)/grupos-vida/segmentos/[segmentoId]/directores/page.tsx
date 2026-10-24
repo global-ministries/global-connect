@@ -3,7 +3,7 @@ import { Suspense, lazy } from 'react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 
-import { ContenedorDashboard, TextoSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 const DirectoresSegmentoClient = lazy(() => import('./DirectoresSegmentoClient'))
 
@@ -38,10 +38,10 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Directores del Segmento"
-        subtitulo={segmento.nombre}
-        botonRegreso={{ href: `/grupos-vida/segmentos/${segmento.id}`, texto: 'Volver' }}
+        descripcion={segmento.nombre}
+        regreso={{ href: `/grupos-vida/segmentos/${segmento.id}`, texto: 'Volver' }}
       >
         <div className="space-y-4">
           <Suspense fallback={<div className="text-sm text-muted-foreground">Cargando módulo...</div>}>
@@ -54,6 +54,6 @@ export default async function DirectoresSegmentoPage({ params }: Props) {
             </TextoSistema>
           )}
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

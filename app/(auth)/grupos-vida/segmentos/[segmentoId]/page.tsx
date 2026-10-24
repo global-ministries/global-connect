@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 
-import { ContenedorDashboard, TituloSistema, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TituloSistema, TextoSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { ArrowRight } from "lucide-react"
 import { UserAvatar } from "@/components/ui/UserAvatar"
 
@@ -153,10 +153,10 @@ export default async function SegmentoDetallePage({ params }: Props) {
 	}
 
 	return (
-<ContenedorDashboard
+<PaginaSistema
 				titulo={`Segmento: ${segmento.nombre}`}
-				subtitulo="Información general y accesos rápidos"
-				botonRegreso={{ href: '/grupos-vida/segmentos', texto: 'Volver a Segmentos' }}
+				descripcion="Información general y accesos rápidos"
+				regreso={{ href: '/grupos-vida/segmentos', texto: 'Volver a Segmentos' }}
 			>
 
 				<div className="grid gap-6 md:grid-cols-3">
@@ -208,6 +208,6 @@ export default async function SegmentoDetallePage({ params }: Props) {
 						</Link>
 					</TarjetaSistema>
 				</div>
-			</ContenedorDashboard>
+			</PaginaSistema>
 )
 }

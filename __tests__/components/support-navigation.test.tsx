@@ -40,7 +40,7 @@ describe('support navigation links', () => {
   it('hides the support admin entry when the user has no support capability', () => {
     render(<SidebarModerna />)
 
-    expect(screen.queryByRole('link', { name: 'Soporte' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Cola de soporte' })).not.toBeInTheDocument()
   })
 
   it('shows the support admin entry in the desktop sidebar for support-capable staff', () => {
@@ -49,7 +49,7 @@ describe('support navigation links', () => {
 
     render(<SidebarModerna />)
 
-    expect(screen.getByRole('link', { name: 'Soporte' })).toHaveAttribute('href', '/ayuda/admin')
+    expect(screen.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
   })
 
   it('does not show support admin when capability-like strings are only present in roles', () => {
@@ -57,7 +57,7 @@ describe('support navigation links', () => {
 
     render(<SidebarModerna />)
 
-    expect(screen.queryByRole('link', { name: 'Soporte' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Cola de soporte' })).not.toBeInTheDocument()
   })
 
   it('shows the support admin entry in the mobile drawer for support-capable staff', async () => {
@@ -67,7 +67,7 @@ describe('support navigation links', () => {
     render(<HeaderMovil />)
     await userEvent.click(screen.getByLabelText('Abrir menú'))
 
-    expect(screen.getByRole('link', { name: 'Soporte' })).toHaveAttribute('href', '/ayuda/admin')
+    expect(screen.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
   })
 
   it('shows the support configuration entry only for higher-role support.manage capability holders', async () => {
@@ -78,7 +78,7 @@ describe('support navigation links', () => {
     await userEvent.click(screen.getByLabelText('Abrir menú'))
     await userEvent.click(screen.getByRole('button', { name: /Abrir Configuración/i }))
 
-    expect(screen.getAllByRole('link', { name: 'Soporte' }).map((link) => link.getAttribute('href'))).toContain('/configuracion/soporte')
+    expect(screen.getByRole('link', { name: 'Configuración de soporte' })).toHaveAttribute('href', '/configuracion/soporte')
   })
 
   it('hides the support configuration entry for pure support.manage staff without higher role context', async () => {
@@ -89,7 +89,7 @@ describe('support navigation links', () => {
     await userEvent.click(screen.getByLabelText('Abrir menú'))
 
     expect(screen.queryByRole('button', { name: /Abrir Configuración/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Soporte' })).toHaveAttribute('href', '/ayuda/admin')
-    expect(screen.getAllByRole('link', { name: 'Soporte' }).map((link) => link.getAttribute('href'))).not.toContain('/configuracion/soporte')
+    expect(screen.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
+    expect(screen.queryByRole('link', { name: 'Configuración de soporte' })).not.toBeInTheDocument()
   })
 })

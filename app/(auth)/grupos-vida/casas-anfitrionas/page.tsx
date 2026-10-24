@@ -3,7 +3,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { extraerRelacion } from "@/lib/supabase/helpers";
 import { redirect } from "next/navigation";
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, TarjetaSistema, TextoSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { Plus, Home } from "lucide-react";
 import Link from "next/link";
 import { BotonFlotante } from "@/components/ui/BotonFlotante";
@@ -118,10 +118,10 @@ export default async function CasasAnfitrionasPage() {
 
     return (
       <>
-        <ContenedorDashboard
+        <PaginaSistema
                 titulo="Casas Anfitrionas"
-                botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
-                accionPrincipal={puedeRegistrarCasa ? (
+                regreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
+                acciones={puedeRegistrarCasa ? (
                     <Link href="/grupos-vida/casas-anfitrionas/nueva">
                         <BotonSistema variante="primario" icono={Plus} tamaño="sm">
                             Registrar casa
@@ -318,7 +318,7 @@ export default async function CasasAnfitrionasPage() {
                         </TextoSistema>
                     </TarjetaSistema>
                 )}
-            </ContenedorDashboard>
+            </PaginaSistema>
 
             {/* FAB móvil para registrar casa */}
             {puedeRegistrarCasa && (
