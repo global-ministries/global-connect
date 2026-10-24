@@ -1,11 +1,12 @@
 /**
- * Niños — /ninos/reportes (RSC), odd/tasks/ninos-checkin.md N7.
+ * Niños — /ninos/reportes (RSC), odd/tasks/ninos-checkin.md N7 and N16.
  *
  * Attendance reports for whoever may configure some Niños area
  * (ninos_puede_configurar_algun_area: Directora de Niños, area coordinators,
  * admin and pastor). Anfitriones and Líderes get a 404. Every aggregate comes
  * from ninos_reporte_asistencia, which also checks authority per room.
- * Query: ?desde=&hasta=&campus=&turno= (default: the last 8 Sundays).
+ * Query: ?desde=&hasta=&campus=&turno=&vista=mes (default: the last 8
+ * Sundays, per Sunday; dates and quick ranges in Caracas time).
  * ?reporte=voluntarios switches to the volunteer attendance tab
  * (odd/tasks/ninos-asistencia-voluntarios.md, V5; ninos_reporte_voluntarios).
  * Whoever may only mark volunteers (ninos_puede_marcar_voluntarios_algun_area,
@@ -26,7 +27,14 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 export const metadata = { title: 'Reportes — Niños' }
 
 type Props = {
-  readonly searchParams: Promise<{ readonly desde?: string; readonly hasta?: string; readonly campus?: string; readonly turno?: string; readonly reporte?: string }>
+  readonly searchParams: Promise<{
+    readonly desde?: string
+    readonly hasta?: string
+    readonly campus?: string
+    readonly turno?: string
+    readonly vista?: string
+    readonly reporte?: string
+  }>
 }
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
@@ -42,7 +50,8 @@ export default async function NinosReportesPage({ searchParams }: Props) {
   const query = await searchParams
   const { campus, turnos } = puedeConfigurar ? await opcionesCompletas(supabase) : await opcionesDeVoluntarios(supabase)
 
-  const porDefecto = rangoPorDefecto(hoyEnCaracas())
+  const hoy = hoyEnCaracas()
+  const porDefecto = rangoPorDefecto(hoy)
   const filtros: FiltrosReporte = {
     desde: query.desde && FECHA.test(query.desde) ? query.desde : porDefecto.desde,
     hasta: query.hasta && FECHA.test(query.hasta) ? query.hasta : porDefecto.hasta,
@@ -58,7 +67,13 @@ export default async function NinosReportesPage({ searchParams }: Props) {
       {voluntarios ? (
         <ReportesVoluntariosClient campus={campus} turnos={turnos} filtrosIniciales={filtros} />
       ) : (
-        <ReportesClient campus={campus} turnos={turnos} filtrosIniciales={filtros} />
+        <ReportesClient
+          campus={campus}
+          turnos={turnos}
+          filtrosIniciales={filtros}
+          hoy={hoy}
+          vistaInicial={query.vista === 'mes' ? 'mes' : 'domingo'}
+        />
       )}
     </ContenedorDashboard>
   )

@@ -202,7 +202,7 @@ SELECT pg_temp.assert_eq('d: two check-ins count 2',
 SELECT pg_temp.assert_eq('d: another date stays 0',
   $q$SELECT presentes::text FROM public.ninos_ocupacion(pg_temp.ctx('turno')::uuid, '2030-01-13')
       WHERE salon_id = pg_temp.id('sa', 1)$q$, '0');
-SELECT public.ninos_checkout(pg_temp.ctx('codigo'), pg_temp.ctx('turno')::uuid, '2030-01-06', 'ZZ Abuela');
+SELECT public.ninos_checkout(pg_temp.ctx('codigo'), pg_temp.ctx('turno')::uuid, '2030-01-06', 'ZZ Abuela Np');
 SELECT pg_temp.assert_eq('d: checked-out children no longer count',
   $q$SELECT presentes::text FROM public.ninos_ocupacion(pg_temp.ctx('turno')::uuid, '2030-01-06')
       WHERE salon_id = pg_temp.id('sa', 1)$q$, '0');

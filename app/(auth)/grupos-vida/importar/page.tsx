@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 
-import { ContenedorDashboard, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, PieAccionesSistema, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 import Link from "next/link"
 import { Upload, Download } from "lucide-react"
 
@@ -32,16 +32,17 @@ export default function ImportarGruposPage() {
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Importar Grupos por CSV"
         descripcion="Sube un archivo .csv para crear grupos y miembros automáticamente"
-        botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
+        regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
+        ancho="form"
       >
         <TarjetaSistema>
           <form onSubmit={onSubmit} className="space-y-6">
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-foreground">Archivo CSV</label>
-              <input type="file" accept=".csv" onChange={e => setFile(e.target.files?.[0] || null)} />
+              <label htmlFor="archivo-csv" className="block text-sm font-medium text-foreground">Archivo CSV</label>
+              <input id="archivo-csv" type="file" accept=".csv" onChange={e => setFile(e.target.files?.[0] || null)} />
               <div className="flex items-center gap-3">
                 <Link href="/plantillas/import-grupos.csv" target="_blank" download>
                   <BotonSistema variante="ghost" tamaño="sm" icono={Download}>
@@ -53,11 +54,11 @@ export default function ImportarGruposPage() {
               <TextoSistema variante="muted" tamaño="sm">Formato miembros: &quot;Nombre Apellido|Líder|12345678; Otra Persona|Miembro|87654321&quot; (separa miembros con ;, cédula opcional en la 3ra posición)</TextoSistema>
             </div>
 
-            <div>
+            <PieAccionesSistema fijo={false} className="bg-transparent">
               <BotonSistema type="submit" variante="primario" tamaño="md" disabled={!file || subiendo} cargando={subiendo} icono={Upload}>
                 Subir CSV
               </BotonSistema>
-            </div>
+            </PieAccionesSistema>
           </form>
         </TarjetaSistema>
 
@@ -80,6 +81,6 @@ export default function ImportarGruposPage() {
             </div>
           </TarjetaSistema>
         )}
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

@@ -7394,6 +7394,8 @@ export type Database = {
           id: string
           nino_id: string
           retirado_por_nombre: string | null
+          retiro_motivo: string | null
+          retiro_otra_persona: boolean
           salida_at: string | null
           salida_por: string | null
           salon_id: string
@@ -7409,6 +7411,8 @@ export type Database = {
           id?: string
           nino_id: string
           retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
           salida_at?: string | null
           salida_por?: string | null
           salon_id: string
@@ -7424,6 +7428,8 @@ export type Database = {
           id?: string
           nino_id?: string
           retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
           salida_at?: string | null
           salida_por?: string | null
           salon_id?: string
@@ -7481,6 +7487,8 @@ export type Database = {
           autoriza_imagen: boolean | null
           cambio_panal: boolean | null
           created_at: string
+          desde_casa_at: string | null
+          desde_casa_por: string | null
           es_vip_desde: string | null
           escolarizado: boolean | null
           grado: number | null
@@ -7498,6 +7506,8 @@ export type Database = {
           autoriza_imagen?: boolean | null
           cambio_panal?: boolean | null
           created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_por?: string | null
           es_vip_desde?: string | null
           escolarizado?: boolean | null
           grado?: number | null
@@ -7515,6 +7525,8 @@ export type Database = {
           autoriza_imagen?: boolean | null
           cambio_panal?: boolean | null
           created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_por?: string | null
           es_vip_desde?: string | null
           escolarizado?: boolean | null
           grado?: number | null
@@ -7528,6 +7540,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ninos_fichas_salon_preferido_id_fkey"
             columns: ["salon_preferido_id"]
@@ -7551,6 +7570,64 @@ export type Database = {
           },
         ]
       }
+      ninos_prechecks: {
+        Row: {
+          avisos: number
+          created_at: string
+          estado: string
+          fecha: string
+          id: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at: string
+        }
+        Insert: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha: string
+          id?: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at?: string
+        }
+        Update: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          nino_id?: string
+          solicitado_por?: string
+          turno_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ninos_preregistros: {
         Row: {
           campus_id: string
@@ -7562,6 +7639,7 @@ export type Database = {
           id: string
           ip_hash: string | null
           payload: Json
+          solicitado_por: string | null
         }
         Insert: {
           campus_id: string
@@ -7573,6 +7651,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           payload: Json
+          solicitado_por?: string | null
         }
         Update: {
           campus_id?: string
@@ -7584,6 +7663,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           payload?: Json
+          solicitado_por?: string | null
         }
         Relationships: []
       }
@@ -8130,6 +8210,7 @@ export type Database = {
         Args: {
           p_codigo: string
           p_fecha: string
+          p_motivo_otra?: string
           p_retirado_por: string
           p_turno_id: string
         }
@@ -8220,7 +8301,21 @@ export type Database = {
         Args: { p_campus_id: string; p_ip_hash: string; p_payload: Json }
         Returns: string
       }
+      ninos_familia_invitar: {
+        Args: { p_email: string; p_padre_id: string }
+        Returns: Json
+      }
       ninos_preregistro_invitar: { Args: { p_email: string; p_id: string }; Returns: Json }
+      ninos_registrar_familia_mesa: { Args: { p: Json }; Returns: Json }
+      ninos_retiro_opciones: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
+        Returns: {
+          nombre: string
+          relacion: string
+          telefono: string
+          tipo: string
+        }[]
+      }
       ninos_preregistro_resolver: {
         Args: { p_accion: string; p_id: string; p_payload?: Json }
         Returns: Json
@@ -8338,7 +8433,18 @@ export type Database = {
         Returns: Json
       }
       ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
+      ninos_conyuge_de: { Args: { p_usuario_id: string }; Returns: Json }
       ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
+      ninos_mis_hijos: { Args: never; Returns: Json }
+      ninos_mis_hijos_campus: { Args: never; Returns: Json }
+      ninos_mis_hijos_guardar: { Args: { p: Json; p_nino_id: string }; Returns: Json }
+      ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
+      ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
+      ninos_preregistros_cuentas: { Args: never; Returns: Json }
+      ninos_precheck_avisar: { Args: { p_nino_ids: string[]; p_turno_id: string }; Returns: Json }
+      ninos_precheck_cancelar: { Args: { p_turno_id: string }; Returns: Json }
+      ninos_mis_prechecks: { Args: never; Returns: Json }
+      ninos_prechecks_pendientes: { Args: { p_fecha: string; p_turno_id: string }; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
