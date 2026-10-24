@@ -5,11 +5,11 @@
  * desktop only) and the team detail (path, title, three summary cards and two
  * lists), per docs/sistema-diseno.md's `loading.tsx` skeleton pattern.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingEstructura() {
   return (
-    <ContenedorDashboard titulo="Estructura">
+    <PaginaSistema titulo="Estructura">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <TarjetaSistema className="hidden w-96 shrink-0 space-y-3 p-4 lg:block">
           <SkeletonSistema alto="24px" ancho="140px" />
@@ -45,6 +45,6 @@ export default function LoadingEstructura() {
           </TarjetaSistema>
         </div>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

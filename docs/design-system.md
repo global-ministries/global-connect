@@ -300,3 +300,20 @@ still decided only by `canAccess` (`lib/navigation/canAccess.ts`).
   gradient, which a plain `bg-*` color cannot override). Pending: add these
   paths to `migratedToDesignSystem` in `eslint.config.mjs`; `app/(auth)/admin/talleres`
   belongs to the admin area.
+
+## Area notes: Configuración, Administración and shared reports
+
+- Settings screens (`/configuracion`, `/configuracion/soporte`,
+  `/configuracion/grupos-vida`) use `ancho="form"`; the Dream Team loading
+  skeletons under `/admin/dream-team` use the default width like their pages.
+  The Dream Team pages themselves render `components/dream-team` islands that
+  still wrap `ContenedorDashboard`; they migrate with that area.
+- `components/reportes` (used by Grupos de Vida reports) keeps its props. The
+  four health levels of `DashboardRiesgo` take their chart colors from the
+  status tokens; "En riesgo" mixes `--warning` and `--danger`
+  (`color-mix(in oklch, …)`) in SVG fills and inline styles, while its text
+  and tile stay `orange-*` and "Atención" text stays `amber-*`: `--warning`
+  is too light for text on white and there is no orange token.
+- Not yet locked by the legacy-import lint rule: these paths import no
+  `ui/button`, `ui/card` or `boton-gradiente`, but `eslint.config.mjs` is left
+  for a follow-up so parallel area branches do not conflict on it.

@@ -442,6 +442,7 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('heading', { name: /Acceso requerido/i })).toBeInTheDocument()
     expect(screen.getByText(/requiere un rol de administracion alto y la capacidad support.manage/i)).toBeInTheDocument()
     expect(redirect).not.toHaveBeenCalledWith('/dashboard')
+    expect(document.querySelector('[data-ancho="form"]')).toBeNull()
   })
 
   it('renders support capability configuration for higher-role support managers', async () => {
@@ -461,6 +462,14 @@ describe('reporter support pages', () => {
     expect(screen.getByRole('heading', { name: /Capacidades permitidas/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Otorgar capacidad/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Revocar capacidad/i })).toBeInTheDocument()
+
+    // Full width: the section sits in SeccionesSistema and each form's fields in CamposSistema.
+    expect(document.querySelector('[data-ancho="form"]')).toBeNull()
+    const secciones = document.querySelector('[data-slot="secciones"]')
+    expect(secciones).toContainElement(screen.getByRole('heading', { name: /Capacidades permitidas/i }))
+    for (const campo of [...screen.getAllByLabelText(/Usuario destino/i), ...screen.getAllByLabelText(/^Capacidad$/i)]) {
+      expect(campo.closest('[data-slot="campos"]')).not.toBeNull()
+    }
   })
 })
 

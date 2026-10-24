@@ -3,7 +3,7 @@ import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { checkPlatformRouteAccess } from "@/lib/platform/routeGuard"
 import { redirect } from "next/navigation"
 
-import { ContenedorDashboard } from "@/components/ui/sistema-diseno"
+import { PaginaSistema } from "@/components/ui/sistema-diseno"
 import { ConfiguracionGlobalClient } from "./ConfiguracionGlobalClient"
 
 export const metadata = {
@@ -41,10 +41,10 @@ export default async function PaginaConfiguracion() {
     .single()
 
   return (
-<ContenedorDashboard
-        titulo="Configuración"
-        botonRegreso={{ href: "/dashboard", texto: "Dashboard" }}
-      >
+    <PaginaSistema
+      titulo="Configuración"
+      regreso={{ href: "/dashboard", texto: "Dashboard" }}
+    >
         <ConfiguracionGlobalClient
           datosOrganizacion={config ? {
             nombre: config.nombre_organizacion || "",
@@ -60,7 +60,7 @@ export default async function PaginaConfiguracion() {
             colorSecundario: config.color_secundario || "#F59E0B",
           } : undefined}
         />
-      </ContenedorDashboard>
-)
+    </PaginaSistema>
+  )
 }
 
