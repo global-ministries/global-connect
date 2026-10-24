@@ -365,14 +365,21 @@ $q$, 'public.uno_a_uno:anon=false,public.uno_a_uno:authenticated=false,public.un
 CREATE TEMP TABLE t_u1_funciones (firma text PRIMARY KEY, esperado text NOT NULL) ON COMMIT DROP;
 INSERT INTO t_u1_funciones (firma, esperado) VALUES
   ('public.uno_a_uno_dirigidos_de(uuid)', 'false/false/true'),
-  ('public.uno_a_uno_crear(uuid,uuid,text,timestamp with time zone,text,text,text)', 'false/false/true'),
+  ('public.uno_a_uno_crear(uuid,uuid,text,timestamp with time zone,text,text,text,text)', 'false/false/true'),
   ('public.mis_dirigidos()', 'false/true/true'),
   ('public.uno_a_uno_agendar(uuid,timestamp with time zone,text)', 'false/true/true'),
-  ('public.uno_a_uno_registrar_sin_agenda(uuid,timestamp with time zone,text,text,text)', 'false/true/true'),
-  ('public.uno_a_uno_registrar(uuid,text,text,timestamp with time zone)', 'false/true/true'),
+  ('public.uno_a_uno_registrar_sin_agenda(uuid,timestamp with time zone,text,text,text,text)', 'false/true/true'),
+  ('public.uno_a_uno_registrar(uuid,text,text,timestamp with time zone,text)', 'false/true/true'),
   ('public.uno_a_uno_reprogramar(uuid,timestamp with time zone)', 'false/true/true'),
   ('public.uno_a_uno_cancelar(uuid,text)', 'false/true/true'),
-  ('public.mis_uno_a_uno(timestamp with time zone,timestamp with time zone)', 'false/true/true');
+  ('public.mis_uno_a_uno(timestamp with time zone,timestamp with time zone)', 'false/true/true'),
+  -- T7 (20261024120000) and T9 (20261024140000): supervision.
+  ('public.uno_a_uno_relaciones()', 'false/false/true'),
+  ('public.uno_a_uno_supervisados_de(uuid)', 'false/false/true'),
+  ('public.uno_a_uno_ubicaciones()', 'false/false/true'),
+  ('public.uno_a_uno_supervision(timestamp with time zone,timestamp with time zone)', 'false/true/true'),
+  ('public.uno_a_uno_supervision_lideres(integer)', 'false/true/true'),
+  ('public.uno_a_uno_acceso()', 'false/true/true');
 
 SELECT pg_temp.assert_eq('j: execute privileges of ' || f.firma, format($q$
   SELECT has_function_privilege('anon', %1$L, 'EXECUTE')::text || '/'
@@ -643,7 +650,7 @@ SELECT pg_temp.capture('i: LA agenda a second one with MI2', 'u2',
 -- LA leads three (u1 now, co at +7 days, u2 at +10 days) and is a dirigido in
 -- one (de, two hours ago, as LA2's spouse).
 SELECT pg_temp.assert_eq('i: LA reads four 1:1 in order of fecha_hora, from both sides',
-  $q$SELECT string_agg(estado || ':' || mi_lado, ',' ORDER BY ord) FROM public.mis_uno_a_uno() WITH ORDINALITY AS t(id, estado, fecha_hora, lugar, mi_lado, lideres, dirigidos, resumen, nota_privada, motivo_cancelacion, realizado_en, cancelado_en, ord)$q$,
+  $q$SELECT string_agg(estado || ':' || mi_lado, ',' ORDER BY ord) FROM public.mis_uno_a_uno() WITH ORDINALITY AS t(id, estado, fecha_hora, lugar, mi_lado, lideres, dirigidos, resumen, nota_privada, motivo_cancelacion, realizado_en, cancelado_en, celebracion, ord)$q$,
   'realizado:dirigido,realizado:lider,cancelado:lider,agendado:lider');
 SELECT pg_temp.assert_eq('i: as a dirigido LA reads no resumen of DE1''s 1:1',
   $q$SELECT pg_temp.uno_txt(pg_temp.k('de'))$q$, 'realizado|dirigido|DE1|LA+LA2|-|-|-');
