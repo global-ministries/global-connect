@@ -105,6 +105,10 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
   (pg_temp.id('us', 10), NULL, 'Zqesposo', 'Zqotro', NULL, 'Soltero', 'Masculino', NULL, NULL, '1990-01-01');
 INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
   (pg_temp.id('us', 10), pg_temp.id('us', 9), 'conyuge', false);
+-- The searches only list people of the caller's campuses
+-- (20261013100000_ninos_familias_por_campus.sql).
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT pg_temp.id('us', n), pg_temp.ctx('campus')::uuid, true FROM generate_series(3, 10) n;
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Re R', true),

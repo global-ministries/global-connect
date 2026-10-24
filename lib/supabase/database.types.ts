@@ -8413,6 +8413,12 @@ export type Database = {
       }
       ninos_edad_maxima_anos: { Args: never; Returns: number }
       ninos_en_rango_edad: { Args: { p_fecha_nacimiento: string }; Returns: boolean }
+      ninos_campus_operables: { Args: never; Returns: string[] }
+      ninos_en_alcance: {
+        Args: { p_campus: string[] | null; p_persona_id: string }
+        Returns: boolean
+      }
+      ninos_en_mi_alcance: { Args: { p_persona_id: string }; Returns: boolean }
       ninos_enmascarar: {
         Args: { p_valor: string; p_visibles: number }
         Returns: string
