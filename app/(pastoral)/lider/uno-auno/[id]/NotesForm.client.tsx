@@ -12,9 +12,8 @@
 
 import React, { useReducer, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { BotonSistema, TextareaSistema } from '@/components/ui/sistema-diseno'
+import { CheckCircle2 } from 'lucide-react'
 
 interface NotesFormProps {
   readonly oneOnOneId: string
@@ -97,45 +96,43 @@ export default function NotesForm({ oneOnOneId }: NotesFormProps) {
 
   if (state.submitted) {
     return (
-      <div className="space-y-3 p-4 border border-green-200 rounded-lg bg-green-50">
-        <div className="flex items-center gap-2 text-green-700">
-          <CheckCircle2 className="h-5 w-5" />
-          <span className="text-sm font-medium">Nota agregada exitosamente</span>
+      <div className="space-y-3 rounded-2xl border border-success/30 bg-success/10 p-4" role="status">
+        <div className="flex items-center gap-2 text-success-text">
+          <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
+          <span className="text-sm font-medium text-foreground">Nota agregada exitosamente</span>
         </div>
-        <Button variant="outline" size="sm" onClick={handleDismiss}>
+        <BotonSistema variante="outline" onClick={handleDismiss}>
           Agregar otra nota
-        </Button>
+        </BotonSistema>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <Textarea
+      <TextareaSistema
         value={state.contenido}
         onChange={(e) => dispatch({ type: 'SET_CONTENIDO', contenido: e.target.value })}
         placeholder="Nota privada para esta sesión..."
         aria-label="Nota privada"
-        rows={3}
+        filas={3}
         disabled={state.isSubmitting}
       />
 
       {state.error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-danger-text">
           {state.error}
         </p>
       )}
 
-      <Button
+      <BotonSistema
         onClick={handleSubmit}
-        disabled={!state.contenido.trim() || state.isSubmitting}
+        disabled={!state.contenido.trim()}
+        cargando={state.isSubmitting}
         aria-label={state.isSubmitting ? 'Agregando nota...' : 'Agregar nota'}
       >
-        {state.isSubmitting ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : null}
         {state.isSubmitting ? 'Agregando...' : 'Agregar nota'}
-      </Button>
+      </BotonSistema>
     </div>
   )
 }

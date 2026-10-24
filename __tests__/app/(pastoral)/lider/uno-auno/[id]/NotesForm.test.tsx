@@ -16,18 +16,7 @@ jest.mock('next/navigation', () => ({
   }),
 }))
 
-// Mock UI components
-jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, 'aria-label': ariaLabel }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean; 'aria-label'?: string }) => (
-    <button onClick={onClick} disabled={disabled} aria-label={ariaLabel}>{children}</button>
-  ),
-}))
 
-jest.mock('@/components/ui/textarea', () => ({
-  Textarea: ({ value, onChange, placeholder, 'aria-label': ariaLabel, disabled }: { value: string; onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void; placeholder?: string; 'aria-label'?: string; disabled?: boolean }) => (
-    <textarea value={value} onChange={onChange} placeholder={placeholder} aria-label={ariaLabel} disabled={disabled} />
-  ),
-}))
 
 describe('NotesForm', () => {
   const defaultProps = {

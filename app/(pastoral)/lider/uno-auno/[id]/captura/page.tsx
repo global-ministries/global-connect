@@ -10,9 +10,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralOneOnOneReadCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
 import { getVisiblePastoralOneOnOneIds } from '@/lib/platform/pastoral/hierarchical-visibility'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import Link from 'next/link'
 import CapturaForm from './CapturaForm.client'
 
@@ -54,9 +52,10 @@ export default async function CapturaPage({ params }: Props) {
   const assisted = (participantes ?? [])[0]
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Captura Rápida"
       descripcion="Confirma o rechaza la sesión 1:1"
+      ancho="form"
       breadcrumbs={
         <div className="flex items-center gap-1 text-sm">
           <Link href="/lider/uno-auno" className="text-muted-foreground hover:text-foreground">
@@ -70,13 +69,13 @@ export default async function CapturaPage({ params }: Props) {
           <span>Captura</span>
         </div>
       }
-      botonRegreso={{ href: `/lider/uno-auno/${id}`, texto: 'Volver' }}
+      regreso={{ href: `/lider/uno-auno/${id}`, texto: 'Volver' }}
     >
       <TarjetaSistema>
-        <TituloSistema nivel={3} className="mb-3">
+        <TituloSistema nivel={2} className="mb-3">
           Sesión 1:1 — {id.slice(0, 8)}…
         </TituloSistema>
-        <p className="text-sm text-muted-foreground mb-4">
+        <p className="break-all text-sm text-muted-foreground">
           Asistido: {assisted?.persona_id ?? '—'}
         </p>
       </TarjetaSistema>
@@ -86,6 +85,6 @@ export default async function CapturaPage({ params }: Props) {
         mentorPersonaId={typedRow.mentor_oficial_persona_id}
         assistedPersonaId={assisted?.persona_id ?? ''}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

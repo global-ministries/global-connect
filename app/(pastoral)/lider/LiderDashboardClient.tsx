@@ -2,11 +2,10 @@
 
 import React from 'react'
 import { Calendar } from 'lucide-react'
-import { ContenedorDashboard, TarjetaSistema, TituloSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+import Link from 'next/link'
+import { BotonSistema, PaginaSistema, TarjetaSistema, TituloSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 import { OneOnOneCard } from '@/components/pastoral/OneOnOneCard'
 import { CrisisAlertBanner } from '@/components/pastoral/CrisisAlertBanner'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 
 interface LiderDashboardClientProps {
   readonly unoAunos: ReadonlyArray<{
@@ -35,22 +34,22 @@ export default function LiderDashboardClient({
   const upcomingUnoAunos = unoAunos.filter((u) => u.estado === 'scheduled')
 
   return (
-    <ContenedorDashboard titulo="Mi Seguimiento Pastoral" descripcion="Gestiona tus sesiones 1:1">
+    <PaginaSistema titulo="Mi Seguimiento Pastoral" descripcion="Gestiona tus sesiones 1:1">
       {crisisAlerts.length > 0 && (
         <CrisisAlertBanner alerts={crisisAlerts} />
       )}
 
       <TarjetaSistema>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-[var(--brand-primary)]" />
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Calendar className="h-5 w-5 shrink-0 text-brand" aria-hidden="true" />
             <TituloSistema nivel={2}>Próximas Sesiones 1:1</TituloSistema>
           </div>
-          <Link href="/lider/uno-auno">
-            <Button variant="ghost" size="sm">
+          <BotonSistema asChild variante="ghost" tamaño="sm">
+            <Link href="/lider/uno-auno">
               Ver todas
-            </Button>
-          </Link>
+            </Link>
+          </BotonSistema>
         </div>
 
         {isLoading ? (
@@ -78,6 +77,6 @@ export default function LiderDashboardClient({
           </div>
         )}
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

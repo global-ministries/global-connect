@@ -14,8 +14,9 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Calendar, Clock, User, ChevronRight } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { BadgeSistema } from '@/components/ui/sistema-diseno'
+import { cn } from '@/lib/utils'
+import { CLASE_ITEM_LISTA } from './estilos'
 
 interface OneOnOneCardProps {
   readonly id: string
@@ -31,17 +32,21 @@ interface OneOnOneCardProps {
 
 // ─── State badge ─────────────────────────────────────────────────────────────
 
-function estadoBadgeVariant(estado: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+type VarianteEstado = 'default' | 'success' | 'warning' | 'error' | 'info'
+
+/** Status color of a 1:1 session (shared with the detail page). */
+export function varianteEstadoUnoAUno(estado: string): VarianteEstado {
   switch (estado) {
-    case 'scheduled': return 'outline'
-    case 'in_progress': return 'secondary'
-    case 'completed': return 'default'
-    case 'cancelled': return 'destructive'
-    default: return 'outline'
+    case 'scheduled': return 'info'
+    case 'in_progress': return 'warning'
+    case 'completed': return 'success'
+    case 'cancelled': return 'error'
+    default: return 'default'
   }
 }
 
-function estadoLabel(estado: string): string {
+/** Spanish label of a 1:1 session state (shared with the detail page). */
+export function etiquetaEstadoUnoAUno(estado: string): string {
   switch (estado) {
     case 'scheduled': return 'Programado'
     case 'in_progress': return 'En progreso'
@@ -73,65 +78,63 @@ export function OneOnOneCard({
     : null
 
   return (
-    <Card
-      className={`hover:border-[var(--brand-primary)]/40 transition-colors ${className ?? ''}`}
+    <div
+      className={cn(CLASE_ITEM_LISTA, 'transition-colors hover:border-brand/40', className)}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            {/* Header: date + badge */}
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <Badge variant={estadoBadgeVariant(estado)}>
-                {estadoLabel(estado)}
-              </Badge>
-              {pasosValidadosCount > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {pasosValidadosCount} paso{pasosValidadosCount !== 1 ? 's' : ''}
-                </Badge>
-              )}
-            </div>
-
-            {/* Date + time */}
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-1">
-              <Calendar className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{formattedDate}</span>
-              {formattedTime && (
-                <>
-                  <Clock className="h-3.5 w-3.5 shrink-0 ml-2" />
-                  <span>{formattedTime}</span>
-                </>
-              )}
-            </div>
-
-            {/* Names */}
-            {assistedPersonaName && (
-              <div className="flex items-center gap-1.5 text-sm mt-1">
-                <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate text-foreground font-medium">
-                  {assistedPersonaName}
-                </span>
-              </div>
-            )}
-            {showMentor && mentorPersonaName && (
-              <div className="flex items-center gap-1.5 text-sm mt-1">
-                <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate text-muted-foreground">
-                  Mentor: {mentorPersonaName}
-                </span>
-              </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          {/* Header: date + badge */}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <BadgeSistema variante={varianteEstadoUnoAUno(estado)} tamaño="sm">
+              {etiquetaEstadoUnoAUno(estado)}
+            </BadgeSistema>
+            {pasosValidadosCount > 0 && (
+              <BadgeSistema tamaño="sm">
+                {pasosValidadosCount} paso{pasosValidadosCount !== 1 ? 's' : ''}
+              </BadgeSistema>
             )}
           </div>
 
-          {/* Arrow */}
-          <Link
-            href={href}
-            className="shrink-0 p-2 rounded-lg hover:bg-accent transition-colors"
-            aria-label={`Ver sesión 1:1 con ${assistedPersonaName ?? id}`}
-          >
-            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-          </Link>
+          {/* Date + time */}
+          <div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Calendar className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{formattedDate}</span>
+            {formattedTime && (
+              <>
+                <Clock className="ml-2 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>{formattedTime}</span>
+              </>
+            )}
+          </div>
+
+          {/* Names */}
+          {assistedPersonaName && (
+            <div className="mt-1 flex items-center gap-1.5 text-sm">
+              <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="truncate font-medium text-foreground">
+                {assistedPersonaName}
+              </span>
+            </div>
+          )}
+          {showMentor && mentorPersonaName && (
+            <div className="mt-1 flex items-center gap-1.5 text-sm">
+              <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="truncate text-muted-foreground">
+                Mentor: {mentorPersonaName}
+              </span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Arrow: a 44px target */}
+        <Link
+          href={href}
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={`Ver sesión 1:1 con ${assistedPersonaName ?? id}`}
+        >
+          <ChevronRight className="h-5 w-5" aria-hidden="true" />
+        </Link>
+      </div>
+    </div>
   )
 }

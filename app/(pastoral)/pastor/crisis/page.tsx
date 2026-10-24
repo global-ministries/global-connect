@@ -9,12 +9,10 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { requirePastoralSession, hasPastoralReadAllCapability } from '@/lib/platform/pastoral/route-access'
 import { isPastoralEnabled } from '@/lib/platform/pastoral/flags'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
-import { TarjetaSistema } from '@/components/ui/sistema-diseno'
-import { Badge } from '@/components/ui/badge'
+import { BadgeSistema, PaginaSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, ShieldCheck } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,12 +24,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   crisis_de_fe: 'Crisis de Fe',
 }
 
-const CATEGORY_VARIANT: Record<string, 'destructive' | 'secondary'> = {
-  duelo: 'secondary',
-  crisis_matrimonial: 'destructive',
-  ideacion_suicida: 'destructive',
-  violencia_intrafamiliar: 'destructive',
-  crisis_de_fe: 'secondary',
+const CATEGORY_VARIANT: Record<string, 'error' | 'warning'> = {
+  duelo: 'warning',
+  crisis_matrimonial: 'error',
+  ideacion_suicida: 'error',
+  violencia_intrafamiliar: 'error',
+  crisis_de_fe: 'warning',
 }
 
 export default async function PastorCrisisPage() {
@@ -70,14 +68,14 @@ export default async function PastorCrisisPage() {
   }))
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Alertas de Crisis"
       descripcion="Crisis detectados en sesiones 1:1"
     >
       {alerts.length === 0 ? (
         <TarjetaSistema>
-          <div className="flex items-center gap-2 py-4">
-            <AlertTriangle className="h-5 w-5 text-green-600" />
+          <div className="flex items-center gap-2 py-4" role="status">
+            <ShieldCheck className="h-5 w-5 shrink-0 text-success" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">
               No hay alertas de crisis registradas.
             </p>
@@ -88,15 +86,15 @@ export default async function PastorCrisisPage() {
           {alerts.map((alert) => (
             <TarjetaSistema key={alert.id}>
               <div className="flex items-start gap-3">
-                <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <Badge variant={CATEGORY_VARIANT[alert.categoria] ?? 'secondary'}>
+                  <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <BadgeSistema variante={CATEGORY_VARIANT[alert.categoria] ?? 'warning'} tamaño="sm">
                       {CATEGORY_LABELS[alert.categoria] ?? alert.categoria}
-                    </Badge>
-                    <Badge variant="outline">{alert.oneOnOneEstado}</Badge>
+                    </BadgeSistema>
+                    <BadgeSistema tamaño="sm">{alert.oneOnOneEstado}</BadgeSistema>
                   </div>
-                  <p className="text-sm font-medium">
+                  <p className="break-words text-sm font-medium">
                     Palabra clave: &quot;{alert.keyword}&quot;
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -113,6 +111,6 @@ export default async function PastorCrisisPage() {
           ))}
         </div>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

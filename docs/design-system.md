@@ -343,3 +343,12 @@ still decided only by `canAccess` (`lib/navigation/canAccess.ts`).
 - Not yet locked by the legacy-import lint rule: these paths import no
   `ui/button`, `ui/card` or `boton-gradiente`, but `eslint.config.mjs` is left
   for a follow-up so parallel area branches do not conflict on it.
+- Pastoral (`app/(pastoral)`, `components/pastoral`), Notas de líderes,
+  Ayuda and Actualizaciones are migrated and import no `ui/button` or
+  `ui/card`; add them to `migratedToDesignSystem`. Widths: lists, dashboards
+  and the support queue `default`; the asistido roadmap, a 1:1 detail, its
+  capture form, the report form and the Actualizaciones feed `form`. Tables
+  that would scroll sideways at 360px (pastoral usuarios) render a card list
+  below `md`. Destructive pastoral actions recolor the primary button
+  (`components/pastoral/estilos.ts`); switch them to the danger variant and
+  the link-wrapped buttons to the `href` form once those land here.
