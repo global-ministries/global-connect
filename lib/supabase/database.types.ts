@@ -1789,6 +1789,7 @@ export type Database = {
           equipo_id: string
           id: string
           label: string
+          nivel: string
           parent_rol_id: string | null
           updated_at: string
         }
@@ -1798,6 +1799,7 @@ export type Database = {
           equipo_id: string
           id?: string
           label: string
+          nivel: string
           parent_rol_id?: string | null
           updated_at?: string
         }
@@ -1807,6 +1809,7 @@ export type Database = {
           equipo_id?: string
           id?: string
           label?: string
+          nivel?: string
           parent_rol_id?: string | null
           updated_at?: string
         }

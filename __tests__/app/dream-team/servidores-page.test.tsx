@@ -8,6 +8,7 @@ import React from 'react'
 
 import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
 import { personaId } from '@/lib/platform/dream-team/types'
+import { nivelDesdeLabel } from '@/lib/platform/dream-team/nivel-rol'
 import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import type { NodoEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 
@@ -47,6 +48,7 @@ const ROLES: DreamTeamRol[] = ['director', 'coordinador', 'facilitador'].map((la
   id: `rol-${label}`,
   equipoId: 'x',
   label,
+  nivel: nivelDesdeLabel(label),
   activo: true,
 }))
 const servicio = (id: string, equipoId: string, rol: string, persona: string, estado: DreamTeamServicio['estado'] = 'activo'): DreamTeamServicio => ({

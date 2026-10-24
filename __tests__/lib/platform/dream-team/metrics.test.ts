@@ -12,9 +12,9 @@ const equipos: DreamTeamEquipo[] = [
 ]
 
 const roles: DreamTeamRol[] = [
-  { id: 'rol-voluntario', equipoId: 'equipo-dps-camara', label: 'Voluntario', activo: true },
-  { id: 'rol-lider', equipoId: 'equipo-estudiantes-transit', label: 'Líder de grupo', activo: true },
-  { id: 'rol-maestro', equipoId: 'equipo-ninos', label: 'Maestro', activo: true },
+  { id: 'rol-voluntario', equipoId: 'equipo-dps-camara', label: 'Voluntario', nivel: 'voluntario', activo: true },
+  { id: 'rol-lider', equipoId: 'equipo-estudiantes-transit', label: 'Líder de grupo', nivel: 'lider', activo: true },
+  { id: 'rol-maestro', equipoId: 'equipo-ninos', label: 'Maestro', nivel: 'voluntario', activo: true },
 ]
 
 function makeServicio(overrides: Partial<DreamTeamServicio> & Pick<DreamTeamServicio, 'id' | 'equipoId' | 'rolId' | 'estado'>): DreamTeamServicio {

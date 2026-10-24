@@ -2,19 +2,31 @@
 
 /**
  * Estructura — "Roles de este equipo": one row per rol with how many people
- * hold it, a pencil to rename it, a switch to enable or disable it (a disabled
- * rol can no longer be assigned) and, at the bottom, a field to add a new one.
+ * hold it, its level (a selector to change it), a pencil to rename it, a switch
+ * to enable or disable it (a disabled rol can no longer be assigned) and, at the
+ * bottom, a form to add a new one with its name and level. The level starts as
+ * the one the typed name suggests until a level is picked by hand.
  *
- * Someone who cannot edit the structure sees the same rows without the pencil,
- * the switches and the form: the state of each rol is a badge instead.
+ * Someone who cannot edit the structure sees the same rows without the
+ * selectors, the pencil, the switches and the form: the level is plain text and
+ * the state of each rol is a badge instead.
  */
-import { useState, useTransition, type FormEvent, type ReactElement } from 'react'
+import { useOptimistic, useState, useTransition, type FormEvent, type ReactElement } from 'react'
 import { Pencil } from 'lucide-react'
 
-import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import {
+  BadgeSistema,
+  BotonSistema,
+  InputSistema,
+  SelectSistema,
+  TarjetaSistema,
+  TituloSistema,
+} from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
-import { cambiarActivoRol, crearRol, renombrarRol } from '@/app/(auth)/admin/dream-team/estructura/actions'
+import { cambiarActivoRol, cambiarNivelRol, crearRol, renombrarRol } from '@/app/(auth)/admin/dream-team/estructura/actions'
 import type { RolDetalle } from '@/lib/platform/dream-team/estructura-vista'
+import { NIVELES_ROL, esNivelRol, nivelDesdeLabel, nivelRolLabel } from '@/lib/platform/dream-team/nivel-rol'
+import type { DreamTeamNivelRol } from '@/lib/platform/dream-team/types'
 
 import { DialogoNombre } from './dialogo-nombre'
 import { ANILLO_FOCO, personasTexto, reportarResultado, type Toast } from './mensajes'
@@ -26,6 +38,8 @@ export interface RolesEquipoProps {
   readonly onActualizado: () => void
   readonly toast: Toast
 }
+
+const OPCIONES_NIVEL = NIVELES_ROL.map(({ nivel, label }) => ({ valor: nivel, etiqueta: label }))
 
 function usoDelRol(rol: RolDetalle): string {
   if (!rol.activo) return 'Desactivado: no se puede asignar'
@@ -46,6 +60,16 @@ function RolFila({
   readonly toast: Toast
 }): ReactElement {
   const [isPending, startTransition] = useTransition()
+  const [nivelVisible, mostrarNivel] = useOptimistic(rol.nivel)
+
+  function cambiarNivel(valor: string): void {
+    if (!esNivelRol(valor) || valor === rol.nivel) return
+    startTransition(async () => {
+      mostrarNivel(valor)
+      const resultado = await cambiarNivelRol({ id: rol.id, nivel: valor })
+      if (reportarResultado(toast, resultado, 'Nivel del rol actualizado.')) onActualizado()
+    })
+  }
 
   function alternar(): void {
     startTransition(async () => {
@@ -55,8 +79,8 @@ function RolFila({
   }
 
   return (
-    <li className="flex min-h-[60px] items-center gap-3 py-1 pl-5 pr-3 sm:pl-6">
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <li className="flex min-h-[60px] flex-wrap items-center gap-x-3 gap-y-1 py-1 pl-5 pr-3 sm:pl-6">
+      <span className="flex min-w-[9rem] flex-1 flex-col gap-0.5">
         <span className={cn('truncate text-sm font-medium sm:text-base', rol.activo ? 'text-foreground' : 'text-muted-foreground')}>
           {rol.label}
         </span>
@@ -64,7 +88,18 @@ function RolFila({
       </span>
 
       {puedeEditar ? (
-        <>
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <div className="w-[8.75rem]">
+            <SelectSistema
+              aria-label={`Nivel del rol ${rol.label}`}
+              title="Nivel del rol"
+              opciones={OPCIONES_NIVEL}
+              value={nivelVisible}
+              onValueChange={cambiarNivel}
+              disabled={isPending}
+              className="text-sm"
+            />
+          </div>
           <BotonSistema
             type="button"
             variante="ghost"
@@ -95,11 +130,14 @@ function RolFila({
               <span className="h-[18px] w-[18px] rounded-full bg-background shadow-sm" />
             </span>
           </button>
-        </>
+        </div>
       ) : (
-        <BadgeSistema variante={rol.activo ? 'success' : 'default'} tamaño="sm">
-          {rol.activo ? 'Activo' : 'Desactivado'}
-        </BadgeSistema>
+        <div className="ml-auto flex shrink-0 items-center gap-3">
+          <span className="text-sm text-muted-foreground">Nivel: {nivelRolLabel(rol.nivel)}</span>
+          <BadgeSistema variante={rol.activo ? 'success' : 'default'} tamaño="sm">
+            {rol.activo ? 'Activo' : 'Desactivado'}
+          </BadgeSistema>
+        </div>
       )}
     </li>
   )
@@ -112,29 +150,48 @@ function FormularioRolNuevo({
 }: Pick<RolesEquipoProps, 'equipoId' | 'onActualizado' | 'toast'>): ReactElement {
   const [isPending, startTransition] = useTransition()
   const [nombre, setNombre] = useState('')
+  // null = follow the level the typed name suggests; set once a level is picked by hand.
+  const [nivelElegido, setNivelElegido] = useState<DreamTeamNivelRol | null>(null)
   const label = nombre.trim()
+  const nivel = nivelElegido ?? nivelDesdeLabel(label)
+
+  function elegirNivel(valor: string): void {
+    if (esNivelRol(valor)) setNivelElegido(valor)
+  }
 
   function agregar(event: FormEvent): void {
     event.preventDefault()
     if (!label) return
     startTransition(async () => {
-      const resultado = await crearRol({ equipoId, label })
+      const resultado = await crearRol({ equipoId, label, nivel })
       if (reportarResultado(toast, resultado, 'Rol agregado correctamente.')) {
         setNombre('')
+        setNivelElegido(null)
         onActualizado()
       }
     })
   }
 
   return (
-    <form onSubmit={agregar} className="flex items-end gap-2.5 border-t border-border px-5 py-3.5 sm:px-6">
-      <div className="min-w-0 flex-1">
+    <form onSubmit={agregar} className="flex flex-wrap items-end gap-2.5 border-t border-border px-5 py-3.5 sm:px-6">
+      <div className="min-w-[12rem] flex-1">
         <InputSistema
           aria-label="Nombre del rol nuevo"
           placeholder="Nombre del rol nuevo"
           value={nombre}
           onChange={(event) => setNombre(event.target.value)}
           disabled={isPending}
+        />
+      </div>
+      <div className="w-[8.75rem]">
+        <SelectSistema
+          aria-label="Nivel del rol nuevo"
+          title="Nivel del rol nuevo"
+          opciones={OPCIONES_NIVEL}
+          value={nivel}
+          onValueChange={elegirNivel}
+          disabled={isPending}
+          className="text-sm"
         />
       </div>
       <BotonSistema type="submit" variante="outline" disabled={isPending || !label}>

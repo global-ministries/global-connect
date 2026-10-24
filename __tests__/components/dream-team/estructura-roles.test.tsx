@@ -2,7 +2,8 @@
  * `<EstructuraClient>` — roles and sub-equipos of the selected team
  * (criteria 2, 5 and 6 of odd/tasks/dream-team-estructura-rediseno.md):
  * the roles list with usage, the switch, rename and add-rol form, and the
- * "Agregar sub-equipo" dialog.
+ * "Agregar sub-equipo" dialog. Each rol also carries an authority level
+ * (odd/tasks/uno-a-uno.md, T1): chosen when adding it and changeable per row.
  */
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
@@ -23,6 +24,7 @@ import {
 } from '@/tests/helpers/estructura-fixture'
 import {
   cambiarActivoRol,
+  cambiarNivelRol,
   crearEquipo,
   crearRol,
   renombrarRol,
@@ -48,6 +50,7 @@ jest.mock('@/app/(auth)/admin/dream-team/estructura/actions', () => ({
   crearRol: jest.fn(),
   renombrarRol: jest.fn(),
   cambiarActivoRol: jest.fn(),
+  cambiarNivelRol: jest.fn(),
 }))
 
 const toastSuccess = jest.fn()
@@ -72,6 +75,7 @@ const ok = { ok: true }
 beforeEach(() => {
   for (const mock of [replace, refresh, toastSuccess, toastError]) mock.mockClear()
   jest.mocked(cambiarActivoRol).mockResolvedValue(ok as never)
+  jest.mocked(cambiarNivelRol).mockResolvedValue(ok as never)
   jest.mocked(crearRol).mockResolvedValue(ok as never)
   jest.mocked(renombrarRol).mockResolvedValue(ok as never)
   jest.mocked(crearEquipo).mockResolvedValue(ok as never)
@@ -91,7 +95,10 @@ function props(overrides: Partial<EstructuraClientProps> = {}): EstructuraClient
 }
 
 const roles = () => within(screen.getByRole('region', { name: 'Roles de este equipo' }))
-const filaDeRol = (nombre: string) => roles().getByText(nombre).closest('li') as HTMLElement
+// The level selectors repeat the level names as <option>s, so a rol is found by its name text only.
+const filaDeRol = (nombre: string) => roles().getByText(nombre, { ignore: 'option' }).closest('li') as HTMLElement
+const nivelDe = (nombre: string) => within(filaDeRol(nombre)).getByRole('combobox', { name: `Nivel del rol ${nombre}` })
+const nivelNuevo = () => roles().getByRole('combobox', { name: 'Nivel del rol nuevo' })
 
 describe('roles of a team (criterion 2)', () => {
   it('lists every rol with how many people hold it', () => {
@@ -149,6 +156,40 @@ describe('enabling and disabling a rol (criterion 5)', () => {
   })
 })
 
+describe('the level of a rol', () => {
+  it('shows each rol at its level', () => {
+    render(<EstructuraClient {...props()} />)
+    expect(nivelDe('Director')).toHaveValue('director')
+    expect(nivelDe('Coordinador')).toHaveValue('coordinador')
+    expect(nivelDe('Facilitador')).toHaveValue('lider')
+    expect(nivelDe('Voluntario')).toHaveValue('voluntario')
+    expect(within(nivelDe('Facilitador')).getAllByRole('option').map((opcion) => opcion.textContent)).toEqual([
+      'Director',
+      'Coordinador',
+      'Líder',
+      'Voluntario',
+    ])
+  })
+
+  it('changes it through cambiarNivelRol and refreshes', async () => {
+    const user = userEvent.setup()
+    render(<EstructuraClient {...props()} />)
+    await user.selectOptions(nivelDe('Facilitador'), 'coordinador')
+    expect(cambiarNivelRol).toHaveBeenCalledWith({ id: `rol-${ID_DHAH}-facilitador`, nivel: 'coordinador' })
+    expect(toastSuccess).toHaveBeenCalledWith('Nivel del rol actualizado.')
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('reports a failure and does not refresh', async () => {
+    const user = userEvent.setup()
+    jest.mocked(cambiarNivelRol).mockResolvedValue({ ok: false, error: 'internal', message: 'Falló la base' } as never)
+    render(<EstructuraClient {...props()} />)
+    await user.selectOptions(nivelDe('Facilitador'), 'director')
+    expect(toastError).toHaveBeenCalledWith('Falló la base')
+    expect(refresh).not.toHaveBeenCalled()
+  })
+})
+
 describe('renaming a rol', () => {
   it('opens a dialog starting from the stored name and calls renombrarRol', async () => {
     const user = userEvent.setup()
@@ -181,10 +222,32 @@ describe('adding a rol', () => {
     await user.type(campo, '  Cocinero ')
     await user.click(agregar)
 
-    expect(crearRol).toHaveBeenCalledWith({ equipoId: ID_DHAH, label: 'Cocinero' })
+    expect(crearRol).toHaveBeenCalledWith({ equipoId: ID_DHAH, label: 'Cocinero', nivel: 'voluntario' })
     expect(toastSuccess).toHaveBeenCalledWith('Rol agregado correctamente.')
     expect(campo).toHaveValue('')
     expect(refresh).toHaveBeenCalled()
+  })
+
+  it('suggests the level from the typed name', async () => {
+    const user = userEvent.setup()
+    render(<EstructuraClient {...props()} />)
+    expect(nivelNuevo()).toHaveValue('voluntario')
+    await user.type(roles().getByRole('textbox', { name: 'Nombre del rol nuevo' }), 'Entrenador')
+    expect(nivelNuevo()).toHaveValue('lider')
+    await user.click(roles().getByRole('button', { name: 'Agregar rol' }))
+    expect(crearRol).toHaveBeenCalledWith({ equipoId: ID_DHAH, label: 'Entrenador', nivel: 'lider' })
+  })
+
+  it('keeps a level picked by hand while the name changes, and resets after adding', async () => {
+    const user = userEvent.setup()
+    render(<EstructuraClient {...props()} />)
+    const campo = roles().getByRole('textbox', { name: 'Nombre del rol nuevo' })
+    await user.selectOptions(nivelNuevo(), 'coordinador')
+    await user.type(campo, 'Director técnico')
+    expect(nivelNuevo()).toHaveValue('coordinador')
+    await user.click(roles().getByRole('button', { name: 'Agregar rol' }))
+    expect(crearRol).toHaveBeenCalledWith({ equipoId: ID_DHAH, label: 'Director técnico', nivel: 'coordinador' })
+    expect(nivelNuevo()).toHaveValue('voluntario')
   })
 
   it('keeps what was typed when it fails', async () => {
@@ -206,6 +269,8 @@ describe('read-only viewers (criterion 6)', () => {
     expect(roles().queryByRole('switch')).not.toBeInTheDocument()
     expect(roles().queryByRole('button')).not.toBeInTheDocument()
     expect(roles().queryByRole('textbox')).not.toBeInTheDocument()
+    expect(roles().queryByRole('combobox')).not.toBeInTheDocument()
+    expect(within(filaDeRol('Facilitador')).getByText('Nivel: Líder')).toBeInTheDocument()
     expect(within(filaDeRol('Voluntario')).getByText('Desactivado')).toBeInTheDocument()
     expect(within(filaDeRol('Facilitador')).getByText('Activo')).toBeInTheDocument()
     expect(within(filaDeRol('Facilitador')).getByText('8 personas')).toBeInTheDocument()

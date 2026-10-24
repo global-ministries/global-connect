@@ -21,7 +21,7 @@
 import type { NodoArbol } from './arbol'
 import type { NodoEquipoArbol, ResponsableNodo } from './estructura-arbol'
 import { normalizarTexto } from './mi-equipo-vista'
-import type { DreamTeamRol, DreamTeamServicio } from './types'
+import type { DreamTeamNivelRol, DreamTeamRol, DreamTeamServicio } from './types'
 import {
   ORIGEN_GRUPOS_VIDA_LABEL,
   experienciaLabel,
@@ -104,6 +104,7 @@ export interface RolDetalle {
   readonly label: string
   /** The stored label, what a rename starts from. */
   readonly labelOriginal: string
+  readonly nivel: DreamTeamNivelRol
   readonly activo: boolean
   /** People holding it. */
   readonly uso: number
@@ -260,6 +261,7 @@ export function crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }: E
           id: rol.id,
           label: rolLabel(rol.label),
           labelOriginal: rol.label,
+          nivel: rol.nivel,
           activo: rol.activo,
           uso: uso.porRol[rol.id] ?? 0,
         }),

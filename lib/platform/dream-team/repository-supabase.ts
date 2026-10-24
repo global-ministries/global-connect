@@ -6,6 +6,7 @@ import type {
   DreamTeamEstadoHistorial,
   DreamTeamHistorialAppend,
   DreamTeamMotivo,
+  DreamTeamNivelRol,
   DreamTeamParticipationEvent,
   DreamTeamRequisito,
   DreamTeamRequisitoVerificacion,
@@ -75,6 +76,7 @@ function mapRol(row: DbRol): DreamTeamRol {
     id: row.id,
     equipoId: row.equipo_id,
     label: row.label,
+    nivel: row.nivel as DreamTeamNivelRol,
     parentRolId: row.parent_rol_id ?? undefined,
     activo: row.activo,
   }
@@ -346,6 +348,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     const insert: DbRolInsert = {
       equipo_id: input.equipoId,
       label: input.label,
+      nivel: input.nivel,
       activo: input.activo,
       parent_rol_id: input.parentRolId ?? null,
     }
@@ -359,6 +362,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
   async function updateRol(id: string, patch: DreamTeamRolUpdate): Promise<DreamTeamRol> {
     const updates: DbRolUpdate = {}
     if (patch.label !== undefined) updates.label = patch.label
+    if (patch.nivel !== undefined) updates.nivel = patch.nivel
     if (patch.activo !== undefined) updates.activo = patch.activo
     if (patch.parentRolId !== undefined) updates.parent_rol_id = patch.parentRolId
 

@@ -123,6 +123,7 @@ function makeRol(equipoId: string, overrides: Partial<DreamTeamRol> = {}): Dream
     id: makeTestId('rol'),
     equipoId,
     label: 'Rol de prueba',
+    nivel: 'voluntario',
     activo: true,
     ...overrides,
   }
