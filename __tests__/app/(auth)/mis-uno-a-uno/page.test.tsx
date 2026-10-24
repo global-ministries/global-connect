@@ -7,7 +7,7 @@
  */
 
 import type { ReactElement, ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 
 import MisUnoAUnoPage from '@/app/(auth)/mis-uno-a-uno/page'
 
@@ -120,7 +120,8 @@ describe('MisUnoAUnoPage — Supervisión (S7.2, S7.4)', () => {
     setup({ uno_a_uno_acceso: supervisa, mis_dirigidos: ok([DIRIGIDO]) })
     await renderPage('supervision')
     expect(screen.getByRole('link', { name: 'Supervisión' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('listitem', { name: 'Pedro Ruiz' })).toHaveTextContent('Sin 1 a 1 en 30 días')
+    const tabla = screen.getByRole('table', { name: 'Líderes' })
+    expect(within(tabla).getByText('Pedro Ruiz').closest('tr')).toHaveTextContent('Sin 1 a 1 en 30 días')
     expect(screen.queryByRole('button', { name: /agendar 1 a 1/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Próximos' })).not.toBeInTheDocument()
   })
