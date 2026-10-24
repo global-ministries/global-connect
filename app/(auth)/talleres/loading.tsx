@@ -5,11 +5,11 @@
  * "Mis grupos" row of cards, the catálogo header with its filter tabs,
  * and taller cards with a nested ediciones list — not a spinner.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingTalleres() {
   return (
-    <ContenedorDashboard titulo="Talleres">
+    <PaginaSistema titulo="Talleres">
       <div className="space-y-6">
         <div>
           <SkeletonSistema ancho="120px" alto="24px" className="mb-3" />
@@ -46,6 +46,6 @@ export default function LoadingTalleres() {
           </div>
         </div>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

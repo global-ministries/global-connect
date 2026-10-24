@@ -33,7 +33,7 @@ import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-s
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard, EnlaceSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, EnlaceSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { ChevronRight } from 'lucide-react'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -359,7 +359,7 @@ describe('TallerDetallePage — cabecera', () => {
 
   // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — the
   // read-only nombre used to render a SECOND <h1> on top of the page's own
-  // (ContenedorDashboard's DesktopHeader); it is now a level-2 TituloSistema,
+  // (PaginaSistema's DesktopHeader); it is now a level-2 TituloSistema,
   // so the page keeps exactly one h1.
   it('never renders a raw h1 for the read-only nombre (single page title)', async () => {
     setup({ permisos: { editarTaller: false } })
@@ -988,9 +988,9 @@ describe('TallerDetallePage — content', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Matrimonio sobre la Roca')
-    expect(dashboard?.props.botonRegreso).toEqual({ href: rutaCatalogo(), texto: 'Talleres' })
+    expect(dashboard?.props.regreso).toEqual({ href: rutaCatalogo(), texto: 'Talleres' })
   })
 
   it('shows its ediciones with their estado label', async () => {

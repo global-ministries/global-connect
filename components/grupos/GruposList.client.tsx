@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Trash2, Plus, Users2, Sparkles, UserPlus, Filter, ChevronDown, ChevronUp } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import FiltrosGrupos, { type FiltrosGruposState } from "@/components/ui/FiltrosGrupos"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { PanelLateralSistema } from "@/components/ui/panel-lateral-sistema"
 import { cn } from "@/lib/utils"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
@@ -141,6 +141,7 @@ export default function GruposListClient({
   const sp = useSearchParams()
   const filtros = useMemo(() => getFiltrosFromSearchParams(sp), [sp])
   const [mostrarTodosKpis, setMostrarTodosKpis] = useState(false)
+  const [filtrosAbiertos, setFiltrosAbiertos] = useState(false)
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
@@ -437,7 +438,7 @@ export default function GruposListClient({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap hidden lg:table-cell">
                         {grupo.eliminado ? (
-                          <BadgeSistema variante="default" tamaño="sm" className="bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                          <BadgeSistema variante="default" tamaño="sm" className="bg-danger/10 text-danger-text border-danger/30">Eliminado</BadgeSistema>
                         ) : grupo.activo ? (
                           <BadgeSistema variante="success" tamaño="sm">Activo</BadgeSistema>
                         ) : (
@@ -450,13 +451,13 @@ export default function GruposListClient({
                             canRestore && (
                               <button
                                 onClick={() => restaurarGrupo(grupo.id, grupo.nombre)}
-                                className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 text-xs font-medium"
+                                className="inline-flex items-center gap-1 text-success-text hover:text-success-text/80 text-xs font-medium"
                               >Restaurar</button>
                             )
                           ) : (
                             <button
                               onClick={() => eliminarGrupo(grupo.id, grupo.nombre)}
-                              className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 text-xs font-medium"
+                              className="inline-flex items-center gap-1 text-danger-text hover:text-danger-text/80 text-xs font-medium"
                             >
                               <Trash2 className="w-4 h-4" /> Papelera
                             </button>
@@ -525,7 +526,7 @@ export default function GruposListClient({
                         )}
                       </div>
                       {grupo.eliminado ? (
-                        <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-red-100 text-red-700 border-red-200">Eliminado</BadgeSistema>
+                        <BadgeSistema variante="default" tamaño="sm" className="ml-2 flex-shrink-0 bg-danger/10 text-danger-text border-danger/30">Eliminado</BadgeSistema>
                       ) : grupo.activo ? (
                         <BadgeSistema variante="success" tamaño="sm" className="ml-2 flex-shrink-0">Activo</BadgeSistema>
                       ) : (
@@ -732,27 +733,29 @@ export default function GruposListClient({
             {mostrarFuturos && <TabsTrigger value="futuros">Grupos Futuros</TabsTrigger>}
           </TabsList>
           <div className="flex items-center gap-2 shrink-0">
-            <Sheet>
-              <SheetTrigger asChild>
-                <BotonSistema variante="outline" tamaño="sm" className="relative min-w-0">
-                  <Filter className="w-4 h-4 flex-shrink-0" />
-                  <span className="hidden sm:inline ml-2">Filtros</span>
-                  {filtrosActivos > 0 && (
-                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
-                      {filtrosActivos}
-                    </span>
-                  )}
-                </BotonSistema>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:max-w-md p-0">
-                <SheetHeader className="px-6 py-4 border-b border-border">
-                  <SheetTitle className="text-lg font-semibold text-foreground">Filtros de grupos</SheetTitle>
-                </SheetHeader>
-                <div className="overflow-y-auto max-h-[calc(100vh-80px)]">
-                  <FiltrosGrupos filtros={filtros} onFiltrosChange={onFiltrosChange} segmentos={segmentos} temporadas={temporadas} municipios={municipios || []} parroquias={parroquias || []} />
-                </div>
-              </SheetContent>
-            </Sheet>
+            <BotonSistema
+              variante="outline"
+              tamaño="sm"
+              className="relative min-w-0"
+              aria-label={filtrosActivos > 0 ? `Filtros (${filtrosActivos} activos)` : "Filtros"}
+              aria-haspopup="dialog"
+              aria-expanded={filtrosAbiertos}
+              onClick={() => setFiltrosAbiertos(true)}
+            >
+              <Filter className="w-4 h-4 flex-shrink-0" />
+              <span className="hidden sm:inline ml-2">Filtros</span>
+              {filtrosActivos > 0 && (
+                <span className="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-orange-600 text-white text-[10px] w-4 h-4 z-10">
+                  {filtrosActivos}
+                </span>
+              )}
+            </BotonSistema>
+            <PanelLateralSistema abierto={filtrosAbiertos} onAbiertoChange={setFiltrosAbiertos} titulo="Filtros de grupos">
+              {/* FiltrosGrupos brings its own 24px padding; cancel the panel body padding. */}
+              <div className="-mx-4 -my-4 sm:-mx-6">
+                <FiltrosGrupos filtros={filtros} onFiltrosChange={onFiltrosChange} segmentos={segmentos} temporadas={temporadas} municipios={municipios || []} parroquias={parroquias || []} />
+              </div>
+            </PanelLateralSistema>
             {canCreate && (
               <Link href="/grupos-vida/crear" className="hidden md:block">
                 <BotonSistema variante="primario" tamaño="sm">

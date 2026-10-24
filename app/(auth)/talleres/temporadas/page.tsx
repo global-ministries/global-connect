@@ -27,7 +27,7 @@ import Link from 'next/link'
 import { CalendarRange, ChevronRight } from 'lucide-react'
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   BotonSistema,
   TarjetaSistema,
   TextoSistema,
@@ -67,11 +67,11 @@ function contarLabel(n: number, singular: string, plural: string): string {
 export default async function TemporadasPage() {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Temporadas">
+      <PaginaSistema titulo="Temporadas">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -80,11 +80,11 @@ export default async function TemporadasPage() {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Temporadas">
+      <PaginaSistema titulo="Temporadas">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -95,11 +95,11 @@ export default async function TemporadasPage() {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Temporadas">
+      <PaginaSistema titulo="Temporadas">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -124,10 +124,10 @@ export default async function TemporadasPage() {
     .filter((grupo) => grupo.temporadas.length > 0)
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Temporadas"
-      subtitulo="Qué talleres abren inscripción a la vez, por dirección."
-      accionPrincipal={
+      descripcion="Qué talleres abren inscripción a la vez, por dirección."
+      acciones={
         puedeCrear ? (
           <Link href={rutaTemporadaCrear()}>
             <BotonSistema type="button" variante="primario">
@@ -182,6 +182,6 @@ export default async function TemporadasPage() {
           ))}
         </div>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

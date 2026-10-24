@@ -17,7 +17,7 @@
  */
 
 import MiRecorridoPage from '@/app/(auth)/talleres/mi-recorrido/page'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { MiRecorridoTabs } from '@/app/(auth)/talleres/mi-recorrido/MiRecorridoTabs.client'
 import type {
   ParticipanteTallerSummary,
@@ -159,8 +159,8 @@ describe('MiRecorridoPage — page shell', () => {
     setup()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await MiRecorridoPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Mi Recorrido')
-    expect(dashboard?.props.botonRegreso).toEqual({ href: '/dashboard', texto: 'Inicio' })
+    expect(dashboard?.props.regreso).toEqual({ href: '/dashboard', texto: 'Inicio' })
   })
 })

@@ -38,8 +38,8 @@ function createCapabilitySupabaseClient(rows: CapabilityGrantRow[]) {
 
 const activeRows: CapabilityGrantRow[] = [
   {
-    capability_key: 'pastoral.read.all',
-    experience: 'pastoral',
+    capability_key: 'operating_core.dashboards.read',
+    experience: 'operating_core',
     scope_type: 'global',
     scope_id: null,
     source: 'manual',
@@ -47,8 +47,8 @@ const activeRows: CapabilityGrantRow[] = [
     revoked_at: null,
   },
   {
-    capability_key: 'pastoral.admin.manage',
-    experience: 'pastoral',
+    capability_key: 'operating_core.resources.manage',
+    experience: 'operating_core',
     scope_type: 'equipo',
     scope_id: 'team-1',
     source: 'role',
@@ -59,16 +59,16 @@ const activeRows: CapabilityGrantRow[] = [
 
 const expectedCapabilities = [
   {
-    key: 'pastoral.read.all',
-    experience: 'pastoral',
+    key: 'operating_core.dashboards.read',
+    experience: 'operating_core',
     scopeType: 'global',
     scopeId: undefined,
     source: 'manual',
     grantedAt: '2026-07-24T10:00:00.000Z',
   },
   {
-    key: 'pastoral.admin.manage',
-    experience: 'pastoral',
+    key: 'operating_core.resources.manage',
+    experience: 'operating_core',
     scopeType: 'equipo',
     scopeId: 'team-1',
     source: 'role',
@@ -95,7 +95,7 @@ describe('read-only PlatformSession capabilities', () => {
   it('maps nullable scope ids and excludes revoked grants', async () => {
     const revokedRow: CapabilityGrantRow = {
       ...activeRows[1],
-      capability_key: 'pastoral.one_on_one.create',
+      capability_key: 'operating_core.forms.submit',
       revoked_at: '2026-07-24T12:00:00.000Z',
     }
     const { supabase } = createCapabilitySupabaseClient([...activeRows, revokedRow])

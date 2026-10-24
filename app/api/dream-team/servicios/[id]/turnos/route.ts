@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import {
   hasDreamTeamReadCapability,
@@ -29,6 +30,11 @@ import {
  *        frequency, unlisted ones weekly; without it stored ones are kept. RLS lets the
  *        same people who edit the servicio do it; a trigger rejects a shift of
  *        another campus, an inactive one or one the node does not serve (422).
+ *
+ * Besides the Dream Team read/write capabilities, the Atención al Voluntario
+ * coordinator reads and saves the shifts of a servicio in their area (the equipos
+ * of dream_team_equipos_registrables, the reach of the ficha; not retirado to
+ * save), the same rule as the RLS policies of dream_team_servicio_turnos.
  */
 
 type Ctx = { params: Promise<{ id: string }> | { id: string } }
@@ -43,11 +49,14 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     if (!isDreamTeamEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const s = await requireDreamTeamSession()
     if (!s) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-    if (!hasDreamTeamReadCapability(s)) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
     const id = await resolveId(ctx)
     const supabase = await createSupabaseServerClient()
+    const porCapacidad = hasDreamTeamReadCapability(s)
+    const area = porCapacidad ? null : await fetchEquiposRegistrables(supabase)
+    if (area?.size === 0) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
     const servicio = await createSupabaseDreamTeamRepository(supabase).getServicioById(id)
     if (!servicio) return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
+    if (area && !area.has(servicio.equipoId)) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
 
     const turnos = await fetchTurnos(supabase)
     const [disponibles, porServicio, frecuenciasPorServicio] = await Promise.all([
@@ -73,8 +82,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     if (!isDreamTeamEnabled()) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     const s = await requireDreamTeamSession()
     if (!s) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
-    if (!hasDreamTeamWriteCapability(s)) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
     const id = await resolveId(ctx)
+    const supabase = await createSupabaseServerClient()
+    const porCapacidad = hasDreamTeamWriteCapability(s)
+    const area = porCapacidad ? null : await fetchEquiposRegistrables(supabase)
+    if (area?.size === 0) return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
 
     let body: unknown
     try {
@@ -87,9 +99,11 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const frecuencias = validarFrecuencias((body as { frecuencias?: unknown }).frecuencias, validacion.turnoIds)
     if (!frecuencias.ok) return NextResponse.json({ error: frecuencias.message }, { status: 400 })
 
-    const supabase = await createSupabaseServerClient()
     const servicio = await createSupabaseDreamTeamRepository(supabase).getServicioById(id)
     if (!servicio) return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })
+    if (area && (servicio.estado === 'retirado' || !area.has(servicio.equipoId))) {
+      return NextResponse.json({ error: 'Permiso denegado' }, { status: 403 })
+    }
 
     try {
       await guardarTurnosDeServicio(supabase, id, validacion.turnoIds, frecuencias.frecuencias)

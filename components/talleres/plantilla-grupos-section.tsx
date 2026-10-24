@@ -95,9 +95,6 @@ interface Props {
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
 const ROL_LABELS: Record<string, string> = { lider: 'Líder', voluntario: 'Voluntario' }
 const ROL_BADGE_VARIANTE: Record<string, 'info' | 'default'> = { lider: 'info', voluntario: 'default' }
-const BOTON_ICONO =
-  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground'
-
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
   return [nombre, apellido].filter((p): p is string => typeof p === 'string' && p.length > 0).join(' ') || 'Persona sin nombre'
 }
@@ -254,24 +251,24 @@ export function PlantillaGruposSection({
                         onChange={(e) => setCapacidadEditada(e.target.value)}
                         className="w-28"
                       />
-                      <button
+                      <BotonSistema
                         type="button"
+                        variante="ghost"
+                        soloIcono
+                        icono={Check}
                         aria-label="Guardar grupo"
                         title="Guardar grupo"
-                        className={BOTON_ICONO}
                         onClick={() => guardarGrupo(grupo.id)}
-                      >
-                        <Check className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                      <button
+                      />
+                      <BotonSistema
                         type="button"
+                        variante="ghost"
+                        soloIcono
+                        icono={X}
                         aria-label="Cancelar edición del grupo"
                         title="Cancelar"
-                        className={BOTON_ICONO}
                         onClick={() => setEditandoId(null)}
-                      >
-                        <X className="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      />
                     </div>
                   ) : (
                     <div className="min-w-0 flex-1">
@@ -289,20 +286,20 @@ export function PlantillaGruposSection({
 
                   {puedeEditar && editandoId !== grupo.id && (
                     <div className="flex flex-shrink-0 items-center gap-1">
-                      <button
+                      <BotonSistema
                         type="button"
+                        variante="ghost"
+                        soloIcono
+                        icono={Pencil}
                         aria-label={`Editar grupo ${grupo.nombre}`}
                         title="Editar grupo"
-                        className={BOTON_ICONO}
                         onClick={() => {
                           setEditandoId(grupo.id)
                           setNombreEditado(grupo.nombre)
                           setCapacidadEditada(String(grupo.capacidad))
                           setError(null)
                         }}
-                      >
-                        <Pencil className="h-4 w-4" aria-hidden="true" />
-                      </button>
+                      />
                       <BotonSistema
                         type="button"
                         variante="outline"
@@ -327,17 +324,17 @@ export function PlantillaGruposSection({
                         </BadgeSistema>
                       </div>
                       {puedeEditar && (
-                        <button
+                        <BotonSistema
                           type="button"
+                          variante="ghost"
+                          soloIcono
+                          icono={UserMinus}
                           aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)} del grupo`}
                           title="Quitar del grupo"
-                          className={BOTON_ICONO}
                           onClick={() =>
                             setConfirmandoQuitar({ id: f.id, nombre: nombreCompleto(f.nombre, f.apellido) })
                           }
-                        >
-                          <UserMinus className="h-4 w-4" aria-hidden="true" />
-                        </button>
+                        />
                       )}
                     </li>
                   ))}

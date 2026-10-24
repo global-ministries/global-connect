@@ -7,7 +7,18 @@ import { z } from "zod";
 import { useRouter } from "next/navigation";
 import SelectLeaderModal from '@/components/modals/SelectLeaderModal';
 import { createGroup } from "@/lib/actions/group.actions";
-import { InputSistema, SelectSistema, BotonSistema } from "@/components/ui/sistema-diseno";
+import { RefreshCw, UserPlus } from "lucide-react";
+import {
+  InputSistema,
+  SelectSistema,
+  BotonSistema,
+  PieAccionesSistema,
+  SeccionesSistema,
+  TarjetaSistema,
+  CamposSistema,
+} from "@/components/ui/sistema-diseno";
+import { cn } from "@/lib/utils";
+import { AvisoFormulario } from "./aviso-formulario";
 
 // Esquema de validación con Zod
 const groupCreateSchema = z.object({
@@ -95,7 +106,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
         if (data?.nombre) {
           setValue("nombre", data.nombre, { shouldValidate: true });
         }
-      } catch (e) {
+      } catch {
         // silenciar
       } finally {
         setSugerenciaCargando(false);
@@ -184,7 +195,7 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
             const match = (json.ubicaciones || []).find((u: { id: string; nombre: string }) => u.nombre === data.ubicacion);
             if (match) segmentoUbicacionId = match.id;
           }
-        } catch (e) {
+        } catch {
           // silencioso, no bloquea creación
         }
       }
@@ -216,178 +227,163 @@ export default function GroupCreateForm({ temporadas, segmentos, userRoles = [],
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
+      {error && <AvisoFormulario tono="error">{error}</AvisoFormulario>}
       {esDirectorEtapa && (
-        <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-xl">
-          <p className="text-sm text-orange-700 dark:text-orange-400">
-            <strong>Nota:</strong> Como director de etapa, el grupo que crees quedará en estado <strong>pendiente de aprobación</strong>. Un administrador o pastor deberá aprobarlo para activarlo.
-          </p>
-        </div>
+        <AvisoFormulario tono="marca">
+          <strong>Nota:</strong> Como director de etapa, el grupo que crees quedará en estado <strong>pendiente de aprobación</strong>. Un administrador o pastor deberá aprobarlo para activarlo.
+        </AvisoFormulario>
       )}
-      {/* Campos en grid para consistencia visual */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Campo Nombre: ocupa dos columnas en md */}
-        <div className="space-y-2 md:col-span-2">
-          <InputSistema
-            id="nombre"
-            label="Nombre del Grupo"
-            placeholder="Ingresa el nombre del grupo"
-            error={errors.nombre?.message}
-            disabled
-            {...register("nombre")}
-          />
-        </div>
-
-        {/* Campo Ubicación */}
-        <div className="space-y-2">
-          <Controller
-            name="ubicacion"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Ubicación"
-                placeholder="Selecciona ubicación"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.ubicacion?.message as string}
-                opciones={[
-                  { valor: "Barquisimeto", etiqueta: "Barquisimeto" },
-                  { valor: "Cabudare", etiqueta: "Cabudare" },
-                ]}
+      <SeccionesSistema>
+        <TarjetaSistema className="p-4 sm:p-6">
+          <CamposSistema>
+            {/* El nombre se sugiere a partir de ubicación, temporada y segmento */}
+            <div className="col-span-full">
+              <InputSistema
+                id="nombre"
+                label="Nombre del Grupo"
+                placeholder="Ingresa el nombre del grupo"
+                error={errors.nombre?.message}
+                disabled
+                {...register("nombre")}
               />
-            )}
-          />
-        </div>
+            </div>
 
-        {/* Campo Temporada */}
-        <div className="space-y-2">
-          <Controller
-            name="temporada_id"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Temporada"
-                placeholder="Selecciona una temporada"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.temporada_id?.message}
-                opciones={temporadas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
-              />
-            )}
-          />
-        </div>
+            <Controller
+              name="ubicacion"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Ubicación"
+                  placeholder="Selecciona ubicación"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={errors.ubicacion?.message as string}
+                  opciones={[
+                    { valor: "Barquisimeto", etiqueta: "Barquisimeto" },
+                    { valor: "Cabudare", etiqueta: "Cabudare" },
+                  ]}
+                />
+              )}
+            />
 
-        {/* Campo Segmento */}
-        <div className="space-y-2">
-          <Controller
-            name="segmento_id"
-            control={control}
-            render={({ field }) => (
-              <SelectSistema
-                label="Segmento"
-                placeholder="Selecciona un segmento"
-                value={field.value}
-                onValueChange={field.onChange}
-                error={errors.segmento_id?.message}
-                opciones={segmentos.map((s) => ({ valor: s.id, etiqueta: s.nombre }))}
-              />
-            )}
-          />
-        </div>
+            <Controller
+              name="temporada_id"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Temporada"
+                  placeholder="Selecciona una temporada"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={errors.temporada_id?.message}
+                  opciones={temporadas.map((t) => ({ valor: t.id, etiqueta: t.nombre }))}
+                />
+              )}
+            />
 
-        {/* Director de Etapa */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label htmlFor="director-etapa" className="block text-sm font-medium text-foreground">Director de Etapa</label>
-            {segmentoId && !esDirectorEtapa && (
-              <button
-                type="button"
-                onClick={() => fetchDirectores(segmentoId)}
-                className="text-xs text-[var(--brand-primary)] hover:underline disabled:opacity-40"
-                disabled={cargandoDirectores}
-              >
-                {cargandoDirectores ? 'Actualizando...' : 'Recargar'}
-              </button>
-            )}
-          </div>
-          <Controller name="director_etapa_segmento_lider_id" control={control} render={({ field }) => {
-            const placeholder = cargandoDirectores
-              ? 'Cargando...'
-              : directoresError
-                ? `Error: ${directoresError}`
-                : directores.length
-                  ? 'Selecciona un director'
-                  : 'Sin directores';
-            return (
-              <SelectSistema
-                id="director-etapa"
-                placeholder={placeholder}
-                value={field.value || undefined}
-                onValueChange={field.onChange}
-                error={errors.director_etapa_segmento_lider_id?.message}
-                disabled={esDirectorEtapa || !segmentoId || cargandoDirectores || !!directoresError || directores.length === 0}
-                opciones={directores.map(d => ({ valor: d.id, etiqueta: d.nombre }))}
-              />
-            );
-          }} />
-          {directoresError && (
-            <p className="text-xs text-red-600 dark:text-red-400">No se pudieron cargar los directores. Intenta recargar.</p>
-          )}
-        </div>
+            <Controller
+              name="segmento_id"
+              control={control}
+              render={({ field }) => (
+                <SelectSistema
+                  label="Segmento"
+                  placeholder="Selecciona un segmento"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  error={errors.segmento_id?.message}
+                  opciones={segmentos.map((s) => ({ valor: s.id, etiqueta: s.nombre }))}
+                />
+              )}
+            />
 
-        {/* Líder Inicial con modal global */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-foreground">Líder Inicial (opcional)</label>
-          <div className="flex items-center gap-3">
-            <BotonSistema
-              type="button"
-              variante="outline"
-              onClick={() => setShowLeaderModal(true)}
-              disabled={!segmentoId}
-              className="min-w-[180px]"
-            >
-              {leaderResumen ? 'Cambiar líder' : 'Seleccionar líder'}
-            </BotonSistema>
-            {leaderResumen && (
-              <div className="text-sm text-foreground truncate max-w-xs" title={leaderResumen}>
-                {leaderResumen}
+            {/* Director de Etapa */}
+            <div className="space-y-2">
+              <div className="flex min-h-5 items-center justify-between gap-2">
+                <label htmlFor="director-etapa" className="block text-sm font-medium text-foreground">Director de Etapa</label>
+                {segmentoId && !esDirectorEtapa && (
+                  <button
+                    type="button"
+                    onClick={() => fetchDirectores(segmentoId)}
+                    className="-my-3 -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 text-sm font-medium text-brand-text transition-colors duration-200 hover:bg-[var(--brand-accent)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
+                    disabled={cargandoDirectores}
+                  >
+                    <RefreshCw className={cn("size-4", cargandoDirectores && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
+                    {cargandoDirectores ? 'Actualizando...' : 'Recargar'}
+                  </button>
+                )}
               </div>
-            )}
-            {!leaderResumen && (
-              <div className="text-xs text-muted-foreground">Opcional: puedes asignarlo después.</div>
-            )}
-          </div>
-          <SelectLeaderModal
-            open={showLeaderModal}
-            onClose={() => setShowLeaderModal(false)}
-            segmentoId={segmentoId}
-            onSelect={(u) => {
-              setValue('lider_usuario_id', u.id, { shouldValidate: true });
-              setLeaderResumen(`${u.nombre} ${u.apellido}`.trim());
-            }}
-            title="Seleccionar Líder Inicial"
-            description="Busca entre los líderes disponibles. Los que no lideran grupo activo aparecen primero."
-          />
-        </div>
-      </div>
+              <Controller name="director_etapa_segmento_lider_id" control={control} render={({ field }) => {
+                const placeholder = cargandoDirectores
+                  ? 'Cargando...'
+                  : directoresError
+                    ? `Error: ${directoresError}`
+                    : directores.length
+                      ? 'Selecciona un director'
+                      : 'Sin directores';
+                return (
+                  <SelectSistema
+                    id="director-etapa"
+                    placeholder={placeholder}
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                    error={errors.director_etapa_segmento_lider_id?.message}
+                    disabled={esDirectorEtapa || !segmentoId || cargandoDirectores || !!directoresError || directores.length === 0}
+                    opciones={directores.map(d => ({ valor: d.id, etiqueta: d.nombre }))}
+                  />
+                );
+              }} />
+              {directoresError && (
+                <p className="text-sm text-danger-text">No se pudieron cargar los directores. Intenta recargar.</p>
+              )}
+            </div>
 
-      {/* Botón de envío */}
-      <div className="pt-2">
+            {/* Líder Inicial con modal global */}
+            <div role="group" aria-labelledby="lider-inicial-titulo" className="col-span-full space-y-2">
+              <p id="lider-inicial-titulo" className="text-sm font-medium text-foreground">Líder Inicial (opcional)</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <BotonSistema
+                  type="button"
+                  variante="outline"
+                  icono={UserPlus}
+                  onClick={() => setShowLeaderModal(true)}
+                  disabled={!segmentoId}
+                >
+                  {leaderResumen ? 'Cambiar líder' : 'Seleccionar líder'}
+                </BotonSistema>
+                {leaderResumen ? (
+                  <p className="min-w-0 max-w-full truncate text-sm text-foreground" title={leaderResumen}>
+                    {leaderResumen}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Opcional: puedes asignarlo después.</p>
+                )}
+              </div>
+              <SelectLeaderModal
+                open={showLeaderModal}
+                onClose={() => setShowLeaderModal(false)}
+                segmentoId={segmentoId}
+                onSelect={(u) => {
+                  setValue('lider_usuario_id', u.id, { shouldValidate: true });
+                  setLeaderResumen(`${u.nombre} ${u.apellido}`.trim());
+                }}
+                title="Seleccionar Líder Inicial"
+                description="Busca entre los líderes disponibles. Los que no lideran grupo activo aparecen primero."
+              />
+            </div>
+          </CamposSistema>
+        </TarjetaSistema>
+      </SeccionesSistema>
+
+      <PieAccionesSistema fijo={false} className="bg-transparent">
         <BotonSistema
           type="submit"
           variante="primario"
-          tamaño="lg"
-          className="w-full md:w-auto md:min-w-[200px] md:ml-auto md:block"
           disabled={isLoading}
           cargando={isLoading}
         >
           {isLoading || sugerenciaCargando ? "Creando..." : "Crear Grupo y Continuar"}
         </BotonSistema>
-      </div>
+      </PieAccionesSistema>
     </form>
   );
 }

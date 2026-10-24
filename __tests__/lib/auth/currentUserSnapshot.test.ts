@@ -6,7 +6,7 @@
  * support_user_capabilities → platformSession), which is why the sidebar
  * used to paint only permission-free items for seconds on every full load.
  * This module resolves the same shape on the server so
- * app/(auth)/layout.tsx and app/(pastoral)/layout.tsx can hand
+ * app/(auth)/layout.tsx can hand
  * CurrentUserProvider an `initial` snapshot that is already correct on the
  * first paint.
  *

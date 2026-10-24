@@ -21,7 +21,7 @@ import { useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { FolderTree } from 'lucide-react'
 
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
@@ -65,13 +65,13 @@ export interface TurnosEstructura {
 export function EstructuraClient(props: EstructuraClientProps): ReactElement {
   if (props.arbol.length === 0) {
     return (
-      <ContenedorDashboard titulo="Estructura">
+      <PaginaSistema titulo="Estructura">
         <EstadoVacio
           icono={FolderTree}
           titulo="No se encontraron equipos"
           subtitulo="Puede que la estructura esté vacía, o que tu sesión no tenga acceso de lectura sobre ningún nodo del árbol."
         />
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
   return <EstructuraConArbol {...props} />
@@ -141,7 +141,7 @@ function EstructuraConArbol({
   }
 
   return (
-    <ContenedorDashboard titulo="Estructura">
+    <PaginaSistema titulo="Estructura">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         {panelAbierto ? <PanelOrganigrama {...arbolProps} onCerrar={alternarPanel} /> : <RielOrganigrama onAbrir={alternarPanel} />}
 
@@ -184,6 +184,6 @@ function EstructuraConArbol({
           )}
         </div>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

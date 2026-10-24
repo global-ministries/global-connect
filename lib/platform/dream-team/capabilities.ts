@@ -78,11 +78,14 @@ export const hasDreamTeamWriteCapability = (session: PlatformSession) =>
   WRITE_CAPABILITIES.some((key) => hasCapability(session, key)) ||
   hasScopedCapabilityAnywhere(session, 'dream_team.direct')
 
-// "Mi equipo" only: everyone who passes the capability read gate, plus a Grupos de Vida director
-// by system role. Never use this for Servidores, Estructura or an API: those stay on
-// hasDreamTeamReadCapability.
+// "Mi equipo" only: everyone who passes the capability read gate, a Grupos de Vida director by
+// system role, and an area or sub-area coordinator (dream_team.coordinate, read-only: it passes
+// neither the read nor the write gate; RLS scopes what they see to their subtree). Never use this
+// for Servidores, Estructura or an API: those stay on hasDreamTeamReadCapability.
 export const hasDreamTeamMiEquipoAccess = (session: PlatformSession) =>
-  hasDreamTeamReadCapability(session) || isGdvDirectorSession(session)
+  hasDreamTeamReadCapability(session) ||
+  isGdvDirectorSession(session) ||
+  hasScopedCapabilityAnywhere(session, 'dream_team.coordinate')
 
 export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
   hasCapability(session, 'dream_team.metrics.read')

@@ -7,6 +7,12 @@ jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: () => cr
 jest.mock('next/navigation', () => ({ redirect: (path: string) => redirect(path) }))
 jest.mock('@/app/(auth)/configuracion/grupos-vida/geocodificacion-panel', () => ({ GeocodificacionPanel: () => null }))
 
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo }: { titulo?: string }) => <h1>{titulo}</h1>,
+}))
+
+import { render, screen } from '@testing-library/react'
+import type { ReactElement } from 'react'
 import ConfiguracionGruposPage from '@/app/(auth)/configuracion/grupos-vida/page'
 
 const authId = '11111111-1111-1111-1111-111111111111'
@@ -52,5 +58,20 @@ describe('ConfiguracionGruposPage admin check', () => {
 
     await expect(ConfiguracionGruposPage()).rejects.toThrow('redirect:/grupos-vida')
     expect(client.rpc).not.toHaveBeenCalledWith('es_superadmin', expect.anything())
+  })
+})
+
+describe('ConfiguracionGruposPage layout', () => {
+  it('uses the full content width and lays its cards out with SeccionesSistema', async () => {
+    createSupabaseServerClient.mockResolvedValue(createClient({ esAdmin: true }))
+
+    const { container } = render((await ConfiguracionGruposPage()) as ReactElement)
+
+    expect(container.querySelector('[data-ancho="form"]')).toBeNull()
+    const secciones = container.querySelector('[data-slot="secciones"]')
+    expect(secciones).not.toBeNull()
+    for (const nombre of [/Geocodificación de Direcciones/, /Tipos de Grupo/, /Casas Anfitrionas/]) {
+      expect(secciones).toContainElement(await screen.findByRole('heading', { name: nombre }))
+    }
   })
 })

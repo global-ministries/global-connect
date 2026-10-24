@@ -2,7 +2,8 @@
  * Bodies of POST /api/ninos/checkin and /api/ninos/checkout (N9) and the
  * HTTP status for an RPC error. The screens keep mapping the error code to
  * Spanish (mensajeDeErrorCheckin / mensajeDeErrorRetiro), so only the code
- * travels back; the RPC message may name a room or a child.
+ * travels back (plus a message only when it is a fixed code, errorPublico);
+ * the RPC message may name a room or a child.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
@@ -13,7 +14,7 @@ const esObjeto = (v: unknown): v is Objeto => typeof v === 'object' && v !== nul
 const esUuids = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string' && UUID.test(x))
 
 export type EntradaCheckin = { ninoIds: string[]; salonIds: string[]; turnoId: string; fecha: string }
-export type EntradaCheckout = { codigo: string; turnoId: string; fecha: string; retiradoPor: string }
+export type EntradaCheckout = { codigo: string; turnoId: string; fecha: string; retiradoPor: string; motivoOtra: string | null }
 
 function servicio(o: Objeto): { turnoId: string; fecha: string } | null {
   const { turnoId, fecha } = o
@@ -35,8 +36,18 @@ export function parseCheckout(body: unknown): EntradaCheckout | null {
   const s = servicio(body)
   const codigo = typeof body.codigo === 'string' ? body.codigo.trim() : ''
   const retiradoPor = typeof body.retiradoPor === 'string' ? body.retiradoPor.trim() : ''
-  if (!s || !/^\d{3,4}$/.test(codigo) || !retiradoPor || retiradoPor.length > 200) return null
-  return { codigo, retiradoPor, ...s }
+  // "Otra persona" (someone outside the child's list) travels with a reason.
+  const motivoOtra = typeof body.motivoOtra === 'string' ? body.motivoOtra.trim() : ''
+  if (!s || !/^\d{3,4}$/.test(codigo) || !retiradoPor || retiradoPor.length > 200 || motivoOtra.length > 300) return null
+  return { codigo, retiradoPor, motivoOtra: motivoOtra || null, ...s }
+}
+
+/** RPC messages that are fixed codes (never data), safe to send to the screen. */
+const MENSAJES_PUBLICOS = new Set(['retiro_no_autorizado'])
+
+export function errorPublico(error: { code?: string; message?: string }): { code?: string; message?: string } {
+  const message = (error.message ?? '').trim()
+  return MENSAJES_PUBLICOS.has(message) ? { code: error.code, message } : { code: error.code }
 }
 
 export function statusDeError(code: string | undefined): number {

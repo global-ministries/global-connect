@@ -21,7 +21,7 @@
 
 import ReportesPage from '@/app/(auth)/talleres/reportes/page'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { ContenedorDashboard, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { ReporteRow } from '@/lib/platform/talleres/reportes'
 
@@ -273,7 +273,7 @@ describe('ReportesPage — page shell', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await ReportesPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Reportes')
   })
 })

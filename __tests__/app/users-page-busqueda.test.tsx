@@ -70,10 +70,9 @@ jest.mock('@/hooks/useCurrentUser', () => ({
 jest.mock('@/hooks/useCampus', () => ({
   useCampus: () => ({ campusId: null }),
 }))
-// ContenedorDashboard lazy-loads its header behind Suspense — synchronous test double.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+// PaginaSistema lazy-loads its desktop header behind Suspense — synchronous test double.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: () => null,
 }))
 
 import PaginaUsuarios from '@/app/(auth)/users/page'

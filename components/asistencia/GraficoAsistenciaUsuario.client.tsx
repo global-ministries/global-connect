@@ -1,7 +1,9 @@
 "use client"
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-import { TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { BarChart3 } from 'lucide-react'
+import { TarjetaSistema, coloresMarca } from '@/components/ui/sistema-diseno'
+import { EstadoVacioAsistencia } from './partes-asistencia'
 
 type SerieTemporal = {
   mes: string
@@ -28,17 +30,17 @@ export default function GraficoAsistenciaUsuario({ data }: GraficoAsistenciaUsua
   }))
 
   return (
-    <TarjetaSistema className="p-6">
-      <TituloSistema nivel={3} className="mb-6">
+    <TarjetaSistema className="p-4 sm:p-6">
+      <h2 className="mb-4 text-lg font-semibold text-foreground sm:mb-6">
         Tendencia de Asistencia Mensual
-      </TituloSistema>
+      </h2>
 
       {chartData.length === 0 ? (
-        <div className="flex items-center justify-center h-64 text-muted-foreground/50">
-          <div className="text-center">
-            <p className="text-lg">📊</p>
-            <p className="mt-2">No hay datos suficientes para mostrar el gráfico</p>
-          </div>
+        <div className="flex h-64 items-center justify-center">
+          <EstadoVacioAsistencia
+            icono={BarChart3}
+            titulo="No hay datos suficientes para mostrar el gráfico"
+          />
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={300}>
@@ -59,7 +61,8 @@ export default function GraficoAsistenciaUsuario({ data }: GraficoAsistenciaUsua
               contentStyle={{
                 backgroundColor: 'var(--card)',
                 border: '1px solid var(--border)',
-                borderRadius: '12px',
+                // Surface radius (rounded-2xl)
+                borderRadius: 'calc(var(--radius) + 8px)',
                 padding: '8px 12px',
                 color: 'var(--foreground)',
               }}
@@ -73,9 +76,9 @@ export default function GraficoAsistenciaUsuario({ data }: GraficoAsistenciaUsua
             <Line
               type="monotone"
               dataKey="porcentaje"
-              stroke="#3b82f6"
+              stroke={coloresMarca.naranja}
               strokeWidth={3}
-              dot={{ fill: '#3b82f6', r: 4 }}
+              dot={{ fill: coloresMarca.naranja, r: 4 }}
               activeDot={{ r: 6 }}
               name="% Asistencia"
             />

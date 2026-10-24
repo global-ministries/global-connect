@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
@@ -9,7 +9,10 @@ import {
   mensajeDeErrorFamilia,
   padreNuevoVacio,
   parseCoincidencias,
+  parseConyuge,
+  rolDeConyuge,
   validarPadreNuevo,
+  type Conyuge,
   type PadreCoincidencia,
   type PadreNuevoForm,
 } from '@/lib/platform/ninos/familia'
@@ -17,6 +20,7 @@ import type { FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
 import type { Json } from '@/lib/supabase/database.types'
 
 import { OPCIONES_GENERO } from './campos-nino'
+import { PieFormulario } from './pie-formulario'
 
 type Props = {
   familia: FamiliaEncontrada
@@ -26,10 +30,23 @@ type Props = {
 
 type Modo = 'existente' | 'nueva'
 
+/** The adult's recorded spouse, or null when there is none or the lookup fails. */
+async function buscarConyuge(id: string): Promise<Conyuge | null> {
+  try {
+    const res = await createClient().rpc('ninos_conyuge_de', { p_usuario_id: id })
+    return res?.error ? null : parseConyuge(res?.data)
+  } catch {
+    // Without the lookup the form still offers the search and the new-person option.
+    return null
+  }
+}
+
 /**
  * "Agregar padre o madre": links an existing person (found with the masked
  * ninos_buscar_padre lookup and explicitly confirmed) or a new adult as the
- * parent of the checked children (ninos_vincular_padre).
+ * parent of the checked children (ninos_vincular_padre). The adult's recorded
+ * spouse, when not already a parent of the family, is suggested first and is
+ * linked only after the same explicit confirmation.
  */
 export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
   const [elegidos, setElegidos] = useState<Record<string, boolean>>(() =>
@@ -42,6 +59,20 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
   const [nuevo, setNuevo] = useState<PadreNuevoForm>(padreNuevoVacio)
   const [errores, setErrores] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
+  const [conyuge, setConyuge] = useState<Conyuge | null>(null)
+
+  // A string key, not the array: a re-render with a new padres array must not refetch.
+  const padresClave = familia.padres.map((p) => p.id).join(',')
+  useEffect(() => {
+    let vigente = true
+    const yaEsPadre = new Set(padresClave.split(','))
+    void buscarConyuge(familia.id).then((c) => {
+      if (vigente && c && !yaEsPadre.has(c.id)) setConyuge(c)
+    })
+    return () => {
+      vigente = false
+    }
+  }, [familia.id, padresClave])
 
   const ninoIds = familia.hijos.filter((h) => elegidos[h.id]).map((h) => h.id)
   const setCampo = (k: keyof PadreNuevoForm, v: string) => setNuevo((p) => ({ ...p, [k]: v }))
@@ -143,6 +174,21 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
 
       {modo === 'existente' ? (
         <section className="space-y-4">
+          {conyuge && (
+            <div className="space-y-3 rounded-xl border border-border bg-card p-3 text-foreground">
+              <p className="text-sm font-medium">
+                {`${conyuge.nombre} ${conyuge.apellido}`.trim()} — cónyuge de {familia.nombre}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <BotonSistema type="button" disabled={guardando} onClick={() => void vincular({ id: conyuge.id })}>
+                  Sí, es su {rolDeConyuge(conyuge.genero)}
+                </BotonSistema>
+                <BotonSistema type="button" variante="outline" disabled={guardando} onClick={() => setConyuge(null)}>
+                  No, buscar otra persona
+                </BotonSistema>
+              </div>
+            </div>
+          )}
           <TextoSistema variante="sutil" tamaño="sm">
             Búscala por cédula o teléfono y confirma que es la persona correcta.
           </TextoSistema>
@@ -237,7 +283,7 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
         </ul>
       )}
 
-      <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-background py-4">
+      <PieFormulario>
         <BotonSistema type="button" variante="outline" className="flex-1 sm:flex-none" onClick={onCancelar}>
           Cancelar
         </BotonSistema>
@@ -246,7 +292,7 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
             {guardando ? 'Guardando…' : 'Agregar a la familia'}
           </BotonSistema>
         )}
-      </div>
+      </PieFormulario>
     </div>
   )
 }

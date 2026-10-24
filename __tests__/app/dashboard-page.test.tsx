@@ -9,6 +9,7 @@ const obtenerCasasRevisionPendiente = jest.fn()
 
 const mockCampusCookie: { value: string | undefined } = { value: undefined }
 
+jest.mock('@/app/(auth)/dashboard/mis-hijos-dashboard', () => ({ cargarMisHijosDashboard: async () => null }))
 jest.mock('@/lib/dashboard/obtenerDatosDashboard', () => ({ obtenerDatosDashboard: (...args: unknown[]) => obtenerDatosDashboard(...args) }))
 jest.mock('next/headers', () => ({
   cookies: async () => ({

@@ -374,7 +374,8 @@ export function TablaInscripciones({
 
       {/* Desktop — table */}
       <div className="hidden sm:block overflow-hidden">
-        <TarjetaSistema className="p-0">
+        {/* Scrolls sideways between sm and lg instead of clipping the actions column. */}
+        <TarjetaSistema className="overflow-x-auto p-0">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border text-left">

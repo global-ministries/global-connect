@@ -47,7 +47,7 @@
 import { FileText } from 'lucide-react'
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   BadgeSistema,
   TarjetaSistema,
   TextoSistema,
@@ -78,11 +78,11 @@ function formatFecha(iso: string | null): string {
 export default async function ReportesPage() {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Reportes">
+      <PaginaSistema titulo="Reportes">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -91,11 +91,11 @@ export default async function ReportesPage() {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Reportes">
+      <PaginaSistema titulo="Reportes">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -106,11 +106,11 @@ export default async function ReportesPage() {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Reportes">
+      <PaginaSistema titulo="Reportes">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -130,9 +130,9 @@ export default async function ReportesPage() {
   for (const r of rows) counts.set(r.estado, (counts.get(r.estado) ?? 0) + 1)
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Reportes"
-      subtitulo="Reportes finales de cada grupo, en todos tus talleres."
+      descripcion="Reportes finales de cada grupo, en todos tus talleres."
     >
       {mostrarContadores && (
         <div className="flex flex-wrap gap-2">
@@ -223,6 +223,6 @@ export default async function ReportesPage() {
           </div>
         </>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

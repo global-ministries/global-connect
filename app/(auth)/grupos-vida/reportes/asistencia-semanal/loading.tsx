@@ -1,8 +1,8 @@
-import { ContenedorDashboard, TarjetaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingReporteSemanal() {
   return (
-    <ContenedorDashboard titulo="Asistencia Semanal" descripcion="Cargando reporte...">
+    <PaginaSistema titulo="Asistencia Semanal" descripcion="Cargando reporte...">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <TarjetaSistema className="p-6">
           <SkeletonSistema ancho="40%" alto="20px" />
@@ -21,6 +21,6 @@ export default function LoadingReporteSemanal() {
           </div>
         </TarjetaSistema>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

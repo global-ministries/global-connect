@@ -5,11 +5,11 @@
  * real shape, not a spinner): the inscripciones table shape and the
  * retiros card list.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingPendientes() {
   return (
-    <ContenedorDashboard titulo="Pendientes">
+    <PaginaSistema titulo="Pendientes">
       <div className="space-y-6">
         {/* Inscripciones por aprobar */}
         <div>
@@ -43,6 +43,6 @@ export default function LoadingPendientes() {
           </div>
         </div>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

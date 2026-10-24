@@ -43,7 +43,7 @@
 import Link from 'next/link'
 import { Compass } from 'lucide-react'
 
-import { ContenedorDashboard, BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { CatalogoTalleresClient } from '@/components/talleres/catalogo-talleres-client'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -63,11 +63,11 @@ export const metadata = { title: 'Talleres' }
 export default async function TalleresCatalogoPage() {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Talleres">
+      <PaginaSistema titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -76,11 +76,11 @@ export default async function TalleresCatalogoPage() {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Talleres">
+      <PaginaSistema titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -91,11 +91,11 @@ export default async function TalleresCatalogoPage() {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Talleres">
+      <PaginaSistema titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -138,10 +138,10 @@ export default async function TalleresCatalogoPage() {
   const misTalleres = await loadMisTalleres(client, catalogo)
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Talleres"
-      botonRegreso={{ href: '/dashboard', texto: 'Inicio' }}
-      accionPrincipal={
+      regreso={{ href: '/dashboard', texto: 'Inicio' }}
+      acciones={
         <Link href={rutaExplorar()}>
           <BotonSistema type="button" variante="outline" icono={Compass}>
             Explorar
@@ -156,6 +156,6 @@ export default async function TalleresCatalogoPage() {
         misTalleres={misTalleres}
         opciones={opciones}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

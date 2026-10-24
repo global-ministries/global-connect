@@ -192,15 +192,19 @@ export function SelectorPareja({
     if (cedulaTipeada === '' || pending) return
     setAviso(null)
     startTransition(async () => {
+      // Updates after an await leave the transition unless wrapped again; unwrapped,
+      // the confirm step can render while `pending` still disables its buttons.
       try {
         const result = await buscarParejaPorCedula(edicionId, cedulaTipeada)
-        if (result.ok && result.encontrada) {
-          setPaso({ tipo: 'confirmar', cedula: cedulaTipeada, nombreMostrado: result.nombreMostrado })
-        } else {
-          setAviso(result.message)
-        }
+        startTransition(() => {
+          if (result.ok && result.encontrada) {
+            setPaso({ tipo: 'confirmar', cedula: cedulaTipeada, nombreMostrado: result.nombreMostrado })
+          } else {
+            setAviso(result.message)
+          }
+        })
       } catch {
-        setAviso(ERROR_TRANSPORTE)
+        startTransition(() => setAviso(ERROR_TRANSPORTE))
       }
     })
   }
@@ -212,9 +216,9 @@ export function SelectorPareja({
       try {
         const result = await inscribirseATaller({ edicionId, pareja })
         if (result.ok) onInscrito()
-        else setAviso(result.message)
+        else startTransition(() => setAviso(result.message))
       } catch {
-        setAviso(ERROR_TRANSPORTE)
+        startTransition(() => setAviso(ERROR_TRANSPORTE))
       }
     })
   }
@@ -283,7 +287,7 @@ export function SelectorPareja({
               type="button"
               onClick={descartarConyuge}
               disabled={pending}
-              className="self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+              className="inline-flex min-h-11 items-center self-start rounded-xl text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               No es mi cónyuge actual
             </button>
@@ -307,7 +311,7 @@ export function SelectorPareja({
               type="button"
               onClick={abrirFichaNueva}
               disabled={pending}
-              className="self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+              className="inline-flex min-h-11 items-center self-start rounded-xl text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               Mi pareja no está en el sistema
             </button>

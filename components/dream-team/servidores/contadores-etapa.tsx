@@ -51,7 +51,7 @@ export function ContadoresEtapa({ contadores, etapa, onEtapaChange }: Contadores
             className={cn(
               'flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors',
               activa
-                ? 'border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground'
+                ? 'border-brand bg-brand-tint text-foreground'
                 : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
               ANILLO,
             )}

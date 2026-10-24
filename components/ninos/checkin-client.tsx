@@ -18,13 +18,15 @@ import {
   type TurnoFila,
 } from '@/lib/platform/ninos/checkin'
 import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { llegandoAFamilia, type FamiliaLlegando } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
 import { AdultoSinHijos } from './adulto-sin-hijos'
-import { registrarIngresoApi } from './api-visita'
+import { registrarIngresoApi, type FilaIngreso } from './api-visita'
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
+import { Llegando } from './llegando'
 import { PanelLateralNinos } from './panel-lateral'
 import { PreregistrosPendientes } from './preregistros-pendientes'
 import { RegistrarFamiliaForm } from './registrar-familia-form'
@@ -180,16 +182,54 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
       return
     }
     void guardarPreferidos(armado.ninoIds, armado.salonIds)
+    mostrarCodigo(familia.hijos, data)
+  }
+
+  /** The code to write on the tags, one line per child and the full-room warnings. */
+  function mostrarCodigo(hijos: readonly HijoEncontrado[], data: FilaIngreso[]) {
     const nombres = Object.fromEntries(salones.map((s) => [s.id, s.nombre]))
     setResultado({
       codigo: data[0].codigo,
       lineas: data.map((fila) => {
-        const h = familia.hijos.find((x) => x.id === fila.nino_id)
+        const h = hijos.find((x) => x.id === fila.nino_id)
         return `${h ? `${h.nombre} ${h.apellido}` : 'Niño'} → ${nombreSalon(fila.salon_id)}`
       }),
       avisos: avisosDeCapacidad(data, nombres),
     })
     void cargarOcupacion()
+  }
+
+  /**
+   * "Llegaron" on a family of the Llegando list (P3): the notified children go
+   * in with their suggested rooms through the usual check-in. When a child has
+   * no suggested room the family opens in the card to pick it by hand.
+   */
+  async function llegaron(f: FamiliaLlegando): Promise<string | null> {
+    if (!servicio.turnoId) return null
+    const armado = armarCheckin(
+      f.hijos.map((h) => {
+        const r = salonParaHijo(h, salones, servicio.fecha)
+        return { ninoId: h.id, salonId: r.tipo === 'ninguno' ? null : r.salon.id, nombre: h.nombre }
+      }),
+    )
+    if (!armado.ok) {
+      const encontrada = llegandoAFamilia(f)
+      setFamilia(encontrada)
+      setElegidos(Object.fromEntries(f.hijos.map((h) => [h.id, true])))
+      setSalonManual({})
+      setError(armado.error)
+      void cargarIngresados(encontrada)
+      return null
+    }
+    const { data, error: err } = await registrarIngresoApi({
+      ninoIds: armado.ninoIds,
+      salonIds: armado.salonIds,
+      turnoId: servicio.turnoId,
+      fecha: servicio.fecha,
+    })
+    if (err || !data || data.length === 0) return mensajeDeErrorCheckin(err ?? null)
+    mostrarCodigo(f.hijos, data)
+    return null
   }
 
   /** Remembers a hand-picked room on the ficha so it is preselected next Sunday (same path as Familias). */
@@ -259,6 +299,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
             </TarjetaSistema>
           ) : resultado ? null : (
             <>
+              <Llegando servicio={servicio} salones={salones} onLlegaron={llegaron} />
               <PreregistrosPendientes
                 salones={salonesNivel}
                 onConfirmado={(padreId, consulta) => {
@@ -278,7 +319,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                     type="search"
                     icono={Search}
                     aria-label="Buscar familia"
-                    placeholder="Teléfono, nombre del representante o del niño"
+                    placeholder="Teléfono o nombre"
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                   />
@@ -384,6 +425,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                                   VIP
                                 </BadgeSistema>
                               )}
+                              {h.desde_casa && (
+                                <BadgeSistema variante="info" tamaño="sm">
+                                  Registrado desde casa
+                                </BadgeSistema>
+                              )}
                             </label>
                           )}
                           {alertasDeHijo(h).length > 0 && (
@@ -479,7 +525,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
               <ul className="grid grid-cols-2 gap-x-4 px-4 py-2 text-sm md:grid-cols-1 lg:grid-cols-2">
                 {ocupacion.map((o) => (
                   <li key={o.salon_id} className="flex min-h-9 items-center justify-between gap-2 border-b border-border/50 last:border-0">
-                    <span className="truncate text-foreground">{o.nombre}</span>
+                    <span className="min-w-0 leading-tight text-foreground">{o.nombre}</span>
                     <span
                       className={cn(
                         'tabular-nums',
@@ -520,7 +566,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
       <PanelLateralNinos
         abierto={paraAdulto !== null}
         titulo={paraAdulto?.tipo === 'vincular' ? 'Vincular hijo existente' : 'Agregar niño'}
-        descripcion={paraAdulto ? `Representante: ${paraAdulto.nombre}.` : ''}
+        descripcion={paraAdulto?.tipo === 'vincular' ? `Representante: ${paraAdulto.nombre}.` : ''}
         onCerrar={() => setParaAdulto(null)}
       >
         {paraAdulto?.tipo === 'agregar' && (

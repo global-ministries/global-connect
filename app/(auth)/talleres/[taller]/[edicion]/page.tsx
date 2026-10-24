@@ -92,7 +92,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { Users } from 'lucide-react'
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   BadgeSistema,
   TarjetaSistema,
   TextoSistema,
@@ -143,11 +143,11 @@ interface RouteContext {
 export default async function EdicionDetallePage(ctx: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Edición">
+      <PaginaSistema titulo="Edición">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -158,11 +158,11 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Edición">
+      <PaginaSistema titulo="Edición">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -173,11 +173,11 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Edición">
+      <PaginaSistema titulo="Edición">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -249,9 +249,9 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   const servidoresDelTaller = cargaServidoresDelTaller.ok ? cargaServidoresDelTaller.servidores : []
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={edicion.nombre_snapshot}
-      botonRegreso={{ href: rutaTaller(taller.slug), texto: taller.nombre }}
+      regreso={{ href: rutaTaller(taller.slug), texto: taller.nombre }}
     >
       {/* Cabecera */}
       <TarjetaSistema variante="outlined" className="p-4">
@@ -430,7 +430,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
           )}
         </TarjetaSistema>
       </section>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }
 

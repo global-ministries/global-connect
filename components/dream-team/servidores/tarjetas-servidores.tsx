@@ -45,7 +45,7 @@ function Tarjeta({ fila, onActualizado }: { readonly fila: FilaVista; readonly o
     <TarjetaSistema className="flex items-start gap-3 p-4">
       <div
         aria-hidden="true"
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent-strong)] text-sm font-bold text-[var(--brand-primary)]"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-tint text-sm font-bold text-brand-text"
       >
         {inicialesDe(fila.nombre)}
       </div>
