@@ -41,6 +41,8 @@ function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
     ultimoRealizado: '2026-10-20T19:30:00Z',
     ubicaciones: [NORTE],
     pareja: [],
+    rango: 4,
+    rol: 'Líder',
     ...over,
   }
 }
@@ -280,9 +282,9 @@ describe('SupervisionUnoAUno — Líderes: table (S8.3)', () => {
   it('has the six columns and one row per leader with its data', () => {
     renderLideres([lider({ contextos: ['GDV: Norte', 'Dream Team: Sonido'] })])
     const encabezados = within(tablaLideres()).getAllByRole('columnheader').map((th) => th.textContent)
-    expect(encabezados).toEqual(['Líder', 'Qué lidera', 'Dirigidos', 'Realizados (30 días)', 'Agendados', 'Último 1 a 1'])
+    expect(encabezados).toEqual(['Líder', 'Rol', 'Qué lidera', 'Dirigidos', 'Realizados (30 días)', 'Agendados', 'Último 1 a 1'])
     const celdas = within(filasDe(tablaLideres())[0]).getAllByRole('cell').map((td) => td.textContent)
-    expect(celdas).toEqual(['Ana Pérez', 'GDV: Norte, Dream Team: Sonido', '3', '2', '1', '20 oct 2026'])
+    expect(celdas).toEqual(['Ana Pérez', 'Líder', 'GDV: Norte, Dream Team: Sonido', '3', '2', '1', '20 oct 2026'])
   })
 
   it('shows a couple who lead the same thing in one row (S11.2)', () => {
@@ -302,7 +304,7 @@ describe('SupervisionUnoAUno — Líderes: table (S8.3)', () => {
     renderLideres([PEDRO, ANA])
     const [fila, otra] = filasDe(tablaLideres())
     expect(within(fila).getAllByRole('cell')[0]).toHaveTextContent('Pedro RuizSin 1 a 1 en 30 días')
-    expect(within(fila).getAllByRole('cell')[5]).toHaveTextContent('Nunca')
+    expect(within(fila).getAllByRole('cell')[6]).toHaveTextContent('Nunca')
     expect(within(otra).queryByText('Sin 1 a 1 en 30 días')).not.toBeInTheDocument()
   })
 

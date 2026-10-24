@@ -149,6 +149,9 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // adds the last column `pareja jsonb` (the people of each row: a leader, or
   // a couple who lead the same thing) to uno_a_uno_supervision_lideres,
   // hand-added the same way. Additive only, like T4.
+  // uno-a-uno T12 (2026-10-24): 20261024200000_uno_a_uno_supervision_rango.sql
+  // adds `rango integer` and `rol text` (each row's highest role) to
+  // uno_a_uno_supervision_lideres, hand-added the same way. Additive only.
   'lib/supabase/database.types.ts',
 ])
 

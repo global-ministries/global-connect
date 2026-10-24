@@ -23,6 +23,8 @@
 --        usuario of the database, exactly what uno_a_uno_dirigidos_de gives.
 --   S9   ubicaciones: where each leader sits (dirección > área > equipo), Grupos
 --        de Vida under its own dirección; spouses share places; internal only.
+--   S12  hierarchy: rows ordered by rango (director general, director,
+--        coordinador, líder) with their rol.
 --   P    Privileges: the internal functions are service_role only, the public
 --        ones authenticated only; all security definer with search_path pinned.
 --
@@ -568,6 +570,17 @@ SELECT pg_temp.assert_eq('S9.2: every leader sits in the Dream Team tree, Grupos
 SELECT pg_temp.as_persona(pg_temp.a('DGS'));
 SELECT pg_temp.assert_eq('S9.3: a supervisor gets the same places for their chain', $q$SELECT pg_temp.ubic_txt()$q$,
   'DE1=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, LA=GDV>ZZ U7 S>ZZ U7 G1');
+-- ── S12 hierarchy (T12, 20261024200000) ────────────────────────────
+-- Admin reads the rows in RPC order: rango first (1 director general,
+-- 2 director, 3 coordinador, 4 líder), then longest without a 1:1.
+SELECT pg_temp.as_persona(pg_temp.a('ADM'));
+SELECT pg_temp.assert_eq('S12.1/S12.2: rows come by hierarchy, then by the oldest 1:1', $q$
+  SELECT string_agg(l.label || ':' || x.rol || ':' || x.rango, ', ' ORDER BY x.n)
+    FROM public.uno_a_uno_supervision_lideres() WITH ORDINALITY AS x(usuario_id, nombre, apellido, contextos, dirigidos,
+           realizados, agendados, ultimo_realizado, ubicaciones, pareja, rango, rol, n)
+    JOIN t_u7_labels l ON l.id = x.usuario_id$q$,
+  'DGD:Director general:1, DGS:Director general:1, DE1:Director:2, CC:Coordinador:3, PC:Coordinador:3, CL:Líder:4, LA:Líder:4');
+
 SELECT pg_temp.as_persona(pg_temp.a('ADM'));
 SELECT pg_temp.assert_raises('S9.3: authenticated cannot call uno_a_uno_ubicaciones',
   $q$SELECT count(*) FROM public.uno_a_uno_ubicaciones()$q$, '42501');

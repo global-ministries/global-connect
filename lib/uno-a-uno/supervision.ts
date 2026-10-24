@@ -170,10 +170,10 @@ export function contadoresLideres(lideres: readonly LiderSupervisado[]): Contado
   return { total: lideres.length, sinUnoAUno, alDia: lideres.length - sinUnoAUno }
 }
 
-export type ColumnaLider = 'lider' | 'contextos' | 'dirigidos' | 'realizados' | 'agendados' | 'ultimo'
+export type ColumnaLider = 'lider' | 'rol' | 'contextos' | 'dirigidos' | 'realizados' | 'agendados' | 'ultimo'
 export type SentidoOrden = 'asc' | 'desc'
 
-/** Null = the RPC order (longest without a 1:1 first). */
+/** Null = the RPC order (by hierarchy, then longest without a 1:1 first). */
 export type OrdenLideres = { readonly columna: ColumnaLider; readonly sentido: SentidoOrden } | null
 
 function comparaTexto(a: string, b: string): number {
@@ -193,6 +193,8 @@ function comparaInstante(a: string | null, b: string | null): number {
 
 const COMPARADORES: Record<ColumnaLider, (a: LiderSupervisado, b: LiderSupervisado) => number> = {
   lider: (a, b) => comparaTexto(nombreDeLider(a), nombreDeLider(b)),
+  // Ascending = the highest role first (director general before líder).
+  rol: (a, b) => a.rango - b.rango,
   contextos: (a, b) => comparaTexto(a.contextos.join(', '), b.contextos.join(', ')),
   dirigidos: (a, b) => a.dirigidos - b.dirigidos,
   realizados: (a, b) => a.realizados - b.realizados,

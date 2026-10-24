@@ -26,6 +26,7 @@ export const ANILLO =
 
 const COLUMNAS: readonly { columna: ColumnaLider; etiqueta: string }[] = [
   { columna: 'lider', etiqueta: 'Líder' },
+  { columna: 'rol', etiqueta: 'Rol' },
   { columna: 'contextos', etiqueta: 'Qué lidera' },
   { columna: 'dirigidos', etiqueta: 'Dirigidos' },
   { columna: 'realizados', etiqueta: `Realizados (${DIAS_SUPERVISION_LIDERES} días)` },
@@ -103,6 +104,7 @@ export function TablaLideres({ lideres, orden, onOrdenar }: TablaLideresProps): 
                   <MarcaSinUnoAUno lider={lider} />
                 </div>
               </td>
+              <td className="whitespace-nowrap px-4 py-2 text-sm text-foreground">{lider.rol}</td>
               <td className="px-4 py-2 text-sm text-muted-foreground">{lider.contextos.join(', ') || '—'}</td>
               <td className="px-4 py-2 text-sm tabular-nums text-foreground">{lider.dirigidos}</td>
               <td className="px-4 py-2 text-sm tabular-nums text-foreground">{lider.realizados}</td>
@@ -128,6 +130,7 @@ export function ListaLideres({ lideres }: { lideres: readonly LiderSupervisado[]
                 <span className="text-[15px] font-medium text-foreground">{nombre}</span>
                 <MarcaSinUnoAUno lider={lider} />
               </div>
+              <p className="text-sm text-foreground">{lider.rol}</p>
               {lider.contextos.length > 0 ? (
                 <p className="text-sm text-muted-foreground">{lider.contextos.join(', ')}</p>
               ) : null}

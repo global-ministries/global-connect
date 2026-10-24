@@ -44,9 +44,25 @@ function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
     ultimoRealizado: '2026-10-20T19:30:00Z',
     ubicaciones: [NORTE],
     pareja: [],
+    rango: 4,
+    rol: 'Líder',
     ...over,
   }
 }
+
+// S12.3: the Rol column sorts by rango (director general first).
+describe('sorting by Rol (S12.3)', () => {
+  const director = lider({ usuarioId: 'd-1', nombre: 'Zoe', rango: 2, rol: 'Director' })
+  const general = lider({ usuarioId: 'g-1', nombre: 'Yago', rango: 1, rol: 'Director general' })
+  const coordinador = lider({ usuarioId: 'c-1', nombre: 'Ximena', rango: 3, rol: 'Coordinador' })
+  const base = lider({ usuarioId: 'l-1' })
+
+  it('puts the highest role first ascending and last descending', () => {
+    const lista = [base, coordinador, director, general]
+    expect(ids(ordenarLideres(lista, { columna: 'rol', sentido: 'asc' }))).toEqual(['g-1', 'd-1', 'c-1', 'l-1'])
+    expect(ids(ordenarLideres(lista, { columna: 'rol', sentido: 'desc' }))).toEqual(['l-1', 'c-1', 'd-1', 'g-1'])
+  })
+})
 
 // S11.2/S11.3: a couple who lead the same thing is one row.
 const PAREJA = lider({
