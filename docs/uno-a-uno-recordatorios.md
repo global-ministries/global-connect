@@ -6,8 +6,9 @@ para no mandar todo junto.
 
 ## Cómo funciona
 
-1. **Encolar** — todos los días a las 7:00 (Caracas) se agrega a la cola una
-   fila por cada persona con email de cada 1 a 1 de mañana.
+1. **Encolar** — todos los días a las 7:00 (Caracas) pg_cron llama la función
+   de encolar, que agrega una fila por cada persona con email de cada 1 a 1 de
+   mañana. (`?accion=encolar` del endpoint hace lo mismo, para uso manual.)
 2. **Enviar** — cada 5 minutos entre las 7:00 y las 9:55 (Caracas) se toma una
    tanda de hasta 25 filas y se manda de a un email, con 600 ms entre envíos
    (Resend acepta 2 por segundo). Cada fila usa la idempotency key
@@ -45,8 +46,26 @@ Nunca pegues el valor real del secreto en documentos, issues, logs ni capturas.
 
 ## Programación (pg_cron + pg_net)
 
-- Encolar: `0 11 * * *` (UTC = 7:00 Caracas).
-- Enviar: `*/5 11-13 * * *` (UTC = 7:00–9:55 Caracas).
+Configurado en producción el 2026-10-24. El secreto vive en Vault con el nombre
+`uno_a_uno_recordatorios_secret` (mismo valor que `UNO_A_UNO_RECORDATORIOS_SECRET`
+en Vercel).
 
-Configurar Vault, cron y la variable en Vercel en producción requiere
-aprobación.
+| Job | Horario (UTC) | Qué hace |
+|-----|---------------|----------|
+| `uno_a_uno_recordatorios_encolar` | `0 11 * * *` (7:00 Caracas) | `select public.uno_a_uno_recordatorios_encolar()` directo en la base, sin HTTP. |
+| `uno_a_uno_recordatorios_enviar` | `*/5 11-13 * * *` (7:00–9:55 Caracas) | `net.http_post` a `https://miembros.yosoyglobal.org/api/uno-a-uno/recordatorios?accion=enviar` con `Authorization: Bearer` leído de `vault.decrypted_secrets`, `timeout_milliseconds := 60000`. |
+
+Para revisar: `select jobname, schedule, active from cron.job;` y las respuestas
+del envío en `net._http_response` (status 202 con los conteos).
+
+### Rotar el secreto
+
+1. Generar un valor nuevo y guardarlo en Vercel (`UNO_A_UNO_RECORDATORIOS_SECRET`,
+   Production) y redeployar.
+2. `select vault.update_secret(id, '<nuevo>') from vault.secrets where name = 'uno_a_uno_recordatorios_secret';`
+3. Verificar con un `net.http_post` manual que la respuesta sea 202.
+
+### Apagar los recordatorios
+
+`select cron.unschedule('uno_a_uno_recordatorios_encolar');` y
+`select cron.unschedule('uno_a_uno_recordatorios_enviar');`
