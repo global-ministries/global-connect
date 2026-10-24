@@ -177,6 +177,8 @@ describe('VoluntariosClient', () => {
     )
     renderVoluntarios()
     expect(await screen.findByText(/todavía no tiene turno asignado/)).toBeInTheDocument()
+    // Since #582 the Atención al Voluntario coordinator assigns shifts too (F6).
+    expect(screen.getByText(/La dirección o la coordinación de Atención al Voluntario asignan los turnos en Mi equipo\./)).toBeInTheDocument()
     expect(screen.getByText(/Mi equipo/)).toBeInTheDocument()
     const grupo = screen.getByRole('button', { name: /Sin turno asignado \(2\)/ })
     expect(grupo).toHaveAttribute('aria-expanded', 'true')

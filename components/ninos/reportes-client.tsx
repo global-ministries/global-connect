@@ -224,7 +224,7 @@ export function ReportesClient({ campus, turnos, filtrosIniciales, hoy, vistaIni
 
       {reporte && familias && (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Cifra etiqueta="Niños distintos" valor={reporte.totales.ninos} detalle={plural(reporte.totales.checkins, 'check-in', 'check-ins')} />
             <Cifra
               etiqueta="Promedio por domingo"

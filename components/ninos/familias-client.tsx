@@ -120,7 +120,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
             type="search"
             icono={Search}
             aria-label="Buscar familia"
-            placeholder="Teléfono, nombre del representante o del niño"
+            placeholder="Teléfono o nombre"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />

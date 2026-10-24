@@ -266,7 +266,7 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
                   {sinTurno.length === filasArea.length
                     ? 'Esta área todavía no tiene turno asignado a sus voluntarios, así que nadie cuenta como esperado. '
                     : 'A nadie le toca este servicio ese día. '}
-                  La dirección asigna los turnos en Mi equipo. Mientras tanto, puedes marcar a quien sirvió en la lista de abajo.
+                  La dirección o la coordinación de Atención al Voluntario asignan los turnos en Mi equipo. Mientras tanto, puedes marcar a quien sirvió en la lista de abajo.
                 </p>
               )}
 
