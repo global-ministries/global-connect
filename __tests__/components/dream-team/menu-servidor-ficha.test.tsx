@@ -48,6 +48,13 @@ describe('MenuServidor — Editar ficha (T11)', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/dream-team/servicios/s-1/turnos', expect.anything())
   })
 
+  it('no Turnos for a row without servicio', async () => {
+    render(<MenuServidor fila={{ ...FILA, servicioId: undefined }} onActualizado={jest.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Acciones para Ana Pérez' }))
+    expect(await screen.findByRole('menuitem', { name: 'Editar ficha' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Turnos' })).not.toBeInTheDocument()
+  })
+
   it('no Turnos for a retired servicio', async () => {
     render(<MenuServidor fila={{ ...FILA, estado: 'retirado' }} onActualizado={jest.fn()} />)
     await userEvent.click(screen.getByRole('button', { name: 'Acciones para Ana Pérez' }))

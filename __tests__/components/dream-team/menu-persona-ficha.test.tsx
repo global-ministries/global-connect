@@ -50,6 +50,12 @@ describe('MenuPersona — Editar ficha (T11)', () => {
     expect(global.fetch).toHaveBeenCalledWith('/api/dream-team/servicios/s-1/turnos', expect.anything())
   })
 
+  it('no Turnos for a retired servicio (fichaEditable is never set on it)', () => {
+    const retirada = { ...PERSONA, estado: 'retirado', fichaEditable: false, editable: true } as PersonaVista
+    render(<MenuPersona persona={retirada} puedeEditarServicio onActualizado={jest.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Acciones para Ana Pérez' })).not.toBeInTheDocument()
+  })
+
   it('no Turnos for a person without servicio (a Grupos de Vida leader)', async () => {
     render(<MenuPersona persona={{ ...PERSONA, servicioId: undefined }} puedeEditarServicio={false} onActualizado={jest.fn()} />)
     await abrirMenu()

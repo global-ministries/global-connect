@@ -128,6 +128,8 @@ INSERT INTO public.dream_team_turnos (id, campus_id, nombre, dia_semana, hora, o
 
 -- An assignment outside the area, to check that the coordinator cannot touch it.
 INSERT INTO public.dream_team_servicio_turnos (servicio_id, turno_id) VALUES (pg_temp.id('se', 3), pg_temp.id('tu', 1));
+-- A shift left on a retired servicio of the area: the coordinator cannot change or remove it.
+INSERT INTO public.dream_team_servicio_turnos (servicio_id, turno_id) VALUES (pg_temp.id('se', 6), pg_temp.id('tu', 2));
 
 GRANT INSERT, SELECT ON t_tc_failures TO authenticated;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
@@ -169,6 +171,12 @@ SELECT pg_temp.assert_eq('b: a delete outside the area touches no row',
 SELECT pg_temp.assert_raises('c: a retired servicio of the area is refused',
   $q$INSERT INTO public.dream_team_servicio_turnos (servicio_id, turno_id) VALUES (pg_temp.id('se', 6), pg_temp.id('tu', 1))$q$,
   '42501');
+SELECT pg_temp.assert_eq('c: an update on a retired servicio touches no row',
+  $q$SELECT pg_temp.filas('UPDATE public.dream_team_servicio_turnos SET frecuencia = ''quincenal'', fecha_ancla = ''2026-10-25''
+       WHERE servicio_id = ' || quote_literal(pg_temp.id('se', 6)))$q$, '0');
+SELECT pg_temp.assert_eq('c: a delete on a retired servicio touches no row',
+  $q$SELECT pg_temp.filas('DELETE FROM public.dream_team_servicio_turnos WHERE servicio_id = ' || quote_literal(pg_temp.id('se', 6)))$q$,
+  '0');
 
 -- ── d. a plain volunteer ─────────────────────────────────────────────
 
@@ -191,9 +199,9 @@ RESET ROLE;
 SELECT pg_temp.assert_eq('stored: the area volunteer keeps one biweekly shift; the outsider keeps theirs, weekly',
   $q$SELECT string_agg(s.u || ':' || st.frecuencia, ',' ORDER BY s.u)
        FROM public.dream_team_servicio_turnos st
-       JOIN (VALUES (pg_temp.id('se', 2), 'vol'), (pg_temp.id('se', 3), 'outsider'), (pg_temp.id('se', 5), 'plain')) s(id, u)
+       JOIN (VALUES (pg_temp.id('se', 2), 'vol'), (pg_temp.id('se', 3), 'outsider'), (pg_temp.id('se', 5), 'plain'), (pg_temp.id('se', 6), 'retired')) s(id, u)
          ON s.id = st.servicio_id$q$,
-  'outsider:semanal,plain:semanal,vol:quincenal');
+  'outsider:semanal,plain:semanal,retired:semanal,vol:quincenal');
 
 SELECT coalesce(string_agg(case_name, E'\n'), 'ALL OK') AS result FROM t_tc_failures;
 
