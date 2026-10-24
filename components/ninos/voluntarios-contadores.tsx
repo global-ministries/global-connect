@@ -17,7 +17,7 @@ export function ContadoresVoluntarios({ contadores }: { contadores: Contadores }
       <dl className="grid grid-cols-5 gap-1 text-center">
         {cifras.map((c) => (
           <div key={c.id} data-testid={`contador-${c.id}`} className="min-w-0">
-            <dt className="truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{c.etiqueta}</dt>
+            <dt className="text-[10px] font-medium uppercase leading-tight tracking-wide text-muted-foreground sm:text-[11px]">{c.etiqueta}</dt>
             <dd className="text-xl font-bold tabular-nums text-foreground">{c.valor}</dd>
           </div>
         ))}

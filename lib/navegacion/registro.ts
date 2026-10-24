@@ -54,6 +54,8 @@ export interface EntradaNavegacion extends SubEntradaNavegacion {
   children?: SubEntradaNavegacion[]
   /** Position in the mobile bottom bar (1 = first). Undefined: not in the bottom bar. */
   prioridadMovil?: number
+  /** Shorter visible text in the mobile bottom bar, so up to five entries fit (label stays the accessible name). */
+  labelMovil?: string
 }
 
 export interface CredencialesNavegacion {
@@ -79,6 +81,7 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
   {
     id: 'grupos-vida',
     label: 'Grupos de Vida',
+    labelMovil: 'Grupos',
     icon: UserCheck,
     href: '/grupos-vida',
     grupo: 'principal',

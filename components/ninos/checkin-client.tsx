@@ -319,7 +319,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                     type="search"
                     icono={Search}
                     aria-label="Buscar familia"
-                    placeholder="Teléfono, nombre del representante o del niño"
+                    placeholder="Teléfono o nombre"
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                   />
@@ -525,7 +525,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
               <ul className="grid grid-cols-2 gap-x-4 px-4 py-2 text-sm md:grid-cols-1 lg:grid-cols-2">
                 {ocupacion.map((o) => (
                   <li key={o.salon_id} className="flex min-h-9 items-center justify-between gap-2 border-b border-border/50 last:border-0">
-                    <span className="truncate text-foreground">{o.nombre}</span>
+                    <span className="min-w-0 leading-tight text-foreground">{o.nombre}</span>
                     <span
                       className={cn(
                         'tabular-nums',
