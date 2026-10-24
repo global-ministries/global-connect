@@ -11,11 +11,16 @@ import { createContext, useContext, type ReactNode } from 'react'
  * server-side, and provides them here. Outside the provider both are false.
  * `puedeConfigurar`: ninos_puede_configurar_algun_area() — reports (N7);
  * directors, area coordinators, admin and pastor only.
+ * `puedeMarcarVoluntarios`: ninos_puede_marcar_voluntarios_algun_area() —
+ * volunteer attendance (odd/tasks/ninos-asistencia-voluntarios.md, V2): the
+ * coordinators of a team or area, Atención al Voluntario, directors, admin
+ * and pastor.
  */
 export interface NinosAcceso {
   readonly puedeOperar: boolean
   readonly puedeVerSalon: boolean
   readonly puedeConfigurar?: boolean
+  readonly puedeMarcarVoluntarios?: boolean
 }
 
 const SIN_ACCESO: NinosAcceso = { puedeOperar: false, puedeVerSalon: false }
@@ -26,9 +31,14 @@ export function NinosAccesoProvider({
   puedeOperar,
   puedeVerSalon,
   puedeConfigurar = false,
+  puedeMarcarVoluntarios = false,
   children,
 }: NinosAcceso & { readonly children: ReactNode }) {
-  return <NinosAccesoContext.Provider value={{ puedeOperar, puedeVerSalon, puedeConfigurar }}>{children}</NinosAccesoContext.Provider>
+  return (
+    <NinosAccesoContext.Provider value={{ puedeOperar, puedeVerSalon, puedeConfigurar, puedeMarcarVoluntarios }}>
+      {children}
+    </NinosAccesoContext.Provider>
+  )
 }
 
 export const useNinosAcceso = (): NinosAcceso => useContext(NinosAccesoContext)

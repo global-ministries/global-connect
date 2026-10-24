@@ -261,7 +261,7 @@ export function AgregarDirectorDialog({ abierto, onClose, segmentos }: AgregarDi
               type="button"
               disabled={!puedeAgregar}
               onClick={() => void agregar()}
-              className={cn(BOTON_BASE, 'bg-[var(--brand-primary)] text-white hover:opacity-90')}
+              className={cn(BOTON_BASE, 'bg-brand text-brand-foreground hover:opacity-90')}
             >
               {guardando ? 'Agregando…' : 'Agregar'}
             </button>

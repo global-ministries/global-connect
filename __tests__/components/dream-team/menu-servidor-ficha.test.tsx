@@ -31,12 +31,34 @@ beforeEach(() => {
 })
 
 describe('MenuServidor — Editar ficha (T11)', () => {
-  it('a viewer who may only fix the ficha still gets the menu, with just that action and the team link', async () => {
+  it('the volunteer coordinator (ficha permission only) gets Editar ficha, Turnos and the team link, not Cambiar etapa', async () => {
     expect(tieneMenu(FILA)).toBe(true)
     render(<MenuServidor fila={FILA} onActualizado={jest.fn()} />)
     await userEvent.click(screen.getByRole('button', { name: 'Acciones para Ana Pérez' }))
     expect(await screen.findByRole('menuitem', { name: 'Editar ficha' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Turnos' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Ver su equipo' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Cambiar etapa' })).not.toBeInTheDocument()
+  })
+
+  it('the volunteer coordinator opens the shifts dialog of that servicio', async () => {
+    render(<MenuServidor fila={FILA} onActualizado={jest.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Acciones para Ana Pérez' }))
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Turnos' }))
+    expect(global.fetch).toHaveBeenCalledWith('/api/dream-team/servicios/s-1/turnos', expect.anything())
+  })
+
+  it('no Turnos for a row without servicio', async () => {
+    render(<MenuServidor fila={{ ...FILA, servicioId: undefined }} onActualizado={jest.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Acciones para Ana Pérez' }))
+    expect(await screen.findByRole('menuitem', { name: 'Editar ficha' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Turnos' })).not.toBeInTheDocument()
+  })
+
+  it('no Turnos for a retired servicio', async () => {
+    render(<MenuServidor fila={{ ...FILA, estado: 'retirado' }} onActualizado={jest.fn()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Acciones para Ana Pérez' }))
+    expect(await screen.findByRole('menuitem', { name: 'Ver su equipo' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Turnos' })).not.toBeInTheDocument()
   })
 

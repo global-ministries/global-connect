@@ -14,7 +14,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { cargarVistaSegmentos } from "@/lib/platform/grupos-vida/segmentos-datos"
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 import GestionSegmentosModales from "@/components/grupos/FormularioSegmento.client"
 import { SegmentosClient } from "@/components/grupos-vida/segmentos/segmentos-client"
 
@@ -35,17 +35,16 @@ export default async function Page() {
 
   return (
     <>
-      <ContenedorDashboard
+      <PaginaSistema
         titulo="Segmentos"
-        botonRegreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
-        accionPrincipal={
+        descripcion="Etapas en las que se organizan los grupos de vida"
+        regreso={{ href: "/grupos-vida", texto: "Grupos de Vida" }}
+        acciones={
           puedeGestionar ? (
             <GestionSegmentosModales segmentos={vista.filas.map((f) => ({ id: f.id, nombre: f.nombre }))} trigger="boton" />
           ) : undefined
         }
       >
-        <p className="-mt-2 text-sm text-muted-foreground md:text-[15px]">Etapas en las que se organizan los grupos de vida</p>
-
         {vista.filas.length > 0 ? (
           <SegmentosClient vista={vista} puedeGestionar={puedeGestionar} />
         ) : (
@@ -61,7 +60,7 @@ export default async function Page() {
             )}
           </TarjetaSistema>
         )}
-      </ContenedorDashboard>
+      </PaginaSistema>
 
       {/* FAB móvil para crear segmento — solo admin */}
       {puedeGestionar && (

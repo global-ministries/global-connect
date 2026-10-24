@@ -12,9 +12,24 @@ export function hashIp(ip: string, sal: string): string {
   return createHash('sha256').update(`${sal}:${ip}`).digest('hex')
 }
 
+/**
+ * Client IP for the rate limit, from a header the client cannot forge.
+ *
+ * On Vercel, x-real-ip is set by the edge network to the address that
+ * connected to it and overwrites any value the client sent, so it comes
+ * first. Without it, the FIRST x-forwarded-for entry is whatever the client
+ * wrote (it can rotate it to dodge the limit); each proxy appends the address
+ * it saw, so the LAST entry is the hop added by the proxy in front of us, the
+ * only one we can trust.
+ */
 export function ipDeSolicitud(headers: Headers): string {
-  const reenviada = headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  return reenviada || headers.get('x-real-ip')?.trim() || 'desconocida'
+  const real = headers.get('x-real-ip')?.trim()
+  if (real) return real
+  const saltos = (headers.get('x-forwarded-for') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+  return saltos.at(-1) ?? 'desconocida'
 }
 
 type RespuestaRpc = { data: unknown; error: { code?: string; message?: string } | null }

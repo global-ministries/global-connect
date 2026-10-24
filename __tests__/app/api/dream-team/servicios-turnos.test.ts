@@ -28,6 +28,7 @@ const T1 = '00000000-0000-4000-8000-000000000001'
 const T2 = '00000000-0000-4000-8000-000000000002'
 const T3 = '00000000-0000-4000-8000-000000000003'
 const readCap = { key: 'dream_team.metrics.read', experience: 'dream_team', scopeType: 'experience', source: 'test' }
+const serveCap = { key: 'dream_team.serve', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-av', source: 'test' }
 const directorCap = { key: 'dream_team.director.coordinate', experience: 'dream_team', scopeType: 'experience', source: 'test' }
 const servicio = {
   id: 'srv-1',
@@ -48,12 +49,22 @@ function request(init?: ConstructorParameters<typeof NextRequest>[1]) {
 }
 const ctx = (id = 'srv-1') => ({ params: { id } })
 
-function auth(caps: Record<string, unknown>[] | null) {
-  createClient.mockResolvedValue({ auth: { getUser: jest.fn().mockResolvedValue({ data: { user: caps ? { id: 'a' } : null }, error: null }) } })
+/** `registrables`: the equipos dream_team_equipos_registrables() returns (the volunteer coordinator's area). */
+function auth(caps: Record<string, unknown>[] | null, registrables: string[] = [], estado: 'activo' | 'retirado' = 'activo') {
+  createClient.mockResolvedValue({
+    auth: { getUser: jest.fn().mockResolvedValue({ data: { user: caps ? { id: 'a' } : null }, error: null }) },
+    rpc: jest.fn((fn: string) =>
+      Promise.resolve(
+        fn === 'dream_team_equipos_registrables'
+          ? { data: registrables.map((equipo_id) => ({ equipo_id })), error: null }
+          : { data: null, error: { message: 'unexpected rpc ' + fn } },
+      ),
+    ),
+  })
   resolveSession.mockResolvedValue(
     caps ? { personaId: personaId('22222222-2222-2222-2222-222222222222'), subjectAuthId: 'a', globalRoles: [], contexts: [], capabilities: caps } : null,
   )
-  createRepo.mockReturnValue(createInMemoryDreamTeamRepository({ seed: { servicios: [servicio] } }))
+  createRepo.mockReturnValue(createInMemoryDreamTeamRepository({ seed: { servicios: [{ ...servicio, estado }] } }))
 }
 
 function put(body: unknown) {
@@ -139,5 +150,44 @@ describe('PUT /api/dream-team/servicios/[id]/turnos', () => {
     auth([directorCap])
     turnosMock.guardarTurnosDeServicio.mockRejectedValue(Object.assign(new Error('x'), { code: '42501' }))
     expect((await put({ turnoIds: [T1] })).status).toBe(403)
+  })
+})
+
+describe('the Atención al Voluntario coordinator (no Dream Team read or write capability)', () => {
+  it('reads the shifts of a servicio of their area', async () => {
+    auth([serveCap], ['equipo-sala'])
+    const respuesta = await GET(request(), ctx())
+    expect(respuesta.status).toBe(200)
+    expect((await respuesta.json()).asignados).toEqual([T3])
+  })
+
+  it('saves the shifts of a servicio of their area', async () => {
+    auth([serveCap], ['equipo-sala'])
+    const frecuencias = { [T1]: { frecuencia: 'quincenal', fechaAncla: '2026-10-04' } }
+    const respuesta = await put({ turnoIds: [T1], frecuencias })
+    expect(respuesta.status).toBe(200)
+    expect(await respuesta.json()).toEqual({ asignados: [T1] })
+    expect(turnosMock.guardarTurnosDeServicio).toHaveBeenCalledWith(expect.anything(), 'srv-1', [T1], frecuencias)
+  })
+
+  it('403 for a servicio outside their area, and nothing is saved', async () => {
+    auth([serveCap], ['otro-equipo'])
+    expect((await GET(request(), ctx())).status).toBe(403)
+    const respuesta = await put({ turnoIds: [T1] })
+    expect(respuesta.status).toBe(403)
+    expect(await respuesta.json()).toEqual({ error: 'Permiso denegado' })
+    expect(turnosMock.guardarTurnosDeServicio).not.toHaveBeenCalled()
+  })
+
+  it('403 for a retired servicio of their area, and nothing is saved', async () => {
+    auth([serveCap], ['equipo-sala'], 'retirado')
+    expect((await put({ turnoIds: [T1] })).status).toBe(403)
+    expect(turnosMock.guardarTurnosDeServicio).not.toHaveBeenCalled()
+  })
+
+  it('403 for a session without capability nor area, before reading the servicio', async () => {
+    auth([serveCap])
+    expect((await GET(request(), ctx('srv-desconocido'))).status).toBe(403)
+    expect((await PUT(request({ method: 'PUT', body: JSON.stringify({ turnoIds: [T1] }) }), ctx('srv-desconocido'))).status).toBe(403)
   })
 })

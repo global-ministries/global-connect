@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import GroupEditForm from "@/components/forms/GroupEditForm";
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
+import { PaginaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -32,10 +32,10 @@ export default async function EditGroupPage({ params }: PageProps) {
 
   if (error || !grupo) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <div className="text-danger-text text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Grupo no encontrado</TituloSistema>
               <p className="text-muted-foreground mb-4">
                 El grupo solicitado no existe o no tienes acceso para editarlo.
@@ -47,7 +47,7 @@ export default async function EditGroupPage({ params }: PageProps) {
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 );
   }
 
@@ -114,27 +114,25 @@ export default async function EditGroupPage({ params }: PageProps) {
     });
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Editar Grupo"
         descripcion={`Modifica la información del grupo "${grupo.nombre}"`}
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
       >
-        {/* Formulario */}
-        <TarjetaSistema className="p-6">
-          {!puedeEditar && (
-            <div className="mb-6 rounded-md border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
-              Este grupo está en modo solo lectura para tu rol. No puedes editarlo porque no eres el director de etapa asignado ni tienes permisos superiores.
-            </div>
-          )}
-          <GroupEditForm
-            grupo={grupo as any}
-            temporadas={temporadas || []}
-            segmentos={segmentos || []}
-            parroquias={parroquias || []}
-            casasDisponibles={casasDisponibles}
-            readOnly={!puedeEditar}
-          />
-        </TarjetaSistema>
-      </ContenedorDashboard>
+        {!puedeEditar && (
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-800">
+            Este grupo está en modo solo lectura para tu rol. No puedes editarlo porque no eres el director de etapa asignado ni tienes permisos superiores.
+          </div>
+        )}
+        {/* The form's sections are already cards: no wrapper card around it. */}
+        <GroupEditForm
+          grupo={grupo as any}
+          temporadas={temporadas || []}
+          segmentos={segmentos || []}
+          parroquias={parroquias || []}
+          casasDisponibles={casasDisponibles}
+          readOnly={!puedeEditar}
+        />
+      </PaginaSistema>
 );
 }

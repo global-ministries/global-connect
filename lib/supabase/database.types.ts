@@ -1414,6 +1414,89 @@ export type Database = {
           },
         ]
       }
+      dream_team_asistencias: {
+        Row: {
+          esperado: boolean
+          estado: string
+          fecha: string
+          id: string
+          marcado_at: string
+          marcado_por: string | null
+          servicio_id: string
+          turno_id: string
+        }
+        Insert: {
+          esperado: boolean
+          estado: string
+          fecha: string
+          id?: string
+          marcado_at?: string
+          marcado_por?: string | null
+          servicio_id: string
+          turno_id: string
+        }
+        Update: {
+          esperado?: boolean
+          estado?: string
+          fecha?: string
+          id?: string
+          marcado_at?: string
+          marcado_por?: string | null
+          servicio_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dream_team_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "dream_team_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "dream_team_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "dream_team_asistencias_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dream_team_asistencias_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dream_team_capability_grants: {
         Row: {
           capability_key: string
@@ -7311,6 +7394,8 @@ export type Database = {
           id: string
           nino_id: string
           retirado_por_nombre: string | null
+          retiro_motivo: string | null
+          retiro_otra_persona: boolean
           salida_at: string | null
           salida_por: string | null
           salon_id: string
@@ -7326,6 +7411,8 @@ export type Database = {
           id?: string
           nino_id: string
           retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
           salida_at?: string | null
           salida_por?: string | null
           salon_id: string
@@ -7341,6 +7428,8 @@ export type Database = {
           id?: string
           nino_id?: string
           retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
           salida_at?: string | null
           salida_por?: string | null
           salon_id?: string
@@ -7398,6 +7487,8 @@ export type Database = {
           autoriza_imagen: boolean | null
           cambio_panal: boolean | null
           created_at: string
+          desde_casa_at: string | null
+          desde_casa_por: string | null
           es_vip_desde: string | null
           escolarizado: boolean | null
           grado: number | null
@@ -7415,6 +7506,8 @@ export type Database = {
           autoriza_imagen?: boolean | null
           cambio_panal?: boolean | null
           created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_por?: string | null
           es_vip_desde?: string | null
           escolarizado?: boolean | null
           grado?: number | null
@@ -7432,6 +7525,8 @@ export type Database = {
           autoriza_imagen?: boolean | null
           cambio_panal?: boolean | null
           created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_por?: string | null
           es_vip_desde?: string | null
           escolarizado?: boolean | null
           grado?: number | null
@@ -7445,6 +7540,13 @@ export type Database = {
           usuario_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ninos_fichas_salon_preferido_id_fkey"
             columns: ["salon_preferido_id"]
@@ -7468,6 +7570,64 @@ export type Database = {
           },
         ]
       }
+      ninos_prechecks: {
+        Row: {
+          avisos: number
+          created_at: string
+          estado: string
+          fecha: string
+          id: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at: string
+        }
+        Insert: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha: string
+          id?: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at?: string
+        }
+        Update: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          nino_id?: string
+          solicitado_por?: string
+          turno_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ninos_preregistros: {
         Row: {
           campus_id: string
@@ -7479,6 +7639,7 @@ export type Database = {
           id: string
           ip_hash: string | null
           payload: Json
+          solicitado_por: string | null
         }
         Insert: {
           campus_id: string
@@ -7490,6 +7651,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           payload: Json
+          solicitado_por?: string | null
         }
         Update: {
           campus_id?: string
@@ -7501,6 +7663,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           payload?: Json
+          solicitado_por?: string | null
         }
         Relationships: []
       }
@@ -8047,6 +8210,7 @@ export type Database = {
         Args: {
           p_codigo: string
           p_fecha: string
+          p_motivo_otra?: string
           p_retirado_por: string
           p_turno_id: string
         }
@@ -8095,8 +8259,25 @@ export type Database = {
       ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
       ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
       ninos_puede_configurar_algun_area: { Args: never; Returns: boolean }
+      ninos_puede_marcar_voluntarios: {
+        Args: { p_equipo_id: string }
+        Returns: boolean
+      }
+      ninos_puede_marcar_voluntarios_algun_area: {
+        Args: never
+        Returns: boolean
+      }
       ninos_reporte_asistencia: {
         Args: { p_campus_id?: string; p_desde: string; p_hasta: string; p_turno_id?: string }
+        Returns: Json
+      }
+      ninos_reporte_voluntarios: {
+        Args: {
+          p_campus_id?: string
+          p_desde: string
+          p_hasta: string
+          p_turno_id?: string
+        }
         Returns: Json
       }
       ninos_correos_visita: {
@@ -8120,7 +8301,21 @@ export type Database = {
         Args: { p_campus_id: string; p_ip_hash: string; p_payload: Json }
         Returns: string
       }
+      ninos_familia_invitar: {
+        Args: { p_email: string; p_padre_id: string }
+        Returns: Json
+      }
       ninos_preregistro_invitar: { Args: { p_email: string; p_id: string }; Returns: Json }
+      ninos_registrar_familia_mesa: { Args: { p: Json }; Returns: Json }
+      ninos_retiro_opciones: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
+        Returns: {
+          nombre: string
+          relacion: string
+          telefono: string
+          tipo: string
+        }[]
+      }
       ninos_preregistro_resolver: {
         Args: { p_accion: string; p_id: string; p_payload?: Json }
         Returns: Json
@@ -8164,8 +8359,66 @@ export type Database = {
         Args: { p_fecha_nacimiento: string; p_nino_id: string; p_padre_id: string | null; p_padre_nuevo: Json | null }
         Returns: Json
       }
+      ninos_voluntarios_del_turno: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: {
+          area_id: string
+          equipo_id: string
+          esperado: boolean
+          servicio_id: string
+          sin_turno: boolean
+        }[]
+      }
+      ninos_voluntarios_equipos: {
+        Args: { p_campus_id: string }
+        Returns: {
+          area_id: string
+          campus_id: string
+          equipo_id: string
+        }[]
+      }
+      ninos_voluntarios_marcables: {
+        Args: { p_campus_id: string }
+        Returns: {
+          area_id: string
+          campus_id: string
+          equipo_id: string
+        }[]
+      }
+      ninos_voluntarios_marcar: {
+        Args: {
+          p_estado: string
+          p_fecha: string
+          p_servicio_ids: string[]
+          p_solo_sin_marcar?: boolean
+          p_turno_id: string
+        }
+        Returns: Json
+      }
+      ninos_voluntarios_planilla: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: Json
+      }
+      ninos_voluntarios_turnos: {
+        Args: never
+        Returns: {
+          campus: string
+          campus_id: string
+          dia_semana: number
+          hora: string
+          id: string
+          nombre: string
+          orden: number
+        }[]
+      }
       ninos_edad_maxima_anos: { Args: never; Returns: number }
       ninos_en_rango_edad: { Args: { p_fecha_nacimiento: string }; Returns: boolean }
+      ninos_campus_operables: { Args: never; Returns: string[] }
+      ninos_en_alcance: {
+        Args: { p_campus: string[] | null; p_persona_id: string }
+        Returns: boolean
+      }
+      ninos_en_mi_alcance: { Args: { p_persona_id: string }; Returns: boolean }
       ninos_enmascarar: {
         Args: { p_valor: string; p_visibles: number }
         Returns: string
@@ -8186,7 +8439,18 @@ export type Database = {
         Returns: Json
       }
       ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
+      ninos_conyuge_de: { Args: { p_usuario_id: string }; Returns: Json }
       ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
+      ninos_mis_hijos: { Args: never; Returns: Json }
+      ninos_mis_hijos_campus: { Args: never; Returns: Json }
+      ninos_mis_hijos_guardar: { Args: { p: Json; p_nino_id: string }; Returns: Json }
+      ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
+      ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
+      ninos_preregistros_cuentas: { Args: never; Returns: Json }
+      ninos_precheck_avisar: { Args: { p_nino_ids: string[]; p_turno_id: string }; Returns: Json }
+      ninos_precheck_cancelar: { Args: { p_turno_id: string }; Returns: Json }
+      ninos_mis_prechecks: { Args: never; Returns: Json }
+      ninos_prechecks_pendientes: { Args: { p_fecha: string; p_turno_id: string }; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]

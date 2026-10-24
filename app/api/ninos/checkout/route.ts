@@ -1,14 +1,16 @@
 /**
  * POST /api/ninos/checkout — N5 check-out moved behind a route for N9 emails.
  *
- * { codigo, turnoId, fecha, retiradoPor } → { filas } (children released).
+ * { codigo, turnoId, fecha, retiradoPor, motivoOtra? } → { filas } (children
+ * released). Without motivoOtra the database requires retiradoPor to be on
+ * the list of every child (ninos_checkout, 20261012130100).
  * The RPC runs AS THE USER (authority in SQL); then one email per family
  * visit to the parents with an email (best effort, never fails the call).
  */
 import { after, NextRequest, NextResponse } from 'next/server'
 
 import { enviarAvisos } from '@/lib/platform/ninos/notificaciones'
-import { parseCheckout, statusDeError } from '@/lib/platform/ninos/visita-api'
+import { errorPublico, parseCheckout, statusDeError } from '@/lib/platform/ninos/visita-api'
 
 import { dependenciasAvisos, rpcSinTipos, sesion } from '../_lib/avisos'
 
@@ -26,8 +28,9 @@ export async function POST(req: NextRequest) {
       p_turno_id: e.turnoId,
       p_fecha: e.fecha,
       p_retirado_por: e.retiradoPor,
+      p_motivo_otra: e.motivoOtra,
     })
-    if (error) return NextResponse.json({ error: { code: error.code } }, { status: statusDeError(error.code) })
+    if (error) return NextResponse.json({ error: errorPublico(error) }, { status: statusDeError(error.code) })
 
     const filas = Array.isArray(data) ? (data as { nino_id: string }[]) : []
     if (filas.length > 0) {

@@ -48,6 +48,46 @@ describe('parseResolucion', () => {
     expect(parseResolucion({ accion: 'confirmar' })).toHaveProperty('error')
     expect(parseResolucion({ accion: 'confirmar', payload, email: 'mal' })).toHaveProperty('error')
     expect(parseResolucion(null)).toHaveProperty('error')
+    expect(parseResolucion({ accion: 'invitar' })).toHaveProperty('error')
+    expect(parseResolucion({ accion: 'invitar', email: 'mal' })).toHaveProperty('error')
+  })
+  it('accepts a resend of the invitation with its email', () => {
+    expect(parseResolucion({ accion: 'invitar', email: ' ANA@example.test ' })).toEqual({ accion: 'invitar', email: 'ana@example.test' })
+  })
+})
+
+describe('resolverPreregistro — resend the invitation', () => {
+  it('only invites again; never resolves nor welcomes', async () => {
+    const d = deps()
+    const r = await resolverPreregistro(d, ID, { accion: 'invitar', email: 'ana@example.test' })
+    expect(r).toEqual({ status: 200, body: { ok: true, invitacion: 'enviada' } })
+    expect(d.invitar).toHaveBeenCalledWith('ana@example.test')
+    expect(d.rpcUsuario).not.toHaveBeenCalled()
+    await despuesDeResponder()
+    expect(d.enviarBienvenida).not.toHaveBeenCalled()
+  })
+
+  it('after the hour (or another operator) explains that it can no longer be resent here', async () => {
+    const d = deps({ invitar: jest.fn().mockResolvedValue({ ok: false, codigo: 'sin_autoridad' }) })
+    const r = await resolverPreregistro(d, ID, { accion: 'invitar', email: 'ana@example.test' })
+    expect(r.status).toBe(403)
+    expect(r.body).toMatchObject({ invitacion: 'fallo', codigo: 'sin_autoridad' })
+    expect(String(r.body.error)).toMatch(/Ya no se puede reenviar/)
+  })
+
+  it('a parent who already has an account needs no invitation', async () => {
+    const d = deps({ invitar: jest.fn().mockResolvedValue({ ok: false, codigo: 'ya_tiene_cuenta' }) })
+    const r = await resolverPreregistro(d, ID, { accion: 'invitar', email: 'ana@example.test' })
+    expect(r).toEqual({ status: 409, body: { error: 'Esta persona ya tiene una cuenta.', invitacion: 'no', codigo: 'ya_tiene_cuenta' } })
+  })
+
+  it('a failure again offers another try and logs no address', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const d = deps({ invitar: jest.fn().mockRejectedValue(new Error('down ana@example.test')) })
+    const r = await resolverPreregistro(d, ID, { accion: 'invitar', email: 'ana@example.test' })
+    expect(r).toEqual({ status: 502, body: { error: 'No se pudo enviar la invitación. Intenta de nuevo.', invitacion: 'fallo' } })
+    expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
+    log.mockRestore()
   })
 })
 
