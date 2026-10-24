@@ -80,3 +80,24 @@ export function invertirRelacion(tipoRelacion: string): string | null {
 export function esRelacionReciproca(tipoRelacion: string): boolean {
   return RELACIONES_FAMILIARES.RELACIONES_RECIPROCAS.includes(tipoRelacion as any)
 }
+
+export interface RelacionParaVista {
+  tipo_relacion: string
+  usuario1_id?: string | null
+  usuario2_id?: string | null
+  sentido?: string | null
+}
+
+// Returns the relation type as seen from `usuarioId`.
+// Row convention: (usuario1, usuario2, tipo) means usuario2 is `tipo` of usuario1,
+// so when the viewed user is usuario2 a non-reciprocal type is inverted
+// (the father of (child, father, 'padre') sees a 'hijo'). An explicit `sentido`
+// wins when present.
+export function tipoRelacionParaVista(relacion: RelacionParaVista, usuarioId: string): string {
+  const tipo = relacion.tipo_relacion
+  const esInverso = relacion.sentido
+    ? relacion.sentido === 'inverso'
+    : relacion.usuario2_id === usuarioId && relacion.usuario1_id !== usuarioId
+  if (!esInverso || esRelacionReciproca(tipo)) return tipo
+  return invertirRelacion(tipo) || tipo
+}

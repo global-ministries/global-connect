@@ -3,6 +3,8 @@
  * pre-registration at the table (N8 of odd/tasks/ninos-checkin.md).
  *
  * { accion: 'descartar' } | { accion: 'confirmar', payload, email? }
+ * | { accion: 'invitar', email } (resend a failed invitation: same RPC, so
+ * still only the confirming operator, only that email, within the hour)
  * The RPC runs AS THE CALLER (ninos_preregistro_resolver checks the campus
  * authority and registers the family). With an email: the welcome email and,
  * when the parent has no account, the account invitation — the shared flow
@@ -12,68 +14,18 @@
 import { createElement } from 'react'
 import { after, NextRequest, NextResponse } from 'next/server'
 
-import { DESTINO_MIS_HIJOS, enlaceInvitacionConDestino } from '@/lib/auth/destino-mis-hijos'
+import { DESTINO_MIS_HIJOS } from '@/lib/auth/destino-mis-hijos'
 import { sendEmail } from '@/lib/email/send'
-import { InvitacionCuentaEmail } from '@/lib/email/invitacion-cuenta-email'
 import { NinosBienvenidaEmail } from '@/lib/email/ninos-bienvenida-email'
-import { enviarInvitacionCuenta, type DependenciasInvitacion } from '@/lib/platform/cuentas/invitacion-cuenta'
+import { enviarInvitacionCuenta } from '@/lib/platform/cuentas/invitacion-cuenta'
 import { parseResolucion, resolverPreregistro } from '@/lib/platform/ninos/preregistro-resolver'
-import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 import { rpcSinTipos, sesion } from '../../_lib/avisos'
+import { dependenciasInvitacionNinos, urlBaseSitio } from '../../_lib/invitacion'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type Ctx = { params: Promise<{ id: string }> }
-
-function urlBaseSitio(): string {
-  const configurada = process.env.NEXT_PUBLIC_SITE_URL
-  if (configurada) return configurada.replace(/\/+$/, '')
-  const vercel = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
-  if (vercel) return `https://${vercel}`
-  return 'https://miembros.yosoyglobal.org'
-}
-
-/** The shared invitation flow; only its first step is the preregistro-bound RPC. */
-function dependenciasInvitacion(cliente: { rpc: unknown }, id: string): DependenciasInvitacion {
-  const admin = createSupabaseAdminClient()
-  const rpcUsuario = rpcSinTipos(cliente)
-  return {
-    rpcUsuario: (_nombre, args) => rpcUsuario('ninos_preregistro_invitar', { p_id: id, p_email: args.p_email }),
-    admin: {
-      rpc: rpcSinTipos(admin),
-      obtenerUsuario: async (uid) => {
-        const { data, error } = await admin.auth.admin.getUserById(uid)
-        if (error || !data?.user) return null
-        return { email: data.user.email ?? '', email_confirmed_at: data.user.email_confirmed_at ?? null }
-      },
-      borrarUsuario: async (uid) => {
-        const { error } = await admin.auth.admin.deleteUser(uid)
-        return { error: error ? { message: error.message } : null }
-      },
-      generarEnlace: async ({ tipo, email, datos }) => {
-        const { data, error } = await admin.auth.admin.generateLink({ type: tipo, email, options: { data: datos } })
-        if (error || !data?.user || !data.properties?.hashed_token) {
-          return { data: null, error: { message: error?.message ?? 'sin enlace' } }
-        }
-        return { data: { userId: data.user.id, hashedToken: data.properties.hashed_token }, error: null }
-      },
-    },
-    // After choosing the password the parent lands on Mi Perfil → Mis hijos (R3b).
-    enviarCorreo: ({ to, subject, nombre, enlace, idempotencyKey }) =>
-      sendEmail({
-        to,
-        subject,
-        template: createElement(InvitacionCuentaEmail, {
-          nombre,
-          urlAceptar: enlaceInvitacionConDestino(enlace, DESTINO_MIS_HIJOS),
-          deNinos: true,
-        }),
-        idempotencyKey,
-      }),
-    urlBase: urlBaseSitio(),
-  }
-}
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
@@ -98,7 +50,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           }),
         enSegundoPlano: (tarea) => after(tarea),
         invitar: async (email) => {
-          const inv = await enviarInvitacionCuenta(dependenciasInvitacion(supabase, id), id, { email, reemplazarEmail: false })
+          const rpc = rpcSinTipos(supabase)
+          const deps = dependenciasInvitacionNinos((correo) => rpc('ninos_preregistro_invitar', { p_id: id, p_email: correo }))
+          const inv = await enviarInvitacionCuenta(deps, id, { email, reemplazarEmail: false })
           return inv.ok ? { ok: true } : { ok: false, codigo: inv.codigo }
         },
       },

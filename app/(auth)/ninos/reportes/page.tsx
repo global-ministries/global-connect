@@ -1,11 +1,12 @@
 /**
- * Niños — /ninos/reportes (RSC), odd/tasks/ninos-checkin.md N7.
+ * Niños — /ninos/reportes (RSC), odd/tasks/ninos-checkin.md N7 and N16.
  *
  * Attendance reports for whoever may configure some Niños area
  * (ninos_puede_configurar_algun_area: Directora de Niños, area coordinators,
  * admin and pastor). Anfitriones and Líderes get a 404. Every aggregate comes
  * from ninos_reporte_asistencia, which also checks authority per room.
- * Query: ?desde=&hasta=&campus=&turno= (default: the last 8 Sundays).
+ * Query: ?desde=&hasta=&campus=&turno=&vista=mes (default: the last 8
+ * Sundays, per Sunday; dates and quick ranges in Caracas time).
  */
 import { notFound } from 'next/navigation'
 
@@ -18,7 +19,13 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 export const metadata = { title: 'Reportes — Niños' }
 
 type Props = {
-  readonly searchParams: Promise<{ readonly desde?: string; readonly hasta?: string; readonly campus?: string; readonly turno?: string }>
+  readonly searchParams: Promise<{
+    readonly desde?: string
+    readonly hasta?: string
+    readonly campus?: string
+    readonly turno?: string
+    readonly vista?: string
+  }>
 }
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/
@@ -44,7 +51,8 @@ export default async function NinosReportesPage({ searchParams }: Props) {
       ])
     : [{ data: [] }, { data: [] }]
 
-  const porDefecto = rangoPorDefecto(hoyEnCaracas())
+  const hoy = hoyEnCaracas()
+  const porDefecto = rangoPorDefecto(hoy)
   const listaCampus = (campus ?? []).map((c) => ({ id: c.id, nombre: c.nombre }))
   const listaTurnos = (turnos ?? []).map((t) => ({ id: t.id, nombre: t.nombre, campusId: t.campus_id }))
   const filtros: FiltrosReporte = {
@@ -56,7 +64,13 @@ export default async function NinosReportesPage({ searchParams }: Props) {
 
   return (
     <ContenedorDashboard titulo="Reportes">
-      <ReportesClient campus={listaCampus} turnos={listaTurnos} filtrosIniciales={filtros} />
+      <ReportesClient
+        campus={listaCampus}
+        turnos={listaTurnos}
+        filtrosIniciales={filtros}
+        hoy={hoy}
+        vistaInicial={query.vista === 'mes' ? 'mes' : 'domingo'}
+      />
     </ContenedorDashboard>
   )
 }

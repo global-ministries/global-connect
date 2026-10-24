@@ -6,85 +6,16 @@ import { usePathname } from 'next/navigation'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
 import { SelectorCampus } from '@/components/ui/selector-campus'
 import { logout } from "@/lib/actions/auth.actions"
-import {
-  LogOut, User, Menu, X, HelpCircle,
-  Home, Users, UserCheck, Settings, Megaphone,
-  ChevronDown, House, Calendar, MapPin, BarChart3,
-  ShieldAlert, ClipboardList, Bell, Sun, Moon, Monitor, UserCog
-} from 'lucide-react'
+import { LogOut, User, Menu, X, ChevronDown, Bell, Sun, Moon, Monitor } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { UserAvatar } from './UserAvatar'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { cn } from '@/lib/utils'
 import { useBranding } from '@/hooks/useBranding'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
-import { canAccess } from '@/lib/navigation/canAccess'
-import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
-import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
-
-// ── SubItem type ──
-interface SubItem {
-  id: string
-  label: string
-  href: string
-  icon?: React.ComponentType<{ className?: string }>
-  roles?: string[]
-  capabilities?: string[]
-}
-
-// ── Menu items with optional children (mirror of sidebar) ──
-interface MobileMenuItem {
-  id: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  href: string
-  children?: SubItem[]
-  roles?: string[]
-  capabilities?: string[]
-}
-
-const SUPPORT_CONFIGURATION_ROLES = ['admin', 'pastor', 'director-general']
-
-const mainMenuItems: MobileMenuItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-  { id: 'usuarios', label: 'Usuarios', icon: Users, href: '/users', roles: ['admin', 'pastor', 'director-general', 'director-etapa', 'lider'] },
-  {
-    id: 'grupos-vida',
-    label: 'Grupos de Vida',
-    icon: UserCheck,
-    href: '/grupos-vida',
-    children: [
-      { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-directores', label: 'Directores', href: '/grupos-vida/directores', icon: UserCog, roles: ['admin', 'pastor', 'director-general'] },
-      { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ['admin', 'pastor', 'director-general'] },
-      { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-riesgo', label: 'Dashboard Riesgo', href: '/grupos-vida/dashboard-riesgo', icon: ShieldAlert, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-solicitudes', label: 'Solicitudes', href: '/grupos-vida/solicitudes', icon: ClipboardList, roles: ['admin', 'pastor', 'director-general', 'director-etapa'] },
-      { id: 'gv-config', label: 'Configuración', href: '/grupos-vida/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
-    ],
-  },
-  {
-    id: 'configuracion-global',
-    label: 'Configuración',
-    icon: Settings,
-    href: '/configuracion',
-    roles: ['admin', 'pastor', 'director-general'],
-    children: [
-      { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ['admin', 'pastor'] },
-      { id: 'config-soporte', label: 'Soporte', href: '/configuracion/soporte', icon: HelpCircle, roles: SUPPORT_CONFIGURATION_ROLES, capabilities: ['support.manage'] },
-    ],
-  },
-  { id: 'soporte-admin', label: 'Soporte', icon: HelpCircle, href: '/ayuda/admin', capabilities: ['support.view', 'support.reply', 'support.manage'] },
-]
-
-const footerMenuItems: MobileMenuItem[] = [
-  { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/actualizaciones' },
-  { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda' },
-]
+import { useEntradasNavegacion, type EntradaMenu } from '@/components/navegacion/use-entradas-navegacion'
+import { ENTRADAS_NAVEGACION, esEntradaActiva, esRutaActiva } from '@/lib/navegacion/registro'
+import { CLASE_BOTON_ICONO_NAV, claseEnlaceNav, claseIconoNav, claseSubEnlaceNav } from '@/components/navegacion/estilos-navegacion'
 
 function formatearRol(roles: string[]): string {
   if (!roles || roles.length === 0) return 'Usuario'
@@ -112,48 +43,21 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
   const pathname = usePathname()
-  const { usuario, roles, supportCapabilities = [], platformSession, loading } = useCurrentUser()
-  const effectiveRoles = useCachedAccessCredentials({ values: roles, loading, isSignedIn: !!usuario })
-  const effectiveSupportCapabilities = useCachedAccessCredentials({ values: supportCapabilities, loading, isSignedIn: !!usuario })
-  const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
+  const { usuario, roles, loading } = useCurrentUser()
+  // Every entry, its order and who sees it come from the navigation registry
+  // (lib/navegacion/registro.ts), shared with the desktop sidebar and the bottom bar.
+  const { principales: primaryMenuItems, pie, cuenta } = useEntradasNavegacion()
   const branding = useBranding()
   const toast = useNotificaciones()
   const { theme, setTheme } = useTheme()
   const userMenuRef = useRef<HTMLDivElement>(null)
 
-  // Dream Team — the same section, rule and flag handling as the desktop
-  // sidebar (components/ui/dream-team-menu-item.ts), inserted right after
-  // 'grupos-vida' like there. Built dynamically from the session, so it is not
-  // part of the static `mainMenuItems`.
-  const dreamTeamMenuItem: MobileMenuItem | null = useDreamTeamMenuItem(platformSession)
-  // Niños — same server-fed section as the desktop sidebar.
-  const ninosMenuItem: MobileMenuItem | null = useNinosMenuItem()
-  const primaryMenuItems = [
-    ...insertNinosMenuItem<MobileMenuItem>(
-      insertDreamTeamMenuItem<MobileMenuItem>(mainMenuItems, dreamTeamMenuItem),
-      ninosMenuItem,
-    ),
-    ...platformNavigationItems,
-  ]
-
   // Auto-expand submenus when a child route is active
   useEffect(() => {
     const newOpen = new Set<string>()
-    const itemsConSubmenu = [
-      ...mainMenuItems,
-      ...(dreamTeamMenuItem ? [dreamTeamMenuItem] : []),
-      ...(ninosMenuItem ? [ninosMenuItem] : []),
-      ...platformNavigationItems,
-      ...footerMenuItems,
-    ]
-    for (const item of itemsConSubmenu) {
-      if (item.children) {
-        const isChildActive = item.children.some(child =>
-          pathname === child.href || pathname?.startsWith(child.href + '/')
-        )
-        if (isChildActive) {
-          newOpen.add(item.id)
-        }
+    for (const item of primaryMenuItems) {
+      if (item.children?.some(child => esRutaActiva(pathname, child.href))) {
+        newOpen.add(item.id)
       }
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronización de submenús activos con la ruta actual (patrón preexistente)
@@ -162,7 +66,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       newOpen.forEach(id => merged.add(id))
       return merged
     })
-  }, [pathname, platformNavigationItems, dreamTeamMenuItem, ninosMenuItem])
+  }, [pathname, primaryMenuItems])
 
   const toggleSubmenu = (id: string) => {
     setOpenSubmenus(prev => {
@@ -218,11 +122,24 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
 
   const closeDrawer = useCallback(() => setDrawerOpen(false), [])
 
-  const accessCredentials = { roles: effectiveRoles, supportCapabilities: effectiveSupportCapabilities }
+  const isActive = (href: string): boolean => esRutaActiva(pathname, href)
 
-  const isActive = (href: string): boolean => {
-    return pathname === href ||
-      (href !== "/dashboard" && !!pathname?.startsWith(href + '/'))
+  // ── Footer and account links (registry groups 'pie' and 'cuenta') ──
+  const renderEnlacePie = (item: EntradaMenu) => {
+    const Icon = item.icon
+    const active = isActive(item.href)
+    return (
+      <Link
+        key={item.id}
+        href={item.href}
+        prefetch={false}
+        aria-current={active ? "page" : undefined}
+        className={claseEnlaceNav(active)}
+      >
+        <Icon aria-hidden="true" className={cn(claseIconoNav(active), "size-5")} />
+        <span className="text-sm">{item.label}</span>
+      </Link>
+    )
   }
 
   // ── Título inteligente por ruta ──
@@ -250,14 +167,15 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       ['/grupos-vida/mapa', 'Mapa de Grupos'],
       [/\/grupos-vida\/reportes/, 'Reportes'],
       [/\/grupos-vida\/importar/, 'Importar Grupos'],
+      // Before the catch-all below, which used to swallow them as 'Detalle del Grupo'.
+      ['/grupos-vida/dashboard-riesgo', 'Salud de los Grupos'],
+      ['/grupos-vida/solicitudes', 'Solicitudes'],
+      ['/grupos-vida/configuracion', 'Configuración Grupos'],
       [/\/grupos-vida\/[^/]+/, 'Detalle del Grupo'],
       [/\/users\/[^/]+\/asistencia/, 'Asistencia del Usuario'],
       [/\/users\/[^/]+\/edit/, 'Editar Usuario'],
       [/\/users\/create/, 'Crear Usuario'],
       [/\/users\/[^/]+/, 'Detalle del Usuario'],
-      ['/grupos-vida/dashboard-riesgo', 'Dashboard Riesgo'],
-      ['/grupos-vida/solicitudes', 'Solicitudes'],
-      ['/grupos-vida/configuracion', 'Configuración Grupos'],
       [/^\/dream-team\/mi-equipo/, 'Mi equipo'],
       [/^\/admin\/dream-team\/servidores/, 'Servidores'],
       [/^\/admin\/dream-team\/estructura/, 'Estructura'],
@@ -274,7 +192,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
     }
 
     // Fallback: top-level menu items
-    const titleItems = [...primaryMenuItems, ...footerMenuItems]
+    const titleItems: EntradaMenu[] = [...primaryMenuItems, ...ENTRADAS_NAVEGACION]
     return titleItems.find(it => path.startsWith(it.href) && it.href !== '/dashboard')?.label ?? 'Global'
   }
 
@@ -283,17 +201,20 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       {/* ── Top Bar ── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-b border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
         <div className={cn(
-          "flex items-center justify-between px-4 safe-area-pt",
+          // Height: the top inset (at least 12px) + a 44px row + 8px. The (auth)
+          // layout offsets the page by the same amount.
+          "flex items-center justify-between gap-2 px-2 safe-area-pt safe-area-pl safe-area-pr",
           "transition-[padding] duration-300 ease-expo",
-          scrolled ? "py-2" : "py-3"
+          scrolled ? "pb-1" : "pb-2"
         )}>
           {/* Left: Hamburger */}
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Abrir menú"
-            className="p-2 rounded-xl text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+            aria-expanded={drawerOpen}
+            className={cn(CLASE_BOTON_ICONO_NAV, "text-foreground")}
           >
-            <Menu className="w-5 h-5" />
+            <Menu aria-hidden="true" className="size-5" />
           </button>
 
           {/* Center: Logo on dashboard, page title otherwise */}
@@ -321,9 +242,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
             <button
               onClick={() => toast.info('Próximamente')}
               aria-label="Notificaciones"
-              className="p-2 rounded-xl hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring"
+              className={CLASE_BOTON_ICONO_NAV}
             >
-              <Bell className="w-[18px] h-[18px] text-muted-foreground" />
+              <Bell aria-hidden="true" className="size-[18px]" />
             </button>
 
             <div className="relative" ref={userMenuRef}>
@@ -331,7 +252,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                 onClick={() => setUserMenuOpen(prev => !prev)}
                 aria-label="Menú de usuario"
                 aria-expanded={userMenuOpen}
-                className="press-scale focus-ring touch-manipulation rounded-full"
+                className="inline-flex size-11 items-center justify-center rounded-full press-scale focus-ring touch-manipulation"
               >
                 {loading ? (
                   <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
@@ -357,7 +278,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     <p className="font-semibold text-sm text-foreground truncate">
                       {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
                     </p>
-                    <p className="text-xs text-[var(--brand-primary)] font-medium mt-0.5">
+                    <p className="text-xs text-brand-text font-medium mt-0.5">
                       {formatearRol(roles)}
                     </p>
                     {usuario?.email && (
@@ -372,7 +293,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     <Link
                       href="/perfil"
                       prefetch={false}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                      className="flex items-center gap-3 px-4 py-2.5 min-h-11 text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                     >
                       <User className="w-4 h-4 text-muted-foreground" />
                       Mi Perfil
@@ -384,7 +305,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                         else if (theme === 'dark') setTheme('system')
                         else setTheme('light')
                       }}
-                      className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                      className="flex items-center gap-3 px-4 py-2.5 min-h-11 w-full text-left text-sm text-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                     >
                       {theme === 'light' ? <Sun className="w-4 h-4 text-muted-foreground" /> : theme === 'dark' ? <Moon className="w-4 h-4 text-muted-foreground" /> : <Monitor className="w-4 h-4 text-muted-foreground" />}
                       Tema
@@ -395,7 +316,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                     <form action={logout}>
                       <button
                         type="submit"
-                        className="flex items-center gap-3 px-4 py-2.5 w-full text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
+                        className="flex items-center gap-3 px-4 py-2.5 w-full text-left min-h-11 text-sm text-danger-text hover:bg-danger/10 transition-[background-color,transform] duration-150 press-scale focus-ring touch-manipulation"
                       >
                         <LogOut className="w-4 h-4" />
                         Cerrar Sesión
@@ -439,9 +360,9 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
           <button
             onClick={closeDrawer}
             aria-label="Cerrar menú"
-            className="p-2 rounded-xl text-muted-foreground hover:bg-[var(--brand-accent)] transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
+            className={CLASE_BOTON_ICONO_NAV}
           >
-            <X className="w-5 h-5" />
+            <X aria-hidden="true" className="size-5" />
           </button>
         </div>
 
@@ -467,7 +388,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
               <p className="font-medium text-sm text-foreground truncate">
                 {usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Usuario'}
               </p>
-              <p className="text-xs text-[var(--brand-primary)] font-medium">
+              <p className="text-xs text-brand-text font-medium">
                 {formatearRol(roles)}
               </p>
             </div>
@@ -480,17 +401,14 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
         </div>
 
         {/* ── Main Navigation with Submenus ── */}
-        <nav className="flex-1 overflow-y-auto px-3 py-1">
+        <nav aria-label="Navegación principal" className="flex-1 overflow-y-auto px-3 py-1">
           <ul className="space-y-0.5">
-            {primaryMenuItems
-              .filter((item) => canAccess(item, accessCredentials))
-              .map(item => {
+            {primaryMenuItems.map(item => {
               const Icon = item.icon
-              const visibleChildren = item.children?.filter(
-                (child) => canAccess(child, accessCredentials)
-              ) ?? []
+              const visibleChildren = item.children ?? []
               const hasChildren = visibleChildren.length > 0
-              const active = isActive(item.href)
+              // A section is highlighted on its own route and on its children's routes.
+              const active = esEntradaActiva(pathname, item)
               const isOpen = openSubmenus.has(item.id)
 
               return (
@@ -498,38 +416,25 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                   {hasChildren ? (
                     <>
                       {/* Parent item with expandable children */}
-                      <div className="flex items-center">
+                      <div className="flex items-center min-w-0">
                         <Link
                           href={item.href}
                           prefetch={false}
-                          aria-current={active ? "page" : undefined}
-                          className={cn(
-                            "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-l-xl min-h-[44px]",
-                            "transition-[background-color,color,transform] duration-200 ease-expo",
-                            "press-scale focus-ring touch-manipulation",
-                            active
-                              ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                              : "text-foreground hover:bg-[var(--brand-accent)]"
-                          )}
+                          aria-current={pathname === item.href ? "page" : undefined}
+                          className={cn(claseEnlaceNav(active), "flex-1 min-w-0 rounded-r-none")}
                         >
-                          <Icon className={cn(
-                            "w-5 h-5 flex-shrink-0",
-                            active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                          )} />
-                          <span className="font-medium text-sm">{item.label}</span>
+                          <Icon aria-hidden="true" className={cn(claseIconoNav(active), "size-5")} />
+                          <span className="text-sm truncate">{item.label}</span>
                         </Link>
                         <button
+                          type="button"
                           onClick={() => toggleSubmenu(item.id)}
                           aria-label={isOpen ? `Cerrar ${item.label}` : `Abrir ${item.label}`}
                           aria-expanded={isOpen}
-                          className={cn(
-                            "p-2.5 rounded-r-xl min-h-[44px] flex items-center transition-colors duration-200 touch-manipulation",
-                            "hover:bg-[var(--brand-accent)]",
-                            active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                          )}
+                          className={cn(CLASE_BOTON_ICONO_NAV, "rounded-l-none", active && "bg-brand-tint text-brand")}
                         >
-                          <ChevronDown className={cn(
-                            "w-4 h-4 transition-transform duration-200",
+                          <ChevronDown aria-hidden="true" className={cn(
+                            "size-4 transition-transform duration-200",
                             isOpen && "rotate-180"
                           )} />
                         </button>
@@ -539,7 +444,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                       <div
                         className={cn(
                           "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
-                          isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                          isOpen ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"
                         )}
                       >
                         <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
@@ -552,20 +457,10 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                                   href={child.href}
                                   prefetch={false}
                                   aria-current={childActive ? "page" : undefined}
-                                  className={cn(
-                                    "flex items-center gap-3 px-3 py-2 rounded-lg min-h-[36px] text-sm",
-                                    "transition-[background-color,color] duration-200 ease-expo",
-                                    "focus-ring touch-manipulation",
-                                    childActive
-                                      ? "bg-[var(--brand-accent)] text-[var(--brand-primary)] font-medium"
-                                      : "text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground"
-                                  )}
+                                  className={claseSubEnlaceNav(childActive)}
                                 >
                                   {ChildIcon && (
-                                    <ChildIcon className={cn(
-                                      "w-4 h-4 flex-shrink-0",
-                                      childActive ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                                    )} />
+                                    <ChildIcon aria-hidden="true" className={cn(claseIconoNav(childActive), "size-4")} />
                                   )}
                                   <span className="truncate">{child.label}</span>
                                 </Link>
@@ -581,20 +476,10 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
                       href={item.href}
                       prefetch={false}
                       aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-                        "transition-[background-color,color,transform] duration-200 ease-expo",
-                        "press-scale focus-ring touch-manipulation",
-                        active
-                          ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                          : "text-foreground hover:bg-[var(--brand-accent)]"
-                      )}
+                      className={claseEnlaceNav(active)}
                     >
-                      <Icon className={cn(
-                        "w-5 h-5 flex-shrink-0",
-                        active ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-                      )} />
-                      <span className="font-medium text-sm">{item.label}</span>
+                      <Icon aria-hidden="true" className={cn(claseIconoNav(active), "size-5")} />
+                      <span className="text-sm truncate">{item.label}</span>
                     </Link>
                   )}
                 </li>
@@ -605,40 +490,7 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
 
         {/* ── Drawer Footer (mirrors desktop sidebar bottom) ── */}
         <div className="p-3 border-t border-[var(--glass-border)] space-y-0.5 safe-area-pb">
-          {/* Actualizaciones */}
-          <Link
-            href="/actualizaciones"
-            prefetch={false}
-            aria-current={isActive('/actualizaciones') ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-              "transition-[background-color,color,transform] duration-200 ease-expo",
-              "press-scale focus-ring touch-manipulation",
-              isActive('/actualizaciones')
-                ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                : "text-foreground hover:bg-[var(--brand-accent)]"
-            )}
-          >
-            <Megaphone className={cn(
-              "w-5 h-5 flex-shrink-0",
-              isActive('/actualizaciones') ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-            )} />
-            <span className="font-medium text-sm">Actualizaciones</span>
-          </Link>
-          <Link
-            href="/ayuda"
-            prefetch={false}
-            aria-current={isActive('/ayuda') ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px] w-full text-left",
-              "transition-[background-color,color,transform] duration-200 ease-expo",
-              "press-scale focus-ring touch-manipulation",
-              isActive('/ayuda') ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]" : "text-foreground hover:bg-[var(--brand-accent)]"
-            )}
-          >
-            <HelpCircle className={cn("w-5 h-5 flex-shrink-0", isActive('/ayuda') ? "text-[var(--brand-primary)]" : "text-muted-foreground")} />
-            <span className="font-medium text-sm">Ayuda</span>
-          </Link>
+          {pie.map(renderEnlacePie)}
 
           {/* Theme Toggle */}
           <button
@@ -658,32 +510,13 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
             <span className="font-medium text-sm">Tema</span>
           </button>
 
-          {/* Mi Perfil */}
-          <Link
-            href="/perfil"
-            prefetch={false}
-            aria-current={pathname === '/perfil' ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl min-h-[44px]",
-              "transition-[background-color,color,transform] duration-200 ease-expo",
-              "press-scale focus-ring touch-manipulation",
-              pathname === '/perfil'
-                ? "bg-[var(--brand-accent)] text-[var(--brand-primary)]"
-                : "text-foreground hover:bg-[var(--brand-accent)]"
-            )}
-          >
-            <User className={cn(
-              "w-5 h-5 flex-shrink-0",
-              pathname === '/perfil' ? "text-[var(--brand-primary)]" : "text-muted-foreground"
-            )} />
-            <span className="font-medium text-sm">Mi Perfil</span>
-          </Link>
+          {cuenta.map(renderEnlacePie)}
 
           {/* Logout */}
           <form action={logout}>
             <button
               type="submit"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left min-h-[44px] text-foreground hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400 transition-[background-color,color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl w-full text-left min-h-[44px] text-foreground hover:bg-danger/10 hover:text-danger-text transition-[background-color,color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
             >
               <LogOut className="w-5 h-5 flex-shrink-0 text-muted-foreground" />
               <span className="font-medium text-sm">Cerrar Sesión</span>
