@@ -13,7 +13,7 @@ import { useEffect, useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Pencil, X } from 'lucide-react'
 
-import { TextoSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { updateTallerDescripcion } from '@/app/(auth)/talleres/[taller]/actions'
 
 interface Props {
@@ -21,8 +21,6 @@ interface Props {
   readonly tallerSlug: string
   readonly descripcion: string | null
 }
-
-const BOTON_ICONO = 'inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground'
 
 export function EditarDescripcionTaller({ tallerId, tallerSlug, descripcion }: Props): ReactElement {
   const router = useRouter()
@@ -46,18 +44,18 @@ export function EditarDescripcionTaller({ tallerId, tallerSlug, descripcion }: P
             Sin descripción.
           </TextoSistema>
         )}
-        <button
+        <BotonSistema
           type="button"
+          variante="ghost"
+          soloIcono
+          icono={Pencil}
           aria-label="Editar descripción"
-          className={BOTON_ICONO}
           onClick={() => {
             setValor(descripcionActual ?? '')
             setError(null)
             setEditing(true)
           }}
-        >
-          <Pencil className="h-4 w-4" />
-        </button>
+        />
       </div>
     )
   }
@@ -83,33 +81,33 @@ export function EditarDescripcionTaller({ tallerId, tallerSlug, descripcion }: P
         onChange={(e) => setValor(e.target.value)}
         aria-label="Descripción del taller"
         rows={3}
-        className="min-h-[44px] w-full rounded-lg border border-border bg-card/50 px-3 py-2 text-foreground"
+        className="min-h-[44px] w-full rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
         autoFocus
       />
       <div className="flex items-center gap-2">
-        <button
+        <BotonSistema
           type="button"
+          variante="ghost"
+          icono={Check}
           aria-label="Guardar descripción"
-          className={BOTON_ICONO}
           disabled={pending}
           onClick={submit}
         >
-          <Check className="h-4 w-4" />
-          <span className="sr-only sm:not-sr-only sm:ml-1 sm:text-sm">Guardar</span>
-        </button>
-        <button
+          <span className="sr-only sm:not-sr-only">Guardar</span>
+        </BotonSistema>
+        <BotonSistema
           type="button"
+          variante="ghost"
+          icono={X}
           aria-label="Cancelar edición de la descripción"
-          className={BOTON_ICONO}
           disabled={pending}
           onClick={() => {
             setEditing(false)
             setError(null)
           }}
         >
-          <X className="h-4 w-4" />
-          <span className="sr-only sm:not-sr-only sm:ml-1 sm:text-sm">Cancelar</span>
-        </button>
+          <span className="sr-only sm:not-sr-only">Cancelar</span>
+        </BotonSistema>
       </div>
       {error && (
         <span role="alert" className="block text-sm text-destructive">

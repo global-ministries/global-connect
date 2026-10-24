@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import RegistroAsistenciaAvanzado from "@/components/grupos/RegistroAsistenciaAvanzado.client"
 import Link from "next/link"
 
-import { ContenedorDashboard, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TituloSistema, BotonSistema } from "@/components/ui/sistema-diseno"
 import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
 /** Forma mínima del resultado de obtener_detalle_grupo relevante para asistencia */
@@ -20,7 +20,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
 
   if (!user) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -30,7 +30,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -44,10 +44,10 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
 
   if (!grupo || !puedeEditar) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <div className="text-danger-text text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
               <p className="text-muted-foreground mb-4">No tienes permiso para registrar asistencia en este grupo.</p>
               <Link href={`/grupos-vida/${id}`}>
@@ -55,7 +55,7 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -74,10 +74,10 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
     : undefined
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo={`Registrar Asistencia - ${grupo.nombre}`}
         descripcion="Registra la asistencia y notas pastorales de la reunión."
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
+        regreso={{ href: `/grupos-vida/${id}`, texto: "Volver al grupo" }}
       >
         <RegistroAsistenciaAvanzado
           grupoId={id}
@@ -90,6 +90,6 @@ export default async function RegistrarAsistenciaPage({ params }: { params: Prom
           configuracion={configuracion}
           initialData={grupo.hora_reunion ? { hora: grupo.hora_reunion } : undefined}
         />
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

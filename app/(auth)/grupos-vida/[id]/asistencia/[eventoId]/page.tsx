@@ -3,7 +3,7 @@ import Link from 'next/link'
 import AttendanceList from "@/components/grupos/AttendanceList.client";
 import { Edit, Calendar, Clock, BookOpen, StickyNote, Users, AlertTriangle } from 'lucide-react'
 
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SeccionesSistema, CamposSistema, TarjetaSistema, BotonSistema, TituloSistema, TextoSistema, BadgeSistema, SeparadorSistema } from '@/components/ui/sistema-diseno'
 
 /** Evento devuelto por obtener_evento_grupo (v2) */
 interface EventoGrupo {
@@ -41,7 +41,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   const supabase = await createSupabaseServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
             <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -51,7 +51,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </Link>
           </div>
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 
   const [{ data: evento }, { data: puedeEditar }, asistenciaRes, { data: grupoData }] = await Promise.all([
@@ -84,10 +84,10 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
 
   const ev: EventoGrupo | undefined = Array.isArray(evento) ? (evento[0] as EventoGrupo) : undefined
   if (!ev) return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
         <div className="flex items-center justify-center min-h-[50vh]">
           <div className="text-center">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
+            <div className="text-danger-text text-6xl mb-4">⚠️</div>
             <TituloSistema nivel={2}>Evento no encontrado</TituloSistema>
             <p className="text-muted-foreground mb-4">No hay acceso o el evento no existe.</p>
             <Link href={`/grupos-vida/${id}`}>
@@ -95,7 +95,7 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
             </Link>
           </div>
         </div>
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 
   const asistentes = Array.isArray(asistenciaRes.data)
@@ -136,10 +136,10 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo={`Asistencia del ${formatearFecha(ev.fecha)}`}
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
-        accionPrincipal={
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        acciones={
           puedeEditar ? (
             <Link href={`/grupos-vida/${id}/asistencia/editar/${eventoId}`}>
               <BotonSistema variante="outline" tamaño="sm" className="gap-2">
@@ -152,9 +152,9 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
       >
         {/* No hubo reunión */}
         {ev.no_hubo_reunion && (
-          <TarjetaSistema className="p-4 border-yellow-500/30 bg-yellow-500/5">
+          <TarjetaSistema className="p-4 border-warning/30 bg-warning/5">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 shrink-0" />
+              <AlertTriangle className="w-5 h-5 text-warning shrink-0" />
               <div>
                 <TextoSistema className="font-medium">No hubo reunión esta semana</TextoSistema>
                 {ev.motivo_no_reunion && (
@@ -165,129 +165,133 @@ export default async function AsistenciaEventoPage({ params }: { params: Promise
           </TarjetaSistema>
         )}
 
-        {/* Información del evento */}
-        <TarjetaSistema className="p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div>
-                <TextoSistema variante="sutil" tamaño="sm">Fecha</TextoSistema>
-                <TextoSistema className="font-medium">{formatearFecha(ev.fecha)}</TextoSistema>
-              </div>
-            </div>
-            {ev.hora && (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <TextoSistema variante="sutil" tamaño="sm">Hora</TextoSistema>
-                  <TextoSistema className="font-medium">{formatearHora(ev.hora)}</TextoSistema>
-                </div>
-              </div>
-            )}
-            {ev.tema && (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <BookOpen className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <TextoSistema variante="sutil" tamaño="sm">Tema</TextoSistema>
-                  <TextoSistema className="font-medium">{ev.tema}</TextoSistema>
-                </div>
-              </div>
-            )}
-            {(ev.conteo_visitantes ?? 0) > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Users className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <TextoSistema variante="sutil" tamaño="sm">Visitantes</TextoSistema>
-                  <TextoSistema className="font-medium">{ev.conteo_visitantes}</TextoSistema>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Notas del evento */}
-          {(ev.notas || ev.descripcion) && (
-            <>
-              <SeparadorSistema />
-              {ev.descripcion && (
-                <div className="mt-3">
-                  <TextoSistema variante="sutil" tamaño="sm" className="mb-1">Descripción</TextoSistema>
-                  <TextoSistema className="whitespace-pre-wrap">{ev.descripcion}</TextoSistema>
-                </div>
-              )}
-              {ev.notas && (
-                <div className="mt-3">
-                  <TextoSistema variante="sutil" tamaño="sm" className="mb-1 flex items-center gap-1.5">
-                    <StickyNote className="w-3.5 h-3.5" /> Notas
-                  </TextoSistema>
-                  <TextoSistema className="whitespace-pre-wrap">{ev.notas}</TextoSistema>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* Puntos de oración */}
-          {ev.puntos_oracion && (
-            <>
-              <SeparadorSistema />
-              <div className="mt-3">
-                <TextoSistema variante="sutil" tamaño="sm" className="mb-1">🙏 Puntos de oración</TextoSistema>
-                <TextoSistema className="whitespace-pre-wrap">{ev.puntos_oracion}</TextoSistema>
-              </div>
-            </>
-          )}
-        </TarjetaSistema>
-
-        {/* KPIs */}
-        {!ev.no_hubo_reunion && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <TarjetaSistema className="p-4 sm:p-6 text-center">
-              <TextoSistema variante="sutil" tamaño="sm">Presentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-emerald-500">{presentes}</TituloSistema>
-            </TarjetaSistema>
-            <TarjetaSistema className="p-4 sm:p-6 text-center">
-              <TextoSistema variante="sutil" tamaño="sm">Tardes</TextoSistema>
-              <TituloSistema nivel={2} className="text-amber-500">{tardes}</TituloSistema>
-            </TarjetaSistema>
-            <TarjetaSistema className="p-4 sm:p-6 text-center">
-              <TextoSistema variante="sutil" tamaño="sm">Ausentes</TextoSistema>
-              <TituloSistema nivel={2} className="text-red-500">{ausentes}</TituloSistema>
-            </TarjetaSistema>
-            <TarjetaSistema className="p-4 sm:p-6 text-center">
-              <TextoSistema variante="sutil" tamaño="sm">% Asistencia</TextoSistema>
-              <TituloSistema nivel={2} className="text-[hsl(var(--chart-4))]">{porcentaje}%</TituloSistema>
-            </TarjetaSistema>
-          </div>
-        )}
-
-        {/* Listado de Asistencia */}
-        {!ev.no_hubo_reunion && (
+        {/* Blocks sit side by side on wide screens; dense flow lets a short block
+            fill a gap left before the full-width attendance list. */}
+        <SeccionesSistema className="grid-flow-dense">
+          {/* Información del evento */}
           <TarjetaSistema className="p-4 sm:p-6">
-            <div className="mb-4">
-              <TituloSistema nivel={3}>Listado de Asistencia</TituloSistema>
-              <TextoSistema variante="sutil">Detalle de asistencia de cada miembro</TextoSistema>
-            </div>
-            <AttendanceList attendees={asistentes} esMatrimonios={esMatrimonios} conyugeMap={conyugeMap} />
-          </TarjetaSistema>
-        )}
+            <CamposSistema>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <TextoSistema variante="sutil" tamaño="sm">Fecha</TextoSistema>
+                  <TextoSistema className="font-medium">{formatearFecha(ev.fecha)}</TextoSistema>
+                </div>
+              </div>
+              {ev.hora && (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                    <Clock className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <TextoSistema variante="sutil" tamaño="sm">Hora</TextoSistema>
+                    <TextoSistema className="font-medium">{formatearHora(ev.hora)}</TextoSistema>
+                  </div>
+                </div>
+              )}
+              {ev.tema && (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <TextoSistema variante="sutil" tamaño="sm">Tema</TextoSistema>
+                    <TextoSistema className="font-medium">{ev.tema}</TextoSistema>
+                  </div>
+                </div>
+              )}
+              {(ev.conteo_visitantes ?? 0) > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <TextoSistema variante="sutil" tamaño="sm">Visitantes</TextoSistema>
+                    <TextoSistema className="font-medium">{ev.conteo_visitantes}</TextoSistema>
+                  </div>
+                </div>
+              )}
+            </CamposSistema>
 
-        {/* Notas privadas del líder (solo para quien puede editar) */}
-        {puedeEditar && ev.notas_privadas_lider && (
-          <TarjetaSistema className="p-4 sm:p-6 border-blue-500/20 bg-blue-500/5">
-            <div className="flex items-center gap-2 mb-2">
-              <BadgeSistema variante="info" tamaño="sm">Solo líder</BadgeSistema>
-              <TextoSistema className="font-medium" tamaño="sm">Notas privadas del líder</TextoSistema>
-            </div>
-            <TextoSistema className="whitespace-pre-wrap">{ev.notas_privadas_lider}</TextoSistema>
+            {/* Notas del evento */}
+            {(ev.notas || ev.descripcion) && (
+              <>
+                <SeparadorSistema />
+                {ev.descripcion && (
+                  <div className="mt-3">
+                    <TextoSistema variante="sutil" tamaño="sm" className="mb-1">Descripción</TextoSistema>
+                    <TextoSistema className="whitespace-pre-wrap">{ev.descripcion}</TextoSistema>
+                  </div>
+                )}
+                {ev.notas && (
+                  <div className="mt-3">
+                    <TextoSistema variante="sutil" tamaño="sm" className="mb-1 flex items-center gap-1.5">
+                      <StickyNote className="w-3.5 h-3.5" /> Notas
+                    </TextoSistema>
+                    <TextoSistema className="whitespace-pre-wrap">{ev.notas}</TextoSistema>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Puntos de oración */}
+            {ev.puntos_oracion && (
+              <>
+                <SeparadorSistema />
+                <div className="mt-3">
+                  <TextoSistema variante="sutil" tamaño="sm" className="mb-1">🙏 Puntos de oración</TextoSistema>
+                  <TextoSistema className="whitespace-pre-wrap">{ev.puntos_oracion}</TextoSistema>
+                </div>
+              </>
+            )}
           </TarjetaSistema>
-        )}
-      </ContenedorDashboard>
+
+          {/* KPIs */}
+          {!ev.no_hubo_reunion && (
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <TarjetaSistema className="p-4 sm:p-6 text-center">
+                <TextoSistema variante="sutil" tamaño="sm">Presentes</TextoSistema>
+                <TituloSistema nivel={2} className="text-success-text">{presentes}</TituloSistema>
+              </TarjetaSistema>
+              <TarjetaSistema className="p-4 sm:p-6 text-center">
+                <TextoSistema variante="sutil" tamaño="sm">Tardes</TextoSistema>
+                <TituloSistema nivel={2} className="text-warning-text">{tardes}</TituloSistema>
+              </TarjetaSistema>
+              <TarjetaSistema className="p-4 sm:p-6 text-center">
+                <TextoSistema variante="sutil" tamaño="sm">Ausentes</TextoSistema>
+                <TituloSistema nivel={2} className="text-danger-text">{ausentes}</TituloSistema>
+              </TarjetaSistema>
+              <TarjetaSistema className="p-4 sm:p-6 text-center">
+                <TextoSistema variante="sutil" tamaño="sm">% Asistencia</TextoSistema>
+                <TituloSistema nivel={2} className="text-[hsl(var(--chart-4))]">{porcentaje}%</TituloSistema>
+              </TarjetaSistema>
+            </div>
+          )}
+
+          {/* Listado de Asistencia */}
+          {!ev.no_hubo_reunion && (
+            <TarjetaSistema className="col-span-full p-4 sm:p-6">
+              <div className="mb-4">
+                <TituloSistema nivel={3}>Listado de Asistencia</TituloSistema>
+                <TextoSistema variante="sutil">Detalle de asistencia de cada miembro</TextoSistema>
+              </div>
+              <AttendanceList attendees={asistentes} esMatrimonios={esMatrimonios} conyugeMap={conyugeMap} />
+            </TarjetaSistema>
+          )}
+
+          {/* Notas privadas del líder (solo para quien puede editar) */}
+          {puedeEditar && ev.notas_privadas_lider && (
+            <TarjetaSistema className="p-4 sm:p-6 border-info/20 bg-info/5">
+              <div className="flex items-center gap-2 mb-2">
+                <BadgeSistema variante="info" tamaño="sm">Solo líder</BadgeSistema>
+                <TextoSistema className="font-medium" tamaño="sm">Notas privadas del líder</TextoSistema>
+              </div>
+              <TextoSistema className="whitespace-pre-wrap">{ev.notas_privadas_lider}</TextoSistema>
+            </TarjetaSistema>
+          )}
+        </SeccionesSistema>
+      </PaginaSistema>
 )
 }

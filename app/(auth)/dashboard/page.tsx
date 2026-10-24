@@ -11,6 +11,8 @@ import DashboardMiembro from '@/components/dashboard/roles/DashboardMiembro'
 import { obtenerCasasRevisionPendiente, obtenerGruposSinCasaAnfitriona } from '@/lib/actions/casas-anfitrionas.actions'
 import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
 import type { HostHomeQueuesData, PendingHostHomeReviewItem } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
+import { TarjetaMisHijosDashboard } from '@/components/dashboard/TarjetaMisHijosDashboard'
+import { cargarMisHijosDashboard } from './mis-hijos-dashboard'
 
 export const dynamic = 'force-dynamic'
 
@@ -82,12 +84,15 @@ async function obtenerColasCasasAnfitrionas(rol: string): Promise<HostHomeQueues
 }
 
 export default async function PaginaTablero() {
+  // Started first so it runs alongside the role data instead of after it.
+  const misHijosPromesa = cargarMisHijosDashboard()
   const data = await obtenerDatosDashboard(await leerCampusInicial())
   const hostHomeQueues = await obtenerColasCasasAnfitrionas(data.rol)
   const widgets = hostHomeQueues
     ? { ...data.widgets, casas_anfitrionas_queues: hostHomeQueues }
     : data.widgets
   const contextualAccess = await resolveDashboardContextualAccess(data.platformSession, getDashboardPlatformNavigationFlags())
+  const misHijos = await misHijosPromesa
 
   const titulo = 'Dashboard'
   const descripcion =
@@ -103,6 +108,7 @@ export default async function PaginaTablero() {
 
   return (
 <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
+        {misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
           <DashboardAdmin data={widgets} rol={data.rol} campusInicialId={data.campusId ?? null} />
         ) : data.rol === 'director-etapa' ? (

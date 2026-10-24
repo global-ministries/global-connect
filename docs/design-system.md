@@ -106,6 +106,20 @@ scrolling body that is a `@container` — lay out fields with `@md:`/`@lg:` so
 they follow the panel width, not the viewport — and `PieAccionesSistema` for
 the `pie` actions. Padding is 16px mobile, 24px from `sm`.
 
+- A form inside the panel keeps its submit button in `pie`: give the `<form>`
+  an `id` (`useId`) and the button `type="submit" form={id}`, so the button
+  stays the form's default button (Enter still submits).
+- Extra header content (e.g. a step indicator) goes at the top of the body;
+  `descripcion` renders inside a `<p>`, so it takes text only.
+
+## Dialogs
+
+Centered dialogs (`ui/dialog`) use the surface radius (`rounded-2xl` on
+`DialogContent`), put their actions in `DialogFooter` (stacked full width on
+mobile with the primary on top, a right-aligned row from `sm`) with the
+default md buttons, and scroll inside (`max-h-[calc(100dvh-2rem)]
+overflow-y-auto`) when the content can grow.
+
 ## Close buttons in sheets and dialogs
 
 The built-in close button of `ui/sheet` and `ui/dialog` (and so of
@@ -215,6 +229,32 @@ Use these instead of raw palette colors (`text-red-600`, `bg-green-500/10`).
 `coloresMarca` now points at the CSS variables; prefer the Tailwind classes
 and reach for it only where a class cannot (inline styles, SVG attributes).
 
+## Forms: `components/forms`
+
+Shared forms (users, groups, seasons) use the whole page width: their sections
+are cards on `SeccionesSistema` and their fields sit in `CamposSistema` (see
+"Sections and fields"). Pages render them straight in `PaginaSistema`, never
+inside another card. Two local parts help:
+
+- `SeccionFormulario`: a labelled section card (`TarjetaSistema` with an
+  `<h2>`, optional icon chip and description, `role="region"`). Place it as a
+  direct child of `SeccionesSistema`; its body is usually a `CamposSistema`.
+  Forms with a single untitled section (season, group create) use a plain
+  `TarjetaSistema` instead.
+- Spanned (`col-span-full`): group names, textareas, the initial leader row,
+  the location map and the location section itself (it holds the map).
+- `AvisoFormulario`: inline notice; `error` uses the danger token and
+  `role="alert"`, `info` the info token, `marca` the brand tint. Form-level
+  notices go above or below the sections grid, not inside a field grid.
+- Actions go in `PieAccionesSistema fijo={false}` after the grid (the mobile
+  bottom bar would cover a sticky footer).
+
+Attendance reports (`components/asistencia`) share `FiltroFechasAsistencia`
+(collapsible date filter), `TarjetaKpiAsistencia` (token-tinted icon chip, label,
+value, optional link) and one percentage scale for bars and figures (≥80
+success, ≥60 warning, ≥40 brand, below danger). Their lists switch to columns by
+container width (`@xl` / `@2xl`), so they never scroll sideways at 360px.
+
 ## Navigation
 
 One registry, `lib/navegacion/registro.ts`, lists the app's own entries (id,
@@ -253,12 +293,56 @@ still decided only by `canAccess` (`lib/navigation/canAccess.ts`).
   `boton-gradiente` (as an error) only in the paths listed in
   `migratedToDesignSystem`. Add each area there when it migrates. A repo-wide
   warning would raise the 480-warning lint budget, so it waits until
-  migrations lower the count.
+  migrations lower the count. Migrated so far: Grupos de Vida
+  (`app/(auth)/grupos-vida`, `components/grupos`, `components/grupos-vida`).
+- `BotonSistema` has no danger variant. Destructive actions in Grupos de Vida
+  use the outline button with the danger token
+  (`border-danger/40 text-danger hover:bg-danger/10`); add a `peligro` variant
+  and replace those classes.
+- No readable warning text token in light mode (`--warning` is ~2:1 on white;
+  `--warning-foreground` is dark in both themes). Grupos de Vida keeps
+  `text-amber-700` / `text-yellow-700` for warning body text until one exists.
+  Brand orange has no Tailwind color either, so `orange-*` classes stay.
+- `components/ui/FiltrosGrupos` brings its own `p-6`; the Grupos filter panel
+  cancels the panel body padding around it. Drop that padding when it migrates.
 - `ui/button` `size="icon"` does not require `aria-label` at the type level yet.
   The calendar day cells still use it without one; `KpisGruposPanel` now has
   its label but keeps a 32px (`h-8 w-8`) override below the 44px icon size.
 - `ui/card` still uses `rounded-xl`; move it to the surface radius when cards
   migrate.
+- Usuarios migrated (list, filters panel, detail, edit, create, attendance)
+  and imports no legacy UI. Add `app/(auth)/users/**`, `components/users/**`
+  and `components/ui/filtros-usuarios.tsx` to `migratedToDesignSystem`.
+  `UserEditForm`, `UserCreateForm` and `ReporteAsistenciaUsuario` live outside
+  the area and migrate with the forms.
+- `BotonSistema` has no link form. Navigation buttons wrap it in `Link` and
+  pass `tabIndex={-1}` so the link is the only tab stop; an `asChild` or
+  `href` prop would remove the nested interactive element.
+- Talleres (`app/(auth)/talleres`, `components/talleres`) is migrated: every
+  page uses `PaginaSistema` (Crear Temporada and the certificate at `form`
+  width), icon-only actions are `BotonSistema soloIcono`, status feedback uses
+  the danger/success tokens and destructive confirms use
+  `bg-none bg-danger text-danger-foreground` (`bg-none` drops the primary
+  gradient, which a plain `bg-*` color cannot override). Pending: add these
+  paths to `migratedToDesignSystem` in `eslint.config.mjs`; `app/(auth)/admin/talleres`
+  belongs to the admin area.
+
+## Area notes: Configuración, Administración and shared reports
+
+- Settings screens (`/configuracion`, `/configuracion/soporte`,
+  `/configuracion/grupos-vida`) use `ancho="form"`; the Dream Team loading
+  skeletons under `/admin/dream-team` use the default width like their pages.
+  The Dream Team pages themselves render `components/dream-team` islands that
+  still wrap `ContenedorDashboard`; they migrate with that area.
+- `components/reportes` (used by Grupos de Vida reports) keeps its props. The
+  four health levels of `DashboardRiesgo` take their chart colors from the
+  status tokens; "En riesgo" mixes `--warning` and `--danger`
+  (`color-mix(in oklch, …)`) in SVG fills and inline styles, while its text
+  and tile stay `orange-*` and "Atención" text stays `amber-*`: `--warning`
+  is too light for text on white and there is no orange token.
+- Not yet locked by the legacy-import lint rule: these paths import no
+  `ui/button`, `ui/card` or `boton-gradiente`, but `eslint.config.mjs` is left
+  for a follow-up so parallel area branches do not conflict on it.
 - Pastoral (`app/(pastoral)`, `components/pastoral`), Notas de líderes,
   Ayuda and Actualizaciones are migrated and import no `ui/button` or
   `ui/card`; add them to `migratedToDesignSystem`. Widths: lists, dashboards

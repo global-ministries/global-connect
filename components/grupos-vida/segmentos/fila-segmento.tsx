@@ -119,7 +119,7 @@ export function FilaSegmentoLista({ fila, puedeGestionar, segmentos }: FilaSegme
             className="flex flex-col gap-2.5 rounded-xl border border-border bg-background p-3 md:flex-row md:items-center md:gap-3 md:px-3.5"
           >
             <div className="flex flex-1 items-start gap-2.5 md:items-center">
-              <TriangleAlert className="mt-px h-[18px] w-[18px] shrink-0 text-yellow-600 dark:text-yellow-400" aria-hidden="true" />
+              <TriangleAlert className="mt-px h-[18px] w-[18px] shrink-0 text-warning" aria-hidden="true" />
               <p className="text-sm text-foreground">{fila.bloqueo}</p>
             </div>
             <button

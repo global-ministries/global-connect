@@ -4,11 +4,13 @@ import { useState, useTransition, useEffect } from "react";
 import { Settings, Save, Clock, Eye, AlertTriangle, Mail, MapPin, UserCog } from "lucide-react";
 import {
     BotonSistema,
+    CamposSistema,
+    PieAccionesSistema,
+    SeccionesSistema,
     TarjetaSistema,
     SelectSistema,
     TituloSistema,
     TextoSistema,
-    SeparadorSistema,
 } from "@/components/ui/sistema-diseno";
 import { useNotificaciones } from "@/hooks/use-notificaciones";
 import {
@@ -138,9 +140,9 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
             <TarjetaSistema className="p-6 animate-pulse">
                 <div className="h-6 bg-muted rounded w-1/3 mb-4" />
                 <div className="space-y-3">
-                    <div className="h-10 bg-muted rounded" />
-                    <div className="h-10 bg-muted rounded" />
-                    <div className="h-10 bg-muted rounded" />
+                    <div className="h-10 bg-muted rounded-xl" />
+                    <div className="h-10 bg-muted rounded-xl" />
+                    <div className="h-10 bg-muted rounded-xl" />
                 </div>
             </TarjetaSistema>
         );
@@ -157,327 +159,279 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
     }
 
     return (
-        <TarjetaSistema className="p-6">
-            <div className="flex items-center gap-3 mb-5">
-                <Settings className="h-5 w-5 text-muted-foreground" />
-                <TituloSistema nivel={3}>Configuración de Grupos de Vida</TituloSistema>
-            </div>
-
-            <div className="space-y-5">
-                {/* Creación de grupos */}
-                <ConfigItem
-                    titulo="Creación de grupos"
-                    descripcion="Habilita o deshabilita la opción para crear nuevos grupos de vida en todo el sistema"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Habilitada" },
-                            { valor: "false", etiqueta: "Deshabilitada" },
-                        ]}
-                        value={creacionGruposHabilitada}
-                        onValueChange={setCreacionGruposHabilitada}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* Expiración de solicitudes */}
-                <ConfigItem
-                    titulo="Días de expiración"
-                    descripcion="Tiempo antes de que una solicitud pendiente expire automáticamente"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "5", etiqueta: "5 días" },
-                            { valor: "7", etiqueta: "7 días" },
-                            { valor: "14", etiqueta: "14 días" },
-                            { valor: "30", etiqueta: "30 días" },
-                        ]}
-                        value={diasExpiracion}
-                        onValueChange={setDiasExpiracion}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* Max miembros por grupo */}
-                <ConfigItem
-                    titulo="Máximo de miembros por grupo"
-                    descripcion="Dejar vacío para sin límite"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "", etiqueta: "Sin límite" },
-                            { valor: "10", etiqueta: "10 miembros" },
-                            { valor: "15", etiqueta: "15 miembros" },
-                            { valor: "20", etiqueta: "20 miembros" },
-                            { valor: "25", etiqueta: "25 miembros" },
-                            { valor: "30", etiqueta: "30 miembros" },
-                            { valor: "50", etiqueta: "50 miembros" },
-                        ]}
-                        value={maxMiembros}
-                        onValueChange={setMaxMiembros}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* Líder en otro grupo */}
-                <ConfigItem
-                    titulo="Permitir líder en otro grupo"
-                    descripcion="Si un líder puede también ser miembro de otro grupo"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Sí" },
-                            { valor: "false", etiqueta: "No" },
-                        ]}
-                        value={permitirLiderOtroGrupo}
-                        onValueChange={setPermitirLiderOtroGrupo}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* Aprobación en planificación */}
-                <ConfigItem
-                    titulo="Aprobación en planificación"
-                    descripcion="¿Requiere aprobación del DG para grupos en estado planificación?"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Sí, requiere aprobación" },
-                            { valor: "false", etiqueta: "No, libre en planificación" },
-                        ]}
-                        value={requiereAprobacionPlanificacion}
-                        onValueChange={setRequiereAprobacionPlanificacion}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* Notificación al líder */}
-                <ConfigItem
-                    titulo="Notificar al líder"
-                    descripcion="Enviar notificación al líder cuando se agrega un miembro a su grupo"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Sí" },
-                            { valor: "false", etiqueta: "No" },
-                        ]}
-                        value={notificarLiderIngreso}
-                        onValueChange={setNotificarLiderIngreso}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* ── Sección Permisos de Miembros ── */}
-                <div className="flex items-center gap-2 mt-4">
-                    <UserCog className="h-4 w-4 text-muted-foreground" />
-                    <TituloSistema nivel={4}>Permisos de gestión de miembros</TituloSistema>
-                </div>
-
-                <ConfigItem
-                    titulo="Eliminar miembro de grupo de vida"
-                    descripcion="Define desde qué rol se puede eliminar un miembro del grupo directamente. Roles inferiores enviarán una solicitud a un superior para aprobación"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "director-etapa", etiqueta: "Director de Etapa" },
-                            { valor: "director-general", etiqueta: "Director General" },
-                            { valor: "pastor", etiqueta: "Pastor" },
-                            { valor: "admin", etiqueta: "Administrador" },
-                        ]}
-                        value={rolMinimoEliminar}
-                        onValueChange={setRolMinimoEliminar}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                {/* ── Sección Asistencia Avanzada ── */}
-                <div className="flex items-center gap-2 mt-4">
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                    <TituloSistema nivel={4}>Asistencia Avanzada</TituloSistema>
-                </div>
-
-                <ConfigItem
-                    titulo="Ventana de edición"
-                    descripcion="Cuánto tiempo tiene el líder para registrar/editar asistencia"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "semanal", etiqueta: "Hasta cierre semanal" },
-                            { valor: "libre", etiqueta: "Sin restricción" },
-                            { valor: "ultimas_2_semanas", etiqueta: "Últimas 2 semanas" },
-                            { valor: "ultimo_mes", etiqueta: "Último mes" },
-                        ]}
-                        value={modoCierre}
-                        onValueChange={setModoCierre}
-                    />
-                </ConfigItem>
-
-                {modoCierre === "semanal" && (
-                    <>
+        <div className="space-y-6">
+            {/* Each settings group is its own card; wide screens show several side by side. */}
+            <SeccionesSistema>
+                <TarjetaSistema>
+                    <EncabezadoSeccion icono={Settings}>Configuración de Grupos de Vida</EncabezadoSeccion>
+                    <CamposSistema>
                         <ConfigItem
-                            titulo="Día de cierre"
-                            descripcion="Día de la semana en que cierra la ventana"
+                            titulo="Creación de grupos"
+                            descripcion="Habilita o deshabilita la opción para crear nuevos grupos de vida en todo el sistema"
                         >
                             <SelectSistema
                                 opciones={[
-                                    { valor: "0", etiqueta: "Domingo" },
-                                    { valor: "1", etiqueta: "Lunes" },
-                                    { valor: "2", etiqueta: "Martes" },
-                                    { valor: "3", etiqueta: "Miércoles" },
-                                    { valor: "4", etiqueta: "Jueves" },
-                                    { valor: "5", etiqueta: "Viernes" },
-                                    { valor: "6", etiqueta: "Sábado" },
+                                    { valor: "true", etiqueta: "Habilitada" },
+                                    { valor: "false", etiqueta: "Deshabilitada" },
                                 ]}
-                                value={diaCierre}
-                                onValueChange={setDiaCierre}
+                                value={creacionGruposHabilitada}
+                                onValueChange={setCreacionGruposHabilitada}
                             />
                         </ConfigItem>
-                    </>
-                )}
-
-                <SeparadorSistema />
-
-                <div className="flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                    <TituloSistema nivel={4}>Funciones opcionales</TituloSistema>
-                </div>
-
-                <ConfigItem
-                    titulo="Visitantes"
-                    descripcion="Permitir registro de visitantes no miembros"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Habilitado" },
-                            { valor: "false", etiqueta: "Deshabilitado" },
-                        ]}
-                        value={visitantesHabilitados}
-                        onValueChange={setVisitantesHabilitados}
-                    />
-                </ConfigItem>
-
-                <ConfigItem
-                    titulo="Puntos de oración"
-                    descripcion="Compartir puntos de oración con miembros del grupo"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Visibles" },
-                            { valor: "false", etiqueta: "Solo líder" },
-                        ]}
-                        value={puntosOracion}
-                        onValueChange={setPuntosOracion}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                    <TituloSistema nivel={4}>Umbrales de riesgo</TituloSistema>
-                </div>
-
-                <ConfigItem
-                    titulo="Atención"
-                    descripcion={`Semanas ausente para marcar como "Atención"`}
-                >
-                    <SelectSistema
-                        opciones={[1, 2, 3, 4].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
-                        value={umbralAtencion}
-                        onValueChange={setUmbralAtencion}
-                    />
-                </ConfigItem>
-
-                <ConfigItem
-                    titulo="Riesgo"
-                    descripcion={`Semanas ausente para marcar como "Riesgo"`}
-                >
-                    <SelectSistema
-                        opciones={[2, 3, 4, 6, 8].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
-                        value={umbralRiesgo}
-                        onValueChange={setUmbralRiesgo}
-                    />
-                </ConfigItem>
-
-                <ConfigItem
-                    titulo="Crítico"
-                    descripcion={`Semanas ausente para marcar como "Crítico"`}
-                >
-                    <SelectSistema
-                        opciones={[4, 6, 8, 10, 12].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
-                        value={umbralCritico}
-                        onValueChange={setUmbralCritico}
-                    />
-                </ConfigItem>
-
-                <SeparadorSistema />
-
-                <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <TituloSistema nivel={4}>Correo semanal</TituloSistema>
-                </div>
-
-                <ConfigItem
-                    titulo="Enviar resumen semanal"
-                    descripcion="Envía un correo con el resumen de asistencia a los líderes"
-                >
-                    <SelectSistema
-                        opciones={[
-                            { valor: "true", etiqueta: "Habilitado" },
-                            { valor: "false", etiqueta: "Deshabilitado" },
-                        ]}
-                        value={correoSemanal}
-                        onValueChange={setCorreoSemanal}
-                    />
-                </ConfigItem>
-
-                {
-                    correoSemanal === "true" && (
                         <ConfigItem
-                            titulo="Día de envío"
-                            descripcion="Día de la semana para enviar el resumen"
+                            titulo="Días de expiración"
+                            descripcion="Tiempo antes de que una solicitud pendiente expire automáticamente"
                         >
                             <SelectSistema
                                 opciones={[
-                                    { valor: "0", etiqueta: "Domingo" },
-                                    { valor: "1", etiqueta: "Lunes" },
-                                    { valor: "2", etiqueta: "Martes" },
-                                    { valor: "3", etiqueta: "Miércoles" },
-                                    { valor: "4", etiqueta: "Jueves" },
-                                    { valor: "5", etiqueta: "Viernes" },
-                                    { valor: "6", etiqueta: "Sábado" },
+                                    { valor: "5", etiqueta: "5 días" },
+                                    { valor: "7", etiqueta: "7 días" },
+                                    { valor: "14", etiqueta: "14 días" },
+                                    { valor: "30", etiqueta: "30 días" },
                                 ]}
-                                value={diaCorreo}
-                                onValueChange={setDiaCorreo}
+                                value={diasExpiracion}
+                                onValueChange={setDiasExpiracion}
                             />
                         </ConfigItem>
-                    )
-                }
+                        <ConfigItem
+                            titulo="Máximo de miembros por grupo"
+                            descripcion="Dejar vacío para sin límite"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "", etiqueta: "Sin límite" },
+                                    { valor: "10", etiqueta: "10 miembros" },
+                                    { valor: "15", etiqueta: "15 miembros" },
+                                    { valor: "20", etiqueta: "20 miembros" },
+                                    { valor: "25", etiqueta: "25 miembros" },
+                                    { valor: "30", etiqueta: "30 miembros" },
+                                    { valor: "50", etiqueta: "50 miembros" },
+                                ]}
+                                value={maxMiembros}
+                                onValueChange={setMaxMiembros}
+                            />
+                        </ConfigItem>
+                        <ConfigItem
+                            titulo="Permitir líder en otro grupo"
+                            descripcion="Si un líder puede también ser miembro de otro grupo"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "true", etiqueta: "Sí" },
+                                    { valor: "false", etiqueta: "No" },
+                                ]}
+                                value={permitirLiderOtroGrupo}
+                                onValueChange={setPermitirLiderOtroGrupo}
+                            />
+                        </ConfigItem>
+                        <ConfigItem
+                            titulo="Aprobación en planificación"
+                            descripcion="¿Requiere aprobación del DG para grupos en estado planificación?"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "true", etiqueta: "Sí, requiere aprobación" },
+                                    { valor: "false", etiqueta: "No, libre en planificación" },
+                                ]}
+                                value={requiereAprobacionPlanificacion}
+                                onValueChange={setRequiereAprobacionPlanificacion}
+                            />
+                        </ConfigItem>
+                        <ConfigItem
+                            titulo="Notificar al líder"
+                            descripcion="Enviar notificación al líder cuando se agrega un miembro a su grupo"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "true", etiqueta: "Sí" },
+                                    { valor: "false", etiqueta: "No" },
+                                ]}
+                                value={notificarLiderIngreso}
+                                onValueChange={setNotificarLiderIngreso}
+                            />
+                        </ConfigItem>
+                    </CamposSistema>
+                </TarjetaSistema>
 
-                <SeparadorSistema />
+                <TarjetaSistema>
+                    <EncabezadoSeccion icono={UserCog}>Permisos de gestión de miembros</EncabezadoSeccion>
+                    <CamposSistema>
+                        <ConfigItem
+                            titulo="Eliminar miembro de grupo de vida"
+                            descripcion="Define desde qué rol se puede eliminar un miembro del grupo directamente. Roles inferiores enviarán una solicitud a un superior para aprobación"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "director-etapa", etiqueta: "Director de Etapa" },
+                                    { valor: "director-general", etiqueta: "Director General" },
+                                    { valor: "pastor", etiqueta: "Pastor" },
+                                    { valor: "admin", etiqueta: "Administrador" },
+                                ]}
+                                value={rolMinimoEliminar}
+                                onValueChange={setRolMinimoEliminar}
+                            />
+                        </ConfigItem>
+                    </CamposSistema>
+                </TarjetaSistema>
 
-                {/* ── Geocodificación Masiva ── */}
-                <div className="flex items-center gap-2 mt-4">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <TituloSistema nivel={4}>Geocodificación masiva</TituloSistema>
-                </div>
+                <TarjetaSistema>
+                    <EncabezadoSeccion icono={Clock}>Asistencia Avanzada</EncabezadoSeccion>
+                    <CamposSistema>
+                        <ConfigItem
+                            titulo="Ventana de edición"
+                            descripcion="Cuánto tiempo tiene el líder para registrar/editar asistencia"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "semanal", etiqueta: "Hasta cierre semanal" },
+                                    { valor: "libre", etiqueta: "Sin restricción" },
+                                    { valor: "ultimas_2_semanas", etiqueta: "Últimas 2 semanas" },
+                                    { valor: "ultimo_mes", etiqueta: "Último mes" },
+                                ]}
+                                value={modoCierre}
+                                onValueChange={setModoCierre}
+                            />
+                        </ConfigItem>
+                        {modoCierre === "semanal" && (
+                            <ConfigItem
+                                titulo="Día de cierre"
+                                descripcion="Día de la semana en que cierra la ventana"
+                            >
+                                <SelectSistema
+                                    opciones={[
+                                        { valor: "0", etiqueta: "Domingo" },
+                                        { valor: "1", etiqueta: "Lunes" },
+                                        { valor: "2", etiqueta: "Martes" },
+                                        { valor: "3", etiqueta: "Miércoles" },
+                                        { valor: "4", etiqueta: "Jueves" },
+                                        { valor: "5", etiqueta: "Viernes" },
+                                        { valor: "6", etiqueta: "Sábado" },
+                                    ]}
+                                    value={diaCierre}
+                                    onValueChange={setDiaCierre}
+                                />
+                            </ConfigItem>
+                        )}
+                    </CamposSistema>
+                </TarjetaSistema>
 
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+                <TarjetaSistema>
+                    <EncabezadoSeccion icono={Eye}>Funciones opcionales</EncabezadoSeccion>
+                    <CamposSistema>
+                        <ConfigItem
+                            titulo="Visitantes"
+                            descripcion="Permitir registro de visitantes no miembros"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "true", etiqueta: "Habilitado" },
+                                    { valor: "false", etiqueta: "Deshabilitado" },
+                                ]}
+                                value={visitantesHabilitados}
+                                onValueChange={setVisitantesHabilitados}
+                            />
+                        </ConfigItem>
+                        <ConfigItem
+                            titulo="Puntos de oración"
+                            descripcion="Compartir puntos de oración con miembros del grupo"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "true", etiqueta: "Visibles" },
+                                    { valor: "false", etiqueta: "Solo líder" },
+                                ]}
+                                value={puntosOracion}
+                                onValueChange={setPuntosOracion}
+                            />
+                        </ConfigItem>
+                    </CamposSistema>
+                </TarjetaSistema>
+
+                <TarjetaSistema>
+                    <EncabezadoSeccion icono={AlertTriangle}>Umbrales de riesgo</EncabezadoSeccion>
+                    <CamposSistema>
+                        <ConfigItem
+                            titulo="Atención"
+                            descripcion={`Semanas ausente para marcar como "Atención"`}
+                        >
+                            <SelectSistema
+                                opciones={[1, 2, 3, 4].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
+                                value={umbralAtencion}
+                                onValueChange={setUmbralAtencion}
+                            />
+                        </ConfigItem>
+                        <ConfigItem
+                            titulo="Riesgo"
+                            descripcion={`Semanas ausente para marcar como "Riesgo"`}
+                        >
+                            <SelectSistema
+                                opciones={[2, 3, 4, 6, 8].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
+                                value={umbralRiesgo}
+                                onValueChange={setUmbralRiesgo}
+                            />
+                        </ConfigItem>
+                        <ConfigItem
+                            titulo="Crítico"
+                            descripcion={`Semanas ausente para marcar como "Crítico"`}
+                        >
+                            <SelectSistema
+                                opciones={[4, 6, 8, 10, 12].map(n => ({ valor: String(n), etiqueta: `${n} semanas` }))}
+                                value={umbralCritico}
+                                onValueChange={setUmbralCritico}
+                            />
+                        </ConfigItem>
+                    </CamposSistema>
+                </TarjetaSistema>
+
+                <TarjetaSistema>
+                    <EncabezadoSeccion icono={Mail}>Correo semanal</EncabezadoSeccion>
+                    <CamposSistema>
+                        <ConfigItem
+                            titulo="Enviar resumen semanal"
+                            descripcion="Envía un correo con el resumen de asistencia a los líderes"
+                        >
+                            <SelectSistema
+                                opciones={[
+                                    { valor: "true", etiqueta: "Habilitado" },
+                                    { valor: "false", etiqueta: "Deshabilitado" },
+                                ]}
+                                value={correoSemanal}
+                                onValueChange={setCorreoSemanal}
+                            />
+                        </ConfigItem>
+                        {correoSemanal === "true" && (
+                            <ConfigItem
+                                titulo="Día de envío"
+                                descripcion="Día de la semana para enviar el resumen"
+                            >
+                                <SelectSistema
+                                    opciones={[
+                                        { valor: "0", etiqueta: "Domingo" },
+                                        { valor: "1", etiqueta: "Lunes" },
+                                        { valor: "2", etiqueta: "Martes" },
+                                        { valor: "3", etiqueta: "Miércoles" },
+                                        { valor: "4", etiqueta: "Jueves" },
+                                        { valor: "5", etiqueta: "Viernes" },
+                                        { valor: "6", etiqueta: "Sábado" },
+                                    ]}
+                                    value={diaCorreo}
+                                    onValueChange={setDiaCorreo}
+                                />
+                            </ConfigItem>
+                        )}
+                    </CamposSistema>
+                </TarjetaSistema>
+
+                <TarjetaSistema className="space-y-3">
+                    <EncabezadoSeccion icono={MapPin}>Geocodificación masiva</EncabezadoSeccion>
                     {geoStats ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                        <div className="grid grid-cols-2 gap-3 text-center">
                             <div>
                                 <TextoSistema className="text-lg font-bold">{geoStats.total}</TextoSistema>
                                 <TextoSistema variante="muted" tamaño="sm">Direcciones</TextoSistema>
                             </div>
                             <div>
-                                <TextoSistema className="text-lg font-bold text-green-600">{geoStats.conCoordenadas}</TextoSistema>
+                                <TextoSistema className="text-lg font-bold text-success-text">{geoStats.conCoordenadas}</TextoSistema>
                                 <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
                             </div>
                             <div>
@@ -524,29 +478,42 @@ export function ConfiguracionPanel({ configInicial }: ConfiguracionPanelProps) {
                     >
                         {geoProcesando ? 'Procesando...' : geoStats?.sinCoordenadas === 0 ? 'Todas geocodificadas' : `Geocodificar (${geoStats?.sinCoordenadas ?? '?'} pendientes)`}
                     </BotonSistema>
-                </div>
+                </TarjetaSistema>
+            </SeccionesSistema>
 
-                <SeparadorSistema />
-
-                {/* Guardar */}
-                <div className="flex justify-end">
-                    <BotonSistema
-                        variante="primario"
-                        onClick={handleGuardar}
-                        cargando={isPending}
-                        disabled={isPending}
-                        icono={Save}
-                    >
-                        Guardar cambios
-                    </BotonSistema>
-                </div>
-            </div >
-        </TarjetaSistema >
+            <PieAccionesSistema>
+                <BotonSistema
+                    variante="primario"
+                    onClick={handleGuardar}
+                    cargando={isPending}
+                    disabled={isPending}
+                    icono={Save}
+                >
+                    Guardar cambios
+                </BotonSistema>
+            </PieAccionesSistema>
+        </div>
     );
 }
 
 // ─── Helper Component ────────────────────────────────────────────────
 
+function EncabezadoSeccion({
+    icono: Icono,
+    children,
+}: {
+    icono: React.ComponentType<{ className?: string }>;
+    children: React.ReactNode;
+}) {
+    return (
+        <div className="mb-4 flex items-center gap-2">
+            <Icono className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <TituloSistema nivel={3}>{children}</TituloSistema>
+        </div>
+    );
+}
+
+/** One setting: title and description above its control, which aligns to the bottom of the row. */
 function ConfigItem({
     titulo,
     descripcion,
@@ -557,12 +524,12 @@ function ConfigItem({
     children: React.ReactNode;
 }) {
     return (
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-            <div className="flex-1 min-w-0">
+        <div className="flex flex-col gap-2">
+            <div>
                 <TextoSistema className="font-medium">{titulo}</TextoSistema>
                 <TextoSistema variante="muted" tamaño="sm">{descripcion}</TextoSistema>
             </div>
-            <div className="w-full sm:w-56 shrink-0">{children}</div>
+            <div className="mt-auto">{children}</div>
         </div>
     );
 }

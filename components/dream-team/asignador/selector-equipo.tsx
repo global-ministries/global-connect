@@ -62,7 +62,7 @@ export function SelectorEquipo({ equipos, valor, onCambio }: SelectorEquipoProps
         <div
           role="radiogroup"
           aria-labelledby={etiquetaId}
-          className="max-h-[45vh] overflow-y-auto rounded-md border border-border"
+          className="max-h-[45vh] overflow-y-auto rounded-xl border border-border"
         >
           {visibles.length === 0 && (
             <TextoSistema variante="sutil" tamaño="sm" className="px-3 py-2">
@@ -86,7 +86,7 @@ export function SelectorEquipo({ equipos, valor, onCambio }: SelectorEquipoProps
                 onClick={() => onCambio(equipo.id)}
                 onKeyDown={(e) => moverCon(e, i)}
                 className={cn(
-                  'flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm last:border-b-0',
+                  'flex min-h-11 w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-sm last:border-b-0',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
                   elegido ? 'bg-primary/10' : 'hover:bg-muted',
                 )}

@@ -103,13 +103,13 @@ export function RevisionCasaClient({ reviews }: { reviews: PendingReviewOption[]
       </TarjetaSistema>
 
       {formError && (
-        <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
+        <div role="alert" className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text">
           {formError}
         </div>
       )}
 
       {successMessage && (
-        <div role="status" className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
+        <div role="status" className="rounded-xl border border-success/20 bg-success/10 p-3 text-sm text-success-text">
           {successMessage}
         </div>
       )}

@@ -1,6 +1,6 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema, SeparadorSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, SeccionesSistema, TarjetaSistema, TextoSistema, TituloSistema, SeparadorSistema } from "@/components/ui/sistema-diseno";
 import { MapPin, Home, Settings } from "lucide-react";
 import { GeocodificacionPanel } from "./geocodificacion-panel";
 
@@ -34,16 +34,18 @@ export default async function ConfiguracionGruposPage() {
     const porcentaje = totalNum > 0 ? Math.round((conNum / totalNum) * 100) : 0;
 
     return (
-        <ContenedorDashboard
+        <PaginaSistema
             titulo="Configuración de Grupos de Vida"
-            botonRegreso={{ href: "/configuracion", texto: "Configuración" }}
+            regreso={{ href: "/configuracion", texto: "Configuración" }}
         >
-            <div className="space-y-6">
+            {/* Geocoding takes the whole row (stats + action panel); the two
+                short cards share the next one on wide screens. */}
+            <SeccionesSistema>
                 {/* Geocodificación */}
-                <TarjetaSistema>
+                <TarjetaSistema className="col-span-full">
                     <div className="space-y-4">
                         <TituloSistema nivel={3} className="flex items-center gap-2">
-                            <MapPin className="h-5 w-5" /> Geocodificación de Direcciones
+                            <MapPin className="h-5 w-5" aria-hidden="true" /> Geocodificación de Direcciones
                         </TituloSistema>
                         <TextoSistema variante="muted">
                             Convierte direcciones sin coordenadas a latitud/longitud usando OpenStreetMap.
@@ -60,11 +62,11 @@ export default async function ConfiguracionGruposPage() {
                             </div>
                             <div className="text-center">
                                 <TextoSistema variante="muted" tamaño="sm">Con coordenadas</TextoSistema>
-                                <TextoSistema className="text-xl font-bold text-green-600">{conNum}</TextoSistema>
+                                <TextoSistema className="text-xl font-bold text-success-text">{conNum}</TextoSistema>
                             </div>
                             <div className="text-center">
                                 <TextoSistema variante="muted" tamaño="sm">Sin coordenadas</TextoSistema>
-                                <TextoSistema className="text-xl font-bold text-amber-600">{sinNum}</TextoSistema>
+                                <TextoSistema className="text-xl font-bold text-warning-text">{sinNum}</TextoSistema>
                             </div>
                             <div className="text-center">
                                 <TextoSistema variante="muted" tamaño="sm">Cobertura</TextoSistema>
@@ -83,7 +85,7 @@ export default async function ConfiguracionGruposPage() {
                 <TarjetaSistema>
                     <div className="space-y-3">
                         <TituloSistema nivel={3} className="flex items-center gap-2">
-                            <Settings className="h-5 w-5" /> Tipos de Grupo
+                            <Settings className="h-5 w-5" aria-hidden="true" /> Tipos de Grupo
                         </TituloSistema>
                         <TextoSistema variante="muted">
                             Administra los tipos de grupo disponibles en el sistema.
@@ -96,7 +98,7 @@ export default async function ConfiguracionGruposPage() {
                 <TarjetaSistema>
                     <div className="space-y-3">
                         <TituloSistema nivel={3} className="flex items-center gap-2">
-                            <Home className="h-5 w-5" /> Casas Anfitrionas
+                            <Home className="h-5 w-5" aria-hidden="true" /> Casas Anfitrionas
                         </TituloSistema>
                         <TextoSistema variante="muted">
                             Configuración de casas anfitrionas y flujo de aprobación.
@@ -104,7 +106,7 @@ export default async function ConfiguracionGruposPage() {
                         </TextoSistema>
                     </div>
                 </TarjetaSistema>
-            </div>
-        </ContenedorDashboard>
+            </SeccionesSistema>
+        </PaginaSistema>
     );
 }

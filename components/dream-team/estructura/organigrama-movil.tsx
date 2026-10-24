@@ -14,9 +14,7 @@ import { Network, X } from 'lucide-react'
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { BotonSistema } from '@/components/ui/sistema-diseno'
-import { cn } from '@/lib/utils'
 
-import { ANILLO_FOCO } from './mensajes'
 import { ArbolNavegable, type ArbolNavegableProps } from './panel-arbol'
 
 export function OrganigramaMovil(arbol: ArbolNavegableProps): ReactElement {
@@ -51,18 +49,15 @@ export function OrganigramaMovil(arbol: ArbolNavegableProps): ReactElement {
         >
           <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-4">
             <DialogTitle className="text-xl font-semibold tracking-tight text-foreground">Organigrama</DialogTitle>
-            <button
+            <BotonSistema
               type="button"
+              variante="ghost"
+              soloIcono
+              icono={X}
               aria-label="Cerrar el organigrama"
               title="Cerrar el organigrama"
               onClick={() => setAbierto(false)}
-              className={cn(
-                'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-                ANILLO_FOCO,
-              )}
-            >
-              <X aria-hidden="true" className="h-5 w-5" />
-            </button>
+            />
           </div>
           <ArbolNavegable {...arbol} onSeleccionar={elegir} />
         </DialogContent>

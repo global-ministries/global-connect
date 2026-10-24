@@ -47,7 +47,7 @@ export function TelefonoServidor({ telefono }: TelefonoServidorProps): ReactElem
         href={whatsapp}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-[24px] items-center rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]"
+        className="inline-flex min-h-6 items-center rounded-xl pointer-coarse:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)]"
       >
         {formateado} · WhatsApp
       </EnlaceSistema>

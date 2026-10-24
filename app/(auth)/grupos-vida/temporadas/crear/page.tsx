@@ -1,6 +1,6 @@
 import SeasonForm from "@/components/forms/SeasonForm"
 
-import { PaginaSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema } from "@/components/ui/sistema-diseno"
 
 export default function CreateSeasonPage() {
   return (
@@ -8,11 +8,9 @@ export default function CreateSeasonPage() {
       titulo="Crear Temporada"
       descripcion="Ingresa los datos para crear una nueva temporada"
       regreso={{ href: '/grupos-vida/temporadas', texto: 'Volver a Temporadas' }}
-      ancho="form"
     >
-      <TarjetaSistema>
-        <SeasonForm />
-      </TarjetaSistema>
+      {/* The form renders its own section cards: no wrapper card around it. */}
+      <SeasonForm />
     </PaginaSistema>
   )
 }

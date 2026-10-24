@@ -5,6 +5,8 @@
  * volunteer early, readable errors.
  */
 
+import { hoyEnCaracas } from './fecha'
+
 export const GENEROS = ['Masculino', 'Femenino'] as const
 export type Genero = (typeof GENEROS)[number]
 
@@ -80,6 +82,8 @@ export type FamiliaPayload = {
     | { nombre: string; apellido: string; telefono: string; cedula: string | null; genero: Genero }
   hijos: HijoPayload[]
   autorizados: AutorizadoPayload[]
+  /** The existing adult's recorded spouse, linked as second parent only when the anfitrión confirms it. */
+  conyuge_id?: string
 }
 
 export type ResultadoValidacion = { ok: true; payload: FamiliaPayload } | { ok: false; errores: string[] }
@@ -171,7 +175,7 @@ export function validarAutorizados(autorizados: readonly AutorizadoForm[]): {
   return { errores, payload }
 }
 
-export function validarFamilia(form: FamiliaForm, hoy: string = new Date().toISOString().slice(0, 10)): ResultadoValidacion {
+export function validarFamilia(form: FamiliaForm, hoy: string = hoyEnCaracas()): ResultadoValidacion {
   const errores: string[] = []
 
   let padre: FamiliaPayload['padre'] | null = null
@@ -235,6 +239,7 @@ const MENSAJES: Record<string, string> = {
   vinculo_invalido: 'Esa persona no puede ser padre o madre de este niño.',
   fuera_de_rango: 'Solo se registran en Niños los menores de 13 años con fecha de nacimiento.',
   edad_fuera_de_rango: 'Con esa fecha tendría 13 años o más: corrige la fecha de nacimiento para vincularlo.',
+  conyuge_invalido: 'Esa persona ya no figura como cónyuge del representante. Vuelve a abrir el formulario.',
 }
 
 /** Spanish copy for an RPC error; the RPCs raise a snake_case code as the message. */
@@ -244,6 +249,28 @@ export function mensajeDeErrorFamilia(error: { code?: string; message?: string }
   if (error?.code === '42501') return MENSAJES.sin_autoridad
   if (error?.code === '22023') return 'Revisa los datos: hay campos inválidos.'
   return 'No se pudo guardar. Intenta de nuevo.'
+}
+
+/** The recorded spouse of an existing adult (ninos_conyuge_de), offered as second parent. */
+export type Conyuge = { id: string; nombre: string; apellido: string; genero: string | null }
+
+export function parseConyuge(data: unknown): Conyuge | null {
+  if (typeof data !== 'object' || data === null) return null
+  const c = data as Partial<Record<keyof Conyuge, unknown>>
+  if (typeof c.id !== 'string' || typeof c.nombre !== 'string') return null
+  return {
+    id: c.id,
+    nombre: c.nombre,
+    apellido: typeof c.apellido === 'string' ? c.apellido : '',
+    genero: typeof c.genero === 'string' ? c.genero : null,
+  }
+}
+
+/** "madre", "padre" or "padre/madre" for the spouse prompt. */
+export function rolDeConyuge(genero: string | null): string {
+  if (genero === 'Femenino') return 'madre'
+  if (genero === 'Masculino') return 'padre'
+  return 'padre/madre'
 }
 
 /** An existing person returned by ninos_buscar_padre (phone and cédula masked). */
@@ -274,7 +301,7 @@ export type EdicionNinoPayload = FichaPayload & {
 /** Validates the edit screen: the child's name, birth date and gender plus the ficha. */
 export function validarEdicionNino(
   h: HijoForm,
-  hoy: string = new Date().toISOString().slice(0, 10),
+  hoy: string = hoyEnCaracas(),
 ): { ok: true; payload: EdicionNinoPayload } | { ok: false; errores: string[] } {
   const errores: string[] = []
   if (!texto(h.nombre)) errores.push('El nombre es obligatorio.')

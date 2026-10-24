@@ -68,7 +68,7 @@ import Link from 'next/link'
 import { ChevronRight, Layers, Lock, Users } from 'lucide-react'
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   BadgeSistema,
   EnlaceSistema,
   TarjetaSistema,
@@ -129,11 +129,11 @@ function formatFechaCorta(value: string | null): string {
 export default async function TallerDetallePage(ctx: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Talleres">
+      <PaginaSistema titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -145,11 +145,11 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Talleres">
+      <PaginaSistema titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -160,11 +160,11 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Talleres">
+      <PaginaSistema titulo="Talleres">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -246,9 +246,9 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   )
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={taller.nombre}
-      botonRegreso={{ href: rutaCatalogo(), texto: 'Talleres' }}
+      regreso={{ href: rutaCatalogo(), texto: 'Talleres' }}
     >
       <TarjetaSistema variante="outlined" className="p-4">
         <div className="flex flex-wrap items-start gap-3">
@@ -257,7 +257,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
               <EditarNombreTaller tallerId={taller.id} tallerSlug={taller.slug} nombre={taller.nombre} />
             ) : (
               // T10 (design audit) — the page's own <h1> already comes
-              // from ContenedorDashboard (DesktopHeader); this nombre is
+              // from PaginaSistema (DesktopHeader); this nombre is
               // a level-2 heading, never a duplicate h1, and the slug is
               // gone (it was only ever an internal identifier).
               <TituloSistema nivel={2}>{taller.nombre}</TituloSistema>
@@ -497,6 +497,6 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         </div>
       )}
 
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

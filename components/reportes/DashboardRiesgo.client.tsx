@@ -16,19 +16,46 @@ import {
 import {
     ShieldAlert, TrendingDown, AlertTriangle, Users,
     HeartPulse, Calendar, UserX, Activity,
-    ChevronRight, Eye
+    ChevronRight, Eye,
+    type LucideIcon
 } from 'lucide-react'
 import type { DashboardRiesgo } from '@/lib/types/asistencia-avanzada.types'
 
 // ─── Constantes de estilo ──────────────────────────────────────────
 
-/** Colores para gráficas (CSS variables fallback para dark mode) */
+/**
+ * One color per health level, from the status tokens (app/globals.css) so the
+ * charts follow light and dark mode. "En riesgo" sits between warning and
+ * danger, so it mixes both. Used where a class cannot reach (SVG fills,
+ * inline widths).
+ */
 const COLORES_NIVEL = {
-    normal: '#22c55e',
-    atencion: '#f59e0b',
-    riesgo: '#f97316',
-    critico: '#ef4444'
+    normal: 'var(--success)',
+    atencion: 'var(--warning)',
+    riesgo: 'color-mix(in oklch, var(--warning), var(--danger))',
+    critico: 'var(--danger)'
 } as const
+
+/**
+ * Readable text per level: the status `-text` tokens (docs/design-system.md).
+ * There is no orange status token, so `riesgo` keeps darker orange.
+ */
+const TEXTO_NIVEL = {
+    normal: 'text-success-text',
+    atencion: 'text-warning-text',
+    riesgo: 'text-orange-700 dark:text-orange-400',
+    critico: 'text-danger-text'
+} as const
+
+/** Tinted tile behind each level's icon. */
+const FONDO_NIVEL = {
+    normal: 'bg-success/10',
+    atencion: 'bg-warning/15',
+    riesgo: 'bg-orange-500/10',
+    critico: 'bg-danger/10'
+} as const
+
+const COLOR_SIN_NIVEL = 'var(--muted-foreground)'
 
 const ETIQUETAS_NIVEL: Record<string, string> = {
     normal: 'Sanos',
@@ -80,18 +107,18 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
             {/* ─── Explicación del dashboard ─── */}
             <TarjetaSistema variante="default" className="p-4 sm:p-5">
                 <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 shrink-0">
-                        <HeartPulse className="h-5 w-5 text-blue-500" />
+                    <div className="p-2 rounded-xl bg-info/10 shrink-0">
+                        <HeartPulse className="h-5 w-5 text-info" aria-hidden="true" />
                     </div>
                     <div>
                         <TituloSistema nivel={4}>¿Cómo funciona este dashboard?</TituloSistema>
                         <TextoSistema variante="muted" tamaño="sm" className="mt-1">
                             Monitoreamos la salud de cada miembro según sus semanas sin asistir.
-                            Los <strong className="text-warning">niveles de riesgo</strong> se calculan automáticamente:
-                            {' '}<strong className="text-destructive">Crítico</strong> = muchas semanas ausente,
-                            {' '}<strong className="text-warning">Riesgo</strong> = varias semanas sin venir,
-                            {' '}<strong className="text-yellow-500">Atención</strong> = empezando a alejarse,
-                            {' '}<strong className="text-success">Sano</strong> = asistencia regular.
+                            Los <strong className="text-foreground">niveles de riesgo</strong> se calculan automáticamente:
+                            {' '}<strong className={TEXTO_NIVEL.critico}>Crítico</strong> = muchas semanas ausente,
+                            {' '}<strong className={TEXTO_NIVEL.riesgo}>Riesgo</strong> = varias semanas sin venir,
+                            {' '}<strong className={TEXTO_NIVEL.atencion}>Atención</strong> = empezando a alejarse,
+                            {' '}<strong className={TEXTO_NIVEL.normal}>Sano</strong> = asistencia regular.
                         </TextoSistema>
                     </div>
                 </div>
@@ -100,36 +127,32 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
             {/* ─── KPI Cards ─── */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <KPICard
-                    icono={<HeartPulse className="h-5 w-5 text-success" />}
-                    gradiente="from-green-500/20 to-emerald-500/20"
+                    nivel="normal"
+                    icono={HeartPulse}
                     valor={d.miembros_sanos}
                     etiqueta="Sanos"
                     porcentaje={pctSanos}
-                    colorPct="text-success"
                 />
                 <KPICard
-                    icono={<AlertTriangle className="h-5 w-5 text-yellow-500" />}
-                    gradiente="from-yellow-500/20 to-amber-500/20"
+                    nivel="atencion"
+                    icono={AlertTriangle}
                     valor={d.miembros_en_atencion}
                     etiqueta="Atención"
                     porcentaje={pctAtencion}
-                    colorPct="text-yellow-500"
                 />
                 <KPICard
-                    icono={<TrendingDown className="h-5 w-5 text-warning" />}
-                    gradiente="from-orange-500/20 to-amber-500/20"
+                    nivel="riesgo"
+                    icono={TrendingDown}
                     valor={d.miembros_en_riesgo}
                     etiqueta="En riesgo"
                     porcentaje={pctRiesgo}
-                    colorPct="text-warning"
                 />
                 <KPICard
-                    icono={<ShieldAlert className="h-5 w-5 text-destructive" />}
-                    gradiente="from-red-500/20 to-rose-500/20"
+                    nivel="critico"
+                    icono={ShieldAlert}
                     valor={d.miembros_criticos}
                     etiqueta="Críticos"
                     porcentaje={pctCriticos}
-                    colorPct="text-destructive"
                 />
             </div>
 
@@ -138,8 +161,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 {/* Donut Chart - Distribución */}
                 <TarjetaSistema variante="default" className="p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-blue-500/20 to-indigo-500/20">
-                            <Activity className="h-4 w-4 text-blue-500" />
+                        <div className="p-1.5 rounded-xl bg-info/10">
+                            <Activity className="h-4 w-4 text-info" aria-hidden="true" />
                         </div>
                         <TituloSistema nivel={4}>Distribución de Salud</TituloSistema>
                     </div>
@@ -161,7 +184,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                             {distribucionGrafico.map((r, i) => (
                                                 <Cell
                                                     key={i}
-                                                    fill={COLORES_NIVEL[r.nivel as keyof typeof COLORES_NIVEL] || '#94a3b8'}
+                                                    fill={COLORES_NIVEL[r.nivel as keyof typeof COLORES_NIVEL] || COLOR_SIN_NIVEL}
                                                 />
                                             ))}
                                         </Pie>
@@ -178,12 +201,12 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="flex flex-col gap-2 flex-1">
+                            <div className="flex w-full min-w-0 flex-col gap-2 flex-1">
                                 {distribucionGrafico.map((r) => (
                                     <div key={r.nivel} className="flex items-center gap-2">
                                         <span
                                             className="w-3 h-3 rounded-full shrink-0"
-                                            style={{ backgroundColor: COLORES_NIVEL[r.nivel as keyof typeof COLORES_NIVEL] || '#94a3b8' }}
+                                            style={{ backgroundColor: COLORES_NIVEL[r.nivel as keyof typeof COLORES_NIVEL] || COLOR_SIN_NIVEL }}
                                         />
                                         <span className="text-sm text-foreground flex-1">
                                             {ETIQUETAS_NIVEL[r.nivel] || r.nivel}
@@ -215,8 +238,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 {/* Area Chart - Tendencia */}
                 <TarjetaSistema variante="default" className="p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/20 to-green-500/20">
-                            <Activity className="h-4 w-4 text-emerald-500" />
+                        <div className="p-1.5 rounded-xl bg-success/10">
+                            <Activity className="h-4 w-4 text-success" aria-hidden="true" />
                         </div>
                         <TituloSistema nivel={4}>Tendencia de Asistencia</TituloSistema>
                     </div>
@@ -227,8 +250,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                     <AreaChart data={d.tendencia_asistencia_4_semanas}>
                                         <defs>
                                             <linearGradient id="colorPct" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                                                <stop offset="5%" stopColor="var(--success)" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="var(--success)" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -256,7 +279,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         <Area
                                             type="monotone"
                                             dataKey="pct"
-                                            stroke="#22c55e"
+                                            stroke="var(--success)"
                                             strokeWidth={2}
                                             fillOpacity={1}
                                             fill="url(#colorPct)"
@@ -280,8 +303,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
             {d.miembros_criticos_detalle.length > 0 && (
                 <TarjetaSistema variante="default" className="p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-red-500/20 to-rose-500/20">
-                            <UserX className="h-4 w-4 text-destructive" />
+                        <div className="p-1.5 rounded-xl bg-danger/10">
+                            <UserX className="h-4 w-4 text-danger" aria-hidden="true" />
                         </div>
                         <TituloSistema nivel={4}>Miembros que Necesitan Atención Urgente</TituloSistema>
                     </div>
@@ -290,7 +313,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                     </TextoSistema>
 
                     {/* Desktop: tabla */}
-                    <div className="hidden sm:block border border-border rounded-xl overflow-hidden">
+                    <div className="hidden sm:block border border-border rounded-xl overflow-x-auto">
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-border bg-muted/30">
@@ -299,7 +322,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                     <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2.5">Semanas ausente</th>
                                     <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2.5">Asistencia</th>
                                     <th className="text-center text-xs font-medium text-muted-foreground px-4 py-2.5">Nivel</th>
-                                    <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2.5"></th>
+                                    <th className="text-right text-xs font-medium text-muted-foreground px-4 py-2.5"><span className="sr-only">Acciones</span></th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -308,7 +331,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         <td className="px-4 py-3 text-sm font-medium text-foreground">{m.nombre}</td>
                                         <td className="px-4 py-3 text-sm text-muted-foreground">{m.grupo_nombre}</td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className="text-sm font-semibold text-destructive">
+                                            <span className="text-sm font-semibold text-danger-text">
                                                 {m.semanas_ausente >= 99 ? 'Nunca asistió' : `${m.semanas_ausente} sem`}
                                             </span>
                                         </td>
@@ -326,9 +349,9 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         <td className="px-4 py-3 text-right">
                                             <Link
                                                 href={`/grupos-vida/${m.grupo_id}/salud`}
-                                                className="text-xs text-blue-500 hover:text-blue-400 transition-colors duration-200 flex items-center gap-1 justify-end"
+                                                className="inline-flex min-h-9 items-center justify-end gap-1 rounded-xl px-2 text-xs font-medium text-info-text transition-colors duration-200 hover:bg-info/10 pointer-coarse:min-h-11"
                                             >
-                                                <Eye className="h-3.5 w-3.5" />
+                                                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                                                 Ver grupo
                                             </Link>
                                         </td>
@@ -344,19 +367,19 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                             <Link
                                 key={m.usuario_id + m.grupo_id}
                                 href={`/grupos-vida/${m.grupo_id}/salud`}
-                                className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors duration-200"
+                                className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors duration-200"
                             >
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-foreground truncate">{m.nombre}</p>
-                                    <p className="text-xs text-muted-foreground">{m.grupo_nombre}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{m.grupo_nombre}</p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0">
                                     <div className="text-right">
-                                        <p className="text-sm font-semibold text-destructive">
+                                        <p className="text-sm font-semibold text-danger-text">
                                             {m.semanas_ausente >= 99 ? '∞' : m.semanas_ausente} sem
                                         </p>
                                     </div>
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                                 </div>
                             </Link>
                         ))}
@@ -366,11 +389,11 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                     <div className="mt-4 pt-3 border-t border-border flex justify-center">
                         <Link
                             href="/grupos-vida/miembros-riesgo"
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium text-blue-500 hover:text-blue-400 hover:bg-muted/50 transition-colors duration-200"
+                            className="inline-flex h-11 items-center gap-2 px-4 rounded-xl text-sm font-medium text-info-text hover:bg-info/10 transition-colors duration-200"
                         >
-                            <Users className="h-4 w-4" />
+                            <Users className="h-4 w-4" aria-hidden="true" />
                             Ver listado completo
-                            <ChevronRight className="h-4 w-4" />
+                            <ChevronRight className="h-4 w-4" aria-hidden="true" />
                         </Link>
                     </div>
                 </TarjetaSistema>
@@ -382,8 +405,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 {d.top_5_grupos_riesgo.length > 0 && (
                     <TarjetaSistema variante="default" className="p-4 sm:p-5 flex flex-col">
                         <div className="flex items-center gap-2 mb-3">
-                            <div className="p-1.5 rounded-lg bg-gradient-to-br from-orange-500/20 to-red-500/20">
-                                <ShieldAlert className="h-4 w-4 text-orange-500" />
+                            <div className={`p-1.5 rounded-xl ${FONDO_NIVEL.riesgo}`}>
+                                <ShieldAlert className={`h-4 w-4 ${TEXTO_NIVEL.riesgo}`} aria-hidden="true" />
                             </div>
                             <TituloSistema nivel={4}>Grupos con Mayor Riesgo</TituloSistema>
                         </div>
@@ -395,16 +418,16 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                 <Link
                                     key={g.grupo_id}
                                     href={`/grupos-vida/${g.grupo_id}/salud`}
-                                    className="flex items-center justify-between py-2.5 hover:bg-muted/30 px-2 -mx-2 rounded-lg transition-colors duration-200"
+                                    className="flex items-center justify-between gap-3 py-2.5 hover:bg-muted/30 px-2 -mx-2 rounded-xl transition-colors duration-200"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-xs text-muted-foreground w-5 text-center font-mono">{i + 1}</span>
-                                        <div>
-                                            <p className="text-sm font-medium text-foreground">{g.grupo_nombre}</p>
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <span className="text-xs text-muted-foreground w-5 shrink-0 text-center font-mono">{i + 1}</span>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-foreground truncate">{g.grupo_nombre}</p>
                                             <p className="text-xs text-muted-foreground">{g.total_miembros} miembros</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex shrink-0 items-center gap-1.5">
                                         {g.criticos > 0 && (
                                             <BadgeSistema variante="error" tamaño="sm">
                                                 {g.criticos} crít.
@@ -413,7 +436,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                         <BadgeSistema variante="warning" tamaño="sm">
                                             {g.riesgo_total} riesgo
                                         </BadgeSistema>
-                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                                     </div>
                                 </Link>
                             ))}
@@ -424,8 +447,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 {/* Grupos sin reunión */}
                 <TarjetaSistema variante="default" className="p-4 sm:p-5 flex flex-col">
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-slate-500/20 to-gray-500/20">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div className="p-1.5 rounded-xl bg-muted">
+                            <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                         </div>
                         <div className="flex items-center gap-2">
                             <TituloSistema nivel={4}>Sin Reunión Esta Semana</TituloSistema>
@@ -443,20 +466,20 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                 <Link
                                     key={g.grupo_id}
                                     href={`/grupos-vida/${g.grupo_id}`}
-                                    className="flex items-center justify-between py-2.5 hover:bg-muted/30 px-2 -mx-2 rounded-lg transition-colors duration-200"
+                                    className="flex items-center justify-between gap-3 py-2.5 hover:bg-muted/30 px-2 -mx-2 rounded-xl transition-colors duration-200"
                                 >
-                                    <div>
-                                        <p className="text-sm font-medium text-foreground">{g.grupo_nombre}</p>
-                                        <p className="text-xs text-muted-foreground">Líder: {g.lider_nombre}</p>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium text-foreground truncate">{g.grupo_nombre}</p>
+                                        <p className="text-xs text-muted-foreground truncate">Líder: {g.lider_nombre}</p>
                                     </div>
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                                 </Link>
                             ))}
                         </div>
                     ) : (
                         <div className="text-center py-6">
                             <div className="p-3 rounded-full bg-success/10 w-fit mx-auto mb-2">
-                                <Calendar className="h-5 w-5 text-success" />
+                                <Calendar className="h-5 w-5 text-success" aria-hidden="true" />
                             </div>
                             <TextoSistema variante="muted" tamaño="sm">
                                 ¡Todos los grupos se reunieron esta semana! 🎉
@@ -470,8 +493,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
             {d.segmentos_riesgo.length > 0 && (
                 <TarjetaSistema variante="default" className="p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
-                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20">
-                            <Users className="h-4 w-4 text-violet-500" />
+                        <div className="p-1.5 rounded-xl bg-info/10">
+                            <Users className="h-4 w-4 text-info" aria-hidden="true" />
                         </div>
                         <TituloSistema nivel={4}>Salud por Segmento</TituloSistema>
                     </div>
@@ -486,14 +509,14 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                             const anchoSegmento = (cantidad: number) => totalSegmento > 0 ? (cantidad / totalSegmento) * 100 : 0
                             return (
                                 <div key={seg.segmento_nombre}>
-                                    <div className="flex items-center justify-between mb-1.5">
+                                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
                                         <span className="text-sm font-medium text-foreground">{seg.segmento_nombre}</span>
                                         <div className="flex items-center gap-2">
                                             {seg.criticos > 0 && (
-                                                <span className="text-xs text-destructive font-medium">{seg.criticos} crít.</span>
+                                                <span className={`text-xs font-medium ${TEXTO_NIVEL.critico}`}>{seg.criticos} crít.</span>
                                             )}
                                             {seg.riesgo > 0 && (
-                                                <span className="text-xs text-warning font-medium">{seg.riesgo} riesgo</span>
+                                                <span className={`text-xs font-medium ${TEXTO_NIVEL.riesgo}`}>{seg.riesgo} riesgo</span>
                                             )}
                                             <span className="text-xs text-muted-foreground">{totalSegmento} total</span>
                                         </div>
@@ -502,26 +525,26 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                                     <div className="w-full h-2.5 rounded-full bg-muted overflow-hidden flex">
                                         {seg.normal > 0 && (
                                             <div
-                                                className="h-full bg-green-500 transition-all duration-500"
-                                                style={{ width: `${anchoSegmento(seg.normal)}%` }}
+                                                className="h-full transition-all duration-500"
+                                                style={{ width: `${anchoSegmento(seg.normal)}%`, backgroundColor: COLORES_NIVEL.normal }}
                                             />
                                         )}
                                         {seg.atencion > 0 && (
                                             <div
-                                                className="h-full bg-yellow-500 transition-all duration-500"
-                                                style={{ width: `${anchoSegmento(seg.atencion)}%` }}
+                                                className="h-full transition-all duration-500"
+                                                style={{ width: `${anchoSegmento(seg.atencion)}%`, backgroundColor: COLORES_NIVEL.atencion }}
                                             />
                                         )}
                                         {seg.riesgo > 0 && (
                                             <div
-                                                className="h-full bg-orange-500 transition-all duration-500"
-                                                style={{ width: `${anchoSegmento(seg.riesgo)}%` }}
+                                                className="h-full transition-all duration-500"
+                                                style={{ width: `${anchoSegmento(seg.riesgo)}%`, backgroundColor: COLORES_NIVEL.riesgo }}
                                             />
                                         )}
                                         {seg.criticos > 0 && (
                                             <div
-                                                className="h-full bg-red-500 transition-all duration-500"
-                                                style={{ width: `${anchoSegmento(seg.criticos)}%` }}
+                                                className="h-full transition-all duration-500"
+                                                style={{ width: `${anchoSegmento(seg.criticos)}%`, backgroundColor: COLORES_NIVEL.critico }}
                                             />
                                         )}
                                     </div>
@@ -531,7 +554,7 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                     </div>
 
                     {/* Legend */}
-                    <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 pt-3 border-t border-border">
                         {Object.entries(COLORES_NIVEL).map(([nivel, color]) => (
                             <div key={nivel} className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
@@ -545,8 +568,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
             {/* ─── Info fila complementaria ─── */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <TarjetaSistema variante="default" className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
-                        <Users className="h-5 w-5 text-blue-500" />
+                    <div className="p-2 rounded-xl bg-info/10">
+                        <Users className="h-5 w-5 text-info" aria-hidden="true" />
                     </div>
                     <div>
                         <p className="text-lg font-bold text-foreground">{d.total_grupos}</p>
@@ -555,8 +578,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 </TarjetaSistema>
 
                 <TarjetaSistema variante="default" className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-amber-500/20 to-yellow-500/20">
-                        <Activity className="h-5 w-5 text-amber-500" />
+                    <div className="p-2 rounded-xl bg-warning/15">
+                        <Activity className="h-5 w-5 text-warning-text" aria-hidden="true" />
                     </div>
                     <div>
                         <p className="text-lg font-bold text-foreground">{d.solicitudes_pendientes}</p>
@@ -565,8 +588,8 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
                 </TarjetaSistema>
 
                 <TarjetaSistema variante="default" className="p-4 flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-br from-teal-500/20 to-green-500/20">
-                        <Users className="h-5 w-5 text-teal-500" />
+                    <div className="p-2 rounded-xl bg-success/10">
+                        <Users className="h-5 w-5 text-success" aria-hidden="true" />
                     </div>
                     <div>
                         <p className="text-lg font-bold text-foreground">{d.visitantes_del_mes}</p>
@@ -581,20 +604,19 @@ export default function DashboardRiesgoClient({ data: d }: Props) {
 // ─── Sub-componentes ──────────────────────────────────────────────
 
 interface KPICardProps {
-    icono: React.ReactNode
-    gradiente: string
+    nivel: keyof typeof COLORES_NIVEL
+    icono: LucideIcon
     valor: number
     etiqueta: string
     porcentaje: number
-    colorPct: string
 }
 
-function KPICard({ icono, gradiente, valor, etiqueta, porcentaje, colorPct }: KPICardProps) {
+function KPICard({ nivel, icono: Icono, valor, etiqueta, porcentaje }: KPICardProps) {
     return (
         <TarjetaSistema variante="default" className="p-4">
             <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl bg-gradient-to-br ${gradiente} shrink-0`}>
-                    {icono}
+                <div className={`p-2 rounded-xl ${FONDO_NIVEL[nivel]} shrink-0`}>
+                    <Icono className={`h-5 w-5 ${TEXTO_NIVEL[nivel]}`} aria-hidden="true" />
                 </div>
                 <div className="min-w-0">
                     <p className="text-2xl font-bold text-foreground">{valor}</p>
@@ -602,7 +624,7 @@ function KPICard({ icono, gradiente, valor, etiqueta, porcentaje, colorPct }: KP
                 </div>
             </div>
             <div className="mt-2 pt-2 border-t border-border">
-                <span className={`text-xs font-medium ${colorPct}`}>
+                <span className={`text-xs font-medium ${TEXTO_NIVEL[nivel]}`}>
                     {porcentaje}% del total
                 </span>
             </div>

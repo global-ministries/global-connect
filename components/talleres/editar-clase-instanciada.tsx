@@ -20,6 +20,7 @@ import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Pencil, X } from 'lucide-react'
 
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { editarClaseInstanciada } from '@/app/(auth)/talleres/[taller]/[edicion]/[grupo]/actions'
 
 interface Props {
@@ -31,9 +32,6 @@ interface Props {
   readonly tema: string | null
   readonly fechaProgramada: string
 }
-
-const BOTON_ICONO =
-  'inline-flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground'
 
 export function EditarClaseInstanciada({
   tallerSlug,
@@ -80,15 +78,15 @@ export function EditarClaseInstanciada({
 
   if (!editando) {
     return (
-      <button
+      <BotonSistema
         type="button"
+        variante="ghost"
+        soloIcono
+        icono={Pencil}
         aria-label={`Editar clase ${numero}`}
         title="Editar clase"
-        className={BOTON_ICONO}
         onClick={abrir}
-      >
-        <Pencil className="h-4 w-4" aria-hidden="true" />
-      </button>
+      />
     )
   }
 
@@ -99,7 +97,7 @@ export function EditarClaseInstanciada({
         value={temaEditado}
         onChange={(e) => setTemaEditado(e.target.value)}
         placeholder="Ej. Intimidad con Dios"
-        className="min-h-[44px] flex-1 min-w-[10rem] rounded-lg border border-border bg-card/50 px-3 py-2"
+        className="h-11 min-w-[10rem] flex-1 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
         autoFocus
       />
       <input
@@ -107,26 +105,26 @@ export function EditarClaseInstanciada({
         aria-label="Fecha programada"
         value={fechaEditada}
         onChange={(e) => setFechaEditada(e.target.value)}
-        className="min-h-[44px] rounded-lg border border-border bg-card/50 px-3 py-2"
+        className="h-11 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
       />
-      <button
+      <BotonSistema
         type="button"
+        variante="ghost"
+        soloIcono
+        icono={Check}
         aria-label="Guardar clase"
         title="Guardar clase"
-        className={BOTON_ICONO}
         onClick={guardar}
-      >
-        <Check className="h-4 w-4" aria-hidden="true" />
-      </button>
-      <button
+      />
+      <BotonSistema
         type="button"
+        variante="ghost"
+        soloIcono
+        icono={X}
         aria-label="Cancelar edición de la clase"
         title="Cancelar"
-        className={BOTON_ICONO}
         onClick={() => setEditando(false)}
-      >
-        <X className="h-4 w-4" aria-hidden="true" />
-      </button>
+      />
       {error && (
         <span role="alert" className="block w-full text-sm text-destructive">
           {error}

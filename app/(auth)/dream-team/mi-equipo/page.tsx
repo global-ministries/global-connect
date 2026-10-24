@@ -56,9 +56,10 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   if (!isDreamTeamEnabled()) notFound()
 
   // Roles are asked for here only: a Grupos de Vida director (system role, no
-  // Dream Team capability) opens this page too — read-only, since the edit flag
-  // below still comes from the write capability — and sees just what the
-  // database hands them (see hasDreamTeamMiEquipoAccess).
+  // Dream Team capability) opens this page too, and so does an area or sub-area
+  // coordinator (dream_team.coordinate). Both are read-only, since the edit flag
+  // below still comes from the write capability, and see just what the database
+  // hands them (see hasDreamTeamMiEquipoAccess).
   const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 

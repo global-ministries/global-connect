@@ -176,6 +176,13 @@ export function HeaderMovil({ titulo }: HeaderMovilProps) {
       [/\/users\/[^/]+\/edit/, 'Editar Usuario'],
       [/\/users\/create/, 'Crear Usuario'],
       [/\/users\/[^/]+/, 'Detalle del Usuario'],
+      // Niños: the same titles as the desktop header (never the fallback "Global").
+      [/^\/ninos\/checkin/, 'Check-in'],
+      [/^\/ninos\/familias/, 'Familias'],
+      [/^\/ninos\/salon/, 'Salones'],
+      [/^\/ninos\/voluntarios/, 'Voluntarios'],
+      [/^\/ninos\/cartel/, 'Cartel QR'],
+      [/^\/ninos\/reportes/, 'Reportes'],
       [/^\/dream-team\/mi-equipo/, 'Mi equipo'],
       [/^\/admin\/dream-team\/servidores/, 'Servidores'],
       [/^\/admin\/dream-team\/estructura/, 'Estructura'],

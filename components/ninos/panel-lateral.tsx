@@ -19,7 +19,7 @@ export function PanelLateralNinos({ abierto, titulo, descripcion, onCerrar, chil
           <SheetTitle>{titulo}</SheetTitle>
           <SheetDescription>{descripcion}</SheetDescription>
         </SheetHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pt-4 [scrollbar-gutter:stable_both-edges]">{children}</div>
       </SheetContent>
     </Sheet>
   )

@@ -14,7 +14,7 @@ import { useEffect, useId, useState, type ReactElement } from 'react'
 
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import {
   FRECUENCIA_SEMANAL,
@@ -137,7 +137,8 @@ export function TurnosServicioDialog({
 
   return (
     <Dialog open={abierto} onOpenChange={(open) => !enviando && onAbiertoChange(open)}>
-      <DialogContent>
+      {/* Long shift lists scroll inside the dialog instead of past the viewport. */}
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle>Turnos de servicio</DialogTitle>
           <DialogDescription>Elige en qué turnos sirve {nombre}. Puede ser más de uno.</DialogDescription>
@@ -145,7 +146,7 @@ export function TurnosServicioDialog({
 
         {carga.estado === 'cargando' && <TextoSistema variante="sutil">Cargando turnos…</TextoSistema>}
         {carga.estado === 'error' && (
-          <TextoSistema role="alert" tamaño="sm" className="text-red-500 dark:text-red-400">
+          <TextoSistema role="alert" tamaño="sm" className="text-danger-text">
             {carga.mensaje}
           </TextoSistema>
         )}
@@ -178,7 +179,7 @@ export function TurnosServicioDialog({
                     <div className="flex flex-wrap items-center gap-2 pb-2 pl-9">
                       <select
                         aria-label={`Frecuencia de ${turno.nombre}`}
-                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                        className="h-11 rounded-xl border border-input bg-background px-3 text-sm"
                         value={frecuencia.frecuencia}
                         disabled={enviando}
                         onChange={(evento) =>
@@ -198,7 +199,7 @@ export function TurnosServicioDialog({
                           <Input
                             type="date"
                             aria-label={`Domingo de referencia de ${turno.nombre}`}
-                            className="h-9 w-auto"
+                            className="w-auto"
                             value={ancla ?? ''}
                             disabled={enviando}
                             onChange={(evento) =>
@@ -219,18 +220,17 @@ export function TurnosServicioDialog({
         )}
 
         {error && (
-          <TextoSistema role="alert" tamaño="sm" className="text-red-500 dark:text-red-400">
+          <TextoSistema role="alert" tamaño="sm" className="text-danger-text">
             {error}
           </TextoSistema>
         )}
 
-        <div className="flex justify-end gap-2">
-          <BotonSistema type="button" variante="outline" tamaño="sm" disabled={enviando} onClick={() => onAbiertoChange(false)}>
+        <DialogFooter>
+          <BotonSistema type="button" variante="outline" disabled={enviando} onClick={() => onAbiertoChange(false)}>
             Cancelar
           </BotonSistema>
           <BotonSistema
             type="button"
-            tamaño="sm"
             disabled={carga.estado !== 'listo' || carga.turnos.length === 0 || enviando}
             onClick={() => {
               void guardar()
@@ -238,7 +238,7 @@ export function TurnosServicioDialog({
           >
             {enviando ? 'Guardando…' : 'Guardar'}
           </BotonSistema>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

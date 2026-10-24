@@ -18,8 +18,9 @@
  */
 
 import TemporadaCrearPage from '@/app/(auth)/talleres/temporadas/crear/page'
+import LoadingTemporadaCrear from '@/app/(auth)/talleres/temporadas/crear/loading'
 import { TallerTemporadaForm } from '@/app/(auth)/talleres/temporadas/crear/temporada-form'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import type { DireccionConTalleres, TallerParaTemporada } from '@/lib/platform/talleres/temporadas'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
@@ -190,7 +191,28 @@ describe('TemporadaCrearPage — page shell', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaCrearPage()) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Crear Temporada')
+  })
+
+  it('uses the full page width on every branch and in its loading skeleton (no 768px form cap)', async () => {
+    const elementos: unknown[] = []
+    setup({ isEnabled: false })
+    elementos.push(await TemporadaCrearPage())
+    setup({ user: null })
+    elementos.push(await TemporadaCrearPage())
+    setup({ hasSession: false })
+    elementos.push(await TemporadaCrearPage())
+    setup({ direcciones: [makeDireccion({ puedeEditar: false })] })
+    elementos.push(await TemporadaCrearPage())
+    setup({})
+    elementos.push(await TemporadaCrearPage())
+    elementos.push(LoadingTemporadaCrear())
+
+    for (const element of elementos) {
+      const dashboard = findByType(element, PaginaSistema)
+      expect(dashboard).not.toBeNull()
+      expect(dashboard?.props.ancho).toBeUndefined()
+    }
   })
 })
