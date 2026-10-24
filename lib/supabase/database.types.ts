@@ -8691,6 +8691,7 @@ export type Database = {
           dirigidos: number
           nombre: string
           realizados: number
+          ubicaciones: Json
           ultimo_realizado: string | null
           usuario_id: string
         }[]

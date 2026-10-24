@@ -5,7 +5,8 @@
  * "Líderes" and "1 a 1 recientes" (S8.5); the leaders' counters (S8.1),
  * filters (S8.2), sortable table and phone list (S8.3, S8.4); the recent
  * 1:1s with their estado filter and search (S8.5, S7.2). Read-only and never
- * with the private note.
+ * with the private note. T9: the Dirección → Área → Equipo o grupo filters
+ * over each leader's places, in cascade (S9.1, S9.4).
  *
  * The table and the phone list are both rendered (jsdom applies no
  * breakpoints), so assertions are scoped to one of them.
@@ -15,7 +16,14 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { SupervisionUnoAUno } from '@/components/uno-a-uno/supervision-uno-a-uno'
-import type { LiderSupervisado, UnoAUnoSupervisado } from '@/lib/uno-a-uno/vista'
+import type { LiderSupervisado, UbicacionLider, UnoAUnoSupervisado } from '@/lib/uno-a-uno/vista'
+
+const GDV = { direccionId: 'd-gdv', direccion: 'Dirección de Grupos de Vida' }
+const EXPERIENCIA = { direccionId: 'd-exp', direccion: 'Dirección de Experiencia' }
+const NORTE: UbicacionLider = { ...GDV, areaId: 'a-adu', area: 'Adultos', equipoId: 'g-norte', equipo: 'Norte' }
+const JOVENES: UbicacionLider = { ...GDV, areaId: 'a-jov', area: 'Jóvenes', equipoId: null, equipo: null }
+const SONIDO: UbicacionLider = { ...EXPERIENCIA, areaId: 'a-prod', area: 'Producción', equipoId: 'e-sonido', equipo: 'Sonido' }
+const ALABANZA: UbicacionLider = { ...EXPERIENCIA, areaId: 'a-alab', area: 'Alabanza', equipoId: null, equipo: null }
 
 const ana = { id: 'l-1', nombre: 'Ana', apellido: 'Pérez' }
 const luis = { id: 'd-1', nombre: 'Luis', apellido: 'Gómez' }
@@ -31,6 +39,7 @@ function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
     realizados: 2,
     agendados: 1,
     ultimoRealizado: '2026-10-20T19:30:00Z',
+    ubicaciones: [NORTE],
     ...over,
   }
 }
@@ -61,8 +70,9 @@ const JOSE = lider({
   agendados: 2,
   ultimoRealizado: '2026-08-01T12:00:00Z',
   dirigidos: 1,
+  ubicaciones: [SONIDO],
 })
-const ANA = lider({ contextos: ['GDV: Norte', 'Dream Team: Alabanza'] })
+const ANA = lider({ contextos: ['GDV: Norte', 'Dream Team: Alabanza'], ubicaciones: [NORTE, ALABANZA] })
 const MARTA = lider({
   usuarioId: 'l-4',
   nombre: 'Marta',
@@ -72,6 +82,7 @@ const MARTA = lider({
   agendados: 0,
   ultimoRealizado: '2026-10-22T12:00:00Z',
   dirigidos: 8,
+  ubicaciones: [JOVENES],
 })
 const LIDERES = [PEDRO, JOSE, ANA, MARTA]
 
@@ -84,6 +95,7 @@ const ordenEsperado = (...nombres: string[]) => nombres
 const listaLideres = () => screen.getByRole('list', { name: 'Líderes en lista' })
 const mostrando = () => screen.getByText(/^Mostrando \d+ de \d+$/)
 const resumen = () => screen.getByRole('group', { name: 'Resumen de líderes' })
+const etiquetasDe = (selector: HTMLElement) => within(selector).getAllByRole('option').map((o) => o.textContent)
 
 function renderLideres(lideres: readonly LiderSupervisado[] = LIDERES): void {
   render(<SupervisionUnoAUno lideres={lideres} recientes={[]} />)
@@ -145,26 +157,65 @@ describe('SupervisionUnoAUno — Líderes: filters (S8.2)', () => {
     expect(mostrando()).toHaveTextContent('Mostrando 1 de 4')
   })
 
-  it('filters by Área, a leader with Grupos de Vida and Dream Team showing under both', async () => {
+  it('no longer offers the old Área "Grupos de Vida" / "Dream Team" nor "Grupo o equipo"', () => {
     renderLideres()
-    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Grupos de Vida')
+    expect(screen.queryByLabelText('Grupo o equipo')).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Dream Team' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Grupos de Vida' })).not.toBeInTheDocument()
+  })
+
+  it('filters by Dirección, a leader with places in two direcciones showing under both', async () => {
+    renderLideres()
+    const direccion = screen.getByLabelText('Dirección')
+    expect(etiquetasDe(direccion)).toEqual(['Todas', 'Dirección de Experiencia', 'Dirección de Grupos de Vida'])
+    await userEvent.selectOptions(direccion, 'Dirección de Grupos de Vida')
     expect(nombresEnTabla()).toEqual(ordenEsperado('Pedro Ruiz', 'Ana Pérez', 'Marta'))
-    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Dream Team')
+    await userEvent.selectOptions(direccion, 'Dirección de Experiencia')
     expect(nombresEnTabla()).toEqual(ordenEsperado('José Álvarez', 'Ana Pérez'))
   })
 
-  it('offers each grupo or equipo without its prefix and filters by it', async () => {
+  it('shows Área only once a Dirección is chosen, with that dirección\'s áreas, and filters by it', async () => {
     renderLideres()
-    const selector = screen.getByLabelText('Grupo o equipo')
-    expect(within(selector).getAllByRole('option').map((o) => o.textContent)).toEqual([
-      'Todos',
-      'Alabanza',
-      'Jóvenes',
-      'Norte',
-      'Sonido',
-    ])
-    await userEvent.selectOptions(selector, 'Norte')
+    expect(screen.queryByLabelText('Área')).not.toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Dirección'), 'Dirección de Experiencia')
+    expect(etiquetasDe(screen.getByLabelText('Área'))).toEqual(['Todas', 'Alabanza', 'Producción'])
+    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Alabanza')
+    expect(nombresEnTabla()).toEqual(ordenEsperado('Ana Pérez'))
+  })
+
+  it('narrows Equipo o grupo to the chosen dirección and área and filters by it', async () => {
+    renderLideres()
+    expect(etiquetasDe(screen.getByLabelText('Equipo o grupo'))).toEqual(['Todos', 'Norte', 'Sonido'])
+    await userEvent.selectOptions(screen.getByLabelText('Dirección'), 'Dirección de Grupos de Vida')
+    expect(etiquetasDe(screen.getByLabelText('Equipo o grupo'))).toEqual(['Todos', 'Norte'])
+    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Jóvenes')
+    expect(etiquetasDe(screen.getByLabelText('Equipo o grupo'))).toEqual(['Todos'])
+    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Adultos')
+    await userEvent.selectOptions(screen.getByLabelText('Equipo o grupo'), 'Norte')
     expect(nombresEnTabla()).toEqual(ordenEsperado('Pedro Ruiz', 'Ana Pérez'))
+  })
+
+  it('picking an Equipo o grupo sets its Área and Dirección', async () => {
+    renderLideres()
+    await userEvent.selectOptions(screen.getByLabelText('Equipo o grupo'), 'Sonido')
+    expect(screen.getByLabelText('Dirección')).toHaveValue('d-exp')
+    expect(screen.getByLabelText('Área')).toHaveValue('a-prod')
+    expect(nombresEnTabla()).toEqual(ordenEsperado('José Álvarez'))
+  })
+
+  it('choosing a Dirección clears Área and Equipo o grupo; choosing an Área clears Equipo o grupo', async () => {
+    renderLideres()
+    await userEvent.selectOptions(screen.getByLabelText('Equipo o grupo'), 'Norte')
+    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Jóvenes')
+    expect(screen.getByLabelText('Equipo o grupo')).toHaveValue('')
+    expect(nombresEnTabla()).toEqual(ordenEsperado('Marta'))
+
+    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Adultos')
+    await userEvent.selectOptions(screen.getByLabelText('Equipo o grupo'), 'Norte')
+    await userEvent.selectOptions(screen.getByLabelText('Dirección'), 'Dirección de Experiencia')
+    expect(screen.getByLabelText('Área')).toHaveValue('')
+    expect(screen.getByLabelText('Equipo o grupo')).toHaveValue('')
+    expect(nombresEnTabla()).toEqual(ordenEsperado('José Álvarez', 'Ana Pérez'))
   })
 
   it('filters by Estado, including "Con agendados"', async () => {
@@ -183,7 +234,7 @@ describe('SupervisionUnoAUno — Líderes: filters (S8.2)', () => {
   it('combines the filters (AND) and counts "Mostrando X de N"', async () => {
     renderLideres()
     expect(mostrando()).toHaveTextContent('Mostrando 4 de 4')
-    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Grupos de Vida')
+    await userEvent.selectOptions(screen.getByLabelText('Dirección'), 'Dirección de Grupos de Vida')
     await userEvent.selectOptions(screen.getByLabelText('Estado'), 'Sin 1 a 1 en 30 días')
     expect(nombresEnTabla()).toEqual(ordenEsperado('Pedro Ruiz'))
     expect(mostrando()).toHaveTextContent('Mostrando 1 de 4')
@@ -194,16 +245,16 @@ describe('SupervisionUnoAUno — Líderes: filters (S8.2)', () => {
     renderLideres()
     expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Buscar'), 'ana')
-    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Dream Team')
-    await userEvent.selectOptions(screen.getByLabelText('Grupo o equipo'), 'Alabanza')
+    await userEvent.selectOptions(screen.getByLabelText('Equipo o grupo'), 'Norte')
     await userEvent.selectOptions(screen.getByLabelText('Estado'), 'Al día')
     expect(mostrando()).toHaveTextContent('Mostrando 1 de 4')
 
     await userEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
     expect(mostrando()).toHaveTextContent('Mostrando 4 de 4')
     expect(screen.getByLabelText('Buscar')).toHaveValue('')
-    expect(screen.getByLabelText('Área')).toHaveValue('')
-    expect(screen.getByLabelText('Grupo o equipo')).toHaveValue('')
+    expect(screen.getByLabelText('Dirección')).toHaveValue('')
+    expect(screen.queryByLabelText('Área')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Equipo o grupo')).toHaveValue('')
     expect(screen.getByLabelText('Estado')).toHaveValue('')
     expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument()
   })
@@ -277,7 +328,7 @@ describe('SupervisionUnoAUno — Líderes: table (S8.3)', () => {
 
   it('sorts the filtered rows and the phone list in the same order', async () => {
     renderLideres()
-    await userEvent.selectOptions(screen.getByLabelText('Área'), 'Grupos de Vida')
+    await userEvent.selectOptions(screen.getByLabelText('Dirección'), 'Dirección de Grupos de Vida')
     await userEvent.click(screen.getByRole('button', { name: 'Ordenar por dirigidos' }))
     expect(nombresEnTabla()).toEqual(ordenEsperado('Ana Pérez', 'Pedro Ruiz', 'Marta'))
     expect(within(listaLideres()).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'))).toEqual([
@@ -302,25 +353,29 @@ describe('SupervisionUnoAUno — Líderes: phone (S8.4)', () => {
     expect(anaFila.queryByText('Sin 1 a 1 en 30 días')).not.toBeInTheDocument()
   })
 
-  it('keeps Área, Grupo o equipo and Estado in a sheet that filters live, "Limpiar" and "Ver N"', async () => {
+  it('keeps Dirección, Área, Equipo o grupo and Estado in a sheet that filters live, "Limpiar" and "Ver N"', async () => {
     renderLideres()
     const botonFiltros = () => screen.getByRole('button', { name: /^Filtros/ })
     expect(botonFiltros()).toHaveTextContent(/^Filtros$/)
 
     await userEvent.click(botonFiltros())
     const hoja = within(screen.getByRole('dialog', { name: 'Filtros' }))
-    await userEvent.selectOptions(hoja.getByLabelText('Área'), 'Dream Team')
+    await userEvent.selectOptions(hoja.getByLabelText('Dirección'), 'Dirección de Experiencia')
     await userEvent.selectOptions(hoja.getByLabelText('Estado'), 'Con agendados')
-    expect(hoja.getByLabelText('Grupo o equipo')).toBeInTheDocument()
     expect(hoja.getByRole('button', { name: 'Ver 2' })).toBeInTheDocument()
+    await userEvent.selectOptions(hoja.getByLabelText('Área'), 'Producción')
+    expect(hoja.getByRole('button', { name: 'Ver 1' })).toBeInTheDocument()
 
     await userEvent.click(hoja.getByRole('button', { name: 'Limpiar' }))
     expect(hoja.getByRole('button', { name: 'Ver 4' })).toBeInTheDocument()
-    await userEvent.selectOptions(hoja.getByLabelText('Grupo o equipo'), 'Sonido')
+    expect(hoja.getByLabelText('Dirección')).toHaveValue('')
+    expect(hoja.queryByLabelText('Área')).not.toBeInTheDocument()
+    await userEvent.selectOptions(hoja.getByLabelText('Equipo o grupo'), 'Sonido')
     await userEvent.click(hoja.getByRole('button', { name: 'Ver 1' }))
 
     expect(screen.queryByRole('dialog', { name: 'Filtros' })).not.toBeInTheDocument()
-    expect(botonFiltros()).toHaveTextContent('Filtros · 1')
+    // The equipo also set its área and its dirección.
+    expect(botonFiltros()).toHaveTextContent('Filtros · 3')
     expect(within(listaLideres()).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'))).toEqual([
       'José Álvarez',
     ])

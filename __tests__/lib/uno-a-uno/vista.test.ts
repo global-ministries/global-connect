@@ -3,6 +3,7 @@
  * mis_uno_a_uno() rows, splitting them into sections and building the
  * dirigido picker (couples shown once). T7: the celebración and the
  * supervision rows (uno_a_uno_supervision, uno_a_uno_supervision_lideres).
+ * T9: each leader's places in the Dream Team tree (`ubicaciones`, S9.3).
  */
 
 import {
@@ -152,6 +153,7 @@ describe('parsearLideresSupervision', () => {
         realizados: 0,
         agendados: 1,
         ultimoRealizado: null,
+        ubicaciones: [],
       },
       {
         usuarioId: 'l-1',
@@ -162,6 +164,7 @@ describe('parsearLideresSupervision', () => {
         realizados: 4,
         agendados: 0,
         ultimoRealizado: '2026-10-20T19:30:00Z',
+        ubicaciones: [],
       },
     ])
   })
@@ -169,6 +172,54 @@ describe('parsearLideresSupervision', () => {
   it('drops rows without an id or a name', () => {
     expect(parsearLideresSupervision([{ usuario_id: null, nombre: 'X' }, { usuario_id: 'l-1' }])).toEqual([])
   })
+
+  // S9.3: {direccion_id, direccion, area_id, area, equipo_id, equipo}, área and equipo nullable.
+  it('types every place of a leader, with or without área and equipo', () => {
+    const [lider] = parsearLideresSupervision([
+      {
+        usuario_id: 'l-1',
+        nombre: 'Ana',
+        ubicaciones: [
+          { direccion_id: 'd-gdv', direccion: 'Dirección de Grupos de Vida', area_id: 'a-adu', area: 'Adultos', equipo_id: 'g-norte', equipo: 'Norte' },
+          { direccion_id: 'd-exp', direccion: 'Dirección de Experiencia', area_id: 'a-alab', area: 'Alabanza', equipo_id: null, equipo: null },
+          { direccion_id: 'd-con', direccion: 'Dirección de Conexión', area_id: null, area: null, equipo_id: null, equipo: null },
+        ],
+      },
+    ])
+    expect(lider.ubicaciones).toEqual([
+      { direccionId: 'd-gdv', direccion: 'Dirección de Grupos de Vida', areaId: 'a-adu', area: 'Adultos', equipoId: 'g-norte', equipo: 'Norte' },
+      { direccionId: 'd-exp', direccion: 'Dirección de Experiencia', areaId: 'a-alab', area: 'Alabanza', equipoId: null, equipo: null },
+      { direccionId: 'd-con', direccion: 'Dirección de Conexión', areaId: null, area: null, equipoId: null, equipo: null },
+    ])
+  })
+
+  it('drops malformed places and keeps an área or equipo only with both its id and its name', () => {
+    const [lider] = parsearLideresSupervision([
+      {
+        usuario_id: 'l-1',
+        nombre: 'Ana',
+        ubicaciones: [
+          'basura',
+          null,
+          { direccion: 'Sin id' },
+          { direccion_id: 'd-sin-nombre' },
+          { direccion_id: 7, direccion: 'Id numérico' },
+          { direccion_id: 'd-gdv', direccion: 'Dirección de Grupos de Vida', area_id: 'a-adu', area: null, equipo_id: 'g-norte', equipo: 3 },
+        ],
+      },
+    ])
+    expect(lider.ubicaciones).toEqual([
+      { direccionId: 'd-gdv', direccion: 'Dirección de Grupos de Vida', areaId: null, area: null, equipoId: null, equipo: null },
+    ])
+  })
+
+  it.each([[undefined], [null], [[]], ['no es arreglo'], [{ direccion_id: 'd-1' }]])(
+    'has no places for ubicaciones = %p',
+    (ubicaciones) => {
+      const [lider] = parsearLideresSupervision([{ usuario_id: 'l-1', nombre: 'Ana', ubicaciones }])
+      expect(lider.ubicaciones).toEqual([])
+    },
+  )
 })
 
 // S7.1: the supervision view only for whoever supervises.

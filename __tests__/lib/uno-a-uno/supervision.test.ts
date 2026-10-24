@@ -1,26 +1,35 @@
 /**
  * T8 (odd/tasks/uno-a-uno.md) — the pure rules of the supervision table:
- * área and grupo from `contextos` (S8.2), accent-insensitive search, the
- * filters and their AND (S8.2), the counters (S8.1), the sorting with the
- * RPC order as default (S8.3) and the recent 1:1s filters (S8.5).
+ * accent-insensitive search, the filters and their AND (S8.2), the counters
+ * (S8.1), the sorting with the RPC order as default (S8.3) and the recent
+ * 1:1s filters (S8.5). T9: the Dirección → Área → Equipo o grupo filters
+ * over each leader's places, their options and their cascade (S9.1, S9.2).
  */
 
 import {
   FILTROS_LIDERES_VACIOS,
   FILTROS_RECIENTES_VACIOS,
-  areaDeContexto,
   contadoresLideres,
   coincideTexto,
   filtrarLideres,
   filtrarRecientes,
-  grupoDeContexto,
   hayFiltrosLideres,
-  opcionesGrupo,
+  opcionesUbicacion,
   ordenarLideres,
+  parcheElegirArea,
+  parcheElegirDireccion,
+  parcheElegirEquipo,
   siguienteOrden,
   type FiltrosLideres,
 } from '@/lib/uno-a-uno/supervision'
-import type { LiderSupervisado, UnoAUnoSupervisado } from '@/lib/uno-a-uno/vista'
+import type { LiderSupervisado, UbicacionLider, UnoAUnoSupervisado } from '@/lib/uno-a-uno/vista'
+
+const GDV = { direccionId: 'd-gdv', direccion: 'Dirección de Grupos de Vida' }
+const EXPERIENCIA = { direccionId: 'd-exp', direccion: 'Dirección de Experiencia' }
+const NORTE: UbicacionLider = { ...GDV, areaId: 'a-adu', area: 'Adultos', equipoId: 'g-norte', equipo: 'Norte' }
+const JOVENES: UbicacionLider = { ...GDV, areaId: 'a-jov', area: 'Jóvenes', equipoId: null, equipo: null }
+const SONIDO: UbicacionLider = { ...EXPERIENCIA, areaId: 'a-prod', area: 'Producción', equipoId: 'e-sonido', equipo: 'Sonido' }
+const ALABANZA: UbicacionLider = { ...EXPERIENCIA, areaId: 'a-alab', area: 'Alabanza', equipoId: null, equipo: null }
 
 function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
   return {
@@ -32,6 +41,7 @@ function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
     realizados: 2,
     agendados: 1,
     ultimoRealizado: '2026-10-20T19:30:00Z',
+    ubicaciones: [NORTE],
     ...over,
   }
 }
@@ -46,8 +56,10 @@ const jose = lider({
   agendados: 2,
   ultimoRealizado: '2026-08-01T12:00:00Z',
   dirigidos: 1,
+  ubicaciones: [SONIDO],
 })
-const ana = lider({ usuarioId: 'l-1', contextos: ['GDV: Norte', 'Dream Team: Alabanza'] })
+// Two places in two direcciones: she shows under both.
+const ana = lider({ usuarioId: 'l-1', contextos: ['GDV: Norte', 'Dream Team: Alabanza'], ubicaciones: [NORTE, ALABANZA] })
 const marta = lider({
   usuarioId: 'l-4',
   nombre: 'Marta',
@@ -57,38 +69,70 @@ const marta = lider({
   agendados: 0,
   ultimoRealizado: '2026-10-22T12:00:00Z',
   dirigidos: 8,
+  ubicaciones: [JOVENES],
 })
 // The RPC order: longest without a 1:1 first, "Nunca" first.
 const LIDERES = [pedro, jose, ana, marta]
 
 const ids = (lista: readonly LiderSupervisado[]): string[] => lista.map((l) => l.usuarioId)
 const filtros = (over: Partial<FiltrosLideres>): FiltrosLideres => ({ ...FILTROS_LIDERES_VACIOS, ...over })
+const idsDeOpciones = (opciones: readonly { id: string }[]): string[] => opciones.map((o) => o.id)
 
-describe('areaDeContexto / grupoDeContexto (S8.2)', () => {
-  it.each([
-    ['GDV: Norte', 'gdv', 'Norte'],
-    ['Director de etapa: Jóvenes', 'gdv', 'Jóvenes'],
-    ['Director general: Caracas', 'gdv', 'Caracas'],
-    ['Dream Team: Sonido', 'dream_team', 'Sonido'],
-  ])('%s → área %s, grupo %s', (contexto, area, grupo) => {
-    expect(areaDeContexto(contexto)).toBe(area)
-    expect(grupoDeContexto(contexto)).toBe(grupo)
+describe('opcionesUbicacion (S9.1)', () => {
+  it('offers every dirección of the loaded places once, sorted by label', () => {
+    expect(opcionesUbicacion(LIDERES, FILTROS_LIDERES_VACIOS).direcciones).toEqual([
+      { id: 'd-exp', label: 'Dirección de Experiencia' },
+      { id: 'd-gdv', label: 'Dirección de Grupos de Vida' },
+    ])
   })
 
-  it('has no área for an unknown prefix and keeps the whole text as grupo', () => {
-    expect(areaDeContexto('Otro')).toBeNull()
-    expect(grupoDeContexto('Otro')).toBe('Otro')
+  it('offers no área until a dirección is chosen, then only that dirección\'s áreas, sorted', () => {
+    expect(opcionesUbicacion(LIDERES, FILTROS_LIDERES_VACIOS).areas).toEqual([])
+    expect(opcionesUbicacion(LIDERES, filtros({ direccion: 'd-exp' })).areas).toEqual([
+      { id: 'a-alab', label: 'Alabanza', direccionId: 'd-exp' },
+      { id: 'a-prod', label: 'Producción', direccionId: 'd-exp' },
+    ])
+    expect(idsDeOpciones(opcionesUbicacion(LIDERES, filtros({ direccion: 'd-gdv' })).areas)).toEqual(['a-adu', 'a-jov'])
+  })
+
+  it('offers every equipo without a dirección, and narrows them to the dirección and then the área', () => {
+    expect(opcionesUbicacion(LIDERES, FILTROS_LIDERES_VACIOS).equipos).toEqual([
+      { id: 'g-norte', label: 'Norte', direccionId: 'd-gdv', areaId: 'a-adu' },
+      { id: 'e-sonido', label: 'Sonido', direccionId: 'd-exp', areaId: 'a-prod' },
+    ])
+    expect(idsDeOpciones(opcionesUbicacion(LIDERES, filtros({ direccion: 'd-gdv' })).equipos)).toEqual(['g-norte'])
+    expect(idsDeOpciones(opcionesUbicacion(LIDERES, filtros({ direccion: 'd-exp', area: 'a-alab' })).equipos)).toEqual([])
+    expect(idsDeOpciones(opcionesUbicacion(LIDERES, filtros({ direccion: 'd-exp', area: 'a-prod' })).equipos)).toEqual([
+      'e-sonido',
+    ])
+  })
+
+  it('has no options for leaders without places', () => {
+    expect(opcionesUbicacion([lider({ ubicaciones: [] })], FILTROS_LIDERES_VACIOS)).toEqual({
+      direcciones: [],
+      areas: [],
+      equipos: [],
+    })
   })
 })
 
-describe('opcionesGrupo (S8.2)', () => {
-  it('lists every grupo or equipo of the loaded leaders once, without prefix, sorted', () => {
-    expect(opcionesGrupo([...LIDERES, lider({ usuarioId: 'l-5', contextos: ['GDV: Norte'] })])).toEqual([
-      'Alabanza',
-      'Jóvenes',
-      'Norte',
-      'Sonido',
-    ])
+describe('cascade of the place filters (S9.1)', () => {
+  const opciones = opcionesUbicacion(LIDERES, FILTROS_LIDERES_VACIOS)
+  const areasExperiencia = opcionesUbicacion(LIDERES, filtros({ direccion: 'd-exp' })).areas
+
+  it('choosing a dirección clears the área and the equipo', () => {
+    expect(parcheElegirDireccion('d-gdv')).toEqual({ direccion: 'd-gdv', area: null, equipo: null })
+    expect(parcheElegirDireccion(null)).toEqual({ direccion: null, area: null, equipo: null })
+  })
+
+  it('choosing an área clears the equipo and sets its dirección', () => {
+    expect(parcheElegirArea('a-prod', areasExperiencia)).toEqual({ area: 'a-prod', equipo: null, direccion: 'd-exp' })
+    expect(parcheElegirArea(null, areasExperiencia)).toEqual({ area: null, equipo: null })
+  })
+
+  it('choosing an equipo sets its área and its dirección', () => {
+    expect(parcheElegirEquipo('g-norte', opciones.equipos)).toEqual({ equipo: 'g-norte', area: 'a-adu', direccion: 'd-gdv' })
+    expect(parcheElegirEquipo(null, opciones.equipos)).toEqual({ equipo: null })
   })
 })
 
@@ -114,14 +158,28 @@ describe('filtrarLideres (S8.2)', () => {
     expect(ids(filtrarLideres(LIDERES, filtros({ q: 'PEREZ' })))).toEqual(['l-1'])
   })
 
-  it('filters by área, a leader with both areas showing under both', () => {
-    expect(ids(filtrarLideres(LIDERES, filtros({ area: 'gdv' })))).toEqual(['l-2', 'l-1', 'l-4'])
-    expect(ids(filtrarLideres(LIDERES, filtros({ area: 'dream_team' })))).toEqual(['l-3', 'l-1'])
+  it('filters by dirección, a leader with places in two direcciones showing under both', () => {
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-gdv' })))).toEqual(['l-2', 'l-1', 'l-4'])
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-exp' })))).toEqual(['l-3', 'l-1'])
   })
 
-  it('filters by grupo or equipo', () => {
-    expect(ids(filtrarLideres(LIDERES, filtros({ grupo: 'Norte' })))).toEqual(['l-2', 'l-1'])
-    expect(ids(filtrarLideres(LIDERES, filtros({ grupo: 'Jóvenes' })))).toEqual(['l-4'])
+  it('filters by área and by equipo o grupo', () => {
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-exp', area: 'a-alab' })))).toEqual(['l-1'])
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-gdv', area: 'a-jov' })))).toEqual(['l-4'])
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-gdv', area: 'a-adu', equipo: 'g-norte' })))).toEqual([
+      'l-2',
+      'l-1',
+    ])
+  })
+
+  it('needs one single place to match the dirección, the área and the equipo together', () => {
+    expect(filtrarLideres([ana], filtros({ direccion: 'd-gdv', area: 'a-alab' }))).toEqual([])
+  })
+
+  it('leaves out a leader without places once a place filter is on', () => {
+    const sinLugar = lider({ usuarioId: 'l-9', ubicaciones: [] })
+    expect(ids(filtrarLideres([sinLugar], FILTROS_LIDERES_VACIOS))).toEqual(['l-9'])
+    expect(filtrarLideres([sinLugar], filtros({ direccion: 'd-gdv' }))).toEqual([])
   })
 
   it('filters by estado', () => {
@@ -131,11 +189,11 @@ describe('filtrarLideres (S8.2)', () => {
   })
 
   it('combines the filters with AND', () => {
-    expect(ids(filtrarLideres(LIDERES, filtros({ area: 'gdv', estado: 'sin_uno_a_uno' })))).toEqual(['l-2'])
-    expect(ids(filtrarLideres(LIDERES, filtros({ area: 'dream_team', estado: 'con_agendados', q: 'ana' })))).toEqual([
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-gdv', estado: 'sin_uno_a_uno' })))).toEqual(['l-2'])
+    expect(ids(filtrarLideres(LIDERES, filtros({ direccion: 'd-exp', estado: 'con_agendados', q: 'ana' })))).toEqual([
       'l-1',
     ])
-    expect(filtrarLideres(LIDERES, filtros({ grupo: 'Sonido', estado: 'al_dia' }))).toEqual([])
+    expect(filtrarLideres(LIDERES, filtros({ equipo: 'e-sonido', estado: 'al_dia' }))).toEqual([])
   })
 })
 
@@ -145,6 +203,9 @@ describe('hayFiltrosLideres', () => {
     expect(hayFiltrosLideres(filtros({ q: '  ' }))).toBe(false)
     expect(hayFiltrosLideres(filtros({ q: 'a' }))).toBe(true)
     expect(hayFiltrosLideres(filtros({ estado: 'al_dia' }))).toBe(true)
+    expect(hayFiltrosLideres(filtros({ direccion: 'd-gdv' }))).toBe(true)
+    expect(hayFiltrosLideres(filtros({ area: 'a-adu' }))).toBe(true)
+    expect(hayFiltrosLideres(filtros({ equipo: 'g-norte' }))).toBe(true)
   })
 })
 
