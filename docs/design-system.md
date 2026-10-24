@@ -106,6 +106,20 @@ scrolling body that is a `@container` — lay out fields with `@md:`/`@lg:` so
 they follow the panel width, not the viewport — and `PieAccionesSistema` for
 the `pie` actions. Padding is 16px mobile, 24px from `sm`.
 
+- A form inside the panel keeps its submit button in `pie`: give the `<form>`
+  an `id` (`useId`) and the button `type="submit" form={id}`, so the button
+  stays the form's default button (Enter still submits).
+- Extra header content (e.g. a step indicator) goes at the top of the body;
+  `descripcion` renders inside a `<p>`, so it takes text only.
+
+## Dialogs
+
+Centered dialogs (`ui/dialog`) use the surface radius (`rounded-2xl` on
+`DialogContent`), put their actions in `DialogFooter` (stacked full width on
+mobile with the primary on top, a right-aligned row from `sm`) with the
+default md buttons, and scroll inside (`max-h-[calc(100dvh-2rem)]
+overflow-y-auto`) when the content can grow.
+
 ## Close buttons in sheets and dialogs
 
 The built-in close button of `ui/sheet` and `ui/dialog` (and so of
