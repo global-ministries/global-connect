@@ -113,6 +113,11 @@ INSERT INTO public.ninos_fichas (usuario_id, grado, alergias) VALUES
   (pg_temp.id('us', 5), 1, 'ZZ maní'), (pg_temp.id('us', 6), 1, NULL);
 INSERT INTO public.ninos_autorizados_retiro (nino_id, nombre, telefono, relacion) VALUES
   (pg_temp.id('us', 5), 'ZZ Abuela Ns', '04129990001', 'Abuela');
+-- The mother of both children: check-out requires someone on the list (20261012130100).
+INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero)
+VALUES (pg_temp.id('us', 9), 'ZZ Mamá', 'Ns', 'No especificado', 'Femenino');
+INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
+  (pg_temp.id('us', 5), pg_temp.id('us', 9), 'padre', false), (pg_temp.id('us', 6), pg_temp.id('us', 9), 'padre', false);
 
 GRANT INSERT, SELECT, UPDATE ON t_ns_failures, t_ns_ctx TO authenticated, anon;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
@@ -170,12 +175,12 @@ SELECT pg_temp.assert_eq('d: a wrong code finds nothing',
 -- ── e. after check-out ───────────────────────────────────────────────
 
 SELECT pg_temp.assert_eq('e: check-out releases both children',
-  $q$SELECT count(*)::text FROM public.ninos_checkout(pg_temp.ctx('codigo'), pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'ZZ Mamá')$q$,
+  $q$SELECT count(*)::text FROM public.ninos_checkout(pg_temp.ctx('codigo'), pg_temp.ctx('turno')::uuid, DATE '2099-01-04', 'ZZ Mamá Ns')$q$,
   '2');
 SELECT pg_temp.assert_eq('e: the lookup shows who picked up and when',
   $q$SELECT string_agg((salida_at IS NOT NULL)::text || ':' || retirado_por_nombre, ',')
        FROM public.ninos_buscar_codigo(pg_temp.ctx('codigo'), pg_temp.ctx('turno')::uuid, DATE '2099-01-04')$q$,
-  'true:ZZ Mamá,true:ZZ Mamá');
+  'true:ZZ Mamá Ns,true:ZZ Mamá Ns');
 SELECT pg_temp.assert_eq('e: the room list is empty',
   $q$SELECT count(*)::text FROM public.ninos_lista_salon(pg_temp.id('sa', 1), DATE '2099-01-04', pg_temp.ctx('turno')::uuid)$q$,
   '0');

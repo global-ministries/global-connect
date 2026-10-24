@@ -1,6 +1,9 @@
-import { signup, listarVinculosPendientes, resolverVinculoPendiente } from '@/lib/actions/auth.actions'
+import { redirect } from 'next/navigation'
+
+import { login, signup, listarVinculosPendientes, resolverVinculoPendiente } from '@/lib/actions/auth.actions'
 
 const signUp = jest.fn()
+const signInWithPassword = jest.fn()
 const rpc = jest.fn()
 const createSupabaseAdminClient = jest.fn()
 const vincularFichaConfirmada = jest.fn()
@@ -8,7 +11,10 @@ const vincularFichaConfirmada = jest.fn()
 jest.mock('next/navigation', () => ({ redirect: jest.fn() }))
 jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({
-    auth: { signUp: (...args: unknown[]) => signUp(...args) },
+    auth: {
+      signUp: (...args: unknown[]) => signUp(...args),
+      signInWithPassword: (...args: unknown[]) => signInWithPassword(...args),
+    },
     rpc: (...args: unknown[]) => rpc(...args),
   }),
 }))
@@ -26,6 +32,39 @@ function formulario(cedula: string) {
   fd.append('cedula', cedula)
   return fd
 }
+
+describe('login: returns to a safe internal path', () => {
+  function credenciales(redirectTo?: string) {
+    const fd = new FormData()
+    fd.append('email', 'persona@example.com')
+    fd.append('password', 'secreto123')
+    if (redirectTo !== undefined) fd.append('redirect', redirectTo)
+    return fd
+  }
+
+  beforeEach(() => {
+    signInWithPassword.mockReset()
+    jest.mocked(redirect).mockReset()
+    signInWithPassword.mockResolvedValue({ error: null })
+  })
+
+  it('goes to the requested internal path', async () => {
+    await login(credenciales('/perfil'))
+    expect(redirect).toHaveBeenCalledWith('/perfil')
+  })
+
+  it.each([undefined, '//evil.com', 'https://evil.com'])('falls back to /dashboard for %j', async (destino) => {
+    await login(credenciales(destino))
+    expect(redirect).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('does not redirect when the credentials are wrong', async () => {
+    signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } })
+    const res = await login(credenciales('/perfil'))
+    expect(res).toEqual({ error: expect.any(String) })
+    expect(redirect).not.toHaveBeenCalled()
+  })
+})
 
 describe('signup: the ficha is linked only after the email is confirmed', () => {
   beforeEach(() => {

@@ -2,6 +2,25 @@ import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 import nextTypescript from 'eslint-config-next/typescript'
 import security from 'eslint-plugin-security'
 
+// Screens already migrated to the design system (docs/design-system.md).
+// Add each area here when it migrates: from then on it cannot go back to the
+// legacy primitives. Scoped to migrated files so the rule adds no warnings to
+// the existing lint budget.
+const migratedToDesignSystem = [
+  'app/(auth)/grupos-vida/importar/**',
+  'app/(auth)/grupos-vida/temporadas/**',
+]
+
+const legacyUiImports = {
+  patterns: [
+    {
+      group: ['**/components/ui/button', '**/components/ui/card', '**/components/ui/boton-gradiente'],
+      message:
+        'Use BotonSistema / TarjetaSistema from @/components/ui/sistema-diseno (see docs/design-system.md).',
+    },
+  ],
+}
+
 const eslintConfig = [
   // Coverage reports and other generated artifacts are not source code.
   {
@@ -43,6 +62,12 @@ const eslintConfig = [
       'security/detect-object-injection': 'off',
       // Browser code often uses hardcoded URLs; not a real threat
       'security/detect-non-literal-fs-filename': 'off',
+    },
+  },
+  {
+    files: migratedToDesignSystem,
+    rules: {
+      'no-restricted-imports': ['error', legacyUiImports],
     },
   },
 ]
