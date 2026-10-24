@@ -15,13 +15,16 @@
 --   uno_a_uno_acceso()             {lidera, supervisa, participa} for the menu
 --   uno_a_uno_crear / uno_a_uno_registrar / uno_a_uno_registrar_sin_agenda
 --                                  take p_celebracion (default null)
---   mis_uno_a_uno()                adds celebracion, for both sides
+--   mis_uno_a_uno()                adds celebracion, leader side only; and the
+--                                  dirigido side stops reading motivo_cancelacion
 --
 -- Why: admins, pastors and every leader above someone could not see whether
 -- the 1:1s happen. Decided 2026-10-24 (odd/tasks/uno-a-uno.md, T7): admin and
 -- pastor see all; everyone else sees their chain. The supervisor reads the
--- resumen and the celebración; the nota privada stays with the leader side;
--- the person celebrated reads the celebración.
+-- resumen and the celebración; the nota privada stays with the leader side.
+-- The dirigido side sees only the history (estado, fecha, lugar, who), nothing
+-- the leader wrote (user decision 2026-10-24): no resumen, nota, celebración
+-- nor motivo de cancelación.
 --
 -- Who is in a chain: whoever the caller (with their spouse) leads, whoever
 -- those lead, and so on (WITH RECURSIVE … UNION stops on cycles). A 1:1 is
@@ -60,7 +63,7 @@ alter table public.uno_a_uno
     constraint uno_a_uno_celebracion_check check (celebracion is null or char_length(celebracion) <= 500);
 
 comment on column public.uno_a_uno.celebracion is
-  'Something worth celebrating from the 1:1. The leader side, the dirigido side and the chain above read it.';
+  'Something worth celebrating from the 1:1. The leader side and the chain above read it; the dirigido side does not.';
 
 -- ─── The rule for everyone at once ──────────────────────────────────
 -- One row per (lider_id, dirigido_id, contexto). For any usuario X the rows
@@ -387,7 +390,8 @@ revoke all on function public.uno_a_uno_registrar(uuid, text, text, timestamptz,
 grant execute on function public.uno_a_uno_registrar(uuid, text, text, timestamptz, text) to authenticated, service_role;
 
 -- ─── mis_uno_a_uno, now with celebración ────────────────────────────
--- resumen and nota_privada only reach the leader side; celebracion reaches both.
+-- Whatever the leader wrote (resumen, nota_privada, motivo_cancelacion,
+-- celebracion) only reaches the leader side; the dirigido side gets the history.
 
 drop function public.mis_uno_a_uno(timestamptz, timestamptz);
 
@@ -431,10 +435,10 @@ as $$
            where p.uno_a_uno_id = o.id and p.lado = 'dirigido'),
          case when yo.lado = 'lider' then o.resumen end,
          case when yo.lado = 'lider' then o.nota_privada end,
-         o.motivo_cancelacion,
+         case when yo.lado = 'lider' then o.motivo_cancelacion end,
          o.realizado_en,
          o.cancelado_en,
-         o.celebracion
+         case when yo.lado = 'lider' then o.celebracion end
   from public.uno_a_uno_personas yo
   join public.uno_a_uno o on o.id = yo.uno_a_uno_id
   where yo.usuario_id = (select public.get_my_internal_id())
@@ -444,7 +448,7 @@ as $$
 $$;
 
 comment on function public.mis_uno_a_uno(timestamptz, timestamptz) is
-  'The caller''s 1:1s from either side; resumen and nota_privada only for the leader side, celebracion for both.';
+  'The caller''s 1:1s from either side; what the leader wrote only for the leader side.';
 
 revoke all on function public.mis_uno_a_uno(timestamptz, timestamptz) from public, anon;
 grant execute on function public.mis_uno_a_uno(timestamptz, timestamptz) to authenticated, service_role;

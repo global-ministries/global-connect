@@ -50,7 +50,7 @@ describe('RegistrarUnoAUnoDialog — scheduled 1:1', () => {
     const dialogo = screen.getByRole('dialog')
     expect(dialogo).toHaveTextContent('Lo ve tu cadena de supervisión.')
     expect(dialogo).toHaveTextContent('Solo la ves tú (y tu cónyuge).')
-    expect(dialogo).toHaveTextContent('La ven tu cadena de supervisión y la persona.')
+    expect(dialogo).toHaveTextContent('La ve tu cadena de supervisión.')
     expect(dialogo).not.toHaveTextContent('El resumen y la nota solo los ve quien lidera este 1 a 1.')
   })
 
@@ -107,7 +107,7 @@ describe('RegistrarUnoAUnoDialog — without a schedule', () => {
     const dialogo = screen.getByRole('dialog')
     expect(dialogo).toHaveTextContent('Lo ve tu cadena de supervisión.')
     expect(dialogo).toHaveTextContent('Solo la ves tú (y tu cónyuge).')
-    expect(dialogo).toHaveTextContent('La ven tu cadena de supervisión y la persona.')
+    expect(dialogo).toHaveTextContent('La ve tu cadena de supervisión.')
   })
 
   it('submits every field to registrarSinAgenda', async () => {

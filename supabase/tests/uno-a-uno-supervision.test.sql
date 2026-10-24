@@ -423,7 +423,13 @@ SELECT pg_temp.assert_eq('S7.3: the leader reads resumen and the trimmed celebra
 SELECT pg_temp.assert_eq('S7.3: registrar stored C4', $q$SELECT pg_temp.cel_txt(pg_temp.k('r4'))$q$, 'lider|R4|C4');
 SELECT pg_temp.assert_eq('S7.3: a blank celebración is stored as none', $q$SELECT pg_temp.cel_txt(pg_temp.k('r5'))$q$, 'lider|R5|-');
 SELECT pg_temp.as_persona(pg_temp.a('CO'));
-SELECT pg_temp.assert_eq('S7.3: the dirigido reads the celebración but not the resumen', $q$SELECT pg_temp.cel_txt(pg_temp.k('r1'))$q$, 'dirigido|-|C1');
+SELECT pg_temp.assert_eq('S7.3: the dirigido reads neither the resumen nor the celebración', $q$SELECT pg_temp.cel_txt(pg_temp.k('r1'))$q$, 'dirigido|-|-');
+SELECT pg_temp.as_persona(pg_temp.a('CL'));
+SELECT pg_temp.assert_eq('S7.3: the dirigido does not read the motivo de cancelación', $q$
+  SELECT x.estado || '|' || coalesce(x.motivo_cancelacion, '-') FROM public.mis_uno_a_uno() x WHERE x.id = pg_temp.k('a2')$q$, 'cancelado|-');
+SELECT pg_temp.as_persona(pg_temp.a('CC'));
+SELECT pg_temp.assert_eq('S7.3: the leader reads the motivo de cancelación', $q$
+  SELECT x.estado || '|' || coalesce(x.motivo_cancelacion, '-') FROM public.mis_uno_a_uno() x WHERE x.id = pg_temp.k('a2')$q$, 'cancelado|M');
 
 -- ── S7.1 who sees what in supervision ───────────────────────────────
 

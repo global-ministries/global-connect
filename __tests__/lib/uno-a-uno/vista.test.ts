@@ -51,9 +51,9 @@ describe('parsearUnoAUno', () => {
     expect(parsearUnoAUno(null)).toEqual([])
   })
 
-  // S7.3: the celebración reaches both sides.
-  it.each(['lider', 'dirigido'])('reads the celebración on the %s side', (lado) => {
-    const [u] = parsearUnoAUno([fila({ estado: 'realizado', mi_lado: lado, celebracion: 'Se bautizó' })])
+  // S7.3: the celebración as mis_uno_a_uno sends it (leader side only).
+  it('reads the celebración', () => {
+    const [u] = parsearUnoAUno([fila({ estado: 'realizado', mi_lado: 'lider', celebracion: 'Se bautizó' })])
     expect(u.celebracion).toBe('Se bautizó')
   })
 

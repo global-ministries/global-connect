@@ -134,7 +134,7 @@ export function RegistrarUnoAUnoDialog(props: Props): ReactElement {
               filas={2}
             />
           </CampoConAyuda>
-          <CampoConAyuda ayuda="La ven tu cadena de supervisión y la persona.">
+          <CampoConAyuda ayuda="La ve tu cadena de supervisión.">
             <TextareaSistema
               label="Celebración (opcional)"
               value={celebracion}

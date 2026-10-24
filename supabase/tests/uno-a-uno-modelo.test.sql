@@ -609,8 +609,9 @@ SELECT pg_temp.assert_raises('g: cancelling twice → 22023',
   $q$SELECT public.uno_a_uno_cancelar(pg_temp.k('co'))$q$, '22023');
 
 SELECT pg_temp.as_persona(pg_temp.a('CO'));
-SELECT pg_temp.assert_eq('g: the dirigido reads the motivo',
-  $q$SELECT pg_temp.uno_txt(pg_temp.k('co'))$q$, 'cancelado|dirigido|LA+LA2|CO|-|-|Viaje');
+-- Since T7 (20261024120000) the dirigido side reads nothing the leader wrote.
+SELECT pg_temp.assert_eq('g: the dirigido does not read the motivo',
+  $q$SELECT pg_temp.uno_txt(pg_temp.k('co'))$q$, 'cancelado|dirigido|LA+LA2|CO|-|-|-');
 
 -- ── h. registrar_sin_agenda ─────────────────────────────────────────
 

@@ -3,7 +3,8 @@
  * Realizados and Cancelados. Each card names the other side (couples
  * together). Only the leader side sees the actions and, once realizado, the
  * resumen and the private note (mis_uno_a_uno already nulls them for the
- * dirigido side). Both sides see the celebración (T7). Rendered on the
+ * dirigido side). The celebración and the motivo de cancelación are leader-side
+ * too (T7): the dirigido side gets only the history. Rendered on the
  * server; the dialogs are client islands.
  */
 
@@ -63,9 +64,9 @@ function TarjetaUnoAUno({ u }: { u: UnoAUno }): ReactElement {
         </div>
       ) : null}
 
-      {u.celebracion ? <CelebracionUnoAUno texto={u.celebracion} /> : null}
+      {esLider && u.celebracion ? <CelebracionUnoAUno texto={u.celebracion} /> : null}
 
-      {u.estado === 'cancelado' && u.motivoCancelacion ? (
+      {esLider && u.estado === 'cancelado' && u.motivoCancelacion ? (
         <TextoSistema variante="sutil" tamaño="sm">{`Motivo: ${u.motivoCancelacion}`}</TextoSistema>
       ) : null}
 
