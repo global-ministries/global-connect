@@ -106,7 +106,10 @@ describe('RegistrarFamiliaForm', () => {
   })
 
   it('an existing parent goes on directly, with no invitation offer', async () => {
-    rpc.mockResolvedValueOnce({ data: { padre_id: 'p1', padre_nuevo: false, hijos: ['h1'] }, error: null })
+    // An existing parent also triggers the spouse lookup (ninos_conyuge_de): no spouse recorded here.
+    rpc.mockImplementation((fn: string) =>
+      Promise.resolve(fn === 'ninos_conyuge_de' ? { data: null, error: null } : { data: { padre_id: 'p1', padre_nuevo: false, hijos: ['h1'] }, error: null }),
+    )
     const onRegistrada = jest.fn()
     render(<RegistrarFamiliaForm padreExistente={{ id: 'p1', nombre: 'Ana Pérez' }} onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
     fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })

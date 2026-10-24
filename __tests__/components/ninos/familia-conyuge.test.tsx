@@ -25,7 +25,7 @@ function llenarHijo() {
 }
 
 function payloadRegistrado() {
-  const llamada = rpc.mock.calls.find(([fn]) => fn === 'ninos_registrar_familia')
+  const llamada = rpc.mock.calls.find(([fn]) => fn === 'ninos_registrar_familia' || fn === 'ninos_registrar_familia_mesa')
   return llamada?.[1].p
 }
 
@@ -185,12 +185,13 @@ describe('RegistrarFamiliaForm: spouse when the new family confirms an existing 
     rpc.mockImplementation((fn: string) =>
       Promise.resolve(fn === 'ninos_buscar_padre' ? { data: [], error: null } : { data: { padre_id: 'n1', padre_nuevo: true, hijos: ['h1'] }, error: null }),
     )
-    const onRegistrada = jest.fn()
-    render(<RegistrarFamiliaForm onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
+    render(<RegistrarFamiliaForm onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
     llenarRepresentante()
     llenarHijo()
     fireEvent.click(screen.getByRole('button', { name: 'Registrar familia' }))
-    await waitFor(() => expect(onRegistrada).toHaveBeenCalledWith('n1', 'Luis Ruiz'))
+    // A new adult is registered through the table's RPC and gets the account invitation offer.
+    expect(await screen.findByText('Familia registrada')).toBeInTheDocument()
+    expect(rpc).toHaveBeenCalledWith('ninos_registrar_familia_mesa', expect.anything())
     expect(rpc).not.toHaveBeenCalledWith('ninos_conyuge_de', expect.anything())
     expect(screen.queryByRole('checkbox', { name: /Vincular también/ })).not.toBeInTheDocument()
     expect(payloadRegistrado()).not.toHaveProperty('conyuge_id')
