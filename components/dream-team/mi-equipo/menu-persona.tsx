@@ -11,8 +11,11 @@
  *
  * "Editar ficha" (T11) fixes the person's personal data in a side panel; it is
  * offered to the volunteer coordinator of the area, org.manage, admin or pastor
- * (`persona.fichaEditable`), who may hold no write capability at all — then it
- * is the only action (`puedeEditarServicio` false).
+ * (`persona.fichaEditable`), who may hold no write capability at all
+ * (`puedeEditarServicio` false). The same people also get "Turnos": the
+ * coordinator keeps every volunteer's shifts up to date too (the RLS of
+ * dream_team_servicio_turnos and the turnos route use the same reach).
+ * "Cambiar etapa" stays with the write capability.
  *
  * Renders nothing when there is nothing to do: a Grupos de Vida leader (its
  * lifecycle is managed in Grupos de Vida) or an estado with no valid
@@ -63,6 +66,8 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
       ? { id: persona.servicioId as string, version: persona.version as number }
       : null
   const puedeEditarFicha = persona.fichaEditable === true
+  // The stage editors, or whoever keeps the volunteer's data (fichaEditable is never set on a retired servicio).
+  const turnosDe = servicio?.id ?? (puedeEditarFicha ? persona.servicioId : undefined)
   // T12: the same people may invite someone without account to sign in.
   const puedeInvitar = puedeEditarFicha && persona.tieneCuenta === false
 
@@ -81,16 +86,16 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
           {servicio !== null && (
-            <>
-              <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setEtapaAbierta(true)}>
-                <ArrowRightLeft aria-hidden="true" />
-                Cambiar etapa
-              </DropdownMenuItem>
-              <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setTurnosAbierto(true)}>
-                <Clock aria-hidden="true" />
-                Turnos
-              </DropdownMenuItem>
-            </>
+            <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setEtapaAbierta(true)}>
+              <ArrowRightLeft aria-hidden="true" />
+              Cambiar etapa
+            </DropdownMenuItem>
+          )}
+          {turnosDe !== undefined && (
+            <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setTurnosAbierto(true)}>
+              <Clock aria-hidden="true" />
+              Turnos
+            </DropdownMenuItem>
           )}
           {puedeEditarFicha && (
             <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setFichaAbierta(true)}>
@@ -108,7 +113,6 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
       </DropdownMenu>
 
       {servicio !== null && (
-        <>
         <AvanceEtapaControl
           servicioId={servicio.id}
           estadoActual={persona.estado}
@@ -119,15 +123,16 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
           ocultarBoton
           onSuccess={onActualizado}
         />
+      )}
 
+      {turnosDe !== undefined && (
         <TurnosServicioDialog
-          servicioId={servicio.id}
+          servicioId={turnosDe}
           nombre={persona.nombre}
           abierto={turnosAbierto}
           onAbiertoChange={setTurnosAbierto}
           onGuardado={onActualizado}
         />
-        </>
       )}
 
       {puedeEditarFicha && (
