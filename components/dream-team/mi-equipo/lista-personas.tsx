@@ -176,7 +176,7 @@ function FilaPersona({
     <li className="grid min-h-16 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2 hover:bg-accent/50 md:grid-cols-[2.5rem_minmax(0,1fr)_10rem_10rem_2.75rem] md:gap-x-4 md:px-5">
       <div
         aria-hidden="true"
-        className="row-span-2 flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-accent-strong)] text-sm font-bold text-[var(--brand-primary)] md:row-span-1"
+        className="row-span-2 flex h-10 w-10 items-center justify-center rounded-full bg-brand-tint text-sm font-bold text-brand-text md:row-span-1"
       >
         {persona.iniciales}
       </div>

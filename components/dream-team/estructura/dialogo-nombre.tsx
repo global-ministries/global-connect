@@ -9,7 +9,7 @@
  */
 import { useState, useTransition, type FormEvent, type ReactElement } from 'react'
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 
 import { reportarResultado, type ResultadoAccion, type Toast } from './mensajes'
@@ -60,7 +60,7 @@ export function DialogoNombre({
 
   return (
     <Dialog open onOpenChange={(abierto) => !abierto && onClose()}>
-      <DialogContent>
+      <DialogContent className="rounded-2xl">
         <DialogHeader>
           <DialogTitle>{titulo}</DialogTitle>
           <DialogDescription>{descripcion}</DialogDescription>
@@ -73,14 +73,14 @@ export function DialogoNombre({
             onChange={(event) => setNombre(event.target.value)}
             disabled={isPending}
           />
-          <div className="flex justify-end gap-2">
-            <BotonSistema type="button" variante="outline" tamaño="sm" disabled={isPending} onClick={onClose}>
+          <DialogFooter>
+            <BotonSistema type="button" variante="outline" disabled={isPending} onClick={onClose}>
               Cancelar
             </BotonSistema>
-            <BotonSistema type="submit" tamaño="sm" disabled={isPending || !puedeGuardar}>
+            <BotonSistema type="submit" disabled={isPending || !puedeGuardar}>
               {textoBoton}
             </BotonSistema>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>

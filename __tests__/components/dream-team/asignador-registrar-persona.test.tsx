@@ -78,6 +78,9 @@ describe('AsignadorServicioDialog — side panel in three steps', () => {
     const panel = screen.getByRole('dialog', { name: 'Asignar servicio' })
     expect(within(panel).getByRole('list', { name: 'Pasos' })).toBeInTheDocument()
     expect(within(panel).getByText('Persona').closest('li')).toHaveAttribute('aria-current', 'step')
+    // The step actions sit in the shared side-panel footer (docs/design-system.md).
+    const pie = within(panel).getByRole('button', { name: 'Siguiente' }).closest('[data-slot="pie-acciones"]')
+    expect(pie).toContainElement(within(panel).getByRole('button', { name: 'Cancelar' }))
     await userEvent.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
   })

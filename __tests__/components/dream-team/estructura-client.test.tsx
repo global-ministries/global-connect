@@ -57,15 +57,14 @@ jest.mock('@/hooks/use-notificaciones', () => ({
   useNotificaciones: () => ({ success: toastSuccess, error: toastError, info: jest.fn() }),
 }))
 
-// ContenedorDashboard lazy-loads its header behind Suspense — same synchronous
-// test double as __tests__/app/dashboard-page.test.tsx.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo?: string }) => (
-    <section>
+// PaginaSistema renders DesktopHeader behind React.lazy + Suspense; this
+// synchronous double shows the title and the header actions.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
-      {children}
-    </section>
+      {accionPrincipal}
+    </header>
   ),
 }))
 
@@ -405,5 +404,17 @@ describe('EstructuraClient — read-only viewers (criterion 6)', () => {
   it('keeps the structure editable for the real Grupos de Vida direccion', () => {
     render(<EstructuraClient {...props({ equipoId: ID_GDV, puedeEditar: true })} />)
     expect(within(detalle()).getByRole('button', { name: 'Renombrar' })).toBeInTheDocument()
+  })
+})
+
+describe('EstructuraClient — page layout (docs/design-system.md)', () => {
+  it('is a full-width system page, with or without teams', async () => {
+    const { container, unmount } = render(<EstructuraClient {...props({ equipoId: ID_CONEXION })} />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Estructura' })).toBeInTheDocument()
+    expect(container.querySelector('[data-ancho="default"]')).not.toBeNull()
+    unmount()
+
+    const vacio = render(<EstructuraClient {...props({ arbol: [] })} />)
+    expect(vacio.container.querySelector('[data-ancho="default"]')).not.toBeNull()
   })
 })

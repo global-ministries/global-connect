@@ -33,7 +33,7 @@ function Avatar({ iniciales, tamano }: { readonly iniciales: string; readonly ta
     <div
       aria-hidden="true"
       className={cn(
-        'flex shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent-strong)] font-bold text-[var(--brand-primary)]',
+        'flex shrink-0 items-center justify-center rounded-full bg-brand-tint font-bold text-brand-text',
         tamano === 'md' ? 'h-10 w-10 text-sm' : 'h-6 w-6 text-[10px]',
       )}
     >

@@ -7,10 +7,14 @@ import { BadgeSistema, BotonSistema, InputSistema } from '@/components/ui/sistem
 import type { Servicio } from '@/lib/platform/ninos/checkin'
 import {
   agruparRetiro,
+  MAX_MOTIVO_RETIRO,
   mensajeDeErrorRetiro,
+  parseOpcionesRetiro,
   textoRetirado,
   validarCodigo,
+  validarRetiro,
   type FilaCodigo,
+  type OpcionRetiro,
   type Retiro,
 } from '@/lib/platform/ninos/retiro'
 import { createClient } from '@/lib/supabase/client'
@@ -23,12 +27,19 @@ type Props = {
   onRetirado?: () => void
 }
 
-/** Check-out by code: type the code, see the children and pickup people, confirm who picks up. */
+/** The "Otra persona" choice (anyone outside the list, with a reason). */
+const OTRA = '__otra__'
+
+/** Check-out by code: type the code, see the children, pick who picks up from their list, confirm. */
 export function RetiroPanel({ servicio, onRetirado }: Props) {
   const [texto, setTexto] = useState('')
   const [codigo, setCodigo] = useState<string | null>(null)
   const [retiro, setRetiro] = useState<Retiro | null>(null)
-  const [retiradoPor, setRetiradoPor] = useState('')
+  const [opciones, setOpciones] = useState<OpcionRetiro[]>([])
+  /** The chosen option's name, OTRA, or null. */
+  const [eleccion, setEleccion] = useState<string | null>(null)
+  const [otraNombre, setOtraNombre] = useState('')
+  const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
   const [hecho, setHecho] = useState<string | null>(null)
@@ -52,8 +63,23 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
       setError(`No hay niños con el código ${c} en este servicio. Revisa el número y el servicio elegido.`)
       return
     }
+    const agrupado = agruparRetiro(filas)
+    let lista: OpcionRetiro[] = []
+    if (agrupado.adentro.length > 0) {
+      const r = await createClient().rpc('ninos_retiro_opciones', {
+        p_codigo: c,
+        p_turno_id: servicio.turnoId,
+        p_fecha: servicio.fecha,
+      })
+      // Without the list, "Otra persona" with a reason still works.
+      lista = r.error ? [] : parseOpcionesRetiro(r.data)
+    }
     setCodigo(c)
-    setRetiro(agruparRetiro(filas))
+    setRetiro(agrupado)
+    setOpciones(lista)
+    setEleccion(null)
+    setOtraNombre('')
+    setMotivo('')
   }
 
   function onBuscar(e: React.FormEvent) {
@@ -71,8 +97,11 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
 
   async function confirmar() {
     if (!codigo || !servicio.turnoId) return
-    if (!retiradoPor.trim()) {
-      setError('Escribe quién retira al niño.')
+    const v = validarRetiro(
+      eleccion === OTRA ? { tipo: 'otra', nombre: otraNombre, motivo } : eleccion ? { tipo: 'lista', nombre: eleccion } : null,
+    )
+    if (!v.ok) {
+      setError(v.error)
       return
     }
     setError(null)
@@ -81,7 +110,8 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
       codigo,
       turnoId: servicio.turnoId,
       fecha: servicio.fecha,
-      retiradoPor: retiradoPor.trim(),
+      retiradoPor: v.retiradoPor,
+      motivoOtra: v.motivoOtra,
     })
     setCargando(false)
     if (err) {
@@ -89,7 +119,6 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
       return
     }
     setHecho(`Retiro registrado: ${(data ?? []).length} niño(s) con el código ${codigo}.`)
-    setRetiradoPor('')
     onRetirado?.()
     await buscar(codigo)
   }
@@ -159,36 +188,75 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
 
           {retiro.adentro.length > 0 && (
             <>
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Autorizados para retirar</p>
-                {retiro.autorizados.length === 0 ? (
+              <fieldset className="space-y-2">
+                <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">¿Quién retira?</legend>
+                {opciones.length === 0 && (
                   <BadgeSistema variante="warning" tamaño="sm">
-                    Sin personas autorizadas registradas.
+                    Sin personas autorizadas ni representantes registrados.
                   </BadgeSistema>
-                ) : (
-                  <ul className="space-y-1 text-sm">
-                    {retiro.autorizados.map((a) => (
-                      <li key={`${a.nombre}-${a.telefono ?? ''}`} className="flex flex-wrap items-center gap-x-2">
-                        <span className="font-medium text-foreground">{a.nombre}</span>
-                        {a.relacion && <span className="text-muted-foreground">({a.relacion})</span>}
-                        {a.telefono && (
-                          <a href={`tel:${a.telefono}`} className="inline-flex min-h-[44px] items-center gap-1 text-[var(--brand-primary)] hover:underline">
-                            <Phone className="h-3 w-3" aria-hidden />
-                            {a.telefono}
-                          </a>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
                 )}
-              </div>
-              <InputSistema
-                id="retiro-quien"
-                label="¿Quién retira?"
-                placeholder="Nombre de quien retira"
-                value={retiradoPor}
-                onChange={(e) => setRetiradoPor(e.target.value)}
-              />
+                {opciones.map((o) => (
+                  <div
+                    key={o.nombre}
+                    className="flex flex-wrap items-center gap-x-3 rounded-xl border border-border px-3 transition-colors has-[:checked]:border-[var(--brand-primary)] has-[:checked]:bg-[var(--brand-primary)]/5"
+                  >
+                    <label className="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3 text-sm">
+                      <input
+                        type="radio"
+                        name="retiro-quien"
+                        value={o.nombre}
+                        checked={eleccion === o.nombre}
+                        onChange={() => setEleccion(o.nombre)}
+                        className="h-4 w-4 accent-[var(--brand-primary)]"
+                      />
+                      <span>
+                        <span className="font-medium text-foreground">{o.nombre}</span>
+                        {o.relacion && <span className="text-muted-foreground"> ({o.relacion})</span>}
+                      </span>
+                    </label>
+                    {o.telefono && (
+                      <a href={`tel:${o.telefono}`} className="inline-flex min-h-[44px] items-center gap-1 text-sm text-[var(--brand-primary)] hover:underline">
+                        <Phone className="h-3 w-3" aria-hidden />
+                        {o.telefono}
+                      </a>
+                    )}
+                  </div>
+                ))}
+                <div className="rounded-xl border border-dashed border-border px-3 has-[:checked]:border-amber-500/60 has-[:checked]:bg-amber-500/5">
+                  <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm">
+                    <input
+                      type="radio"
+                      name="retiro-quien"
+                      value={OTRA}
+                      checked={eleccion === OTRA}
+                      onChange={() => setEleccion(OTRA)}
+                      className="h-4 w-4 accent-[var(--brand-primary)]"
+                    />
+                    <span className="font-medium text-foreground">Otra persona</span>
+                  </label>
+                  {eleccion === OTRA && (
+                    <div className="space-y-3 pb-3">
+                      <p className="text-xs text-muted-foreground">No está en la lista: queda registrado con el motivo.</p>
+                      <InputSistema
+                        id="retiro-otra-nombre"
+                        label="Nombre de quien retira"
+                        autoComplete="off"
+                        maxLength={200}
+                        value={otraNombre}
+                        onChange={(e) => setOtraNombre(e.target.value)}
+                      />
+                      <InputSistema
+                        id="retiro-motivo"
+                        label="Motivo"
+                        placeholder="Ej.: la mamá avisó por teléfono"
+                        maxLength={MAX_MOTIVO_RETIRO}
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              </fieldset>
               <BotonSistema type="button" tamaño="lg" className="w-full" disabled={cargando} onClick={() => void confirmar()}>
                 {cargando ? 'Registrando…' : 'Confirmar retiro'}
               </BotonSistema>

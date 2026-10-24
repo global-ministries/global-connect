@@ -10,12 +10,17 @@ import { usePlatformNavigationViewItems, type PlatformNavigationViewItem } from 
 import { resolvePlatformNavigationGate } from '@/lib/platform/navigation'
 import { useCredencialesNavegacion } from '@/components/navegacion/use-entradas-navegacion'
 import { entradasBarraInferior, esRutaActiva, type EntradaNavegacion } from '@/lib/navegacion/registro'
+import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
 
 type MenuInferiorMovilItem = {
   nombre: string
   icono: ComponentType<{ className?: string }>
   enlace: string
   id: string
+  /** Active on every route below this prefix (Niños: any /ninos/ screen), not only on `enlace`. */
+  activoBajo?: string
+  /** Visible text when shorter than `nombre` (the accessible name keeps `nombre`). */
+  nombreCorto?: string
 }
 
 export function MenuInferiorMovil() {
@@ -38,11 +43,16 @@ export function MenuInferiorMovil() {
   const showPlatformItems = hasPlatformNavigationItems && (loading || platformNavigationGate.ok)
   const suppressLegacyForFailClosed = !loading && platformNavigationGate.ok && !hasPlatformNavigationItems && hasPlatformCapabilities
 
+  // Niños (F5): whoever has Niños access gets it after Grupos de Vida, on their first Niños screen.
+  const ninos = useNinosMenuItem()
   const navigationItems = suppressLegacyForFailClosed
     ? []
-    : showPlatformItems
-      ? toMenuInferiorMovilItems(platformNavigationItems)
-      : toMenuInferiorMovilItems(entradasBarraInferior(credenciales))
+    : insertNinosMenuItem(
+        showPlatformItems
+          ? toMenuInferiorMovilItems(platformNavigationItems)
+          : toMenuInferiorMovilItems(entradasBarraInferior(credenciales)),
+        ninos && { nombre: ninos.label, icono: ninos.icon, enlace: ninos.href, id: ninos.id, activoBajo: '/ninos' },
+      )
 
   return (
     <nav aria-label="Navegación inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
@@ -50,7 +60,7 @@ export function MenuInferiorMovil() {
       <ul className="flex min-w-0 items-stretch justify-around gap-1 px-2 pt-2 safe-area-pb safe-area-pl safe-area-pr">
         {navigationItems.map((elemento) => {
           const Icono = elemento.icono
-          const esActivo = esRutaActiva(pathname, elemento.enlace)
+          const esActivo = esRutaActiva(pathname, elemento.activoBajo ?? elemento.enlace)
 
           return (
             <li key={elemento.id} className="flex min-w-0 flex-1">
@@ -70,7 +80,7 @@ export function MenuInferiorMovil() {
               >
                 <Icono aria-hidden="true" className={cn("size-5 shrink-0", esActivo ? "text-brand" : "text-muted-foreground")} />
                 <span className={cn("max-w-full truncate text-xs", esActivo ? "font-semibold" : "font-medium")}>
-                  {elemento.nombre}
+                  {elemento.nombreCorto ?? elemento.nombre}
                 </span>
               </Link>
             </li>
@@ -84,6 +94,7 @@ export function MenuInferiorMovil() {
 function toMenuInferiorMovilItems(items: ReadonlyArray<PlatformNavigationViewItem | EntradaNavegacion>): MenuInferiorMovilItem[] {
   return items.map((item) => ({
     nombre: item.label,
+    nombreCorto: 'labelMovil' in item ? item.labelMovil : undefined,
     icono: item.icon,
     enlace: item.href,
     id: item.id,

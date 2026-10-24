@@ -8,9 +8,9 @@
  * PATCH; the database decides who may do it and validates again
  * (lib/platform/dream-team/ficha-persona.ts).
  */
-import { useEffect, useState, type FormEvent, type ReactElement } from 'react'
+import { useEffect, useId, useState, type FormEvent, type ReactElement } from 'react'
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import type { useNotificaciones } from '@/hooks/use-notificaciones'
 import { ESTADOS_CIVILES, GENEROS } from '@/lib/platform/dream-team/alta-persona'
@@ -56,6 +56,7 @@ export function EditarFichaPanel({
   const [form, setForm] = useState<FormularioFicha | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const formId = useId()
 
   const url = `/api/dream-team/personas/${encodeURIComponent(personaId)}/ficha`
 
@@ -120,86 +121,83 @@ export function EditarFichaPanel({
   }
 
   return (
-    <Sheet open={abierto} onOpenChange={onAbiertoChange}>
-      <SheetContent side="right" className="h-dvh w-full max-w-none gap-0 p-0 sm:w-[480px] sm:max-w-[480px]">
-        <SheetHeader className="border-b border-border pr-12">
-          <SheetTitle>Editar ficha</SheetTitle>
-          <SheetDescription>Corrige los datos personales de {nombre}.</SheetDescription>
-        </SheetHeader>
-
-        <form onSubmit={guardar} noValidate className="flex min-h-0 flex-1 flex-col">
-          <div className="grid flex-1 content-start gap-3 overflow-y-auto p-4">
-            {form === null && error === null && <TextoSistema variante="sutil">Cargando…</TextoSistema>}
-            {form !== null && (
-              <>
-                <div className="grid gap-1">
-                  <InputSistema
-                    label="Fecha de nacimiento"
-                    type="date"
-                    min="1900-01-01"
-                    max={hoyIso()}
-                    value={form.fechaNacimiento}
-                    onChange={(e) => cambiar('fechaNacimiento', e.target.value)}
-                  />
-                  {form.fechaNacimiento === '' && (
-                    <TextoSistema variante="sutil">Sin fecha de nacimiento registrada.</TextoSistema>
-                  )}
-                </div>
-                <InputSistema
-                  label="Cédula"
-                  inputMode="numeric"
-                  value={form.cedula}
-                  onChange={(e) => cambiar('cedula', e.target.value)}
-                />
-                <SelectSistema
-                  label="Género"
-                  opciones={opciones(GENEROS)}
-                  value={form.genero}
-                  onChange={(e) => cambiar('genero', e.target.value)}
-                />
-                <div className="grid gap-1">
-                  <SelectSistema
-                    label="Estado civil"
-                    opciones={opciones(ESTADOS_CIVILES)}
-                    value={form.estadoCivil}
-                    onChange={(e) => cambiar('estadoCivil', e.target.value)}
-                  />
-                  {form.estadoCivil === 'No especificado' && (
-                    <TextoSistema variante="sutil">Estado civil sin especificar.</TextoSistema>
-                  )}
-                </div>
-                <InputSistema
-                  label="Teléfono"
-                  type="tel"
-                  inputMode="tel"
-                  value={form.telefono}
-                  onChange={(e) => cambiar('telefono', e.target.value)}
-                />
-                <InputSistema
-                  label="Redes sociales"
-                  maxLength={REDES_SOCIALES_MAX}
-                  value={form.redesSociales}
-                  onChange={(e) => cambiar('redesSociales', e.target.value)}
-                />
-              </>
-            )}
-            {error !== null && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 border-t border-border p-4">
-            <BotonSistema type="button" variante="outline" onClick={() => onAbiertoChange(false)}>
-              Cancelar
-            </BotonSistema>
-            <BotonSistema type="submit" disabled={!hayCambios || guardando} cargando={guardando}>
-              Guardar
-            </BotonSistema>
-          </div>
-        </form>
-      </SheetContent>
-    </Sheet>
+    <PanelLateralSistema
+      abierto={abierto}
+      onAbiertoChange={onAbiertoChange}
+      titulo="Editar ficha"
+      descripcion={`Corrige los datos personales de ${nombre}.`}
+      pie={
+        <>
+          <BotonSistema type="button" variante="outline" onClick={() => onAbiertoChange(false)}>
+            Cancelar
+          </BotonSistema>
+          <BotonSistema type="submit" form={formId} disabled={!hayCambios || guardando} cargando={guardando}>
+            Guardar
+          </BotonSistema>
+        </>
+      }
+    >
+      <form id={formId} onSubmit={guardar} noValidate className="grid content-start gap-4">
+        {form === null && error === null && <TextoSistema variante="sutil">Cargando…</TextoSistema>}
+        {form !== null && (
+          <>
+            <div className="grid gap-1">
+              <InputSistema
+                label="Fecha de nacimiento"
+                type="date"
+                min="1900-01-01"
+                max={hoyIso()}
+                value={form.fechaNacimiento}
+                onChange={(e) => cambiar('fechaNacimiento', e.target.value)}
+              />
+              {form.fechaNacimiento === '' && (
+                <TextoSistema variante="sutil">Sin fecha de nacimiento registrada.</TextoSistema>
+              )}
+            </div>
+            <InputSistema
+              label="Cédula"
+              inputMode="numeric"
+              value={form.cedula}
+              onChange={(e) => cambiar('cedula', e.target.value)}
+            />
+            <SelectSistema
+              label="Género"
+              opciones={opciones(GENEROS)}
+              value={form.genero}
+              onChange={(e) => cambiar('genero', e.target.value)}
+            />
+            <div className="grid gap-1">
+              <SelectSistema
+                label="Estado civil"
+                opciones={opciones(ESTADOS_CIVILES)}
+                value={form.estadoCivil}
+                onChange={(e) => cambiar('estadoCivil', e.target.value)}
+              />
+              {form.estadoCivil === 'No especificado' && (
+                <TextoSistema variante="sutil">Estado civil sin especificar.</TextoSistema>
+              )}
+            </div>
+            <InputSistema
+              label="Teléfono"
+              type="tel"
+              inputMode="tel"
+              value={form.telefono}
+              onChange={(e) => cambiar('telefono', e.target.value)}
+            />
+            <InputSistema
+              label="Redes sociales"
+              maxLength={REDES_SOCIALES_MAX}
+              value={form.redesSociales}
+              onChange={(e) => cambiar('redesSociales', e.target.value)}
+            />
+          </>
+        )}
+        {error !== null && (
+          <p role="alert" className="text-sm text-danger-text">
+            {error}
+          </p>
+        )}
+      </form>
+    </PanelLateralSistema>
   )
 }

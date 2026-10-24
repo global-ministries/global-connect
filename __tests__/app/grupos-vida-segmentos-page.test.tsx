@@ -36,23 +36,13 @@ jest.mock('@/components/grupos/FormularioSegmento.client', () => ({
   __esModule: true,
   default: ({ trigger }: { trigger: string }) => <div data-testid={`crear-${trigger}`} />,
 }))
-// ContenedorDashboard lazy-loads its header behind Suspense — synchronous test double.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({
-    children,
-    titulo,
-    accionPrincipal,
-  }: {
-    children: React.ReactNode
-    titulo?: string
-    accionPrincipal?: React.ReactNode
-  }) => (
-    <section>
+// The page header renders behind Suspense (React.lazy) — synchronous test double.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
       {accionPrincipal}
-      {children}
-    </section>
+    </header>
   ),
 }))
 
@@ -119,7 +109,8 @@ describe('/grupos-vida/segmentos — page', () => {
   it('gives an admin the create button, the phone button and the list', async () => {
     conSesion(['admin'])
     render(await SegmentosPage())
-    expect(screen.getByRole('heading', { name: 'Segmentos' })).toBeInTheDocument()
+    // The header (title and create button) loads lazily.
+    expect(await screen.findByRole('heading', { name: 'Segmentos' })).toBeInTheDocument()
     expect(screen.getByTestId('crear-boton')).toBeInTheDocument()
     expect(screen.getByTestId('crear-fab')).toBeInTheDocument()
     expect(screen.getByTestId('isla')).toBeInTheDocument()

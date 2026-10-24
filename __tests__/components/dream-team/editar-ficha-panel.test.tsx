@@ -92,3 +92,18 @@ describe('EditarFichaPanel', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Permiso denegado')
   })
 })
+
+describe('EditarFichaPanel — system side panel (docs/design-system.md)', () => {
+  it('keeps Cancelar and Guardar in the shared panel footer, with Guardar still submitting the form', async () => {
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: FICHA }))
+    abrir()
+    const cedula = await screen.findByLabelText('Cédula')
+    const guardar = screen.getByRole('button', { name: 'Guardar' }) as HTMLButtonElement
+    const pie = guardar.closest('[data-slot="pie-acciones"]')
+    expect(pie).not.toBeNull()
+    expect(pie).toContainElement(screen.getByRole('button', { name: 'Cancelar' }))
+    // Outside the <form> element but owned by it (form attribute): the browser's Enter-to-submit keeps working.
+    expect(guardar.form).not.toBeNull()
+    expect(guardar.form).toBe((cedula as HTMLInputElement).form)
+  })
+})

@@ -120,7 +120,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
             type="search"
             icono={Search}
             aria-label="Buscar familia"
-            placeholder="Teléfono, nombre del representante o del niño"
+            placeholder="Teléfono o nombre"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -176,6 +176,11 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
                             {h.es_vip_desde && (
                               <BadgeSistema variante="warning" tamaño="sm">
                                 VIP
+                              </BadgeSistema>
+                            )}
+                            {h.desde_casa && (
+                              <BadgeSistema variante="info" tamaño="sm">
+                                Registrado desde casa
                               </BadgeSistema>
                             )}
                             {!h.tiene_ficha && (

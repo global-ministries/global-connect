@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
 
-import { ContenedorDashboard, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BotonSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import HistorialAsistenciaClient from '@/components/asistencia/HistorialAsistencia.client'
 
 export default async function HistorialAsistenciaPage({
@@ -18,7 +18,7 @@ export default async function HistorialAsistenciaPage({
 
   if (!user) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
               <TituloSistema nivel={2}>Acceso requerido</TituloSistema>
@@ -30,7 +30,7 @@ export default async function HistorialAsistenciaPage({
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -45,10 +45,10 @@ export default async function HistorialAsistenciaPage({
 
   if (!puedeEditar || !grupo) {
     return (
-<ContenedorDashboard titulo="" descripcion="" accionPrincipal={null}>
+<PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <div className="text-danger-text text-6xl mb-4">⚠️</div>
               <TituloSistema nivel={2}>Sin permisos</TituloSistema>
               <p className="text-muted-foreground mb-4">No tienes permiso para ver el historial de este grupo.</p>
               <Link href={`/grupos-vida/${id}`}>
@@ -58,7 +58,7 @@ export default async function HistorialAsistenciaPage({
               </Link>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -94,11 +94,11 @@ export default async function HistorialAsistenciaPage({
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo={`Historial de Asistencia - ${grupo.nombre}`}
         descripcion="Análisis y eventos registrados"
-        botonRegreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
-        accionPrincipal={
+        regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
+        acciones={
           <Link href={`/grupos-vida/${id}/asistencia`}>
             <BotonSistema
               variante="outline"
@@ -117,6 +117,6 @@ export default async function HistorialAsistenciaPage({
           fechaInicio={fechaInicio || undefined}
           fechaFin={fechaFin || undefined}
         />
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

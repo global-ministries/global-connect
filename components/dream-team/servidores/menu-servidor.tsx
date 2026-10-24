@@ -3,7 +3,8 @@
 /**
  * Servidores — the per-row "⋯" menu (a 44px button): "Cambiar etapa" (the
  * shared stage dialog, controlled mode), "Turnos" (the campus service shifts
- * of the servicio), "Editar ficha" (the person's personal data, T11; for the
+ * of the servicio; also for whoever may fix the ficha, the volunteer
+ * coordinator, who keeps the shifts up to date too), "Editar ficha" (the person's personal data, T11; for the
  * volunteer coordinator, org.manage, admin or pastor, see
  * lib/platform/dream-team/ficha-persona.ts) and "Ver su equipo" (Mi equipo on
  * the person's dirección).
@@ -20,11 +21,10 @@ import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FilaServidor } from '@/lib/platform/dream-team/servidores-vista'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
-import { cn } from '@/lib/utils'
-import { ANILLO } from './contadores-etapa'
 import { EditarFichaPanel } from './editar-ficha-panel'
 
 export interface MenuServidorProps {
@@ -51,9 +51,10 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
 
   const servicio = editaServicio(fila) ? { id: fila.servicioId as string, version: fila.version as number } : null
   const puedeCambiarEtapa = servicio !== null && (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0
-  // A retired servicio no longer serves, so it has no shifts to change.
-  const puedeElegirTurnos = servicio !== null && fila.estado !== 'retirado'
   const puedeEditarFicha = fila.fichaEditable === true
+  // A retired servicio no longer serves, so it has no shifts to change.
+  const turnosDe =
+    fila.estado === 'retirado' ? undefined : (servicio?.id ?? (puedeEditarFicha ? fila.servicioId : undefined))
   // T12: the same people may invite someone without account to sign in.
   const puedeInvitar = puedeEditarFicha && fila.tieneCuenta === false
 
@@ -62,17 +63,14 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
       {/* modal={false}: the stage dialog opens from an item, and a modal menu would fight it for focus and pointer events. */}
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <button
+          <BotonSistema
             type="button"
+            variante="ghost"
+            soloIcono
+            icono={MoreHorizontal}
             aria-label={`Acciones para ${fila.nombre}`}
-            className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-              ANILLO,
-              className,
-            )}
-          >
-            <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
-          </button>
+            className={className}
+          />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
           {puedeCambiarEtapa && (
@@ -81,7 +79,7 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
               Cambiar etapa
             </DropdownMenuItem>
           )}
-          {puedeElegirTurnos && (
+          {turnosDe !== undefined && (
             <DropdownMenuItem className="min-h-11 px-3 text-sm" onSelect={() => setTurnosAbierto(true)}>
               <Clock aria-hidden="true" />
               Turnos
@@ -121,9 +119,9 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
         />
       )}
 
-      {puedeElegirTurnos && (
+      {turnosDe !== undefined && (
         <TurnosServicioDialog
-          servicioId={servicio.id}
+          servicioId={turnosDe}
           nombre={fila.nombre}
           abierto={turnosAbierto}
           onAbiertoChange={setTurnosAbierto}
