@@ -8,7 +8,7 @@
  * Unlike __tests__/components/sidebar-moderna-dream-team.test.tsx (which
  * mocks useCurrentUser directly), this test wires up the REAL
  * CurrentUserProvider with a server-resolved `initial` snapshot — exactly
- * what app/(auth)/layout.tsx and app/(pastoral)/layout.tsx now pass — and
+ * what app/(auth)/layout.tsx now passes — and
  * asserts the role-gated Dream Team entry is present on the very first,
  * synchronous render. No `act(async …)`, no `waitFor`: if this needed an
  * effect to run first, the regression would still be there.

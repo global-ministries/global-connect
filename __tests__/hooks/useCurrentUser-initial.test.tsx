@@ -1,7 +1,7 @@
 /**
  * CurrentUserProvider `initial` prop — server-resolved first paint.
  *
- * app/(auth)/layout.tsx and app/(pastoral)/layout.tsx resolve a
+ * app/(auth)/layout.tsx resolves a
  * CurrentUserSnapshot on the server (lib/auth/currentUserSnapshot.ts) and
  * hand it down as `initial`. This must make the FIRST render already expose
  * roles/supportCapabilities/platformSession with loading === false — no

@@ -106,21 +106,21 @@ const MENU_PRINCIPAL: Record<string, string[]> = {
     '/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/salon', '/ninos/cartel', '/ninos/reportes',
     '/configuracion', '/configuracion', ...PIE,
   ],
-  'plataforma-grupos-pastoral': ['/dashboard', '/users', '/grupos-vida', '/grupos-vida', '/pastor/crisis', '/pastor', '/pastor/lecturas', '/talleres/explorar', ...PIE],
+  'plataforma-grupos-pastoral': ['/dashboard', '/users', '/grupos-vida', '/grupos-vida', '/talleres/explorar', ...PIE],
 }
 
 /** Only the desktop sidebar opens Talleres as a submenu (TalleresNavSubmenu). */
 const SIDEBAR: Record<string, string[]> = {
   ...MENU_PRINCIPAL,
   'plataforma-grupos-pastoral': [
-    '/dashboard', '/users', '/grupos-vida', '/grupos-vida', '/pastor/crisis', '/pastor', '/pastor/lecturas',
+    '/dashboard', '/users', '/grupos-vida', '/grupos-vida',
     '/talleres/explorar', '/talleres', '/talleres/explorar', '/talleres/mi-recorrido', ...PIE,
   ],
 }
 
 const BARRA_INFERIOR_ANTES: Record<string, string[]> = {
   ...Object.fromEntries(Object.keys(PERFILES).map((perfil) => [perfil, ['/dashboard', '/users', '/grupos-vida', '/ayuda']])),
-  'plataforma-grupos-pastoral': ['/grupos-vida', '/pastor/crisis', '/pastor', '/pastor/lecturas', '/talleres/explorar'],
+  'plataforma-grupos-pastoral': ['/grupos-vida', '/talleres/explorar'],
 }
 
 /** The one intended change: the bottom bar's legacy links follow the same role rule. */

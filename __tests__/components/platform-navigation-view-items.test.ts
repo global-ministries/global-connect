@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react'
-import { AlertTriangle, BarChart3, Calendar, ClipboardList, MapPin, User, UserCog, UserCheck } from 'lucide-react'
+import { ClipboardList, UserCheck } from 'lucide-react'
 
 import {
   resolvePlatformNavigationViewItems,
@@ -80,42 +80,15 @@ describe('platform navigation view items', () => {
     expect(items).toEqual([])
   })
 
-  describe('pastoral icons', () => {
-    it('maps pastoral navigation ids to their lucide icons', async () => {
-      const platformSession = withCapabilities([
-        { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
-        { key: 'pastoral.admin.manage', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
-        { key: 'pastoral.one_on_one.create', experience: 'pastoral', scopeType: 'one_on_one', scopeId: 'gdv-adultos', source: 'pastoral' },
-        { key: 'pastoral.one_on_one.read', experience: 'pastoral', scopeType: 'one_on_one', scopeId: 'gdv-adultos', source: 'pastoral' },
-        { key: 'pastoral.triada.read', experience: 'pastoral', scopeType: 'triada', scopeId: 'triada-norte', source: 'pastoral' },
-      ])
+  it('returns no view item for leftover pastoral grants now that the pastoral module is gone', async () => {
+    const platformSession = withCapabilities([
+      { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
+      { key: 'pastoral.one_on_one.read', experience: 'pastoral', scopeType: 'one_on_one', scopeId: 'gdv-adultos', source: 'pastoral' },
+    ])
 
-      const items = await resolvePlatformNavigationViewItems(platformSession, { enabled: true })
-      const itemsByHref = Object.fromEntries(items.map((item) => [item.href, item]))
+    const items = await resolvePlatformNavigationViewItems(platformSession, { enabled: true })
 
-      expect(itemsByHref['/pastor']?.icon).toBe(BarChart3)
-      expect(itemsByHref['/pastor/usuarios']?.icon).toBe(UserCog)
-      expect(itemsByHref['/pastor/crisis']?.icon).toBe(AlertTriangle)
-      expect(itemsByHref['/pastor/lecturas']?.icon).toBe(ClipboardList)
-      expect(itemsByHref['/lider']?.icon).toBe(User)
-       expect(itemsByHref['/lider/uno-a-uno']?.icon).toBe(Calendar)
-       expect(itemsByHref['/lider/triada']).toBeUndefined()
-       expect(itemsByHref['/asistido']?.icon).toBe(MapPin)
-    })
-
-    it('does not include pastor admin usuarios when only pastoral.read.all is granted', async () => {
-      const platformSession = withCapabilities([
-        { key: 'pastoral.read.all', experience: 'pastoral', scopeType: 'experience', source: 'pastoral' },
-      ])
-
-      const items = await resolvePlatformNavigationViewItems(platformSession, { enabled: true })
-      const hrefs = items.map((item) => item.href)
-
-      expect(hrefs).toContain('/pastor')
-      expect(hrefs).toContain('/pastor/crisis')
-      expect(hrefs).toContain('/pastor/lecturas')
-      expect(hrefs).not.toContain('/pastor/usuarios')
-    })
+    expect(items.map((item) => item.href).filter((href) => /^\/(pastor|lider|asistido)(\/|$)/.test(href))).toEqual([])
   })
 
   describe('talleres duplicate collapse (PR H)', () => {

@@ -5,8 +5,8 @@
 --
 -- Covers:
 --   a. Catalog, as found and after the two migration blocks below:
---        - pastoral_role_capability_map, debug_toolbar_whitelist and the sibling
---          talleres_role_capability_map (already closed, must stay so):
+--        - debug_toolbar_whitelist and the sibling talleres_role_capability_map
+--          (already closed, must stay so):
 --          relrowsecurity, has_table_privilege of anon and authenticated for
 --          SELECT, INSERT, UPDATE, DELETE and TRUNCATE, and the policies (name,
 --          command, roles, qual);
@@ -20,8 +20,8 @@
 --          tables and sequences in public and of its global row for functions;
 --          the row of supabase_admin for functions in public stays as it is
 --          (postgres cannot change it);
---        - the only readers of the two tables are the expected definer
---          functions owned by postgres, and no view or policy uses them.
+--        - the only reader of debug_toolbar_whitelist is the expected definer
+--          function owned by postgres, and no view or policy uses it.
 --      As found, every value of a batch must be either the open state (staging
 --      before the apply) or the closed state (after it), the same state for the
 --      whole batch; the info column says which. After the blocks every value
@@ -34,10 +34,6 @@
 --          after; nobody but the owner can add a row;
 --        - puede_ver_debug_toolbar(own id) answers the same before and after for
 --          the admin (true) and the leader (false);
---        - pastoral_role_capability_map: anon and the leader are refused after
---          (read, insert, delete); the definer path
---          assign_pastoral_capabilities_for_role, run for a random persona id,
---          inserts as many grants before and after (it still reads the map);
 --        - after only: the leader calling each of the four functions, and anon
 --          calling expirar_solicitudes_vencidas(), get 42501 (the privilege
 --          check fails before any body runs); service_role still calls them;
@@ -63,6 +59,13 @@
 --
 -- Run it before the migrations are applied (state found: open) and after
 -- (state found: closed); both runs must end with failing_cases = 0.
+--
+-- pastoral_role_capability_map was also closed by 20261003100000, and its
+-- cases were removed from this file when 20261015110000_quitar_modulo_pastoral
+-- dropped the table with the rest of the unused pastoral module
+-- (supabase/tests/quitar-modulo-pastoral.test.sql pins that). The migration
+-- copy below is kept byte for byte; its pastoral block is guarded by
+-- to_regclass and does nothing once the table is gone.
 
 BEGIN;
 
@@ -96,20 +99,16 @@ SELECT 'setup: the admin must be in debug_toolbar_whitelist and the leader must 
     OR EXISTS (SELECT 1 FROM public.debug_toolbar_whitelist d JOIN t_f3_who l ON l.uid = d.usuario_id AND l.who = 'leader');
 
 CREATE TEMP TABLE t_f3_counts ON COMMIT DROP AS
-SELECT (SELECT count(*) FROM public.debug_toolbar_whitelist)::text AS whitelist_rows,
-       (SELECT count(*) FROM public.pastoral_role_capability_map)::text AS map_rows,
-       (SELECT count(*) FROM public.pastoral_role_capability_map WHERE rol = 'lider')::text AS map_lider_rows;
+SELECT (SELECT count(*) FROM public.debug_toolbar_whitelist)::text AS whitelist_rows;
 
--- a. Who reads the two tables --------------------------------------------------
--- Closing them is safe because their only readers are definer functions owned by
--- postgres (BYPASSRLS, and the owner of both tables) and no view or policy uses
--- them. Temp schemas are skipped: this file's own helpers name the tables.
+-- a. Who reads the table -------------------------------------------------------
+-- Closing it is safe because its only reader is a definer function owned by
+-- postgres (BYPASSRLS, and the owner of the table) and no view or policy uses
+-- it. Temp schemas are skipped: this file's own helpers name the tables.
 
 INSERT INTO t_f3_failures
 SELECT format('a readers of %s: expected %s, got %s', t.tbl, t.expected, r.found)
   FROM (VALUES
-          ('pastoral_role_capability_map',
-           'assign_pastoral_capabilities_for_role(uuid,text) definer postgres, sync_pastoral_grants_on_role_change() definer postgres'),
           ('debug_toolbar_whitelist',
            'puede_ver_debug_toolbar(uuid) definer postgres')) t(tbl, expected),
        LATERAL (
@@ -125,7 +124,7 @@ SELECT format('a readers of %s: expected %s, got %s', t.tbl, t.expected, r.found
 INSERT INTO t_f3_failures
 SELECT 'a a view or a policy uses ' || c.relname
   FROM pg_class c
- WHERE c.oid IN ('public.pastoral_role_capability_map'::regclass, 'public.debug_toolbar_whitelist'::regclass)
+ WHERE c.oid IN ('public.debug_toolbar_whitelist'::regclass)
    AND (EXISTS (SELECT 1 FROM pg_depend d JOIN pg_rewrite rw ON rw.oid = d.objid
                  WHERE d.classid = 'pg_rewrite'::regclass AND d.refobjid = c.oid AND rw.ev_class <> c.oid)
         OR EXISTS (SELECT 1 FROM pg_policies pp
@@ -182,10 +181,6 @@ CREATE OR REPLACE FUNCTION pg_temp.take_cat(p_phase text)
 RETURNS void LANGUAGE sql AS $$
   INSERT INTO t_f3_cat(phase, k, v)
   SELECT p_phase, x.k, x.v FROM (VALUES
-    ('pastoral map: rls', (SELECT c.relrowsecurity::text FROM pg_class c WHERE c.oid = 'public.pastoral_role_capability_map'::regclass)),
-    ('pastoral map: anon', pg_temp.tbl_privs('anon', 'public.pastoral_role_capability_map')),
-    ('pastoral map: authenticated', pg_temp.tbl_privs('authenticated', 'public.pastoral_role_capability_map')),
-    ('pastoral map: policies', pg_temp.policies('public.pastoral_role_capability_map')),
     ('debug whitelist: rls', (SELECT c.relrowsecurity::text FROM pg_class c WHERE c.oid = 'public.debug_toolbar_whitelist'::regclass)),
     ('debug whitelist: anon', pg_temp.tbl_privs('anon', 'public.debug_toolbar_whitelist')),
     ('debug whitelist: authenticated', pg_temp.tbl_privs('authenticated', 'public.debug_toolbar_whitelist')),
@@ -211,14 +206,6 @@ $$;
 -- that the migrations must not change has open = closed.
 CREATE TEMP TABLE t_f3_expect (lot text, k text PRIMARY KEY, open_v text, closed_v text) ON COMMIT DROP;
 INSERT INTO t_f3_expect(lot, k, open_v, closed_v) VALUES
-  ('L0', 'pastoral map: rls', 'false', 'true'),
-  ('L0', 'pastoral map: anon',
-         'select=true insert=true update=true delete=true truncate=true',
-         'select=false insert=false update=false delete=false truncate=false'),
-  ('L0', 'pastoral map: authenticated',
-         'select=true insert=true update=true delete=true truncate=true',
-         'select=false insert=false update=false delete=false truncate=false'),
-  ('L0', 'pastoral map: policies', 'none', 'none'),
   ('L0', 'debug whitelist: rls', 'true', 'true'),
   ('L0', 'debug whitelist: anon',
          'select=true insert=true update=true delete=true truncate=true',
@@ -342,17 +329,6 @@ BEGIN
     format('SELECT public.puede_ver_debug_toolbar(%L::uuid)::text', v_admin_auth));
   PERFORM pg_temp.run(p_phase, 'debug: puede_ver_debug_toolbar leader', 'authenticated', v_leader_auth,
     format('SELECT public.puede_ver_debug_toolbar(%L::uuid)::text', v_leader_auth));
-
-  PERFORM pg_temp.run(p_phase, 'pastoral map: anon reads', 'anon', NULL,
-    'SELECT count(*)::text FROM public.pastoral_role_capability_map');
-  PERFORM pg_temp.run(p_phase, 'pastoral map: leader reads', 'authenticated', v_leader_auth,
-    'SELECT count(*)::text FROM public.pastoral_role_capability_map');
-  PERFORM pg_temp.run(p_phase, 'pastoral map: anon adds a row', 'anon', NULL,
-    'WITH x AS (INSERT INTO public.pastoral_role_capability_map (rol, capability_key, scope_type) VALUES (''zz_f3_probe'', ''zz'', ''zz'') RETURNING 1) SELECT count(*)::text FROM x');
-  PERFORM pg_temp.run(p_phase, 'pastoral map: leader deletes a probe row', 'authenticated', v_leader_auth,
-    'WITH x AS (DELETE FROM public.pastoral_role_capability_map WHERE rol = ''zz_f3_probe'' RETURNING 1) SELECT count(*)::text FROM x');
-  PERFORM pg_temp.run(p_phase, 'pastoral map: auto-grant for a new persona (definer)', NULL, NULL,
-    'SELECT public.assign_pastoral_capabilities_for_role(gen_random_uuid(), ''lider'')::text');
 END;
 $$;
 
@@ -406,11 +382,6 @@ SELECT x.lot, x.k, x.open_v, x.closed_v, x.phases
          ('L0', 'debug: leader adds a row', 'ERR 42501', 'ERR 42501', '{s0,s1}'),
          ('L0', 'debug: puede_ver_debug_toolbar admin', 'true', 'true', '{s0,s1}'),
          ('L0', 'debug: puede_ver_debug_toolbar leader', 'false', 'false', '{s0,s1}'),
-         ('L0', 'pastoral map: anon reads', c.map_rows, 'ERR 42501', '{s0,s1}'),
-         ('L0', 'pastoral map: leader reads', c.map_rows, 'ERR 42501', '{s0,s1}'),
-         ('L0', 'pastoral map: anon adds a row', '1', 'ERR 42501', '{s0,s1}'),
-         ('L0', 'pastoral map: leader deletes a probe row', '0', 'ERR 42501', '{s0,s1}'),
-         ('L0', 'pastoral map: auto-grant for a new persona (definer)', c.map_lider_rows, c.map_lider_rows, '{s0,s1}'),
          ('L1', 'new function in public',
                 'anon=true authenticated=true service_role=true public=true',
                 'anon=false authenticated=true service_role=true public=false', '{s0,s1}'),
@@ -758,7 +729,7 @@ SELECT format('b %s %s: expected %s, got %s', ph.phase, b.k, x.expected, coalesc
 -- Snapshot printed with the result. --------------------------------------------------
 INSERT INTO t_f3_info SELECT 'state found ' || lot, state FROM t_f3_state;
 INSERT INTO t_f3_info
-SELECT 'counts', format('whitelist rows=%s, pastoral map rows=%s (lider %s)', whitelist_rows, map_rows, map_lider_rows)
+SELECT 'counts', format('whitelist rows=%s', whitelist_rows)
   FROM t_f3_counts;
 INSERT INTO t_f3_info
 SELECT 'catalog ' || a.k,

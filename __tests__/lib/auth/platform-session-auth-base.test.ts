@@ -92,8 +92,8 @@ describe('platformSession read-only auth base integration', () => {
 
   it('loads active capability grants into the auth base platformSession', async () => {
     const capabilityRows: CapabilityGrantRow[] = [{
-      capability_key: 'pastoral.read.all',
-      experience: 'pastoral',
+      capability_key: 'operating_core.dashboards.read',
+      experience: 'operating_core',
       scope_type: 'global',
       scope_id: null,
       source: 'manual',
@@ -105,8 +105,8 @@ describe('platformSession read-only auth base integration', () => {
     const result = await getUserWithRoles(client)
 
     expect(result?.platformSession?.capabilities).toEqual([{
-      key: 'pastoral.read.all',
-      experience: 'pastoral',
+      key: 'operating_core.dashboards.read',
+      experience: 'operating_core',
       scopeType: 'global',
       scopeId: undefined,
       source: 'manual',
