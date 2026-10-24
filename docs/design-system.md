@@ -292,3 +292,11 @@ still decided only by `canAccess` (`lib/navigation/canAccess.ts`).
 - `BotonSistema` has no link form. Navigation buttons wrap it in `Link` and
   pass `tabIndex={-1}` so the link is the only tab stop; an `asChild` or
   `href` prop would remove the nested interactive element.
+- Talleres (`app/(auth)/talleres`, `components/talleres`) is migrated: every
+  page uses `PaginaSistema` (Crear Temporada and the certificate at `form`
+  width), icon-only actions are `BotonSistema soloIcono`, status feedback uses
+  the danger/success tokens and destructive confirms use
+  `bg-none bg-danger text-danger-foreground` (`bg-none` drops the primary
+  gradient, which a plain `bg-*` color cannot override). Pending: add these
+  paths to `migratedToDesignSystem` in `eslint.config.mjs`; `app/(auth)/admin/talleres`
+  belongs to the admin area.

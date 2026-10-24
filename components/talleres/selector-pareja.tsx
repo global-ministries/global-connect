@@ -287,7 +287,7 @@ export function SelectorPareja({
               type="button"
               onClick={descartarConyuge}
               disabled={pending}
-              className="self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+              className="inline-flex min-h-11 items-center self-start rounded-xl text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               No es mi cónyuge actual
             </button>
@@ -311,7 +311,7 @@ export function SelectorPareja({
               type="button"
               onClick={abrirFichaNueva}
               disabled={pending}
-              className="self-start text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+              className="inline-flex min-h-11 items-center self-start rounded-xl text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               Mi pareja no está en el sistema
             </button>

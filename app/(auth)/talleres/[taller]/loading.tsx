@@ -6,11 +6,11 @@
  * placeholder rows for where the abrir-edición / equipo controls render —
  * not a spinner.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingTallerDetalle() {
   return (
-    <ContenedorDashboard titulo="Taller">
+    <PaginaSistema titulo="Taller">
       <div className="space-y-6">
         <TarjetaSistema variante="outlined" className="p-4">
           <div className="flex items-start justify-between gap-3">
@@ -40,6 +40,6 @@ export default function LoadingTallerDetalle() {
         <SkeletonSistema ancho="180px" alto="40px" className="rounded-xl" />
         <SkeletonSistema ancho="180px" alto="40px" className="rounded-xl" />
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

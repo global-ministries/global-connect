@@ -34,6 +34,7 @@ import { Plus } from 'lucide-react'
 import {
   BotonSistema,
   InputSistema,
+  PieAccionesSistema,
   SelectSistema,
   TarjetaSistema,
   TextareaSistema,
@@ -219,7 +220,7 @@ export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2">
+      <PieAccionesSistema fijo={false} className="mt-4 bg-transparent">
         <BotonSistema
           type="button"
           variante="outline"
@@ -233,7 +234,7 @@ export function CrearTallerAbstractoForm({ opciones }: Props): ReactElement {
         <BotonSistema type="button" onClick={submit} cargando={pending}>
           Crear taller
         </BotonSistema>
-      </div>
+      </PieAccionesSistema>
     </TarjetaSistema>
   )
 }
