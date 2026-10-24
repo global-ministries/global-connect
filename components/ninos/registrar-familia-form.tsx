@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Plus, X } from 'lucide-react'
 
@@ -10,7 +10,10 @@ import {
   hijoVacio,
   mensajeDeErrorFamilia,
   parseCoincidencias,
+  parseConyuge,
+  rolDeConyuge,
   validarFamilia,
+  type Conyuge,
   type FamiliaForm,
   type FamiliaPayload,
   type HijoForm,
@@ -37,6 +40,17 @@ type Props = {
   salones?: readonly SalonNivel[]
 }
 
+/** The adult's recorded spouse, or null when there is none or the lookup fails. */
+async function buscarConyuge(id: string): Promise<Conyuge | null> {
+  try {
+    const res = await createClient().rpc('ninos_conyuge_de', { p_usuario_id: id })
+    return res?.error ? null : parseConyuge(res?.data)
+  } catch {
+    // Without the lookup the form still registers the children for the adult alone.
+    return null
+  }
+}
+
 /** Registers a new family (or adds children to a known parent) in one RPC call. */
 export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar, inicial, guardar, textoGuardar, salones }: Props) {
   const [form, setForm] = useState<FamiliaForm>(inicial ?? {
@@ -47,6 +61,25 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
   const [errores, setErrores] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
   const [coincidencias, setCoincidencias] = useState<PadreCoincidencia[]>([])
+  // An existing adult the anfitrión confirmed from the duplicate check of a new family.
+  const [padreConfirmado, setPadreConfirmado] = useState<PadreCoincidencia | null>(null)
+  // The existing adult's recorded spouse: offered as second parent, never linked without an explicit check.
+  // `de` is the adult it belongs to, so a spouse is never sent for a different adult.
+  const [conyuge, setConyuge] = useState<{ de: string; persona: Conyuge } | null>(null)
+  const [vincularConyuge, setVincularConyuge] = useState(false)
+
+  const padreExistenteId = padreExistente?.id
+  useEffect(() => {
+    if (!padreExistenteId || guardar) return
+    let vigente = true
+    void buscarConyuge(padreExistenteId).then((c) => {
+      if (vigente && c) setConyuge({ de: padreExistenteId, persona: c })
+    })
+    return () => {
+      vigente = false
+    }
+  }, [padreExistenteId, guardar])
+
   /** A NEW parent was just created here: offer the account invitation before going on. */
   const [registrada, setRegistrada] = useState<{ padreId: string; consulta: string } | null>(null)
 
@@ -62,10 +95,14 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       else onRegistrada(r.padreId, payload.hijos[0] ? `${payload.hijos[0].nombre} ${payload.hijos[0].apellido}` : '')
       return
     }
+    const conConyuge: FamiliaPayload =
+      conyuge && vincularConyuge && 'id' in payload.padre && payload.padre.id === conyuge.de
+        ? { ...payload, conyuge_id: conyuge.persona.id }
+        : payload
     // A new parent goes through the table's RPC, which records who created it (for the invitation).
     const nuevo = !('id' in payload.padre)
     const { data, error } = await createClient().rpc(nuevo ? 'ninos_registrar_familia_mesa' : 'ninos_registrar_familia', {
-      p: payload as unknown as Json,
+      p: conConyuge as unknown as Json,
     })
     setGuardando(false)
     if (error) {
@@ -111,14 +148,34 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
     await registrar(r.payload)
   }
 
-  async function confirmar(padreId: string) {
-    const r = validarFamilia({ ...form, padre: { ...form.padre, id: padreId } })
+  async function confirmar(padre: PadreCoincidencia) {
+    const r = validarFamilia({ ...form, padre: { ...form.padre, id: padre.id } })
     setCoincidencias([])
     if (!r.ok) {
       setErrores(r.errores)
       return
     }
+    if (!guardar) {
+      setGuardando(true)
+      const c = await buscarConyuge(padre.id)
+      setGuardando(false)
+      if (c) {
+        // Stop so the anfitrión decides about the spouse before registering.
+        setForm((f) => ({ ...f, padre: { ...f.padre, id: padre.id } }))
+        setPadreConfirmado(padre)
+        setConyuge({ de: padre.id, persona: c })
+        setVincularConyuge(false)
+        return
+      }
+    }
     await registrar(r.payload)
+  }
+
+  function cambiarRepresentante() {
+    setForm((f) => ({ ...f, padre: { ...f.padre, id: undefined } }))
+    setPadreConfirmado(null)
+    setConyuge(null)
+    setVincularConyuge(false)
   }
 
   const textoBoton = textoGuardar ?? (padreExistente ? 'Agregar niño' : 'Registrar familia')
@@ -133,6 +190,22 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
         <TextoSistema variante="sutil" tamaño="sm">
           Representante: <span className="font-medium text-foreground">{padreExistente.nombre}</span>
         </TextoSistema>
+      ) : padreConfirmado ? (
+        <TarjetaSistema className="space-y-3 p-4 md:p-6">
+          <TituloSistema nivel={3}>Representante</TituloSistema>
+          <TextoSistema variante="sutil" tamaño="sm">
+            Persona existente:{' '}
+            <span className="font-medium text-foreground">
+              {`${padreConfirmado.nombre} ${padreConfirmado.apellido}`.trim()}
+            </span>
+          </TextoSistema>
+          <TextoSistema variante="sutil" className="text-xs">
+            Revisa la opción del cónyuge más abajo y pulsa «Registrar familia».
+          </TextoSistema>
+          <BotonSistema type="button" variante="outline" tamaño="sm" onClick={cambiarRepresentante}>
+            Cambiar representante
+          </BotonSistema>
+        </TarjetaSistema>
       ) : (
         <TarjetaSistema className="space-y-4 p-4 md:p-6">
           <TituloSistema nivel={3}>Representante</TituloSistema>
@@ -193,7 +266,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
                       {c.telefono && <> · Tel. {c.telefono}</>}
                       {c.cedula && <> · Cédula {c.cedula}</>}
                     </p>
-                    <BotonSistema type="button" className="w-full" disabled={guardando} onClick={() => void confirmar(c.id)}>
+                    <BotonSistema type="button" className="w-full" disabled={guardando} onClick={() => void confirmar(c)}>
                       Sí, es esta persona
                     </BotonSistema>
                   </li>
@@ -237,6 +310,24 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       >
         Agregar otro niño
       </BotonSistema>
+
+      {conyuge && (
+        <TarjetaSistema className="space-y-2 p-4 md:p-6">
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-3 font-medium text-foreground">
+            <input
+              type="checkbox"
+              className="h-5 w-5 shrink-0 rounded accent-[var(--brand-primary)]"
+              checked={vincularConyuge}
+              onChange={(e) => setVincularConyuge(e.target.checked)}
+            />
+            ¿Vincular también a {`${conyuge.persona.nombre} ${conyuge.persona.apellido}`.trim()} como{' '}
+            {rolDeConyuge(conyuge.persona.genero)}?
+          </label>
+          <TextoSistema variante="sutil" className="text-xs">
+            Figura como cónyuge del representante. Márcalo solo si también es padre o madre de estos niños.
+          </TextoSistema>
+        </TarjetaSistema>
+      )}
 
       <TarjetaSistema className="space-y-4 p-4 md:p-6">
         <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>

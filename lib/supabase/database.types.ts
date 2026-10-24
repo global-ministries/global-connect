@@ -8207,7 +8207,10 @@ export type Database = {
         Returns: Json
       }
       ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
+      ninos_conyuge_de: { Args: { p_usuario_id: string }; Returns: Json }
       ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
+      ninos_mis_hijos: { Args: never; Returns: Json }
+      ninos_mis_hijos_guardar: { Args: { p: Json; p_nino_id: string }; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
