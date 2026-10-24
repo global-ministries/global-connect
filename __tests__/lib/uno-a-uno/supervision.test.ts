@@ -14,6 +14,7 @@ import {
   filtrarLideres,
   filtrarRecientes,
   hayFiltrosLideres,
+  nombreDeLider,
   opcionesUbicacion,
   ordenarLideres,
   parcheElegirArea,
@@ -42,9 +43,36 @@ function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
     agendados: 1,
     ultimoRealizado: '2026-10-20T19:30:00Z',
     ubicaciones: [NORTE],
+    pareja: [],
     ...over,
   }
 }
+
+// S11.2/S11.3: a couple who lead the same thing is one row.
+const PAREJA = lider({
+  usuarioId: 'l-7',
+  nombre: 'Alfredo',
+  apellido: 'Gomez',
+  pareja: [
+    { id: 'l-7', nombre: 'Alfredo', apellido: 'Gomez' },
+    { id: 'l-8', nombre: 'Blanca Raquel', apellido: 'Rojas' },
+  ],
+})
+
+describe('a couple row (S11)', () => {
+  it('names both spouses', () => {
+    expect(nombreDeLider(PAREJA)).toBe('Alfredo Gomez y Blanca Raquel Rojas')
+  })
+
+  it('names the leader alone without pareja', () => {
+    expect(nombreDeLider(lider({}))).toBe('Ana Pérez')
+  })
+
+  it('is found by either spouse', () => {
+    expect(ids(filtrarLideres([PAREJA], filtros({ q: 'blanca raquel' })))).toEqual(['l-7'])
+    expect(ids(filtrarLideres([PAREJA], filtros({ q: 'alfredo' })))).toEqual(['l-7'])
+  })
+})
 
 const pedro = lider({ usuarioId: 'l-2', nombre: 'Pedro', apellido: 'Ruiz', realizados: 0, agendados: 0, ultimoRealizado: null, dirigidos: 5 })
 const jose = lider({

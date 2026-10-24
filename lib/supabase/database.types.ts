@@ -8690,6 +8690,7 @@ export type Database = {
           contextos: string[]
           dirigidos: number
           nombre: string
+          pareja: Json
           realizados: number
           ubicaciones: Json
           ultimo_realizado: string | null

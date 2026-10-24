@@ -27,6 +27,8 @@ export function coincideTexto(texto: string, consulta: string): boolean {
 }
 
 export function nombreDeLider(lider: LiderSupervisado): string {
+  // A couple who lead the same thing is one row: "Alfredo Gomez y Blanca Rojas" (T11).
+  if (lider.pareja.length > 0) return nombresDe(lider.pareja)
   return nombresDe([{ id: lider.usuarioId, nombre: lider.nombre, apellido: lider.apellido }])
 }
 

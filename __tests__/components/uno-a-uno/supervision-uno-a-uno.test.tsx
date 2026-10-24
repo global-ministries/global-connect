@@ -40,6 +40,7 @@ function lider(over: Partial<LiderSupervisado>): LiderSupervisado {
     agendados: 1,
     ultimoRealizado: '2026-10-20T19:30:00Z',
     ubicaciones: [NORTE],
+    pareja: [],
     ...over,
   }
 }
@@ -282,6 +283,19 @@ describe('SupervisionUnoAUno — Líderes: table (S8.3)', () => {
     expect(encabezados).toEqual(['Líder', 'Qué lidera', 'Dirigidos', 'Realizados (30 días)', 'Agendados', 'Último 1 a 1'])
     const celdas = within(filasDe(tablaLideres())[0]).getAllByRole('cell').map((td) => td.textContent)
     expect(celdas).toEqual(['Ana Pérez', 'GDV: Norte, Dream Team: Sonido', '3', '2', '1', '20 oct 2026'])
+  })
+
+  it('shows a couple who lead the same thing in one row (S11.2)', () => {
+    renderLideres([
+      lider({
+        pareja: [
+          { id: 'l-1', nombre: 'Ana', apellido: 'Pérez' },
+          { id: 'l-9', nombre: 'Juan', apellido: 'Pérez' },
+        ],
+      }),
+    ])
+    expect(filasDe(tablaLideres())).toHaveLength(1)
+    expect(within(filasDe(tablaLideres())[0]).getAllByRole('cell')[0]).toHaveTextContent('Ana Pérez y Juan Pérez')
   })
 
   it('keeps the "Sin 1 a 1 en 30 días" mark in the row and says "Nunca" without a last 1:1', () => {

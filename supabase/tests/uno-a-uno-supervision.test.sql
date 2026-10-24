@@ -14,6 +14,7 @@
 --        to both sides while resumen stays leader-only; the old call without
 --        p_celebracion still works; no overloads are left behind.
 --   S7.4 uno_a_uno_supervision_lideres(p_dias): one row per person of the chain
+--        (since T11 a couple who lead the same thing, like LA and LA2, is one row)
 --        who leads someone with dirigidos / realizados in the window /
 --        agendados ahead / último realizado and what they lead; admin gets
 --        every leader; nulls first; p_dias outside 1..366 → 22023.
@@ -480,13 +481,13 @@ SELECT pg_temp.assert_eq('S7.2: cancelado with motivo', $q$SELECT pg_temp.sup_un
 
 SELECT pg_temp.as_persona(pg_temp.a('DGS'));
 SELECT pg_temp.assert_eq('S7.4: director general — the leaders below with their numbers', $q$SELECT pg_temp.lideres_txt()$q$,
-  'DE1:2/1/0/Y, LA:3/3/1/Y, LA2:3/3/1/Y');
+  'DE1:2/1/0/Y, LA:3/3/1/Y');
 SELECT pg_temp.assert_eq('S7.4: what each one leads', $q$
   SELECT string_agg(l.label || '=' || array_to_string(x.contextos, '|'), ', ' ORDER BY l.label COLLATE "C")
     FROM public.uno_a_uno_supervision_lideres() x JOIN t_u7_labels l ON l.id = x.usuario_id$q$,
-  'DE1=Director de etapa: ZZ U7 S, LA=GDV: ZZ U7 G1, LA2=GDV: ZZ U7 G1');
+  'DE1=Director de etapa: ZZ U7 S, LA=GDV: ZZ U7 G1');
 SELECT pg_temp.as_persona(pg_temp.a('DE1'));
-SELECT pg_temp.assert_eq('S7.4: director de etapa', $q$SELECT pg_temp.lideres_txt()$q$, 'LA:3/3/1/Y, LA2:3/3/1/Y');
+SELECT pg_temp.assert_eq('S7.4: director de etapa', $q$SELECT pg_temp.lideres_txt()$q$, 'LA:3/3/1/Y');
 SELECT pg_temp.as_persona(pg_temp.a('PC'));
 SELECT pg_temp.assert_eq('S7.4: Dream Team coordinador', $q$SELECT pg_temp.lideres_txt()$q$, 'CC:2/0/0/-, CL:1/0/0/-');
 SELECT pg_temp.as_persona(pg_temp.a('LA'));
@@ -495,9 +496,9 @@ SELECT pg_temp.as_persona(pg_temp.a('MI'));
 SELECT pg_temp.assert_eq('S7.4: a dirigido gets nothing', $q$SELECT pg_temp.lideres_txt()$q$, '');
 SELECT pg_temp.as_persona(pg_temp.a('ADM'));
 SELECT pg_temp.assert_eq('S7.4: admin gets every leader', $q$SELECT pg_temp.lideres_txt()$q$,
-  'CC:2/0/0/-, CL:1/0/0/-, DE1:2/1/0/Y, DGD:1/0/0/-, DGS:2/0/0/-, LA:3/3/1/Y, LA2:3/3/1/Y, PC:3/0/0/Y');
+  'CC:2/0/0/-, CL:1/0/0/-, DE1:2/1/0/Y, DGD:1/0/0/-, DGS:2/0/0/-, LA:3/3/1/Y, PC:3/0/0/Y');
 SELECT pg_temp.assert_eq('S7.4: the window is p_dias', $q$SELECT pg_temp.lideres_txt(60)$q$,
-  'CC:2/0/0/-, CL:1/0/0/-, DE1:2/1/0/Y, DGD:1/0/0/-, DGS:2/0/0/-, LA:3/3/1/Y, LA2:3/3/1/Y, PC:3/1/0/Y');
+  'CC:2/0/0/-, CL:1/0/0/-, DE1:2/1/0/Y, DGD:1/0/0/-, DGS:2/0/0/-, LA:3/3/1/Y, PC:3/1/0/Y');
 SELECT pg_temp.assert_eq('S7.4: nobody-in-a-while first (último realizado nulls first)', $q$
   WITH x AS (SELECT l.label, x.ultimo_realizado, o.n
                FROM public.uno_a_uno_supervision_lideres() WITH ORDINALITY AS x(usuario_id, nombre, apellido, contextos, dirigidos, realizados, agendados, ultimo_realizado, n)
@@ -563,11 +564,10 @@ SELECT pg_temp.assert_eq('S9.2: every leader sits in the Dream Team tree, Grupos
   || 'DGD=GDV>ZZ U7 S>-, '
   || 'DGS=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, '
   || 'LA=GDV>ZZ U7 S>ZZ U7 G1, '
-  || 'LA2=GDV>ZZ U7 S>ZZ U7 G1, '
   || 'PC=ZZ U7 padre>->-');
 SELECT pg_temp.as_persona(pg_temp.a('DGS'));
 SELECT pg_temp.assert_eq('S9.3: a supervisor gets the same places for their chain', $q$SELECT pg_temp.ubic_txt()$q$,
-  'DE1=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, LA=GDV>ZZ U7 S>ZZ U7 G1, LA2=GDV>ZZ U7 S>ZZ U7 G1');
+  'DE1=GDV>ZZ U7 S>-|GDV>ZZ U7 S2>-, LA=GDV>ZZ U7 S>ZZ U7 G1');
 SELECT pg_temp.as_persona(pg_temp.a('ADM'));
 SELECT pg_temp.assert_raises('S9.3: authenticated cannot call uno_a_uno_ubicaciones',
   $q$SELECT count(*) FROM public.uno_a_uno_ubicaciones()$q$, '42501');

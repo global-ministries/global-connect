@@ -77,6 +77,11 @@ export interface LiderSupervisado {
   readonly ultimoRealizado: string | null
   /** Every place they lead in; they show under each one. */
   readonly ubicaciones: readonly UbicacionLider[]
+  /**
+   * The people of the row (T11): one leader, or a couple who lead the same
+   * thing. Empty means the leader alone.
+   */
+  readonly pareja: readonly PersonaUnoAUno[]
 }
 
 /** The two views of /mis-uno-a-uno, picked with ?vista=. */
@@ -223,6 +228,7 @@ export function parsearLideresSupervision(
       agendados: entero(row.agendados),
       ultimoRealizado: texto(row.ultimo_realizado),
       ubicaciones: ubicaciones(row.ubicaciones),
+      pareja: row.pareja === undefined ? [{ id: usuarioId, nombre, apellido: texto(row.apellido) }] : personas(row.pareja),
     })
   }
   return result
