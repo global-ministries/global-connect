@@ -26,24 +26,13 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/grupos-vida/directores',
 }))
 
-// ContenedorDashboard lazy-loads its header behind Suspense — same synchronous
-// test double as the Dream Team suites.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({
-    children,
-    titulo,
-    accionPrincipal,
-  }: {
-    children: React.ReactNode
-    titulo?: string
-    accionPrincipal?: React.ReactNode
-  }) => (
-    <section>
+// The page header renders behind Suspense — synchronous test double.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
       {accionPrincipal}
-      {children}
-    </section>
+    </header>
   ),
 }))
 
@@ -145,9 +134,10 @@ beforeEach(() => {
 })
 
 describe('DirectoresClient — header and tabs', () => {
-  it('shows the title, the subtitle and the primary action', () => {
+  it('shows the title, the subtitle and the primary action', async () => {
     montar()
-    expect(screen.getByRole('heading', { level: 1, name: 'Directores' })).toBeInTheDocument()
+    // The page header loads lazily (React.lazy), so wait for it.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Directores' })).toBeInTheDocument()
     expect(screen.getByText('Directores generales y de etapa de Grupos de Vida')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: 'Agregar director' }).length).toBeGreaterThan(0)
   })

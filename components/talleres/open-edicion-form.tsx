@@ -229,7 +229,7 @@ export function OpenEdicionForm({
                 {preview.inicio}; última {preview.fin}; inscripción cierra {preview.cierre}.
               </TextoSistema>
               {facilitadoresOmitidosPreview.length > 0 && (
-                <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning">
+                <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning-text">
                   No se asignarán porque ya no sirven en este equipo:{' '}
                   {facilitadoresOmitidosPreview.map((f) => `${f.nombre} (${f.plantillaGrupo})`).join(', ')}
                 </TextoSistema>

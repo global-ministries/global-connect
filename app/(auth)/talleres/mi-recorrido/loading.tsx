@@ -5,11 +5,11 @@
  * spinner) — a tab bar plus the table→cards shape, same convention as
  * /talleres/temporadas' and /talleres/reportes' loading.tsx (T7/T8).
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingMiRecorrido() {
   return (
-    <ContenedorDashboard titulo="Mi Recorrido">
+    <PaginaSistema titulo="Mi Recorrido">
       {/* Tab bar shape */}
       <div className="inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1">
         <SkeletonSistema ancho="80px" alto="32px" className="rounded-xl" />
@@ -42,6 +42,6 @@ export default function LoadingMiRecorrido() {
           </TarjetaSistema>
         ))}
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

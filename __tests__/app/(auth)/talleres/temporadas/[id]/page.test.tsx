@@ -23,7 +23,7 @@
 
 import TemporadaDetallePage from '@/app/(auth)/talleres/temporadas/[id]/page'
 import { TemporadaDetailClient } from '@/app/(auth)/talleres/temporadas/[id]/temporada-detail-client'
-import { ContenedorDashboard, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import type { TemporadaDetalle } from '@/lib/platform/talleres/temporadas'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
@@ -257,9 +257,9 @@ describe('TemporadaDetallePage — content', () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadaDetallePage(params())) as any
-    const dashboard = findByType(element, ContenedorDashboard)
+    const dashboard = findByType(element, PaginaSistema)
     expect(dashboard?.props.titulo).toBe('Temporada Otoño 2026')
-    expect((dashboard?.props.botonRegreso as { href?: string })?.href).toBe('/talleres/temporadas')
+    expect((dashboard?.props.regreso as { href?: string })?.href).toBe('/talleres/temporadas')
   })
 
   it('shows the dirección label in the header, never the raw slug', async () => {

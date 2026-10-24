@@ -103,6 +103,10 @@ INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion,
   (pg_temp.id('us', 4), pg_temp.id('us', 3), 'padre', true),
   (pg_temp.id('us', 7), pg_temp.id('us', 3), 'padre', false),
   (pg_temp.id('us', 3), pg_temp.id('us', 8), 'hijo', false);
+-- The searches only list people of the caller's campuses
+-- (20261013100000_ninos_familias_por_campus.sql).
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT pg_temp.id('us', n), pg_temp.ctx('campus')::uuid, true FROM generate_series(3, 8) n;
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Nv R', true),

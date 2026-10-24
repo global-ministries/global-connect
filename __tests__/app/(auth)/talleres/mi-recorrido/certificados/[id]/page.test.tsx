@@ -11,7 +11,8 @@
  */
 
 import CertificadoDetailPage from '@/app/(auth)/talleres/mi-recorrido/certificados/[id]/page'
-import { ContenedorDashboard, BadgeSistema } from '@/components/ui/sistema-diseno'
+import LoadingCertificadoDetail from '@/app/(auth)/talleres/mi-recorrido/certificados/[id]/loading'
+import { PaginaSistema, BadgeSistema, SeccionesSistema } from '@/components/ui/sistema-diseno'
 import type { ParticipanteCertificado } from '@/lib/platform/talleres/participante'
 
 jest.mock('@/lib/platform/talleres/participante', () => ({
@@ -95,12 +96,12 @@ describe('CertificadoDetailPage — gate + deny-by-default', () => {
 })
 
 describe('CertificadoDetailPage — back link returns to the certificados tab', () => {
-  it('botonRegreso points at /talleres/mi-recorrido?tab=certificados', async () => {
+  it('regreso points at /talleres/mi-recorrido?tab=certificados', async () => {
     setup(certificado())
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
-    const dashboard = findByType(element, ContenedorDashboard)
-    expect(dashboard?.props.botonRegreso).toEqual({
+    const dashboard = findByType(element, PaginaSistema)
+    expect(dashboard?.props.regreso).toEqual({
       href: '/talleres/mi-recorrido?tab=certificados',
       texto: 'Mis Certificados',
     })
@@ -141,5 +142,27 @@ describe('CertificadoDetailPage — couple certificate', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
     expect(extractText(element)).not.toMatch(/junto a/i)
+  })
+})
+
+describe('CertificadoDetailPage — full-width layout', () => {
+  it('is not capped at the 768px form width and lays its blocks out with SeccionesSistema', async () => {
+    setup(certificado())
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
+    const dashboard = findByType(element, PaginaSistema)
+    expect(dashboard?.props.ancho).toBeUndefined()
+    const secciones = findByType(element, SeccionesSistema)
+    expect(secciones).not.toBeNull()
+    expect(extractText(secciones)).toMatch(/Finanzas con Propósito/)
+    expect(extractText(secciones)).toMatch(/ABC123XYZ/)
+  })
+
+  it('keeps the not-found branch and the loading skeleton uncapped', async () => {
+    setup(null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await CertificadoDetailPage({ params: Promise.resolve({ id: 'c-1' }) } as any)) as any
+    expect(findByType(element, PaginaSistema)?.props.ancho).toBeUndefined()
+    expect(findByType(LoadingCertificadoDetail(), PaginaSistema)?.props.ancho).toBeUndefined()
   })
 })

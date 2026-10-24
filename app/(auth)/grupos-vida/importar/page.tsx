@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 
-import { ContenedorDashboard, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, PieAccionesSistema, SeccionesSistema, TarjetaSistema, TituloSistema, BotonSistema, TextoSistema } from "@/components/ui/sistema-diseno"
 import Link from "next/link"
 import { Upload, Download } from "lucide-react"
 
@@ -32,54 +32,57 @@ export default function ImportarGruposPage() {
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Importar Grupos por CSV"
         descripcion="Sube un archivo .csv para crear grupos y miembros automáticamente"
-        botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
+        regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
       >
-        <TarjetaSistema>
-          <form onSubmit={onSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-foreground">Archivo CSV</label>
-              <input type="file" accept=".csv" onChange={e => setFile(e.target.files?.[0] || null)} />
-              <div className="flex items-center gap-3">
-                <Link href="/plantillas/import-grupos.csv" target="_blank" download>
-                  <BotonSistema variante="ghost" tamaño="sm" icono={Download}>
-                    Descargar plantilla CSV
-                  </BotonSistema>
-                </Link>
-                <TextoSistema variante="sutil" tamaño="sm">Encabezados requeridos: nombre_grupo, segmento, temporada, miembros</TextoSistema>
-              </div>
-              <TextoSistema variante="muted" tamaño="sm">Formato miembros: &quot;Nombre Apellido|Líder|12345678; Otra Persona|Miembro|87654321&quot; (separa miembros con ;, cédula opcional en la 3ra posición)</TextoSistema>
-            </div>
-
-            <div>
-              <BotonSistema type="submit" variante="primario" tamaño="md" disabled={!file || subiendo} cargando={subiendo} icono={Upload}>
-                Subir CSV
-              </BotonSistema>
-            </div>
-          </form>
-        </TarjetaSistema>
-
-        {error && (
-          <TarjetaSistema className="mt-4">
-            <p className="text-red-600 text-sm">{error}</p>
-          </TarjetaSistema>
-        )}
-
-        {resultado && (
-          <TarjetaSistema className="mt-4">
-            <TituloSistema nivel={3}>Resultado</TituloSistema>
-            <div className="mt-3 space-y-2 text-sm">
-              {resultado.resultados?.map((r: any, idx: number) => (
-                <div key={idx} className={r.ok ? 'text-green-700' : 'text-red-600'}>
-                  Fila {r.fila}: {r.detalle}
-                  {r.grupoId && <span className="text-muted-foreground"> (ID: {r.grupoId})</span>}
+        {/* The upload form, an error and the result sit side by side on wide screens. */}
+        <SeccionesSistema>
+          <TarjetaSistema>
+            <form onSubmit={onSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="archivo-csv" className="block text-sm font-medium text-foreground">Archivo CSV</label>
+                <input id="archivo-csv" type="file" accept=".csv" className="max-w-full" onChange={e => setFile(e.target.files?.[0] || null)} />
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link href="/plantillas/import-grupos.csv" target="_blank" download>
+                    <BotonSistema variante="ghost" tamaño="sm" icono={Download}>
+                      Descargar plantilla CSV
+                    </BotonSistema>
+                  </Link>
+                  <TextoSistema variante="sutil" tamaño="sm">Encabezados requeridos: nombre_grupo, segmento, temporada, miembros</TextoSistema>
                 </div>
-              ))}
-            </div>
+                <TextoSistema variante="muted" tamaño="sm">Formato miembros: &quot;Nombre Apellido|Líder|12345678; Otra Persona|Miembro|87654321&quot; (separa miembros con ;, cédula opcional en la 3ra posición)</TextoSistema>
+              </div>
+
+              <PieAccionesSistema fijo={false} className="bg-transparent">
+                <BotonSistema type="submit" variante="primario" tamaño="md" disabled={!file || subiendo} cargando={subiendo} icono={Upload}>
+                  Subir CSV
+                </BotonSistema>
+              </PieAccionesSistema>
+            </form>
           </TarjetaSistema>
-        )}
-      </ContenedorDashboard>
+
+          {error && (
+            <TarjetaSistema>
+              <p className="text-danger-text text-sm">{error}</p>
+            </TarjetaSistema>
+          )}
+
+          {resultado && (
+            <TarjetaSistema>
+              <TituloSistema nivel={3}>Resultado</TituloSistema>
+              <div className="mt-3 space-y-2 text-sm">
+                {resultado.resultados?.map((r: any, idx: number) => (
+                  <div key={idx} className={r.ok ? 'text-success-text' : 'text-danger-text'}>
+                    Fila {r.fila}: {r.detalle}
+                    {r.grupoId && <span className="text-muted-foreground"> (ID: {r.grupoId})</span>}
+                  </div>
+                ))}
+              </div>
+            </TarjetaSistema>
+          )}
+        </SeccionesSistema>
+      </PaginaSistema>
 )
 }

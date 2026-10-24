@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
 import NotasLideresListado from './NotasLideresListado.client'
 
@@ -21,11 +21,11 @@ export default async function PaginaNotasLideres() {
     }
 
     return (
-<ContenedorDashboard
-                titulo="Notas de Líderes"
-                botonRegreso={{ href: '/dashboard', texto: 'Dashboard' }}
-            >
-                <NotasLideresListado eventos={eventos} />
-            </ContenedorDashboard>
-)
+        <PaginaSistema
+            titulo="Notas de Líderes"
+            regreso={{ href: '/dashboard', texto: 'Dashboard' }}
+        >
+            <NotasLideresListado eventos={eventos} />
+        </PaginaSistema>
+    )
 }

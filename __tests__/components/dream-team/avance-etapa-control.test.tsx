@@ -92,6 +92,8 @@ describe('AvanceEtapaControl', () => {
     const mensaje = await screen.findByRole('alert')
     expect(mensaje.textContent).toMatch(/recargá la página/i)
     expect(mensaje.textContent).not.toBe('Conflicto de versión')
+    // The error uses the danger status token, not a raw palette color.
+    expect(mensaje).toHaveClass('text-danger-text')
   })
 
   it('shows the server error message on another non-ok response', async () => {
@@ -146,5 +148,10 @@ describe('AvanceEtapaControl — controlled from a menu', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(onAbiertoChange).toHaveBeenCalledWith(false)
+  })
+
+  it('keeps an accessible name when the trigger shows only its icon (phones)', () => {
+    render(<AvanceEtapaControl servicioId="s-1" estadoActual="activo" version={1} puedeEditar onSuccess={jest.fn()} />)
+    expect(screen.getByRole('button', { name: 'Cambiar etapa' })).toHaveAttribute('aria-label', 'Cambiar etapa')
   })
 })

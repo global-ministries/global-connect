@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { createStaffSupportTicketReply, createSupportTicketMessage, getSupportTicketDetail, updateSupportTicketStatus } from '@/lib/actions/support.actions'
 import { formatSupportStatus } from '@/lib/support/support-labels'
 
-import { BadgeSistema, ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { BadgeSistema, PaginaSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { SupportTicketReplyComposer, SupportTicketStatusForm } from './support-ticket-detail-actions'
 
@@ -44,147 +44,145 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
   const assignee = createParticipant(ticket.assignee, 'Sin asignar')
 
   return (
-<ContenedorDashboard titulo={`Ticket #${ticket.ticketNumber}`} botonRegreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
-        <div className="space-y-6">
-          <TarjetaSistema className="overflow-hidden border-border/70 p-0">
-            <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                    <span>Ticket #{ticket.ticketNumber}</span>
-                    <span aria-hidden="true">/</span>
-                    <span>{formatCategory(ticket.category)}</span>
-                  </div>
-                  <TituloSistema nivel={2} className="text-balance leading-tight">{ticket.title}</TituloSistema>
-                  <TextoSistema tamaño="sm" className="max-w-3xl">{ticket.description}</TextoSistema>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
-                  <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">Prioridad {formatSeverity(ticket.severity)}</span>
-                </div>
+    <PaginaSistema titulo={`Ticket #${ticket.ticketNumber}`} regreso={{ href: '/ayuda/tickets', texto: 'Volver a tickets' }}>
+      <TarjetaSistema className="overflow-hidden border-border/70 p-0">
+        <div className="border-b border-border bg-muted/20 p-4 sm:p-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                <span>Ticket #{ticket.ticketNumber}</span>
+                <span aria-hidden="true">/</span>
+                <span>{formatCategory(ticket.category)}</span>
               </div>
+              <TituloSistema nivel={2} className="text-balance leading-tight">{ticket.title}</TituloSistema>
+              <TextoSistema tamaño="sm" className="max-w-3xl whitespace-pre-wrap break-words">{ticket.description}</TextoSistema>
             </div>
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+              <BadgeSistema variante="info">{formatSupportStatus(ticket.status)}</BadgeSistema>
+              <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">Prioridad {formatSeverity(ticket.severity)}</span>
+            </div>
+          </div>
+        </div>
 
-            <div className="grid gap-3 p-3 sm:grid-cols-3 sm:p-4">
-              <TicketStat label="Creado" value={formatMessageTimestamp(ticket.createdAt)} />
-              <TicketStat label="Actualizado" value={formatMessageTimestamp(ticket.updatedAt)} />
-              <TicketStat label="Responsable" value={assignee.fullName} />
+        <div className="grid gap-3 p-3 sm:grid-cols-3 sm:p-4">
+          <TicketStat label="Creado" value={formatMessageTimestamp(ticket.createdAt)} />
+          <TicketStat label="Actualizado" value={formatMessageTimestamp(ticket.updatedAt)} />
+          <TicketStat label="Responsable" value={assignee.fullName} />
+        </div>
+      </TarjetaSistema>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_320px]">
+        <aside className="order-2 space-y-4 lg:order-1 lg:flex lg:flex-col lg:space-y-4">
+          <TarjetaSistema className="space-y-3 lg:flex-none">
+            <SectionHeader eyebrow="Contexto" title="Solicitante" />
+            <ParticipantSummary participant={reporter} role="Solicitante" />
+            <div className="grid gap-2 border-t border-border pt-3 text-sm">
+              <MetadataRow label="Categoría" value={formatCategory(ticket.category)} />
+              <MetadataRow label="Prioridad" value={formatSeverity(ticket.severity)} />
+              <MetadataRow label="Estado" value={formatSupportStatus(ticket.status)} />
+              <MetadataRow label="Responsable" value={assignee.fullName} />
             </div>
           </TarjetaSistema>
 
-          <div className="grid items-start gap-5 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] 2xl:grid-cols-[280px_minmax(0,1fr)_320px]">
-            <aside className="order-2 space-y-4 lg:order-1 lg:flex lg:flex-col lg:space-y-4">
-              <TarjetaSistema className="space-y-3 lg:flex-none">
-                <SectionHeader eyebrow="Contexto" title="Solicitante" />
-                <ParticipantSummary participant={reporter} role="Solicitante" />
-                <div className="grid gap-2 border-t border-border pt-3 text-sm">
-                  <MetadataRow label="Categoría" value={formatCategory(ticket.category)} />
-                  <MetadataRow label="Prioridad" value={formatSeverity(ticket.severity)} />
-                  <MetadataRow label="Estado" value={formatSupportStatus(ticket.status)} />
-                  <MetadataRow label="Responsable" value={assignee.fullName} />
-                </div>
-              </TarjetaSistema>
+          {ticket.evidence.diagnosticsConsent && (
+            <TarjetaSistema className="space-y-4">
+              <SectionHeader eyebrow="Diagnóstico" title="Datos seguros" />
+              <div className="grid gap-3 text-sm">
+                <MetadataRow label="Ruta" value={ticket.evidence.currentRoute ?? 'Ruta no disponible'} />
+                <MetadataRow label="Navegador" value={ticket.evidence.browserName ?? 'Navegador no disponible'} />
+                <MetadataRow label="Sistema" value={ticket.evidence.osName ?? 'Sistema operativo no disponible'} />
+                <MetadataRow label="Viewport" value={ticket.evidence.viewport ?? 'Viewport no disponible'} />
+              </div>
+            </TarjetaSistema>
+          )}
+        </aside>
 
-              {ticket.evidence.diagnosticsConsent && (
-                <TarjetaSistema className="space-y-4">
-                  <SectionHeader eyebrow="Diagnóstico" title="Datos seguros" />
-                  <div className="grid gap-3 text-sm">
-                    <MetadataRow label="Ruta" value={ticket.evidence.currentRoute ?? 'Ruta no disponible'} />
-                    <MetadataRow label="Navegador" value={ticket.evidence.browserName ?? 'Navegador no disponible'} />
-                    <MetadataRow label="Sistema" value={ticket.evidence.osName ?? 'Sistema operativo no disponible'} />
-                    <MetadataRow label="Viewport" value={ticket.evidence.viewport ?? 'Viewport no disponible'} />
-                  </div>
-                </TarjetaSistema>
+        <section className="order-1 lg:order-2">
+          <TarjetaSistema className="space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between lg:flex-none">
+              <SectionHeader eyebrow="Actividad" title="Conversación" />
+              <TextoSistema variante="muted" tamaño="sm">
+                {ticket.messages.length} {ticket.messages.length === 1 ? 'interacción' : 'interacciones'}
+                {canViewInternalMessages ? '' : ' públicas'}
+              </TextoSistema>
+            </div>
+
+            <div>
+              {ticket.messages.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 text-center lg:min-h-full lg:content-center">
+                  <TextoSistema variante="sutil">Aún no hay respuestas públicas.</TextoSistema>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {ticket.messages.map((message) => {
+                    const isReporter = isReporterMessage(message.authorUsuarioId, ticket.reporterUsuarioId)
+                    const roleLabel = isReporter ? 'Solicitante' : 'Soporte'
+                    const participant = createParticipant(message.author, roleLabel)
+
+                    return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} isInternal={message.isInternal ?? false} />
+                  })}
+                </div>
               )}
-            </aside>
+            </div>
 
-            <section className="order-1 lg:order-2">
-              <TarjetaSistema className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between lg:flex-none">
-                  <SectionHeader eyebrow="Actividad" title="Conversación" />
-                  <TextoSistema variante="muted" tamaño="sm">
-                    {ticket.messages.length} {ticket.messages.length === 1 ? 'interacción' : 'interacciones'}
-                    {canViewInternalMessages ? '' : ' públicas'}
-                  </TextoSistema>
-                </div>
+            <div className="border-t border-border pt-4 lg:flex-none">
+              <SupportTicketReplyComposer action={canStaffReply ? staffReplyAction : replyAction} isStaffReply={canStaffReply} />
+            </div>
+          </TarjetaSistema>
+        </section>
 
-                <div>
-                  {ticket.messages.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-5 text-center lg:min-h-full lg:content-center">
-                      <TextoSistema variante="sutil">Aún no hay respuestas públicas.</TextoSistema>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {ticket.messages.map((message) => {
-                        const isReporter = isReporterMessage(message.authorUsuarioId, ticket.reporterUsuarioId)
-                        const roleLabel = isReporter ? 'Solicitante' : 'Soporte'
-                        const participant = createParticipant(message.author, roleLabel)
+        <aside className="order-3 space-y-5 lg:col-span-2 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:col-span-1 2xl:flex 2xl:flex-col 2xl:space-y-0">
+          {canManage && (
+            <TarjetaSistema className="space-y-4 lg:flex-none">
+              <SectionHeader eyebrow="Gestión" title="Estado del ticket" />
+              <SupportTicketStatusForm action={statusAction} currentStatus={ticket.status} options={STATUS_OPTIONS} />
+            </TarjetaSistema>
+          )}
 
-                        return <MessageBubble key={message.id} message={message} participant={participant} roleLabel={roleLabel} isReporter={isReporter} isInternal={message.isInternal ?? false} />
-                      })}
-                    </div>
+          <TarjetaSistema className="space-y-4">
+            <div className="flex items-start justify-between gap-3 lg:flex-none">
+              <SectionHeader eyebrow="Evidencia" title="Adjuntos" />
+              <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{ticket.attachments.length}</span>
+            </div>
+            <div className="space-y-4">
+              {ticket.attachments.length === 0 ? (
+                <TextoSistema variante="sutil">No hay adjuntos finalizados.</TextoSistema>
+              ) : ticket.attachments.map((attachment) => (
+                <div key={attachment.id} className="rounded-2xl border border-border bg-muted/20 p-3">
+                  <AttachmentPreview attachment={attachment} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{attachment.filename}</p>
+                    <TextoSistema variante="muted" tamaño="sm">{formatAttachmentKind(attachment.kind)} · {formatBytes(attachment.byteSize)}</TextoSistema>
+                    <TextoSistema variante="muted" tamaño="sm">{attachment.contentType} · {formatAttachmentStatus(attachment.status)}</TextoSistema>
+                  </div>
+                  {attachment.status === 'uploaded' && (
+                    <a href={getAttachmentRoute(attachment.id)} aria-label={`Abrir ${attachment.filename}`} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-border px-3 text-sm font-medium text-brand-text transition-colors hover:bg-card focus-ring">
+                      Abrir archivo
+                    </a>
                   )}
                 </div>
+              ))}
+            </div>
+          </TarjetaSistema>
 
-                <div className="border-t border-border pt-4 lg:flex-none">
-                  <SupportTicketReplyComposer action={canStaffReply ? staffReplyAction : replyAction} isStaffReply={canStaffReply} />
-                </div>
-              </TarjetaSistema>
-            </section>
-
-            <aside className="order-3 space-y-5 lg:col-span-2 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:col-span-1 2xl:flex 2xl:flex-col 2xl:space-y-0">
-              {canManage && (
-                <TarjetaSistema className="space-y-4 lg:flex-none">
-                  <SectionHeader eyebrow="Gestión" title="Estado del ticket" />
-                  <SupportTicketStatusForm action={statusAction} currentStatus={ticket.status} options={STATUS_OPTIONS} />
-                </TarjetaSistema>
-              )}
-
-              <TarjetaSistema className="space-y-4">
-                <div className="flex items-start justify-between gap-3 lg:flex-none">
-                  <SectionHeader eyebrow="Evidencia" title="Adjuntos" />
-                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{ticket.attachments.length}</span>
-                </div>
-                <div className="space-y-4">
-                  {ticket.attachments.length === 0 ? (
-                    <TextoSistema variante="sutil">No hay adjuntos finalizados.</TextoSistema>
-                  ) : ticket.attachments.map((attachment) => (
-                    <div key={attachment.id} className="rounded-2xl border border-border bg-muted/20 p-3">
-                      <AttachmentPreview attachment={attachment} />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-foreground">{attachment.filename}</p>
-                        <TextoSistema variante="muted" tamaño="sm">{formatAttachmentKind(attachment.kind)} · {formatBytes(attachment.byteSize)}</TextoSistema>
-                        <TextoSistema variante="muted" tamaño="sm">{attachment.contentType} · {formatAttachmentStatus(attachment.status)}</TextoSistema>
-                      </div>
-                      {attachment.status === 'uploaded' && (
-                        <a href={getAttachmentRoute(attachment.id)} aria-label={`Abrir ${attachment.filename}`} className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-border px-3 text-sm font-medium text-[var(--brand-primary)] transition-colors hover:bg-card">
-                          Abrir archivo
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </TarjetaSistema>
-
-              {canViewInternalMessages && safeEvents.length > 0 && (
-                <TarjetaSistema className="space-y-4 lg:flex-none">
-                  <SectionHeader eyebrow="Staff" title="Actividad" />
-                  <ol className="space-y-3">
-                    {safeEvents.map((event, index) => (
-                      <li key={`${event.type}-${event.createdAt}-${index}`} className="rounded-2xl border border-border bg-muted/20 p-3">
-                        <p className="text-sm font-semibold text-foreground">{formatEventType(event.type)}</p>
-                        <TextoSistema variante="muted" tamaño="sm">{formatMessageTimestamp(event.createdAt)}</TextoSistema>
-                        <SupportEventMetadata event={event} />
-                      </li>
-                    ))}
-                  </ol>
-                </TarjetaSistema>
-              )}
-            </aside>
-          </div>
-        </div>
-      </ContenedorDashboard>
-)
+          {canViewInternalMessages && safeEvents.length > 0 && (
+            <TarjetaSistema className="space-y-4 lg:flex-none">
+              <SectionHeader eyebrow="Staff" title="Actividad" />
+              <ol className="space-y-3">
+                {safeEvents.map((event, index) => (
+                  <li key={`${event.type}-${event.createdAt}-${index}`} className="rounded-2xl border border-border bg-muted/20 p-3">
+                    <p className="text-sm font-semibold text-foreground">{formatEventType(event.type)}</p>
+                    <TextoSistema variante="muted" tamaño="sm">{formatMessageTimestamp(event.createdAt)}</TextoSistema>
+                    <SupportEventMetadata event={event} />
+                  </li>
+                ))}
+              </ol>
+            </TarjetaSistema>
+          )}
+        </aside>
+      </div>
+    </PaginaSistema>
+  )
 }
 
 function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
@@ -304,14 +302,14 @@ function MessageBubble({ message, participant, roleLabel, isReporter, isInternal
   return (
     <article className={`flex gap-2.5 ${isReporter ? 'justify-start' : 'justify-end'}`}>
       {isReporter && <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="sm" className="mt-1 ring-2 ring-background" />}
-      <div className={`max-w-[min(92%,42rem)] rounded-2xl border px-3 py-2.5 shadow-sm ${isReporter ? 'rounded-tl-md border-border bg-card/85' : 'rounded-tr-md border-border bg-muted/40'} ${isInternal ? 'border-l-4 border-l-amber-500/90 bg-amber-50/35 dark:bg-amber-900/20' : 'border-l-4 border-l-[var(--brand-primary)]'}`}>
+      <div className={`max-w-[min(92%,42rem)] rounded-2xl border px-3 py-2.5 shadow-sm ${isReporter ? 'rounded-tl-md border-border bg-card/85' : 'rounded-tr-md border-border bg-muted/40'} ${isInternal ? 'border-l-4 border-l-warning bg-warning/10' : 'border-l-4 border-l-[var(--brand-primary)]'}`}>
         <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <p className="text-sm font-semibold text-foreground">{participant.fullName}</p>
           <span className="text-xs font-medium text-muted-foreground">{roleLabel}</span>
-          {isInternal ? <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:border-amber-500/60 dark:bg-amber-500/15 dark:text-amber-100">Nota interna</span> : null}
+          {isInternal ? <span className="rounded-full border border-warning/50 bg-warning/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-foreground">Nota interna</span> : null}
           <time className="text-xs text-muted-foreground" dateTime={message.createdAt}>{formatMessageTimestamp(message.createdAt)}</time>
         </div>
-        <TextoSistema tamaño="sm" className="whitespace-pre-wrap leading-relaxed">{message.body}</TextoSistema>
+        <TextoSistema tamaño="sm" className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</TextoSistema>
       </div>
       {!isReporter && <UserAvatar photoUrl={participant.photoUrl} nombre={participant.nombre} apellido={participant.apellido} size="sm" className="mt-1 ring-2 ring-background" />}
     </article>

@@ -5,11 +5,11 @@
  * real shape, not a spinner): the cabecera card, the inscritos table
  * shape, a grupos card, and the ventana card.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingEdicionDetalle() {
   return (
-    <ContenedorDashboard titulo="Edición">
+    <PaginaSistema titulo="Edición">
       <div className="space-y-6">
         {/* Cabecera */}
         <TarjetaSistema variante="outlined" className="p-4">
@@ -61,6 +61,6 @@ export default function LoadingEdicionDetalle() {
           </TarjetaSistema>
         </div>
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

@@ -6,6 +6,7 @@ import { crearSegmento, editarSegmento, eliminarSegmento } from "@/lib/actions/s
 import {
     TarjetaSistema, BotonSistema, InputSistema,
     TituloSistema, TextoSistema,
+    PieAccionesSistema,
 } from "@/components/ui/sistema-diseno"
 import { BotonFlotante } from "@/components/ui/BotonFlotante"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
@@ -198,14 +199,14 @@ export default function GestionSegmentosModales({
                                         required
                                         autoFocus
                                     />
-                                    <div className="flex justify-end gap-3 pt-2">
+                                    <PieAccionesSistema fijo={false} className="bg-transparent">
                                         <BotonSistema variante="outline" type="button" onClick={closeModal} disabled={isPending}>
                                             Cancelar
                                         </BotonSistema>
                                         <BotonSistema variante="primario" type="submit" cargando={isPending}>
                                             {modalMode === "editar" ? "Guardar Cambios" : "Crear Segmento"}
                                         </BotonSistema>
-                                    </div>
+                                    </PieAccionesSistema>
                                 </form>
                             )}
                         </div>

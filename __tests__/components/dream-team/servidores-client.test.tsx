@@ -44,24 +44,14 @@ jest.mock('next/navigation', () => ({
   usePathname: () => '/admin/dream-team/servidores',
 }))
 
-// ContenedorDashboard lazy-loads its header behind Suspense — same synchronous
-// test double as __tests__/app/dashboard-page.test.tsx.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({
-    children,
-    titulo,
-    accionPrincipal,
-  }: {
-    children: React.ReactNode
-    titulo?: string
-    accionPrincipal?: React.ReactNode
-  }) => (
-    <section>
+// PaginaSistema renders DesktopHeader behind React.lazy + Suspense; this
+// synchronous double shows the title and the header actions.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo, accionPrincipal }: { titulo?: string; accionPrincipal?: React.ReactNode }) => (
+    <header>
       <h1>{titulo}</h1>
       {accionPrincipal}
-      {children}
-    </section>
+    </header>
   ),
 }))
 
@@ -603,5 +593,13 @@ describe('ServidoresClient — shift column and campus', () => {
     render(<ServidoresClient {...props({ filas, turnos })} />)
     const opciones = Array.from((screen.getAllByLabelText('Turno')[0] as HTMLSelectElement).options).map((o) => o.text)
     expect(opciones).toEqual(['Todos', 'Domingo 9:00', 'Sin turno'])
+  })
+})
+
+describe('ServidoresClient — page layout (docs/design-system.md)', () => {
+  it('is a full-width system page titled Servidores', async () => {
+    const { container } = render(<ServidoresClient {...props()} />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Servidores' })).toBeInTheDocument()
+    expect(container.querySelector('[data-ancho="default"]')).not.toBeNull()
   })
 })

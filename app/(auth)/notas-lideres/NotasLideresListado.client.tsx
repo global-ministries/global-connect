@@ -39,12 +39,12 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
         <div className="space-y-4">
             {/* Stats */}
             <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-amber-500/10">
-                    <FileText className="w-5 h-5 text-amber-500" />
+                <div className="shrink-0 rounded-xl bg-warning/10 p-2.5">
+                    <FileText className="h-5 w-5 text-warning" aria-hidden="true" />
                 </div>
-                <div>
+                <div className="min-w-0">
                     <TextoSistema variante="muted" tamaño="sm">Total de notas</TextoSistema>
-                    <TituloSistema nivel={3}>{eventos.length}</TituloSistema>
+                    <p className="text-lg font-semibold text-foreground">{eventos.length}</p>
                 </div>
                 <BadgeSistema variante="info" tamaño="sm" className="ml-auto">
                     Últimos 30 días
@@ -52,7 +52,7 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
             </div>
 
             {/* Tabla */}
-            <TarjetaSistema className="p-0 overflow-hidden">
+            <TarjetaSistema className="overflow-hidden p-0">
                 {/* Header — solo desktop */}
                 <div className="hidden sm:grid sm:grid-cols-[1fr_8rem_5rem_1.2fr_8rem] gap-3 px-4 py-3 border-b border-border bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     <span>Grupo</span>
@@ -68,8 +68,9 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
                             <Link
                                 key={evento.evento_id}
                                 href={`/grupos-vida/${evento.grupo_id}/asistencia/${evento.evento_id}`}
+                                className="block focus:outline-none focus-visible:bg-muted/30 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                             >
-                                <div className="sm:grid sm:grid-cols-[1fr_8rem_5rem_1.2fr_8rem] sm:gap-3 px-4 py-3 sm:items-center hover:bg-muted/30 transition-colors duration-200 cursor-pointer group">
+                                <div className="group cursor-pointer px-4 py-3 transition-colors duration-200 hover:bg-muted/30 sm:grid sm:grid-cols-[1fr_8rem_5rem_1.2fr_8rem] sm:items-center sm:gap-3">
                                     {/* Móvil: card compacto */}
                                     <div className="sm:hidden">
                                         <div className="flex items-start justify-between gap-3">
@@ -78,29 +79,29 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
                                                 <div className="text-sm font-semibold text-foreground truncate">
                                                     {evento.grupo_nombre}
                                                 </div>
-                                                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
-                                                    <span>{formatearFecha(evento.fecha)}</span>
-                                                    <span>·</span>
-                                                    <span>{evento.tema}</span>
+                                                <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                                                    <span className="shrink-0">{formatearFecha(evento.fecha)}</span>
+                                                    <span aria-hidden="true">·</span>
+                                                    <span className="truncate">{evento.tema}</span>
                                                 </div>
                                                 {/* Asistencia */}
                                                 <div className="mt-1 flex items-center gap-1.5">
-                                                    <Users className="w-3 h-3 text-muted-foreground" />
+                                                    <Users className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                                                     <span className="text-xs text-muted-foreground">
                                                         {evento.presentes}/{evento.total} presentes
                                                     </span>
                                                 </div>
                                                 {/* Nota */}
-                                                <div className="mt-1.5 text-xs text-muted-foreground/80 leading-relaxed line-clamp-2">
-                                                    <span className="text-amber-500">📝</span>{' '}
-                                                    {truncarTexto(evento.notas, 150)}
+                                                <div className="mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                                                    <FileText className="mt-0.5 h-3 w-3 shrink-0 text-warning" aria-hidden="true" />
+                                                    <span className="line-clamp-2">{truncarTexto(evento.notas, 150)}</span>
                                                 </div>
                                                 {/* Líder */}
-                                                <div className="mt-1 text-xs text-muted-foreground">
+                                                <div className="mt-1 truncate text-xs text-muted-foreground">
                                                     Líder: {evento.lider_nombre}
                                                 </div>
                                             </div>
-                                            <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-1 group-hover:text-foreground transition-colors" />
+                                            <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />
                                         </div>
                                     </div>
 
@@ -115,7 +116,7 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
                                     </div>
                                     <div className="hidden sm:flex items-center justify-center">
                                         <div className="flex items-center gap-1.5">
-                                            <Calendar className="w-3 h-3 text-muted-foreground" />
+                                            <Calendar className="h-3 w-3 text-muted-foreground" aria-hidden="true" />
                                             <span className="text-xs text-muted-foreground">
                                                 {formatearFecha(evento.fecha)}
                                             </span>
@@ -127,7 +128,7 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
                                         </span>
                                     </div>
                                     <div className="hidden sm:block min-w-0">
-                                        <div className="text-xs text-muted-foreground/80 leading-relaxed line-clamp-2">
+                                        <div className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                                             {truncarTexto(evento.notas, 100)}
                                         </div>
                                     </div>
@@ -135,15 +136,15 @@ export default function NotasLideresListado({ eventos }: NotasLideresListadoProp
                                         <span className="text-xs text-muted-foreground truncate">
                                             {evento.lider_nombre}
                                         </span>
-                                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
+                                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden="true" />
                                     </div>
                                 </div>
                             </Link>
                         ))
                     ) : (
                         <div className="p-8 text-center">
-                            <div className="text-muted-foreground/50 text-4xl mb-4">📝</div>
-                            <TituloSistema nivel={3} className="text-muted-foreground mb-2">
+                            <FileText className="mx-auto mb-4 h-10 w-10 text-muted-foreground/50" aria-hidden="true" />
+                            <TituloSistema nivel={2} className="mb-2 text-base text-muted-foreground sm:text-lg">
                                 No hay notas recientes
                             </TituloSistema>
                             <TextoSistema variante="sutil">
