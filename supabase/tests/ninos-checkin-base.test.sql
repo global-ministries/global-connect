@@ -129,6 +129,9 @@ INSERT INTO public.ninos_salones (id, campus_id, equipo_id, area, nombre, capaci
 
 INSERT INTO public.ninos_fichas (usuario_id, alergias) VALUES
   (pg_temp.id('us', 5), 'ZZ maní'), (pg_temp.id('us', 6), NULL), (pg_temp.id('us', 7), NULL);
+-- The siblings' pickup person (check-out requires someone on the list, 20261012130100).
+INSERT INTO public.ninos_autorizados_retiro (nino_id, nombre, relacion) VALUES
+  (pg_temp.id('us', 5), 'ZZ Madre', 'Madre'), (pg_temp.id('us', 6), 'ZZ Madre', 'Madre');
 
 GRANT INSERT, SELECT ON t_nc_failures, t_nc_ctx TO authenticated, anon;
 GRANT UPDATE ON t_nc_ctx TO authenticated;

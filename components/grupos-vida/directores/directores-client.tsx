@@ -19,7 +19,7 @@ import { useMemo, useState, type ReactElement } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Plus, Users } from 'lucide-react'
 
-import { ContenedorDashboard, InputSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, InputSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
 import { filtrarDirectoresEtapa, type VistaDirectores } from '@/lib/platform/grupos-vida/directores-vista'
 import { AgregarDirectorDialog } from './agregar-director-dialog'
@@ -68,7 +68,7 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
       type="button"
       onClick={() => setAgregando(true)}
       className={cn(
-        'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[var(--brand-primary)] px-4 text-sm font-bold text-white transition-opacity hover:opacity-90',
+        'inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-bold text-brand-foreground transition-opacity hover:opacity-90',
         ANILLO,
         clases,
       )}
@@ -79,9 +79,11 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
   )
 
   return (
-    <ContenedorDashboard titulo="Directores" accionPrincipal={puedeAgregar ? botonAgregar('hidden md:inline-flex') : null}>
-      <p className="-mt-2 text-sm text-muted-foreground md:text-[15px]">{SUBTITULO}</p>
-
+    <PaginaSistema
+      titulo="Directores"
+      descripcion={SUBTITULO}
+      acciones={puedeAgregar ? botonAgregar('hidden md:inline-flex') : null}
+    >
       <FranjaPorOrdenar items={vista.porOrdenar} />
 
       <div role="tablist" aria-label="Tipo de director" className="flex gap-2 border-b border-border">
@@ -104,7 +106,7 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
               className={cn(
                 '-mb-px flex min-h-[48px] items-center gap-2 border-b-2 px-3 text-[15px] font-semibold transition-colors sm:px-4',
                 activa
-                  ? 'border-[var(--brand-primary)] text-foreground'
+                  ? 'border-brand text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
                 ANILLO,
               )}
@@ -151,7 +153,7 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
                 className={cn(
                   'flex min-h-[44px] items-center gap-2 rounded-xl border px-4 text-sm font-semibold transition-colors',
                   chip.activo
-                    ? 'border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground'
+                    ? 'border-brand bg-brand-tint text-foreground'
                     : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
                   ANILLO,
                 )}
@@ -178,6 +180,6 @@ export function DirectoresClient({ vista, tabInicial }: DirectoresClientProps): 
       {puedeAgregar && botonAgregar('w-full md:hidden')}
 
       {puedeAgregar && <AgregarDirectorDialog abierto={agregando} onClose={() => setAgregando(false)} segmentos={vista.segmentos} />}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

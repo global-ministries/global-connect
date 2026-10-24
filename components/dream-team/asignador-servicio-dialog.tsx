@@ -28,7 +28,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { ArrowLeft, Search } from 'lucide-react'
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import type { useNotificaciones } from '@/hooks/use-notificaciones'
 import { rolLabel } from '@/components/dream-team/labels'
@@ -360,7 +360,7 @@ export function AsignadorServicioDialog({
         : null
 
   const avisoDuplicado = duplicado && (
-    <div role="alert" className="grid gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950/40">
+    <div role="alert" className="grid gap-2 rounded-xl border border-warning/30 bg-warning/10 p-3">
       {duplicado.tipo === 'existente' ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <TextoSistema tamaño="sm">{`Ya existe: ${duplicado.nombre}`}</TextoSistema>
@@ -375,7 +375,7 @@ export function AsignadorServicioDialog({
       ) : (
         <>
           <TextoSistema tamaño="sm">Ya hay personas con el mismo nombre y fecha de nacimiento:</TextoSistema>
-          <ul className="rounded-md border border-border bg-background">
+          <ul className="rounded-xl border border-border bg-background">
             {duplicado.candidatos.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-2 border-b border-border px-3 py-2 last:border-b-0">
                 <span className="text-sm">{`${c.nombre} ${c.apellido}`}</span>
@@ -425,7 +425,7 @@ export function AsignadorServicioDialog({
       )}
     </div>
   ) : persona ? (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2">
       <TextoSistema className="min-w-0 truncate font-medium">{nombreCompleto(persona)}</TextoSistema>
       <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={() => setPersona(null)}>
         Cambiar
@@ -453,7 +453,7 @@ export function AsignadorServicioDialog({
         )}
       </div>
       {resultados.length > 0 && (
-        <ul className="mt-2 max-h-[50vh] overflow-auto rounded-md border border-border">
+        <ul className="mt-2 max-h-[50vh] overflow-auto rounded-xl border border-border">
           {resultados.map((u) => (
             <li key={u.id}>
               <button
@@ -462,7 +462,7 @@ export function AsignadorServicioDialog({
                   setPersona(u)
                   setResultados([])
                 }}
-                className="flex w-full flex-col items-start border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                className="flex min-h-11 w-full flex-col items-start justify-center border-b border-border px-3 py-2 text-left last:border-b-0 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               >
                 <span className="text-sm font-medium">{nombreCompleto(u)}</span>
                 {u.email && <span className="text-xs text-muted-foreground">{u.email}</span>}
@@ -516,7 +516,7 @@ export function AsignadorServicioDialog({
           No hay turnos para elegir; puedes asignarlo luego desde el equipo.
         </TextoSistema>
       )}
-      <section aria-labelledby="asignador-resumen" className="rounded-md border border-border p-3">
+      <section aria-labelledby="asignador-resumen" className="rounded-xl border border-border p-3">
         <h3 id="asignador-resumen" className="mb-2 text-sm font-medium">
           Resumen
         </h3>
@@ -538,65 +538,58 @@ export function AsignadorServicioDialog({
   )
 
   return (
-    <Sheet open={abierto} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent side="right" className="h-dvh w-full max-w-none gap-0 p-0 sm:w-[520px] sm:max-w-[520px]">
-        <SheetHeader className="gap-3 border-b border-border pr-12">
-          <SheetTitle>{titulo}</SheetTitle>
-          <SheetDescription>Elige a la persona, su equipo y su rol, y opcionalmente su turno.</SheetDescription>
-          <IndicadorPasos actual={paso} />
-        </SheetHeader>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <h3 ref={tituloPasoRef} tabIndex={-1} className="mb-3 text-sm font-semibold focus:outline-none">
-            {`Paso ${paso} de ${PASOS.length}: ${tituloPaso}`}
-          </h3>
-          {paso === 1 && pasoPersona}
-          {paso === 1 && !registrando && avisoDuplicado}
-          {paso === 2 && pasoEquipo}
-          {paso === 3 && pasoTurno}
-        </div>
-
-        <div className="sticky bottom-0 grid gap-2 border-t border-border bg-background p-4">
+    <PanelLateralSistema
+      abierto={abierto}
+      onAbiertoChange={(open) => !open && onClose()}
+      titulo={titulo}
+      descripcion="Elige a la persona, su equipo y su rol, y opcionalmente su turno."
+      pie={
+        <>
           {pista && (
-            <TextoSistema variante="sutil" tamaño="sm" id="asignador-pista">
+            <TextoSistema variante="sutil" tamaño="sm" id="asignador-pista" className="order-last sm:order-first sm:mr-auto">
               {pista}
             </TextoSistema>
           )}
-          <div className="flex items-center justify-between gap-2">
-            {paso === 1 ? (
-              <BotonSistema type="button" variante="outline" tamaño="sm" onClick={onClose}>
-                Cancelar
-              </BotonSistema>
-            ) : (
-              <BotonSistema
-                type="button"
-                variante="outline"
-                tamaño="sm"
-                icono={ArrowLeft}
-                onClick={() => setPaso((p) => (p === 3 ? 2 : 1))}
-                disabled={enviando}
-              >
-                Atrás
-              </BotonSistema>
-            )}
-            {paso < 3 ? (
-              <BotonSistema
-                type="button"
-                tamaño="sm"
-                aria-describedby={pista ? 'asignador-pista' : undefined}
-                disabled={(paso === 1 ? !pasoUnoListo : !pasoDosListo) || verificando}
-                onClick={() => void siguiente()}
-              >
-                {verificando ? 'Verificando…' : 'Siguiente'}
-              </BotonSistema>
-            ) : (
-              <BotonSistema type="button" tamaño="sm" disabled={enviando} onClick={() => void asignar()}>
-                {enviando ? 'Asignando…' : 'Asignar'}
-              </BotonSistema>
-            )}
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+          {paso === 1 ? (
+            <BotonSistema type="button" variante="outline" onClick={onClose}>
+              Cancelar
+            </BotonSistema>
+          ) : (
+            <BotonSistema
+              type="button"
+              variante="outline"
+              icono={ArrowLeft}
+              onClick={() => setPaso((p) => (p === 3 ? 2 : 1))}
+              disabled={enviando}
+            >
+              Atrás
+            </BotonSistema>
+          )}
+          {paso < 3 ? (
+            <BotonSistema
+              type="button"
+              aria-describedby={pista ? 'asignador-pista' : undefined}
+              disabled={(paso === 1 ? !pasoUnoListo : !pasoDosListo) || verificando}
+              onClick={() => void siguiente()}
+            >
+              {verificando ? 'Verificando…' : 'Siguiente'}
+            </BotonSistema>
+          ) : (
+            <BotonSistema type="button" disabled={enviando} onClick={() => void asignar()}>
+              {enviando ? 'Asignando…' : 'Asignar'}
+            </BotonSistema>
+          )}
+        </>
+      }
+    >
+      <IndicadorPasos actual={paso} />
+      <h3 ref={tituloPasoRef} tabIndex={-1} className="mb-3 mt-5 text-sm font-semibold focus:outline-none">
+        {`Paso ${paso} de ${PASOS.length}: ${tituloPaso}`}
+      </h3>
+      {paso === 1 && pasoPersona}
+      {paso === 1 && !registrando && avisoDuplicado}
+      {paso === 2 && pasoEquipo}
+      {paso === 3 && pasoTurno}
+    </PanelLateralSistema>
   )
 }

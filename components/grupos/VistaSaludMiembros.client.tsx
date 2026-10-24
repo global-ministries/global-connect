@@ -12,15 +12,15 @@ interface Props {
 const NIVEL_CONFIG = {
     normal: {
         icono: Heart,
-        color: "text-emerald-500",
-        bgColor: "bg-emerald-500/10",
+        color: "text-success",
+        bgColor: "bg-success/10",
         badge: "success" as const,
         label: "Normal",
     },
     atencion: {
         icono: AlertTriangle,
-        color: "text-amber-500",
-        bgColor: "bg-amber-500/10",
+        color: "text-warning",
+        bgColor: "bg-warning/10",
         badge: "warning" as const,
         label: "Atención",
     },
@@ -33,8 +33,8 @@ const NIVEL_CONFIG = {
     },
     critico: {
         icono: ShieldAlert,
-        color: "text-red-600",
-        bgColor: "bg-red-600/10",
+        color: "text-danger",
+        bgColor: "bg-danger/10",
         badge: "error" as const,
         label: "Crítico",
     },
@@ -64,7 +64,7 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                         return (
                             <TarjetaSistema key={nivel} variante="default" className="p-3">
                                 <div className="flex items-center gap-2">
-                                    <div className={`p-2 rounded-lg ${config.bgColor}`}>
+                                    <div className={`p-2 rounded-xl ${config.bgColor}`}>
                                         <Icono className={`h-4 w-4 ${config.color}`} />
                                     </div>
                                     <div>
@@ -101,7 +101,7 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                             {/* Desktop */}
                             <div className="hidden sm:grid grid-cols-12 gap-2 items-center">
                                 <div className="col-span-4 flex items-center gap-2">
-                                    <div className={`p-1.5 rounded-lg ${config.bgColor}`}>
+                                    <div className={`p-1.5 rounded-xl ${config.bgColor}`}>
                                         <Icono className={`h-3.5 w-3.5 ${config.color}`} />
                                     </div>
                                     <div>
@@ -118,8 +118,8 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                                     </span>
                                 </div>
                                 <div className="col-span-2 text-center">
-                                    <span className={`text-sm font-medium ${m.pct_asistencia >= 80 ? "text-emerald-500" :
-                                            m.pct_asistencia >= 50 ? "text-amber-500" : "text-destructive"
+                                    <span className={`text-sm font-medium ${m.pct_asistencia >= 80 ? "text-success-text" :
+                                            m.pct_asistencia >= 50 ? "text-warning-text" : "text-destructive"
                                         }`}>
                                         {m.pct_asistencia}%
                                     </span>
@@ -135,7 +135,7 @@ export default function VistaSaludMiembros({ miembros, grupoId }: Props) {
                             <div className="sm:hidden">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <div className={`p-1.5 rounded-lg ${config.bgColor}`}>
+                                        <div className={`p-1.5 rounded-xl ${config.bgColor}`}>
                                             <Icono className={`h-3.5 w-3.5 ${config.color}`} />
                                         </div>
                                         <div>

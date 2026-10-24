@@ -6,7 +6,7 @@ import Link from "next/link";
 import { z } from "zod";
 
 import {
-    ContenedorDashboard,
+    PaginaSistema,
     TarjetaSistema,
     TextoSistema,
     TituloSistema,
@@ -101,10 +101,10 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
         : null;
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo={casa.nombre_lugar}
-                botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
-                accionPrincipal={permisosCasa.puedeEditar ? (
+                regreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
+                acciones={permisosCasa.puedeEditar ? (
                     <Link href={`/grupos-vida/casas-anfitrionas/${id}/editar`}>
                         <BotonSistema variante="outline" icono={Pencil} tamaño="sm">
                             Editar
@@ -340,6 +340,6 @@ export default async function DetalleCasaAnfitrionaPage({ params }: PageProps) {
                         )}
                     </div>
                 </div>
-            </ContenedorDashboard>
+            </PaginaSistema>
 );
 }

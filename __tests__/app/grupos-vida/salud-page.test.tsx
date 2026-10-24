@@ -26,15 +26,9 @@ jest.mock('@/components/grupos/VistaSaludMiembros.client', () => ({
     return <div data-testid="vista-salud" />
   },
 }))
-// ContenedorDashboard lazy-loads its header behind Suspense — synchronous test double.
-jest.mock('@/components/ui/sistema-diseno', () => ({
-  ...jest.requireActual('@/components/ui/sistema-diseno'),
-  ContenedorDashboard: ({ children, titulo }: { children: React.ReactNode; titulo?: string }) => (
-    <section>
-      <h1>{titulo}</h1>
-      {children}
-    </section>
-  ),
+// The page header renders behind Suspense — synchronous test double.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ titulo }: { titulo?: string }) => <h1>{titulo}</h1>,
 }))
 
 import SaludMiembrosPage from '@/app/(auth)/grupos-vida/[id]/salud/page'

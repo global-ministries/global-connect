@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation'
 import { Network, Plus } from 'lucide-react'
 
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
-import { BotonSistema, ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
@@ -63,13 +63,13 @@ const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
 export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
   if (!props.vista) {
     return (
-      <ContenedorDashboard titulo="Mi equipo">
+      <PaginaSistema titulo="Mi equipo">
         <EstadoVacio
           icono={Network}
           titulo="Todavía no hay equipos para mostrar"
           subtitulo="Puede deberse a que aún no te asignaron un área en la estructura de Dream Team."
         />
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
   // Keyed by direccion so switching it resets the team, filter and search.
@@ -138,7 +138,7 @@ function MiEquipoVistaDireccion({
     : null
 
   return (
-    <ContenedorDashboard titulo="Mi equipo">
+    <PaginaSistema titulo="Mi equipo">
       <EncabezadoMiEquipo
         direccionLabel={vista.label}
         dirige={vista.todaLaDireccion.responsable?.nombre ?? null}
@@ -207,6 +207,6 @@ function MiEquipoVistaDireccion({
           />
         </>
       )}
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

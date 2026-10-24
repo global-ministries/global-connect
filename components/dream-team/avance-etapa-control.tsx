@@ -23,7 +23,7 @@
 import { useState, type ReactElement } from 'react'
 import { ArrowRightLeft } from 'lucide-react'
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BotonSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
 import { DREAM_TEAM_MOTIVOS } from '@/lib/platform/dream-team/types'
@@ -122,6 +122,7 @@ export function AvanceEtapaControl({
           variante="outline"
           tamaño="sm"
           icono={ArrowRightLeft}
+          aria-label="Cambiar etapa"
           onClick={() => setAbierto(true)}
         >
           <span className="hidden sm:inline">Cambiar etapa</span>
@@ -129,7 +130,7 @@ export function AvanceEtapaControl({
       )}
 
       <Dialog open={abierto} onOpenChange={(open) => !open && cerrar()}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <DialogHeader>
             <DialogTitle>Cambiar etapa</DialogTitle>
             <DialogDescription>Elegí la nueva etapa y el motivo del cambio.</DialogDescription>
@@ -156,19 +157,18 @@ export function AvanceEtapaControl({
               disabled={enviando}
             />
             {error && (
-              <TextoSistema role="alert" tamaño="sm" className="text-red-500 dark:text-red-400">
+              <TextoSistema role="alert" tamaño="sm" className="text-danger-text">
                 {error}
               </TextoSistema>
             )}
           </div>
 
-          <div className="flex justify-end gap-2">
-            <BotonSistema type="button" variante="outline" tamaño="sm" disabled={enviando} onClick={cerrar}>
+          <DialogFooter>
+            <BotonSistema type="button" variante="outline" disabled={enviando} onClick={cerrar}>
               Cancelar
             </BotonSistema>
             <BotonSistema
               type="button"
-              tamaño="sm"
               disabled={!estadoNuevo || !motivo || enviando}
               onClick={() => {
                 void enviar()
@@ -176,7 +176,7 @@ export function AvanceEtapaControl({
             >
               {enviando ? 'Guardando…' : 'Confirmar'}
             </BotonSistema>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

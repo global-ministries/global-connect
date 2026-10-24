@@ -109,7 +109,6 @@ export function TurnosEquipo({
               <BotonSistema
                 type="button"
                 variante="outline"
-                tamaño="sm"
                 disabled={isPending}
                 onClick={() => guardar(otrosCampus, `${equipoLabel} vuelve a heredar los turnos.`)}
               >
@@ -118,7 +117,6 @@ export function TurnosEquipo({
             )}
             <BotonSistema
               type="button"
-              tamaño="sm"
               disabled={isPending || elegidos.size === 0}
               onClick={() =>
                 guardar(

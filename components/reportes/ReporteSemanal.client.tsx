@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { TarjetaSistema, TituloSistema, TextoSistema, BotonSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
-import { TrendingUp, TrendingDown, Calendar, Users, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Calendar, Users, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight, Target, Sparkles } from 'lucide-react'
 
 type Semana = {
   inicio: string
@@ -65,7 +65,6 @@ interface ReporteSemanalProps {
 
 export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: ReporteSemanalProps) {
   const router = useRouter()
-  const [fechaSeleccionada, setFechaSeleccionada] = useState(reporte.semana.inicio)
   const [incluirTodos, setIncluirTodos] = useState<boolean>(!!incluirTodosInicial)
   const [mostrarTodosRiesgo, setMostrarTodosRiesgo] = useState<boolean>(false)
 
@@ -170,7 +169,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
       <TarjetaSistema className="p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-muted-foreground" />
+            <Calendar className="w-5 h-5 text-muted-foreground" aria-hidden="true" />
             <div>
               <TextoSistema variante="sutil" tamaño="sm">
                 Semana seleccionada
@@ -180,14 +179,14 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <BotonSistema
               variante="outline"
               tamaño="sm"
+              icono={ChevronLeft}
               onClick={irSemanaAnterior}
-              className="gap-1"
+              aria-label="Semana anterior"
             >
-              <ChevronLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Anterior</span>
             </BotonSistema>
             <BotonSistema
@@ -200,21 +199,22 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
             <BotonSistema
               variante="outline"
               tamaño="sm"
+              icono={ChevronRight}
+              iconoPosicion="derecha"
               onClick={irSemanaSiguiente}
-              className="gap-1"
+              aria-label="Semana siguiente"
             >
               <span className="hidden sm:inline">Siguiente</span>
-              <ChevronRight className="w-4 h-4" />
             </BotonSistema>
-            <button
-              type="button"
+            <BotonSistema
+              variante="outline"
+              tamaño="sm"
               onClick={alternarIncluirTodos}
-              className={`ml-2 px-3 py-2 rounded-lg border text-sm transition-colors ${incluirTodos ? 'bg-foreground text-background border-foreground' : 'bg-card text-foreground border-border'
-                }`}
               aria-pressed={incluirTodos}
+              className={incluirTodos ? 'border-foreground bg-foreground text-background hover:bg-foreground/90' : undefined}
             >
               {incluirTodos ? 'Todos los grupos activos' : 'Solo grupos con reunión'}
-            </button>
+            </BotonSistema>
           </div>
         </div>
       </TarjetaSistema>
@@ -224,8 +224,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
         {/* Porcentaje Global */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex-shrink-0">
-              <Users className="w-6 h-6 text-white" />
+            <div className="p-3 bg-info/10 rounded-xl flex-shrink-0">
+              <Users className="w-6 h-6 text-info" aria-hidden="true" />
             </div>
             <div className="flex-1">
               <TextoSistema variante="sutil" tamaño="sm">
@@ -242,13 +242,13 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
             <div className={`p-3 rounded-xl flex-shrink-0 ${reporte.kpis_globales.variacion_semana_anterior >= 0
-              ? 'bg-gradient-to-br from-green-500 to-emerald-500'
-              : 'bg-gradient-to-br from-red-500 to-rose-500'
+              ? 'bg-success/10 text-success'
+              : 'bg-danger/10 text-danger'
               }`}>
               {reporte.kpis_globales.variacion_semana_anterior >= 0 ? (
-                <TrendingUp className="w-6 h-6 text-white" />
+                <TrendingUp className="w-6 h-6" aria-hidden="true" />
               ) : (
-                <TrendingDown className="w-6 h-6 text-white" />
+                <TrendingDown className="w-6 h-6" aria-hidden="true" />
               )}
             </div>
             <div className="flex-1">
@@ -256,8 +256,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
                 vs. Semana Anterior
               </TextoSistema>
               <div className={`text-3xl font-bold ${reporte.kpis_globales.variacion_semana_anterior >= 0
-                ? 'text-green-600'
-                : 'text-red-600'
+                ? 'text-success-text'
+                : 'text-danger-text'
                 }`}>
                 {reporte.kpis_globales.variacion_semana_anterior > 0 ? '+' : ''}
                 {reporte.kpis_globales.variacion_semana_anterior}%
@@ -269,8 +269,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
         {/* Miembros Asistentes */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-xl flex-shrink-0">
-              <CheckCircle2 className="w-6 h-6 text-white" />
+            <div className="p-3 bg-success/10 rounded-xl flex-shrink-0">
+              <CheckCircle2 className="w-6 h-6 text-success" aria-hidden="true" />
             </div>
             <div className="flex-1">
               <TextoSistema variante="sutil" tamaño="sm">
@@ -286,8 +286,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
         {/* Grupos con Reunión / Activos */}
         <TarjetaSistema className="p-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex-shrink-0">
-              <Users className="w-6 h-6 text-white" />
+            <div className="p-3 bg-brand-tint rounded-xl flex-shrink-0">
+              <Users className="w-6 h-6 text-brand" aria-hidden="true" />
             </div>
             <div className="flex-1">
               <TextoSistema variante="sutil" tamaño="sm">
@@ -347,9 +347,9 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
               <Line
                 type="monotone"
                 dataKey="porcentaje"
-                stroke="#3b82f6"
+                stroke="var(--info)"
                 strokeWidth={3}
-                dot={{ fill: '#3b82f6', r: 4 }}
+                dot={{ fill: 'var(--info)', r: 4 }}
                 activeDot={{ r: 6 }}
               />
             </LineChart>
@@ -398,7 +398,7 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
                 />
                 <Bar
                   dataKey="porcentaje"
-                  fill="#f97316"
+                  fill="var(--brand-primary)"
                   radius={[8, 8, 0, 0]}
                 />
               </BarChart>
@@ -418,8 +418,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
         {/* Grupos Perfectos */}
         <TarjetaSistema className="p-4 sm:p-6 h-full">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg ring-1 ring-white/20 shadow-lg">
-              <CheckCircle2 className="w-4 h-4 text-white" />
+            <div className="p-2 bg-success/10 rounded-xl shrink-0">
+              <CheckCircle2 className="w-4 h-4 text-success" aria-hidden="true" />
             </div>
             <TituloSistema nivel={3}>
               Grupos con 100% de Asistencia
@@ -433,8 +433,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
                   href={`/grupos-vida/${grupo.id}`}
                   className="flex items-center gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-4 h-4 text-success" aria-hidden="true" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-sm text-foreground truncate">
@@ -450,7 +450,9 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="text-muted-foreground/50 text-4xl mb-2">🎯</div>
+              <div className="mx-auto mb-2 w-fit rounded-full bg-muted p-3">
+                <Target className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              </div>
               <TextoSistema variante="sutil">
                 No hay grupos con 100% de asistencia esta semana
               </TextoSistema>
@@ -460,10 +462,10 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
 
         {/* Grupos en Riesgo (< 75%) */}
         <TarjetaSistema className="p-4 sm:p-6 h-full">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg ring-1 ring-white/20 shadow-lg">
-                <AlertTriangle className="w-4 h-4 text-white" />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="p-2 bg-danger/10 rounded-xl shrink-0">
+                <AlertTriangle className="w-4 h-4 text-danger" aria-hidden="true" />
               </div>
               <TituloSistema nivel={3}>
                 Grupos que Necesitan Atención
@@ -491,8 +493,8 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
                     href={`/grupos-vida/${grupo.id}`}
                     className="flex items-center gap-3 p-3 bg-[var(--surface-secondary)]/50 rounded-xl hover:bg-[var(--surface-secondary)] transition-colors"
                   >
-                    <div className="w-8 h-8 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <div className="w-8 h-8 rounded-full bg-danger/10 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="w-4 h-4 text-danger" aria-hidden="true" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-sm text-foreground truncate">
@@ -510,7 +512,9 @@ export default function ReporteSemanal({ reporte, incluirTodosInicial = true }: 
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="text-muted-foreground/50 text-4xl mb-2">✨</div>
+                <div className="mx-auto mb-2 w-fit rounded-full bg-success/10 p-3">
+                  <Sparkles className="h-5 w-5 text-success" aria-hidden="true" />
+                </div>
                 <TextoSistema variante="sutil">
                   ¡Todos los grupos tienen buena asistencia!
                 </TextoSistema>

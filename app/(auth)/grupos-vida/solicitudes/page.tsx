@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserWithRoles } from "@/lib/getUserWithRoles";
 
-import { ContenedorDashboard } from "@/components/ui/sistema-diseno";
+import { PaginaSistema } from "@/components/ui/sistema-diseno";
 import { listarSolicitudesPendientes, listarSolicitudesCompletadas } from "@/lib/actions/solicitudes-grupo.actions";
 import { SolicitudesPendientesClient } from "./SolicitudesPendientesClient";
 
@@ -26,15 +26,15 @@ export default async function SolicitudesPage() {
     ]);
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo="Solicitudes"
                 descripcion="Gestiona las solicitudes de grupos de vida"
-                botonRegreso={{ href: "/grupos-vida", texto: "Grupos" }}
+                regreso={{ href: "/grupos-vida", texto: "Grupos" }}
             >
                 <SolicitudesPendientesClient
                     solicitudesIniciales={pendientesRes.success ? (pendientesRes.data ?? []) : []}
                     solicitudesCompletadas={completadasRes.success ? (completadasRes.data ?? []) : []}
                 />
-            </ContenedorDashboard>
+            </PaginaSistema>
 );
 }

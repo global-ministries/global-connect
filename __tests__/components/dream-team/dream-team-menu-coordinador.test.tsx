@@ -27,8 +27,16 @@ describe('useDreamTeamMenuItem — the volunteer coordinator', () => {
     const { result } = renderHook(() => useDreamTeamMenuItem(SESION), { wrapper: conAcceso(true) })
     expect(result.current?.children.map((c) => c.href)).toEqual(['/dream-team/mi-equipo'])
   })
-  it('shows nothing for another coordinator (flag false) or outside the provider', () => {
-    expect(renderHook(() => useDreamTeamMenuItem(SESION), { wrapper: conAcceso(false) }).result.current).toBeNull()
-    expect(renderHook(() => useDreamTeamMenuItem(SESION)).result.current).toBeNull()
+  it('another coordinator (flag false) or one outside the provider still gets Mi equipo, read-only (odd/tasks/ninos-roles-ui.md D1)', () => {
+    for (const opciones of [{ wrapper: conAcceso(false) }, {}]) {
+      const { result } = renderHook(() => useDreamTeamMenuItem(SESION), opciones)
+      expect(result.current?.children.map((c) => c.href)).toEqual(['/dream-team/mi-equipo'])
+    }
+  })
+
+  it('shows nothing for someone who only serves', () => {
+    const voluntario = { ...SESION, capabilities: SESION.capabilities.map((c) => ({ ...c, key: 'dream_team.serve' })) }
+    expect(renderHook(() => useDreamTeamMenuItem(voluntario), { wrapper: conAcceso(false) }).result.current).toBeNull()
+    expect(renderHook(() => useDreamTeamMenuItem(voluntario)).result.current).toBeNull()
   })
 })

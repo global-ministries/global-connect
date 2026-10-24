@@ -28,7 +28,7 @@
 import { notFound } from 'next/navigation'
 
 import {
-  ContenedorDashboard,
+  PaginaSistema,
   TarjetaSistema,
   TextoSistema,
   BadgeSistema,
@@ -57,11 +57,11 @@ interface RouteContext {
 export default async function TemporadaDetallePage(ctx: RouteContext) {
   if (!isTalleresEnabled()) {
     return (
-      <ContenedorDashboard titulo="Temporada">
+      <PaginaSistema titulo="Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -73,11 +73,11 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
   const { data: { user } } = await (supabase as any).auth.getUser()
   if (!user) {
     return (
-      <ContenedorDashboard titulo="Temporada">
+      <PaginaSistema titulo="Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -88,11 +88,11 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
   })
   if (!session) {
     return (
-      <ContenedorDashboard titulo="Temporada">
+      <PaginaSistema titulo="Temporada">
         <TarjetaSistema variante="outlined" className="p-6 text-center">
           <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
         </TarjetaSistema>
-      </ContenedorDashboard>
+      </PaginaSistema>
     )
   }
 
@@ -111,9 +111,9 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
   const { temporada, direccionLabel, talleresEnTemporada, talleresDisponibles } = detalle
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={temporada.nombre}
-      botonRegreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
+      regreso={{ href: rutaTemporadas(), texto: 'Temporadas' }}
     >
       {creadas && Number(creadas) > 0 && (
         <BadgeSistema variante="success" role="status">
@@ -149,6 +149,6 @@ export default async function TemporadaDetallePage(ctx: RouteContext) {
         talleresEnTemporada={talleresEnTemporada}
         talleresDisponibles={talleresDisponibles}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

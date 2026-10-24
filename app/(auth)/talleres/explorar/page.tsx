@@ -17,7 +17,7 @@
  * viewer can actually read/insert.
  */
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import {
   loadParticipanteExplorar,
@@ -46,9 +46,9 @@ export default async function ExplorarTalleresPage() {
   const talleres = await loadParticipanteExplorar(ctx)
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo="Explorar Talleres"
-      botonRegreso={{ href: '/dashboard', texto: 'Inicio' }}
+      regreso={{ href: '/dashboard', texto: 'Inicio' }}
     >
       <div className="grid gap-4">
         <TarjetaSistema variante="outlined" className="p-4 sm:p-5">
@@ -61,6 +61,6 @@ export default async function ExplorarTalleresPage() {
         </TarjetaSistema>
         <ExplorarTalleresClient talleres={talleres} />
       </div>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

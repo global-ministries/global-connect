@@ -31,6 +31,9 @@ import {
   InputSistema,
   SelectSistema,
   BotonSistema,
+  PieAccionesSistema,
+  SeccionesSistema,
+  CamposSistema,
 } from '@/components/ui/sistema-diseno'
 
 import { createTemporada } from '../actions'
@@ -115,114 +118,120 @@ export function TallerTemporadaForm({ direcciones }: Props): ReactElement {
     })
   }
 
+  // Full width: the data and the checklist are two sections side by side on
+  // wide screens (docs/design-system.md, "Sections and fields").
   return (
-    <TarjetaSistema variante="elevated" className="p-5">
-      <TextoSistema variante="sutil" className="mb-4 block text-sm">
-        Una temporada agrupa qué talleres abren inscripción a la vez en una dirección. Se crea en
-        estado <strong>borrador</strong>.
-      </TextoSistema>
+    <div className="space-y-6">
+      <SeccionesSistema>
+        <TarjetaSistema variante="elevated" className="p-5">
+          <TextoSistema variante="sutil" className="mb-4 block text-sm">
+            Una temporada agrupa qué talleres abren inscripción a la vez en una dirección. Se crea en
+            estado <strong>borrador</strong>.
+          </TextoSistema>
 
-      <div className="grid gap-4">
-        <SelectSistema
-          label="Dirección"
-          value={direccionId}
-          onValueChange={elegirDireccion}
-          placeholder="— Elige una dirección —"
-          opciones={direcciones.map((d) => ({ valor: d.id, etiqueta: d.label }))}
-        />
+          <CamposSistema>
+            <SelectSistema
+              label="Dirección"
+              value={direccionId}
+              onValueChange={elegirDireccion}
+              placeholder="— Elige una dirección —"
+              opciones={direcciones.map((d) => ({ valor: d.id, etiqueta: d.label }))}
+            />
 
-        <InputSistema
-          label="Nombre"
-          value={nombre}
-          onChange={(e) => setNombre(e.target.value)}
-          placeholder="Ej. 2027 - I"
-          maxLength={120}
-        />
+            <InputSistema
+              label="Nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Ej. 2027 - I"
+              maxLength={120}
+            />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <InputSistema
-            label="Fecha de apertura"
-            type="date"
-            value={fechaApertura}
-            onChange={(e) => setFechaApertura(e.target.value)}
-          />
-          <InputSistema
-            label="Fecha de cierre"
-            type="date"
-            value={fechaCierre}
-            onChange={(e) => setFechaCierre(e.target.value)}
-          />
-        </div>
+            <InputSistema
+              label="Fecha de apertura"
+              type="date"
+              value={fechaApertura}
+              onChange={(e) => setFechaApertura(e.target.value)}
+            />
+            <InputSistema
+              label="Fecha de cierre"
+              type="date"
+              value={fechaCierre}
+              onChange={(e) => setFechaCierre(e.target.value)}
+            />
+          </CamposSistema>
+        </TarjetaSistema>
 
         {direccion && (
-          <div>
-            <TextoSistema className="mb-1 block text-sm font-medium">
-              Talleres que abren en esta temporada
-            </TextoSistema>
-            {direccion.talleres.length === 0 ? (
-              <TextoSistema variante="sutil" className="block text-sm">
-                Esta dirección todavía no tiene talleres.
+          <TarjetaSistema variante="elevated" className="grid gap-4 p-5">
+            <div>
+              <TextoSistema className="mb-1 block text-sm font-medium">
+                Talleres que abren en esta temporada
               </TextoSistema>
-            ) : (
-              <ul className="grid gap-2">
-                {direccion.talleres.map((taller) => {
-                  const esPorTemporada = taller.regimen === 'temporada'
-                  const checked = esPorTemporada && seleccionados.has(taller.id)
-                  return (
-                    <li key={taller.id}>
-                      <label
-                        className={`flex min-h-[44px] items-center gap-3 rounded border p-3 ${
-                          esPorTemporada ? '' : 'opacity-60'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={!esPorTemporada}
-                          onChange={(e) => toggleTaller(taller.id, e.target.checked)}
-                          className="h-5 w-5"
-                          aria-label={taller.nombre}
-                        />
-                        <span className="flex-1">
-                          <span className="block text-sm font-medium">{taller.nombre}</span>
-                          <span className="block text-xs text-muted-foreground">{taller.nodoLabel}</span>
-                        </span>
-                        {!esPorTemporada && (
-                          <span className="text-xs text-muted-foreground">abre por su propia cadencia</span>
-                        )}
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        )}
+              {direccion.talleres.length === 0 ? (
+                <TextoSistema variante="sutil" className="block text-sm">
+                  Esta dirección todavía no tiene talleres.
+                </TextoSistema>
+              ) : (
+                <ul className="grid gap-2">
+                  {direccion.talleres.map((taller) => {
+                    const esPorTemporada = taller.regimen === 'temporada'
+                    const checked = esPorTemporada && seleccionados.has(taller.id)
+                    return (
+                      <li key={taller.id}>
+                        <label
+                          className={`flex min-h-[44px] items-center gap-3 rounded-xl border border-border p-3 ${
+                            esPorTemporada ? '' : 'opacity-60'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={!esPorTemporada}
+                            onChange={(e) => toggleTaller(taller.id, e.target.checked)}
+                            className="h-5 w-5"
+                            aria-label={taller.nombre}
+                          />
+                          <span className="flex-1">
+                            <span className="block text-sm font-medium">{taller.nombre}</span>
+                            <span className="block text-xs text-muted-foreground">{taller.nodoLabel}</span>
+                          </span>
+                          {!esPorTemporada && (
+                            <span className="text-xs text-muted-foreground">abre por su propia cadencia</span>
+                          )}
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
 
-        {direccion && fechaApertura && (
-          <TarjetaSistema variante="outlined" className="p-3">
-            <TextoSistema tamaño="sm">
-              Se crearán {seleccionados.size} {seleccionados.size === 1 ? 'edición' : 'ediciones'} con
-              primera clase el {formatFechaCorta(fechaApertura)}.
-            </TextoSistema>
+            {fechaApertura && (
+              <div className="rounded-xl border border-border p-3">
+                <TextoSistema tamaño="sm">
+                  Se crearán {seleccionados.size} {seleccionados.size === 1 ? 'edición' : 'ediciones'} con
+                  primera clase el {formatFechaCorta(fechaApertura)}.
+                </TextoSistema>
+              </div>
+            )}
           </TarjetaSistema>
         )}
-      </div>
+      </SeccionesSistema>
 
       {error && (
-        <TextoSistema role="alert" className="mt-3 block text-destructive">
+        <TextoSistema role="alert" className="block text-destructive">
           {error}
         </TextoSistema>
       )}
 
-      <div className="mt-4 flex items-center justify-end gap-2">
+      <PieAccionesSistema fijo={false}>
         <BotonSistema type="button" variante="outline" onClick={() => router.push(rutaTemporadas())}>
           Cancelar
         </BotonSistema>
         <BotonSistema type="button" variante="primario" onClick={submit} disabled={!canSubmit}>
           {pending ? 'Creando…' : 'Crear temporada'}
         </BotonSistema>
-      </div>
-    </TarjetaSistema>
+      </PieAccionesSistema>
+    </div>
   )
 }

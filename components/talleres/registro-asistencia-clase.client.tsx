@@ -209,7 +209,7 @@ export function RegistroAsistenciaClase({
                   aria-checked={presente}
                   aria-label={fila.nombre}
                   onClick={() => alternar(fila.id)}
-                  className="flex min-h-[44px] flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex min-h-[44px] flex-1 items-center gap-3 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span
                     aria-hidden="true"

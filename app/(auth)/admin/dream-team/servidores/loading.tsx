@@ -5,11 +5,11 @@
  * line, the etapa counters, the filter bar and the table, per
  * docs/sistema-diseno.md's `loading.tsx` skeleton pattern.
  */
-import { ContenedorDashboard, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingServidores() {
   return (
-    <ContenedorDashboard titulo="Servidores">
+    <PaginaSistema titulo="Servidores">
       <SkeletonSistema ancho="180px" alto="16px" />
 
       <div className="flex flex-wrap gap-2">
@@ -39,6 +39,6 @@ export default function LoadingServidores() {
           ))}
         </div>
       </TarjetaSistema>
-    </ContenedorDashboard>
+    </PaginaSistema>
   )
 }

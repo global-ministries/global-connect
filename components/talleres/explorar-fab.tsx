@@ -42,9 +42,11 @@ export function TallerExplorarFab({
           await onInscribirse()
         })
       }}
-      className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full bg-[var(--brand-primary)] px-5 py-3 font-medium text-white shadow-lg transition hover:scale-105 disabled:opacity-50"
+      // Above the mobile bottom bar (z-50, ~80px + safe area) and in the
+      // desktop corner; 48px tall like every primary mobile call to action.
+      className="fixed bottom-24 right-4 z-40 inline-flex h-12 items-center gap-2 rounded-full bg-brand px-5 font-medium text-brand-foreground shadow-lg transition-[background-color,box-shadow,transform] duration-200 ease-expo press-scale touch-manipulation hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 md:bottom-6 md:right-6"
     >
-      <Plus className="h-5 w-5" />
+      <Plus className="h-5 w-5" aria-hidden="true" />
       <span>{pending ? 'Inscribiendo…' : 'Inscribirme'}</span>
     </button>
   )
