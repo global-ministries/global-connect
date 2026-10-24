@@ -39,7 +39,7 @@ export default function KpisGruposPanel() {
 					<p className="text-xs text-muted-foreground mt-1">Visión resumida según tu rol y alcance actual.</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<Button size="icon" variant="outline" onClick={() => refetch()} disabled={loading} className="h-8 w-8">
+					<Button size="icon" variant="outline" onClick={() => refetch()} disabled={loading} className="h-8 w-8" aria-label="Actualizar indicadores">
 						<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
 					</Button>
 				</div>
