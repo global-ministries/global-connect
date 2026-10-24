@@ -579,6 +579,36 @@ SELECT pg_temp.assert_raises('P: authenticated cannot call uno_a_uno_supervisado
   format($q$SELECT count(*) FROM public.uno_a_uno_supervisados_de(%L)$q$, pg_temp.u('DGS')), '42501');
 RESET ROLE;
 
+-- S9.2: a deep equipo is named by its path below the área (Waumba Land ›
+-- Anfitriones and UpStreet › Anfitriones are two equipos). NOBODY serves alone
+-- as lider of a 4-level equipo, so they still lead nobody; read as postgres.
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
+  (pg_temp.id('eq', 11), 'dps', NULL,                  'ZZ U7 R9', true),
+  (pg_temp.id('eq', 12), 'dps', pg_temp.id('eq', 11), 'ZZ U7 A9', true),
+  (pg_temp.id('eq', 13), 'dps', pg_temp.id('eq', 12), 'ZZ U7 S9', true),
+  (pg_temp.id('eq', 14), 'dps', pg_temp.id('eq', 13), 'ZZ U7 E9', true);
+INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel) VALUES
+  (pg_temp.id('ro', 11), pg_temp.id('eq', 14), 'ZZ U7 guia E9', 'lider');
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado) VALUES
+  (pg_temp.id('sv', 11), pg_temp.u('NOBODY'), pg_temp.id('eq', 14), pg_temp.id('ro', 11), 'activo');
+SELECT pg_temp.assert_eq('S9.2: a deep equipo is named by its path below the área', format($q$
+  SELECT string_agg(u.direccion || '>' || coalesce(u.area, '-') || '>' || coalesce(u.equipo, '-'), '|')
+    FROM public.uno_a_uno_ubicaciones() u WHERE u.lider_id = %L$q$, pg_temp.u('NOBODY')),
+  'ZZ U7 R9>ZZ U7 A9>ZZ U7 S9 › ZZ U7 E9');
+
+-- S9.2: two current groups of one segmento with the same name (two temporadas
+-- active at once) are told apart by their temporada.
+INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, estado) VALUES
+  (pg_temp.id('te', 9), 'ZZ U7 T9', '2026-01-01', '2026-12-31', true, 'activa');
+INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, estado_aprobacion, eliminado) VALUES
+  (pg_temp.id('gr', 9), 'ZZ U7 G1', pg_temp.id('te', 9), pg_temp.id('sg', 1), true, 'aprobado', false);
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, fecha_salida, estado) VALUES
+  (pg_temp.id('gr', 9), pg_temp.u('LX'), 'Líder', NULL, 'activo');
+SELECT pg_temp.assert_eq('S9.2: same-name current groups carry their temporada', format($q$
+  SELECT string_agg(u.equipo, '|' ORDER BY u.equipo COLLATE "C") FROM public.uno_a_uno_ubicaciones() u WHERE u.lider_id IN (%L, %L)$q$,
+  pg_temp.u('LA'), pg_temp.u('LX')),
+  'ZZ U7 G1 (ZZ U7 T9)|ZZ U7 G1 (ZZ U7 activa)');
+
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_u7_failures;
 

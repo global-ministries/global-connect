@@ -17,7 +17,8 @@
 --   Dream Team: every active servicio with nivel lider or higher in an active
 --     equipo. Dirección = the root of that equipo; área = the ancestor right
 --     below the root (the equipo itself when it hangs from the root); equipo =
---     the equipo (null when it is the root or the área).
+--     the equipo, named by its path below the área ("Waumba Land ›
+--     Anfitriones"; null when it is the root or the área).
 --   Grupos de Vida: dirección = the root equipo with experiencia 'grupos_vida'
 --     (Dirección de Grupos de Vida). A Líder of a current group → área = its
 --     segmento, equipo = the group. A director de etapa → área = their
@@ -63,7 +64,14 @@ as $$
     select s.equipo_id,
            s.cadena[cardinality(s.cadena)] as raiz_id,
            case when cardinality(s.cadena) >= 2 then s.cadena[cardinality(s.cadena) - 1] end as area_id,
-           case when cardinality(s.cadena) >= 3 then s.equipo_id end as hoja_id
+           case when cardinality(s.cadena) >= 3 then s.equipo_id end as hoja_id,
+           -- Named by its path below the área: two "Anfitriones" under
+           -- different sub-áreas stay apart ("Waumba Land › Anfitriones").
+           case when cardinality(s.cadena) >= 3 then
+             (select string_agg(x.label, ' › ' order by u.ord desc)
+                from unnest(s.cadena[1:cardinality(s.cadena) - 2]) with ordinality as u(id, ord)
+                join public.dream_team_equipos x on x.id = u.id)
+           end as hoja_label
     from sube s
     where s.siguiente is null
   ),
@@ -87,8 +95,14 @@ as $$
                limit 1),
              jsonb_build_object('id', 'grupos_vida', 'label', 'Grupos de Vida')) as d
   ),
+  -- Two current groups of one segmento can share a name when two temporadas
+  -- are active at once; the temporada then tells them apart.
   grupos_vigentes as (
-    select g.id, g.nombre, g.segmento_id
+    select g.id,
+           case when count(*) over (partition by g.segmento_id, g.nombre) > 1
+                then g.nombre || ' (' || t.nombre || ')'
+                else g.nombre end as nombre,
+           g.segmento_id
     from public.grupos g
     join public.temporadas t on t.id = g.temporada_id
     where g.activo
@@ -100,14 +114,13 @@ as $$
     select sv.persona_id as lider_id,
            ra.id::text as direccion_id, ra.label as direccion,
            ar.id::text as area_id, ar.label as area,
-           ho.id::text as equipo_id, ho.label as equipo
+           ru.hoja_id::text as equipo_id, ru.hoja_label as equipo
     from public.dream_team_servicios sv
     join public.dream_team_equipos e on e.id = sv.equipo_id
     join public.dream_team_roles r on r.id = sv.rol_id
     join rutas ru on ru.equipo_id = sv.equipo_id
     join public.dream_team_equipos ra on ra.id = ru.raiz_id
     left join public.dream_team_equipos ar on ar.id = ru.area_id
-    left join public.dream_team_equipos ho on ho.id = ru.hoja_id
     where sv.estado = 'activo'
       and e.activo
       and r.nivel in ('director', 'coordinador', 'lider')
