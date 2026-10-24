@@ -9,7 +9,7 @@ import { useNotificaciones } from "@/hooks/use-notificaciones";
 import { crearSolicitudGrupo } from "@/lib/actions/solicitudes-grupo.actions";
 import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "@/components/modals/ConfirmationModal";
-import { ContenedorDashboard, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema, TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 
 const MapModal = dynamic(() => import("@/components/modals/MapModal"), {
@@ -22,14 +22,14 @@ const AddMemberModal = dynamic(() => import("@/components/modals/AddMemberModal"
 });
 const GroupPDFExportButton = dynamic(() => import("@/components/grupos/GroupPDFExportButton"), {
   ssr: false,
-  loading: () => <div className="w-full h-10 bg-muted animate-pulse rounded-lg"></div>
+  loading: () => <div className="w-full h-10 bg-muted animate-pulse rounded-xl"></div>
 });
 
 import { ReactNode } from "react";
 
 function GlassCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`backdrop-blur-2xl bg-card/30 border border-border rounded-3xl p-6 lg:p-8 shadow-2xl ${className}`}>
+    <div className={`backdrop-blur-2xl bg-card/30 border border-border rounded-2xl p-6 lg:p-8 shadow-2xl ${className}`}>
       {children}
     </div>
   );
@@ -198,10 +198,10 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
   };
 
   return (
-    <ContenedorDashboard
+    <PaginaSistema
       titulo={grupo.nombre}
-      subtitulo={`${grupo.segmento_nombre || ''} ${grupo.temporada_nombre ? `• ${grupo.temporada_nombre}` : ''}`}
-      botonRegreso={{ href: '/grupos-vida', texto: 'Volver' }}
+      descripcion={[grupo.segmento_nombre, grupo.temporada_nombre].filter(Boolean).join(' • ') || undefined}
+      regreso={{ href: '/grupos-vida', texto: 'Volver' }}
     >
 
       {/* Tarjeta Principal — Header del Grupo */}
@@ -361,7 +361,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                             type="button"
                             aria-label="Quitar miembro del grupo"
                             title="Eliminar del grupo"
-                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-destructive transition-colors"
+                            className="p-1.5 rounded-xl hover:bg-destructive/10 text-destructive transition-colors"
                             onClick={() => onRemoveMember(miembro.id)}
                             disabled={roleUpdatingId === miembro.id || removingId === miembro.id}
                           >
@@ -372,7 +372,7 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
                             type="button"
                             aria-label="Solicitar eliminación del miembro"
                             title="Solicitar eliminación"
-                            className="p-1.5 rounded-lg hover:bg-orange-500/10 text-orange-500 transition-colors"
+                            className="p-1.5 rounded-xl hover:bg-orange-500/10 text-orange-500 transition-colors"
                             onClick={() => {
                               setPendingRequestId(miembro.id);
                               setPendingRequestName(`${miembro.nombre} ${miembro.apellido}`);
@@ -546,6 +546,6 @@ export default function GrupoDetailClient({ grupo, id }: GrupoDetailClientProps)
         message={`Se enviará una solicitud para eliminar a ${pendingRequestName} del grupo de vida. Un superior revisará y aprobará la solicitud. ¿Deseas continuar?`}
         isLoading={requestingId != null}
       />
-    </ContenedorDashboard>
+    </PaginaSistema>
   );
 }

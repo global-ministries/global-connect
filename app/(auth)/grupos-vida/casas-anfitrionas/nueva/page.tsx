@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno";
+import { PaginaSistema } from "@/components/ui/sistema-diseno";
 import { NuevaCasaClient } from "./nueva-casa-client";
 import {
     obtenerPermisosCasaAnfitrionaUI,
@@ -52,19 +52,17 @@ export default async function NuevaCasaAnfitrionaPage() {
     }));
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo="Registrar Casa Anfitriona"
-                botonRegreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
+                regreso={{ href: "/grupos-vida/casas-anfitrionas", texto: "Casas Anfitrionas" }}
             >
-                <TarjetaSistema className="p-4 sm:p-6">
-                    <NuevaCasaClient
-                        estados={estadosOptions}
-                        municipios={municipiosOptions}
-                        parroquias={parroquiasOptions}
-                        usuarios={usuariosOptions}
-                        mostrarSelectorUsuario={permisosCasa.puedeCrearParaOtros}
-                    />
-                </TarjetaSistema>
-            </ContenedorDashboard>
+                <NuevaCasaClient
+                    estados={estadosOptions}
+                    municipios={municipiosOptions}
+                    parroquias={parroquiasOptions}
+                    usuarios={usuariosOptions}
+                    mostrarSelectorUsuario={permisosCasa.puedeCrearParaOtros}
+                />
+            </PaginaSistema>
 );
 }

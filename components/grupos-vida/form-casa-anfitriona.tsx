@@ -6,7 +6,7 @@ import { z } from "zod"
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { obtenerDireccionUsuario, obtenerRelacionesFamiliares } from "@/lib/actions/casas-anfitrionas.actions"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
-import { InputSistema, TextareaSistema, SelectSistema, BotonSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { InputSistema, TextareaSistema, SelectSistema, BotonSistema, PieAccionesSistema, TituloSistema, TarjetaSistema, SeccionesSistema, CamposSistema } from "@/components/ui/sistema-diseno"
 import { Home, MapPin, Hash, Save, Loader2, User, Users, Check } from "lucide-react"
 import LocationPicker from "@/components/maps/LocationPicker.client"
 import { SelectorPropietarioCasa } from "@/components/grupos-vida/selector-propietario-casa"
@@ -351,9 +351,10 @@ export function FormCasaAnfitriona({
 
     return (
         <form onSubmit={handleSubmit(processSubmit)} className="space-y-6">
+            <SeccionesSistema>
             {/* Selector de usuario (solo admin/líder) */}
             {mostrarSelectorUsuario && (
-                <div className="space-y-4">
+                <TarjetaSistema className="space-y-4">
                     <TituloSistema nivel={4}>Propietario de la casa</TituloSistema>
                     <Controller
                         name="usuario_id"
@@ -380,12 +381,12 @@ export function FormCasaAnfitriona({
                     <p className="text-xs text-muted-foreground">
                         Al seleccionar un miembro, su dirección se carga automáticamente.
                     </p>
-                </div>
+                </TarjetaSistema>
             )}
 
             {/* Co-anfitrión familiar */}
             {familiares.length > 0 && (
-                <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/30 p-4">
+                <TarjetaSistema className="space-y-3">
                     <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-orange-500" />
                         <TituloSistema nivel={4} className="!mb-0">
@@ -455,45 +456,51 @@ export function FormCasaAnfitriona({
                             Co-anfitrión seleccionado. Ambos aparecerán como anfitriones de esta casa.
                         </p>
                     )}
-                </div>
+                </TarjetaSistema>
             )}
 
             {/* Información del lugar */}
-            <div className="space-y-4">
+            <TarjetaSistema className="space-y-4">
                 <TituloSistema nivel={4}>Información del lugar</TituloSistema>
 
-                <InputSistema
-                    label="Nombre del lugar"
-                    icono={Home}
-                    placeholder="Ej: Casa de la familia Pérez"
-                    error={errors.nombre_lugar?.message}
-                    {...register("nombre_lugar")}
-                />
+                <CamposSistema>
+                    <div className="col-span-full">
+                        <InputSistema
+                            label="Nombre del lugar"
+                            icono={Home}
+                            placeholder="Ej: Casa de la familia Pérez"
+                            error={errors.nombre_lugar?.message}
+                            {...register("nombre_lugar")}
+                        />
+                    </div>
 
-                <TextareaSistema
-                    label="Descripción"
-                    filas={2}
-                    placeholder="Breve descripción del espacio disponible..."
-                    error={errors.descripcion?.message}
-                    {...register("descripcion")}
-                />
+                    <div className="col-span-full">
+                        <TextareaSistema
+                            label="Descripción"
+                            filas={2}
+                            placeholder="Breve descripción del espacio disponible..."
+                            error={errors.descripcion?.message}
+                            {...register("descripcion")}
+                        />
+                    </div>
 
-                <InputSistema
-                    label="Capacidad máxima"
-                    icono={Hash}
-                    type="number"
-                    placeholder="Ej: 20"
-                    error={errors.capacidad_maxima?.message}
-                    {...register("capacidad_maxima", { valueAsNumber: true })}
-                />
-            </div>
+                    <InputSistema
+                        label="Capacidad máxima"
+                        icono={Hash}
+                        type="number"
+                        placeholder="Ej: 20"
+                        error={errors.capacidad_maxima?.message}
+                        {...register("capacidad_maxima", { valueAsNumber: true })}
+                    />
+                </CamposSistema>
+            </TarjetaSistema>
 
             {/* Dirección */}
-            <div className="space-y-4">
+            <TarjetaSistema className="space-y-4">
                 <TituloSistema nivel={4}>Dirección</TituloSistema>
 
                 {/* Selects en cascada PRIMERO: Estado → Municipio → Parroquia */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <CamposSistema>
                     {estados.length > 0 && (
                         <Controller
                             name="estado_id"
@@ -557,18 +564,18 @@ export function FormCasaAnfitriona({
                             />
                         )}
                     />
-                </div>
 
-                {/* Campos de dirección específica */}
-                <InputSistema
-                    label="Calle / Avenida"
-                    icono={MapPin}
-                    placeholder="Ej: Carrera 31 con calle 24"
-                    error={errors.calle?.message}
-                    {...register("calle")}
-                />
+                    {/* Campos de dirección específica */}
+                    <div className="col-span-full">
+                        <InputSistema
+                            label="Calle / Avenida"
+                            icono={MapPin}
+                            placeholder="Ej: Carrera 31 con calle 24"
+                            error={errors.calle?.message}
+                            {...register("calle")}
+                        />
+                    </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <InputSistema
                         label="Barrio / Urbanización"
                         placeholder="Ej: Urb. Las Acacias"
@@ -581,18 +588,20 @@ export function FormCasaAnfitriona({
                         error={errors.codigo_postal?.message}
                         {...register("codigo_postal")}
                     />
-                </div>
 
-                <InputSistema
-                    label="Referencia"
-                    placeholder="Ej: Frente a la plaza"
-                    error={errors.referencia?.message}
-                    {...register("referencia")}
-                />
-            </div>
+                    <div className="col-span-full">
+                        <InputSistema
+                            label="Referencia"
+                            placeholder="Ej: Frente a la plaza"
+                            error={errors.referencia?.message}
+                            {...register("referencia")}
+                        />
+                    </div>
+                </CamposSistema>
+            </TarjetaSistema>
 
             {/* Mapa de geolocalización */}
-            <div className="space-y-4">
+            <TarjetaSistema className="space-y-4">
                 <TituloSistema nivel={4}>Ubicación en el mapa</TituloSistema>
                 <p className="text-sm text-muted-foreground">
                     {geocodificando
@@ -615,16 +624,16 @@ export function FormCasaAnfitriona({
                         />
                     )}
                 />
-            </div>
+            </TarjetaSistema>
 
             {/* Disponibilidad por día */}
-            <div className="space-y-3">
+            <TarjetaSistema className="space-y-3">
                 <TituloSistema nivel={4}>Disponibilidad semanal</TituloSistema>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {DIAS_SEMANA.map(({ key, label }) => (
                         <label
                             key={key}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border p-2 transition-colors duration-200 hover:bg-muted/50"
+                            className="flex cursor-pointer items-center gap-2 rounded-xl border border-border p-2 transition-colors duration-200 hover:bg-muted/50"
                         >
                             <input
                                 type="checkbox"
@@ -635,19 +644,20 @@ export function FormCasaAnfitriona({
                         </label>
                     ))}
                 </div>
-            </div>
 
-            {/* Notas públicas */}
-            <TextareaSistema
-                label="Notas públicas"
-                filas={2}
-                placeholder="Información visible para los miembros del grupo..."
-                error={errors.notas_publicas?.message}
-                {...register("notas_publicas")}
-            />
+                {/* Notas públicas */}
+                <TextareaSistema
+                    label="Notas públicas"
+                    filas={2}
+                    placeholder="Información visible para los miembros del grupo..."
+                    error={errors.notas_publicas?.message}
+                    {...register("notas_publicas")}
+                />
+            </TarjetaSistema>
+            </SeccionesSistema>
 
             {/* Acciones */}
-            <div className="flex justify-end gap-3 pt-2">
+            <PieAccionesSistema fijo={false} className="bg-transparent">
                 <BotonSistema variante="outline" onClick={onCancelar} type="button">
                     Cancelar
                 </BotonSistema>
@@ -659,7 +669,7 @@ export function FormCasaAnfitriona({
                 >
                     {datosIniciales ? "Guardar cambios" : "Registrar casa"}
                 </BotonSistema>
-            </div>
+            </PieAccionesSistema>
         </form>
     );
 }

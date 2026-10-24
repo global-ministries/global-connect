@@ -1,5 +1,5 @@
 
-import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { redirect } from "next/navigation"
@@ -22,10 +22,10 @@ export default async function DashboardRiesgoPage() {
 
     if (!result.success || !result.data) {
         return (
-<ContenedorDashboard
+<PaginaSistema
                     titulo="Salud de los Grupos"
                     descripcion="Vista panorámica de la salud de todos los grupos de vida."
-                    botonRegreso={{ href: "/grupos-vida", texto: "Volver" }}
+                    regreso={{ href: "/grupos-vida", texto: "Volver" }}
                 >
                     <TarjetaSistema variante="outlined" className="p-6 text-center">
                         <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
@@ -33,17 +33,17 @@ export default async function DashboardRiesgoPage() {
                             {result.error || "No se pudo cargar el dashboard. Verifica tus permisos."}
                         </p>
                     </TarjetaSistema>
-                </ContenedorDashboard>
+                </PaginaSistema>
 )
     }
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo="Salud de los Grupos"
                 descripcion="Monitoreo de asistencia, riesgo y tendencias de todos los grupos de vida."
-                botonRegreso={{ href: "/grupos-vida", texto: "Volver" }}
+                regreso={{ href: "/grupos-vida", texto: "Volver" }}
             >
                 <DashboardRiesgoClient data={result.data} />
-            </ContenedorDashboard>
+            </PaginaSistema>
 )
 }

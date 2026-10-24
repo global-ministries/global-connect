@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema, TextoSistema, TituloSistema } from "@/components/ui/sistema-diseno"
 import { extraerRelacion } from "@/lib/supabase/helpers"
 import { listarCasasAnfitrionas, obtenerGruposSinCasaAnfitriona } from "@/lib/actions/casas-anfitrionas.actions"
 import { AsignarCasaAnfitrionaClient, type AssignmentCasaOption, type AssignmentGroupOption } from "./asignar-casa-client"
@@ -53,9 +53,9 @@ export default async function AsignarCasaAnfitrionaPage({ searchParams }: Assign
   if (!casasLoaded) logAssignmentLoadIssue("casas", casasResult)
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Asignar Casa Anfitriona"
-        botonRegreso={{ href: "/dashboard", texto: "Dashboard" }}
+        regreso={{ href: "/dashboard", texto: "Dashboard" }}
       >
         <TarjetaSistema variante="outlined" className="p-4 sm:p-5">
           <TextoSistema variante="sutil">
@@ -67,7 +67,7 @@ export default async function AsignarCasaAnfitrionaPage({ searchParams }: Assign
         ) : (
           <AsignarCasaAnfitrionaClient grupos={grupos} casas={casas} initialGroupId={initialGroupId} />
         )}
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }
 

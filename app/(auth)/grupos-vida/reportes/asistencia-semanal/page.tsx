@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import ReporteSemanal from '@/components/reportes/ReporteSemanal.client'
 
 type PageProps = {
@@ -42,30 +42,28 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
   // Manejar errores
   if (reporteError) {
     return (
-<ContenedorDashboard
+<PaginaSistema
           titulo="Reporte Semanal de Asistencia"
           descripcion="Análisis consolidado de asistencia"
-          accionPrincipal={null}
         >
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
+              <div className="text-danger-text text-6xl mb-4">⚠️</div>
               <h2 className="text-2xl font-bold text-foreground mb-2">Error al cargar el reporte</h2>
               <p className="text-muted-foreground mb-4">
                 {reporteError.message || 'No se pudo obtener el reporte de asistencia semanal.'}
               </p>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
   if (!reporteData) {
     return (
-<ContenedorDashboard
+<PaginaSistema
           titulo="Reporte Semanal de Asistencia"
           descripcion="Análisis consolidado de asistencia"
-          accionPrincipal={null}
         >
           <div className="flex items-center justify-center min-h-[50vh]">
             <div className="text-center">
@@ -76,12 +74,12 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
               </p>
             </div>
           </div>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Reporte Semanal de Asistencia"
         descripcion={`Semana del ${new Date((reporteData as any).semana.inicio).toLocaleDateString('es-ES', {
           day: 'numeric',
@@ -93,9 +91,8 @@ export default async function ReporteSemanalPage({ searchParams }: PageProps) {
           year: 'numeric',
           timeZone: 'UTC'
         })}`}
-        accionPrincipal={null}
       >
         <ReporteSemanal reporte={reporteData as any} incluirTodosInicial={incluirTodos} />
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

@@ -52,7 +52,7 @@ export function TarjetaDirectorGeneral({ tarjeta, guardado }: TarjetaDirectorGen
         <div className="flex items-center gap-3.5">
           <div
             aria-hidden="true"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--brand-accent-strong)] text-[15px] font-bold text-[var(--brand-primary)]"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-tint text-[15px] font-bold text-brand-text"
           >
             {tarjeta.iniciales}
           </div>

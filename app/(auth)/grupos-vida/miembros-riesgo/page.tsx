@@ -1,5 +1,5 @@
 
-import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { redirect } from "next/navigation"
@@ -24,25 +24,25 @@ export default async function MiembrosRiesgoPage() {
 
     if (error) {
         return (
-<ContenedorDashboard
+<PaginaSistema
                     titulo="Miembros en Riesgo"
-                    botonRegreso={{ href: "/grupos-vida/dashboard-riesgo", texto: "Volver" }}
+                    regreso={{ href: "/grupos-vida/dashboard-riesgo", texto: "Volver" }}
                 >
                     <TarjetaSistema variante="outlined" className="p-6 text-center">
                         <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                         <p className="text-muted-foreground">{error.message}</p>
                     </TarjetaSistema>
-                </ContenedorDashboard>
+                </PaginaSistema>
 )
     }
 
     return (
-<ContenedorDashboard
+<PaginaSistema
                 titulo="Miembros en Riesgo"
                 descripcion="Listado completo de miembros que necesitan seguimiento pastoral."
-                botonRegreso={{ href: "/grupos-vida/dashboard-riesgo", texto: "Dashboard" }}
+                regreso={{ href: "/grupos-vida/dashboard-riesgo", texto: "Dashboard" }}
             >
                 <MiembrosRiesgoClient miembros={data ?? []} />
-            </ContenedorDashboard>
+            </PaginaSistema>
 )
 }

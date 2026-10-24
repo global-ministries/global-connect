@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import GruposListClient from "@/components/grupos/GruposList.client"
 
-import { ContenedorDashboard, BotonSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { obtenerConfiguracionGrupos } from "@/lib/actions/configuracion-grupos-vida.actions"
 
 // (El color por segmento ahora se maneja dentro del componente cliente)
@@ -136,10 +136,10 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
     const canRestore = roles.some(r => ["admin", "pastor", "director-general"].includes(r))
 
     return (
-<ContenedorDashboard
+<PaginaSistema
           titulo="Grupos"
           descripcion="Administra y organiza los grupos de tu comunidad"
-          accionPrincipal={canCreateSuperior ? (
+          acciones={canCreateSuperior ? (
             <Link href="/grupos-vida/importar">
               <BotonSistema variante="outline" tamaño="sm" icono={Upload}>
                 Importar CSV
@@ -170,15 +170,15 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
             preFuturos={gruposFuturos}
             totalFuturos={totalFuturos}
           />
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   } catch {
     // Error silencioso: se renderiza layout vacío de fallback
   }
   // En caso de excepción previa devuelve layout básico vacío
   return (
-<ContenedorDashboard titulo="Grupos" descripcion="Administra y organiza los grupos de tu comunidad">
+<PaginaSistema titulo="Grupos" descripcion="Administra y organiza los grupos de tu comunidad">
         <GruposListClient grupos={[]} segmentos={[]} temporadas={[]} totalCount={0} pageSize={pageSize} />
-      </ContenedorDashboard>
+      </PaginaSistema>
 )
 }

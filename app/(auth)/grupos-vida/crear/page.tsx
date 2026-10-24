@@ -4,7 +4,7 @@ import GroupCreateForm from "@/components/forms/GroupCreateForm"
 import { getUserWithRoles } from "@/lib/getUserWithRoles"
 import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 
-import { ContenedorDashboard, TarjetaSistema } from "@/components/ui/sistema-diseno"
+import { PaginaSistema, TarjetaSistema } from "@/components/ui/sistema-diseno"
 
 export default async function CreateGroupPage() {
   const supabase = await createSupabaseServerClient();
@@ -21,15 +21,14 @@ export default async function CreateGroupPage() {
   // Si no es admin/pastor/director-general ni director-etapa, redirigir a listado
   if (!esAdminOPastorODG && !esDirectorEtapa) {
     return (
-<ContenedorDashboard
+<PaginaSistema
           titulo="Crear Grupo"
-          descripcion="No tienes permisos para crear grupos"
-          botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
+          regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
         >
           <TarjetaSistema>
-            <div className="text-sm text-red-600">No Tienes permisos para crear grupos.</div>
+            <div className="text-sm text-danger-text">No Tienes permisos para crear grupos.</div>
           </TarjetaSistema>
-        </ContenedorDashboard>
+        </PaginaSistema>
 )
   }
 
@@ -104,14 +103,13 @@ export default async function CreateGroupPage() {
   }
 
   return (
-<ContenedorDashboard
+<PaginaSistema
         titulo="Crear Grupo"
         descripcion="Ingresa los datos para crear un nuevo grupo"
-        botonRegreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
+        regreso={{ href: '/grupos-vida', texto: 'Volver a Grupos' }}
       >
-        <TarjetaSistema>
-          <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} directoresPropios={directoresPropios} />
-        </TarjetaSistema>
-      </ContenedorDashboard>
+        {/* The form renders its own section cards: no wrapper card around it. */}
+        <GroupCreateForm temporadas={temporadas} segmentos={segmentos} userRoles={roles} directoresPropios={directoresPropios} />
+      </PaginaSistema>
 );
 }
