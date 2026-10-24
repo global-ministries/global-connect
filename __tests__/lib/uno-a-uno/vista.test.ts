@@ -155,6 +155,8 @@ describe('parsearLideresSupervision', () => {
         ultimoRealizado: null,
         ubicaciones: [],
         pareja: [{ id: 'l-2', nombre: 'Pedro', apellido: 'Ruiz' }],
+        rango: 4,
+        rol: 'Líder',
       },
       {
         usuarioId: 'l-1',
@@ -167,8 +169,18 @@ describe('parsearLideresSupervision', () => {
         ultimoRealizado: '2026-10-20T19:30:00Z',
         ubicaciones: [],
         pareja: [{ id: 'l-1', nombre: 'Ana', apellido: null }],
+        rango: 4,
+        rol: 'Líder',
       },
     ])
+  })
+
+  // S12.1: the highest role of the row, as the database ranks it.
+  it('reads the rango and rol of a row', () => {
+    const [fila] = parsearLideresSupervision([
+      { usuario_id: 'l-1', nombre: 'Eduardo', apellido: 'Durán', rango: 1, rol: 'Director general' },
+    ])
+    expect([fila.rango, fila.rol]).toEqual([1, 'Director general'])
   })
 
   // S11.2/S11.4: a couple who lead the same thing is one row with both people.

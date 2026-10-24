@@ -82,6 +82,9 @@ export interface LiderSupervisado {
    * thing. Empty means the leader alone.
    */
   readonly pareja: readonly PersonaUnoAUno[]
+  /** The highest role of the row (T12): 1 director general, 2 director, 3 coordinador, 4 líder. */
+  readonly rango: number
+  readonly rol: string
 }
 
 /** The two views of /mis-uno-a-uno, picked with ?vista=. */
@@ -229,6 +232,8 @@ export function parsearLideresSupervision(
       ultimoRealizado: texto(row.ultimo_realizado),
       ubicaciones: ubicaciones(row.ubicaciones),
       pareja: row.pareja === undefined ? [{ id: usuarioId, nombre, apellido: texto(row.apellido) }] : personas(row.pareja),
+      rango: typeof row.rango === 'number' && Number.isFinite(row.rango) ? row.rango : 4,
+      rol: texto(row.rol) ?? 'Líder',
     })
   }
   return result
