@@ -274,7 +274,7 @@ function nombreCompleto(nombre: string, apellido: string | null): string {
 }
 
 /** "Ana Pérez y Luis Gómez". */
-export function nombresDe(lista: readonly PersonaUnoAUno[]): string {
+export function nombresDe<P extends Pick<PersonaUnoAUno, 'nombre' | 'apellido'>>(lista: readonly P[]): string {
   const nombres = lista.map((p) => nombreCompleto(p.nombre, p.apellido))
   if (nombres.length <= 1) return nombres[0] ?? ''
   return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
