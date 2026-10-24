@@ -9,7 +9,8 @@
  * and the route /api/ninos/mis-hijos/[id] (ninos_mis_hijos_guardar plus the
  * pickup-change email) with the user's session; the SQL decides which
  * children are theirs. A likely duplicate waits as a pending request until
- * the check-in table confirms it.
+ * the check-in table confirms it. "Voy en camino" (P2) tells the table the
+ * family is on its way while a service of today is in its window.
  */
 import { useState } from 'react'
 import { Clock, Plus, RefreshCw } from 'lucide-react'
@@ -24,10 +25,12 @@ import {
   type NombreHijo,
   type ResultadoRegistro,
 } from '@/lib/platform/ninos/mis-hijos-registrar'
+import type { MisPrechecks } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
 import { RegistrarMisHijosForm } from './mis-hijos-registrar'
 import { TarjetaMiHijo } from './mis-hijos-tarjeta'
+import { VoyEnCamino } from './voy-en-camino'
 
 /**
  * The notice after a save or a registration; desactualizado when the list
@@ -40,9 +43,13 @@ type Props = {
   hijos: MiHijo[]
   /** My requests waiting for the check-in table (ninos_mis_hijos_pendientes). */
   pendientes?: NombreHijo[]
+  /** Today's services in their window and my notices (ninos_mis_prechecks). */
+  prechecks?: MisPrechecks
 }
 
-export function MisHijos({ hijos: iniciales, pendientes: pendientesIniciales = [] }: Props) {
+const SIN_PRECHECKS: MisPrechecks = { servicios: [], avisos: [] }
+
+export function MisHijos({ hijos: iniciales, pendientes: pendientesIniciales = [], prechecks = SIN_PRECHECKS }: Props) {
   const [hijos, setHijos] = useState(iniciales)
   const [pendientes, setPendientes] = useState(pendientesIniciales)
   const [editando, setEditando] = useState<MiHijo | null>(null)
@@ -108,7 +115,7 @@ export function MisHijos({ hijos: iniciales, pendientes: pendientesIniciales = [
   }
 
   return (
-    <section aria-labelledby="mis-hijos-titulo" className="space-y-4">
+    <section id="mis-hijos" aria-labelledby="mis-hijos-titulo" className="scroll-mt-24 space-y-4">
       <div className="space-y-1">
         <TituloSistema nivel={2} id="mis-hijos-titulo">
           Mis hijos
@@ -117,6 +124,7 @@ export function MisHijos({ hijos: iniciales, pendientes: pendientesIniciales = [
           Mantén sus datos al día: el equipo de Niños los usa el domingo al recibirlos.
         </TextoSistema>
       </div>
+      {hijos.length > 0 && <VoyEnCamino hijos={hijos} prechecks={prechecks} />}
       {aviso && !aviso.desactualizado && aviso.texto && (
         <p role="status" className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
           {aviso.texto}

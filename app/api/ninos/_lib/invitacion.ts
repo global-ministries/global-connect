@@ -6,6 +6,7 @@
  */
 import { createElement } from 'react'
 
+import { DESTINO_MIS_HIJOS, enlaceInvitacionConDestino } from '@/lib/auth/destino-mis-hijos'
 import { sendEmail } from '@/lib/email/send'
 import { InvitacionCuentaEmail } from '@/lib/email/invitacion-cuenta-email'
 import type { DependenciasInvitacion } from '@/lib/platform/cuentas/invitacion-cuenta'
@@ -15,7 +16,7 @@ import { rpcSinTipos } from './avisos'
 
 type RespuestaRpc = Awaited<ReturnType<DependenciasInvitacion['rpcUsuario']>>
 
-function urlBaseSitio(): string {
+export function urlBaseSitio(): string {
   const configurada = process.env.NEXT_PUBLIC_SITE_URL
   if (configurada) return configurada.replace(/\/+$/, '')
   const vercel = process.env.VERCEL_BRANCH_URL || process.env.VERCEL_URL
@@ -51,8 +52,18 @@ export function dependenciasInvitacionNinos(crear: (email: string) => PromiseLik
         return { data: { userId: data.user.id, hashedToken: data.properties.hashed_token }, error: null }
       },
     },
+    // After choosing the password the parent lands on Mi Perfil → Mis hijos (R3b).
     enviarCorreo: ({ to, subject, nombre, enlace, idempotencyKey }) =>
-      sendEmail({ to, subject, template: createElement(InvitacionCuentaEmail, { nombre, urlAceptar: enlace }), idempotencyKey }),
+      sendEmail({
+        to,
+        subject,
+        template: createElement(InvitacionCuentaEmail, {
+          nombre,
+          urlAceptar: enlaceInvitacionConDestino(enlace, DESTINO_MIS_HIJOS),
+          deNinos: true,
+        }),
+        idempotencyKey,
+      }),
     urlBase: urlBaseSitio(),
   }
 }

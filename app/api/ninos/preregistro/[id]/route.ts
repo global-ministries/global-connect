@@ -14,13 +14,14 @@
 import { createElement } from 'react'
 import { after, NextRequest, NextResponse } from 'next/server'
 
+import { DESTINO_MIS_HIJOS } from '@/lib/auth/destino-mis-hijos'
 import { sendEmail } from '@/lib/email/send'
 import { NinosBienvenidaEmail } from '@/lib/email/ninos-bienvenida-email'
 import { enviarInvitacionCuenta } from '@/lib/platform/cuentas/invitacion-cuenta'
 import { parseResolucion, resolverPreregistro } from '@/lib/platform/ninos/preregistro-resolver'
 
 import { rpcSinTipos, sesion } from '../../_lib/avisos'
-import { dependenciasInvitacionNinos } from '../../_lib/invitacion'
+import { dependenciasInvitacionNinos, urlBaseSitio } from '../../_lib/invitacion'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           sendEmail({
             to,
             subject: 'Bienvenidos a Waumba Land / UpStreet',
-            template: createElement(NinosBienvenidaEmail, { nombre }),
+            template: createElement(NinosBienvenidaEmail, { nombre, urlMisHijos: `${urlBaseSitio()}${DESTINO_MIS_HIJOS}` }),
             idempotencyKey,
           }),
         enSegundoPlano: (tarea) => after(tarea),

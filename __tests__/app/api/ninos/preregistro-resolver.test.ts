@@ -86,6 +86,20 @@ describe('POST /api/ninos/preregistro/[id]', () => {
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ subject: 'Bienvenidos a Waumba Land / UpStreet', idempotencyKey: `ninos-bienvenida-${ID}` }))
   })
 
+  it('the invitation lands on Mis hijos after the password, and both emails point there', async () => {
+    setup()
+    await post({ accion: 'confirmar', payload, email: 'ana@example.test' })
+    await tareasAfter.splice(0)[0]()
+    const [invitacion, bienvenida] = sendEmail.mock.calls.map((c) => c[0].template.props)
+    expect(invitacion.deNinos).toBe(true)
+    const enlace = new URL(invitacion.urlAceptar)
+    expect(enlace.pathname).toBe('/auth/confirm')
+    const siguiente = new URL(enlace.searchParams.get('next') as string, enlace.origin)
+    expect(siguiente.pathname).toBe('/auth/reset-password')
+    expect(siguiente.searchParams.get('next')).toBe('/perfil#mis-hijos')
+    expect(bienvenida.urlMisHijos).toMatch(/^https?:\/\/[^/]+\/perfil#mis-hijos$/)
+  })
+
   it('resends a failed invitation through the same preregistro-bound RPC, without resolving again', async () => {
     setup()
     const res = await post({ accion: 'invitar', email: 'ana@example.test' })
