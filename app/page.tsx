@@ -4,6 +4,7 @@ import { Lock, Mail, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import { login } from "@/lib/actions/auth.actions"
+import { conDestino } from "@/lib/auth/redirect-seguro"
 import { createClient } from "@/lib/supabase/client"
 import { LogoGlobalConnect } from "@/components/ui/logo-global-connect"
 import {
@@ -47,7 +48,9 @@ export default function PaginaLogin() {
     setError("")
 
     try {
-      const result = await login(new FormData(e.currentTarget))
+      // Where to go after signing in (?redirect=, set by the middleware or a public page).
+      // Read at submit time to avoid a Suspense boundary; the action validates it.
+      const result = await login(conDestino(new FormData(e.currentTarget), window.location.search))
       if (result?.error) {
         setError(result.error)
         setCargando(false)
