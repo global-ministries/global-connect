@@ -55,10 +55,21 @@ jest.mock('@/components/ui/desktop-header', () => ({
   ),
 }))
 
+// Most of each test is React re-rendering the 40-row table plus the cards on
+// every filter change (~50 ms a commit alone). Alone the slowest test takes
+// ~0.5 s; on a loaded machine (full suite, parallel runs) CPU contention
+// stretches that past Jest's 5 s default, so the budget here is 15 s.
+jest.setTimeout(15_000)
+
+// `delay: null` skips the macrotask userEvent v14 schedules between actions
+// (its default delay of 0 still yields to the event loop).
+let user: ReturnType<typeof userEvent.setup>
+
 beforeEach(() => {
   campusActivoId = null
   replace.mockClear()
   refresh.mockClear()
+  user = userEvent.setup({ delay: null })
 })
 
 function props(overrides: Partial<ServidoresClientProps> = {}): ServidoresClientProps {
@@ -73,9 +84,25 @@ function props(overrides: Partial<ServidoresClientProps> = {}): ServidoresClient
 }
 
 const tabla = () => screen.getByRole('table', { name: 'Servicios' })
+/**
+ * The table's cells grouped by row, in document order. One query over the whole
+ * table: a `within(row)` query per row makes jsdom's selector engine recompile
+ * the selector for every new context (~2 ms a row, ~90 ms for this fixture).
+ * `hidden: true` skips the per-cell visibility check (a getComputedStyle walk up
+ * every cell's ancestors, ~14 ms a call); `tabla()` already requires the table
+ * to be accessible and no cell is hidden on its own.
+ */
+const celdasPorFila = () => {
+  const porFila = new Map<HTMLElement, HTMLElement[]>()
+  for (const celda of within(tabla()).queryAllByRole('cell', { hidden: true })) {
+    const fila = celda.closest('tr') as HTMLElement
+    porFila.set(fila, [...(porFila.get(fila) ?? []), celda])
+  }
+  return porFila
+}
 /** Data rows only: the header row and the group header rows (no cells) are excluded. */
-const filasDeTabla = () => within(tabla()).getAllByRole('row').filter((r) => within(r).queryAllByRole('cell').length > 0)
-const nombresEnTabla = () => filasDeTabla().map((r) => within(r).getAllByRole('cell')[0].textContent ?? '')
+const filasDeTabla = () => [...celdasPorFila().keys()]
+const nombresEnTabla = () => [...celdasPorFila().values()].map((celdas) => celdas[0].textContent ?? '')
 const pie = () => screen.getByText(/servicios? · \d+ personas?/)
 
 describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
@@ -85,7 +112,7 @@ describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
     expect(screen.getByRole('button', { name: 'Activo 37' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'En orientación 2' })).toBeInTheDocument()
 
-    await userEvent.selectOptions(screen.getByLabelText('Equipo'), ID_PDP)
+    await user.selectOptions(screen.getByLabelText('Equipo'), ID_PDP)
     expect(screen.getByRole('button', { name: 'Activo 13' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'En pausa 0' })).toBeInTheDocument()
   })
@@ -94,21 +121,21 @@ describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
     const activo = screen.getByRole('button', { name: 'Activo 35' })
 
-    await userEvent.click(activo)
+    await user.click(activo)
     expect(activo).toHaveAttribute('aria-pressed', 'true')
     expect(filasDeTabla()).toHaveLength(35)
     expect(within(tabla()).queryByText('En orientación')).not.toBeInTheDocument()
 
-    await userEvent.click(activo)
+    await user.click(activo)
     expect(activo).toHaveAttribute('aria-pressed', 'false')
     expect(filasDeTabla()).toHaveLength(38)
   })
 
   it('mirrors the etapa into the URL without scrolling', async () => {
     render(<ServidoresClient {...props()} />)
-    await userEvent.click(screen.getByRole('button', { name: /^En pausa/ }))
+    await user.click(screen.getByRole('button', { name: /^En pausa/ }))
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?etapa=en_pausa', { scroll: false })
-    await userEvent.click(screen.getByRole('button', { name: /^En pausa/ }))
+    await user.click(screen.getByRole('button', { name: /^En pausa/ }))
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
   })
 })
@@ -120,7 +147,7 @@ describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () 
     render(<ServidoresClient {...props()} />)
     expect(opcionesDe('Equipo')).toContain('Coro')
 
-    await userEvent.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
+    await user.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
     expect(opcionesDe('Equipo')).toEqual(['Todos', 'De Hombre a Hombre', 'Dirección de Conexión', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
     expect(filasDeTabla()).toHaveLength(38)
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion', { scroll: false })
@@ -128,7 +155,7 @@ describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () 
 
   it('choosing an equipo fixes its dirección', async () => {
     render(<ServidoresClient {...props()} />)
-    await userEvent.selectOptions(screen.getByLabelText('Equipo'), ID_CORO)
+    await user.selectOptions(screen.getByLabelText('Equipo'), ID_CORO)
     expect(screen.getByLabelText('Dirección')).toHaveValue('dir-alabanza')
     expect(nombresEnTabla().sort()).toEqual([expect.stringContaining('Sara Ponce'), expect.stringContaining('Tomás Rey')])
   })
@@ -140,7 +167,7 @@ describe('ServidoresClient — quick filters (criterion 3)', () => {
     expect(screen.getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Sin cuenta · 31' }))
+    await user.click(screen.getByRole('button', { name: 'Sin cuenta · 31' }))
     expect(filasDeTabla()).toHaveLength(31)
     expect(pie()).toHaveTextContent('31 servicios · 31 personas')
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?sin_cuenta=1', { scroll: false })
@@ -148,7 +175,7 @@ describe('ServidoresClient — quick filters (criterion 3)', () => {
 
   it('"En varios equipos" lists only people with two or more servicios', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await userEvent.click(screen.getByRole('button', { name: 'En varios equipos · 4' }))
+    await user.click(screen.getByRole('button', { name: 'En varios equipos · 4' }))
     expect(filasDeTabla()).toHaveLength(4)
     expect(pie()).toHaveTextContent('4 servicios · 2 personas')
   })
@@ -157,7 +184,7 @@ describe('ServidoresClient — quick filters (criterion 3)', () => {
 describe('ServidoresClient — grouping and sorting (criteria 4 and 5)', () => {
   it('"Por persona" shows Jose Jimenez with both servicios under one header', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Por persona' }))
+    await user.click(screen.getByRole('button', { name: 'Por persona' }))
 
     const cabecera = within(tabla()).getByRole('rowheader', { name: /Jose Jimenez/ })
     expect(cabecera).toHaveTextContent('2 servicios')
@@ -170,7 +197,7 @@ describe('ServidoresClient — grouping and sorting (criteria 4 and 5)', () => {
 
   it('"Por equipo" adds a header per team with its size', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Por equipo' }))
+    await user.click(screen.getByRole('button', { name: 'Por equipo' }))
     expect(within(tabla()).getByRole('rowheader', { name: /Punto de Partida/ })).toHaveTextContent('14 personas')
     expect(within(tabla()).getByRole('rowheader', { name: /Dirección de Conexión/ })).toHaveTextContent('1 persona')
   })
@@ -180,12 +207,12 @@ describe('ServidoresClient — grouping and sorting (criteria 4 and 5)', () => {
     const columna = () => within(tabla()).getByRole('columnheader', { name: /Equipo/ })
     expect(within(tabla()).getByRole('columnheader', { name: /Persona/ })).toHaveAttribute('aria-sort', 'ascending')
 
-    await userEvent.click(within(tabla()).getByRole('button', { name: 'Ordenar por equipo' }))
+    await user.click(within(tabla()).getByRole('button', { name: 'Ordenar por equipo' }))
     expect(columna()).toHaveAttribute('aria-sort', 'ascending')
     expect(screen.getByText('Orden: equipo, ascendente')).toBeInTheDocument()
     expect(within(filasDeTabla()[0]).getByText('De Hombre a Hombre')).toBeInTheDocument()
 
-    await userEvent.click(within(tabla()).getByRole('button', { name: 'Ordenar por equipo' }))
+    await user.click(within(tabla()).getByRole('button', { name: 'Ordenar por equipo' }))
     expect(columna()).toHaveAttribute('aria-sort', 'descending')
     expect(screen.getByText('Orden: equipo, descendente')).toBeInTheDocument()
     expect(within(filasDeTabla()[0]).getByText('Punto de Partida')).toBeInTheDocument()
@@ -199,8 +226,8 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
   })
 
   it('searches by name (no accents) and phone; the URL follows after a short debounce', async () => {
+    // With `delay: null` userEvent schedules no timers of its own, so the fake clock only drives the debounce.
     jest.useFakeTimers()
-    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime })
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
 
     await user.type(screen.getByRole('searchbox', { name: 'Buscar' }), 'perez')
@@ -219,16 +246,16 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
 
   it('lists every active filter as a pill; the X removes just that one; "Limpiar todo" removes all', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await userEvent.click(screen.getByRole('button', { name: /^Activo/ }))
-    await userEvent.click(screen.getByRole('button', { name: 'Sin cuenta · 28' }))
+    await user.click(screen.getByRole('button', { name: /^Activo/ }))
+    await user.click(screen.getByRole('button', { name: 'Sin cuenta · 28' }))
     const pastillas = screen.getByRole('list', { name: 'Filtros activos' })
     expect(within(pastillas).getAllByRole('button').map((b) => b.textContent)).toEqual(['Etapa: Activo', 'Sin cuenta', 'Limpiar todo'])
 
-    await userEvent.click(within(pastillas).getByRole('button', { name: 'Quitar el filtro Sin cuenta' }))
+    await user.click(within(pastillas).getByRole('button', { name: 'Quitar el filtro Sin cuenta' }))
     expect(within(pastillas).queryByText('Sin cuenta')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^Activo/ })).toHaveAttribute('aria-pressed', 'true')
 
-    await userEvent.click(within(pastillas).getByRole('button', { name: 'Limpiar todo' }))
+    await user.click(within(pastillas).getByRole('button', { name: 'Limpiar todo' }))
     expect(screen.queryByRole('list', { name: 'Filtros activos' })).not.toBeInTheDocument()
     expect(filasDeTabla()).toHaveLength(38)
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
@@ -325,7 +352,7 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
       fila('2', 'Luis Paz', ID_DHAH, 'Facilitador', { telefono: '04245551111' }),
     ]
     render(<ServidoresClient {...props({ filas })} />)
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar' }), '0412 545')
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar' }), '0412 545')
     expect(nombresEnTabla()).toEqual([expect.stringContaining('Ana Ruiz')])
   })
 })
@@ -374,7 +401,7 @@ describe('ServidoresClient — Grupos de Vida directors', () => {
       director('dg', 'Zoe General', 'Director general'),
     ]
     render(<ServidoresClient {...props({ filas })} />)
-    await userEvent.click(screen.getByRole('button', { name: /^Filtros/ }))
+    await user.click(screen.getByRole('button', { name: /^Filtros/ }))
     const selector = screen.getByRole('combobox', { name: 'Rol' })
     const opciones = within(selector).getAllByRole('option').map((o) => o.textContent)
     expect(opciones.slice(-3)).toEqual(['Director general', 'Director de etapa', 'Líder de grupo'])
@@ -415,7 +442,7 @@ describe('ServidoresClient — phone', () => {
     ]
     render(<ServidoresClient {...props({ filas, puedeEditar: true })} />)
     expect(within(tarjetaDe('Marta Ruiz')).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
-    await userEvent.click(within(tarjetaDe('Ana Ruiz')).getByRole('button', { name: 'Acciones para Ana Ruiz' }))
+    await user.click(within(tarjetaDe('Ana Ruiz')).getByRole('button', { name: 'Acciones para Ana Ruiz' }))
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
   })
 
@@ -423,7 +450,7 @@ describe('ServidoresClient — phone', () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
     expect(botonFiltros()).toHaveTextContent(/^Filtros$/)
 
-    await userEvent.click(botonFiltros())
+    await user.click(botonFiltros())
     const hoja = screen.getByRole('dialog', { name: 'Filtros' })
     expect(within(hoja).getByLabelText('Equipo')).toBeInTheDocument()
     expect(within(hoja).getByLabelText('Rol')).toBeInTheDocument()
@@ -435,26 +462,26 @@ describe('ServidoresClient — phone', () => {
 
   it('the sheet filters live, "Ver N" shows the result count and closes, "Limpiar" empties the sheet filters', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await userEvent.click(botonFiltros())
+    await user.click(botonFiltros())
     let hoja = screen.getByRole('dialog', { name: 'Filtros' })
 
-    await userEvent.selectOptions(within(hoja).getByLabelText('Equipo'), ID_PDP)
-    await userEvent.click(within(hoja).getByRole('button', { name: /^Sin cuenta/ }))
+    await user.selectOptions(within(hoja).getByLabelText('Equipo'), ID_PDP)
+    await user.click(within(hoja).getByRole('button', { name: /^Sin cuenta/ }))
     expect(within(hoja).getByRole('button', { name: 'Ver 13' })).toBeInTheDocument()
     expect(replace).toHaveBeenLastCalledWith(
       `/admin/dream-team/servidores?direccion=${ID_CONEXION}&equipo=${ID_PDP}&sin_cuenta=1`,
       { scroll: false },
     )
 
-    await userEvent.click(within(hoja).getByRole('button', { name: 'Limpiar' }))
+    await user.click(within(hoja).getByRole('button', { name: 'Limpiar' }))
     expect(within(hoja).getByRole('button', { name: 'Ver 38' })).toBeInTheDocument()
-    await userEvent.selectOptions(within(hoja).getByLabelText('Rol'), 'Coordinador')
-    await userEvent.click(within(hoja).getByRole('button', { name: 'Ver 4' }))
+    await user.selectOptions(within(hoja).getByLabelText('Rol'), 'Coordinador')
+    await user.click(within(hoja).getByRole('button', { name: 'Ver 4' }))
     expect(screen.queryByRole('dialog', { name: 'Filtros' })).not.toBeInTheDocument()
     expect(botonFiltros()).toHaveTextContent('Filtros · 1')
     expect(within(tarjetas()).getAllByRole('listitem')).toHaveLength(4)
 
-    await userEvent.click(botonFiltros())
+    await user.click(botonFiltros())
     hoja = screen.getByRole('dialog', { name: 'Filtros' })
     expect(within(hoja).getByLabelText('Rol')).toHaveValue('Coordinador')
   })
@@ -463,7 +490,9 @@ describe('ServidoresClient — phone', () => {
 describe('ServidoresClient — empty states', () => {
   it('says when no servicio matches, keeps the pills and offers to clear', async () => {
     render(<ServidoresClient {...props()} />)
-    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar' }), 'nadie-coincide')
+    // Pasted, not typed: each keystroke would re-render the 40-row table and the cards.
+    await user.click(screen.getByRole('searchbox', { name: 'Buscar' }))
+    await user.paste('nadie-coincide')
     expect(screen.getByText('Ningún servicio coincide con estos filtros')).toBeInTheDocument()
     expect(screen.getByText('Quita alguno de los filtros o usa «Limpiar todo».')).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Servicios' })).not.toBeInTheDocument()
@@ -492,11 +521,11 @@ describe('ServidoresClient — row menu and assigner', () => {
     expect(within(tabla()).getAllByRole('button', { name: /^Acciones para / })).toHaveLength(38)
     expect(menuDe('Luis Barrios')).toHaveClass('h-11', 'w-11')
 
-    await userEvent.click(menuDe('Luis Barrios'))
+    await user.click(menuDe('Luis Barrios'))
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
     expect(screen.getByRole('menuitem', { name: 'Ver su equipo' })).toHaveAttribute('href', '/dream-team/mi-equipo?direccion=dir-conexion')
 
-    await userEvent.click(screen.getByRole('menuitem', { name: 'Cambiar etapa' }))
+    await user.click(screen.getByRole('menuitem', { name: 'Cambiar etapa' }))
     expect(screen.getByText('Etapa actual: En orientación')).toBeInTheDocument()
   })
 
@@ -509,7 +538,7 @@ describe('ServidoresClient — row menu and assigner', () => {
     expect(screen.queryByRole('button', { name: 'Acciones para Marta Ruiz' })).not.toBeInTheDocument()
     expect(within(tabla()).getByText('Grupos de Vida')).toBeInTheDocument()
 
-    await userEvent.click(menuDe('Rita Retirada'))
+    await user.click(menuDe('Rita Retirada'))
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Ver su equipo'])
   })
 
@@ -528,13 +557,13 @@ describe('ServidoresClient — row menu and assigner', () => {
         : { ok: true, json: async () => ({ equipos: [] }) },
     ) as unknown as typeof fetch
     render(<ServidoresClient {...props({ arbol: arbolConGdv, puedeEditar: true })} />)
-    await userEvent.click(screen.getAllByRole('button', { name: 'Asignar servicio' })[0])
+    await user.click(screen.getAllByRole('button', { name: 'Asignar servicio' })[0])
 
     const dialogo = screen.getByRole('dialog', { name: 'Asignar servicio' })
     expect(within(dialogo).getByRole('heading', { name: 'Asignar servicio' })).toBeInTheDocument()
-    await userEvent.type(within(dialogo).getByLabelText('Buscar persona'), 'ana')
-    await userEvent.click(await within(dialogo).findByRole('button', { name: /Ana Uno/ }))
-    await userEvent.click(within(dialogo).getByRole('button', { name: 'Siguiente' }))
+    await user.type(within(dialogo).getByLabelText('Buscar persona'), 'ana')
+    await user.click(await within(dialogo).findByRole('button', { name: /Ana Uno/ }))
+    await user.click(within(dialogo).getByRole('button', { name: 'Siguiente' }))
     // The picker is on step 2; the equipos are listed by path, like the Área filter.
     const radios = Array.from(dialogo.querySelectorAll('[role="radio"]')).map((r) => r.getAttribute('aria-label') ?? '')
     expect(radios.some((ruta) => / › Coro$/.test(ruta))).toBe(true)
@@ -549,10 +578,10 @@ describe('ServidoresClient — área drill-down inside a dirección', () => {
     render(<ServidoresClient {...props()} />)
     expect(screen.queryByLabelText('Área')).not.toBeInTheDocument()
 
-    await userEvent.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
+    await user.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
     expect(opcionesDe('Área')).toEqual(['Todas', 'Talleres'])
 
-    await userEvent.selectOptions(screen.getByLabelText('Área'), ID_TALLERES)
+    await user.selectOptions(screen.getByLabelText('Área'), ID_TALLERES)
     expect(opcionesDe('Equipo')).toEqual(['Todos', 'De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
     expect(filasDeTabla()).toHaveLength(37)
     expect(replace).toHaveBeenLastCalledWith(
