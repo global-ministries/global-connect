@@ -13,7 +13,7 @@ import { ESTADOS_POR_ACTIVAR, MAX_EQUIPOS_EN_TARJETAS } from './mi-equipo-vista'
  * It answers work questions over the flat list of servicios: who serves where
  * and in which stage, who has no account, who serves in several teams. It owns
  * every filter rule, the reactive counters, the dirección → área → equipo cascade,
- * sorting, grouping, the active-filter pills, the footer text and the URL
+ * sorting, grouping (one item per person by default), the active-filter pills, the footer text and the URL
  * codec, so the screen only renders and the rules are testable without a DOM.
  *
  * Counters are reactive: each one is computed with every filter applied EXCEPT
@@ -93,7 +93,7 @@ export const FILTROS_INICIALES: FiltrosServidores = {
   sinCuenta: false,
   varios: false,
   q: '',
-  agrupar: 'ninguno',
+  agrupar: 'persona',
   orden: { columna: 'persona', sentido: 'asc' },
 }
 
@@ -157,9 +157,35 @@ export interface FilaVista extends FilaServidor {
   readonly turnosTexto: string
 }
 
+/**
+ * "Por persona": a person once, with the servicios of theirs that pass the
+ * filters, in the order of the current sort.
+ */
+export interface PersonaLista {
+  readonly tipo: 'persona'
+  /** The persona id. */
+  readonly clave: string
+  readonly nombre: string
+  readonly telefono: string | null
+  readonly tieneCuenta: boolean | null
+  /** Every listed servicio comes from Grupos de Vida: the mark goes next to the name, once. */
+  readonly soloGruposVida: boolean
+  readonly filas: readonly FilaVista[]
+}
+
 export type ItemLista =
   | { readonly tipo: 'grupo'; readonly clave: string; readonly titulo: string; readonly detalle: string; readonly cantidad: number }
   | { readonly tipo: 'fila'; readonly fila: FilaVista }
+  | PersonaLista
+
+/** A person shows this many servicios until "+N más" expands the rest. */
+export const MAX_SERVICIOS_POR_PERSONA = 3
+
+/** The servicios a person row shows, and how many "+N más" hides. */
+export function recortarServicios<T>(filas: readonly T[], expandido: boolean): { visibles: readonly T[]; ocultos: number } {
+  if (expandido || filas.length <= MAX_SERVICIOS_POR_PERSONA) return { visibles: filas, ocultos: 0 }
+  return { visibles: filas.slice(0, MAX_SERVICIOS_POR_PERSONA), ocultos: filas.length - MAX_SERVICIOS_POR_PERSONA }
+}
 
 export interface Opcion {
   readonly id: string
@@ -385,16 +411,37 @@ function ordenar(filas: readonly FilaVista[], orden: FiltrosServidores['orden'])
 
 // ── Grouping ─────────────────────────────────────────────────────────────
 
+/**
+ * One item per person, in the order of their first row: `filas` is already
+ * sorted, so persons follow the current sort and so do their servicios.
+ */
+function porPersona(filas: readonly FilaVista[]): PersonaLista[] {
+  const personas = new Map<string, FilaVista[]>()
+  for (const fila of filas) {
+    const propias = personas.get(fila.personaId)
+    if (propias) propias.push(fila)
+    else personas.set(fila.personaId, [fila])
+  }
+  return [...personas].map(([clave, propias]) => ({
+    tipo: 'persona',
+    clave,
+    nombre: propias[0].nombre,
+    telefono: propias.find((fila) => fila.telefono !== null)?.telefono ?? null,
+    tieneCuenta: propias.find((fila) => fila.tieneCuenta !== null)?.tieneCuenta ?? null,
+    soloGruposVida: propias.every((fila) => fila.origen === 'grupos_vida'),
+    filas: propias,
+  }))
+}
+
 function agrupar(filas: readonly FilaVista[], como: Agrupar): ItemLista[] {
   if (como === 'ninguno') return filas.map((fila) => ({ tipo: 'fila', fila }))
+  if (como === 'persona') return porPersona(filas)
 
   const grupos = new Map<string, { titulo: string; filas: FilaVista[] }>()
   for (const fila of filas) {
-    const clave = como === 'equipo' ? fila.equipoId : fila.personaId
-    const titulo = como === 'equipo' ? fila.equipoLabel : fila.nombre
-    const grupo = grupos.get(clave)
+    const grupo = grupos.get(fila.equipoId)
     if (grupo) grupo.filas.push(fila)
-    else grupos.set(clave, { titulo, filas: [fila] })
+    else grupos.set(fila.equipoId, { titulo: fila.equipoLabel, filas: [fila] })
   }
 
   const items: ItemLista[] = []
@@ -405,7 +452,7 @@ function agrupar(filas: readonly FilaVista[], como: Agrupar): ItemLista[] {
       tipo: 'grupo',
       clave,
       titulo: grupo.titulo,
-      detalle: como === 'equipo' ? plural(cantidad, 'persona', 'personas') : plural(cantidad, 'servicio', 'servicios'),
+      detalle: plural(cantidad, 'persona', 'personas'),
       cantidad,
     })
     for (const fila of grupo.filas) items.push({ tipo: 'fila', fila })
@@ -778,7 +825,10 @@ export function calcularVistaServidores({
       (filtros.sinCuenta ? 1 : 0) +
       (filtros.varios ? 1 : 0),
     pie: {
-      resumen: `${plural(visibles.length, 'servicio', 'servicios')} · ${plural(personasVisibles, 'persona', 'personas')}`,
+      resumen:
+        filtros.agrupar === 'persona'
+          ? `${plural(personasVisibles, 'persona', 'personas')} · ${plural(visibles.length, 'servicio', 'servicios')}`
+          : `${plural(visibles.length, 'servicio', 'servicios')} · ${plural(personasVisibles, 'persona', 'personas')}`,
       orden: `Orden: ${textoOrden(filtros.orden)}`,
     },
   }
@@ -823,6 +873,7 @@ function leerOrden(valor: string | null): FiltrosServidores['orden'] {
 /**
  * Reads the filters from the URL. Accepts the legacy `?estado=` (etapa) that
  * older links use; `?equipo=` keeps its meaning. Invalid values are dropped.
+ * Without `?agrupar=` the list is per person; "Sin agrupar" is `?agrupar=ninguno`.
  */
 export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores {
   const etapa = leer(parametros, 'etapa') ?? leer(parametros, 'estado')
@@ -839,7 +890,7 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
     sinCuenta: esVerdadero(leer(parametros, 'sin_cuenta')),
     varios: esVerdadero(leer(parametros, 'varios')),
     q: leer(parametros, 'q')?.trim() ?? '',
-    agrupar: agruparPor === 'equipo' || agruparPor === 'persona' ? agruparPor : 'ninguno',
+    agrupar: agruparPor === 'equipo' || agruparPor === 'ninguno' ? agruparPor : FILTROS_INICIALES.agrupar,
     orden: leerOrden(leer(parametros, 'orden')),
   }
 }
@@ -857,7 +908,7 @@ export function escribirFiltrosEnUrl(filtros: FiltrosServidores): string {
   if (filtros.sinCuenta) parametros.set('sin_cuenta', '1')
   if (filtros.varios) parametros.set('varios', '1')
   if (filtros.q.trim() !== '') parametros.set('q', filtros.q.trim())
-  if (filtros.agrupar !== 'ninguno') parametros.set('agrupar', filtros.agrupar)
+  if (filtros.agrupar !== FILTROS_INICIALES.agrupar) parametros.set('agrupar', filtros.agrupar)
   const { columna, sentido } = filtros.orden
   if (columna !== FILTROS_INICIALES.orden.columna || sentido !== FILTROS_INICIALES.orden.sentido) {
     parametros.set('orden', sentido === 'asc' ? columna : `${columna}:desc`)

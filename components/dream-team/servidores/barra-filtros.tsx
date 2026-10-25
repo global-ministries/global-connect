@@ -40,10 +40,11 @@ const OPCIONES_INICIO: ReadonlyArray<{ readonly valor: Inicio; readonly etiqueta
   { valor: 'trimestre', etiqueta: 'Últimos 3 meses' },
 ]
 
+// "Por persona" is the default (one row per person); "Sin agrupar" is one row per servicio.
 const OPCIONES_AGRUPAR: ReadonlyArray<{ readonly valor: Agrupar; readonly etiqueta: string }> = [
+  { valor: 'persona', etiqueta: 'Por persona' },
   { valor: 'ninguno', etiqueta: 'Sin agrupar' },
   { valor: 'equipo', etiqueta: 'Por equipo' },
-  { valor: 'persona', etiqueta: 'Por persona' },
 ]
 
 // Literal class names so Tailwind keeps them: search plus 3, 4 or 5 selects.

@@ -31,6 +31,8 @@ export interface MenuServidorProps {
   readonly fila: FilaServidor
   readonly onActualizado: () => void
   readonly className?: string
+  /** Tells apart the menus of one person's servicios: "Acciones para Ana en Coro". */
+  readonly detalle?: string
 }
 
 function editaServicio(fila: FilaServidor): boolean {
@@ -41,7 +43,7 @@ export function tieneMenu(fila: FilaServidor): boolean {
   return editaServicio(fila) || fila.fichaEditable === true
 }
 
-export function MenuServidor({ fila, onActualizado, className }: MenuServidorProps): ReactElement | null {
+export function MenuServidor({ fila, onActualizado, className, detalle }: MenuServidorProps): ReactElement | null {
   const [etapaAbierta, setEtapaAbierta] = useState(false)
   const [turnosAbierto, setTurnosAbierto] = useState(false)
   const [fichaAbierta, setFichaAbierta] = useState(false)
@@ -68,7 +70,7 @@ export function MenuServidor({ fila, onActualizado, className }: MenuServidorPro
             variante="ghost"
             soloIcono
             icono={MoreHorizontal}
-            aria-label={`Acciones para ${fila.nombre}`}
+            aria-label={detalle ? `Acciones para ${fila.nombre} en ${detalle}` : `Acciones para ${fila.nombre}`}
             className={className}
           />
         </DropdownMenuTrigger>
