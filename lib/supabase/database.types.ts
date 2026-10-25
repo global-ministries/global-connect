@@ -8668,8 +8668,9 @@ export type Database = {
         Args: { p_ahora?: string }
         Returns: number
       }
+      // supabase/migrations/20261024240000_uno_a_uno_recordatorios_lote.sql (T5.2).
       uno_a_uno_recordatorios_reclamar: {
-        Args: { p_limite?: number }
+        Args: { p_personas?: number; p_tope_diario?: number }
         Returns: {
           con_quien: Json
           email: string
@@ -8680,6 +8681,7 @@ export type Database = {
           lugar: string | null
           nombre: string
           uno_a_uno_id: string
+          usuario_id: string
         }[]
       }
       uno_a_uno_recordatorios_resultado: {

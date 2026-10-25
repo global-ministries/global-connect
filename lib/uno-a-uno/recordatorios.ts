@@ -1,44 +1,59 @@
 /**
- * The 1:1 reminder job (odd/tasks/uno-a-uno.md, T5): queue tomorrow's 1:1s
- * (S5.1) and drain the queue in small batches (S5.3), so many reminders never
- * go out at once. The queue itself lives in the database
- * (20261024220000_uno_a_uno_recordatorios.sql); these functions only call its
- * service_role RPCs, so they need the admin client.
+ * The 1:1 reminder job (odd/tasks/uno-a-uno.md, T5 and T5.2): queue tomorrow's
+ * 1:1s (S5.1) and send what is due as ONE Resend batch with one summary email
+ * per person (S5.8, S5.9), within the daily cap (S5.11). The queue itself
+ * lives in the database (20261024220000_uno_a_uno_recordatorios.sql,
+ * 20261024240000_uno_a_uno_recordatorios_lote.sql); these functions only call
+ * its service_role RPCs, so they need the admin client.
  */
 
+import { createHash } from 'crypto'
 import { createElement } from 'react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import {
-  ASUNTO_RECORDATORIO_UNO_A_UNO,
+  asuntoRecordatorioUnoAUno,
   RecordatorioUnoAUnoEmail,
+  type UnoAUnoRecordado,
 } from '@/emails/recordatorio-uno-a-uno'
-import { sendEmail } from '@/lib/email/send'
+import { sendEmailBatch, type EmailDeLote, type SendEmailBatchResult } from '@/lib/email/send-batch'
 import type { Database } from '@/lib/supabase/database.types'
 
 type ClienteAdmin = SupabaseClient<Database>
 type FilaReclamada = Database['public']['Functions']['uno_a_uno_recordatorios_reclamar']['Returns'][number]
+type EnviarLote = (emails: EmailDeLote[], opciones: { idempotencyKey: string }) => Promise<SendEmailBatchResult>
 
 const SITIO_POR_DEFECTO = 'https://connect.yosoyglobal.org'
-// Resend accepts 2 requests per second; 600 ms between sends stays under it.
-const PAUSA_ENTRE_ENVIOS_MS = 600
-const TANDA_POR_DEFECTO = 25
+// A Resend batch carries at most 100 emails.
+const PERSONAS_POR_DEFECTO = 100
+// Resend's free plan allows 100 emails per UTC day for the whole app; 40 stay
+// free for password resets and invitations.
+const TOPE_DIARIO_POR_DEFECTO = 60
+const ERROR_DESCONOCIDO = 'Error desconocido'
 
 export interface ResultadoEncolar {
   encolados: number
 }
 
 export interface ResultadoEnvio {
+  /** Rows claimed from the queue. */
   reclamados: number
+  /** People (emails) in the batch. */
+  personas: number
   enviados: number
   fallidos: number
 }
 
 export interface OpcionesEnvio {
-  limite?: number
-  pausaMs?: number
-  enviar?: typeof sendEmail
-  esperar?: (ms: number) => Promise<void>
+  personas?: number
+  topeDiario?: number
+  enviarLote?: EnviarLote
+}
+
+interface Persona {
+  email: string
+  nombre: string
+  filas: FilaReclamada[]
 }
 
 /** Queues a reminder per person for every agendado 1:1 of tomorrow in Caracas. */
@@ -50,76 +65,117 @@ export async function encolarRecordatorios(client: ClienteAdmin, ahora?: Date): 
 }
 
 /**
- * Claims one batch and sends it one email at a time, pausing between sends.
- * Every row is reported back, so a failed one is retried later by the queue;
- * one failure never stops the rest of the batch.
+ * Claims every due row of up to `personas` people and sends each person ONE
+ * email listing all their 1:1s, all in a single batch request. Every row is
+ * reported back, so a failed one is retried later by the queue; one failure
+ * never stops the rest.
  */
 export async function enviarRecordatorios(
   client: ClienteAdmin,
   {
-    limite = TANDA_POR_DEFECTO,
-    pausaMs = PAUSA_ENTRE_ENVIOS_MS,
-    enviar = sendEmail,
-    esperar = dormir,
+    personas: maxPersonas = PERSONAS_POR_DEFECTO,
+    topeDiario = TOPE_DIARIO_POR_DEFECTO,
+    enviarLote = sendEmailBatch,
   }: OpcionesEnvio = {},
 ): Promise<ResultadoEnvio> {
-  const filas = await reclamar(client, limite)
-  const urlMisUnoAUno = `${sitio()}/mis-uno-a-uno`
-  let enviados = 0
+  const filas = await reclamar(client, maxPersonas, topeDiario)
+  const personas = agruparPorPersona(filas)
+  if (personas.length === 0) return { reclamados: 0, personas: 0, enviados: 0, fallidos: 0 }
 
-  for (const [indice, fila] of filas.entries()) {
-    if (indice > 0) await esperar(pausaMs)
-    const error = await enviarUno(fila, urlMisUnoAUno, enviar)
-    if (!error) enviados += 1
-    await registrarResultado(client, fila.id, error)
+  const errores = await enviar(personas, filas, enviarLote)
+  for (const [indice, persona] of personas.entries()) {
+    for (const fila of persona.filas) await registrarResultado(client, fila.id, errores[indice])
   }
 
-  return { reclamados: filas.length, enviados, fallidos: filas.length - enviados }
+  const fallidos = errores.filter((error) => error !== null).length
+  return { reclamados: filas.length, personas: personas.length, enviados: personas.length - fallidos, fallidos }
 }
 
-async function reclamar(client: ClienteAdmin, limite: number): Promise<FilaReclamada[]> {
-  const { data, error } = await client.rpc('uno_a_uno_recordatorios_reclamar', { p_limite: limite })
+async function reclamar(client: ClienteAdmin, personas: number, topeDiario: number): Promise<FilaReclamada[]> {
+  const { data, error } = await client.rpc('uno_a_uno_recordatorios_reclamar', {
+    p_personas: personas,
+    p_tope_diario: topeDiario,
+  })
   if (error) throw new Error(`No se pudieron tomar los recordatorios: ${error.message}`)
   return data ?? []
 }
 
-/** Sends one reminder; returns the error message, or null when it was sent. */
-async function enviarUno(
-  fila: FilaReclamada,
-  urlMisUnoAUno: string,
-  enviar: typeof sendEmail,
-): Promise<string | null> {
-  try {
-    const resultado = await enviar({
-      to: fila.email,
-      subject: ASUNTO_RECORDATORIO_UNO_A_UNO,
-      template: createElement(RecordatorioUnoAUnoEmail, {
-        nombre: fila.nombre,
-        conQuien: fila.con_quien as unknown as { nombre: string; apellido: string | null }[],
-        fechaHora: fila.fecha_hora,
-        lugar: fila.lugar,
-        urlMisUnoAUno,
-      }),
-      idempotencyKey: `uno-a-uno-recordatorio/${fila.id}`,
-    })
-    return resultado.success ? null : (resultado.error ?? 'Error desconocido')
-  } catch (error) {
-    return error instanceof Error ? error.message : 'Error desconocido'
+/** One person per email, in the order the rows came; the first row names them. */
+function agruparPorPersona(filas: FilaReclamada[]): Persona[] {
+  const porEmail = new Map<string, Persona>()
+  for (const fila of filas) {
+    const persona = porEmail.get(fila.email)
+    if (persona) persona.filas.push(fila)
+    else porEmail.set(fila.email, { email: fila.email, nombre: fila.nombre, filas: [fila] })
   }
+  return [...porEmail.values()]
+}
+
+/** Sends the batch; returns each person's error message, or null when it went out. */
+async function enviar(personas: Persona[], filas: FilaReclamada[], enviarLote: EnviarLote): Promise<(string | null)[]> {
+  const urlMisUnoAUno = `${sitio()}/mis-uno-a-uno`
+  try {
+    const resultado = await enviarLote(
+      personas.map((persona) => emailDe(persona, urlMisUnoAUno)),
+      { idempotencyKey: claveDeLote(filas) },
+    )
+    if (!resultado.success) return personas.map(() => resultado.error || ERROR_DESCONOCIDO)
+    const errorPorIndice = new Map(resultado.errors.map(({ index, message }) => [index, message]))
+    return personas.map((_persona, indice) => errorPorIndice.get(indice) ?? null)
+  } catch (error) {
+    const mensaje = error instanceof Error ? error.message : ERROR_DESCONOCIDO
+    return personas.map(() => mensaje)
+  }
+}
+
+function emailDe(persona: Persona, urlMisUnoAUno: string): EmailDeLote {
+  const unoAUnos = unoAUnosDe(persona.filas)
+  return {
+    to: persona.email,
+    subject: asuntoRecordatorioUnoAUno(unoAUnos.length),
+    template: createElement(RecordatorioUnoAUnoEmail, { nombre: persona.nombre, unoAUnos, urlMisUnoAUno }),
+  }
+}
+
+/** Two rows of one email can point at the same 1:1 (e.g. a couple sharing an address): list it once. */
+function unoAUnosDe(filas: FilaReclamada[]): UnoAUnoRecordado[] {
+  const porUnoAUno = new Map<string, UnoAUnoRecordado>()
+  for (const fila of filas) {
+    if (porUnoAUno.has(fila.uno_a_uno_id)) continue
+    porUnoAUno.set(fila.uno_a_uno_id, {
+      conQuien: fila.con_quien as unknown as UnoAUnoRecordado['conQuien'],
+      fechaHora: fila.fecha_hora,
+      lugar: fila.lugar,
+    })
+  }
+  return [...porUnoAUno.values()]
+}
+
+/**
+ * The same rows always give the same key, so a retried request never reaches
+ * anyone twice; a different set of rows is a new batch.
+ */
+function claveDeLote(filas: FilaReclamada[]): string {
+  const ids = filas.map((fila) => fila.id).sort()
+  return `uno-a-uno-recordatorios/${createHash('sha256').update(ids.join('\n')).digest('hex')}`
 }
 
 async function registrarResultado(client: ClienteAdmin, id: string, error: string | null): Promise<void> {
   const args = error === null ? { p_id: id, p_ok: true } : { p_id: id, p_ok: false, p_error: error }
-  const { error: fallo } = await client.rpc('uno_a_uno_recordatorios_resultado', args)
-  // The row's lease expires and the queue retries it; the idempotency key keeps
-  // a resend from reaching the person twice. Log the row id only, never the email.
-  if (fallo) console.error('[uno-a-uno] No se pudo registrar el recordatorio', { id, error: fallo.message })
+  try {
+    const { error: fallo } = await client.rpc('uno_a_uno_recordatorios_resultado', args)
+    if (fallo) logFalloResultado(id, fallo.message)
+  } catch (fallo) {
+    logFalloResultado(id, fallo instanceof Error ? fallo.message : String(fallo))
+  }
+}
+
+// The row's lease expires and the queue retries it; the idempotency key keeps
+// a resend from reaching the person twice. Log the row id only, never the email.
+function logFalloResultado(id: string, error: string): void {
+  console.error('[uno-a-uno] No se pudo registrar el recordatorio', { id, error })
 }
 
 function sitio(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || SITIO_POR_DEFECTO).replace(/\/+$/, '')
-}
-
-function dormir(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
