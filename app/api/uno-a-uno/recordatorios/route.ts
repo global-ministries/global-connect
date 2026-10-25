@@ -4,15 +4,19 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { encolarRecordatorios, enviarRecordatorios } from '@/lib/uno-a-uno/recordatorios'
 
 /**
- * The 1:1 reminder job (odd/tasks/uno-a-uno.md, T5). pg_cron calls it with the
- * Bearer secret: `?accion=encolar` at 7:00 Caracas queues tomorrow's 1:1s, and
- * the default (`accion=enviar`) every 5 minutes drains one batch (S5.3, S5.7).
- * Responses carry counts only.
+ * The 1:1 reminder job (odd/tasks/uno-a-uno.md, T5 and T5.2). pg_cron calls it
+ * with the Bearer secret at 7:00, 7:30, 8:00 and 8:30 Caracas: the default
+ * (`accion=procesar`) queues tomorrow's 1:1s and then sends one batch (S5.10,
+ * S5.13). `accion=encolar` and `accion=enviar` do one step each, for manual
+ * use. Responses carry counts only.
  */
 
 export const runtime = 'nodejs'
-// A batch of 25 with a 600 ms pause takes well over the default timeout.
+// Rendering and sending a batch of up to 100 emails can outlast the default timeout.
 export const maxDuration = 60
+
+const ACCIONES = ['procesar', 'encolar', 'enviar'] as const
+type Accion = (typeof ACCIONES)[number]
 
 export async function POST(request: Request): Promise<Response> {
   return ejecutar(request)
@@ -30,15 +34,13 @@ async function ejecutar(request: Request): Promise<Response> {
     return Response.json({ error: 'Unauthorized uno a uno reminders request' }, { status: 401 })
   }
 
-  const accion = new URL(request.url).searchParams.get('accion') ?? 'enviar'
-  if (accion !== 'encolar' && accion !== 'enviar') {
+  const accion = new URL(request.url).searchParams.get('accion') ?? 'procesar'
+  if (!esAccion(accion)) {
     return Response.json({ error: 'Unknown accion' }, { status: 400 })
   }
 
   try {
-    const client = createSupabaseAdminClient()
-    const result = accion === 'encolar' ? await encolarRecordatorios(client) : await enviarRecordatorios(client)
-    return Response.json(result, { status: 202 })
+    return Response.json(await correr(accion), { status: 202 })
   } catch (error) {
     console.error('[uno-a-uno] Recordatorios fallaron', {
       accion,
@@ -46,6 +48,18 @@ async function ejecutar(request: Request): Promise<Response> {
     })
     return Response.json({ error: 'Uno a uno reminders failed' }, { status: 500 })
   }
+}
+
+function esAccion(valor: string): valor is Accion {
+  return (ACCIONES as readonly string[]).includes(valor)
+}
+
+async function correr(accion: Accion) {
+  const client = createSupabaseAdminClient()
+  if (accion === 'encolar') return encolarRecordatorios(client)
+  if (accion === 'enviar') return enviarRecordatorios(client)
+  const encolado = await encolarRecordatorios(client)
+  return { ...encolado, ...(await enviarRecordatorios(client)) }
 }
 
 function verifyBearerToken(authorizationHeader: string | null, expectedToken: string) {

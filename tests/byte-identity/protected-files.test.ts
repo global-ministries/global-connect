@@ -157,6 +157,10 @@ const INTENTIONALLY_CHANGED_IN_HEAD: ReadonlySet<string> = new Set([
   // _resultado (service_role only, called by app/api/uno-a-uno/recordatorios),
   // hand-added the same way. The queue table is not added: only those
   // functions touch it. Additive only.
+  // uno-a-uno T5.2 (2026-10-24): 20261024240000_uno_a_uno_recordatorios_lote.sql
+  // replaces uno_a_uno_recordatorios_reclamar(p_limite) with
+  // (p_personas, p_tope_diario) and adds `usuario_id` to its rows; the
+  // hand-added entry follows. Only the reminder job calls it.
   'lib/supabase/database.types.ts',
 ])
 
