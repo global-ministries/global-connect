@@ -284,13 +284,9 @@ describe('mi-equipo page — Grupos de Vida directors', () => {
     expect(vista?.personas.map((p) => p.rolLabel)).toEqual(['Director general', 'Director de etapa', 'Líder de grupo'])
   })
 
-  it('gives the segmento, the directores node and the group a card each', async () => {
+  it('skips the lone segmento and directores nodes in between: the group is the only card', async () => {
     const vista = (await renderizar({ direccion: 'gdv-raiz' })).vista
-    expect(vista?.equipos.map((e) => [e.id, e.total])).toEqual([
-      ['seg-1', 1],
-      ['dir-etapa-1', 1],
-      ['grupo-1', 1],
-    ])
+    expect(vista?.equipos.map((e) => [e.id, e.total])).toEqual([['grupo-1', 1]])
   })
 
   it('offers the Grupos de Vida direccion when only directors serve there', async () => {

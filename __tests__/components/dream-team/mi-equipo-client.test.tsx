@@ -464,3 +464,124 @@ describe('MiEquipoClient — page layout (docs/design-system.md)', () => {
     expect(vacio.container.querySelector('[data-ancho="default"]')).not.toBeNull()
   })
 })
+
+describe('MiEquipoClient — cards follow the tree (Dirección de Niños)', () => {
+  const nodo = (id: string, label: string, hijos: readonly NodoArbol<NodoEquipoArbol>[] = [], nivel = 0): NodoArbol<NodoEquipoArbol> => ({
+    equipo: { origen: 'dream_team', id, label, experiencia: 'talleres_crecimiento', activo: true, responsables: [] },
+    hijos,
+    nivel,
+  })
+  const arbolNinos: readonly NodoArbol<NodoEquipoArbol>[] = [
+    nodo('ninos', 'Dirección de Niños', [
+      nodo('wau', 'Waumbaland', [
+        nodo('wau-anf', 'Anfitriones', [], 2),
+        nodo('wau-atv', 'Atención al Voluntario', [nodo('wau-rec', 'Recepción', [], 3), nodo('wau-seg', 'Seguimiento', [], 3)], 2),
+      ], 1),
+      nodo('ups', 'Upstreet', [nodo('ups-anf', 'Anfitriones', [], 2)], 1),
+    ]),
+  ]
+  const entrada = (clave: string, nombre: string, rolClave: string, estado: PersonaEntrada['estado'] = 'activo'): PersonaEntrada => ({
+    clave,
+    personaId: personaId(`persona-${clave}`),
+    nombre,
+    rolClave,
+    rolLabel: rolClave,
+    estado,
+    origen: 'dream_team',
+    servicioId: `servicio-${clave}`,
+    version: 1,
+  })
+  const personasNinos: PersonasPorEquipo = {
+    ninos: [entrada('n1', 'Nina Directora', 'director')],
+    wau: [entrada('w1', 'Wanda Coordinadora', 'coordinador'), entrada('w2', 'Walter Facilitador', 'facilitador', 'en_orientacion')],
+    'wau-anf': [entrada('wa1', 'Ana Anfitriona', 'facilitador')],
+    'wau-rec': [entrada('r1', 'Rita Recepción', 'coordinador')],
+    'wau-seg': [entrada('s1', 'Sara Seguimiento', 'facilitador', 'postulado')],
+    'ups-anf': [entrada('u1', 'Ursula Upstreet', 'coordinador'), entrada('u2', 'Uriel Upstreet', 'facilitador')],
+  }
+  const propsNinos = (): MiEquipoClientProps => ({
+    ...propsConexion(),
+    direcciones: listarDirecciones(arbolNinos, personasNinos),
+    vista: vistaDeDireccion(arbolNinos, personasNinos, 'ninos'),
+    direccionId: 'ninos',
+  })
+  const etiquetasDeTarjetas = () =>
+    within(screen.getByRole('group', { name: 'Equipos' }))
+      .getAllByRole('button')
+      .map((b) => b.textContent ?? '')
+  const volver = (label: string) => screen.getByRole('button', { name: `Volver a ${label}` })
+
+  it('shows Upstreet and Waumbaland, not their teams, and no way back at the dirección level', () => {
+    render(<MiEquipoClient {...propsNinos()} />)
+    const tarjetas = etiquetasDeTarjetas()
+    expect(tarjetas).toHaveLength(3)
+    expect(tarjetas[0]).toContain('Toda la dirección')
+    expect(tarjetas[1]).toContain('Upstreet')
+    expect(tarjetas[2]).toContain('Waumbaland')
+    expect(tarjetas.some((t) => t.includes('Anfitriones'))).toBe(false)
+    expect(screen.queryByRole('button', { name: /^Volver a / })).not.toBeInTheDocument()
+    expect(screen.getByText('Dirige Nina Directora · 8 personas en 5 equipos')).toBeInTheDocument()
+    expect(filas()).toHaveLength(8)
+  })
+
+  it('entering Waumbaland shows its teams and the whole área\'s people', async () => {
+    render(<MiEquipoClient {...propsNinos()} />)
+    await userEvent.click(tarjeta('Waumbaland'))
+    const tarjetas = etiquetasDeTarjetas()
+    expect(tarjetas).toHaveLength(3)
+    expect(tarjeta('Todo Waumbaland')).toHaveAttribute('aria-pressed', 'true')
+    expect(tarjeta('Anfitriones')).toHaveAttribute('aria-pressed', 'false')
+    expect(tarjeta('Atención al Voluntario')).toHaveAttribute('aria-pressed', 'false')
+    expect(filas()).toHaveLength(5)
+    expect(screen.getByRole('button', { name: 'Todos · 5' })).toBeInTheDocument()
+    expect(textoDeFilas().some((t) => t.includes('Nina Directora'))).toBe(false)
+    expect(volver('Dirección de Niños')).toHaveClass('min-h-[44px]')
+  })
+
+  it('a team card filters the list to that team', async () => {
+    render(<MiEquipoClient {...propsNinos()} />)
+    await userEvent.click(tarjeta('Waumbaland'))
+    await userEvent.click(tarjeta('Anfitriones'))
+    expect(tarjeta('Anfitriones')).toHaveAttribute('aria-pressed', 'true')
+    expect(tarjeta('Todo Waumbaland')).toHaveAttribute('aria-pressed', 'false')
+    expect(filas()).toHaveLength(1)
+    expect(filas()[0]).toHaveTextContent('Ana Anfitriona')
+    await userEvent.click(tarjeta('Todo Waumbaland'))
+    expect(filas()).toHaveLength(5)
+  })
+
+  it('goes down any depth and back up one level at a time', async () => {
+    render(<MiEquipoClient {...propsNinos()} />)
+    await userEvent.click(tarjeta('Waumbaland'))
+    await userEvent.click(tarjeta('Atención al Voluntario'))
+    expect(tarjeta('Todo Atención al Voluntario')).toHaveAttribute('aria-pressed', 'true')
+    expect(etiquetasDeTarjetas()).toHaveLength(3)
+    expect(filas()).toHaveLength(2)
+
+    await userEvent.click(volver('Waumbaland'))
+    expect(tarjeta('Todo Waumbaland')).toHaveAttribute('aria-pressed', 'true')
+    expect(filas()).toHaveLength(5)
+
+    await userEvent.click(volver('Dirección de Niños'))
+    expect(tarjeta('Toda la dirección')).toHaveAttribute('aria-pressed', 'true')
+    expect(tarjeta('Upstreet')).toBeInTheDocument()
+    expect(filas()).toHaveLength(8)
+  })
+
+  it('keeps the estado filter working inside an área', async () => {
+    render(<MiEquipoClient {...propsNinos()} />)
+    await userEvent.click(tarjeta('Waumbaland'))
+    await userEvent.click(screen.getByRole('button', { name: 'En orientación · 1' }))
+    expect(filas()).toHaveLength(1)
+    expect(filas()[0]).toHaveTextContent('Walter Facilitador')
+  })
+
+  it('changing the dirección goes back to the dirección level', async () => {
+    const { rerender } = render(<MiEquipoClient {...propsNinos()} />)
+    await userEvent.click(tarjeta('Waumbaland'))
+    rerender(<MiEquipoClient {...propsConexion()} />)
+    expect(tarjeta('Toda la dirección')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: /^Volver a / })).not.toBeInTheDocument()
+    expect(filas()).toHaveLength(38)
+  })
+})

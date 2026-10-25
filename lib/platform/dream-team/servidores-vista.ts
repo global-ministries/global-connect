@@ -5,6 +5,7 @@ import { ESTADO_LABELS } from '@/components/dream-team/labels'
 import { normalizarTelefono } from '@/lib/utils/telefono'
 import { isoLocal, nombreConFrecuencia } from './frecuencia-turno'
 import { SIN_TURNO, coincideTurno, ordenarTurnos, type FrecuenciasPorTurno, type Turno } from './turnos'
+import { ESTADOS_POR_ACTIVAR, MAX_EQUIPOS_EN_TARJETAS } from './mi-equipo-vista'
 
 /**
  * Pure view model behind /admin/dream-team/servidores (no I/O, no React).
@@ -183,10 +184,37 @@ export interface Pastilla {
   readonly parche: Partial<FiltrosServidores>
 }
 
+/** Id of the first KPI card ("Todas las direcciones" / "Toda la dirección"). */
+export const TARJETA_TODAS = ''
+
+export interface TarjetaConteo {
+  readonly id: string
+  readonly label: string
+  /** "Dirige …" / "Coordina …": the active responsible, or `null`. */
+  readonly responsable: string | null
+  /** Distinct personas under every filter except the cards' own. */
+  readonly personas: number
+  /** Of those, the ones in `postulado` or `en_orientacion`. */
+  readonly porActivar: number
+  /** An área with equipos below: tapping it enters it instead of picking an equipo. */
+  readonly esArea: boolean
+}
+
+export interface TarjetasServidores {
+  /** Without a dirección the cards are the direcciones; with one, the next level of its tree. */
+  readonly nivel: 'direcciones' | 'equipos'
+  readonly todas: TarjetaConteo
+  readonly items: readonly TarjetaConteo[]
+  readonly seleccionadaId: string
+  /** More than `MAX_EQUIPOS_EN_TARJETAS` cards: render a compact list instead. */
+  readonly modoCompacto: boolean
+}
+
 export interface VistaServidores {
   /** The filters actually applied (after the equipo → dirección normalization). */
   readonly filtros: FiltrosServidores
   readonly total: { readonly servicios: number; readonly personas: number }
+  readonly tarjetas: TarjetasServidores
   readonly contadoresEtapa: {
     readonly todas: number
     readonly porEtapa: Readonly<Record<DreamTeamEstado, number>>
@@ -207,7 +235,7 @@ export interface VistaServidores {
   readonly visibles: readonly FilaVista[]
   readonly items: readonly ItemLista[]
   readonly pastillas: readonly Pastilla[]
-  /** Active filters that live in the phone sheet: equipo, rol, turno, sin cuenta, en varios equipos. */
+  /** Active filters that live in the phone sheet: área, rol, turno, sin cuenta, en varios equipos. */
   readonly filtrosEnHoja: number
   readonly pie: { readonly resumen: string; readonly orden: string }
 }
@@ -261,7 +289,8 @@ function coincideInicio(fila: FilaServidor, inicio: Inicio, hoy: Date): boolean 
   return hoy.getTime() - fecha.getTime() <= 90 * MS_DIA
 }
 
-type Salvo = 'etapa' | 'sinCuenta' | 'varios' | null
+/** The filter a counter ignores; 'equipo' and 'ubicacion' (dirección + área + equipo) serve the KPI cards. */
+type Salvo = 'etapa' | 'sinCuenta' | 'varios' | 'equipo' | 'ubicacion' | null
 
 interface Contexto {
   readonly equiposPorPersona: ReadonlyMap<string, number>
@@ -276,9 +305,11 @@ function enArea(equipoId: string, areaId: string, indice: ReadonlyMap<string, No
 
 function pasa(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, salvo: Salvo): boolean {
   if (!coincideTexto(fila, f.q)) return false
-  if (f.direccion !== null && fila.direccionId !== f.direccion) return false
-  if (f.area !== null && !enArea(fila.equipoId, f.area, contexto.indice)) return false
-  if (f.equipo !== null && fila.equipoId !== f.equipo) return false
+  if (salvo !== 'ubicacion') {
+    if (f.direccion !== null && fila.direccionId !== f.direccion) return false
+    if (f.area !== null && !enArea(fila.equipoId, f.area, contexto.indice)) return false
+    if (salvo !== 'equipo' && f.equipo !== null && fila.equipoId !== f.equipo) return false
+  }
   if (f.rol !== null && fila.rolLabel !== f.rol) return false
   // Shifts are a Dream Team notion: a Grupos de Vida row never matches a shift filter.
   if (f.turno !== null && (fila.origen !== 'dream_team' || !coincideTurno(fila.turnoIds, f.turno))) return false
@@ -419,6 +450,25 @@ export function parcheElegirDireccion(direccionId: string | null): Partial<Filtr
   return { direccion: direccionId, area: null, equipo: null }
 }
 
+/**
+ * The patch for tapping a KPI card: a dirección card acts like the Dirección
+ * selector, an área card like the Área selector (it enters the área), an
+ * equipo card picks that equipo, and the first card ("Todas") removes the
+ * level the cards stand for.
+ */
+export function parcheElegirTarjeta(
+  tarjetas: TarjetasServidores,
+  id: string,
+  opciones: Pick<VistaServidores['opciones'], 'areas' | 'equipos'>,
+): Partial<FiltrosServidores> {
+  const valor = id === TARJETA_TODAS ? null : id
+  if (tarjetas.nivel === 'direcciones') return parcheElegirDireccion(valor)
+  if (valor !== null && tarjetas.items.find((tarjeta) => tarjeta.id === valor)?.esArea) {
+    return parcheElegirArea(valor, opciones.areas)
+  }
+  return parcheElegirEquipo(valor, opciones.equipos)
+}
+
 /** The patch that picks an área: the equipo is dropped and the dirección follows the área. */
 export function parcheElegirArea(areaId: string | null, opciones: readonly OpcionArea[]): Partial<FiltrosServidores> {
   if (areaId === null) return { area: null, equipo: null }
@@ -481,6 +531,118 @@ function textoDeTurnos(
 export const SIN_TURNOS_TEXTO = '—'
 
 // ── The view ─────────────────────────────────────────────────────────────
+
+// ── KPI cards ──────────────────────────────────────────────────────────────────
+
+/** "Coordina …" else "Dirige …": the first active match, alphabetically; `null` without one. */
+function responsableDe(filas: readonly FilaServidor[], roles: readonly ('coordinador' | 'director')[]): string | null {
+  for (const rol of roles) {
+    const nombres = filas
+      .filter((fila) => fila.estado === 'activo' && esRol(fila.rolLabel, rol))
+      .map((fila) => fila.nombre)
+      .sort((a, b) => a.localeCompare(b, ES))
+    if (nombres.length > 0) return `${rol === 'coordinador' ? 'Coordina' : 'Dirige'} ${nombres[0]}`
+  }
+  return null
+}
+
+/** A Dream Team director or coordinador; a Grupos de Vida "Director de etapa" is neither. */
+function esRol(rolLabel: string, rol: 'coordinador' | 'director'): boolean {
+  const clave = sinAcentos(rolLabel)
+  return rol === 'coordinador' ? clave.startsWith('coordinador') : clave === 'director' || clave === 'directora'
+}
+
+function conteo(filas: readonly FilaServidor[]): Pick<TarjetaConteo, 'personas' | 'porActivar'> {
+  return {
+    personas: new Set(filas.map((fila) => fila.personaId)).size,
+    porActivar: new Set(filas.filter((fila) => ESTADOS_POR_ACTIVAR.includes(fila.estado)).map((fila) => fila.personaId)).size,
+  }
+}
+
+interface EntradaTarjetas {
+  readonly filas: readonly FilaServidor[]
+  readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
+  readonly filtros: FiltrosServidores
+  readonly contexto: Contexto
+  readonly direcciones: readonly Opcion[]
+}
+
+function buscarNodo(nodos: readonly NodoArbol<NodoEquipoArbol>[], id: string): NodoArbol<NodoEquipoArbol> | null {
+  for (const nodo of nodos) {
+    if (nodo.equipo.id === id) return nodo
+    const encontrado = buscarNodo(nodo.hijos, id)
+    if (encontrado) return encontrado
+  }
+  return null
+}
+
+/**
+ * Without a dirección: "Todas las direcciones" plus one card per dirección,
+ * counted over every filter but dirección/área/equipo. With one, the cards
+ * follow the tree one level at a time: the children of the chosen área (or of
+ * the dirección) that have servicios below, each counting its whole branch
+ * over every filter but the equipo. A lone área in between (Conexión →
+ * Talleres) is skipped so a single card never stands alone. A node's own
+ * people (a dirección's director) live only in the first card, as in Mi equipo.
+ */
+function calcularTarjetas({ filas, arbol, filtros, contexto, direcciones }: EntradaTarjetas): TarjetasServidores {
+  if (filtros.direccion === null) {
+    const base = filas.filter((fila) => pasa(fila, filtros, contexto, 'ubicacion'))
+    const items = direcciones.map(({ id, label }) => ({
+      id,
+      label,
+      responsable: responsableDe(
+        filas.filter((fila) => fila.equipoId === id),
+        ['director'],
+      ),
+      ...conteo(base.filter((fila) => fila.direccionId === id)),
+      esArea: false,
+    }))
+    return {
+      nivel: 'direcciones',
+      todas: { id: TARJETA_TODAS, label: 'Todas las direcciones', responsable: null, ...conteo(base), esArea: false },
+      items,
+      seleccionadaId: TARJETA_TODAS,
+      modoCompacto: items.length > MAX_EQUIPOS_EN_TARJETAS,
+    }
+  }
+
+  const raizId = filtros.area ?? filtros.direccion
+  const raiz = buscarNodo(arbol, raizId)
+  const enRama = (fila: FilaServidor, id: string): boolean => enArea(fila.equipoId, id, contexto.indice)
+  const conServicios = (nodo: NodoArbol<NodoEquipoArbol>): boolean => filas.some((fila) => enRama(fila, nodo.equipo.id))
+  let hijos = raiz ? raiz.hijos.filter(conServicios) : []
+  while (hijos.length === 1 && hijos[0].hijos.length > 0) hijos = hijos[0].hijos.filter(conServicios)
+  hijos = [...hijos].sort((a, b) => a.equipo.label.localeCompare(b.equipo.label, ES))
+
+  const base = filas.filter((fila) => pasa(fila, filtros, contexto, 'equipo'))
+  const items = hijos.map(({ equipo, hijos: nietos }) => ({
+    id: equipo.id,
+    label: equipo.label,
+    responsable: responsableDe(
+      filas.filter((fila) => fila.equipoId === equipo.id),
+      ['coordinador', 'director'],
+    ),
+    ...conteo(base.filter((fila) => enRama(fila, equipo.id))),
+    esArea: nietos.length > 0,
+  }))
+  return {
+    nivel: 'equipos',
+    todas: {
+      id: TARJETA_TODAS,
+      label: filtros.area === null ? 'Toda la dirección' : `Todo ${raiz?.equipo.label ?? ''}`.trim(),
+      responsable: responsableDe(
+        filas.filter((fila) => fila.equipoId === raizId),
+        filtros.area === null ? ['director'] : ['coordinador', 'director'],
+      ),
+      ...conteo(base),
+      esArea: false,
+    },
+    items,
+    seleccionadaId: filtros.equipo ?? TARJETA_TODAS,
+    modoCompacto: items.length > MAX_EQUIPOS_EN_TARJETAS,
+  }
+}
 
 export interface EntradaVistaServidores {
   readonly filas: readonly FilaServidor[]
@@ -584,6 +746,8 @@ export function calcularVistaServidores({
   )
   const personasVisibles = new Set(visibles.map((fila) => fila.personaId)).size
 
+  const tarjetas = calcularTarjetas({ filas, arbol, filtros, contexto, direcciones })
+
   const etiquetaDireccion = (id: string): string => direccionesConServicios.get(id) ?? indice.get(id)?.label ?? id
   const etiquetaEquipo = (id: string): string => equipos.find((equipo) => equipo.id === id)?.label ?? id
   const etiquetaTurno = (id: string): string => turnosOrdenados.find((turno) => turno.id === id)?.nombre ?? id
@@ -591,6 +755,7 @@ export function calcularVistaServidores({
   return {
     filtros,
     total: { servicios: filas.length, personas: new Set(filas.map((fila) => fila.personaId)).size },
+    tarjetas,
     contadoresEtapa: { todas: sinEtapa.length, porEtapa },
     rapidos: {
       sinCuenta: { cantidad: cantidadSinCuenta, activo: filtros.sinCuenta },
@@ -608,7 +773,6 @@ export function calcularVistaServidores({
     ),
     filtrosEnHoja:
       (filtros.area !== null ? 1 : 0) +
-      (filtros.equipo !== null ? 1 : 0) +
       (filtros.rol !== null ? 1 : 0) +
       (filtros.turno !== null ? 1 : 0) +
       (filtros.sinCuenta ? 1 : 0) +

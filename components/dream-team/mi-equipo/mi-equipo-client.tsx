@@ -4,10 +4,11 @@
  * Dream Team — client island for /dream-team/mi-equipo.
  *
  * The screen works with people: it shows ONE direccion at a time (chosen by
- * the server from `?direccion=`), one card per team inside it and the people
- * of the selected team. Everything below the header is derived on the client
- * from the already-loaded view model (lib/platform/dream-team/mi-equipo-vista.ts):
- * the selected team, the estado and shift filters and the name search are local state —
+ * the server from `?direccion=`), its cards one tree level at a time (an área
+ * card enters the área) and the people of the selected card. Everything below
+ * the header is derived on the client from the already-loaded view model
+ * (lib/platform/dream-team/mi-equipo-vista.ts): the entered área, the selected
+ * card, the estado and shift filters and the name search are local state —
  * only the direccion lives in the URL.
  *
  * Everything that crosses in from the server page is plain serializable data.
@@ -28,6 +29,7 @@ import {
   TODOS_LOS_EQUIPOS,
   contadoresPorEstado,
   filtrarPersonas,
+  nivelDeEquipos,
   personasDeSeleccion,
   type DireccionResumen,
   type EquipoAsignable,
@@ -72,7 +74,7 @@ export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
       </PaginaSistema>
     )
   }
-  // Keyed by direccion so switching it resets the team, filter and search.
+  // Keyed by direccion so switching it resets the level, team, filter and search.
   return <MiEquipoVistaDireccion key={props.vista.id} {...props} vista={props.vista} />
 }
 
@@ -102,14 +104,27 @@ function MiEquipoVistaDireccion({
     [turnos, campusId],
   )
   const [asignadorAbierto, setAsignadorAbierto] = useState(false)
+  const [areaId, setAreaId] = useState<string | null>(null)
   const [seleccionadoId, setSeleccionadoId] = useState<string>(TODOS_LOS_EQUIPOS)
   const [filtro, setFiltro] = useState<FiltroEstado>('todos')
   const [query, setQuery] = useState('')
   const [turno, setTurno] = useState<string | null>(null)
 
-  // A refresh can drop the selected team from the data; never leave the list pointing at nothing.
-  const tarjetaSeleccionada =
-    vista.equipos.find((equipo) => equipo.id === seleccionadoId) ?? vista.todaLaDireccion
+  // A refresh can drop the entered área or the selected team; never leave the list pointing at nothing.
+  const nivel = nivelDeEquipos(vista, areaId)
+  const tarjetaSeleccionada = nivel.equipos.find((equipo) => equipo.id === seleccionadoId) ?? nivel.todas
+
+  function seleccionarTarjeta(id: string): void {
+    // An área card enters the área, which starts on its "Todo <área>" card.
+    if (nivel.equipos.some((equipo) => equipo.id === id && equipo.esArea)) setAreaId(id)
+    setSeleccionadoId(id)
+  }
+
+  function volver(): void {
+    const padreId = nivel.padre?.id ?? TODOS_LOS_EQUIPOS
+    setAreaId(padreId === TODOS_LOS_EQUIPOS ? null : padreId)
+    setSeleccionadoId(padreId)
+  }
 
   const delEquipo = useMemo(
     () => personasDeSeleccion(vista.personas, tarjetaSeleccionada.id),
@@ -121,6 +136,7 @@ function MiEquipoVistaDireccion({
   const visibles = useMemo(() => filtrarPersonas(porNombre, { estado: filtro }), [porNombre, filtro])
 
   function revisarPendientes(): void {
+    setAreaId(null)
     setSeleccionadoId(TODOS_LOS_EQUIPOS)
     setQuery('')
     setTurno(null)
@@ -143,7 +159,7 @@ function MiEquipoVistaDireccion({
         direccionLabel={vista.label}
         dirige={vista.todaLaDireccion.responsable?.nombre ?? null}
         totalPersonas={vista.total}
-        totalEquipos={vista.equipos.length}
+        totalEquipos={vista.totalEquipos}
         direcciones={direcciones}
         direccionId={direccionId}
         onDireccionChange={(id) => router.replace(`?direccion=${encodeURIComponent(id)}`)}
@@ -161,11 +177,10 @@ function MiEquipoVistaDireccion({
       <FranjaPendientes pendientes={vista.pendientes} onRevisar={revisarPendientes} />
 
       <TarjetasEquipos
-        todaLaDireccion={vista.todaLaDireccion}
-        equipos={vista.equipos}
-        modoCompacto={vista.modoCompacto}
+        nivel={nivel}
         seleccionadoId={tarjetaSeleccionada.id}
-        onSeleccionar={setSeleccionadoId}
+        onSeleccionar={seleccionarTarjeta}
+        onVolver={volver}
       />
 
       {turnosDelCampus.length > 0 && (
