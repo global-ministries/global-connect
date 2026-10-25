@@ -2,8 +2,8 @@
  * `mi-equipo-vista.ts` — the pure view model behind /dream-team/mi-equipo.
  *
  * The screen works with people, not with the org chart: it shows ONE
- * direccion (a root node of the tree) at a time, one card per team inside it
- * and the people of the selected team. This module turns the merged tree
+ * direccion (a root node of the tree) at a time, its cards one tree level at
+ * a time (like the Servidores KPI cards) and the people of the selected card. This module turns the merged tree
  * (real equipos + the virtual Grupos de Vida branch, see estructura-arbol.ts)
  * and the people serving on each node into exactly that, with no I/O and no
  * React so the server page and the client island share the same rules and
@@ -11,8 +11,11 @@
  *
  * Vocabulary:
  *   - direccion: a root node that has at least one person in its branch.
- *   - equipo (card): a node that has people of its OWN. An intermediate node
- *     with none is not a card — its descendants are.
+ *   - card: a direct child of the dirección (or of the entered área) with
+ *     people somewhere in its branch, counting that whole branch. A lone área
+ *     in between (Conexión → Talleres) is skipped: its children are the cards.
+ *   - área card: a card whose node has children; tapping it enters it, and
+ *     the first card becomes "Todo <área>".
  *   - "Toda la dirección": the synthetic aggregate; the only place where the
  *     people sitting on the root node itself (its director) appear.
  */
@@ -75,6 +78,8 @@ export interface PersonaVista {
   readonly iniciales: string
   readonly equipoId: string
   readonly equipoLabel: string
+  /** The nodes from just below the direccion down to `equipoId`; empty for the root's own people. Absent = just `equipoId`. */
+  readonly ramaIds?: readonly string[]
   readonly rolClave: string
   readonly rolLabel: string
   readonly rolOrden: number
@@ -106,6 +111,19 @@ export interface TarjetaEquipo {
   readonly total: number
   /** People in `postulado` or `en_orientacion`. */
   readonly porActivar: number
+  /** The node has children: tapping the card enters it instead of picking it. */
+  readonly esArea: boolean
+}
+
+/** One level of cards: the dirección itself, or an área entered from its card. */
+export interface NivelEquipos {
+  /** "Toda la dirección" or "Todo <área>" (whose id is the área's). */
+  readonly todas: TarjetaEquipo
+  readonly equipos: readonly TarjetaEquipo[]
+  /** More than `MAX_EQUIPOS_EN_TARJETAS` cards: render a compact list instead. */
+  readonly modoCompacto: boolean
+  /** The level the área was entered from (`TODOS_LOS_EQUIPOS` = the dirección); `null` at the dirección. */
+  readonly padre: { readonly id: string; readonly label: string } | null
 }
 
 export interface DireccionResumen {
@@ -119,9 +137,14 @@ export interface VistaDireccion {
   readonly label: string
   readonly total: number
   readonly todaLaDireccion: TarjetaEquipo
+  /** The cards of the dirección level. */
   readonly equipos: readonly TarjetaEquipo[]
-  /** More than `MAX_EQUIPOS_EN_TARJETAS` teams: render a compact list instead of cards. */
+  /** More than `MAX_EQUIPOS_EN_TARJETAS` cards at the dirección level: render a compact list instead. */
   readonly modoCompacto: boolean
+  /** Every node below the root with people of its own, at any depth. */
+  readonly totalEquipos: number
+  /** The level of each área that can be entered, by área id (see `nivelDeEquipos`). */
+  readonly niveles: Readonly<Record<string, NivelEquipos>>
   /** Every person of the direccion, sorted. */
   readonly personas: readonly PersonaVista[]
   /** People waiting to be activated (postulado / en_orientacion). */
@@ -176,7 +199,7 @@ function ordenarPersonas(personas: readonly PersonaVista[]): PersonaVista[] {
   )
 }
 
-function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string): PersonaVista {
+function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string, ramaIds: readonly string[]): PersonaVista {
   return {
     clave: entrada.clave,
     servicioId: entrada.servicioId,
@@ -186,6 +209,7 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string):
     iniciales: inicialesDe(entrada.nombre),
     equipoId,
     equipoLabel,
+    ramaIds,
     rolClave: entrada.rolClave,
     rolLabel: entrada.rolLabel,
     rolOrden: ordenDeRol(entrada.rolClave),
@@ -206,6 +230,10 @@ function contarPorActivar(personas: readonly { readonly estado: DreamTeamEstado 
 
 function nodosDeLaRama(raiz: NodoArbol<NodoEquipoArbol>): NodoArbol<NodoEquipoArbol>[] {
   return [raiz, ...raiz.hijos.flatMap(nodosDeLaRama)]
+}
+
+function personasDeLaRama(raiz: NodoArbol<NodoEquipoArbol>, personasPorEquipo: PersonasPorEquipo): PersonaEntrada[] {
+  return nodosDeLaRama(raiz).flatMap((nodo) => personasPorEquipo[nodo.equipo.id] ?? [])
 }
 
 function totalDeLaRama(raiz: NodoArbol<NodoEquipoArbol>, personasPorEquipo: PersonasPorEquipo): number {
@@ -258,49 +286,96 @@ export function vistaDeDireccion(
   if (!raiz) return null
 
   const personas: PersonaVista[] = []
-  const equipos: TarjetaEquipo[] = []
-
-  for (const nodo of nodosDeLaRama(raiz)) {
+  let totalEquipos = 0
+  function recorrer(nodo: NodoArbol<NodoEquipoArbol>, ramaIds: readonly string[]): void {
     const propias = personasPorEquipo[nodo.equipo.id] ?? []
-    if (propias.length === 0) continue
-    for (const entrada of propias) personas.push(aVista(entrada, nodo.equipo.id, nodo.equipo.label))
+    for (const entrada of propias) personas.push(aVista(entrada, nodo.equipo.id, nodo.equipo.label, ramaIds))
     // The root's own people (its director) live in "Toda la dirección" only.
-    if (nodo === raiz) continue
-    equipos.push({
-      id: nodo.equipo.id,
-      label: nodo.equipo.label,
-      responsable: responsableDe(propias),
-      total: propias.length,
-      porActivar: contarPorActivar(propias),
-    })
+    if (nodo !== raiz && propias.length > 0) totalEquipos += 1
+    for (const hijo of nodo.hijos) recorrer(hijo, [...ramaIds, hijo.equipo.id])
   }
+  recorrer(raiz, [])
 
   const ordenadas = ordenarPersonas(personas)
   const propiasDeLaRaiz = personasPorEquipo[raiz.equipo.id] ?? []
+  const todaLaDireccion: TarjetaEquipo = {
+    id: TODOS_LOS_EQUIPOS,
+    label: 'Toda la dirección',
+    responsable: responsableDe(propiasDeLaRaiz.filter((persona) => normalizarTexto(persona.rolClave) === 'director')),
+    total: ordenadas.length,
+    porActivar: contarPorActivar(ordenadas),
+    esArea: false,
+  }
+
+  const niveles: Record<string, NivelEquipos> = {}
+  const tarjetasDe = (padre: NodoArbol<NodoEquipoArbol>, desde: NivelEquipos['padre']): TarjetaEquipo[] =>
+    tarjetasDelNivel(padre, personasPorEquipo).map((hijo) => {
+      if (hijo.hijos.length > 0) {
+        const equipos = tarjetasDe(hijo, { id: hijo.equipo.id, label: hijo.equipo.label })
+        niveles[hijo.equipo.id] = {
+          todas: { ...tarjetaDeNodo(hijo, personasPorEquipo), label: `Todo ${hijo.equipo.label}`, esArea: false },
+          equipos,
+          modoCompacto: equipos.length > MAX_EQUIPOS_EN_TARJETAS,
+          padre: desde,
+        }
+      }
+      return tarjetaDeNodo(hijo, personasPorEquipo)
+    })
+  const equipos = tarjetasDe(raiz, { id: TODOS_LOS_EQUIPOS, label: raiz.equipo.label })
 
   return {
     id: raiz.equipo.id,
     label: raiz.equipo.label,
     total: ordenadas.length,
-    todaLaDireccion: {
-      id: TODOS_LOS_EQUIPOS,
-      label: 'Toda la dirección',
-      responsable: responsableDe(propiasDeLaRaiz.filter((persona) => normalizarTexto(persona.rolClave) === 'director')),
-      total: ordenadas.length,
-      porActivar: contarPorActivar(ordenadas),
-    },
+    todaLaDireccion,
     equipos,
     modoCompacto: equipos.length > MAX_EQUIPOS_EN_TARJETAS,
+    totalEquipos,
+    niveles,
     personas: ordenadas,
     pendientes: ordenadas.filter((persona) => ESTADOS_POR_ACTIVAR.includes(persona.estado)),
   }
 }
 
+/**
+ * The cards below `padre`: its children with people in their branch, by label.
+ * A lone área in between (exactly one child, itself with children) is skipped
+ * so a single card never stands alone, as in the Servidores KPI cards.
+ */
+function tarjetasDelNivel(
+  padre: NodoArbol<NodoEquipoArbol>,
+  personasPorEquipo: PersonasPorEquipo,
+): NodoArbol<NodoEquipoArbol>[] {
+  const conPersonas = (nodo: NodoArbol<NodoEquipoArbol>): boolean => totalDeLaRama(nodo, personasPorEquipo) > 0
+  let hijos = padre.hijos.filter(conPersonas)
+  while (hijos.length === 1 && hijos[0].hijos.length > 0) hijos = hijos[0].hijos.filter(conPersonas)
+  return [...hijos].sort((a, b) => a.equipo.label.localeCompare(b.equipo.label, 'es'))
+}
+
+/** A node's card: its whole branch counted, its own coordinador (else director) as responsable. */
+function tarjetaDeNodo(nodo: NodoArbol<NodoEquipoArbol>, personasPorEquipo: PersonasPorEquipo): TarjetaEquipo {
+  const rama = personasDeLaRama(nodo, personasPorEquipo)
+  return {
+    id: nodo.equipo.id,
+    label: nodo.equipo.label,
+    responsable: responsableDe(personasPorEquipo[nodo.equipo.id] ?? []),
+    total: rama.length,
+    porActivar: contarPorActivar(rama),
+    esArea: nodo.hijos.length > 0,
+  }
+}
+
+/** The cards shown with `areaId` entered; the dirección level for `null` or an id that is not an área. */
+export function nivelDeEquipos(vista: VistaDireccion, areaId: string | null): NivelEquipos {
+  const nivel = areaId === null ? undefined : vista.niveles[areaId]
+  return nivel ?? { todas: vista.todaLaDireccion, equipos: vista.equipos, modoCompacto: vista.modoCompacto, padre: null }
+}
+
 // ── Selection, counters and search ───────────────────────────────────────
 
-/** The people of the selected card, already sorted (the input is). */
+/** The people of the selected card's whole branch, already sorted (the input is). */
 export function personasDeSeleccion(personas: readonly PersonaVista[], equipoId: string): PersonaVista[] {
-  return equipoId === TODOS_LOS_EQUIPOS ? [...personas] : personas.filter((persona) => persona.equipoId === equipoId)
+  return equipoId === TODOS_LOS_EQUIPOS ? [...personas] : personas.filter((persona) => (persona.ramaIds ?? [persona.equipoId]).includes(equipoId))
 }
 
 export type ContadoresPorEstado = Readonly<Record<DreamTeamEstado, number>> & { readonly todos: number }

@@ -71,11 +71,11 @@ describe('vistaDeDireccion', () => {
     expect(vistaDeDireccion(arbolConexion, personasPorEquipoConexion, 'nope')).toBeNull()
   })
 
-  it('makes one card per node with people of its own and skips the intermediate node', () => {
+  it('makes one card per node with people of its own, by label, and skips the intermediate node', () => {
     const vista = vistaConexion()
-    expect(vista.equipos.map((e) => e.id)).toEqual([ID_DHAH, ID_PAREJAS, ID_PDP, ID_MDH])
+    expect(vista.equipos.map((e) => e.id)).toEqual([ID_DHAH, ID_MDH, ID_PAREJAS, ID_PDP])
     expect(vista.equipos.map((e) => e.id)).not.toContain(ID_TALLERES)
-    expect(vista.equipos.map((e) => e.total)).toEqual([9, 8, 14, 6])
+    expect(vista.equipos.map((e) => e.total)).toEqual([9, 6, 8, 14])
   })
 
   it('names the coordinador as the responsable of a team', () => {
@@ -98,7 +98,7 @@ describe('vistaDeDireccion', () => {
 
   it('counts the people waiting to be activated per team and for the whole direccion', () => {
     const vista = vistaConexion()
-    expect(vista.equipos.map((e) => e.porActivar)).toEqual([1, 0, 1, 0])
+    expect(vista.equipos.map((e) => e.porActivar)).toEqual([1, 0, 0, 1])
     expect(vista.todaLaDireccion).toMatchObject({ id: TODOS_LOS_EQUIPOS, label: 'Toda la dirección', total: 38, porActivar: 2 })
     expect(vista.todaLaDireccion.responsable).toEqual({ nombre: 'Antholy Ludovic Gómez', rol: 'director' })
   })

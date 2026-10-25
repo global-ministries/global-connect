@@ -172,10 +172,9 @@ describe('mi-equipo — a director de etapa without capability', () => {
     expect(props.vista?.label).toBe('Matrimonios')
   })
 
-  it('shows their team and their groups as cards, with the people attached and named', async () => {
+  it('shows their groups as cards, skipping their lone team node, with the people attached and named', async () => {
     const vista = (await renderMiEquipo()).vista
     expect(vista?.equipos.map((e) => [e.id, e.label, e.total])).toEqual([
-      ['team-1', 'Diego Etapa', 1],
       ['grupo-1', 'Grupo Norte', 1],
       ['grupo-2', 'Grupo Sur', 1],
     ])
