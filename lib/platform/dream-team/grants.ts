@@ -1,9 +1,11 @@
 import { PLATFORM_CAPABILITIES } from '@/lib/platform/experiences'
 import type { PlatformScopeType } from '@/lib/platform/experiences'
 import type { PlatformGrantAuditEvent } from '@/lib/platform/grants'
+import { nivelDesdeLabel, normalizeLabel } from '@/lib/platform/dream-team/nivel-rol'
 import type {
   DreamTeamEstado,
   DreamTeamMotivo,
+  DreamTeamNivelRol,
   DreamTeamServicio,
 } from '@/lib/platform/dream-team/types'
 
@@ -51,47 +53,42 @@ export interface GrantsTransitionContext {
   readonly fecha: string
   readonly previousSnapshot?: PausedGrantsSnapshot
   readonly equipo?: { id: string; experiencia: string }
-  readonly rol?: { id: string; label: string }
+  readonly rol?: GrantsRol
 }
 
-// ── Role → generic capability mapping (hybrid model) ─────────────────
+// The rol a servicio holds. nivel decides its grants; a caller that does not
+// know it (older code) gets the level of the label, never more (T6, S6.5).
+export interface GrantsRol {
+  readonly id: string
+  readonly label: string
+  readonly nivel?: DreamTeamNivelRol
+}
 
-// Keys are pre-normalized with normalizeLabel so lookups below stay a plain object read.
+// ── Nivel → generic capability mapping (hybrid model) ───────────────
+
 // SQL mirror: public.dream_team_grants_de_servicio (the volunteer loader cannot call
 // TypeScript). Both sides are pinned to the grants-table of
-// supabase/tests/dream-team-cargar-voluntarios.test.sql (see grants-sql-mirror.test.ts),
+// supabase/tests/dream-team-grants-por-nivel.test.sql (see grants-sql-mirror.test.ts),
 // so a change here needs that table and a new migration for the mirror.
-const ROLE_TO_GENERIC_CAPABILITIES: Record<string, readonly string[]> = {
-  [normalizeLabel('Voluntario')]: ['dream_team.serve'],
-  [normalizeLabel('Voluntario de Cámara')]: ['dream_team.serve'],
-  [normalizeLabel('Líder')]: ['dream_team.serve', 'dream_team.lead'],
-  [normalizeLabel('Líder de grupo')]: ['dream_team.serve', 'dream_team.lead', 'dream_team.gdv.lead'],
-  [normalizeLabel('Facilitador')]: ['dream_team.serve', 'dream_team.lead'],
-  // Entrenador (the Waumba Land trainer, formerly "mentor") gets exactly what Líder gets.
-  [normalizeLabel('Entrenador')]: ['dream_team.serve', 'dream_team.lead'],
-  [normalizeLabel('Coordinador')]: ['dream_team.serve', 'dream_team.coordinate'],
+const NIVEL_TO_GENERIC_CAPABILITIES: Record<DreamTeamNivelRol, readonly string[]> = {
+  voluntario: ['dream_team.serve'],
+  lider: ['dream_team.serve', 'dream_team.lead'],
+  coordinador: ['dream_team.serve', 'dream_team.coordinate'],
   // Director mints the equipo-scoped dream_team.direct (area director), NOT the global
   // dream_team.director.coordinate. That capability is declared with scopeType 'experience', so
   // scopeIdForGrant() always returns undefined for it — a grant with scope_id = NULL means GLOBAL
   // scope to auth_has_dream_team_capability_in_tree. Assigning it through this flow gave every area
   // director authority over the whole church. dream_team.director.coordinate now stays a global
   // capability granted by hand only, for the actual person in charge of Dream Team as a whole.
-  [normalizeLabel('Director')]: ['dream_team.serve', 'dream_team.direct'],
+  director: ['dream_team.serve', 'dream_team.direct'],
 }
 
-// The normalized role labels that mint generic capabilities. Exported so the
-// pin test can require every one of them in the table the SQL mirror is checked against.
-export function mappedRoleLabels(): readonly string[] {
-  return Object.keys(ROLE_TO_GENERIC_CAPABILITIES)
-}
+// The one grant still decided by the label: a "Líder de grupo" also leads its group of
+// grupos_vida, scoped to the rol. No nivel mints it (T6, S6.3).
+const LIDER_DE_GRUPO_LABEL = normalizeLabel('Líder de grupo')
+const LIDER_DE_GRUPO_CAPABILITY = 'dream_team.gdv.lead'
 
 // ── Experience-specific capability (hybrid model) ────────────────────
-
-// The role labels that pick the lead or the director tier below; any other label serves.
-export const LEAD_ROLE_LABELS: ReadonlySet<string> = new Set(
-  ['Líder', 'Líder de grupo', 'Facilitador', 'Entrenador', 'Coordinador'].map(normalizeLabel),
-)
-export const DIRECTOR_ROLE_LABELS: ReadonlySet<string> = new Set(['Director'].map(normalizeLabel))
 
 interface ExperienceSpecificTiers {
   readonly serve: string
@@ -104,7 +101,7 @@ function sameForEveryTier(capabilityKey: string): ExperienceSpecificTiers {
 }
 
 // The capability an equipo's experiencia adds on top of the generic ones, per tier. An
-// experiencia missing here adds none. Same SQL mirror and pin as ROLE_TO_GENERIC_CAPABILITIES:
+// experiencia missing here adds none. Same SQL mirror and pin as NIVEL_TO_GENERIC_CAPABILITIES:
 // a change here needs the grants-table and a new migration for dream_team_grants_de_servicio.
 const EXPERIENCE_SPECIFIC_CAPABILITIES: Record<string, ExperienceSpecificTiers> = {
   dps: { serve: 'dps.team.serve', lead: 'dps.team.lead', director: 'dps.team.director' },
@@ -118,29 +115,21 @@ const EXPERIENCE_SPECIFIC_CAPABILITIES: Record<string, ExperienceSpecificTiers> 
   the_living_room: sameForEveryTier('the_living_room.team.serve'),
 }
 
-// The experiencias with a capability of their own, and the normalized labels that pick a
-// tier. Exported so the pin test can require every such pair in the grants-table.
+// The tier each nivel picks: lider and coordinador lead, director directs (T6, S6.2).
+const TIER_BY_NIVEL: Record<DreamTeamNivelRol, keyof ExperienceSpecificTiers> = {
+  voluntario: 'serve',
+  lider: 'lead',
+  coordinador: 'lead',
+  director: 'director',
+}
+
+// The experiencias with a capability of their own. Exported so the pin test can require
+// every nivel under each of them in the grants-table.
 export function experiencesWithSpecificCapability(): readonly string[] {
   return Object.keys(EXPERIENCE_SPECIFIC_CAPABILITIES)
 }
 
-export function leadOrDirectorRoleLabels(): readonly string[] {
-  return [...LEAD_ROLE_LABELS, ...DIRECTOR_ROLE_LABELS]
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────
-
-// Case- and diacritic-insensitive: the talleres_role_capability_map SQL trigger seeds
-// roles as lowercase, no-diacritic labels ('coordinador', 'director'), while role labels
-// shown in the UI are capitalized and accented ('Coordinador', 'Director'). Both must
-// resolve to the same generic/experience-specific capabilities.
-export function normalizeLabel(label: string): string {
-  return label
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-}
 
 function capabilityDefinition(key: string) {
   return Object.prototype.hasOwnProperty.call(PLATFORM_CAPABILITIES, key)
@@ -150,16 +139,19 @@ function capabilityDefinition(key: string) {
 
 function resolveExperienceSpecificCapability(
   experience: string,
-  roleLabel: string,
+  nivel: DreamTeamNivelRol,
 ): string | undefined {
   if (!Object.prototype.hasOwnProperty.call(EXPERIENCE_SPECIFIC_CAPABILITIES, experience)) {
     return undefined
   }
-  const tiers = EXPERIENCE_SPECIFIC_CAPABILITIES[experience]
-  const label = normalizeLabel(roleLabel)
-  if (DIRECTOR_ROLE_LABELS.has(label)) return tiers.director
-  if (LEAD_ROLE_LABELS.has(label)) return tiers.lead
-  return tiers.serve
+  return EXPERIENCE_SPECIFIC_CAPABILITIES[experience][TIER_BY_NIVEL[nivel]]
+}
+
+function capabilityKeysForRol(experience: string, rol: GrantsRol): readonly string[] {
+  const nivel = rol.nivel ?? nivelDesdeLabel(rol.label)
+  const labelKeys = normalizeLabel(rol.label) === LIDER_DE_GRUPO_LABEL ? [LIDER_DE_GRUPO_CAPABILITY] : []
+  const specificKey = resolveExperienceSpecificCapability(experience, nivel)
+  return [...NIVEL_TO_GENERIC_CAPABILITIES[nivel], ...labelKeys, ...(specificKey ? [specificKey] : [])]
 }
 
 function scopeIdForGrant(
@@ -190,23 +182,9 @@ function buildGrant(
 
 export function buildGrantsForServicio(
   equipo: { id: string; experiencia: string },
-  rol: { id: string; label: string },
+  rol: GrantsRol,
 ): readonly DreamTeamServiceGrant[] {
-  const grants: DreamTeamServiceGrant[] = []
-  const genericKeys = ROLE_TO_GENERIC_CAPABILITIES[normalizeLabel(rol.label)] ?? []
-
-  for (const key of genericKeys) {
-    const grant = buildGrant(key, equipo, rol)
-    if (grant) grants.push(grant)
-  }
-
-  const specificKey = resolveExperienceSpecificCapability(equipo.experiencia, rol.label)
-  if (specificKey) {
-    const grant = buildGrant(specificKey, equipo, rol)
-    if (grant) grants.push(grant)
-  }
-
-  return grants
+  return capabilityKeysForRol(equipo.experiencia, rol).flatMap((key) => buildGrant(key, equipo, rol) ?? [])
 }
 
 export function serializePausedGrantsSnapshot(

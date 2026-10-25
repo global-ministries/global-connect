@@ -95,7 +95,11 @@ describe('PATCH /api/dream-team/servicios/[id]', () => {
 // Fase 4.1 — transitionWithGrants wiring: activating/pausing a servicio must
 // mint/revoke the platform capabilities derived from its equipo + rol.
 describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
-  const expectedGrant = { capabilityKey: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' }
+  // rolCámara has a free label and nivel voluntario, so it serves (T6, S6.1).
+  const expectedGrants = [
+    { capabilityKey: 'dream_team.serve', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
+    { capabilityKey: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' },
+  ]
 
   it('becoming activo mints the role-derived capabilities via applyServicioGrants(grant)', async () => {
     auth([directorCap])
@@ -108,7 +112,7 @@ describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
     expect(calls).toHaveLength(1)
     expect(calls[0].personaId).toBe(voluntarioPersonaId)
     expect(calls[0].accion).toBe('grant')
-    expect(calls[0].grants).toEqual([expectedGrant])
+    expect(calls[0].grants).toEqual(expectedGrants)
   })
 
   it('activo → en_pausa revokes the role-derived capabilities via applyServicioGrants(revoke)', async () => {
@@ -121,7 +125,7 @@ describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
     const calls = fake.getAppliedServicioGrantsCalls()
     expect(calls).toHaveLength(1)
     expect(calls[0].accion).toBe('revoke')
-    expect(calls[0].grants).toEqual([expectedGrant])
+    expect(calls[0].grants).toEqual(expectedGrants)
   })
 
   it('a grant-irrelevant transition does not call applyServicioGrants', async () => {
@@ -132,5 +136,30 @@ describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
     expect(res.status).toBe(200)
 
     expect(fake.getAppliedServicioGrantsCalls()).toHaveLength(0)
+  })
+})
+
+// T6 (odd/tasks/uno-a-uno.md): the PATCH reads the rol's nivel, so a free label
+// mints the grants of the level chosen when the rol was created.
+describe('PATCH /api/dream-team/servicios/[id] — grants by the rol nivel', () => {
+  const rolOperador = { id: 'rol-op', equipoId: 'equipo-dps', label: 'Operador de cámara', nivel: 'coordinador' as const, activo: true }
+  const servicioOperador = { ...servicioEnOrientacion, id: 'srv-op', rolId: 'rol-op' }
+
+  it('mints the coordinador grants for a free-label rol with nivel coordinador', async () => {
+    auth([directorCap])
+    const fake = createInMemoryDreamTeamRepository({ seed: { equipos: [equipoDPS], roles: [rolCámara, rolOperador], servicios: [servicioOperador] } })
+    createRepo.mockReturnValue(fake)
+
+    const res = await PATCH(request('/api/dream-team/servicios/srv-op', { method: 'PATCH', body: JSON.stringify({ estado: 'activo', motivo: 'admin_promocion', expectedVersion: 1 }) }), ctx('srv-op'))
+    expect(res.status).toBe(200)
+
+    const calls = fake.getAppliedServicioGrantsCalls()
+    expect(calls).toHaveLength(1)
+    expect(calls[0].accion).toBe('grant')
+    expect(calls[0].grants).toEqual([
+      { capabilityKey: 'dream_team.serve', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
+      { capabilityKey: 'dream_team.coordinate', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
+      { capabilityKey: 'dps.team.lead', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' },
+    ])
   })
 })

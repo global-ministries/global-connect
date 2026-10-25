@@ -545,3 +545,151 @@ describe('ninos.team.serve scoping', () => {
     })
   })
 })
+
+// T6 (odd/tasks/uno-a-uno.md): the grants come from the rol's nivel, not its label.
+describe('Grants derive from the rol nivel', () => {
+  type Nivel = 'voluntario' | 'lider' | 'coordinador' | 'director'
+  const FREE_LABEL = 'Operador de cámara'
+  const GENERIC_BY_NIVEL: Record<Nivel, readonly string[]> = {
+    voluntario: ['dream_team.serve'],
+    lider: ['dream_team.serve', 'dream_team.lead'],
+    coordinador: ['dream_team.serve', 'dream_team.coordinate'],
+    director: ['dream_team.serve', 'dream_team.direct'],
+  }
+  const SPECIFIC_BY_EXPERIENCE: Record<string, Record<Nivel, string | undefined>> = {
+    dps: { voluntario: 'dps.team.serve', lider: 'dps.team.lead', coordinador: 'dps.team.lead', director: 'dps.team.director' },
+    estudiantes: {
+      voluntario: 'estudiantes.team.serve',
+      lider: 'estudiantes.team.lead',
+      coordinador: 'estudiantes.team.lead',
+      director: 'estudiantes.team.lead',
+    },
+    talleres_crecimiento: {
+      voluntario: 'talleres_crecimiento.team.serve',
+      lider: 'talleres_crecimiento.team.serve',
+      coordinador: 'talleres_crecimiento.team.serve',
+      director: 'talleres_crecimiento.team.serve',
+    },
+    ninos: { voluntario: 'ninos.team.serve', lider: 'ninos.team.serve', coordinador: 'ninos.team.serve', director: 'ninos.team.serve' },
+    the_living_room: {
+      voluntario: 'the_living_room.team.serve',
+      lider: 'the_living_room.team.serve',
+      coordinador: 'the_living_room.team.serve',
+      director: 'the_living_room.team.serve',
+    },
+    experiencia: { voluntario: undefined, lider: undefined, coordinador: undefined, director: undefined },
+  }
+  const NIVELES: readonly Nivel[] = ['voluntario', 'lider', 'coordinador', 'director']
+  const cases = Object.keys(SPECIFIC_BY_EXPERIENCE).flatMap((experiencia) =>
+    NIVELES.map((nivel) => ({ experiencia, nivel })),
+  )
+
+  function keysFor(experiencia: string, rol: { label: string; nivel?: Nivel }): readonly string[] {
+    return buildGrantsForServicio({ id: 'equipo-x', experiencia }, { id: 'rol-x', ...rol }).map(
+      (grant) => grant.capabilityKey,
+    )
+  }
+
+  // S6.1, S6.2
+  it.each(cases)('a free-label rol with nivel $nivel under $experiencia gets the grants of its nivel', ({ experiencia, nivel }) => {
+    const specific = SPECIFIC_BY_EXPERIENCE[experiencia][nivel]
+    expect(keysFor(experiencia, { label: FREE_LABEL, nivel })).toEqual([
+      ...GENERIC_BY_NIVEL[nivel],
+      ...(specific ? [specific] : []),
+    ])
+  })
+
+  // S6.1: the nivel wins over a label that names another level.
+  it('a rol labelled "Director" with nivel voluntario only serves', () => {
+    expect(keysFor('dps', { label: 'Director', nivel: 'voluntario' })).toEqual(['dream_team.serve', 'dps.team.serve'])
+  })
+
+  // S6.1: every generic grant stays scoped to the equipo.
+  it('scopes the nivel grants to the equipo', () => {
+    const grants = buildGrantsForServicio({ id: 'equipo-x', experiencia: 'dps' }, { id: 'rol-x', label: FREE_LABEL, nivel: 'coordinador' })
+    expect(grants.every((grant) => grant.scopeType === 'equipo' && grant.scopeId === 'equipo-x')).toBe(true)
+  })
+
+  // S6.5
+  it('without a nivel, uses the nivel of the label', () => {
+    expect(keysFor('dps', { label: 'Entrenador' })).toEqual(keysFor('dps', { label: FREE_LABEL, nivel: 'lider' }))
+    expect(keysFor('dps', { label: 'Coordinador' })).toEqual(keysFor('dps', { label: FREE_LABEL, nivel: 'coordinador' }))
+    expect(keysFor('dps', { label: FREE_LABEL })).toEqual(keysFor('dps', { label: FREE_LABEL, nivel: 'voluntario' }))
+  })
+
+  // S6.3
+  it('"Líder de grupo" adds dream_team.gdv.lead scoped to the rol, whatever its nivel', () => {
+    for (const nivel of NIVELES) {
+      const grants = buildGrantsForServicio(equipoEstudiantes, { id: 'rol-grupo', label: ' líder de GRUPO ', nivel })
+      expect(grants.filter((grant) => grant.capabilityKey === 'dream_team.gdv.lead')).toEqual([
+        { capabilityKey: 'dream_team.gdv.lead', experience: 'grupos_vida', scopeType: 'grupo', scopeId: 'rol-grupo' },
+      ])
+    }
+    expect(keysFor('estudiantes', { label: 'Líder de grupo', nivel: 'lider' })).toEqual([
+      'dream_team.serve',
+      'dream_team.lead',
+      'dream_team.gdv.lead',
+      'estudiantes.team.lead',
+    ])
+  })
+
+  // S6.3: no nivel mints dream_team.gdv.lead by itself.
+  it('no other label gets dream_team.gdv.lead', () => {
+    for (const nivel of NIVELES) {
+      expect(keysFor('estudiantes', { label: 'Líder', nivel })).not.toContain('dream_team.gdv.lead')
+    }
+  })
+
+  // S6.6: the six labels in production, with the nivel T1 gave them, mint exactly what they minted by label.
+  it.each([
+    ['Voluntario', 'voluntario', ['dream_team.serve', 'dps.team.serve']],
+    ['Líder', 'lider', ['dream_team.serve', 'dream_team.lead', 'dps.team.lead']],
+    ['Facilitador', 'lider', ['dream_team.serve', 'dream_team.lead', 'dps.team.lead']],
+    ['Entrenador', 'lider', ['dream_team.serve', 'dream_team.lead', 'dps.team.lead']],
+    ['Coordinador', 'coordinador', ['dream_team.serve', 'dream_team.coordinate', 'dps.team.lead']],
+    ['Director', 'director', ['dream_team.serve', 'dream_team.direct', 'dps.team.director']],
+  ] as const)('%s with nivel %s keeps today\'s grants', (label, nivel, expected) => {
+    expect(keysFor('dps', { label, nivel })).toEqual(expected)
+    expect(keysFor('dps', { label, nivel })).toEqual(keysFor('dps', { label }))
+    for (const experiencia of Object.keys(SPECIFIC_BY_EXPERIENCE)) {
+      expect(keysFor(experiencia, { label, nivel })).toEqual(keysFor(experiencia, { label }))
+    }
+  })
+
+  // S6.4 (TS side): the transition orchestrator reads the nivel too.
+  it('applyGrantsForTransition and transitionWithGrants mint from the nivel', async () => {
+    const rol = { id: 'rol-op', label: FREE_LABEL, nivel: 'coordinador' as const }
+    const decision = applyGrantsForTransition(
+      {
+        servicio: makeServicio('en_orientacion'),
+        estadoAnterior: 'en_orientacion',
+        estadoNuevo: 'activo',
+        motivo: 'admin_promocion',
+        actorPersonaId: 'persona-admin',
+        fecha: '2026-10-24T00:00:00Z',
+        equipo: equipoDps,
+        rol,
+      },
+      createPlatformGrantAudit(),
+    )
+    if (decision.action !== 'grant') throw new Error('expected grant')
+    expect(decision.grants.map((grant) => grant.capabilityKey)).toEqual(['dream_team.serve', 'dream_team.coordinate', 'dps.team.lead'])
+
+    const result = await transitionWithGrants({
+      servicio: makeServicio('activo'),
+      estadoNuevo: 'retirado',
+      motivo: 'admin_retiro',
+      actorPersonaId: 'persona-admin',
+      fecha: '2026-10-24T00:00:00Z',
+      audit: createPlatformGrantAudit(),
+      equipo: equipoDps,
+      rol,
+    })
+    if (!result.ok || result.grantsDecision.action !== 'revoke') throw new Error('expected revoke')
+    expect(result.grantsDecision.grants.map((grant) => grant.capabilityKey)).toEqual([
+      'dream_team.serve',
+      'dream_team.coordinate',
+      'dps.team.lead',
+    ])
+  })
+})

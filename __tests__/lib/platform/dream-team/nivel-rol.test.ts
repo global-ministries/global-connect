@@ -1,13 +1,19 @@
 /**
  * Rol level classifier (odd/tasks/uno-a-uno.md, T1): the authority level a rol
- * label maps to. It must agree with the label sets of grants.ts, because the
+ * label maps to. It must agree with the label sets of nivel-rol.ts, because the
  * migration backfills the existing roles with the same classification.
  */
 import fs from 'fs'
 import path from 'path'
 
-import { DIRECTOR_ROLE_LABELS, LEAD_ROLE_LABELS } from '@/lib/platform/dream-team/grants'
-import { NIVELES_ROL, esNivelRol, nivelDesdeLabel, nivelRolLabel } from '@/lib/platform/dream-team/nivel-rol'
+import {
+  DIRECTOR_ROLE_LABELS,
+  LEAD_ROLE_LABELS,
+  NIVELES_ROL,
+  esNivelRol,
+  nivelDesdeLabel,
+  nivelRolLabel,
+} from '@/lib/platform/dream-team/nivel-rol'
 
 const MIGRATION = path.join(process.cwd(), 'supabase/migrations/20261015100000_dream_team_nivel_rol.sql')
 
@@ -84,7 +90,7 @@ describe('dream_team_nivel_desde_label in 20261015100000_dream_team_nivel_rol.sq
     for (const [label, nivel] of arms) expect([label, nivelDesdeLabel(label)]).toEqual([label, nivel])
   })
 
-  it('names every director and lead label of grants.ts', () => {
+  it('names every director and lead label of nivel-rol.ts', () => {
     const labels = arms.map(([label]) => label)
     for (const label of [...DIRECTOR_ROLE_LABELS, ...LEAD_ROLE_LABELS]) expect(labels).toContain(label)
   })
