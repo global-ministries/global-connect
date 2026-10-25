@@ -352,9 +352,9 @@ describe('pills', () => {
     expect(vista({ ...filtros, ...rol?.parche }).pastillas.map((p) => p.clave)).toEqual(['etapa'])
   })
 
-  it('counts the filters that live in the phone sheet', () => {
-    expect(vista({ etapa: 'activo', q: 'x' }).filtrosEnHoja).toBe(0)
-    expect(vista({ equipo: ID_CORO, rol: 'Director', sinCuenta: true, varios: true }).filtrosEnHoja).toBe(4)
+  it('counts the filters that live in the phone sheet (the equipo lives on the KPI cards)', () => {
+    expect(vista({ etapa: 'activo', q: 'x', equipo: ID_CORO }).filtrosEnHoja).toBe(0)
+    expect(vista({ area: ID_TALLERES, rol: 'Director', sinCuenta: true, varios: true }).filtrosEnHoja).toBe(4)
   })
 })
 

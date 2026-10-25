@@ -3,7 +3,7 @@
 /**
  * Servidores on phones: the "Filtros · N" button and the bottom sheet behind
  * it. The sheet holds what does not fit the phone bar — Dirección, Área,
- * Equipo, Rol, Turno and the quick filters — with "Limpiar" (empties exactly those filters) and "Ver N"
+ * Rol, Turno and the quick filters (the equipo is chosen on the KPI cards) — with "Limpiar" (empties exactly those filters) and "Ver N"
  * (closes the sheet; N is what the list now shows). Every change applies live.
  */
 import { useState, type ReactElement } from 'react'
@@ -14,7 +14,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { cn } from '@/lib/utils'
 import {
   parcheElegirDireccion,
-  parcheElegirEquipo,
   type FiltrosServidores,
   type VistaServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
@@ -29,7 +28,7 @@ export interface HojaFiltrosProps {
 }
 
 const TODOS = ''
-const LIMPIAR_HOJA: Partial<FiltrosServidores> = { area: null, equipo: null, rol: null, sinCuenta: false, varios: false }
+const LIMPIAR_HOJA: Partial<FiltrosServidores> = { area: null, rol: null, sinCuenta: false, varios: false }
 
 export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): ReactElement {
   const [abierta, setAbierta] = useState(false)
@@ -58,12 +57,6 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
             onValueChange={(valor) => onCambio(parcheElegirDireccion(valor === TODOS ? null : valor))}
           />
           <SelectorArea vista={vista} onCambio={onCambio} />
-          <SelectSistema
-            label="Equipo"
-            opciones={[{ valor: TODOS, etiqueta: 'Todos' }, ...opciones.equipos.map((e) => ({ valor: e.id, etiqueta: e.label }))]}
-            value={filtros.equipo ?? TODOS}
-            onValueChange={(valor) => onCambio(parcheElegirEquipo(valor === TODOS ? null : valor, opciones.equipos))}
-          />
           <SelectSistema
             label="Rol"
             opciones={[{ valor: TODOS, etiqueta: 'Todos' }, ...opciones.roles.map((r) => ({ valor: r.id, etiqueta: r.label }))]}

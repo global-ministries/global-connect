@@ -104,6 +104,11 @@ const celdasPorFila = () => {
 const filasDeTabla = () => [...celdasPorFila().keys()]
 const nombresEnTabla = () => [...celdasPorFila().values()].map((celdas) => celdas[0].textContent ?? '')
 const pie = () => screen.getByText(/servicios? · \d+ personas?/)
+/** A KPI card (dirección or equipo) by the start of its accessible name. */
+const tarjeta = (label: string) =>
+  within(screen.getByRole('group', { name: /^(Direcciones|Equipos)$/ })).getByRole('button', {
+    name: (nombre) => nombre.startsWith(label),
+  })
 
 describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
   it('shows one counter per etapa, reacting to the rest of the filters', async () => {
@@ -112,7 +117,8 @@ describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
     expect(screen.getByRole('button', { name: 'Activo 37' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'En orientación 2' })).toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Equipo'), ID_PDP)
+    await user.click(tarjeta('Dirección de Conexión'))
+    await user.click(tarjeta('Punto de Partida'))
     expect(screen.getByRole('button', { name: 'Activo 13' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'En pausa 0' })).toBeInTheDocument()
   })
@@ -141,23 +147,42 @@ describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
 })
 
 describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () => {
-  const opcionesDe = (etiqueta: string) => Array.from((screen.getByLabelText(etiqueta) as HTMLSelectElement).options).map((o) => o.text)
 
-  it('choosing the Dirección de Conexión narrows the equipo selector to its own teams', async () => {
+  it('without a dirección, the KPI cards are the direcciones; tapping one enters it', async () => {
     render(<ServidoresClient {...props()} />)
-    expect(opcionesDe('Equipo')).toContain('Coro')
+    expect(screen.queryByLabelText('Equipo')).not.toBeInTheDocument()
+    expect(tarjeta('Todas las direcciones')).toHaveAttribute('aria-pressed', 'true')
+    expect(tarjeta('Todas las direcciones')).toHaveTextContent('38personas')
+    expect(tarjeta('Dirección de Conexión')).toHaveTextContent('Dirige Antholy Ludovic Gómez')
 
-    await user.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
-    expect(opcionesDe('Equipo')).toEqual(['Todos', 'De Hombre a Hombre', 'Dirección de Conexión', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
+    await user.click(tarjeta('Dirección de Conexión'))
+    expect(screen.getByLabelText('Dirección')).toHaveValue(ID_CONEXION)
     expect(filasDeTabla()).toHaveLength(38)
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion', { scroll: false })
   })
 
-  it('choosing an equipo fixes its dirección', async () => {
+  it('choosing the Dirección de Conexión turns the cards into its own teams', async () => {
     render(<ServidoresClient {...props()} />)
-    await user.selectOptions(screen.getByLabelText('Equipo'), ID_CORO)
+    await user.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
+    const nombres = within(screen.getByRole('group', { name: 'Equipos' }))
+      .getAllByRole('button')
+      .map((boton) => boton.querySelector('span span')?.textContent)
+    expect(nombres).toEqual(['Toda la dirección', 'De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
+    expect(tarjeta('Punto de Partida')).toHaveTextContent('Coordina Jose Jimenez')
+    expect(tarjeta('Punto de Partida')).toHaveTextContent('1 por activar')
+  })
+
+  it('tapping an equipo card filters by it; "Toda la dirección" removes only the equipo', async () => {
+    render(<ServidoresClient {...props()} />)
+    await user.click(tarjeta('Dirección de Alabanza'))
+    await user.click(tarjeta('Coro'))
+    expect(tarjeta('Coro')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Dirección')).toHaveValue('dir-alabanza')
     expect(nombresEnTabla().sort()).toEqual([expect.stringContaining('Sara Ponce'), expect.stringContaining('Tomás Rey')])
+    expect(replace).toHaveBeenLastCalledWith(`/admin/dream-team/servidores?direccion=dir-alabanza&equipo=${ID_CORO}`, { scroll: false })
+
+    await user.click(tarjeta('Toda la dirección'))
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
   })
 })
 
@@ -266,7 +291,7 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
     render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales })} />)
 
     expect(screen.getByRole('button', { name: /^Activo/ })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByLabelText('Equipo')).toHaveValue(ID_DHAH)
+    expect(tarjeta('De Hombre a Hombre')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByLabelText('Dirección')).toHaveValue(ID_CONEXION)
     expect(screen.getByRole('button', { name: 'Por equipo' })).toHaveAttribute('aria-pressed', 'true')
     const pastillas = screen.getByRole('list', { name: 'Filtros activos' })
@@ -446,13 +471,13 @@ describe('ServidoresClient — phone', () => {
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
   })
 
-  it('has a "Filtros" button that counts the filters it holds and opens a bottom sheet with Equipo, Rol and the quick filters', async () => {
+  it('has a "Filtros" button that counts the filters it holds and opens a bottom sheet with Rol and the quick filters (no Equipo: it is on the cards)', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
     expect(botonFiltros()).toHaveTextContent(/^Filtros$/)
 
     await user.click(botonFiltros())
     const hoja = screen.getByRole('dialog', { name: 'Filtros' })
-    expect(within(hoja).getByLabelText('Equipo')).toBeInTheDocument()
+    expect(within(hoja).queryByLabelText('Equipo')).not.toBeInTheDocument()
     expect(within(hoja).getByLabelText('Rol')).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
     expect(within(hoja).getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
@@ -462,10 +487,11 @@ describe('ServidoresClient — phone', () => {
 
   it('the sheet filters live, "Ver N" shows the result count and closes, "Limpiar" empties the sheet filters', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    await user.click(tarjeta('Dirección de Conexión'))
+    await user.click(tarjeta('Punto de Partida'))
     await user.click(botonFiltros())
     let hoja = screen.getByRole('dialog', { name: 'Filtros' })
 
-    await user.selectOptions(within(hoja).getByLabelText('Equipo'), ID_PDP)
     await user.click(within(hoja).getByRole('button', { name: /^Sin cuenta/ }))
     expect(within(hoja).getByRole('button', { name: 'Ver 13' })).toBeInTheDocument()
     expect(replace).toHaveBeenLastCalledWith(
@@ -473,7 +499,10 @@ describe('ServidoresClient — phone', () => {
       { scroll: false },
     )
 
+    // "Limpiar" empties the sheet's own filters; the equipo chosen on the cards stays.
     await user.click(within(hoja).getByRole('button', { name: 'Limpiar' }))
+    expect(within(hoja).getByRole('button', { name: 'Ver 14' })).toBeInTheDocument()
+    await user.selectOptions(within(hoja).getByLabelText('Dirección'), '')
     expect(within(hoja).getByRole('button', { name: 'Ver 38' })).toBeInTheDocument()
     await user.selectOptions(within(hoja).getByLabelText('Rol'), 'Coordinador')
     await user.click(within(hoja).getByRole('button', { name: 'Ver 4' }))
@@ -582,7 +611,8 @@ describe('ServidoresClient — área drill-down inside a dirección', () => {
     expect(opcionesDe('Área')).toEqual(['Todas', 'Talleres'])
 
     await user.selectOptions(screen.getByLabelText('Área'), ID_TALLERES)
-    expect(opcionesDe('Equipo')).toEqual(['Todos', 'De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
+    expect(tarjeta('Todos los equipos')).toHaveAttribute('aria-pressed', 'true')
+    expect(within(screen.getByRole('group', { name: 'Equipos' })).getAllByRole('button')).toHaveLength(5)
     expect(filasDeTabla()).toHaveLength(37)
     expect(replace).toHaveBeenLastCalledWith(
       `/admin/dream-team/servidores?direccion=${ID_CONEXION}&area=${ID_TALLERES}`,

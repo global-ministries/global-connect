@@ -8,8 +8,8 @@
  * model (lib/platform/dream-team/servidores-vista.ts); this island keeps the
  * filters in local state, mirrors them into the URL with
  * `router.replace(..., { scroll: false })` (the text search is debounced) and
- * renders: etapa counters as filters, the visible filter bar, the active-filter
- * pills and the table.
+ * renders: the dirección/equipo KPI cards and the etapa counters as filters,
+ * the visible filter bar, the active-filter pills and the table.
  *
  * The filters start from the URL the server page parsed (`filtrosIniciales`),
  * so a shared link opens the same view, and the legacy `?equipo=` / `?estado=`
@@ -47,6 +47,7 @@ import { ContadoresEtapa } from './contadores-etapa'
 import { PastillasFiltros } from './pastillas-filtros'
 import { TablaServidores } from './tabla-servidores'
 import { TarjetasServidores } from './tarjetas-servidores'
+import { TarjetasUbicacion } from './tarjetas-ubicacion'
 
 export interface ServidoresClientProps {
   readonly filas: readonly FilaServidor[]
@@ -182,6 +183,8 @@ export function ServidoresClient({
         ) : null
       }
     >
+
+      <TarjetasUbicacion vista={vista} onCambio={cambiar} />
 
       <ContadoresEtapa
         contadores={vista.contadoresEtapa}
