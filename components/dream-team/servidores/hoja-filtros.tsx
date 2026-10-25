@@ -11,14 +11,13 @@ import { Filter } from 'lucide-react'
 
 import { BotonSistema, PieAccionesSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
-import { cn } from '@/lib/utils'
+import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import {
   parcheElegirDireccion,
   type FiltrosServidores,
   type VistaServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
 import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
-import { ANILLO } from './contadores-etapa'
 import { SelectorArea } from './barra-filtros'
 
 export interface HojaFiltrosProps {
@@ -66,21 +65,13 @@ export function HojaFiltros({ vista, onCambio, className }: HojaFiltrosProps): R
           <SelectorTurno turnos={opciones.turnos} valor={filtros.turno} onCambio={(turno) => onCambio({ turno })} />
           <div className="flex flex-wrap gap-2">
             {rapidosLista.map((rapido) => (
-              <button
+              <PastillaFiltro
                 key={rapido.clave}
-                type="button"
-                aria-pressed={rapido.activo}
+                etiqueta={rapido.etiqueta}
+                cantidad={rapido.cantidad}
+                activa={rapido.activo}
                 onClick={() => onCambio({ [rapido.clave]: !rapido.activo })}
-                className={cn(
-                  'min-h-[44px] rounded-full border px-4 text-sm font-medium transition-colors',
-                  rapido.activo
-                    ? 'border-brand bg-brand-tint text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                  ANILLO,
-                )}
-              >
-                {rapido.etiqueta} · {rapido.cantidad}
-              </button>
+              />
             ))}
           </div>
         </div>

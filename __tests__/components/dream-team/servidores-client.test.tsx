@@ -189,10 +189,10 @@ describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () 
 describe('ServidoresClient — quick filters (criterion 3)', () => {
   it('"Sin cuenta" leaves 31 of 38 servicios in Conexión', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    expect(screen.getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sin cuenta 31' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'En varios equipos 4' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Sin cuenta · 31' }))
+    await user.click(screen.getByRole('button', { name: 'Sin cuenta 31' }))
     expect(filasDeTabla()).toHaveLength(31)
     expect(pie()).toHaveTextContent('31 servicios · 31 personas')
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?sin_cuenta=1', { scroll: false })
@@ -200,7 +200,7 @@ describe('ServidoresClient — quick filters (criterion 3)', () => {
 
   it('"En varios equipos" lists only people with two or more servicios', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await user.click(screen.getByRole('button', { name: 'En varios equipos · 4' }))
+    await user.click(screen.getByRole('button', { name: 'En varios equipos 4' }))
     expect(filasDeTabla()).toHaveLength(4)
     expect(pie()).toHaveTextContent('4 servicios · 2 personas')
   })
@@ -272,7 +272,7 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
   it('lists every active filter as a pill; the X removes just that one; "Limpiar todo" removes all', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
     await user.click(screen.getByRole('button', { name: /^Activo/ }))
-    await user.click(screen.getByRole('button', { name: 'Sin cuenta · 28' }))
+    await user.click(screen.getByRole('button', { name: 'Sin cuenta 28' }))
     const pastillas = screen.getByRole('list', { name: 'Filtros activos' })
     expect(within(pastillas).getAllByRole('button').map((b) => b.textContent)).toEqual(['Etapa: Activo', 'Sin cuenta', 'Limpiar todo'])
 
@@ -368,7 +368,7 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
     expect(within(celda).getByText('Sin cuenta')).toBeInTheDocument()
     expect(within(celda).getByRole('link', { name: /0424 555 1111/ })).toHaveAttribute('href', 'https://wa.me/584245551111')
     expect(within(celda).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sin cuenta · 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sin cuenta 1' })).toBeInTheDocument()
   })
 
   it('finds a person by phone, however the number is typed', async () => {
@@ -479,8 +479,8 @@ describe('ServidoresClient — phone', () => {
     const hoja = screen.getByRole('dialog', { name: 'Filtros' })
     expect(within(hoja).queryByLabelText('Equipo')).not.toBeInTheDocument()
     expect(within(hoja).getByLabelText('Rol')).toBeInTheDocument()
-    expect(within(hoja).getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(hoja).getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
+    expect(within(hoja).getByRole('button', { name: 'Sin cuenta 31' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(hoja).getByRole('button', { name: 'En varios equipos 4' })).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: 'Limpiar' })).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: 'Ver 38' })).toBeInTheDocument()
   })

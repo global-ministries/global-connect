@@ -4,13 +4,13 @@
  * Servidores — the etapa counters. They are filters: each one is an
  * `aria-pressed` button, a second tap removes the filter, and the numbers
  * already account for every other filter (see `contadoresEtapa` in
- * lib/platform/dream-team/servidores-vista.ts). On phones the row scrolls
- * horizontally instead of wrapping.
+ * lib/platform/dream-team/servidores-vista.ts). They are the shared count
+ * pills (components/ui/PastillasFiltro), like every list refinement.
  */
 import type { ReactElement } from 'react'
 
 import { ESTADO_LABELS } from '@/components/dream-team/labels'
-import { cn } from '@/lib/utils'
+import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado } from '@/lib/platform/dream-team/types'
 import type { VistaServidores } from '@/lib/platform/dream-team/servidores-vista'
 
@@ -34,33 +34,20 @@ export function ContadoresEtapa({ contadores, etapa, onEtapaChange }: Contadores
   ]
 
   return (
-    <div
-      role="group"
-      aria-label="Filtrar por etapa"
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0 md:pb-0"
-    >
+    <GrupoPastillas etiqueta="Filtrar por etapa">
       {opciones.map(({ valor, etiqueta, cantidad }) => {
         const activa = etapa === valor
         return (
-          <button
+          <PastillaFiltro
             key={valor ?? 'todas'}
-            type="button"
-            aria-pressed={activa}
+            etiqueta={etiqueta}
+            cantidad={cantidad}
+            activa={activa}
             // A second tap on the active etapa removes the filter.
             onClick={() => onEtapaChange(activa ? null : valor)}
-            className={cn(
-              'flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full border px-4 text-sm font-medium transition-colors',
-              activa
-                ? 'border-brand bg-brand-tint text-foreground'
-                : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-              ANILLO,
-            )}
-          >
-            <span>{etiqueta}</span>
-            <span className="tabular-nums font-semibold text-foreground">{cantidad}</span>
-          </button>
+          />
         )
       })}
-    </div>
+    </GrupoPastillas>
   )
 }

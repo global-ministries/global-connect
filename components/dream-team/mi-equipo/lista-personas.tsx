@@ -16,6 +16,7 @@
 import type { ReactElement } from 'react'
 
 import { BadgeSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import {
   ESTADO_BADGE_VARIANTE,
   ESTADO_LABELS,
@@ -24,7 +25,6 @@ import {
   rolBadgeVariante,
 } from '@/components/dream-team/labels'
 import { TelefonoServidor } from '@/components/dream-team/servidores/telefono-servidor'
-import { cn } from '@/lib/utils'
 import { MenuPersona } from './menu-persona'
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado } from '@/lib/platform/dream-team/types'
 import type { ContadoresPorEstado, FiltroEstado, PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
@@ -60,8 +60,6 @@ function textoDeTurnos(
     .map((turno) => nombreConFrecuencia(turno.label, frecuencias?.[turno.id], hoy))
   return nombres.length > 0 ? nombres.join(', ') : '—'
 }
-
-const ANILLO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 
 /** Always offered; the other estados only appear when someone is in them. */
 const ESTADOS_SIEMPRE: readonly DreamTeamEstado[] = ['activo', 'en_orientacion', 'en_pausa']
@@ -110,26 +108,17 @@ export function ListaPersonas({
             {subtitulo}
           </TextoSistema>
         </div>
-        <div role="group" aria-label="Filtrar por etapa" className="-mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-          {pastillas(contadores, filtro).map((pastilla) => {
-            const activa = filtro === pastilla.valor
-            return (
-              <button
-                key={pastilla.valor}
-                type="button"
-                aria-pressed={activa}
-                onClick={() => onFiltroChange(pastilla.valor)}
-                className={cn(
-                  'min-h-[44px] shrink-0 whitespace-nowrap rounded-full border px-4 text-sm font-semibold transition-colors',
-                  activa ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                  ANILLO,
-                )}
-              >
-                {pastilla.etiqueta} · {pastilla.cantidad}
-              </button>
-            )
-          })}
-        </div>
+        <GrupoPastillas etiqueta="Filtrar por etapa" className="sm:-mx-4 sm:px-4 md:mx-0 md:px-0">
+          {pastillas(contadores, filtro).map((pastilla) => (
+            <PastillaFiltro
+              key={pastilla.valor}
+              etiqueta={pastilla.etiqueta}
+              cantidad={pastilla.cantidad}
+              activa={filtro === pastilla.valor}
+              onClick={() => onFiltroChange(pastilla.valor)}
+            />
+          ))}
+        </GrupoPastillas>
       </div>
 
       {personas.length === 0 ? (
