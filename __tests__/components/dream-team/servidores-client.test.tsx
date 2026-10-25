@@ -611,7 +611,7 @@ describe('ServidoresClient — área drill-down inside a dirección', () => {
     expect(opcionesDe('Área')).toEqual(['Todas', 'Talleres'])
 
     await user.selectOptions(screen.getByLabelText('Área'), ID_TALLERES)
-    expect(tarjeta('Todos los equipos')).toHaveAttribute('aria-pressed', 'true')
+    expect(tarjeta('Todo Talleres')).toHaveAttribute('aria-pressed', 'true')
     expect(within(screen.getByRole('group', { name: 'Equipos' })).getAllByRole('button')).toHaveLength(5)
     expect(filasDeTabla()).toHaveLength(37)
     expect(replace).toHaveBeenLastCalledWith(

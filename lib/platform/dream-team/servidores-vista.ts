@@ -196,10 +196,12 @@ export interface TarjetaConteo {
   readonly personas: number
   /** Of those, the ones in `postulado` or `en_orientacion`. */
   readonly porActivar: number
+  /** An área with equipos below: tapping it enters it instead of picking an equipo. */
+  readonly esArea: boolean
 }
 
 export interface TarjetasServidores {
-  /** Without a dirección the cards are the direcciones; with one, its equipos. */
+  /** Without a dirección the cards are the direcciones; with one, the next level of its tree. */
   readonly nivel: 'direcciones' | 'equipos'
   readonly todas: TarjetaConteo
   readonly items: readonly TarjetaConteo[]
@@ -450,16 +452,21 @@ export function parcheElegirDireccion(direccionId: string | null): Partial<Filtr
 
 /**
  * The patch for tapping a KPI card: a dirección card acts like the Dirección
- * selector, an equipo card picks that equipo, and the first card ("Todas")
- * removes the level the cards stand for.
+ * selector, an área card like the Área selector (it enters the área), an
+ * equipo card picks that equipo, and the first card ("Todas") removes the
+ * level the cards stand for.
  */
 export function parcheElegirTarjeta(
-  nivel: TarjetasServidores['nivel'],
+  tarjetas: TarjetasServidores,
   id: string,
-  equipos: readonly OpcionEquipo[],
+  opciones: Pick<VistaServidores['opciones'], 'areas' | 'equipos'>,
 ): Partial<FiltrosServidores> {
   const valor = id === TARJETA_TODAS ? null : id
-  return nivel === 'direcciones' ? parcheElegirDireccion(valor) : parcheElegirEquipo(valor, equipos)
+  if (tarjetas.nivel === 'direcciones') return parcheElegirDireccion(valor)
+  if (valor !== null && tarjetas.items.find((tarjeta) => tarjeta.id === valor)?.esArea) {
+    return parcheElegirArea(valor, opciones.areas)
+  }
+  return parcheElegirEquipo(valor, opciones.equipos)
 }
 
 /** The patch that picks an área: the equipo is dropped and the dirección follows the área. */
@@ -554,20 +561,31 @@ function conteo(filas: readonly FilaServidor[]): Pick<TarjetaConteo, 'personas' 
 
 interface EntradaTarjetas {
   readonly filas: readonly FilaServidor[]
+  readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
   readonly filtros: FiltrosServidores
   readonly contexto: Contexto
   readonly direcciones: readonly Opcion[]
-  readonly equipos: readonly OpcionEquipo[]
+}
+
+function buscarNodo(nodos: readonly NodoArbol<NodoEquipoArbol>[], id: string): NodoArbol<NodoEquipoArbol> | null {
+  for (const nodo of nodos) {
+    if (nodo.equipo.id === id) return nodo
+    const encontrado = buscarNodo(nodo.hijos, id)
+    if (encontrado) return encontrado
+  }
+  return null
 }
 
 /**
  * Without a dirección: "Todas las direcciones" plus one card per dirección,
- * counted over every filter but dirección/área/equipo. With one: "Toda la
- * dirección" ("Todos los equipos" inside an área) plus one card per equipo
- * below the root, counted over every filter but the equipo — the root's own
- * people (its director) live only in the first card, as in Mi equipo.
+ * counted over every filter but dirección/área/equipo. With one, the cards
+ * follow the tree one level at a time: the children of the chosen área (or of
+ * the dirección) that have servicios below, each counting its whole branch
+ * over every filter but the equipo. A lone área in between (Conexión →
+ * Talleres) is skipped so a single card never stands alone. A node's own
+ * people (a dirección's director) live only in the first card, as in Mi equipo.
  */
-function calcularTarjetas({ filas, filtros, contexto, direcciones, equipos }: EntradaTarjetas): TarjetasServidores {
+function calcularTarjetas({ filas, arbol, filtros, contexto, direcciones }: EntradaTarjetas): TarjetasServidores {
   if (filtros.direccion === null) {
     const base = filas.filter((fila) => pasa(fila, filtros, contexto, 'ubicacion'))
     const items = direcciones.map(({ id, label }) => ({
@@ -578,42 +596,47 @@ function calcularTarjetas({ filas, filtros, contexto, direcciones, equipos }: En
         ['director'],
       ),
       ...conteo(base.filter((fila) => fila.direccionId === id)),
+      esArea: false,
     }))
     return {
       nivel: 'direcciones',
-      todas: { id: TARJETA_TODAS, label: 'Todas las direcciones', responsable: null, ...conteo(base) },
+      todas: { id: TARJETA_TODAS, label: 'Todas las direcciones', responsable: null, ...conteo(base), esArea: false },
       items,
       seleccionadaId: TARJETA_TODAS,
       modoCompacto: items.length > MAX_EQUIPOS_EN_TARJETAS,
     }
   }
 
-  const direccionId = filtros.direccion
+  const raizId = filtros.area ?? filtros.direccion
+  const raiz = buscarNodo(arbol, raizId)
+  const enRama = (fila: FilaServidor, id: string): boolean => enArea(fila.equipoId, id, contexto.indice)
+  const conServicios = (nodo: NodoArbol<NodoEquipoArbol>): boolean => filas.some((fila) => enRama(fila, nodo.equipo.id))
+  let hijos = raiz ? raiz.hijos.filter(conServicios) : []
+  while (hijos.length === 1 && hijos[0].hijos.length > 0) hijos = hijos[0].hijos.filter(conServicios)
+  hijos = [...hijos].sort((a, b) => a.equipo.label.localeCompare(b.equipo.label, ES))
+
   const base = filas.filter((fila) => pasa(fila, filtros, contexto, 'equipo'))
-  const items = equipos
-    .filter((equipo) => equipo.id !== direccionId)
-    .map(({ id, label }) => ({
-      id,
-      label,
-      responsable: responsableDe(
-        filas.filter((fila) => fila.equipoId === id),
-        ['coordinador', 'director'],
-      ),
-      ...conteo(base.filter((fila) => fila.equipoId === id)),
-    }))
+  const items = hijos.map(({ equipo, hijos: nietos }) => ({
+    id: equipo.id,
+    label: equipo.label,
+    responsable: responsableDe(
+      filas.filter((fila) => fila.equipoId === equipo.id),
+      ['coordinador', 'director'],
+    ),
+    ...conteo(base.filter((fila) => enRama(fila, equipo.id))),
+    esArea: nietos.length > 0,
+  }))
   return {
     nivel: 'equipos',
     todas: {
       id: TARJETA_TODAS,
-      label: filtros.area === null ? 'Toda la dirección' : 'Todos los equipos',
-      responsable:
-        filtros.area === null
-          ? responsableDe(
-              filas.filter((fila) => fila.equipoId === direccionId),
-              ['director'],
-            )
-          : null,
+      label: filtros.area === null ? 'Toda la dirección' : `Todo ${raiz?.equipo.label ?? ''}`.trim(),
+      responsable: responsableDe(
+        filas.filter((fila) => fila.equipoId === raizId),
+        filtros.area === null ? ['director'] : ['coordinador', 'director'],
+      ),
       ...conteo(base),
+      esArea: false,
     },
     items,
     seleccionadaId: filtros.equipo ?? TARJETA_TODAS,
@@ -723,7 +746,7 @@ export function calcularVistaServidores({
   )
   const personasVisibles = new Set(visibles.map((fila) => fila.personaId)).size
 
-  const tarjetas = calcularTarjetas({ filas, filtros, contexto, direcciones, equipos })
+  const tarjetas = calcularTarjetas({ filas, arbol, filtros, contexto, direcciones })
 
   const etiquetaDireccion = (id: string): string => direccionesConServicios.get(id) ?? indice.get(id)?.label ?? id
   const etiquetaEquipo = (id: string): string => equipos.find((equipo) => equipo.id === id)?.label ?? id

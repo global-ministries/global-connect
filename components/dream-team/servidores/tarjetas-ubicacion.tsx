@@ -3,7 +3,8 @@
 /**
  * Servidores — the KPI cards above the list, the same pattern as Mi equipo:
  * without a dirección, one card per dirección (tapping one enters it); with
- * one, "Toda la dirección" plus one card per equipo. They replace the Equipo
+ * one, "Toda la dirección" plus the next level of its tree (an área card
+ * enters the área, an equipo card picks the equipo). They replace the Equipo
  * selector; the numbers follow every other filter (see `calcularTarjetas` in
  * lib/platform/dream-team/servidores-vista.ts).
  */
@@ -43,7 +44,7 @@ export function TarjetasUbicacion({ vista, onCambio }: TarjetasUbicacionProps): 
       items={tarjetas.items.map(aTarjeta)}
       modoCompacto={tarjetas.modoCompacto}
       seleccionadoId={tarjetas.seleccionadaId}
-      onSeleccionar={(id) => onCambio(parcheElegirTarjeta(tarjetas.nivel, id, opciones.equipos))}
+      onSeleccionar={(id) => onCambio(parcheElegirTarjeta(tarjetas, id, opciones))}
       unidad={PERSONAS}
       etiqueta={porDireccion ? 'Direcciones' : 'Equipos'}
       buscarEtiqueta={porDireccion ? 'Buscar dirección' : 'Buscar equipo'}
