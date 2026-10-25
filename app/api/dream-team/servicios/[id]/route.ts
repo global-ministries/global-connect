@@ -49,13 +49,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
     // equipo/rol mirror POST's lookup pattern (repo.listEquipos() / repo.listRolesPorEquipo(...)
     // by id). Without them, applyGrantsForTransition (called inside transitionWithGrants)
-    // returns 'noop' and mints nothing — see lib/platform/dream-team/grants.ts.
+    // returns 'noop' and mints nothing — see lib/platform/dream-team/grants.ts. The rol's
+    // nivel, not its label, decides the grants (odd/tasks/uno-a-uno.md, T6).
     const equipoRow = (await repo.listEquipos()).find((e) => e.id === servicio.equipoId)
     const equipo = equipoRow ? { id: equipoRow.id, experiencia: equipoRow.experiencia } : undefined
     const rolRow = equipoRow
       ? (await repo.listRolesPorEquipo(equipoRow.id)).find((r) => r.id === servicio.rolId)
       : undefined
-    const rol = rolRow ? { id: rolRow.id, label: rolRow.label } : undefined
+    const rol = rolRow ? { id: rolRow.id, label: rolRow.label, nivel: rolRow.nivel } : undefined
 
     // previousSnapshot is intentionally NOT passed: with equipo + rol available but no
     // snapshot, applyGrantsForTransition recomputes the same set via buildGrantsForServicio,

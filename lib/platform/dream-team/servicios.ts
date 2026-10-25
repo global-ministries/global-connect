@@ -2,6 +2,7 @@ import { transition as transitionStateMachine } from './state-machine'
 import {
   applyGrantsForTransition,
   type GrantsDecision,
+  type GrantsRol,
   type PausedGrantsSnapshot,
 } from './grants'
 import { createPlatformGrantAudit } from '@/lib/platform/grants'
@@ -23,7 +24,7 @@ export interface TransitionWithGrantsInput {
   readonly fecha: string
   readonly audit: ReturnType<typeof createPlatformGrantAudit>
   readonly equipo?: { id: string; experiencia: string }
-  readonly rol?: { id: string; label: string }
+  readonly rol?: GrantsRol
   readonly previousSnapshot?: PausedGrantsSnapshot
   readonly participationWriter?: DreamTeamParticipationEventWriter
 }

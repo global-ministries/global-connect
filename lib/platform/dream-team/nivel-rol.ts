@@ -2,15 +2,32 @@
  * Dream Team — the authority level of a rol (odd/tasks/uno-a-uno.md, T1).
  *
  * A rol keeps its display label ("Entrenador", "Operador de cámara") and carries
- * a separate level. The classifier below suggests a level from a label with the
- * same label sets grants.ts uses, and the migration
+ * a separate level, which decides the grants it mints (grants.ts, T6). The
+ * classifier below suggests a level from a label, and the migration
  * 20261015100000_dream_team_nivel_rol.sql backfilled the existing roles with
  * this exact order: director, then coordinador, then the lead labels, else
  * voluntario. Coordinador is checked before the lead set because that set also
  * contains it.
  */
-import { DIRECTOR_ROLE_LABELS, LEAD_ROLE_LABELS, normalizeLabel } from '@/lib/platform/dream-team/grants'
 import type { DreamTeamNivelRol } from '@/lib/platform/dream-team/types'
+
+// Case- and diacritic-insensitive: the talleres_role_capability_map SQL trigger seeds
+// roles as lowercase, no-diacritic labels ('coordinador', 'director'), while role labels
+// shown in the UI are capitalized and accented ('Coordinador', 'Director'). Both must
+// resolve to the same level.
+export function normalizeLabel(label: string): string {
+  return label
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+// The role labels that name the lead or the director level; any other label is voluntario.
+export const LEAD_ROLE_LABELS: ReadonlySet<string> = new Set(
+  ['Líder', 'Líder de grupo', 'Facilitador', 'Entrenador', 'Coordinador'].map(normalizeLabel),
+)
+export const DIRECTOR_ROLE_LABELS: ReadonlySet<string> = new Set(['Director'].map(normalizeLabel))
 
 export interface NivelRolOpcion {
   readonly nivel: DreamTeamNivelRol

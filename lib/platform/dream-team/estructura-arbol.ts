@@ -148,10 +148,10 @@ const ROLES_RESPONSABLES = new Set(['director', 'coordinador'])
 const ORDEN_ROL_RESPONSABLE: Readonly<Record<string, number>> = { director: 0, coordinador: 1 }
 
 /**
- * Case- and diacritic-insensitive, mirroring grants.ts's own `normalizeLabel`
- * (private there): role labels are stored lowercase/no-accents but this
- * stays defensive rather than trusting that invariant at the call site —
- * same reasoning grants.ts documents for its role → capability mapping.
+ * Case- and diacritic-insensitive, mirroring nivel-rol.ts's `normalizeLabel`:
+ * role labels are stored lowercase/no-accents but this stays defensive rather
+ * than trusting that invariant at the call site — same reasoning nivel-rol.ts
+ * documents for its label → level mapping.
  */
 function normalizarRolLabel(label: string): string {
   return label
