@@ -1,4 +1,5 @@
 import { transitionWithGrants } from '@/lib/platform/dream-team/servicios'
+import { buildGrantsForServicio, buildRevocableGrantsForServicio } from '@/lib/platform/dream-team/grants'
 import { createPlatformGrantAudit } from '@/lib/platform/grants'
 import { personaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamServicio } from '@/lib/platform/dream-team/types'
@@ -81,8 +82,9 @@ describe('transitionWithGrants', () => {
     expect(result.servicioNuevo.estado).toBe('en_pausa')
     expect(result.grantsDecision.action).toBe('revoke')
     expect(result.pausedGrantsSnapshot).toBeDefined()
-    expect(result.pausedGrantsSnapshot?.grants).toHaveLength(2)
-    expect(audit.logger.getEvents()).toHaveLength(2)
+    // S6.7: the pause revokes every nivel's grants but snapshots only the current nivel's.
+    expect(result.pausedGrantsSnapshot?.grants).toEqual(buildGrantsForServicio(equipoDps, rolVoluntario))
+    expect(audit.logger.getEvents()).toHaveLength(buildRevocableGrantsForServicio(equipoDps, rolVoluntario).length)
   })
 
   it('restores grants from a previous snapshot on reactivation', async () => {
@@ -140,6 +142,8 @@ describe('transitionWithGrants', () => {
     expect(result.servicioNuevo.fechaFin).toBe('2026-07-07T00:00:00Z')
     expect(result.grantsDecision.action).toBe('revoke')
     expect(result.pausedGrantsSnapshot).toBeUndefined()
-    expect(audit.logger.getEvents()).toHaveLength(2)
+    if (result.grantsDecision.action !== 'revoke') throw new Error('expected revoke')
+    expect(result.grantsDecision.grants).toEqual(buildRevocableGrantsForServicio(equipoDps, rolVoluntario))
+    expect(audit.logger.getEvents()).toHaveLength(result.grantsDecision.grants.length)
   })
 })

@@ -1,7 +1,7 @@
 import { PLATFORM_CAPABILITIES } from '@/lib/platform/experiences'
 import type { PlatformScopeType } from '@/lib/platform/experiences'
 import type { PlatformGrantAuditEvent } from '@/lib/platform/grants'
-import { nivelDesdeLabel, normalizeLabel } from '@/lib/platform/dream-team/nivel-rol'
+import { NIVELES_ROL, nivelDesdeLabel, normalizeLabel } from '@/lib/platform/dream-team/nivel-rol'
 import type {
   DreamTeamEstado,
   DreamTeamMotivo,
@@ -187,6 +187,27 @@ export function buildGrantsForServicio(
   return capabilityKeysForRol(equipo.experiencia, rol).flatMap((key) => buildGrant(key, equipo, rol) ?? [])
 }
 
+// Everything any nivel could have minted for this equipo and rol, current nivel first (T6, S6.7).
+// A retire or a pause revokes this set: the rol's nivel may have changed since activation, and
+// revoking only what the current nivel mints would leave alive what an earlier nivel minted.
+// Each key keeps the scope buildGrantsForServicio gives it, so the revoke matches the stored rows;
+// revoking a key that was never granted touches no row.
+export function buildRevocableGrantsForServicio(
+  equipo: { id: string; experiencia: string },
+  rol: GrantsRol,
+): readonly DreamTeamServiceGrant[] {
+  const everyNivel = NIVELES_ROL.flatMap(({ nivel }) => buildGrantsForServicio(equipo, { ...rol, nivel }))
+  return uniqueByCapabilityKey([...buildGrantsForServicio(equipo, rol), ...everyNivel])
+}
+
+function uniqueByCapabilityKey(grants: readonly DreamTeamServiceGrant[]): readonly DreamTeamServiceGrant[] {
+  const byKey = new Map<string, DreamTeamServiceGrant>()
+  for (const grant of grants) {
+    if (!byKey.has(grant.capabilityKey)) byKey.set(grant.capabilityKey, grant)
+  }
+  return [...byKey.values()]
+}
+
 export function serializePausedGrantsSnapshot(
   servicioId: string,
   personaId: string,
@@ -283,14 +304,15 @@ export function applyGrantsForTransition(
       }
     }
 
-    const grants = buildGrantsForServicio(equipo, rol)
+    const grants = buildRevocableGrantsForServicio(equipo, rol)
     const auditEvents = emitAuditEvents(grants, 'revoke', ctx, audit)
 
     if (isPausing) {
+      // The snapshot is what a resume grants back, so it holds only the current nivel's grants.
       const snapshot = serializePausedGrantsSnapshot(
         ctx.servicio.id,
         ctx.servicio.personaId,
-        grants,
+        buildGrantsForServicio(equipo, rol),
         ctx.fecha,
       )
       return { action: 'revoke', grants, snapshot, auditEvents }

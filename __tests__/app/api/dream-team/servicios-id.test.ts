@@ -125,7 +125,15 @@ describe('PATCH /api/dream-team/servicios/[id] — grants wiring', () => {
     const calls = fake.getAppliedServicioGrantsCalls()
     expect(calls).toHaveLength(1)
     expect(calls[0].accion).toBe('revoke')
-    expect(calls[0].grants).toEqual(expectedGrants)
+    // S6.7: the revoke covers every nivel's grants, each with the scope the grant would carry.
+    expect(calls[0].grants).toEqual([
+      ...expectedGrants,
+      { capabilityKey: 'dream_team.direct', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
+      { capabilityKey: 'dps.team.director', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' },
+      { capabilityKey: 'dream_team.coordinate', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
+      { capabilityKey: 'dps.team.lead', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' },
+      { capabilityKey: 'dream_team.lead', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
+    ])
   })
 
   it('a grant-irrelevant transition does not call applyServicioGrants', async () => {
@@ -161,5 +169,61 @@ describe('PATCH /api/dream-team/servicios/[id] — grants by the rol nivel', () 
       { capabilityKey: 'dream_team.coordinate', experience: 'dream_team', scopeType: 'equipo', scopeId: 'equipo-dps' },
       { capabilityKey: 'dps.team.lead', experience: 'dps', scopeType: 'equipo', scopeId: 'equipo-dps' },
     ])
+  })
+})
+
+// T6, S6.7: the revoke covers what any nivel could have minted, so changing the rol's nivel
+// while its servicios are active cannot leave capabilities alive after a retire or a pause.
+describe('PATCH /api/dream-team/servicios/[id] — revoke after the rol nivel changed', () => {
+  async function activateChangeNivelThen(
+    estadoFinal: 'retirado' | 'en_pausa',
+    nivelInicial: 'director' | 'voluntario',
+    nivelNuevo: 'director' | 'voluntario',
+  ) {
+    auth([directorCap])
+    const rol = { id: 'rol-d', equipoId: 'equipo-dps', label: 'Responsable', nivel: nivelInicial, activo: true }
+    const fake = createInMemoryDreamTeamRepository({ seed: { equipos: [equipoDPS], roles: [rol], servicios: [{ ...servicioEnOrientacion, id: 'srv-d', rolId: 'rol-d' }] } })
+    createRepo.mockReturnValue(fake)
+    const activar = await PATCH(request('/x', { method: 'PATCH', body: JSON.stringify({ estado: 'activo', motivo: 'admin_promocion', expectedVersion: 1 }) }), ctx('srv-d'))
+    await fake.updateRol('rol-d', { nivel: nivelNuevo })
+    const motivo = estadoFinal === 'retirado' ? 'admin_retiro' : 'admin_pausa'
+    const cerrar = await PATCH(request('/x', { method: 'PATCH', body: JSON.stringify({ estado: estadoFinal, motivo, expectedVersion: 2 }) }), ctx('srv-d'))
+    return { fake, statuses: [activar.status, cerrar.status], calls: fake.getAppliedServicioGrantsCalls() }
+  }
+
+  it('retiring after the rol nivel was lowered revokes what activation minted', async () => {
+    const { statuses, calls } = await activateChangeNivelThen('retirado', 'director', 'voluntario')
+    expect(statuses).toEqual([200, 200])
+    const [grant, revoke] = calls
+    expect(grant.accion).toBe('grant')
+    expect(revoke.accion).toBe('revoke')
+    expect(grant.grants.map((g) => g.capabilityKey)).toEqual(expect.arrayContaining(['dream_team.direct', 'dps.team.director']))
+    expect(revoke.grants).toEqual(expect.arrayContaining([...grant.grants]))
+  })
+
+  it('pausing after the rol nivel was lowered revokes what activation minted', async () => {
+    const { statuses, calls } = await activateChangeNivelThen('en_pausa', 'director', 'voluntario')
+    expect(statuses).toEqual([200, 200])
+    const [grant, revoke] = calls
+    expect(revoke.accion).toBe('revoke')
+    expect(revoke.grants).toEqual(expect.arrayContaining([...grant.grants]))
+  })
+
+  it('resuming after a pause grants back only what the current nivel mints', async () => {
+    const { fake, calls } = await activateChangeNivelThen('en_pausa', 'director', 'voluntario')
+    const res = await PATCH(request('/x', { method: 'PATCH', body: JSON.stringify({ estado: 'activo', motivo: 'admin_reactivacion', expectedVersion: 3 }) }), ctx('srv-d'))
+    expect(res.status).toBe(200)
+    const restore = fake.getAppliedServicioGrantsCalls()[calls.length]
+    expect(restore.accion).toBe('grant')
+    expect(restore.grants.map((g) => g.capabilityKey)).toEqual(['dream_team.serve', 'dps.team.serve'])
+  })
+
+  it('retiring after the rol nivel was raised revokes the serve keys activation minted', async () => {
+    const { statuses, calls } = await activateChangeNivelThen('retirado', 'voluntario', 'director')
+    expect(statuses).toEqual([200, 200])
+    const [grant, revoke] = calls
+    expect(grant.grants.map((g) => g.capabilityKey)).toEqual(['dream_team.serve', 'dps.team.serve'])
+    expect(revoke.accion).toBe('revoke')
+    expect(revoke.grants).toEqual(expect.arrayContaining([...grant.grants]))
   })
 })

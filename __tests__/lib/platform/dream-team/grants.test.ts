@@ -1,5 +1,6 @@
 import {
   buildGrantsForServicio,
+  buildRevocableGrantsForServicio,
   applyGrantsForTransition,
   serializePausedGrantsSnapshot,
   restoreFromSnapshot,
@@ -7,6 +8,7 @@ import {
 import { transitionWithGrants } from '@/lib/platform/dream-team/servicios'
 import { createPlatformGrantAudit } from '@/lib/platform/grants'
 import { personaId } from '@/lib/platform/dream-team/types'
+import { NIVELES_ROL } from '@/lib/platform/dream-team/nivel-rol'
 import type { DreamTeamServicio } from '@/lib/platform/dream-team/types'
 
 function makeServicio(estado: DreamTeamServicio['estado']): DreamTeamServicio {
@@ -123,17 +125,18 @@ describe('applyGrantsForTransition', () => {
 
     expect(decision.action).toBe('revoke')
     if (decision.action !== 'revoke') throw new Error('expected revoke')
-    expect(decision.grants).toHaveLength(2)
+    // S6.7: the revoke covers every nivel; the snapshot only what the current nivel grants.
+    expect(decision.grants).toEqual(buildRevocableGrantsForServicio(equipoDps, rolVoluntario))
     expect(decision.snapshot).toEqual({
       servicioId: 'servicio-1',
       personaId: 'persona-ana',
-      grants: decision.grants,
+      grants: buildGrantsForServicio(equipoDps, rolVoluntario),
       pausedAt: '2026-07-07T00:00:00Z',
     })
-    expect(decision.auditEvents).toHaveLength(2)
+    expect(decision.auditEvents).toHaveLength(decision.grants.length)
     expect(decision.auditEvents.every((event) => event.decision === 'revoke')).toBe(true)
-    expect(audit.metrics.getSnapshot().get('dream_team|dream_team_servicio|revoke')).toBe(1)
-    expect(audit.metrics.getSnapshot().get('dps|dream_team_servicio|revoke')).toBe(1)
+    expect(audit.metrics.getSnapshot().get('dream_team|dream_team_servicio|revoke')).toBeGreaterThan(0)
+    expect(audit.metrics.getSnapshot().get('dps|dream_team_servicio|revoke')).toBeGreaterThan(0)
   })
 
   it('restores grants from snapshot when resuming from en_pausa', () => {
@@ -184,9 +187,9 @@ describe('applyGrantsForTransition', () => {
 
     expect(decision.action).toBe('revoke')
     if (decision.action !== 'revoke') throw new Error('expected revoke')
-    expect(decision.grants).toHaveLength(2)
+    expect(decision.grants).toEqual(buildRevocableGrantsForServicio(equipoDps, rolVoluntario))
     expect(decision.snapshot).toBeUndefined()
-    expect(decision.auditEvents).toHaveLength(2)
+    expect(decision.auditEvents).toHaveLength(decision.grants.length)
     expect(decision.auditEvents.every((event) => event.decision === 'revoke')).toBe(true)
   })
 
@@ -270,8 +273,8 @@ describe('transitionWithGrants integration', () => {
     expect(result.servicioNuevo.estado).toBe('en_pausa')
     expect(result.grantsDecision.action).toBe('revoke')
     expect(result.pausedGrantsSnapshot).toBeDefined()
-    expect(result.pausedGrantsSnapshot?.grants).toHaveLength(2)
-    expect(audit.logger.getEvents()).toHaveLength(2)
+    expect(result.pausedGrantsSnapshot?.grants).toEqual(buildGrantsForServicio(equipoDps, rolVoluntario))
+    expect(audit.logger.getEvents()).toHaveLength(buildRevocableGrantsForServicio(equipoDps, rolVoluntario).length)
   })
 })
 
@@ -686,10 +689,93 @@ describe('Grants derive from the rol nivel', () => {
       rol,
     })
     if (!result.ok || result.grantsDecision.action !== 'revoke') throw new Error('expected revoke')
-    expect(result.grantsDecision.grants.map((grant) => grant.capabilityKey)).toEqual([
+    // S6.7: the revoke starts with the current nivel's grants and adds every other nivel's.
+    expect(result.grantsDecision.grants.map((grant) => grant.capabilityKey).slice(0, 3)).toEqual([
       'dream_team.serve',
       'dream_team.coordinate',
       'dps.team.lead',
     ])
+    expect(result.grantsDecision.grants).toEqual(buildRevocableGrantsForServicio(equipoDps, rol))
+  })
+})
+
+// T6, S6.7: a retire or a pause revokes everything any nivel could have minted for the
+// equipo and rol, so a nivel changed after activation cannot leave capabilities alive.
+describe('Revocable grants cover every nivel', () => {
+  const EXPERIENCIAS = ['dps', 'estudiantes', 'talleres_crecimiento', 'ninos', 'the_living_room', 'experiencia']
+  const cases = EXPERIENCIAS.flatMap((experiencia) => NIVELES_ROL.map(({ nivel }) => ({ experiencia, nivel })))
+
+  it.each(cases)('a rol now at $nivel under $experiencia revokes what any nivel grants', ({ experiencia, nivel }) => {
+    const equipo = { id: 'equipo-x', experiencia }
+    for (const label of ['Operador', 'Líder de grupo']) {
+      const revocable = buildRevocableGrantsForServicio(equipo, { id: 'rol-x', label, nivel })
+      for (const otro of NIVELES_ROL) {
+        expect(revocable).toEqual(expect.arrayContaining([...buildGrantsForServicio(equipo, { id: 'rol-x', label, nivel: otro.nivel })]))
+      }
+      const keys = revocable.map((grant) => grant.capabilityKey)
+      expect(new Set(keys).size).toBe(keys.length)
+    }
+  })
+
+  // The RPC checks authority per scope_id, so the extra keys must not reach a scope the
+  // current grants do not already touch: same authority to retire as to activate.
+  it.each(cases)('a rol at $nivel under $experiencia revokes in no scope beyond its own grants', ({ experiencia, nivel }) => {
+    const equipo = { id: 'equipo-x', experiencia }
+    const scope = (grant: { scopeType: string; scopeId?: string }) => `${grant.scopeType}:${grant.scopeId ?? ''}`
+    const granted = new Set(buildGrantsForServicio(equipo, { id: 'rol-x', label: 'Operador', nivel }).map(scope))
+    for (const grant of buildRevocableGrantsForServicio(equipo, { id: 'rol-x', label: 'Operador', nivel })) {
+      expect(granted).toContain(scope(grant))
+    }
+  })
+
+  it('adds dream_team.gdv.lead only for "Líder de grupo"', () => {
+    for (const { nivel } of NIVELES_ROL) {
+      const keysFor = (label: string) =>
+        buildRevocableGrantsForServicio(equipoEstudiantes, { id: 'rol-x', label, nivel }).map((grant) => grant.capabilityKey)
+      expect(keysFor('Líder de grupo')).toContain('dream_team.gdv.lead')
+      expect(keysFor('Líder')).not.toContain('dream_team.gdv.lead')
+      expect(keysFor('Director')).not.toContain('dream_team.gdv.lead')
+    }
+  })
+
+  it('without a nivel still revokes every nivel', () => {
+    expect(buildRevocableGrantsForServicio(equipoDps, rolVoluntario).map((grant) => grant.capabilityKey).sort()).toEqual([
+      'dps.team.director',
+      'dps.team.lead',
+      'dps.team.serve',
+      'dream_team.coordinate',
+      'dream_team.direct',
+      'dream_team.lead',
+      'dream_team.serve',
+    ])
+  })
+
+  it('retiring revokes every nivel, pausing too but snapshots only the current nivel', () => {
+    const rol = { id: 'rol-x', label: 'Operador', nivel: 'voluntario' as const }
+    const decide = (estadoNuevo: 'retirado' | 'en_pausa') =>
+      applyGrantsForTransition(
+        {
+          servicio: makeServicio('activo'),
+          estadoAnterior: 'activo',
+          estadoNuevo,
+          motivo: estadoNuevo === 'retirado' ? 'admin_retiro' : 'admin_pausa',
+          actorPersonaId: 'persona-admin',
+          fecha: '2026-10-24T00:00:00Z',
+          equipo: equipoDps,
+          rol,
+        },
+        createPlatformGrantAudit(),
+      )
+    const revocable = buildRevocableGrantsForServicio(equipoDps, rol)
+
+    const retiro = decide('retirado')
+    if (retiro.action !== 'revoke') throw new Error('expected revoke')
+    expect(retiro.grants).toEqual(revocable)
+
+    const pausa = decide('en_pausa')
+    if (pausa.action !== 'revoke') throw new Error('expected revoke')
+    expect(pausa.grants).toEqual(revocable)
+    // The snapshot is what a resume would grant back: never more than the current nivel.
+    expect(pausa.snapshot?.grants).toEqual(buildGrantsForServicio(equipoDps, rol))
   })
 })
