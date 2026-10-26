@@ -575,6 +575,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
               setParaAdulto(null)
               void buscarYElegir(q, padreId)
             }}
+            onAbrirFamilia={(padreId, consulta) => {
+              setParaAdulto(null)
+              setQ(consulta)
+              void buscarYElegir(consulta, padreId)
+            }}
           />
         )}
         {paraAdulto?.tipo === 'vincular' && (

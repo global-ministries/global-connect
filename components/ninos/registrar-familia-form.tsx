@@ -5,15 +5,18 @@ import { useEffect, useState } from 'react'
 import { BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { createClient } from '@/lib/supabase/client'
 import {
+  avisoHijoCoincidencia,
   hijoVacio,
   mensajeDeErrorFamilia,
   parseCoincidencias,
   parseConyuge,
+  parseHijosCoincidencias,
   rolDeConyuge,
   validarFamilia,
   type Conyuge,
   type FamiliaForm,
   type FamiliaPayload,
+  type HijoCoincidencia,
   type HijoForm,
   type PadreCoincidencia,
 } from '@/lib/platform/ninos/familia'
@@ -38,6 +41,8 @@ type Props = {
   textoGuardar?: string
   /** The rooms that define the child's level and its suggestion. */
   salones?: readonly SalonNivel[]
+  /** Opens another family that already has one of these children (consulta: the child's name). */
+  onAbrirFamilia?: (padreId: string, consulta: string) => void
 }
 
 /** The adult's recorded spouse, or null when there is none or the lookup fails. */
@@ -51,8 +56,25 @@ async function buscarConyuge(id: string): Promise<Conyuge | null> {
   }
 }
 
+/**
+ * Children of the payload that already exist in another family of the caller's scope.
+ * A warning only: a failed lookup (or one not deployed yet) never blocks the registration.
+ */
+async function buscarHijosEnOtraFamilia(payload: FamiliaPayload): Promise<HijoCoincidencia[]> {
+  try {
+    // Not in database.types.ts yet (regenerated after the migration).
+    const res = await createClient().rpc('ninos_hijos_coincidencias' as never, {
+      p_hijos: payload.hijos,
+      p_padre_id: 'id' in payload.padre ? payload.padre.id : null,
+    } as never)
+    return res?.error ? [] : parseHijosCoincidencias(res?.data)
+  } catch {
+    return []
+  }
+}
+
 /** Registers a new family (or adds children to a known parent) in one RPC call. */
-export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar, inicial, guardar, textoGuardar, salones }: Props) {
+export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar, inicial, guardar, textoGuardar, salones, onAbrirFamilia }: Props) {
   const [form, setForm] = useState<FamiliaForm>(inicial ?? {
     padre: { id: padreExistente?.id, nombre: '', apellido: '', telefono: '', cedula: '', genero: '' },
     hijos: [hijoVacio()],
@@ -67,6 +89,8 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
   // `de` is the adult it belongs to, so a spouse is never sent for a different adult.
   const [conyuge, setConyuge] = useState<{ de: string; persona: Conyuge } | null>(null)
   const [vincularConyuge, setVincularConyuge] = useState(false)
+  // Children that already exist in another family: the anfitrión opens it or continues on purpose.
+  const [repetidos, setRepetidos] = useState<{ payload: FamiliaPayload; lista: HijoCoincidencia[] } | null>(null)
 
   const padreExistenteId = padreExistente?.id
   useEffect(() => {
@@ -84,7 +108,10 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
   const [registrada, setRegistrada] = useState<{ padreId: string; consulta: string } | null>(null)
 
   const setPadre = (campo: keyof FamiliaForm['padre'], v: string) => setForm((f) => ({ ...f, padre: { ...f.padre, [campo]: v } }))
-  const setHijo = (i: number, h: HijoForm) => setForm((f) => ({ ...f, hijos: f.hijos.map((x, j) => (j === i ? h : x)) }))
+  const setHijo = (i: number, h: HijoForm) => {
+    setRepetidos(null)
+    setForm((f) => ({ ...f, hijos: f.hijos.map((x, j) => (j === i ? h : x)) }))
+  }
 
   async function registrar(payload: FamiliaPayload) {
     setGuardando(true)
@@ -117,6 +144,28 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
     else onRegistrada(res.padre_id, consulta)
   }
 
+  /** Registers unless a child already exists in another family; then waits for the anfitrión. */
+  async function registrarRevisando(payload: FamiliaPayload) {
+    // A pre-registration confirmed through its route keeps its own review.
+    if (!guardar) {
+      setGuardando(true)
+      const lista = await buscarHijosEnOtraFamilia(payload)
+      setGuardando(false)
+      if (lista.length > 0) {
+        setRepetidos({ payload, lista })
+        return
+      }
+    }
+    await registrar(payload)
+  }
+
+  async function registrarDeTodosModos() {
+    if (!repetidos) return
+    const { payload } = repetidos
+    setRepetidos(null)
+    await registrar(payload)
+  }
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     const r = validarFamilia(form)
@@ -125,8 +174,9 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       return
     }
     setErrores([])
+    setRepetidos(null)
     if ('id' in r.payload.padre) {
-      await registrar(r.payload)
+      await registrarRevisando(r.payload)
       return
     }
     // A known phone or cédula is never reused silently: the anfitrión confirms it first.
@@ -145,7 +195,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       setCoincidencias(encontrados)
       return
     }
-    await registrar(r.payload)
+    await registrarRevisando(r.payload)
   }
 
   async function confirmar(padre: PadreCoincidencia) {
@@ -168,7 +218,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
         return
       }
     }
-    await registrar(r.payload)
+    await registrarRevisando(r.payload)
   }
 
   function cambiarRepresentante() {
@@ -310,6 +360,40 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
         <TituloSistema nivel={3}>Personas autorizadas para retirar</TituloSistema>
         <CamposAutorizados autorizados={form.autorizados} onChange={(a) => setForm((f) => ({ ...f, autorizados: a }))} />
       </TarjetaSistema>
+
+      {repetidos && (
+        <div role="alert" className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+          <p className="text-sm font-medium text-warning-text">Posible niño duplicado</p>
+          <ul className="space-y-2">
+            {repetidos.lista.map((c) => (
+              <li key={`${c.indice}-${c.ninoId}`} className="space-y-3 rounded-xl border border-border bg-card p-3 text-foreground">
+                <p className="text-sm">{avisoHijoCoincidencia(c)}</p>
+                {onAbrirFamilia && (
+                  <BotonSistema
+                    type="button"
+                    variante="outline"
+                    tamaño="sm"
+                    onClick={() => onAbrirFamilia(c.padreId, `${c.nombre} ${c.apellido}`.trim())}
+                  >
+                    Abrir esa familia
+                  </BotonSistema>
+                )}
+              </li>
+            ))}
+          </ul>
+          <TextoSistema variante="sutil" className="text-xs">
+            Si es otro niño con el mismo nombre y fecha, puedes registrarlo igual.
+          </TextoSistema>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <BotonSistema type="button" className="flex-1" disabled={guardando} onClick={() => void registrarDeTodosModos()}>
+              Registrar de todos modos
+            </BotonSistema>
+            <BotonSistema type="button" variante="outline" className="flex-1" onClick={() => setRepetidos(null)}>
+              Corregir datos
+            </BotonSistema>
+          </div>
+        </div>
+      )}
 
       {errores.length > 0 && (
         <ul role="alert" className="space-y-1 rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text">

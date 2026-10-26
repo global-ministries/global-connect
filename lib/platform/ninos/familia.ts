@@ -291,6 +291,44 @@ export function parseCoincidencias(data: unknown): PadreCoincidencia[] {
   )
 }
 
+/**
+ * A child being registered that already exists in another family
+ * (ninos_hijos_coincidencias): same name key and birth date. A warning only.
+ */
+export type HijoCoincidencia = {
+  /** Position of the child in the payload's hijos. */
+  indice: number
+  ninoId: string
+  nombre: string
+  apellido: string
+  /** The other family's principal parent, to open it. */
+  padreId: string
+  padres: string[]
+}
+
+export function parseHijosCoincidencias(data: unknown): HijoCoincidencia[] {
+  if (!Array.isArray(data)) return []
+  return data.flatMap((fila): HijoCoincidencia[] => {
+    if (typeof fila !== 'object' || fila === null) return []
+    const c = fila as Record<string, unknown>
+    if (typeof c.indice !== 'number' || typeof c.nino_id !== 'string' || typeof c.nombre !== 'string' || typeof c.padre_id !== 'string') {
+      return []
+    }
+    return [{
+      indice: c.indice,
+      ninoId: c.nino_id,
+      nombre: c.nombre,
+      apellido: typeof c.apellido === 'string' ? c.apellido : '',
+      padreId: c.padre_id,
+      padres: Array.isArray(c.padres) ? c.padres.filter((p): p is string => typeof p === 'string') : [],
+    }]
+  })
+}
+
+export function avisoHijoCoincidencia(c: HijoCoincidencia): string {
+  return `${`${c.nombre} ${c.apellido}`.trim()} ya está registrado en la familia de ${c.padres.join(' y ')}.`
+}
+
 export type EdicionNinoPayload = FichaPayload & {
   nombre: string
   apellido: string

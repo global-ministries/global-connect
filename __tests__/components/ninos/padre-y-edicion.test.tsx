@@ -67,7 +67,11 @@ describe('RegistrarFamiliaForm — existing parent', () => {
   })
 
   it('without a match it registers the new parent', async () => {
-    rpc.mockResolvedValueOnce({ data: [], error: null }).mockResolvedValueOnce({ data: { padre_id: 'p1' }, error: null })
+    // ninos_buscar_padre, ninos_hijos_coincidencias (none), then the registration.
+    rpc
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: [], error: null })
+      .mockResolvedValueOnce({ data: { padre_id: 'p1' }, error: null })
     const onRegistrada = jest.fn()
     render(<RegistrarFamiliaForm onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
     llenarFamilia()
