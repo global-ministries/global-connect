@@ -87,8 +87,8 @@ export function PasoRevisar({ datos, campus, onEditar }: { datos: DatosRegistro;
 
 export function RegistroExito({ conCorreo }: { conCorreo: boolean }) {
   return (
-    <div role="status" className="space-y-5 rounded-3xl border border-emerald-500/20 bg-card/70 p-6 text-center shadow-lg sm:p-8">
-      <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-500" aria-hidden />
+    <div role="status" className="space-y-5 rounded-3xl border border-success/20 bg-card/70 p-6 text-center shadow-lg sm:p-8">
+      <CheckCircle2 className="mx-auto h-16 w-16 text-success" aria-hidden />
       <TituloSistema nivel={1}>¡Listo, gracias!</TituloSistema>
       <TextoSistema tamaño="lg">Acércate a la mesa de check-in con tus niños; solo confirmamos tus datos.</TextoSistema>
       {conCorreo && (

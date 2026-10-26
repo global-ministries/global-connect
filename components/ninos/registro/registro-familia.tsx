@@ -269,14 +269,14 @@ export function RegistroFamilia({ campus, campusInicial, aviso }: Props) {
           id={idCampo.paso}
           role="alert"
           tabIndex={-1}
-          className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 dark:text-red-400"
+          className="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text focus:outline-none focus-visible:ring-2 focus-visible:ring-danger/40"
         >
           {errores[idCampo.paso]}
         </p>
       )}
 
       {errorEnvio.length > 0 && (
-        <ul role="alert" className="space-y-1 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
+        <ul role="alert" className="space-y-1 rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text">
           {errorEnvio.map((e) => (
             <li key={e}>{e}</li>
           ))}

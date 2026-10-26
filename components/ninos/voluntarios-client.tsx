@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRouter } from 'next/navigation'
 import { ChevronDown, Search, UserCheck } from 'lucide-react'
 
+import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { BotonSistema, InputSistema, SkeletonSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { cn } from '@/lib/utils'
@@ -13,13 +14,16 @@ import {
   ajustarFecha,
   aplicarCambios,
   contarPlanilla,
+  filtrarPorEquipo,
   filtrarPorNombre,
   leerPlanilla,
   mensajeErrorMarcar,
   mensajeErrorPlanilla,
   pendientesDeEquipo,
+  resumirEquipos,
   separarPlanilla,
   siguienteEstado,
+  TODOS_LOS_EQUIPOS,
   urlVoluntarios,
   type EstadoAsistencia,
   type FilaVoluntario,
@@ -34,6 +38,7 @@ import { EstadoVacio } from './estado-vacio'
 import { SelectorServicio } from './selector-servicio'
 import { useRefrescoVisible } from './use-refresco'
 import { ContadoresVoluntarios } from './voluntarios-contadores'
+import { TarjetasEquiposVoluntarios } from './voluntarios-equipos'
 import { FilaVoluntarioItem } from './voluntarios-fila'
 
 type Props = {
@@ -83,6 +88,7 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
   const [planilla, setPlanilla] = useState<Planilla | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [areaElegida, setAreaElegida] = useState<string | null>(areaInicial)
+  const [equipoElegido, setEquipoElegido] = useState<string>(TODOS_LOS_EQUIPOS)
   const [busqueda, setBusqueda] = useState('')
   // null = automatic: "Sin turno asignado" opens on its own when nobody is expected.
   const [abiertos, setAbiertos] = useState<{ otros: boolean; sinTurno: boolean | null }>({ otros: false, sinTurno: null })
@@ -130,8 +136,12 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
   const areaId = areas.some((a) => a.id === areaElegida) ? areaElegida : (areas[0]?.id ?? null)
   const filasArea = useMemo(() => (planilla?.voluntarios ?? []).filter((f) => f.area_id === areaId), [planilla, areaId])
   const contadores = useMemo(() => contarPlanilla(filasArea), [filasArea])
+  const equipos = useMemo(() => resumirEquipos(filasArea), [filasArea])
+  // A card that left the roster (a refresh) falls back to every equipo.
+  const equipoId = equipos.some((e) => e.equipoId === equipoElegido) ? equipoElegido : TODOS_LOS_EQUIPOS
+  const filasEquipo = useMemo(() => filtrarPorEquipo(filasArea, equipoId), [filasArea, equipoId])
   const buscando = busqueda.trim() !== ''
-  const { esperados, otros, sinTurno } = useMemo(() => separarPlanilla(filtrarPorNombre(filasArea, busqueda)), [filasArea, busqueda])
+  const { esperados, otros, sinTurno } = useMemo(() => separarPlanilla(filtrarPorNombre(filasEquipo, busqueda)), [filasEquipo, busqueda])
   const grupos = useMemo(() => agruparPorEquipo(esperados), [esperados])
   const editable = planilla?.editable === true
   const sinTurnoAbierto = buscando || (abiertos.sinTurno ?? grupos.length === 0)
@@ -142,11 +152,13 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
     setPlanilla(null)
     setError(null)
     setConfirmando(null)
+    setEquipoElegido(TODOS_LOS_EQUIPOS)
     router.replace(urlVoluntarios(ajustado, areaId))
   }
 
   function cambiarArea(id: string) {
     setAreaElegida(id)
+    setEquipoElegido(TODOS_LOS_EQUIPOS)
     setConfirmando(null)
     router.replace(urlVoluntarios(servicio, id))
   }
@@ -199,29 +211,16 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
       <div className="space-y-4 md:max-w-2xl">
         <SelectorServicio idPrefijo="voluntarios" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
         {areas.length > 1 && (
-          <div role="group" aria-label="Área" className="flex flex-wrap gap-2">
+          <GrupoPastillas etiqueta="Área">
             {areas.map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                aria-pressed={a.id === areaId}
-                onClick={() => cambiarArea(a.id)}
-                className={cn(
-                  'min-h-[44px] rounded-xl border px-4 text-sm font-medium touch-manipulation transition-colors',
-                  a.id === areaId
-                    ? 'border-[var(--brand-primary)] bg-[var(--brand-primary)] text-white'
-                    : 'border-border text-foreground hover:bg-accent',
-                )}
-              >
-                {a.nombre}
-              </button>
+              <PastillaFiltro key={a.id} etiqueta={a.nombre} activa={a.id === areaId} onClick={() => cambiarArea(a.id)} />
             ))}
-          </div>
+          </GrupoPastillas>
         )}
       </div>
 
       {error && (
-        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger-text">
           {error}
         </p>
       )}
@@ -248,6 +247,18 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
             <EstadoVacio icono={UserCheck} titulo="No hay voluntarios en esta área." />
           ) : (
             <div className="space-y-4">
+              {equipos.length > 1 && (
+                <TarjetasEquiposVoluntarios
+                  equipos={equipos}
+                  total={filasArea.length}
+                  sinMarcar={contadores.sinMarcar}
+                  seleccionadoId={equipoId}
+                  onSeleccionar={(id) => {
+                    setEquipoElegido(id)
+                    setConfirmando(null)
+                  }}
+                />
+              )}
               <InputSistema
                 id="voluntarios-buscar"
                 type="search"
@@ -263,8 +274,8 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
               )}
               {!buscando && grupos.length === 0 && (
                 <p className="rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-                  {sinTurno.length === filasArea.length
-                    ? 'Esta área todavía no tiene turno asignado a sus voluntarios, así que nadie cuenta como esperado. '
+                  {sinTurno.length === filasEquipo.length
+                    ? `${equipoId === TODOS_LOS_EQUIPOS ? 'Esta área' : 'Este equipo'} todavía no tiene turno asignado a sus voluntarios, así que nadie cuenta como esperado. `
                     : 'A nadie le toca este servicio ese día. '}
                   La dirección o la coordinación de Atención al Voluntario asignan los turnos en Mi equipo. Mientras tanto, puedes marcar a quien sirvió en la lista de abajo.
                 </p>

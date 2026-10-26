@@ -27,22 +27,20 @@ import {
 import { cn } from '@/lib/utils'
 
 import { EstadoVacio } from './estado-vacio'
+import { clasePestana, LISTA_PESTANAS } from './pestanas-sistema'
 
 export const TH = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 export const TD = 'px-3 py-2 text-sm text-foreground'
-/** Focus ring of the report's toggle buttons. */
-export const ANILLO =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'
 
 const VISTAS: { valor: VistaAsistencia; etiqueta: string }[] = [
   { valor: 'domingo', etiqueta: 'Por domingo' },
   { valor: 'mes', etiqueta: 'Por mes' },
 ]
 
-/** "Por domingo / Por mes" switch. */
+/** "Por domingo / Por mes" switch, with the look of the shared tabs. */
 export function SelectorVista({ vista, onCambio }: { vista: VistaAsistencia; onCambio: (v: VistaAsistencia) => void }): ReactElement {
   return (
-    <div role="group" aria-label="Agrupar asistencia" className="flex rounded-xl border border-border p-0.5">
+    <div role="group" aria-label="Agrupar asistencia" className={LISTA_PESTANAS}>
       {VISTAS.map((o) => {
         const activa = vista === o.valor
         return (
@@ -51,11 +49,7 @@ export function SelectorVista({ vista, onCambio }: { vista: VistaAsistencia; onC
             type="button"
             aria-pressed={activa}
             onClick={() => onCambio(o.valor)}
-            className={cn(
-              'min-h-[44px] rounded-[10px] px-3 text-sm font-medium transition-colors',
-              activa ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
-              ANILLO,
-            )}
+            className={clasePestana(activa)}
           >
             {o.etiqueta}
           </button>

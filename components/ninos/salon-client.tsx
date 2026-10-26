@@ -110,7 +110,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
             {nombreSalon && <span className="text-sm text-muted-foreground">{nombreSalon}</span>}
           </div>
           {error && (
-            <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+            <p role="alert" className="text-sm text-danger-text">
               {error}
             </p>
           )}
@@ -134,7 +134,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                       <TarjetaSistema className="space-y-3 p-4">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="break-words text-[15px] font-semibold text-foreground">
+                            <p className="break-words text-base font-semibold text-foreground">
                               {f.nombre} {f.apellido}
                             </p>
                             <p className="text-sm text-muted-foreground">
@@ -176,7 +176,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                       const alertas = alertasDeLista(f)
                       return (
                         <tr key={f.nino_id} data-testid={`fila-tabla-${f.nino_id}`} className="align-top hover:bg-accent/50">
-                          <td className="px-4 py-3 text-[15px] font-medium text-foreground">
+                          <td className="px-4 py-3 text-base font-medium text-foreground">
                             {f.nombre} {f.apellido}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">

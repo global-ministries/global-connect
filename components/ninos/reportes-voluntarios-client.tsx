@@ -209,7 +209,7 @@ export function ReportesVoluntariosClient({ campus, turnos, filtrosIniciales }: 
       </TarjetaSistema>
 
       {error && (
-        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger-text">
           {error}
         </p>
       )}
@@ -267,7 +267,7 @@ export function ReportesVoluntariosClient({ campus, turnos, filtrosIniciales }: 
                               {v.equipo} · {v.area}
                             </p>
                           </div>
-                          <p className="shrink-0 text-sm font-semibold text-red-600 dark:text-red-400">
+                          <p className="shrink-0 text-sm font-semibold text-danger-text">
                             {v.faltas_seguidas} faltas seguidas
                           </p>
                         </li>

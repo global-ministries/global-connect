@@ -24,8 +24,8 @@ type Props = {
 export function CoincidenciasCuenta({ hijos, coincidencias, elegidos, onElegir }: Props) {
   const indices = [...new Set(coincidencias.map((c) => c.indice))].sort((a, b) => a - b)
   return (
-    <section aria-label="Posibles duplicados" className="space-y-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-      <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+    <section aria-label="Posibles duplicados" className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+      <p className="text-sm font-medium text-warning-text">
         Estos niños se parecen a personas ya registradas. Si es el mismo niño, vincúlalo en lugar de crearlo otra vez.
       </p>
       {indices.map((indice) => {

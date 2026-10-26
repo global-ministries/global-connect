@@ -50,11 +50,11 @@ export function InvitarFamiliaNueva({ padreId, onContinuar }: Props) {
   return (
     <TarjetaSistema className="space-y-4 p-4 md:p-6">
       <div className="flex items-center gap-2">
-        <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+        <CheckCircle2 className="h-5 w-5 text-success-text" aria-hidden />
         <TituloSistema nivel={3}>Familia registrada</TituloSistema>
       </div>
       {enviada ? (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+        <p role="status" className="text-sm text-success-text">
           Le enviamos la invitación a {enviada}.
         </p>
       ) : (
@@ -74,7 +74,7 @@ export function InvitarFamiliaNueva({ padreId, onContinuar }: Props) {
             onChange={(e) => setEmail(e.target.value)}
           />
           {error && (
-            <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+            <p role="alert" className="text-sm text-danger-text">
               {error}
             </p>
           )}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { useRouter } from 'next/navigation'
 import { ChartColumn, Download, UserMinus, UserPlus } from 'lucide-react'
 
+import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import {
   BadgeSistema,
   BotonSistema,
@@ -26,11 +27,10 @@ import {
   type VistaAsistencia,
 } from '@/lib/platform/ninos/reportes'
 import { createClient } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils'
 
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
-import { ANILLO, SelectorVista, TablaAsistencia, TD, TH } from './reportes-asistencia'
+import { SelectorVista, TablaAsistencia, TD, TH } from './reportes-asistencia'
 import { FamiliasNuevas } from './reportes-familias'
 
 export type FiltrosReporte = { desde: string; hasta: string; campusId: string; turnoId: string }
@@ -154,28 +154,17 @@ export function ReportesClient({ campus, turnos, filtrosIniciales, hoy, vistaIni
       <EncabezadoNinos titulo="Reportes de asistencia" subtitulo="Asistencia por domingo y por mes, servicio, área y salón." />
 
       <TarjetaSistema className="space-y-3 p-4" aria-label="Filtros">
-        <div role="group" aria-label="Rangos rápidos" className="flex flex-wrap gap-2">
-          {rapidos.map((r) => {
-            const activo = filtros.desde === r.desde && filtros.hasta === r.hasta
-            return (
-              <button
-                key={r.clave}
-                type="button"
-                aria-pressed={activo}
-                onClick={() => cambiar({ desde: r.desde, hasta: r.hasta })}
-                className={cn(
-                  'min-h-[44px] rounded-full border px-4 text-sm font-medium transition-colors',
-                  activo
-                    ? 'border-[var(--brand-primary)] bg-[var(--brand-accent-strong)] text-foreground'
-                    : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                  ANILLO,
-                )}
-              >
-                {r.etiqueta}
-              </button>
-            )
-          })}
-        </div>
+        {/* Inside the card's p-4: the row scrolls edge to edge of the card on phones. */}
+        <GrupoPastillas etiqueta="Rangos rápidos" className="sm:-mx-4 sm:px-4">
+          {rapidos.map((r) => (
+            <PastillaFiltro
+              key={r.clave}
+              etiqueta={r.etiqueta}
+              activa={filtros.desde === r.desde && filtros.hasta === r.hasta}
+              onClick={() => cambiar({ desde: r.desde, hasta: r.hasta })}
+            />
+          ))}
+        </GrupoPastillas>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <InputSistema
             id="reportes-desde"
@@ -209,7 +198,7 @@ export function ReportesClient({ campus, turnos, filtrosIniciales, hoy, vistaIni
       </TarjetaSistema>
 
       {error && (
-        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger-text">
           {error}
         </p>
       )}

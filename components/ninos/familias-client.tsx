@@ -129,7 +129,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
       </form>
 
       {error && (
-        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger-text">
           {error}
         </p>
       )}
@@ -150,7 +150,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
               <TarjetaSistema data-testid="familia-tarjeta" className="space-y-4 p-4 md:p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="break-words text-[15px] font-semibold text-foreground">
+                    <p className="break-words text-base font-semibold text-foreground">
                       {f.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}
                     </p>
                     {f.telefono && <TextoSistema variante="sutil" tamaño="sm">{f.telefono}</TextoSistema>}

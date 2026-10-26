@@ -127,7 +127,7 @@ export function Llegando({ servicio, salones, onLlegaron }: Props) {
                 })}
               </ul>
               {errores[f.padre.id] && (
-                <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+                <p role="alert" className="text-sm text-danger-text">
                   {errores[f.padre.id]}
                 </p>
               )}

@@ -175,7 +175,7 @@ export function VincularHijoForm({ adulto, onVinculado, onCancelar }: Props) {
       </form>
 
       {error && (
-        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger-text">
           {error}
         </p>
       )}

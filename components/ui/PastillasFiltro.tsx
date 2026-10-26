@@ -7,6 +7,9 @@
  * WHAT is shown. One look everywhere — label, then the count in bold — and the
  * pressed pill uses the same brand accent as a selected card.
  *
+ * Without `cantidad` (chips whose counts are not loaded, quick ranges) the
+ * pill shows only its label, with the same look.
+ *
  * `GrupoPastillas` lays them out: a horizontally scrollable row on phones,
  * wrapping from `md` up. Each caller keeps its own rule (single choice, a
  * second tap clears, independent toggles) in `onClick`.
@@ -20,7 +23,8 @@ const ANILLO =
 
 export interface PastillaFiltroProps {
   readonly etiqueta: string
-  readonly cantidad: number
+  /** Omitted when there is nothing to count: the pill shows only the label. */
+  readonly cantidad?: number
   readonly activa: boolean
   readonly onClick: () => void
 }
@@ -40,7 +44,7 @@ export function PastillaFiltro({ etiqueta, cantidad, activa, onClick }: Pastilla
       )}
     >
       <span>{etiqueta}</span>
-      <span className="font-semibold tabular-nums text-foreground">{cantidad}</span>
+      {cantidad !== undefined && <span className="font-semibold tabular-nums text-foreground">{cantidad}</span>}
     </button>
   )
 }
