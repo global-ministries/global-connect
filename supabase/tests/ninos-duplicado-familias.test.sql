@@ -194,8 +194,9 @@ SELECT pg_temp.assert_raises('d: registering it again for the same adult is stil
 SELECT pg_temp.assert_eq('d: the refused child was not created',
   $q$SELECT pg_temp.cuantos_jose()$q$, '3');
 -- The warning does not block: the anfitrión may continue for adult 4.
-SELECT public.ninos_registrar_familia(jsonb_build_object('padre', jsonb_build_object('id', pg_temp.id('us', 4)),
-  'hijos', jsonb_build_array(pg_temp.hijo('José Ángel', 'ZZ Dup', '2020-05-05'))));
+SELECT pg_temp.assert_eq('d: registering again after the warning succeeds',
+  $q$SELECT 'ok' FROM (SELECT public.ninos_registrar_familia(jsonb_build_object('padre', jsonb_build_object('id', pg_temp.id('us', 4)),
+       'hijos', jsonb_build_array(pg_temp.hijo('José Ángel', 'ZZ Dup', '2020-05-05'))))) x$q$, 'ok');
 SELECT pg_temp.assert_eq('d: continuing after the warning still registers the child',
   $q$SELECT pg_temp.cuantos_jose()$q$, '4');
 SELECT pg_temp.assert_eq('d: afterwards adult 4 is still warned about family A only',

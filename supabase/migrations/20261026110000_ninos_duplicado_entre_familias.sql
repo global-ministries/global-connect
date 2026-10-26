@@ -96,6 +96,8 @@ BEGIN
        AND fam.padres IS NOT NULL
        -- The registering adult's own children keep the existing hard refusal.
        AND (p_padre_id IS NULL OR p_padre_id <> ALL (fam.padres))
+       -- Only children of the Niños age range, so the check never confirms an adult's birth date.
+       AND public.ninos_en_rango_edad(c.fecha_nacimiento::date)
        AND public.ninos_en_alcance(c.id, v_campus);
   END LOOP;
 
