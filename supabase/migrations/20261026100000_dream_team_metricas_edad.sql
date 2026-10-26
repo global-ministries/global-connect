@@ -14,7 +14,7 @@
 -- nobody new is reachable. If that predicate changes, change it here too.
 --
 -- Only the range leaves the function, never the birth date. Age is whole
--- years today: 12 is "12_17", 17 is "12_17", 18 is "18_25", 25 is "18_25",
+-- years on today's date in Caracas (ninos_hoy()): 12 is "12_17", 17 is "12_17", 18 is "18_25", 25 is "18_25",
 -- 26 is "26_mas"; NULL fecha_nacimiento is "sin_fecha".
 --
 -- Additive: creates one function, no table or policy is touched.
@@ -29,9 +29,9 @@ AS $function$
   select u.id,
          case
            when u.fecha_nacimiento is null then 'sin_fecha'
-           when extract(year from age(current_date, u.fecha_nacimiento)) < 12 then 'menor_12'
-           when extract(year from age(current_date, u.fecha_nacimiento)) < 18 then '12_17'
-           when extract(year from age(current_date, u.fecha_nacimiento)) < 26 then '18_25'
+           when extract(year from age(public.ninos_hoy(), u.fecha_nacimiento)) < 12 then 'menor_12'
+           when extract(year from age(public.ninos_hoy(), u.fecha_nacimiento)) < 18 then '12_17'
+           when extract(year from age(public.ninos_hoy(), u.fecha_nacimiento)) < 26 then '18_25'
            else '26_mas'
          end as rango
   from public.usuarios u

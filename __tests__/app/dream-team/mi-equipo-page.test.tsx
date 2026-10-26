@@ -93,6 +93,10 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
     listRolesPorEquipo: async () => ROLES,
   }),
 }))
+jest.mock('@/lib/platform/dream-team/edad', () => ({
+  ...jest.requireActual('@/lib/platform/dream-team/edad'),
+  fetchRangosEdad: async () => new Map(),
+}))
 jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
 jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
 const fetchContactosPersonas = jest.fn()

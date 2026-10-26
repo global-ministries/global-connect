@@ -91,14 +91,14 @@ SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'me-' || n || '@ex
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero, fecha_nacimiento)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Me', 'U' || n, 'me-' || n || '@example.test', 'Soltero', 'Otro',
        CASE n
-         WHEN 2 THEN (current_date - interval '12 years')::date                   -- exactly 12
-         WHEN 3 THEN (current_date - interval '12 years' + interval '1 day')::date -- 11, one day short of 12
-         WHEN 4 THEN (current_date - interval '18 years' + interval '1 day')::date -- 17, one day short of 18
-         WHEN 5 THEN (current_date - interval '18 years')::date                   -- exactly 18
-         WHEN 6 THEN (current_date - interval '26 years' + interval '1 day')::date -- 25, one day short of 26
-         WHEN 7 THEN (current_date - interval '26 years')::date                   -- exactly 26
+         WHEN 2 THEN (public.ninos_hoy() - interval '12 years')::date                   -- exactly 12
+         WHEN 3 THEN (public.ninos_hoy() - interval '12 years' + interval '1 day')::date -- 11, one day short of 12
+         WHEN 4 THEN (public.ninos_hoy() - interval '18 years' + interval '1 day')::date -- 17, one day short of 18
+         WHEN 5 THEN (public.ninos_hoy() - interval '18 years')::date                   -- exactly 18
+         WHEN 6 THEN (public.ninos_hoy() - interval '26 years' + interval '1 day')::date -- 25, one day short of 26
+         WHEN 7 THEN (public.ninos_hoy() - interval '26 years')::date                   -- exactly 26
          WHEN 8 THEN NULL                                                         -- no birth date
-         WHEN 9 THEN (current_date - interval '30 years')::date                   -- outsider
+         WHEN 9 THEN (public.ninos_hoy() - interval '30 years')::date                   -- outsider
        END
   FROM generate_series(1, 9) AS n;
 
