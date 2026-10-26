@@ -18,6 +18,11 @@
  *     the first card becomes "Todo <área>".
  *   - "Toda la dirección": the synthetic aggregate; the only place where the
  *     people sitting on the root node itself (its director) appear.
+ *
+ * `personas` holds one entry per servicio, so filters stay per servicio; the
+ * list shows a person once (`agruparPorPersona`, S12) with their servicios
+ * stacked. Header and card totals count distinct people, as the Servidores KPI
+ * cards do; the etapa pills keep counting servicios, as Servidores does.
  */
 import { DREAM_TEAM_ESTADOS, type DreamTeamEstado, type PersonaId } from './types'
 import type { NodoArbol } from './arbol'
@@ -104,6 +109,20 @@ export interface PersonaVista {
   readonly rangoEdad?: RangoEdad
 }
 
+/** A person once, with their servicios (already filtered) stacked, best rol first. */
+export interface PersonaAgrupada {
+  /** The persona id. */
+  readonly clave: string
+  readonly personaId: PersonaId
+  readonly nombre: string
+  readonly iniciales: string
+  readonly telefono: string | null
+  readonly tieneCuenta: boolean | null
+  /** Every listed servicio comes from Grupos de Vida: the mark goes next to the name, once. */
+  readonly soloGruposVida: boolean
+  readonly servicios: readonly PersonaVista[]
+}
+
 export interface ResponsableVista {
   readonly nombre: string
   readonly rol: 'coordinador' | 'director'
@@ -150,7 +169,7 @@ export interface VistaDireccion {
   readonly totalEquipos: number
   /** The level of each área that can be entered, by área id (see `nivelDeEquipos`). */
   readonly niveles: Readonly<Record<string, NivelEquipos>>
-  /** Every person of the direccion, sorted. */
+  /** Every servicio of the direccion, sorted (one entry per servicio; see `agruparPorPersona`). */
   readonly personas: readonly PersonaVista[]
   /** People waiting to be activated (postulado / en_orientacion). */
   readonly pendientes: readonly PersonaVista[]
@@ -230,8 +249,14 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string, 
   }
 }
 
-function contarPorActivar(personas: readonly { readonly estado: DreamTeamEstado }[]): number {
-  return personas.filter((persona) => ESTADOS_POR_ACTIVAR.includes(persona.estado)).length
+/** Distinct people of a list of servicios. */
+export function contarPersonas(personas: readonly { readonly personaId: PersonaId }[]): number {
+  return new Set(personas.map((persona) => persona.personaId)).size
+}
+
+/** Distinct people with a servicio in `postulado` or `en_orientacion`. */
+function contarPorActivar(personas: readonly { readonly personaId: PersonaId; readonly estado: DreamTeamEstado }[]): number {
+  return contarPersonas(personas.filter((persona) => ESTADOS_POR_ACTIVAR.includes(persona.estado)))
 }
 
 function nodosDeLaRama(raiz: NodoArbol<NodoEquipoArbol>): NodoArbol<NodoEquipoArbol>[] {
@@ -243,7 +268,7 @@ function personasDeLaRama(raiz: NodoArbol<NodoEquipoArbol>, personasPorEquipo: P
 }
 
 function totalDeLaRama(raiz: NodoArbol<NodoEquipoArbol>, personasPorEquipo: PersonasPorEquipo): number {
-  return nodosDeLaRama(raiz).reduce((suma, nodo) => suma + (personasPorEquipo[nodo.equipo.id]?.length ?? 0), 0)
+  return contarPersonas(personasDeLaRama(raiz, personasPorEquipo))
 }
 
 /** The active coordinador, else the active director, of a node's own people; alphabetical among equals. */
@@ -308,7 +333,7 @@ export function vistaDeDireccion(
     id: TODOS_LOS_EQUIPOS,
     label: 'Toda la dirección',
     responsable: responsableDe(propiasDeLaRaiz.filter((persona) => normalizarTexto(persona.rolClave) === 'director')),
-    total: ordenadas.length,
+    total: contarPersonas(ordenadas),
     porActivar: contarPorActivar(ordenadas),
     esArea: false,
   }
@@ -332,7 +357,7 @@ export function vistaDeDireccion(
   return {
     id: raiz.equipo.id,
     label: raiz.equipo.label,
-    total: ordenadas.length,
+    total: contarPersonas(ordenadas),
     todaLaDireccion,
     equipos,
     modoCompacto: equipos.length > MAX_EQUIPOS_EN_TARJETAS,
@@ -365,7 +390,7 @@ function tarjetaDeNodo(nodo: NodoArbol<NodoEquipoArbol>, personasPorEquipo: Pers
     id: nodo.equipo.id,
     label: nodo.equipo.label,
     responsable: responsableDe(personasPorEquipo[nodo.equipo.id] ?? []),
-    total: rama.length,
+    total: contarPersonas(rama),
     porActivar: contarPorActivar(rama),
     esArea: nodo.hijos.length > 0,
   }
@@ -382,6 +407,33 @@ export function nivelDeEquipos(vista: VistaDireccion, areaId: string | null): Ni
 /** The people of the selected card's whole branch, already sorted (the input is). */
 export function personasDeSeleccion(personas: readonly PersonaVista[], equipoId: string): PersonaVista[] {
   return equipoId === TODOS_LOS_EQUIPOS ? [...personas] : personas.filter((persona) => (persona.ramaIds ?? [persona.equipoId]).includes(equipoId))
+}
+
+/**
+ * One item per person (S12): their servicios stacked in the given order, the
+ * people by best rol (lowest `rolOrden` among their servicios), then name.
+ * Feed it the already filtered servicios so a person shows only those that match.
+ */
+export function agruparPorPersona(personas: readonly PersonaVista[]): PersonaAgrupada[] {
+  const porPersona = new Map<string, PersonaVista[]>()
+  for (const persona of personas) {
+    const propios = porPersona.get(persona.personaId)
+    if (propios) propios.push(persona)
+    else porPersona.set(persona.personaId, [persona])
+  }
+  const mejorRol = (servicios: readonly PersonaVista[]): number => Math.min(...servicios.map((s) => s.rolOrden))
+  return [...porPersona.values()]
+    .sort((a, b) => mejorRol(a) - mejorRol(b) || a[0].nombre.localeCompare(b[0].nombre, 'es') || a[0].personaId.localeCompare(b[0].personaId))
+    .map((servicios) => ({
+      clave: servicios[0].personaId,
+      personaId: servicios[0].personaId,
+      nombre: servicios[0].nombre,
+      iniciales: servicios[0].iniciales,
+      telefono: servicios.find((s) => s.telefono !== null)?.telefono ?? null,
+      tieneCuenta: servicios.find((s) => s.tieneCuenta !== null)?.tieneCuenta ?? null,
+      soloGruposVida: servicios.every((s) => s.origen === 'grupos_vida'),
+      servicios,
+    }))
 }
 
 export type ContadoresPorEstado = Readonly<Record<DreamTeamEstado, number>> & { readonly todos: number }

@@ -2,14 +2,14 @@
 
 /**
  * Mi equipo — strip announcing the people of the direccion who still wait to
- * be activated (`postulado` / `en_orientacion`), with "Revisar" to filter the
- * list down to them.
+ * be activated (`postulado` / `en_orientacion`), each person once with the
+ * teams where they wait, with "Revisar" to filter the list down to them.
  */
 import type { ReactElement } from 'react'
 import { Clock } from 'lucide-react'
 
 import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import type { PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
+import { agruparPorPersona, type PersonaAgrupada, type PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
 
 const NOMBRES_VISIBLES = 3
 
@@ -22,14 +22,18 @@ export function tituloDePendientes(cantidad: number): string {
   return cantidad === 1 ? '1 persona espera que la actives' : `${cantidad} personas esperan que las actives`
 }
 
-function nombresDePendientes(pendientes: readonly PersonaVista[]): string {
-  const visibles = pendientes.slice(0, NOMBRES_VISIBLES).map((p) => `${p.nombre} · ${p.equipoLabel}`)
-  const restantes = pendientes.length - visibles.length
+/** Each person once, with every team where they wait: "Ana · Coro, Banda". */
+function nombresDePendientes(personas: readonly PersonaAgrupada[]): string {
+  const visibles = personas
+    .slice(0, NOMBRES_VISIBLES)
+    .map((p) => `${p.nombre} · ${p.servicios.map((servicio) => servicio.equipoLabel).join(', ')}`)
+  const restantes = personas.length - visibles.length
   return restantes > 0 ? `${visibles.join('   ·   ')}   ·   y ${restantes} más` : visibles.join('   ·   ')
 }
 
 export function FranjaPendientes({ pendientes, onRevisar }: FranjaPendientesProps): ReactElement | null {
   if (pendientes.length === 0) return null
+  const personas = agruparPorPersona(pendientes)
   return (
     <section
       aria-label="Pendientes"
@@ -40,9 +44,9 @@ export function FranjaPendientes({ pendientes, onRevisar }: FranjaPendientesProp
           <Clock className="h-[18px] w-[18px]" />
         </div>
         <div className="min-w-0">
-          <TextoSistema className="font-semibold">{tituloDePendientes(pendientes.length)}</TextoSistema>
+          <TextoSistema className="font-semibold">{tituloDePendientes(personas.length)}</TextoSistema>
           <TextoSistema variante="sutil" tamaño="sm" className="truncate">
-            {nombresDePendientes(pendientes)}
+            {nombresDePendientes(personas)}
           </TextoSistema>
         </div>
       </div>

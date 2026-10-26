@@ -29,6 +29,7 @@ import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
 import {
   TODOS_LOS_EQUIPOS,
   contadoresPorEstado,
+  contarPersonas,
   filtrarPersonas,
   nivelDeEquipos,
   personasDeSeleccion,
@@ -80,8 +81,10 @@ export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
   return <MiEquipoVistaDireccion key={props.vista.id} {...props} vista={props.vista} />
 }
 
-function subtituloDeLista(cantidad: number, responsable: string | null, busqueda: string): string {
-  const personas = `${cantidad} ${cantidad === 1 ? 'persona' : 'personas'}`
+/** "3 personas", or "3 personas · 4 servicios" when someone serves more than once (as the Servidores footer). */
+function subtituloDeLista(cantidad: number, servicios: number, responsable: string | null, busqueda: string): string {
+  const soloPersonas = `${cantidad} ${cantidad === 1 ? 'persona' : 'personas'}`
+  const personas = servicios > cantidad ? `${soloPersonas} · ${servicios} servicios` : soloPersonas
   const conBusqueda = busqueda.trim() ? `${personas} para «${busqueda.trim()}»` : personas
   return responsable ? `${responsable} · ${conBusqueda}` : conBusqueda
 }
@@ -205,7 +208,7 @@ function MiEquipoVistaDireccion({
 
       <ListaPersonas
         titulo={tarjetaSeleccionada.label}
-        subtitulo={subtituloDeLista(visibles.length, lineaResponsable, query)}
+        subtitulo={subtituloDeLista(contarPersonas(visibles), visibles.length, lineaResponsable, query)}
         personas={visibles}
         contadores={contadores}
         filtro={filtro}
