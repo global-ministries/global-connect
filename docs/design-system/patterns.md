@@ -9,8 +9,8 @@ screenshots: [desktop](prototipos/capturas/servidores-desk.png),
 [phone filters](prototipos/capturas/servidores-phone-filters.png),
 [phone person](prototipos/capturas/servidores-phone-person.png).
 
-Widths below: desktop ≥ 1000px, tablet 560–1000px, phone < 560px (prototype
-container widths; see [foundations.md](foundations.md#spacing-and-gutters-decided)).
+Widths below: desktop `lg`+ (≥ 1024px), tablet `md`–`lg`, phone < `md` (768px)
+(decided 2026-10-26; see [foundations.md](foundations.md#spacing-and-gutters-decided)).
 
 ## List screen anatomy
 

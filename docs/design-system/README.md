@@ -27,7 +27,7 @@ screenshots in [`prototipos/capturas/`](prototipos/capturas/).
 
 1. **One system.** Same tokens, same components, same anatomy on every
    screen. Two screens that do the same thing look and behave the same.
-2. **Native-app feel on phones.** Below 560px a screen behaves like an iOS
+2. **Native-app feel on phones.** Below `md` (768px) a screen behaves like an iOS
    app: navigation bar with back, large title, filled search, inset grouped
    lists, bottom sheets, tab bar and FAB. See [mobile.md](mobile.md).
 3. **Full width on desktop.** Pages use the whole content width with the

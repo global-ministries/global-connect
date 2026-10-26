@@ -88,25 +88,15 @@ uses `amber-700` / `yellow-700` text; Talleres confirms use `peligro`; the
 Dream Team pages render `PaginaSistema` (no `ContenedorDashboard` islands);
 `coloresMarca` points at the CSS variables.
 
-## Open decisions
+## Decisions (2026-10-26)
 
-For the user. Do not decide these silently in an implementation PR.
+The user accepted these eight foundations before Phase 1. They are binding; change them only through a new user decision recorded here.
 
-1. **One select**: native `SelectSistema` vs Radix `ui/select` (used in
-   `GrupoDetailClient`, `KpisGruposPanel`, `turnos-servicio-dialog`). Native
-   is simpler and better on phones; Radix allows rich options.
-2. **Primary button look**: `primario` keeps its orange gradient, or becomes
-   the flat brand fill of the prototype.
-3. **Bottom sheet base**: vaul (`ui/drawer`, drag to dismiss) vs `ui/sheet`
-   with `side="bottom"` inside `PanelLateralSistema`.
-4. **Segmented control base**: `ui/toggle-group` (Radix) vs plain
-   `aria-pressed` buttons.
-5. **Motion easing**: add the prototype `--ease` (`cubic-bezier(.2,.8,.2,1)`)
-   as a token, or map it to the existing `--ease-out-quint`.
-6. **Brand tint**: keep two tints (`--brand-accent` 8% for pressed pills and
-   cards, `--brand-accent-strong` 15% as `bg-brand-tint`) or one.
-7. **Shadow tokens**: adopt `--shadow-sheet` and `--shadow-fab` as proposed
-   in [foundations.md](foundations.md#shadows-planned).
-8. **Phone breakpoint**: the prototype switches to the phone layout below
-   560px (container), the app chrome below `md` (768px). Tablet portrait
-   (600–767px) gets the phone chrome today.
+1. **One select**: the native `SelectSistema`. On phones it opens the OS picker. The Radix `ui/select` is deprecated; its 3 usages (`GrupoDetailClient`, `KpisGruposPanel`, `turnos-servicio-dialog`) migrate.
+2. **Primary button look**: `primario` becomes the flat brand fill of the prototype, with no gradient.
+3. **Bottom sheet base**: vaul (`ui/drawer`), because drag-to-dismiss feels native. It is the phone variant of the detail drawer and filter sheet; `PanelLateralSistema` stays the side panel on desktop.
+4. **Segmented control base**: plain buttons with `aria-pressed` inside `role="group"`, the same model as the pills. `ui/toggle-group` stays unused.
+5. **Motion easing**: no new token. The prototype's `--ease` maps to the existing `--ease-out-quint`.
+6. **Brand tint**: one tint. `bg-brand-tint` is the only pressed/selected fill; `PastillasFiltro` and `TarjetasFiltro` move off `var(--brand-accent)`.
+7. **Shadow tokens**: adopt `--shadow-sheet` and `--shadow-fab` ([foundations.md](foundations.md#shadows)).
+8. **Phone breakpoint**: below `md` (768px), the same switch as the app chrome, so the app has a single phone/desktop cut. Tablet layout is `md`–`lg` (768–1023px); desktop is `lg` and up.

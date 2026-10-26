@@ -70,7 +70,7 @@ With `asChild`, `disabled` and `cargando` set `aria-disabled` and
 pass `cargando` (and `disabled`) so the button gives immediate feedback.
 
 The prototype's primary button is a flat brand fill; whether `primario`
-keeps its gradient is open (see [migration.md](migration.md#open-decisions)).
+keeps its gradient is open (see [migration.md](migration.md#decisions-2026-10-26)).
 
 ### Forms
 
@@ -122,7 +122,7 @@ Notifications: `useNotificaciones()` (`hooks/use-notificaciones`), see
 
 Legacy components stay until they have no consumers. New code uses the
 canonical one. "To decide" rows are open decisions for the user
-([migration.md](migration.md#open-decisions)).
+([migration.md](migration.md#decisions-2026-10-26)).
 
 | Legacy | Canonical | Status |
 | --- | --- | --- |
@@ -133,12 +133,12 @@ canonical one. "To decide" rows are open decisions for the user
 | `components/ui/tarjeta-estadistica.tsx` (`TarjetaEstadistica`) | `TarjetaSistema` + `BadgeSistema`; for KPIs, the planned attention metric | decided (`@deprecated`) |
 | `components/ui/tarjeta-glassmorphism.tsx` | `TarjetaSistema` | decided (glass look retired) |
 | `components/ui/card.tsx` (shadcn `Card`) | `TarjetaSistema` | decided (lint error in migrated areas) |
-| `components/ui/select.tsx` (Radix select) | `SelectSistema` (native) | to decide: native vs Radix as the one select |
+| `components/ui/select.tsx` (Radix select) | `SelectSistema` (native) | decided (migrate the 3 usages) |
 | `components/ui/tabs.tsx` (shadcn tabs, unused) | `TabsSistema` | decided |
 | `components/ui/sidebar.tsx` (shadcn sidebar, unused) | `SidebarModerna` | decided |
 | `components/ui/skeleton.tsx` | `SkeletonSistema` | decided |
-| `components/ui/toggle-group.tsx` (unused) | planned segmented control | to decide: build the segmented control on it or on plain buttons |
-| `components/ui/drawer.tsx` (vaul, unused) | planned bottom-sheet variant of `PanelLateralSistema` | to decide: vaul vs `ui/sheet` `side="bottom"` |
+| `components/ui/toggle-group.tsx` (unused) | planned segmented control (plain `aria-pressed` buttons) | decided (not used) |
+| `components/ui/drawer.tsx` (vaul) | base of the planned bottom sheet (phone variant of the detail drawer and filter sheet) | decided (vaul) |
 | `components/ninos/panel-lateral.tsx` (raw `Sheet`) | `PanelLateralSistema` | decided (migrates with Niños) |
 | `components/cuentas/invitar-cuenta-panel.tsx` (raw `Sheet`) | `PanelLateralSistema` | decided |
 | `EstadoVacio` in `components/ninos/estado-vacio.tsx`, `components/dream-team/estado-vacio.tsx`, `components/grupos-vida/selector-propietario-casa.tsx` (local), `EstadoVacioAsistencia` in `components/asistencia/partes-asistencia.tsx` | planned canonical empty state | decided (one component; keep it a server-safe component, see the RSC note in `components/dream-team/estado-vacio.tsx`) |
@@ -157,7 +157,7 @@ working names; the implementation PR fixes them here.
 | Attention metrics | `.attention` / `.metric` | new; replaces `TarjetaEstadistica` and ad hoc KPI tiles; `TarjetasFiltro` card look | 4 toggle buttons (`aria-pressed`): status dot, label, mono value, proportion bar, hint. 4 columns desktop, 2×2 tablet and phone (phone hides bar and hint). Pressing one applies its filter. |
 | Scope cards (tree) | `.scope` / `.node` | `TarjetasFiltro` | Add flags (`info` "por activar", `warning` "sin cuenta"), an etapa stacked bar, the responsible line, and drill-down (entering a node updates the breadcrumb). Phone: inset grouped list rows with count and chevron. |
 | Filter toolbar + sheet | `.toolbar`, `#fsheet` | `components/dream-team/servidores/barra-filtros.tsx` + `hoja-filtros.tsx`, `PastillasFiltro`, `PanelLateralSistema` | Search (with `/` shortcut on desktop), "Filtros" button with active count, segmented view switch, active filter chips with "Limpiar todo". Sheet: pill groups, selects, sort, view, footer "Limpiar" + "Ver N personas". |
-| Segmented control | `.seg` | `ui/toggle-group` or plain buttons (to decide) | 2–3 options, `role="group"` + `aria-pressed`; pressed segment inverts (`bg-foreground text-background`). Desktop toolbar; on phone it moves into the filter sheet. |
+| Segmented control | `.seg` | plain `aria-pressed` buttons (decided) | 2–3 options, `role="group"` + `aria-pressed`; pressed segment inverts (`bg-foreground text-background`). Desktop toolbar; on phone it moves into the filter sheet. |
 | Responsive list row | `.list`, `.list-h`, `.row` | new | Desktop: table-like grid with sortable headers (`aria-sort`). Tablet: two-line rows. Phone: inset grouped rows (avatar, name, secondary line, status dot, chevron). Rows open the detail drawer. Includes loading rows and the empty state. |
 | Detail drawer / bottom sheet | `.sheet#drawer` | `PanelLateralSistema` (add a phone bottom-sheet presentation with grab handle) | Identity header, quick actions (WhatsApp, Llamar, Editar ficha), callouts, per-item cards with key/value grid and actions. |
 | Phone nav bar + large title | `.navbar`, `.large` | `HeaderMovil`, `PaginaSistema` | Back with the previous level's label, compact title fading in after 48px of scroll, up to two brand-colored icon actions with count badge; large title + summary block. |

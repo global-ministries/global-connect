@@ -7,7 +7,7 @@ radius or font that a token covers.
 
 Status labels in this file: **decided** (use it), **legacy** (do not use in
 new code; replacement given), **planned** (not in code yet; Phase 1 adds it),
-**to decide** (open question for the user, see [migration.md](migration.md#open-decisions)).
+**decided** (accepted by the user, see [migration.md](migration.md#decisions-2026-10-26)).
 
 ## Color: surfaces and text
 
@@ -76,7 +76,7 @@ is left.
 | --- | --- | --- |
 | `--glass-*` tokens, `glass-panel`, `glass-panel-elevated`, `glass-panel-subtle`, `glass-border-glow`, `scrollbar-glass` | `bg-card border border-border` (cards), the planned shadow tokens (sheets) | The glass look is retired. `TarjetaSistema` `default`/`elevated` still render `glass-panel`; Phase 1 moves them to the card surface. Translucent blur stays only for system bars (phone nav bar and tab bar, sticky desktop header). |
 | `--destructive`, `bg-destructive`, `text-destructive` | `--danger`, `bg-danger`, `text-danger-text` | Same role, two names. shadcn primitives still read `--destructive`. |
-| `--brand-primary-light` (#F59E0B), `--brand-dark` (#363D45), `--brand-accent` (8% tint), `--brand-primary-rgb` | `bg-brand`, `bg-brand-tint`, `text-foreground` | No Tailwind class. `PastillasFiltro` and `TarjetasFiltro` read `var(--brand-accent)` directly for the pressed state; Phase 1 aligns them with `bg-brand-tint` (to decide: one tint or two). |
+| `--brand-primary-light` (#F59E0B), `--brand-dark` (#363D45), `--brand-accent` (8% tint), `--brand-primary-rgb` | `bg-brand`, `bg-brand-tint`, `text-foreground` | No Tailwind class. `PastillasFiltro` and `TarjetasFiltro` read `var(--brand-accent)` directly for the pressed state; Decided: one tint; Phase 1 moves them to `bg-brand-tint`. |
 | `coloresMarca` (`components/ui/sistema-diseno.tsx`) | Tailwind classes | Now points at the CSS variables. Reach for it only where a class cannot (inline styles, SVG attributes). The old hex object is gone. |
 | Raw `orange-*`, `amber-*`, `yellow-*` text | `text-warning-text`, `text-brand-text` | Older screens kept them because no readable warning text token existed; it exists now. |
 
@@ -128,10 +128,10 @@ radius (prototype 26px, `rounded-t-3xl`).
 - Vertical rhythm: `space-y-6` between page sections (the prototype uses
   28px on desktop, 22px on phone).
 - Gaps: 12px between cards in a grid, 10px on phone; 8px between pills.
-- Breakpoints: `sm` 640, `md` 768, `lg` 1024, `xl` 1280. The prototype's
-  phone layout starts below 560px and its tablet layout below 1000px; the
-  implementation uses `md` for the phone/desktop chrome switch and container
-  queries inside components.
+- Breakpoints: `sm` 640, `md` 768, `lg` 1024, `xl` 1280. Decided
+  (2026-10-26): phone layout below `md` (768px), tablet `md`–`lg`, desktop
+  `lg` and up, matching the app chrome. (The prototype file switches at
+  560/1000px container widths; the implementation uses these breakpoints.)
 
 ## Control size scale (decided)
 
@@ -164,7 +164,7 @@ Existing tokens (decided; in `globals.css`):
 | `--duration-instant` / `fast` / `normal` / `slow` / `slower` | 100 / 150 / 250 / 400 / 600ms | |
 | `--stagger-delay` | 40ms | `stagger-children` |
 
-Prototype motion (planned, to decide whether it becomes a new token or maps
+Prototype motion (decided: no new easing token; the prototype `--ease` maps
 to `--ease-out-quint`):
 
 | Prototype | Value | Where |
@@ -178,19 +178,18 @@ Rules: animate `transform` and `opacity`, list properties explicitly
 global `prefers-reduced-motion` block already cuts every animation; do not
 override it.
 
-## Shadows (planned)
+## Shadows
 
-There are no shadow tokens yet; the only ones are the legacy
-`--glass-shadow*`. The prototype is flat: cards use a 1px border and no
-shadow. Two shadows are proposed:
+Decided (2026-10-26). The prototype is flat: cards use a 1px border and no
+shadow. Only floating layers get a shadow, through these two tokens (Phase 1
+adds them to `app/globals.css`; the legacy `--glass-shadow*` retire):
 
-| Planned token | Light | Dark | Use |
+| Token | Light | Dark | Use |
 | --- | --- | --- | --- |
 | `--shadow-sheet` | `0 24px 60px -24px rgba(20,20,40,.28)` | `0 24px 60px -20px rgba(0,0,0,.7)` | Side panel, bottom sheet, popovers |
 | `--shadow-fab` | `0 16px 36px -10px rgba(233,108,32,.75)` | same | FAB |
 
-Until they land, use the Tailwind defaults already in each primitive; do not
-add new ad hoc shadows.
+Do not add ad hoc shadows.
 
 ## Inventory behind the scale (origin/main, 2026-10-13)
 
