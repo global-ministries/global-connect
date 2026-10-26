@@ -72,6 +72,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   const [completando, setCompletando] = useState<HijoEncontrado | null>(null)
   /** An adult without children (N11): add a new child or link an existing one. */
   const [paraAdulto, setParaAdulto] = useState<{ tipo: 'agregar' | 'vincular'; id: string; nombre: string } | null>(null)
+  /** A QR pre-registration of "Llegando" to open in its review (P4). */
+  const [revisar, setRevisar] = useState<string | null>(null)
+  /** Bumped after a pre-registration is confirmed, so "Llegando" reads its list again. */
+  const [versionLlegando, setVersionLlegando] = useState(0)
+  const atenderRevisar = useCallback(() => setRevisar(null), [])
 
   const nombreSalon = useCallback((id: string) => salones.find((s) => s.id === id)?.nombre ?? 'salón', [salones])
 
@@ -295,10 +300,13 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
             </TarjetaSistema>
           ) : resultado ? null : (
             <>
-              <Llegando servicio={servicio} salones={salones} onLlegaron={llegaron} />
+              <Llegando key={versionLlegando} servicio={servicio} salones={salones} onLlegaron={llegaron} onRevisar={setRevisar} />
               <PreregistrosPendientes
                 salones={salonesNivel}
+                abrirId={revisar}
+                onAbrirAtendido={atenderRevisar}
                 onConfirmado={(padreId, consulta) => {
+                  setVersionLlegando((v) => v + 1)
                   setQ(consulta)
                   void buscarYElegir(consulta, padreId)
                 }}
@@ -574,6 +582,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
             onRegistrada={(padreId) => {
               setParaAdulto(null)
               void buscarYElegir(q, padreId)
+            }}
+            onAbrirFamilia={(padreId, consulta) => {
+              setParaAdulto(null)
+              setQ(consulta)
+              void buscarYElegir(consulta, padreId)
             }}
           />
         )}

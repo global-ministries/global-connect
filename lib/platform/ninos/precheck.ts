@@ -3,8 +3,10 @@
  * ninos_mis_prechecks() for "Voy en camino" in Mis hijos and maps the errors
  * of ninos_precheck_avisar / ninos_precheck_cancelar to Spanish. The SQL
  * decides the window, the children and the caps; this only reads its answer.
- * The table side (P3) parses ninos_prechecks_pendientes() for "Llegando".
+ * The table side (P3) parses ninos_prechecks_pendientes() for "Llegando",
+ * which also carries the QR pre-registrations that said "¿Vienen hoy?" (P4).
  */
+import { alertasDeHijo } from './checkin'
 import { parseFamilias, type FamiliaEncontrada, type HijoEncontrado } from './familias-vista'
 
 /** A service of today that still takes notices (its window is open). */
@@ -85,6 +87,43 @@ export function parseLlegando(data: unknown): FamiliaLlegando[] {
       }
     })
     .filter((f) => f.hijos.length > 0)
+}
+
+/**
+ * A QR pre-registration on its way (P4): no ficha yet, so the table opens its
+ * review, which registers the family and selects it for the usual check-in.
+ */
+export type PreregistroLlegando = {
+  preregistroId: string
+  padre: { nombre: string; apellido: string }
+  avisadoAt: string
+  hijos: { nombre: string; apellido: string; alertas: string[] }[]
+}
+
+export function parsePreregistrosLlegando(data: unknown): PreregistroLlegando[] {
+  if (!Array.isArray(data)) return []
+  return data
+    .filter((f): f is Objeto => esObjeto(f) && f.tipo === 'preregistro' && typeof f.preregistro_id === 'string' && esObjeto(f.padre))
+    .map((f) => {
+      const padre = f.padre as Objeto
+      const hijos = Array.isArray(f.hijos) ? f.hijos.filter(esObjeto) : []
+      return {
+        preregistroId: f.preregistro_id as string,
+        padre: { nombre: texto(padre.nombre), apellido: texto(padre.apellido) },
+        avisadoAt: texto(f.avisado_at),
+        hijos: hijos.map((h) => ({
+          nombre: texto(h.nombre),
+          apellido: texto(h.apellido),
+          alertas: alertasDeHijo({
+            alergias: texto(h.alergias) || null,
+            necesidades_especiales: texto(h.necesidades_especiales) || null,
+            cambio_panal: null,
+            puede_comer: null,
+            autoriza_imagen: null,
+          }),
+        })),
+      }
+    })
 }
 
 /** The arriving family as the check-in card expects it (to pick a room by hand). */

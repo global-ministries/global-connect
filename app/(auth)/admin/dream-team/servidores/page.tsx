@@ -14,7 +14,7 @@
  * renders, filters, sorts and groups them and drives the assigner and the
  * stage-advance API calls.
  *
- * The filters come from the URL (`?etapa=&direccion=&area=&equipo=&rol=&turno=&inicio=
+ * The filters come from the URL (`?etapa=&direccion=&area=&equipo=&rol=&turno=&edad=&inicio=
  * &sin_cuenta=1&varios=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
  * and `?estado=` of the links from Talleres and Estructura.
  *
@@ -38,6 +38,8 @@ import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
 import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
+import { fetchRangosEdad, type RangoEdad } from '@/lib/platform/dream-team/edad'
+import type { PersonaId } from '@/lib/platform/dream-team/types'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
@@ -120,6 +122,17 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
     ...lideresGdv.map((lider) => lider.personaId),
   ])
 
+  // Age range (D10), from a scoped RPC with the same reach as the contacts;
+  // the birth date never leaves the database. A convenience: if the lookup
+  // fails the page renders without the age pills, and the failure is logged.
+  const rangoEdadPorId = await fetchRangosEdad(supabase, [
+    ...servicios.map((servicio) => servicio.personaId),
+    ...lideresGdv.map((lider) => lider.personaId),
+  ]).catch((error: unknown): ReadonlyMap<PersonaId, RangoEdad> => {
+    console.error('[dream-team/servidores] age lookup failed', error)
+    return new Map()
+  })
+
   // Merge the real tree with the virtual Grupos de Vida branch (item 3) plus
   // who holds director/coordinador on each real node (item 4). This is what
   // makes a Grupos de Vida row's `equipoLabel` resolve to its group name
@@ -184,6 +197,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         fichaEditable: servicio.estado !== 'retirado' && equiposFicha.has(servicio.equipoId),
         turnoIds: turnosPorServicio.get(servicio.id) ?? [],
         frecuencias: frecuenciasPorServicio.get(servicio.id),
+        rangoEdad: rangoEdadPorId.get(servicio.personaId),
       }),
     ),
     ...lideresGdv.map(
@@ -200,6 +214,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
         origen: 'grupos_vida',
         editable: false,
+        rangoEdad: rangoEdadPorId.get(lider.personaId),
       }),
     ),
   ]

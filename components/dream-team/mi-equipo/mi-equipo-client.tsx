@@ -8,7 +8,7 @@
  * card enters the área) and the people of the selected card. Everything below
  * the header is derived on the client from the already-loaded view model
  * (lib/platform/dream-team/mi-equipo-vista.ts): the entered área, the selected
- * card, the estado and shift filters and the name search are local state —
+ * card, the estado, age and shift filters and the name search are local state —
  * only the direccion lives in the URL.
  *
  * Everything that crosses in from the server page is plain serializable data.
@@ -23,6 +23,7 @@ import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
+import { ContadoresEdad } from '@/components/dream-team/contadores-edad'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
 import {
@@ -36,6 +37,7 @@ import {
   type FiltroEstado,
   type VistaDireccion,
 } from '@/lib/platform/dream-team/mi-equipo-vista'
+import { contarPorRangoEdad, type RangoEdad } from '@/lib/platform/dream-team/edad'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 
 import { EncabezadoMiEquipo } from './encabezado'
@@ -109,6 +111,7 @@ function MiEquipoVistaDireccion({
   const [filtro, setFiltro] = useState<FiltroEstado>('todos')
   const [query, setQuery] = useState('')
   const [turno, setTurno] = useState<string | null>(null)
+  const [edad, setEdad] = useState<RangoEdad | null>(null)
 
   // A refresh can drop the entered área or the selected team; never leave the list pointing at nothing.
   const nivel = nivelDeEquipos(vista, areaId)
@@ -130,16 +133,25 @@ function MiEquipoVistaDireccion({
     () => personasDeSeleccion(vista.personas, tarjetaSeleccionada.id),
     [vista.personas, tarjetaSeleccionada.id],
   )
-  // Counters follow the search and the shift but not the estado filter, so each pill shows what it would list.
+  // Each group of counters follows every filter but its own (estado, age), so each pill shows what it would list.
   const porNombre = useMemo(() => filtrarPersonas(delEquipo, { query, turno }), [delEquipo, query, turno])
-  const contadores = useMemo(() => contadoresPorEstado(porNombre), [porNombre])
-  const visibles = useMemo(() => filtrarPersonas(porNombre, { estado: filtro }), [porNombre, filtro])
+  const contadores = useMemo(() => contadoresPorEstado(filtrarPersonas(porNombre, { edad })), [porNombre, edad])
+  // The age metrics of the selected card (D10); hidden when nobody has a known range.
+  const contadoresEdad = useMemo(
+    () =>
+      delEquipo.some((persona) => persona.rangoEdad !== undefined)
+        ? contarPorRangoEdad(filtrarPersonas(porNombre, { estado: filtro }))
+        : null,
+    [delEquipo, porNombre, filtro],
+  )
+  const visibles = useMemo(() => filtrarPersonas(porNombre, { estado: filtro, edad }), [porNombre, filtro, edad])
 
   function revisarPendientes(): void {
     setAreaId(null)
     setSeleccionadoId(TODOS_LOS_EQUIPOS)
     setQuery('')
     setTurno(null)
+    setEdad(null)
     setFiltro('por_activar')
   }
 
@@ -188,6 +200,8 @@ function MiEquipoVistaDireccion({
           <SelectorTurno turnos={turnosDelCampus} valor={turno} onCambio={setTurno} />
         </div>
       )}
+
+      {contadoresEdad && <ContadoresEdad contadores={contadoresEdad} edad={edad} onEdadChange={setEdad} />}
 
       <ListaPersonas
         titulo={tarjetaSeleccionada.label}

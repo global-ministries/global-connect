@@ -6,6 +6,7 @@ import { normalizarTelefono } from '@/lib/utils/telefono'
 import { isoLocal, nombreConFrecuencia } from './frecuencia-turno'
 import { SIN_TURNO, coincideTurno, ordenarTurnos, type FrecuenciasPorTurno, type Turno } from './turnos'
 import { ESTADOS_POR_ACTIVAR, MAX_EQUIPOS_EN_TARJETAS } from './mi-equipo-vista'
+import { RANGO_EDAD_LABELS, contarPorRangoEdad, esRangoEdad, type ContadoresEdad, type RangoEdad } from './edad'
 
 /**
  * Pure view model behind /admin/dream-team/servidores (no I/O, no React).
@@ -58,6 +59,8 @@ export interface FilaServidor {
   readonly turnoIds?: readonly string[]
   /** Biweekly shifts of the servicio (T10); a shift with no entry is weekly. */
   readonly frecuencias?: FrecuenciasPorTurno
+  /** Age range of the person (D10); absent when the caller cannot see it (never matches an age filter). */
+  readonly rangoEdad?: RangoEdad
 }
 
 export type Inicio = 'cualquiera' | 'mes' | 'trimestre'
@@ -74,6 +77,8 @@ export interface FiltrosServidores {
   readonly rol: string | null
   /** A shift id, `SIN_TURNO` for servicios without one, or `null` for no filter. */
   readonly turno: string | null
+  /** An age range (D10), or `null` for no filter. */
+  readonly edad: RangoEdad | null
   readonly inicio: Inicio
   readonly sinCuenta: boolean
   readonly varios: boolean
@@ -89,6 +94,7 @@ export const FILTROS_INICIALES: FiltrosServidores = {
   equipo: null,
   rol: null,
   turno: null,
+  edad: null,
   inicio: 'cualquiera',
   sinCuenta: false,
   varios: false,
@@ -245,6 +251,12 @@ export interface VistaServidores {
     readonly todas: number
     readonly porEtapa: Readonly<Record<DreamTeamEstado, number>>
   }
+  /**
+   * Distinct people per age range under every filter but the age one: the age
+   * metrics of whatever is selected. `null` when nobody listed has a known
+   * range (the lookup failed or answered nobody), so the screen hides them.
+   */
+  readonly contadoresEdad: ContadoresEdad | null
   readonly rapidos: {
     readonly sinCuenta: { readonly cantidad: number; readonly activo: boolean }
     readonly varios: { readonly cantidad: number; readonly activo: boolean }
@@ -316,7 +328,7 @@ function coincideInicio(fila: FilaServidor, inicio: Inicio, hoy: Date): boolean 
 }
 
 /** The filter a counter ignores; 'equipo' and 'ubicacion' (dirección + área + equipo) serve the KPI cards. */
-type Salvo = 'etapa' | 'sinCuenta' | 'varios' | 'equipo' | 'ubicacion' | null
+type Salvo = 'etapa' | 'edad' | 'sinCuenta' | 'varios' | 'equipo' | 'ubicacion' | null
 
 interface Contexto {
   readonly equiposPorPersona: ReadonlyMap<string, number>
@@ -343,6 +355,7 @@ function pasa(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, salv
   if (salvo !== 'sinCuenta' && f.sinCuenta && fila.tieneCuenta !== false) return false
   if (salvo !== 'varios' && f.varios && (contexto.equiposPorPersona.get(fila.personaId) ?? 0) < 2) return false
   if (salvo !== 'etapa' && f.etapa !== null && fila.estado !== f.etapa) return false
+  if (salvo !== 'edad' && f.edad !== null && fila.rangoEdad !== f.edad) return false
   return true
 }
 
@@ -554,6 +567,7 @@ function construirPastillas(
   if (f.equipo !== null) agregar('equipo', `Equipo: ${equipoLabel(f.equipo)}`, { equipo: null })
   if (f.rol !== null) agregar('rol', `Rol: ${f.rol}`, { rol: null })
   if (f.turno !== null) agregar('turno', f.turno === SIN_TURNO ? 'Sin turno' : `Turno: ${turnoLabel(f.turno)}`, { turno: null })
+  if (f.edad !== null) agregar('edad', `Edad: ${RANGO_EDAD_LABELS[f.edad]}`, { edad: null })
   if (f.inicio !== 'cualquiera') agregar('inicio', ETIQUETA_INICIO[f.inicio], { inicio: 'cualquiera' })
   if (f.sinCuenta) agregar('sin_cuenta', 'Sin cuenta', { sinCuenta: false })
   if (f.varios) agregar('varios', 'En varios equipos', { varios: false })
@@ -731,6 +745,9 @@ export function calcularVistaServidores({
   const sinEtapa = filas.filter((fila) => pasa(fila, filtros, contexto, 'etapa'))
   const porEtapa = Object.fromEntries(DREAM_TEAM_ESTADOS.map((estado) => [estado, 0])) as Record<DreamTeamEstado, number>
   for (const fila of sinEtapa) porEtapa[fila.estado] += 1
+  const contadoresEdad = filas.some((fila) => fila.rangoEdad !== undefined)
+    ? contarPorRangoEdad(filas.filter((fila) => pasa(fila, filtros, contexto, 'edad')))
+    : null
 
   const cantidadSinCuenta = filas.filter((fila) => pasa(fila, filtros, contexto, 'sinCuenta') && fila.tieneCuenta === false).length
   const cantidadVarios = filas.filter(
@@ -804,6 +821,7 @@ export function calcularVistaServidores({
     total: { servicios: filas.length, personas: new Set(filas.map((fila) => fila.personaId)).size },
     tarjetas,
     contadoresEtapa: { todas: sinEtapa.length, porEtapa },
+    contadoresEdad,
     rapidos: {
       sinCuenta: { cantidad: cantidadSinCuenta, activo: filtros.sinCuenta },
       varios: { cantidad: cantidadVarios, activo: filtros.varios },
@@ -879,6 +897,7 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
   const etapa = leer(parametros, 'etapa') ?? leer(parametros, 'estado')
   const inicio = leer(parametros, 'inicio')
   const agruparPor = leer(parametros, 'agrupar')
+  const edad = leer(parametros, 'edad')
   return {
     etapa: esEstado(etapa) ? etapa : null,
     direccion: textoOpcional(leer(parametros, 'direccion')),
@@ -886,6 +905,7 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
     equipo: textoOpcional(leer(parametros, 'equipo')),
     rol: textoOpcional(leer(parametros, 'rol')),
     turno: textoOpcional(leer(parametros, 'turno')),
+    edad: esRangoEdad(edad) ? edad : null,
     inicio: inicio === 'mes' || inicio === 'trimestre' ? inicio : 'cualquiera',
     sinCuenta: esVerdadero(leer(parametros, 'sin_cuenta')),
     varios: esVerdadero(leer(parametros, 'varios')),
@@ -904,6 +924,7 @@ export function escribirFiltrosEnUrl(filtros: FiltrosServidores): string {
   if (filtros.equipo !== null) parametros.set('equipo', filtros.equipo)
   if (filtros.rol !== null) parametros.set('rol', filtros.rol)
   if (filtros.turno !== null) parametros.set('turno', filtros.turno)
+  if (filtros.edad !== null) parametros.set('edad', filtros.edad)
   if (filtros.inicio !== 'cualquiera') parametros.set('inicio', filtros.inicio)
   if (filtros.sinCuenta) parametros.set('sin_cuenta', '1')
   if (filtros.varios) parametros.set('varios', '1')

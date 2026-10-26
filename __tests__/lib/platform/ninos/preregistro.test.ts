@@ -149,6 +149,8 @@ describe('crearPreregistro', () => {
       p_campus_id: CAMPUS,
       p_payload: expect.objectContaining({ padre: expect.objectContaining({ nombre: 'Ana' }) }),
       p_ip_hash: hashIp('1.2.3.4', 's'),
+      // "¿Vienen hoy?" (P4): only the hash of the notice token.
+      p_token_hash: expect.stringMatching(/^[0-9a-f]{64}$/),
     })
   })
 

@@ -76,6 +76,15 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
               ? router.push(`${volverCheckin}&padre=${encodeURIComponent(padreId)}&q=${encodeURIComponent(consulta)}`)
               : void volver()
           }
+          onAbrirFamilia={(padreId, consulta) => {
+            if (volverCheckin && vista.tipo === 'registrar') {
+              router.push(`${volverCheckin}&padre=${encodeURIComponent(padreId)}&q=${encodeURIComponent(consulta)}`)
+              return
+            }
+            setVista({ tipo: 'buscar' })
+            setQ(consulta)
+            void buscar(consulta)
+          }}
         />
       </div>
     )
