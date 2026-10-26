@@ -2,7 +2,7 @@ import nextCoreWebVitals from 'eslint-config-next/core-web-vitals'
 import nextTypescript from 'eslint-config-next/typescript'
 import security from 'eslint-plugin-security'
 
-// Screens already migrated to the design system (docs/design-system.md).
+// Screens already migrated to the design system (docs/design-system/migration.md).
 // Add each area here when it migrates: from then on it cannot go back to the
 // legacy primitives. Scoped to migrated files so the rule adds no warnings to
 // the existing lint budget.
@@ -17,7 +17,7 @@ const legacyUiImports = {
     {
       group: ['**/components/ui/button', '**/components/ui/card', '**/components/ui/boton-gradiente'],
       message:
-        'Use BotonSistema / TarjetaSistema from @/components/ui/sistema-diseno (see docs/design-system.md).',
+        'Use BotonSistema / TarjetaSistema from @/components/ui/sistema-diseno (see docs/design-system/components.md).',
     },
   ],
 }

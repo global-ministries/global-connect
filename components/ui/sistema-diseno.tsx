@@ -11,7 +11,7 @@ const DesktopHeader = React.lazy(() => import('./desktop-header').then(m => ({ d
  * they follow light/dark mode and never drift from the theme. Prefer the
  * Tailwind classes (`text-success`, `bg-danger`, `text-muted-foreground`…);
  * use these only where a class cannot reach (inline styles, SVG attributes).
- * See docs/design-system.md.
+ * See docs/design-system/foundations.md.
  */
 export const coloresMarca = {
   grisOscuro: 'var(--brand-dark)',
@@ -28,7 +28,7 @@ export const coloresMarca = {
 
 /**
  * Control size scale shared by buttons and form controls
- * (docs/design-system.md):
+ * (docs/design-system/foundations.md):
  * - sm 36px: dense tables and toolbars only (44px on touch screens)
  * - md 44px: default for every form and action
  * - lg 48px: hero and primary mobile calls to action
@@ -639,7 +639,7 @@ ContenedorDashboard.displayName = "ContenedorDashboard"
 
 // ─── Página del Sistema ───
 /**
- * Page widths (docs/design-system.md):
+ * Page widths (docs/design-system/layout.md):
  * - default: every page uses the full content width.
  * - form: deprecated 768px cap, kept only until the remaining pages move to
  *   SeccionesSistema/CamposSistema; do not use it on new pages.
