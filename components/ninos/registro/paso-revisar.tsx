@@ -85,11 +85,13 @@ export function PasoRevisar({ datos, campus, onEditar }: { datos: DatosRegistro;
   )
 }
 
-export function RegistroExito({ conCorreo }: { conCorreo: boolean }) {
+/** `llegada`: the service the family told the table about in "¿Vienen hoy?" (P4). */
+export function RegistroExito({ conCorreo, llegada = null }: { conCorreo: boolean; llegada?: string | null }) {
   return (
     <div role="status" className="space-y-5 rounded-3xl border border-success/20 bg-card/70 p-6 text-center shadow-lg sm:p-8">
       <CheckCircle2 className="mx-auto h-16 w-16 text-success" aria-hidden />
       <TituloSistema nivel={1}>¡Listo, gracias!</TituloSistema>
+      {llegada && <TextoSistema tamaño="lg">Le avisamos a la mesa que vienen a las {llegada}.</TextoSistema>}
       <TextoSistema tamaño="lg">Acércate a la mesa de check-in con tus niños; solo confirmamos tus datos.</TextoSistema>
       {conCorreo && (
         <TextoSistema variante="sutil">Te enviaremos un correo para crear tu cuenta cuando confirmemos en la mesa.</TextoSistema>

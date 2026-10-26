@@ -5,7 +5,9 @@
  * wizard (odd/tasks/ninos-registro-pasos.md R1). It posts the same body as the
  * former single-page form to /api/ninos/preregistro and shows nothing back but
  * the confirmation. It never links to /signup: the account invitation is sent
- * when the table confirms, bound to the new parent ficha.
+ * when the table confirms, bound to the new parent ficha. When a service of
+ * today still takes notices, an optional "¿Vienen hoy?" screen follows the
+ * send (odd/tasks/ninos-precheck.md P4).
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Send } from 'lucide-react'
@@ -14,6 +16,7 @@ import { BotonSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import type { AutorizadoForm } from '@/lib/platform/ninos/familia'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { parsePreregistro } from '@/lib/platform/ninos/preregistro'
+import { parseAvisoPreregistro, type AvisoPreregistro } from '@/lib/platform/ninos/preregistro-aviso'
 
 import {
   PASO_REVISAR,
@@ -33,6 +36,7 @@ import {
 import { PasoRevisar, RegistroExito } from './paso-revisar'
 import { PasoHijos, PasoPadre } from './pasos-datos'
 import { PasoAutorizados, PasoCuenta, PasoSalud } from './pasos-extra'
+import { PasoVienenHoy } from './paso-vienen-hoy'
 import { IndicadorPasos } from './piezas'
 
 type Campus = { id: string; nombre: string }
@@ -79,6 +83,10 @@ export function RegistroFamilia({ campus, campusInicial, aviso }: Props) {
   const [errorEnvio, setErrorEnvio] = useState<string[]>([])
   const [enviando, setEnviando] = useState(false)
   const [listo, setListo] = useState(false)
+  /** The "¿Vienen hoy?" offer of the create answer (null: no service open today). */
+  const [oferta, setOferta] = useState<AvisoPreregistro | null>(null)
+  /** undefined while the offer is open; then the chosen service's label, or null when skipped. */
+  const [llegada, setLlegada] = useState<string | null | undefined>(undefined)
   const titulo = useRef<HTMLHeadingElement>(null)
   const montado = useRef(false)
   /** Focused once the errors render: a step-level alert does not exist before. */
@@ -150,6 +158,7 @@ export function RegistroFamilia({ campus, campusInicial, aviso }: Props) {
         body: JSON.stringify(body),
       })
       if (res.ok) {
+        setOferta(parseAvisoPreregistro(await res.json().catch(() => null)))
         setListo(true)
         return
       }
@@ -174,7 +183,8 @@ export function RegistroFamilia({ campus, campusInicial, aviso }: Props) {
     else avanzar()
   }
 
-  if (listo) return <RegistroExito conCorreo={datos.padre.email.trim() !== ''} />
+  if (listo && oferta && llegada === undefined) return <PasoVienenHoy aviso={oferta} onTerminar={setLlegada} />
+  if (listo) return <RegistroExito conCorreo={datos.padre.email.trim() !== ''} llegada={llegada ?? null} />
 
   const { titulo: encabezado, ayuda } = ENCABEZADOS[paso]
   const sinAutorizados = datos.autorizados.every(autorizadoEnBlanco)

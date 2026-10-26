@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClipboardList, Mail, RotateCw, Trash2, UserRound } from 'lucide-react'
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -27,6 +27,10 @@ type Props = {
   onConfirmado: (padreId: string, consulta: string) => void
   /** The rooms that define each child's level. */
   salones?: readonly SalonNivel[]
+  /** A pre-registration to open, from "Llegando" (P4 "¿Vienen hoy?"). */
+  abrirId?: string | null
+  /** Called once abrirId was opened, or was not found among the pending ones. */
+  onAbrirAtendido?: () => void
 }
 
 const AVISO_CORREO: Record<string, string> = {
@@ -71,7 +75,7 @@ async function leerPendientes(): Promise<Lista> {
 const nombreCompleto = (p: { nombre: string; apellido: string }) => `${p.nombre} ${p.apellido}`.trim()
 
 /** "Pre-registros pendientes" of the caller's campuses (N8), shown at check-in and Familias. */
-export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
+export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, onAbrirAtendido }: Props) {
   const [lista, setLista] = useState<Pendiente[]>([])
   const [cuentas, setCuentas] = useState<Record<string, CuentaPreregistro>>({})
   const [abierto, setAbierto] = useState<Pendiente | null>(null)
@@ -109,6 +113,28 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
     setEmail(formDesdePreregistro(p.payload).email)
     setError(null)
   }
+
+  /** The id already re-read once: a second miss means it is no longer pending. */
+  const releido = useRef<string | null>(null)
+  useEffect(() => {
+    if (!abrirId) {
+      releido.current = null
+      return
+    }
+    const p = lista.find((x) => x.id === abrirId)
+    if (p) {
+      // Opened on request from "Llegando"; the effect reacts to that prop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      abrir(p)
+      onAbrirAtendido?.()
+    } else if (releido.current !== abrirId) {
+      // Sent after this list was read: read it again.
+      releido.current = abrirId
+      void cargar()
+    } else {
+      onAbrirAtendido?.()
+    }
+  }, [abrirId, lista, cargar, onAbrirAtendido])
 
   async function descartar() {
     if (!abierto) return
