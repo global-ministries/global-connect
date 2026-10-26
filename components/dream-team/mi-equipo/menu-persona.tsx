@@ -39,6 +39,9 @@ export interface MenuPersonaProps {
   readonly onActualizado: () => void
   /** Whether the viewer may change the stage and shifts (the write capability). Defaults to true. */
   readonly puedeEditarServicio?: boolean
+  /** Tells apart the menus of one person's servicios: "Acciones para Ana en Coro". */
+  readonly detalle?: string
+  readonly className?: string
 }
 
 function accionesDeServicio(persona: PersonaVista): boolean {
@@ -54,7 +57,13 @@ export function tieneAccionesDisponibles(persona: PersonaVista, puedeEditarServi
   return (puedeEditarServicio && accionesDeServicio(persona)) || persona.fichaEditable === true
 }
 
-export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true }: MenuPersonaProps): ReactElement | null {
+export function MenuPersona({
+  persona,
+  onActualizado,
+  puedeEditarServicio = true,
+  detalle,
+  className = 'col-start-3 row-span-2 row-start-1 md:col-start-auto md:row-span-1 md:row-start-auto',
+}: MenuPersonaProps): ReactElement | null {
   const [etapaAbierta, setEtapaAbierta] = useState(false)
   const [turnosAbierto, setTurnosAbierto] = useState(false)
   const [fichaAbierta, setFichaAbierta] = useState(false)
@@ -82,8 +91,8 @@ export function MenuPersona({ persona, onActualizado, puedeEditarServicio = true
             variante="ghost"
             soloIcono
             icono={MoreHorizontal}
-            aria-label={`Acciones para ${persona.nombre}`}
-            className="col-start-3 row-span-2 row-start-1 md:col-start-auto md:row-span-1 md:row-start-auto"
+            aria-label={detalle ? `Acciones para ${persona.nombre} en ${detalle}` : `Acciones para ${persona.nombre}`}
+            className={className}
           />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-56">
