@@ -29,6 +29,7 @@ import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
 import { EstadoVacio } from '@/components/dream-team/estado-vacio'
 import { AsignadorServicioDialog, type NodoPlano } from '@/components/dream-team/asignador-servicio-dialog'
+import { ContadoresEdad } from '@/components/dream-team/contadores-edad'
 
 import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
@@ -88,6 +89,7 @@ const SIN_FILTROS: Partial<FiltrosServidores> = {
   equipo: null,
   rol: null,
   turno: null,
+  edad: null,
   inicio: 'cualquiera',
   sinCuenta: false,
   varios: false,
@@ -191,6 +193,14 @@ export function ServidoresClient({
         etapa={vista.filtros.etapa}
         onEtapaChange={(etapa) => cambiar({ etapa })}
       />
+
+      {vista.contadoresEdad && (
+        <ContadoresEdad
+          contadores={vista.contadoresEdad}
+          edad={vista.filtros.edad}
+          onEdadChange={(edad) => cambiar({ edad })}
+        />
+      )}
 
       <BarraFiltros vista={vista} onCambio={cambiar} />
 

@@ -34,6 +34,7 @@ import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchContactosPersonas, fetchNombresPersonas, type ContactoPersona } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
+import { fetchRangosEdad, type RangoEdad } from '@/lib/platform/dream-team/edad'
 import {
   equiposAsignables as listarEquiposAsignables,
   listarDirecciones,
@@ -41,7 +42,7 @@ import {
   vistaDeDireccion,
   type PersonaEntrada,
 } from '@/lib/platform/dream-team/mi-equipo-vista'
-import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import type { DreamTeamRol, PersonaId } from '@/lib/platform/dream-team/types'
 import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { MiEquipoClient } from '@/components/dream-team/mi-equipo/mi-equipo-client'
@@ -127,6 +128,16 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
     },
   )
 
+  // Age range (D10), from a scoped RPC with the same reach as the contacts;
+  // the birth date never leaves the database. Same convenience as contacts:
+  // on failure the page renders without the age pills and the failure is logged.
+  const rangoEdadPorId: ReadonlyMap<PersonaId, RangoEdad> = await fetchRangosEdad(supabase, personaIds).catch(
+    (error: unknown) => {
+      console.error('[dream-team/mi-equipo] age lookup failed', error)
+      return new Map<PersonaId, RangoEdad>()
+    },
+  )
+
   // Campus service shifts (D12): the filter's options and each servicio's
   // assignment. Like contacts, a convenience: on failure the page renders
   // without the filter and the failure is logged.
@@ -171,6 +182,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       turnoIds: turnosPorServicio.get(servicio.id) ?? [],
       frecuencias: frecuenciasPorServicio.get(servicio.id),
       fichaEditable: servicio.estado !== 'retirado' && equiposRegistrables.has(servicio.equipoId),
+      rangoEdad: rangoEdadPorId.get(servicio.personaId),
     })
   }
   // A leader of two groups is two rows (one per group), hence the equipo in the key.
@@ -185,6 +197,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       origen: 'grupos_vida',
       telefono: contactoPorId.get(lider.personaId)?.telefono ?? null,
       tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
+      rangoEdad: rangoEdadPorId.get(lider.personaId),
     })
   }
 

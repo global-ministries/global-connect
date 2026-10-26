@@ -372,6 +372,7 @@ describe('URL codec', () => {
       equipo: ID_PDP,
       rol: 'Coordinador',
       turno: null,
+      edad: null,
       inicio: 'mes',
       sinCuenta: true,
       varios: true,
