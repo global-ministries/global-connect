@@ -153,12 +153,12 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
       </form>
 
       {error && (
-        <p role="alert" className="text-sm font-medium text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm font-medium text-danger-text">
           {error}
         </p>
       )}
       {hecho && (
-        <p role="status" className="rounded-xl border border-green-500/20 bg-green-500/10 p-3 text-sm font-medium text-green-700 dark:text-green-400">
+        <p role="status" className="rounded-xl border border-success/20 bg-success/10 p-3 text-sm font-medium text-success-text">
           {hecho}
         </p>
       )}
@@ -222,7 +222,7 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
                     )}
                   </div>
                 ))}
-                <div className="rounded-xl border border-dashed border-border px-3 has-[:checked]:border-amber-500/60 has-[:checked]:bg-amber-500/5">
+                <div className="rounded-xl border border-dashed border-border px-3 has-[:checked]:border-warning/60 has-[:checked]:bg-warning/5">
                   <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm">
                     <input
                       type="radio"

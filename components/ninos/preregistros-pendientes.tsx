@@ -155,7 +155,7 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
         {lista.length > 0 && <BadgeSistema tamaño="sm">{lista.length}</BadgeSistema>}
       </div>
       {aviso && (
-        <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+        <p role="status" className="text-sm text-success-text">
           {aviso}
         </p>
       )}
@@ -167,7 +167,7 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
       {reenvio && (
         <p
           role={reenvio.error ? 'alert' : 'status'}
-          className={reenvio.error ? 'text-sm text-red-500 dark:text-red-400' : 'text-sm text-emerald-700 dark:text-emerald-400'}
+          className={reenvio.error ? 'text-sm text-danger-text' : 'text-sm text-success-text'}
         >
           {reenvio.texto}
         </p>
@@ -223,7 +223,7 @@ export function PreregistrosPendientes({ onConfirmado, salones }: Props) {
                   Con correo, le enviamos la bienvenida y, si no tiene cuenta, una invitación para crearla.
                 </TextoSistema>
                 {error && (
-                  <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+                  <p role="alert" className="text-sm text-danger-text">
                     {error}
                   </p>
                 )}

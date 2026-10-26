@@ -22,7 +22,7 @@ export function AdultoSinHijos({ adulto, onAgregarNino, onVincularHijo }: Props)
   return (
     <TarjetaSistema data-testid="adulto-sin-hijos" className="space-y-4 p-4 md:p-5">
       <div className="min-w-0 space-y-1">
-        <p className="break-words text-[15px] font-semibold text-foreground">
+        <p className="break-words text-base font-semibold text-foreground">
           {adulto.nombre} {adulto.apellido}
         </p>
         {contacto && (

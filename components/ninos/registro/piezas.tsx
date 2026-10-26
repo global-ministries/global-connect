@@ -93,7 +93,7 @@ export function OpcionesGrandes<T extends string | boolean>({
                 activo
                   ? 'border-orange-500 bg-orange-500/10 text-orange-700 dark:text-orange-300'
                   : 'border-border bg-card/50 text-foreground hover:border-orange-300',
-                error && !activo && 'border-red-300 dark:border-red-500/50',
+                error && !activo && 'border-danger/50',
               )}
             >
               {activo && <Check className="h-5 w-5" aria-hidden />}
@@ -103,7 +103,7 @@ export function OpcionesGrandes<T extends string | boolean>({
         })}
       </div>
       {error && (
-        <p id={idError} role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p id={idError} role="alert" className="text-sm text-danger-text">
           {error}
         </p>
       )}

@@ -65,6 +65,19 @@ export interface Contadores {
   extras: number
 }
 
+/** One team card of the selected area. */
+export interface ResumenEquipo {
+  equipoId: string
+  equipo: string
+  /** Every volunteer of the equipo in the roster. */
+  total: number
+  /** Expected volunteers of the equipo nobody marked yet. */
+  sinMarcar: number
+}
+
+/** The id of the "Todos los equipos" card (equipo ids are UUIDs). */
+export const TODOS_LOS_EQUIPOS = 'todos'
+
 export interface GrupoEquipo {
   equipoId: string
   equipo: string
@@ -217,6 +230,21 @@ export function agruparPorEquipo(filas: readonly FilaVoluntario[]): GrupoEquipo[
   return [...grupos.values()]
     .sort((a, b) => a.equipo.localeCompare(b.equipo, ES))
     .map((g) => ({ ...g, filas: [...g.filas].sort((a, b) => nombreCompleto(a).localeCompare(nombreCompleto(b), ES)) }))
+}
+
+/** The team cards of an area, from the loaded roster: one per equipo, in Spanish order. */
+export function resumirEquipos(filas: readonly FilaVoluntario[]): ResumenEquipo[] {
+  return agruparPorEquipo(filas).map((g) => ({
+    equipoId: g.equipoId,
+    equipo: g.equipo,
+    total: g.filas.length,
+    sinMarcar: contarPlanilla(g.filas).sinMarcar,
+  }))
+}
+
+/** The rows of the selected team card; `TODOS_LOS_EQUIPOS` keeps every row. */
+export function filtrarPorEquipo(filas: readonly FilaVoluntario[], equipoId: string): readonly FilaVoluntario[] {
+  return equipoId === TODOS_LOS_EQUIPOS ? filas : filas.filter((f) => f.equipo_id === equipoId)
 }
 
 /** The expected volunteers still unmarked: what "Marcar el resto como Faltó" sends. */

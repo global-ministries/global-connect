@@ -252,8 +252,8 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
             Si el teléfono o la cédula ya existen, te pediremos confirmar a esa persona.
           </TextoSistema>
           {coincidencias.length > 0 && (
-            <div role="alert" className="space-y-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-4">
-              <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">
+            <div role="alert" className="space-y-3 rounded-xl border border-warning/30 bg-warning/10 p-4">
+              <p className="text-sm font-medium text-warning-text">
                 Ya existe una persona con estos datos. ¿Es el representante?
               </p>
               <ul className="space-y-2">
@@ -312,7 +312,7 @@ export function RegistrarFamiliaForm({ padreExistente, onRegistrada, onCancelar,
       </TarjetaSistema>
 
       {errores.length > 0 && (
-        <ul role="alert" className="space-y-1 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
+        <ul role="alert" className="space-y-1 rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text">
           {errores.map((e) => (
             <li key={e}>{e}</li>
           ))}

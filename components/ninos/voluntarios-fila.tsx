@@ -10,9 +10,9 @@ import {
 } from '@/lib/platform/ninos/voluntarios'
 
 const ACTIVO: Record<EstadoAsistencia, string> = {
-  presente: 'border-green-600 bg-green-600 text-white',
-  justificado: 'border-amber-500 bg-amber-500 text-white',
-  ausente: 'border-red-600 bg-red-600 text-white',
+  presente: 'border-success bg-success text-success-foreground',
+  justificado: 'border-warning bg-warning text-warning-foreground',
+  ausente: 'border-danger bg-danger text-danger-foreground',
 }
 
 type Props = {
@@ -32,7 +32,7 @@ export function FilaVoluntarioItem({ fila, editable, mostrarEquipo = false, onMa
       className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
     >
       <div className="min-w-0">
-        <p className="break-words text-[15px] font-medium text-foreground">{nombre}</p>
+        <p className="break-words text-base font-medium text-foreground">{nombre}</p>
         <p className="text-sm text-muted-foreground">{mostrarEquipo ? `${fila.rol} · ${fila.equipo}` : fila.rol}</p>
       </div>
       <div role="group" aria-label={`Asistencia de ${nombre}`} className="grid shrink-0 grid-cols-3 gap-2 sm:w-[19rem]">

@@ -276,7 +276,7 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
       )}
 
       {errores.length > 0 && (
-        <ul role="alert" className="space-y-1 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-400">
+        <ul role="alert" className="space-y-1 rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger-text">
           {errores.map((e) => (
             <li key={e}>{e}</li>
           ))}

@@ -269,13 +269,9 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
         titulo="Check-in"
         subtitulo="Ingreso y retiro de niños del servicio."
         acciones={
-          <Link
-            href={urlNuevaFamilia}
-            className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border-2 border-border px-4 py-3 font-medium text-foreground transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-          >
-            <UserPlus className="h-5 w-5" aria-hidden />
-            Nueva familia
-          </Link>
+          <BotonSistema asChild variante="outline" icono={UserPlus}>
+            <Link href={urlNuevaFamilia}>Nueva familia</Link>
+          </BotonSistema>
         }
       />
 
@@ -328,7 +324,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
               </form>
 
               {errorBusqueda && (
-                <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+                <p role="alert" className="text-sm text-danger-text">
                   {errorBusqueda}
                 </p>
               )}
@@ -444,7 +440,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                           {!codigo && h.tiene_ficha && (
                             <div className="space-y-2">
                               {sugerencia.tipo === 'ninguno' && !salonManual[h.id] && (
-                                <p className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
+                                <p className="flex items-center gap-2 text-sm font-medium text-warning-text">
                                   <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
                                   Sin salón sugerido: asígnalo manualmente
                                 </p>
@@ -462,7 +458,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                     })}
                   </ul>
                   {error && (
-                    <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+                    <p role="alert" className="text-sm text-danger-text">
                       {error}
                     </p>
                   )}
@@ -498,7 +494,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                 <p
                   key={a}
                   role="alert"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-2 font-medium text-yellow-700 dark:text-yellow-400"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-warning/30 bg-warning/10 p-2 font-medium text-warning-text"
                 >
                   <AlertTriangle className="h-4 w-4" aria-hidden />
                   {a}
@@ -529,7 +525,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
                     <span
                       className={cn(
                         'tabular-nums',
-                        o.presentes > o.capacidad ? 'font-semibold text-red-600 dark:text-red-400' : 'text-muted-foreground',
+                        o.presentes > o.capacidad ? 'font-semibold text-danger-text' : 'text-muted-foreground',
                       )}
                     >
                       {o.presentes}/{o.capacidad}

@@ -26,8 +26,8 @@ export function SalonSugerido({ resultado, salones, onElegir, deshabilitado }: P
   }
 
   return (
-    <div className="space-y-2 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3">
-      <p className="flex items-center gap-2 text-sm font-medium text-yellow-700 dark:text-yellow-400">
+    <div className="space-y-2 rounded-xl border border-warning/30 bg-warning/10 p-3">
+      <p className="flex items-center gap-2 text-sm font-medium text-warning-text">
         <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
         Sin salón sugerido: asígnalo manualmente
       </p>

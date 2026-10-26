@@ -208,6 +208,49 @@ describe('VoluntariosClient', () => {
     expect(replace).toHaveBeenLastCalledWith('/ninos/voluntarios?turno=t9&fecha=2026-10-04&area=au')
   })
 
+  it('shows a card per equipo with its volunteers and unmarked count, and filters the list by it', async () => {
+    renderVoluntarios()
+    await screen.findByTestId('voluntario-s1')
+    const equipos = screen.getByRole('group', { name: 'Equipos' })
+    const todos = within(equipos).getByRole('button', { name: /^Todos los equipos/ })
+    const maternal = within(equipos).getByRole('button', { name: /^Maternal/ })
+    const produccion = within(equipos).getByRole('button', { name: /^Producción/ })
+    expect(todos).toHaveAttribute('aria-pressed', 'true')
+    expect(todos).toHaveTextContent('5')
+    expect(todos).toHaveTextContent('2 sin marcar')
+    expect(maternal).toHaveTextContent('3')
+    expect(maternal).toHaveTextContent('1 sin marcar')
+    expect(produccion).toHaveTextContent('2')
+    expect(produccion).toHaveTextContent('1 sin marcar')
+
+    fireEvent.click(produccion)
+    expect(produccion).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('voluntario-s3')).toBeInTheDocument()
+    expect(screen.queryByTestId('voluntario-s1')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Maternal' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Otros voluntarios/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Sin turno asignado \(1\)/ })).toBeInTheDocument()
+    // The Resumen keeps counting the whole area.
+    expect(contador('esperados')).toHaveTextContent('3')
+
+    fireEvent.click(todos)
+    expect(screen.getByTestId('voluntario-s1')).toBeInTheDocument()
+    expect(screen.getByTestId('voluntario-s3')).toBeInTheDocument()
+  })
+
+  it('goes back to every equipo when the area changes', async () => {
+    renderVoluntarios()
+    await screen.findByTestId('voluntario-s1')
+    fireEvent.click(within(screen.getByRole('group', { name: 'Equipos' })).getByRole('button', { name: /^Producción/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'UpStreet' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Waumba Land' }))
+    expect(screen.getByTestId('voluntario-s1')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Equipos' })).getByRole('button', { name: /^Todos los equipos/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
   it('is read-only outside the marking window', async () => {
     rpc.mockImplementation(() => Promise.resolve({ data: planilla({ editable: false }), error: null }))
     renderVoluntarios()

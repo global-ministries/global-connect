@@ -29,6 +29,15 @@ describe('PastillaFiltro', () => {
   })
 })
 
+describe('PastillaFiltro without a count', () => {
+  it('shows only the label, which is its accessible name', () => {
+    render(<PastillaFiltro etiqueta="Por mes" activa onClick={() => {}} />)
+    const boton = screen.getByRole('button', { name: 'Por mes' })
+    expect(boton).toHaveAttribute('aria-pressed', 'true')
+    expect(boton).toHaveTextContent(/^Por mes$/)
+  })
+})
+
 describe('GrupoPastillas', () => {
   it('groups the pills under an accessible name', () => {
     render(

@@ -3,6 +3,7 @@ import {
   ajustarFecha,
   aplicarCambios,
   contarPlanilla,
+  filtrarPorEquipo,
   filtrarPorNombre,
   leerPlanilla,
   leerTurnosVoluntarios,
@@ -10,8 +11,10 @@ import {
   mensajeErrorPlanilla,
   pendientesDeEquipo,
   resolverServicioVoluntarios,
+  resumirEquipos,
   separarPlanilla,
   siguienteEstado,
+  TODOS_LOS_EQUIPOS,
   ultimaFechaDeServicio,
   urlVoluntarios,
   type EstadoAsistencia,
@@ -167,6 +170,29 @@ describe('roster helpers', () => {
     const nuevas = aplicarCambios(filas, new Map<string, EstadoAsistencia | null>([['s4', 'ausente'], ['s1', null]]))
     expect(nuevas.map((f) => f.estado)).toEqual([null, 'justificado', 'ausente', 'ausente', 'presente', null])
     expect(filas[0].estado).toBe('presente')
+  })
+})
+
+describe('team cards', () => {
+  const filas = [
+    fila({ servicio_id: 's1', equipo_id: 'e2', equipo: 'Producción' }),
+    fila({ servicio_id: 's2', estado: 'presente' }),
+    fila({ servicio_id: 's3' }),
+    fila({ servicio_id: 's4', esperado: false }),
+    fila({ servicio_id: 's5', equipo_id: 'e2', equipo: 'Producción', esperado: false, sin_turno: true }),
+  ]
+
+  it('summarizes each equipo: every volunteer and the expected ones still unmarked, in Spanish order', () => {
+    expect(resumirEquipos(filas)).toEqual([
+      { equipoId: 'e1', equipo: 'Maternal', total: 3, sinMarcar: 1 },
+      { equipoId: 'e2', equipo: 'Producción', total: 2, sinMarcar: 1 },
+    ])
+    expect(resumirEquipos([])).toEqual([])
+  })
+
+  it('keeps only the selected equipo, and everyone for "Todos los equipos"', () => {
+    expect(filtrarPorEquipo(filas, 'e2').map((f) => f.servicio_id)).toEqual(['s1', 's5'])
+    expect(filtrarPorEquipo(filas, TODOS_LOS_EQUIPOS)).toBe(filas)
   })
 })
 

@@ -194,7 +194,7 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
               }}
             />
             {sinSugerencia && (
-              <p className="flex items-start gap-2 text-xs text-yellow-700 dark:text-yellow-400">
+              <p className="flex items-start gap-2 text-xs text-warning-text">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 {publico
                   ? 'Si no lo sabes, lo asignamos en la mesa de check-in.'

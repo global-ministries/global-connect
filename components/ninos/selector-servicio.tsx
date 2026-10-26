@@ -32,7 +32,7 @@ export function SelectorServicio({ idPrefijo, turnos, servicio, onCambiar }: Pro
         />
       </section>
       {!servicio.turnoId && (
-        <p role="alert" className="text-sm text-red-500 dark:text-red-400">
+        <p role="alert" className="text-sm text-danger-text">
           No hay servicios configurados para tu campus.
         </p>
       )}
