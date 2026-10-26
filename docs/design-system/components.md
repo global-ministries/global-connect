@@ -15,7 +15,21 @@ import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui
 import { PastillaFiltro, GrupoPastillas } from "@/components/ui/PastillasFiltro"
 import { TarjetasFiltro } from "@/components/ui/TarjetasFiltro"
 import { BotonFlotante } from "@/components/ui/BotonFlotante"
+// Design system v2 (Phase 1)
+import { PuntoEstado } from "@/components/ui/punto-estado"
+import { MetricasAtencion } from "@/components/ui/metricas-atencion"
+import { ControlSegmentado } from "@/components/ui/control-segmentado"
+import { EstadoVacioSistema, SkeletonLista } from "@/components/ui/estado-vacio-sistema"
+import { HojaInferior } from "@/components/ui/hoja-inferior"
+import { DetalleResponsivo } from "@/components/ui/detalle-responsivo"
+import { NavegacionMovilProvider, BarraNavegacionMovil, TituloGrande } from "@/components/ui/barra-navegacion-movil"
+import { BarraHerramientas, BotonFiltrosMovil, ChipsFiltrosActivos } from "@/components/ui/barra-herramientas"
+import { HojaFiltros, GrupoFiltro, SelectsFiltro } from "@/components/ui/hoja-filtros"
+import { ListaResponsiva } from "@/components/ui/lista-responsiva"
 ```
+
+Every piece is on one page with sample data: the gallery at `/design-system`
+(local and preview deployments only, see [README.md](README.md#gallery)).
 
 ## Catalog
 
@@ -43,14 +57,13 @@ Button variants:
 
 | `variante` | Look | Use |
 | --- | --- | --- |
-| `primario` (default) | Orange gradient | The one main action of a view |
+| `primario` (default) | Flat brand fill (`bg-brand`), no gradient | The one main action of a view |
 | `secundario` | Secondary fill | Supporting actions |
 | `outline` | 2px border | Neutral actions, cancel |
 | `ghost` | Text only | Toolbars, low-emphasis actions |
 | `peligro` | `bg-danger` / `text-danger-foreground` | Destructive actions (eliminar, desactivar) |
 
-Do not fake the danger look with class overrides: the primary gradient is a
-`background-image`, so `bg-red-*` on top of it needs `bg-none` hacks.
+Do not fake the danger look with class overrides; use `peligro`.
 
 Navigation that looks like a button uses `asChild` with a single `Link`
 child. The link gets the button classes and icons and stays one tab stop:
@@ -69,8 +82,10 @@ With `asChild`, `disabled` and `cargando` set `aria-disabled` and
 `pointer-events-none` instead of the button attribute. During a mutation
 pass `cargando` (and `disabled`) so the button gives immediate feedback.
 
-The prototype's primary button is a flat brand fill; whether `primario`
-keeps its gradient is open (see [migration.md](migration.md#decisions-2026-10-26)).
+`primario` is the prototype's flat brand fill (decision 2 in
+[migration.md](migration.md#decisions-2026-10-26)). `secundario` and
+`peligro` still carry `shadow-lg`; see the open follow-ups in
+[migration.md](migration.md#open-follow-ups).
 
 ### Forms
 
@@ -85,10 +100,14 @@ keeps its gradient is open (see [migration.md](migration.md#decisions-2026-10-26
 
 | Component | File | API summary |
 | --- | --- | --- |
-| `TarjetaSistema` | `components/ui/sistema-diseno.tsx` | `variante="default" \| "elevated" \| "outlined"`; `rounded-2xl p-6`. `default`/`elevated` still render the legacy `glass-panel`; prefer `outlined` until Phase 1 moves all three to the card surface. |
-| `BadgeSistema` | same | `variante="default" \| "success" \| "warning" \| "error" \| "info"`, `tamaño="sm" \| "md" \| "lg"`. Uses raw palette colors and `error` instead of the `danger` token name; Phase 1 maps it to the status tokens. |
+| `TarjetaSistema` | `components/ui/sistema-diseno.tsx` | `variante="default" \| "elevated" \| "outlined"`; `rounded-2xl p-6`. Cards are flat: `default` and `elevated` render the card surface (`bg-card border border-border`, no glass, no shadow); `elevated` keeps its name for existing callers. `outlined` adds `shadow-lg`. |
+| `BadgeSistema` | same | `variante="default" \| "success" \| "warning" \| "error" \| "info"`, `tamaño="sm" \| "md" \| "lg"`. Still uses raw palette colors and `error` instead of the `danger` token name; mapping it to the status tokens is an open follow-up ([migration.md](migration.md#open-follow-ups)). For a status, prefer `PuntoEstado`. |
 | `SeparadorSistema` | same | 1px `bg-border` line |
 | `SkeletonSistema` | same | `ancho`, `alto`, `redondo` |
+| `PuntoEstado` | `components/ui/punto-estado.tsx` | Status dot plus label: `tono="success" \| "warning" \| "info" \| "danger" \| "muted"`, `etiqueta`, `ocultarEtiquetaEnMovil` (label hides below `md` but stays in the accessible name). The dot is decorative. Server-safe. Exports `FONDO_TONO` (fill class per tone) and `TonoEstado`. |
+| `MetricasAtencion` | `components/ui/metricas-atencion.tsx` | Attention metrics that ARE the filter: `metricas` (`{ id, etiqueta, valor, total?, pista?, tono, activa }`), `onAlternar(id)`, `etiqueta` (group name). Each card is a `<button aria-pressed>` with a status dot, the value in mono, a proportion bar (`valor / total`) and a hint. 4 columns from `lg`, 2×2 below; on phone the cards are compact (no bar, no hint). Pressed: `bg-brand-tint`, the brand border from `md`, a 1.5px inset brand ring on phone. Replaces `TarjetaEstadistica` and ad hoc KPI tiles. |
+| `EstadoVacioSistema` | `components/ui/estado-vacio-sistema.tsx` | The canonical empty state: `icono` (lucide component or element), `titulo`, `subtitulo` (one line of guidance), `accion`. Centered and muted, no card of its own; render it inside the list container. Server-safe on purpose (no `'use client'`), so server pages can pass a lucide icon. |
+| `SkeletonLista` | same file | Loading rows at the list row height (72px): `filas` (default 6). `role="status"`, `aria-busy`, "Cargando" for screen readers. `ListaResponsiva cargando` renders it. |
 
 ### Typography
 
@@ -104,7 +123,35 @@ keeps its gradient is open (see [migration.md](migration.md#decisions-2026-10-26
 | --- | --- | --- |
 | `TarjetasFiltro` | `components/ui/TarjetasFiltro.tsx` | KPI cards that ARE the filter (choose WHERE): `todas`, `items` (`{ id, label, subtitulo, total, badge }`), `seleccionadoId`, `onSeleccionar`, `unidad`, `etiqueta`, `modoCompacto` (many categories → compact list with its own search), `buscarEtiqueta`. Every card is a `<button aria-pressed>`. Scrollable row on phones, 2 → 3 → 5 column grid from `md`. Used by Mi equipo and Servidores. |
 | `PastillaFiltro`, `GrupoPastillas` | `components/ui/PastillasFiltro.tsx` | Count pills that refine WHAT: `etiqueta`, `cantidad` (optional, mono bold), `activa` (`aria-pressed`), `onClick`. `GrupoPastillas` (`etiqueta` = group name) scrolls horizontally on phones and wraps from `md`. The caller owns the rule (single choice, second tap clears, toggles). |
-| `TabsSistema`, `TabsList`, `TabsTrigger`, `TabsContent` | `components/ui/TabsSistema.tsx` | Radix Tabs with system styles; same props as Radix. Use for sections of one screen, not for view modes (use the segmented control). |
+| `TabsSistema`, `TabsList`, `TabsTrigger`, `TabsContent` | `components/ui/TabsSistema.tsx` | Radix Tabs with system styles; same props as Radix. Use for sections of one screen, not for view modes (use `ControlSegmentado`). |
+| `ControlSegmentado` | `components/ui/control-segmentado.tsx` | 2–3 option view switch ("Por persona / Por servicio"): `opciones` (`{ valor, etiqueta }`), `valor`, `onCambio`, `etiqueta` (group name). `role="group"` with `aria-pressed` buttons; the pressed one inverts (`bg-foreground text-background`). 36px segments, 44px on touch. Desktop toolbar; on phone it goes into the filters sheet. |
+
+### Lists and toolbar
+
+| Component | File | API summary |
+| --- | --- | --- |
+| `BarraHerramientas` | `components/ui/barra-herramientas.tsx` | Toolbar of a list screen: `busqueda={{ valor, onCambio, placeholder, etiqueta }}`, `filtrosActivos` (badge count on "Filtros"), `onAbrirFiltros`, `vista` (slot, usually `ControlSegmentado`). "/" focuses the search on desktop unless the user types elsewhere. Below `md` the search fills the width (filled, no border) and the Filtros button and view slot hide. |
+| `BotonFiltrosMovil` | same file | Phone Filtros button for the `BarraNavegacionMovil` actions: `filtrosActivos`, `onClick`. 44px icon with a count badge; named "Filtros, N activos". |
+| `ChipsFiltrosActivos` | same file | One brand-tint chip per active filter: `chips` (`{ id, etiqueta }`), `onQuitar(id)` ("Quitar …" buttons with 44px targets), `onLimpiarTodo` ("Limpiar todo" from two chips up). One scrolling row on phone, wraps from `md`. Renders nothing without chips. |
+| `HojaFiltros` | `components/ui/hoja-filtros.tsx` | The filters sheet: a `DetalleResponsivo` with `abierta`, `onCambioAbierta`, `titulo` (default "Filtros"), `resultados`, `unidad={{ singular, plural }}`, `onLimpiar`. Footer "Limpiar" \| "Ver N personas". Filters apply live; "Ver N" only closes. |
+| `GrupoFiltro` | same file | One block of the sheet: `titulo` (small uppercase label, also the group's accessible name), children. |
+| `SelectsFiltro` | same file | Grid for long-list selects (Rol, Turno, Inicio): 3 columns from `md`, 1 on phone. |
+| `ListaResponsiva` | `components/ui/lista-responsiva.tsx` | The list of a list screen: `columnas` (`{ id, titulo, ordenable?, ancho?, ocultarEnTablet? }`), `filas`, `claveFila`, `renderCelda(fila, columnaId)`, `renderFilaMovil(fila)` (`{ titulo, subtitulo?, avatar?, insignias?, meta? }`), `onAbrirFila`, `etiquetaFila` ("Abrir Ana Pérez"), `orden={{ columna, sentido }}`, `onOrdenar`, `vacio`, `cargando`, `etiqueta`. One ARIA table at every width: from `md` a header grid with sortable header buttons (`aria-sort` and ↑/↓ on the active one); columns with `ocultarEnTablet` show from `lg`; below `md` inset grouped rows (avatar, title, subtitle, meta, chevron). Every row ends in a real button stretched over the row; interactive content in a cell needs `relative z-10`. |
+
+### Overlays
+
+| Component | File | API summary |
+| --- | --- | --- |
+| `HojaInferior` | `components/ui/hoja-inferior.tsx` | Phone bottom sheet on vaul (`ui/drawer`): `abierta`, `onCambioAbierta`, `titulo`, `descripcion`, `pie` (sticky equal-width footer), `className`. Grab handle, close button, up to 90% height, 26px top radius, safe-area padding, `shadow-sheet`. Escape, the scrim and dragging down close it; focus is trapped and returned. |
+| `DetalleResponsivo` | `components/ui/detalle-responsivo.tsx` | One API for detail and filter overlays: `abierto`, `onCambioAbierto`, `titulo`, `descripcion`, `pie`, `ancho="md" \| "lg"`. `PanelLateralSistema` from `md`, `HojaInferior` below; renders nothing on the server (no hydration mismatch). |
+
+### Phone navigation
+
+| Component | File | API summary |
+| --- | --- | --- |
+| `NavegacionMovilProvider` | `components/ui/barra-navegacion-movil.tsx` | Connects the bar to the large title of the same screen. Without it the bar always shows its compact title. |
+| `BarraNavegacionMovil` | same file | Phone-only (`md:hidden`) sticky translucent bar: `titulo` (compact title, also names the `nav`), `atras={{ etiqueta, href? \| onClick? }}` ("Volver a …"), `acciones` (up to two 44px icon buttons, e.g. `BotonFiltrosMovil`). The compact title fades in once `TituloGrande` scrolls under the bar. Screens opt in; the app chrome is unchanged. |
+| `TituloGrande` | same file | Phone large title (34px, `h1`) plus `resumen` (wrap numbers in `strong`); `md:hidden`, the desktop title stays in the header. |
 
 ### App chrome
 
@@ -130,38 +177,32 @@ canonical one. "To decide" rows are open decisions for the user
 | `components/ui/button.tsx` (shadcn `Button`) | `BotonSistema` | decided (lint error in migrated areas; sizes already aligned) |
 | `components/ui/campo-input-con-icono.tsx` (`CampoInputConIcono`) | `InputSistema icono={…}` | decided (`@deprecated`) |
 | `components/ui/input.tsx` (shadcn `Input`) | `InputSistema` | decided |
-| `components/ui/tarjeta-estadistica.tsx` (`TarjetaEstadistica`) | `TarjetaSistema` + `BadgeSistema`; for KPIs, the planned attention metric | decided (`@deprecated`) |
+| `components/ui/tarjeta-estadistica.tsx` (`TarjetaEstadistica`) | `TarjetaSistema` + `BadgeSistema`; for KPIs, `MetricasAtencion` | decided (`@deprecated`) |
 | `components/ui/tarjeta-glassmorphism.tsx` | `TarjetaSistema` | decided (glass look retired) |
 | `components/ui/card.tsx` (shadcn `Card`) | `TarjetaSistema` | decided (lint error in migrated areas) |
 | `components/ui/select.tsx` (Radix select) | `SelectSistema` (native) | decided (migrate the 3 usages) |
 | `components/ui/tabs.tsx` (shadcn tabs, unused) | `TabsSistema` | decided |
 | `components/ui/sidebar.tsx` (shadcn sidebar, unused) | `SidebarModerna` | decided |
 | `components/ui/skeleton.tsx` | `SkeletonSistema` | decided |
-| `components/ui/toggle-group.tsx` (unused) | planned segmented control (plain `aria-pressed` buttons) | decided (not used) |
-| `components/ui/drawer.tsx` (vaul) | base of the planned bottom sheet (phone variant of the detail drawer and filter sheet) | decided (vaul) |
+| `components/ui/toggle-group.tsx` (unused) | `ControlSegmentado` (plain `aria-pressed` buttons) | decided (not used) |
+| `components/ui/drawer.tsx` (vaul) | base of `HojaInferior`; screens use `HojaInferior` or `DetalleResponsivo`, not the raw drawer | decided (vaul) |
 | `components/ninos/panel-lateral.tsx` (raw `Sheet`) | `PanelLateralSistema` | decided (migrates with Niños) |
 | `components/cuentas/invitar-cuenta-panel.tsx` (raw `Sheet`) | `PanelLateralSistema` | decided |
-| `EstadoVacio` in `components/ninos/estado-vacio.tsx`, `components/dream-team/estado-vacio.tsx`, `components/grupos-vida/selector-propietario-casa.tsx` (local), `EstadoVacioAsistencia` in `components/asistencia/partes-asistencia.tsx` | planned canonical empty state | decided (one component; keep it a server-safe component, see the RSC note in `components/dream-team/estado-vacio.tsx`) |
-| `components/dream-team/servidores/barra-filtros.tsx`, `hoja-filtros.tsx` (local) | planned filter toolbar + sheet | decided (extracted in Phase 1) |
+| `EstadoVacio` in `components/ninos/estado-vacio.tsx`, `components/dream-team/estado-vacio.tsx`, `components/grupos-vida/selector-propietario-casa.tsx` (local), `EstadoVacioAsistencia` in `components/asistencia/partes-asistencia.tsx` | `EstadoVacioSistema` (and `SkeletonLista` for loading) | decided; the four copies still exist and migrate with their areas (server-safe, see the RSC note in `components/dream-team/estado-vacio.tsx`) |
+| `components/dream-team/servidores/barra-filtros.tsx`, `hoja-filtros.tsx` (local) | `BarraHerramientas`, `ChipsFiltrosActivos`, `HojaFiltros` | decided; extracted in Phase 1, Servidores adopts them in T6 |
 | Classes `glass-panel*` | `bg-card border border-border` | decided (see [foundations.md](foundations.md#legacy-tokens)) |
 
 ## Planned components
 
-Phase 1 (task T5) builds these, extending what exists where possible. Each
-comes from a pattern in the prototype
+Phase 1 built most of the prototype pieces (catalog above). These remain.
+Each comes from a pattern in the prototype
 ([`prototipos/servidores.html`](prototipos/servidores.html)). Names are
-working names; the implementation PR fixes them here.
+working names; the PR that builds one moves it into the catalog.
 
 | Planned | Prototype pattern (CSS class) | Extends | Notes |
 | --- | --- | --- | --- |
-| Attention metrics | `.attention` / `.metric` | new; replaces `TarjetaEstadistica` and ad hoc KPI tiles; `TarjetasFiltro` card look | 4 toggle buttons (`aria-pressed`): status dot, label, mono value, proportion bar, hint. 4 columns desktop, 2×2 tablet and phone (phone hides bar and hint). Pressing one applies its filter. |
-| Scope cards (tree) | `.scope` / `.node` | `TarjetasFiltro` | Add flags (`info` "por activar", `warning` "sin cuenta"), an etapa stacked bar, the responsible line, and drill-down (entering a node updates the breadcrumb). Phone: inset grouped list rows with count and chevron. |
-| Filter toolbar + sheet | `.toolbar`, `#fsheet` | `components/dream-team/servidores/barra-filtros.tsx` + `hoja-filtros.tsx`, `PastillasFiltro`, `PanelLateralSistema` | Search (with `/` shortcut on desktop), "Filtros" button with active count, segmented view switch, active filter chips with "Limpiar todo". Sheet: pill groups, selects, sort, view, footer "Limpiar" + "Ver N personas". |
-| Segmented control | `.seg` | plain `aria-pressed` buttons (decided) | 2–3 options, `role="group"` + `aria-pressed`; pressed segment inverts (`bg-foreground text-background`). Desktop toolbar; on phone it moves into the filter sheet. |
-| Responsive list row | `.list`, `.list-h`, `.row` | new | Desktop: table-like grid with sortable headers (`aria-sort`). Tablet: two-line rows. Phone: inset grouped rows (avatar, name, secondary line, status dot, chevron). Rows open the detail drawer. Includes loading rows and the empty state. |
-| Detail drawer / bottom sheet | `.sheet#drawer` | `PanelLateralSistema` (add a phone bottom-sheet presentation with grab handle) | Identity header, quick actions (WhatsApp, Llamar, Editar ficha), callouts, per-item cards with key/value grid and actions. |
-| Phone nav bar + large title | `.navbar`, `.large` | `HeaderMovil`, `PaginaSistema` | Back with the previous level's label, compact title fading in after 48px of scroll, up to two brand-colored icon actions with count badge; large title + summary block. |
-| Status dot | `.d`, `.estado`, `.metric .dot` | `BadgeSistema` (align to `success`/`warning`/`info`/`danger` tokens) | 8px dot + label; label may hide on phone but stays in the accessible name. |
-| Canonical empty state | `.empty` | the four `EstadoVacio` copies | Title + one line of guidance; two cases: no data yet (points at the primary action) and no match (points at "Limpiar todo"). Server-safe. |
-| Canonical skeleton rows | `.skel` | `SkeletonSistema` | Row-height shimmer blocks matching the list row; respects reduced motion. |
-| Hero slot | `.hero` | `PaginaSistema` | Title + summary in the content column on desktop/tablet; on phone it renders the large title. |
+| Scope cards (tree) | `.scope` / `.node` | `TarjetasFiltro` | Add flags (`info` "por activar", `warning` "sin cuenta"), an etapa stacked bar, the responsible line, and drill-down (entering a node updates the breadcrumb). Phone: inset grouped list rows with count and chevron. Built with Servidores (T6). |
+| Canonical breadcrumb (`MigasPan`) | `.crumbs` | `DesktopHeader` `breadcrumbs` slot | Only if the desktop header's `breadcrumbs` slot is not enough once Servidores drills into the tree; otherwise pass the crumbs to `PaginaSistema breadcrumbs`. |
+| Skeleton shimmer | `.skel` | `SkeletonLista` | `SkeletonLista` pulses today; the prototype sweeps a gradient. Needs a `shimmer` keyframe in `app/globals.css` (global reduced-motion rule already stops it). |
+| Hero slot | `.hero` | `PaginaSistema` | Title + summary in the content column on desktop/tablet; on phone `TituloGrande` covers it. |
+| Detail drawer content | `.sheet#drawer` | `DetalleResponsivo` | Identity header, quick actions (WhatsApp, Llamar, Editar ficha), callouts, per-item cards with key/value grid and actions. Built with Servidores (T6), extracted when a second screen needs it. |

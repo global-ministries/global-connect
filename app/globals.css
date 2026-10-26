@@ -49,7 +49,7 @@
   --brand-primary-light: #F59E0B;
   --brand-dark: #363D45;
   --brand-accent: rgba(233, 108, 32, 0.08);
-  --brand-accent-strong: rgba(233, 108, 32, 0.15);
+  --brand-accent-strong: rgba(233, 108, 32, 0.10);
   /* White on the orange is 3.2:1: large or bold text and icons only. */
   --brand-primary-foreground: oklch(1 0 0);
   /* Readable orange text (>= 4.5:1 on card, page and the brand tint). */
@@ -145,7 +145,7 @@
 
   /* ─── Brand (dark) ─── */
   --brand-accent: rgba(233, 108, 32, 0.12);
-  --brand-accent-strong: rgba(233, 108, 32, 0.22);
+  --brand-accent-strong: rgba(233, 108, 32, 0.13);
   --brand-text: oklch(0.74 0.15 50);
 
   /* ─── Surfaces (dark) ─── */

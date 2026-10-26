@@ -9,7 +9,9 @@
  *
  * 4 columns from `lg`, 2×2 below. Below `md` (phone) the cards are compact
  * and drop the bar and the hint (docs/design-system/mobile.md, "Metrics").
- * The pressed card uses the single brand tint (decision 6, 2026-10-26).
+ * The pressed card uses the single brand tint (decision 6, 2026-10-26),
+ * outlined by the brand border from md and, on phone where cards have no
+ * border, by a 1.5px inset ring (prototype `.metric[aria-pressed]`).
  */
 import type { ReactElement } from 'react'
 
@@ -54,7 +56,7 @@ export function MetricasAtencion({ metricas, onAlternar, etiqueta, className }: 
           className={cn(
             'focus-ring grid min-w-0 gap-1.5 rounded-2xl border p-3 text-left transition-colors md:gap-2.5 md:p-4',
             metrica.activa
-              ? 'border-brand bg-brand-tint'
+              ? 'border-transparent bg-brand-tint max-md:ring-[1.5px] max-md:ring-inset max-md:ring-brand md:border-brand'
               : 'border-transparent bg-card hover:bg-accent md:border-border',
           )}
         >

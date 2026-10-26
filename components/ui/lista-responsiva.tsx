@@ -112,7 +112,8 @@ function Cabecera({
                 type="button"
                 onClick={() => onOrdenar(columna.id)}
                 className={cn(
-                  'focus-ring -mx-1 inline-flex min-h-9 items-center rounded-md px-1 uppercase tracking-[inherit] hover:text-foreground pointer-coarse:min-h-11',
+                  // gap-1 draws the space before the arrow: a flex box drops the text one.
+                  'focus-ring -mx-1 inline-flex min-h-9 items-center gap-1 rounded-md px-1 uppercase tracking-[inherit] hover:text-foreground pointer-coarse:min-h-11',
                   activa && 'text-foreground',
                 )}
               >

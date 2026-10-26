@@ -144,6 +144,8 @@ describe('ListaResponsiva', () => {
     const equipo = screen.getByRole('columnheader', { name: /Equipo/ })
     expect(equipo).toHaveAttribute('aria-sort', 'ascending')
     expect(equipo).toHaveTextContent('Equipo ↑')
+    // The button is a flex box, which drops the text space before the arrow; the gap draws it.
+    expect(within(equipo).getByRole('button', { name: 'Equipo' })).toHaveClass('gap-1')
   })
 
   it('shows loading rows instead of the items while loading', () => {

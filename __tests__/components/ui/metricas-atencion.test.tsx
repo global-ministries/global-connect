@@ -93,10 +93,11 @@ describe('MetricasAtencion', () => {
     expect(screen.getByRole('group', { name: 'Necesitan atención' })).toHaveClass('grid', 'grid-cols-2', 'lg:grid-cols-4')
   })
 
-  it('marks the pressed card with the brand border and the single brand tint', () => {
+  it('marks the pressed card with the single brand tint: a 1.5px inset ring on phone, the brand border from md', () => {
     renderMetricas()
     const activa = screen.getByRole('button', { name: /^Por activar/ })
-    expect(activa).toHaveClass('border-brand', 'bg-brand-tint')
+    expect(activa).toHaveClass('bg-brand-tint', 'md:border-brand')
+    expect(activa).toHaveClass('max-md:ring-[1.5px]', 'max-md:ring-inset', 'max-md:ring-brand', 'border-transparent')
     const inactiva = screen.getByRole('button', { name: /^Sirviendo/ })
     expect(inactiva).not.toHaveClass('bg-brand-tint')
     expect(inactiva).toHaveClass('bg-card')
