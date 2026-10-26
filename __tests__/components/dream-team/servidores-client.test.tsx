@@ -23,6 +23,8 @@ import {
   ID_CONEXION,
   ID_CORO,
   ID_DHAH,
+  ID_MDH,
+  ID_PAREJAS,
   ID_PDP,
   ID_TALLERES,
   arbolServidores,
@@ -83,6 +85,9 @@ function props(overrides: Partial<ServidoresClientProps> = {}): ServidoresClient
   }
 }
 
+/** "Sin agrupar": one row per servicio (the default is one row per person). */
+const PLANO = { ...FILTROS_INICIALES, agrupar: 'ninguno' as const }
+
 const tabla = () => screen.getByRole('table', { name: 'Servicios' })
 /**
  * The table's cells grouped by row, in document order. One query over the whole
@@ -124,7 +129,7 @@ describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
   })
 
   it('tapping Activo filters, tapping it again removes the filter', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
     const activo = screen.getByRole('button', { name: 'Activo 35' })
 
     await user.click(activo)
@@ -149,7 +154,7 @@ describe('ServidoresClient — etapa counters as filters (criterion 1)', () => {
 describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () => {
 
   it('without a dirección, the KPI cards are the direcciones; tapping one enters it', async () => {
-    render(<ServidoresClient {...props()} />)
+    render(<ServidoresClient {...props({ filtrosIniciales: PLANO })} />)
     expect(screen.queryByLabelText('Equipo')).not.toBeInTheDocument()
     expect(tarjeta('Todas las direcciones')).toHaveAttribute('aria-pressed', 'true')
     expect(tarjeta('Todas las direcciones')).toHaveTextContent('38personas')
@@ -158,7 +163,7 @@ describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () 
     await user.click(tarjeta('Dirección de Conexión'))
     expect(screen.getByLabelText('Dirección')).toHaveValue(ID_CONEXION)
     expect(filasDeTabla()).toHaveLength(38)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion', { scroll: false })
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion&agrupar=ninguno', { scroll: false })
   })
 
   it('choosing the Dirección de Conexión turns the cards into its own teams', async () => {
@@ -188,38 +193,130 @@ describe('ServidoresClient — dirección → equipo cascade (criterion 2)', () 
 
 describe('ServidoresClient — quick filters (criterion 3)', () => {
   it('"Sin cuenta" leaves 31 of 38 servicios in Conexión', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    expect(screen.getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
+    render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
+    expect(screen.getByRole('button', { name: 'Sin cuenta 31' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'En varios equipos 4' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Sin cuenta · 31' }))
+    await user.click(screen.getByRole('button', { name: 'Sin cuenta 31' }))
     expect(filasDeTabla()).toHaveLength(31)
     expect(pie()).toHaveTextContent('31 servicios · 31 personas')
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?sin_cuenta=1', { scroll: false })
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?sin_cuenta=1&agrupar=ninguno', { scroll: false })
   })
 
   it('"En varios equipos" lists only people with two or more servicios', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await user.click(screen.getByRole('button', { name: 'En varios equipos · 4' }))
+    render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
+    await user.click(screen.getByRole('button', { name: 'En varios equipos 4' }))
     expect(filasDeTabla()).toHaveLength(4)
     expect(pie()).toHaveTextContent('4 servicios · 2 personas')
   })
 })
 
-describe('ServidoresClient — grouping and sorting (criteria 4 and 5)', () => {
-  it('"Por persona" shows Jose Jimenez with both servicios under one header', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    await user.click(screen.getByRole('button', { name: 'Por persona' }))
+describe('ServidoresClient — one row per person (default "Por persona")', () => {
+  const personaEnTabla = (nombre: string) => within(tabla()).getByRole('rowgroup', { name: nombre })
+  const pieAgrupado = () => screen.getByText(/personas? · \d+ servicios?/)
+  const gdv = { origen: 'grupos_vida', servicioId: undefined, version: undefined, editable: false, tieneCuenta: false } as const
+  // José Giménez directs five Grupos de Vida segments: one person, five servicios.
+  const cincoServicios = [
+    fila('g1', 'José Giménez', ID_CONEXION, 'Director general', { ...gdv, telefono: '04245551111' }),
+    fila('g2', 'José Giménez', ID_DHAH, 'Director general', { ...gdv, telefono: '04245551111' }),
+    fila('g3', 'José Giménez', ID_PAREJAS, 'Director general', { ...gdv, telefono: '04245551111' }),
+    fila('g4', 'José Giménez', ID_PDP, 'Director general', { ...gdv, telefono: '04245551111' }),
+    fila('g5', 'José Giménez', ID_MDH, 'Director general', { ...gdv, telefono: '04245551111' }),
+  ]
 
-    const cabecera = within(tabla()).getByRole('rowheader', { name: /Jose Jimenez/ })
-    expect(cabecera).toHaveTextContent('2 servicios')
-    const filas = within(tabla()).getAllByRole('row')
-    const i = filas.indexOf(cabecera.closest('tr') as HTMLElement)
-    expect(within(filas[i + 1]).getByText('De Hombre a Hombre')).toBeInTheDocument()
-    expect(within(filas[i + 2]).getByText('Punto de Partida')).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=persona', { scroll: false })
+  it('is the default: "Por persona" is pressed and the URL stays bare', () => {
+    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    expect(screen.getByRole('button', { name: 'Por persona' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(tabla()).getAllByRole('rowgroup', { name: /\S/ })).toHaveLength(36)
   })
 
+  it('shows the person once, with each servicio on its own line and its own menu', async () => {
+    render(<ServidoresClient {...props({ filas: filasConexion, puedeEditar: true })} />)
+    expect(within(tabla()).getAllByText('Jose Jimenez')).toHaveLength(1)
+    const jose = personaEnTabla('Jose Jimenez')
+    expect(within(jose).getAllByRole('link', { name: /0426 366 7378/ })).toHaveLength(1)
+    expect(within(jose).getByText('De Hombre a Hombre')).toBeInTheDocument()
+    expect(within(jose).getByText('Punto de Partida')).toBeInTheDocument()
+    expect(within(jose).getByText('Coordinador')).toBeInTheDocument()
+    expect(within(jose).getByText('Facilitador')).toBeInTheDocument()
+    // S3: the servicios are on screen, so no "2 equipos" badge.
+    expect(within(jose).queryByText('2 equipos')).not.toBeInTheDocument()
+    // Every servicio keeps its menu, told apart by its equipo.
+    expect(within(tabla()).getAllByRole('button', { name: /^Acciones para / })).toHaveLength(38)
+    await user.click(within(jose).getByRole('button', { name: 'Acciones para Jose Jimenez en Punto de Partida' }))
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Ver su equipo'])
+    expect(within(jose).getByRole('button', { name: 'Acciones para Jose Jimenez en De Hombre a Hombre' })).toBeInTheDocument()
+  })
+
+  it('shows name, phone, "Sin cuenta" and "Grupos de Vida" once, and three servicios plus "+2 más"', async () => {
+    render(<ServidoresClient {...props({ filas: cincoServicios })} />)
+    const jose = personaEnTabla('José Giménez')
+    expect(within(jose).getAllByText('José Giménez')).toHaveLength(1)
+    expect(within(jose).getAllByRole('link', { name: /0424 555 1111/ })).toHaveLength(1)
+    expect(within(jose).getAllByText('Sin cuenta')).toHaveLength(1)
+    expect(within(jose).getAllByText('Grupos de Vida')).toHaveLength(1)
+    expect(within(jose).queryByText('5 equipos')).not.toBeInTheDocument()
+    expect(within(jose).getAllByText('Director general')).toHaveLength(3)
+    // Same order as the rest of the list: by equipo inside the person; Parejas and Punto de Partida wait.
+    expect(within(jose).queryByText('Punto de Partida')).not.toBeInTheDocument()
+
+    const mas = within(jose).getByRole('button', { name: '+2 más' })
+    expect(mas).toHaveAttribute('aria-expanded', 'false')
+    expect(mas).toHaveClass('min-h-[44px]')
+    await user.click(mas)
+    expect(within(jose).getAllByText('Director general')).toHaveLength(5)
+    expect(within(jose).getByText('Punto de Partida')).toBeInTheDocument()
+    const menos = within(jose).getByRole('button', { name: 'Ver menos' })
+    expect(menos).toHaveAttribute('aria-expanded', 'true')
+    await user.click(menos)
+    expect(within(jose).getAllByText('Director general')).toHaveLength(3)
+  })
+
+  it('lists only the servicios that pass the filters; a person with none disappears', async () => {
+    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    await user.click(tarjeta('Dirección de Conexión'))
+    await user.click(tarjeta('Punto de Partida'))
+    const jose = personaEnTabla('Jose Jimenez')
+    expect(within(jose).getByText('Punto de Partida')).toBeInTheDocument()
+    expect(within(jose).queryByText('De Hombre a Hombre')).not.toBeInTheDocument()
+    expect(within(tabla()).queryByRole('rowgroup', { name: 'Edith Pérez' })).not.toBeInTheDocument()
+    expect(pieAgrupado()).toHaveTextContent('14 personas · 14 servicios')
+  })
+
+  it('footer says "36 personas · 38 servicios"; "Sin agrupar" goes back to one row per servicio', async () => {
+    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    expect(pieAgrupado()).toHaveTextContent('36 personas · 38 servicios')
+
+    await user.click(screen.getByRole('button', { name: 'Sin agrupar' }))
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno', { scroll: false })
+    expect(filasDeTabla()).toHaveLength(38)
+    expect(screen.getByText('38 servicios · 36 personas')).toBeInTheDocument()
+    expect(within(tabla()).getAllByText('Jose Jimenez')).toHaveLength(2)
+    expect(within(filasDeTabla().find((r) => within(r).queryByText('Jose Jimenez')) as HTMLElement).getByText('2 equipos')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Por persona' }))
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
+    expect(within(tabla()).getAllByText('Jose Jimenez')).toHaveLength(1)
+  })
+
+  it('on phones: one card per person with every servicio and the same "+N más" rule', async () => {
+    render(<ServidoresClient {...props({ filas: [...cincoServicios, ...filasConexion] })} />)
+    const tarjetas = screen.getByRole('list', { name: 'Servicios en tarjetas' })
+    expect(within(tarjetas).getAllByText('Jose Jimenez')).toHaveLength(1)
+    const jose = within(tarjetas).getByRole('listitem', { name: 'Jose Jimenez' })
+    expect(within(jose).getByText('De Hombre a Hombre · Facilitador')).toBeInTheDocument()
+    expect(within(jose).getByText('Punto de Partida · Coordinador')).toBeInTheDocument()
+    expect(within(jose).queryByText('2 equipos')).not.toBeInTheDocument()
+
+    const gimenez = within(tarjetas).getByRole('listitem', { name: 'José Giménez' })
+    expect(within(gimenez).getAllByText(/ · Director general$/)).toHaveLength(3)
+    expect(within(gimenez).getAllByText('Sin cuenta')).toHaveLength(1)
+    await user.click(within(gimenez).getByRole('button', { name: '+2 más' }))
+    expect(within(gimenez).getAllByText(/ · Director general$/)).toHaveLength(5)
+  })
+})
+
+describe('ServidoresClient — grouping and sorting (criteria 4 and 5)', () => {
   it('"Por equipo" adds a header per team with its size', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion })} />)
     await user.click(screen.getByRole('button', { name: 'Por equipo' }))
@@ -270,9 +367,9 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
   })
 
   it('lists every active filter as a pill; the X removes just that one; "Limpiar todo" removes all', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
     await user.click(screen.getByRole('button', { name: /^Activo/ }))
-    await user.click(screen.getByRole('button', { name: 'Sin cuenta · 28' }))
+    await user.click(screen.getByRole('button', { name: 'Sin cuenta 28' }))
     const pastillas = screen.getByRole('list', { name: 'Filtros activos' })
     expect(within(pastillas).getAllByRole('button').map((b) => b.textContent)).toEqual(['Etapa: Activo', 'Sin cuenta', 'Limpiar todo'])
 
@@ -283,7 +380,7 @@ describe('ServidoresClient — search, pills and the URL (criteria 7 and 8)', ()
     await user.click(within(pastillas).getByRole('button', { name: 'Limpiar todo' }))
     expect(screen.queryByRole('list', { name: 'Filtros activos' })).not.toBeInTheDocument()
     expect(filasDeTabla()).toHaveLength(38)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno', { scroll: false })
   })
 
   it('opens with the filters of a shared URL, legacy ?equipo= and ?estado= included', () => {
@@ -345,7 +442,7 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
       fila('4', 'Dos Equipos', ID_DHAH, 'Facilitador', { tieneCuenta: true }),
       fila('5', 'Dos Equipos', ID_PDP, 'Facilitador', { tieneCuenta: true }),
     ]
-    render(<ServidoresClient {...props({ filas })} />)
+    render(<ServidoresClient {...props({ filas, filtrosIniciales: PLANO })} />)
     expect(within(filaDe('Sin Cuenta')).getByText('Sin cuenta')).toBeInTheDocument()
     expect(within(filaDe('Con Cuenta')).queryByText('Sin cuenta')).not.toBeInTheDocument()
     expect(within(filaDe('Cuenta Ignorada')).queryByText('Sin cuenta')).not.toBeInTheDocument()
@@ -368,7 +465,7 @@ describe('ServidoresClient — phone and account status (criterion 6)', () => {
     expect(within(celda).getByText('Sin cuenta')).toBeInTheDocument()
     expect(within(celda).getByRole('link', { name: /0424 555 1111/ })).toHaveAttribute('href', 'https://wa.me/584245551111')
     expect(within(celda).queryByRole('button', { name: /^Acciones para / })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Sin cuenta · 1' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Sin cuenta 1' })).toBeInTheDocument()
   })
 
   it('finds a person by phone, however the number is typed', async () => {
@@ -449,7 +546,7 @@ describe('ServidoresClient — phone', () => {
       fila('1', 'Ana Ruiz', ID_DHAH, 'Coordinador', { telefono: '04125457346', tieneCuenta: false, estado: 'en_pausa' }),
       fila('2', 'Ana Ruiz', ID_PDP, 'Facilitador', { telefono: '04125457346', tieneCuenta: false }),
     ]
-    render(<ServidoresClient {...props({ filas })} />)
+    render(<ServidoresClient {...props({ filas, filtrosIniciales: PLANO })} />)
     expect(within(tarjetas()).getAllByRole('listitem')).toHaveLength(2)
     const tarjeta = within(tarjetas()).getAllByRole('listitem')[0]
     expect(within(tarjeta).getByText('Ana Ruiz')).toBeInTheDocument()
@@ -479,14 +576,14 @@ describe('ServidoresClient — phone', () => {
     const hoja = screen.getByRole('dialog', { name: 'Filtros' })
     expect(within(hoja).queryByLabelText('Equipo')).not.toBeInTheDocument()
     expect(within(hoja).getByLabelText('Rol')).toBeInTheDocument()
-    expect(within(hoja).getByRole('button', { name: 'Sin cuenta · 31' })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(hoja).getByRole('button', { name: 'En varios equipos · 4' })).toBeInTheDocument()
+    expect(within(hoja).getByRole('button', { name: 'Sin cuenta 31' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(hoja).getByRole('button', { name: 'En varios equipos 4' })).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: 'Limpiar' })).toBeInTheDocument()
     expect(within(hoja).getByRole('button', { name: 'Ver 38' })).toBeInTheDocument()
   })
 
   it('the sheet filters live, "Ver N" shows the result count and closes, "Limpiar" empties the sheet filters', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
     await user.click(tarjeta('Dirección de Conexión'))
     await user.click(tarjeta('Punto de Partida'))
     await user.click(botonFiltros())
@@ -495,7 +592,7 @@ describe('ServidoresClient — phone', () => {
     await user.click(within(hoja).getByRole('button', { name: /^Sin cuenta/ }))
     expect(within(hoja).getByRole('button', { name: 'Ver 13' })).toBeInTheDocument()
     expect(replace).toHaveBeenLastCalledWith(
-      `/admin/dream-team/servidores?direccion=${ID_CONEXION}&equipo=${ID_PDP}&sin_cuenta=1`,
+      `/admin/dream-team/servidores?direccion=${ID_CONEXION}&equipo=${ID_PDP}&sin_cuenta=1&agrupar=ninguno`,
       { scroll: false },
     )
 
@@ -604,7 +701,7 @@ describe('ServidoresClient — área drill-down inside a dirección', () => {
   const opcionesDe = (etiqueta: string) => Array.from((screen.getAllByLabelText(etiqueta)[0] as HTMLSelectElement).options).map((o) => o.text)
 
   it('offers the areas of the chosen dirección and narrows the equipos and rows to the area', async () => {
-    render(<ServidoresClient {...props()} />)
+    render(<ServidoresClient {...props({ filtrosIniciales: PLANO })} />)
     expect(screen.queryByLabelText('Área')).not.toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Dirección'), ID_CONEXION)
@@ -615,7 +712,7 @@ describe('ServidoresClient — área drill-down inside a dirección', () => {
     expect(within(screen.getByRole('group', { name: 'Equipos' })).getAllByRole('button')).toHaveLength(5)
     expect(filasDeTabla()).toHaveLength(37)
     expect(replace).toHaveBeenLastCalledWith(
-      `/admin/dream-team/servidores?direccion=${ID_CONEXION}&area=${ID_TALLERES}`,
+      `/admin/dream-team/servidores?direccion=${ID_CONEXION}&area=${ID_TALLERES}&agrupar=ninguno`,
       { scroll: false },
     )
   })

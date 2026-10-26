@@ -14,6 +14,7 @@ import { Search } from 'lucide-react'
 
 import { InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
+import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import {
   parcheElegirArea,
   parcheElegirDireccion,
@@ -39,10 +40,11 @@ const OPCIONES_INICIO: ReadonlyArray<{ readonly valor: Inicio; readonly etiqueta
   { valor: 'trimestre', etiqueta: 'Últimos 3 meses' },
 ]
 
+// "Por persona" is the default (one row per person); "Sin agrupar" is one row per servicio.
 const OPCIONES_AGRUPAR: ReadonlyArray<{ readonly valor: Agrupar; readonly etiqueta: string }> = [
+  { valor: 'persona', etiqueta: 'Por persona' },
   { valor: 'ninguno', etiqueta: 'Sin agrupar' },
   { valor: 'equipo', etiqueta: 'Por equipo' },
-  { valor: 'persona', etiqueta: 'Por persona' },
 ]
 
 // Literal class names so Tailwind keeps them: search plus 3, 4 or 5 selects.
@@ -119,21 +121,13 @@ export function BarraFiltros({ vista, onCambio }: BarraFiltrosProps): ReactEleme
       <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
         <div className="flex flex-wrap gap-2">
           {rapidosLista.map((rapido) => (
-            <button
+            <PastillaFiltro
               key={rapido.clave}
-              type="button"
-              aria-pressed={rapido.activo}
+              etiqueta={rapido.etiqueta}
+              cantidad={rapido.cantidad}
+              activa={rapido.activo}
               onClick={() => onCambio({ [rapido.clave]: !rapido.activo })}
-              className={cn(
-                'min-h-[44px] rounded-full border px-4 text-sm font-medium transition-colors',
-                rapido.activo
-                  ? 'border-brand bg-brand-tint text-foreground'
-                  : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
-                ANILLO,
-              )}
-            >
-              {rapido.etiqueta} · {rapido.cantidad}
-            </button>
+            />
           ))}
         </div>
 

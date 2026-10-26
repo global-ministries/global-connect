@@ -105,7 +105,7 @@ describe('quick filters', () => {
   })
 
   it('"en varios equipos" means two or more non-retired servicios of the same persona', () => {
-    const v = vista({ varios: true }, filasConexion)
+    const v = vista({ varios: true, agrupar: 'ninguno' }, filasConexion)
     expect(nombres(v.items).sort()).toEqual(['Antholy Ludovic Gómez', 'Antholy Ludovic Gómez', 'Jose Jimenez', 'Jose Jimenez'])
     expect(v.visibles.every((f) => f.equiposDeLaPersona === 2)).toBe(true)
     expect(v.rapidos.varios.cantidad).toBe(4)
@@ -120,7 +120,7 @@ describe('quick filters', () => {
   })
 
   it('"varios" belongs to the person, not to the filtered subset', () => {
-    const v = vista({ equipo: ID_DHAH, varios: true }, filasConexion)
+    const v = vista({ equipo: ID_DHAH, varios: true, agrupar: 'ninguno' }, filasConexion)
     expect(nombres(v.items)).toEqual(['Jose Jimenez'])
     expect(v.visibles[0].equiposDeLaPersona).toBe(2)
   })
@@ -277,22 +277,10 @@ describe('sorting', () => {
 
 describe('grouping', () => {
   it('without grouping the list is flat', () => {
-    expect(vista({}, filasConexion).items.every((i) => i.tipo === 'fila')).toBe(true)
+    expect(vista({ agrupar: 'ninguno' }, filasConexion).items.every((i) => i.tipo === 'fila')).toBe(true)
   })
 
-  // Criterion 4
-  it('by persona puts Jose Jimenez with both servicios under one header', () => {
-    const items = vista({ agrupar: 'persona' }, filasConexion).items
-    const indice = items.findIndex((i) => i.tipo === 'grupo' && i.titulo === 'Jose Jimenez')
-    expect(indice).toBeGreaterThanOrEqual(0)
-    expect(items[indice]).toMatchObject({ detalle: '2 servicios', cantidad: 2 })
-    expect(items[indice + 1]).toMatchObject({ tipo: 'fila' })
-    expect(items[indice + 2]).toMatchObject({ tipo: 'fila' })
-    expect(items[indice + 3]).toMatchObject({ tipo: 'grupo' })
-    const propias = [items[indice + 1], items[indice + 2]].map((i) => (i.tipo === 'fila' ? i.fila.equipoLabel : ''))
-    expect(propias.sort()).toEqual(['De Hombre a Hombre', 'Punto de Partida'])
-  })
-
+  // Criterion 4 ("Por persona"): servidores-vista-persona.test.ts
   it('by equipo has a header per team with its size, teams alphabetically', () => {
     const grupos = vista({ agrupar: 'equipo' }, filasConexion).items.filter((i) => i.tipo === 'grupo')
     expect(grupos.map((g) => (g.tipo === 'grupo' ? g.titulo : ''))).toEqual([
@@ -359,15 +347,18 @@ describe('pills', () => {
 })
 
 describe('footer', () => {
+  const plano = { agrupar: 'ninguno' } as const
+
   it('says how many servicios and personas are visible', () => {
-    expect(vista({}, filasConexion).pie.resumen).toBe('38 servicios · 36 personas')
-    expect(vista({ equipo: ID_DHAH }, filasConexion).pie.resumen).toBe('9 servicios · 9 personas')
-    expect(vista({ q: 'perez' }, filasConexion).pie.resumen).toBe('1 servicio · 1 persona')
-    expect(vista({ varios: true }, filasConexion).pie.resumen).toBe('4 servicios · 2 personas')
+    expect(vista(plano, filasConexion).pie.resumen).toBe('38 servicios · 36 personas')
+    expect(vista({ ...plano, equipo: ID_DHAH }, filasConexion).pie.resumen).toBe('9 servicios · 9 personas')
+    expect(vista({ ...plano, q: 'perez' }, filasConexion).pie.resumen).toBe('1 servicio · 1 persona')
+    expect(vista({ ...plano, varios: true }, filasConexion).pie.resumen).toBe('4 servicios · 2 personas')
   })
 
   it('is empty-safe', () => {
-    expect(vista({}, []).pie.resumen).toBe('0 servicios · 0 personas')
+    expect(vista(plano, []).pie.resumen).toBe('0 servicios · 0 personas')
+    expect(vista({}, []).pie.resumen).toBe('0 personas · 0 servicios')
   })
 })
 
@@ -385,12 +376,12 @@ describe('URL codec', () => {
       sinCuenta: true,
       varios: true,
       q: 'jose',
-      agrupar: 'persona',
+      agrupar: 'ninguno',
       orden: { columna: 'inicio', sentido: 'desc' },
     }
     const query = escribirFiltrosEnUrl(filtros)
     expect(query).toBe(
-      'etapa=en_pausa&direccion=dir-conexion&equipo=eq-pdp&rol=Coordinador&inicio=mes&sin_cuenta=1&varios=1&q=jose&agrupar=persona&orden=inicio%3Adesc',
+      'etapa=en_pausa&direccion=dir-conexion&equipo=eq-pdp&rol=Coordinador&inicio=mes&sin_cuenta=1&varios=1&q=jose&agrupar=ninguno&orden=inicio%3Adesc',
     )
     expect(leerFiltrosDeUrl(new URLSearchParams(query))).toEqual(filtros)
   })
@@ -483,7 +474,7 @@ describe('Grupos de Vida directors', () => {
   })
 
   it('counts a director in the team of their row, and one person per director', () => {
-    const v = vista({ equipo: ID_CONEXION }, filas)
+    const v = vista({ equipo: ID_CONEXION, agrupar: 'ninguno' }, filas)
     expect(v.visibles.map((f) => f.nombre).sort()).toEqual(['Yara Etapa', 'Zoe General'])
     expect(v.pie.resumen).toBe('2 servicios · 2 personas')
   })
