@@ -71,7 +71,7 @@ function DialogContent({
             data-slot="dialog-close"
             className="absolute top-2 right-2 inline-flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0"
           >
-            {/* 44px hit area, small icon (docs/design-system.md). */}
+            {/* 44px hit area, small icon (docs/design-system/layout.md). */}
             <XIcon className="size-4" aria-hidden="true" />
             <span className="sr-only">Cerrar</span>
           </DialogPrimitive.Close>

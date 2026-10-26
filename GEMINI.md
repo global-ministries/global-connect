@@ -31,6 +31,7 @@ Todas en `.agent/skills/` — el directorio de Antigravity, fuente única de ver
 | `git-commit` | [SKILL.md](/.agent/skills/git-commit/SKILL.md) | Commits atómicos, mensajes semánticos |
 | `conventional-commit` | [SKILL.md](/.agent/skills/conventional-commit/SKILL.md) | Conventional Commits: feat/fix/docs/chore, scopes |
 | `deploy-to-vercel` | [SKILL.md](/.agent/skills/deploy-to-vercel/SKILL.md) | Deploy, preview branches, env vars, troubleshooting |
+| `global-connect-design` | [SKILL.md](/.agent/skills/global-connect-design/SKILL.md) | Sistema de diseño del repo: pantallas, componentes, mobile nativo, checklist pre-PR |
 | `technical-writer` | [SKILL.md](/.agent/skills/technical-writer/SKILL.md) | Docs técnicos, README, JSDoc, guías de usuario |
 | `vercel-kv` | [SKILL.md](/.agent/skills/vercel-kv/SKILL.md) | Redis serverless (Upstash): rate limiting, caché de RPCs |
 | `cloudflare-r2` | [SKILL.md](/.agent/skills/cloudflare-r2/SKILL.md) | Object storage S3-compatible, sin egress fees |
@@ -49,6 +50,14 @@ Todas en `.agent/skills/` — el directorio de Antigravity, fuente única de ver
 ## Auto-invoke Skills
 
 Cuando realices cualquiera de estas acciones, **SIEMPRE** invoca el skill correspondiente **PRIMERO**:
+
+### Diseño y UI
+
+| Acción | Skill a invocar |
+|--------|-----------------|
+| Crear o modificar una pantalla, página, layout o componente de UI | `global-connect-design` (PRIMERO) |
+| Ajustar diseño responsive o mobile, estilos, tokens, estados vacíos o de carga | `global-connect-design` (PRIMERO) |
+| Cualquier skill genérico de diseño (`frontend-design`, `ui-ux-pro-max`, `web-design-guidelines`, `sleek-design-mobile-apps`) | Solo después de `global-connect-design`; si se contradicen, gana `global-connect-design` y `docs/design-system/` |
 
 ### Performance y Escalabilidad
 
@@ -208,7 +217,7 @@ Todos los artifacts siguen el patrón: `{modulo}-fase{N}-{tipo}.md`
 | Hooks | `hooks/` | Lógica de negocio: paginación, permisos, KPIs |
 | Lib | `lib/` | Server actions, Supabase clients, utilidades |
 | Database | `supabase/` | Migraciones SQL, RPCs, policies, config |
-| Docs | `docs/` | Documentación funcional y técnica |
+| Docs | `docs/` | Documentación funcional y técnica; sistema de diseño en `docs/design-system/` |
 | Skills | `skills/` + `.agents/skills/` | AI agent skills |
 
 ---
@@ -217,10 +226,10 @@ Todos los artifacts siguen el patrón: `{modulo}-fase{N}-{tipo}.md`
 
 | Layer | Technology |
 |-------|-----------|
-| **Framework** | Next.js 15 (App Router), Server Components |
+| **Framework** | Next.js 16 (App Router), Server Components — versión exacta en `package.json` |
 | **Language** | TypeScript (strict) |
 | **UI** | React 19, TailwindCSS 4, Radix UI, lucide-react |
-| **Design** | Glassmorphism / VisionOS — blur, transparencias, bordes grandes |
+| **Design** | Sistema de diseño propio: [`docs/design-system/`](docs/design-system/README.md) |
 | **Gráficos** | recharts |
 | **Mapas** | @vis.gl/react-google-maps |
 | **Formularios** | react-hook-form + zod |
@@ -248,107 +257,43 @@ Todos los artifacts siguen el patrón: `{modulo}-fase{N}-{tipo}.md`
 
 ## 🎨 Design System Rules (OBLIGATORIO para toda UI)
 
-**Archivo fuente:** `components/ui/sistema-diseno.tsx`
-**Estilo visual:** Liquid Glass / VisionOS — blur, transparencias, bordes `rounded-2xl`
-**Dark mode:** 100% funcional — usar SOLO tokens semánticos
+**Fuente única:** [`docs/design-system/`](docs/design-system/README.md). Ningún otro doc, comentario ni skill genérico define estilos; si algo contradice esa carpeta, gana la carpeta.
+**Referencia visual:** el prototipo aprobado de Servidores, [`docs/design-system/prototipos/servidores.html`](docs/design-system/prototipos/servidores.html).
+**Skill obligatorio:** [`.agent/skills/global-connect-design/SKILL.md`](.agent/skills/global-connect-design/SKILL.md) antes de cualquier trabajo de UI. Tiene prioridad sobre `frontend-design`, `ui-ux-pro-max`, `web-design-guidelines` y `sleek-design-mobile-apps`.
 
-### IMPORT ÚNICO
+### Reglas
+
+- **Un solo sistema.** No inventar estilos nuevos ni variantes locales de componentes canónicos. Si falta algo, se agrega al sistema ([components.md](docs/design-system/components.md#planned-components)).
+- **Escritorio a ancho completo** con los márgenes actuales (16px / 24px desde `sm` / 48px desde `lg`); **en celular, como app nativa** ([mobile.md](docs/design-system/mobile.md)).
+- **Anatomía de pantalla de lista:** header con breadcrumb → hero (título + resumen) → toolbar → métricas de atención → tarjetas de alcance → lista ([patterns.md](docs/design-system/patterns.md#list-screen-anatomy)).
+- **Un solo drawer de detalle** por ítem en vez de menús por fila; acciones ocultas según permisos.
+- **Tokens semánticos siempre** ([foundations.md](docs/design-system/foundations.md)): `text-foreground`, `text-muted-foreground`, `bg-card`, `bg-muted`, `border-border`; estados `success` / `warning` / `info` / `danger` (texto legible con `-text`); marca `bg-brand`, `bg-brand-tint`, `text-brand-text`. **Prohibido:** `gray-*`, `slate-*`, `zinc-*`, `bg-white`, `#hex`, `backgroundColor: 'white'`, `bg-destructive` en código nuevo (usar `danger`).
+- **El look glass está retirado:** no usar `glass-panel*` ni tokens `--glass-*` en código nuevo.
+- **Números** en Geist Mono tabular (`font-mono tabular-nums`).
+- **Accesibilidad:** objetivos de 44px, `aria-pressed` en toggles, `aria-current` en la ubicación actual, focus ring visible, `aria-label` en botones de solo ícono, respetar `prefers-reduced-motion`.
+- **Sin scroll horizontal:** `minmax(0, 1fr)` y `min-w-0` en columnas con texto; tablas se convierten en filas en celular.
+- **Animaciones:** `transition-colors` / `transition-opacity` / `transform`; nunca `transition-all`.
+- Al migrar un área: actualizar [migration.md](docs/design-system/migration.md) y agregarla a `migratedToDesignSystem` en `eslint.config.mjs`.
+
+### Imports canónicos
 
 ```tsx
 import {
-  ContenedorDashboard, ContenedorPrincipal,
+  PaginaSistema, SeccionesSistema, CamposSistema, PieAccionesSistema,
   TarjetaSistema, BotonSistema, InputSistema, SelectSistema, TextareaSistema,
   TituloSistema, TextoSistema, EnlaceSistema,
-  BadgeSistema, SeparadorSistema, SkeletonSistema, FondoAutenticacion
+  BadgeSistema, SeparadorSistema, SkeletonSistema,
 } from "@/components/ui/sistema-diseno"
+import { PanelLateralSistema } from "@/components/ui/panel-lateral-sistema"
+import { TabsSistema, TabsList, TabsTrigger, TabsContent } from "@/components/ui/TabsSistema"
+import { PastillaFiltro, GrupoPastillas } from "@/components/ui/PastillasFiltro"
+import { TarjetasFiltro } from "@/components/ui/TarjetasFiltro"
+import { BotonFlotante } from "@/components/ui/BotonFlotante"
 ```
 
-### Tokens semánticos (NUNCA hardcodear colores)
-
-| Tailwind class | Uso |
-|---------------|-----|
-| `text-foreground` | Texto principal |
-| `text-muted-foreground` | Texto secundario/sutil |
-| `bg-card` | Fondo de tarjetas/modales |
-| `bg-muted` | Fondos terciarios/hover |
-| `border-border` | Bordes |
-| `bg-destructive` | Errores |
-
-**PROHIBIDO:** `gray-*`, `bg-white`, `#hex`, `backgroundColor: 'white'`, `slate-*`, `zinc-*`
-
-### CSS Classes Glass
-
-| Clase | Uso |
-|-------|-----|
-| `glass-panel` | Tarjeta estándar (blur + transparencia) |
-| `glass-panel-elevated` | Tarjeta con más elevación |
-| `glass-panel-subtle` | Fondo sutil |
-
-### Componentes — API rápida
-
-#### Layout
-
-| Componente | Props clave | Cuándo usarlo |
-|-----------|------------|---------------|
-| `ContenedorDashboard` | `titulo`, `accionPrincipal`, `botonRegreso={href, texto}`, `breadcrumbs` | Páginas del dashboard (incluye header desktop sticky) |
-| `ContenedorPrincipal` | `titulo`, `descripcion`, `accionPrincipal` | Páginas sin header desktop (auth, landing) |
-| `TarjetaSistema` | `variante="default\|elevated\|outlined"` | Cualquier contenedor glass |
-| `FondoAutenticacion` | `children` | Fondo con orbes animados para login/signup |
-
-#### Formularios
-
-| Componente | Props clave | Notas |
-|-----------|------------|-------|
-| `InputSistema` | `label`, `icono={LucideIcon}`, `error` | `min-h-[44px]`, ARIA automático, `forwardRef` |
-| `SelectSistema` | `label`, `opciones={[{valor, etiqueta}]}`, `error`, `placeholder`, `onValueChange` | Select nativo con glass |
-| `TextareaSistema` | `label`, `filas`, `error` | Mismos patrones que Input |
-
-#### Acciones
-
-| Componente | Props clave | Notas |
-|-----------|------------|-------|
-| `BotonSistema` | `variante="primario\|secundario\|outline\|ghost"`, `tamaño="sm\|md\|lg"`, `cargando`, `icono`, `iconoPosicion` | Siempre usar `cargando` durante mutaciones |
-
-#### Tipografía
-
-| Componente | Props clave |
-|-----------|------------|
-| `TituloSistema` | `nivel={1\|2\|3\|4}`, `variante="default\|sutil"` |
-| `TextoSistema` | `variante="default\|sutil\|muted"`, `tamaño="sm\|base\|lg"` |
-| `EnlaceSistema` | `variante="default\|marca\|sutil"`, `href`, `comoSpan` |
-
-#### Utilidades
-
-| Componente | Props clave |
-|-----------|------------|
-| `BadgeSistema` | `variante="default\|success\|warning\|error\|info"`, `tamaño="sm\|md\|lg"` |
-| `SeparadorSistema` | — (línea horizontal `bg-border`) |
-| `SkeletonSistema` | `ancho`, `alto`, `redondo` |
-
-#### Tabs (archivo separado)
-```tsx
-import { TabsSistema, TabsList, TabsTrigger, TabsContent } from '@/components/ui/TabsSistema'
-```
-
-### Componentes DEPRECADOS (NO usar en código nuevo)
-
-| ❌ No usar | ✅ Usar en su lugar |
-|-----------|-------------------|
-| `BotonGradiente` | `BotonSistema variante="primario"` |
-| `CampoInputConIcono` | `InputSistema icono={...}` |
-| `TarjetaEstadistica` | `TarjetaSistema` + `BadgeSistema` |
-| `Button` (shadcn raw) | `BotonSistema` |
-| `Input` (shadcn raw) | `InputSistema` |
-
-### Patrones responsive obligatorios
-
-```
-Grids:     grid-cols-1 sm:grid-cols-2 lg:grid-cols-4
-Spacing:   p-4 sm:p-6 lg:p-8
-Typography: text-sm sm:text-base
-Direction:  flex-col sm:flex-row
-Tablas:    overflow-hidden (NO overflow-x-auto), columnas colapsables en móvil
-```
+- Página: `PaginaSistema` (`titulo`, `descripcion`, `acciones`, `regreso`, `breadcrumbs`). `ContenedorDashboard` es legado; `ContenedorPrincipal` + `FondoAutenticacion` solo fuera del dashboard (auth).
+- `BotonSistema`: `variante="primario|secundario|outline|ghost|peligro"`, `tamaño="sm|md|lg"`, `cargando`, `icono`, `asChild` (un `Link`), `soloIcono` + `aria-label`.
+- API completa, tabla de deprecados (`BotonGradiente`, `ui/button`, `ui/card`, `ui/input`, `CampoInputConIcono`, `TarjetaEstadistica`, `tarjeta-glassmorphism`…) y componentes planeados: [components.md](docs/design-system/components.md).
 
 ### Notificaciones
 
@@ -358,12 +303,6 @@ const toast = useNotificaciones()
 toast.success('Guardado')
 toast.error('Error al guardar')
 ```
-
-### Transiciones
-
-- ✅ `transition-colors duration-200`
-- ✅ `transition-opacity duration-200`
-- ❌ `transition-all` (demasiado pesado)
 
 ---
 

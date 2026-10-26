@@ -7,7 +7,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { PieAccionesSistema } from "@/components/ui/sistema-diseno"
 
 /**
- * Side panel widths (docs/design-system.md): md 480px for short forms and
+ * Side panel widths (docs/design-system/layout.md): md 480px for short forms and
  * details, lg 640px for forms with repeated rows. Full width on mobile.
  */
 export const ANCHOS_PANEL = {

@@ -21,7 +21,7 @@ const buttonVariants = cva(
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
       },
-      // Same heights as BotonSistema (docs/design-system.md): sm 36px
+      // Same heights as BotonSistema (docs/design-system/foundations.md): sm 36px
       // (44px on touch), default 44px, lg 48px, icon 44px square.
       size: {
         default: "h-11 px-4 py-2 has-[>svg]:px-3",
