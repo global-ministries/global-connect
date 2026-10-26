@@ -1,7 +1,7 @@
 /**
  * PastillasFiltro — the shared count pills that refine a list (etapa, quick
  * filters). One look everywhere: label, then the count; the pressed pill uses
- * the same brand accent as the KPI filter cards.
+ * the same brand tint as the KPI filter cards.
  */
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
@@ -20,12 +20,11 @@ describe('PastillaFiltro', () => {
     expect(onClick).toHaveBeenCalledTimes(1)
   })
 
-  it('marks the active pill pressed, with the brand accent of the KPI cards', () => {
+  it('marks the active pill pressed, with the brand tint of the KPI cards', () => {
     render(<PastillaFiltro etiqueta="En pausa" cantidad={0} activa onClick={() => {}} />)
     const boton = screen.getByRole('button', { name: 'En pausa 0' })
     expect(boton).toHaveAttribute('aria-pressed', 'true')
-    expect(boton.className).toContain('border-[var(--brand-primary)]')
-    expect(boton.className).toContain('bg-[var(--brand-accent)]')
+    expect(boton).toHaveClass('border-brand', 'bg-brand-tint')
   })
 })
 

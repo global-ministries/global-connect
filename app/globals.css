@@ -70,6 +70,10 @@
   --glass-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
   --glass-blur: 20px;
   --glass-blur-lg: 40px;
+
+  /* ─── Shadows: floating layers only; cards stay flat (docs/design-system/foundations.md#shadows) ─── */
+  --shadow-sheet: 0 24px 60px -24px rgba(20, 20, 40, 0.28);
+  --shadow-fab: 0 16px 36px -10px rgba(233, 108, 32, 0.75);
   --glass-blur-sm: 12px;
 
   /* ─── Motion Tokens (macOS native feel) ─── */
@@ -158,6 +162,10 @@
   --glass-shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.20);
   --glass-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.15), 0 1px 4px rgba(0, 0, 0, 0.10);
 
+  /* ─── Shadows (dark) ─── */
+  --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  --shadow-fab: 0 16px 36px -10px rgba(233, 108, 32, 0.75);
+
   /* ─── Semantic Status Colors (dark) ─── */
   --success: oklch(0.60 0.17 145);
   --success-foreground: oklch(0.15 0 0);
@@ -232,6 +240,10 @@
   --color-brand-foreground: var(--brand-primary-foreground);
   --color-brand-tint: var(--brand-accent-strong);
   --color-brand-text: var(--brand-text);
+
+  /* ─── Shadows (Tailwind utilities: shadow-sheet, shadow-fab) ─── */
+  --shadow-sheet: var(--shadow-sheet);
+  --shadow-fab: var(--shadow-fab);
 
   /* ─── Extended animations ─── */
   --animate-glass-shimmer: glass-shimmer 2s ease-in-out infinite;

@@ -44,8 +44,8 @@ export function ConfirmationModal({
             </BotonSistema>
             <BotonSistema
               type="button"
-              variante="primario"
-              className="flex-1 !bg-red-500 hover:!bg-red-600"
+              variante="peligro"
+              className="flex-1"
               onClick={onConfirm}
               disabled={isLoading}
               cargando={isLoading}

@@ -53,7 +53,7 @@ const ANILLO = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ri
 
 function claseSeleccion(activo: boolean): string {
   return activo
-    ? 'border-brand bg-[var(--brand-accent)]'
+    ? 'border-brand bg-brand-tint'
     : 'border-border bg-card hover:bg-accent'
 }
 
@@ -124,7 +124,7 @@ function FilaCompacta({
       onClick={() => onSeleccionar(tarjeta.id)}
       className={cn(
         'flex min-h-[44px] w-full items-center justify-between gap-3 border-l-2 px-4 py-2 text-left transition-colors',
-        activo ? 'border-l-[var(--brand-primary)] bg-[var(--brand-accent)]' : 'border-l-transparent hover:bg-accent',
+        activo ? 'border-l-brand bg-brand-tint' : 'border-l-transparent hover:bg-accent',
         ANILLO,
       )}
     >
