@@ -95,6 +95,8 @@ async function opcionesCompletas(supabase: Supabase): Promise<Opciones> {
       .in('campus_id', campusIds)
       .eq('activo', true)
       .eq('dia_semana', 0)
+      // Dated Dream Team shifts never reach Niños (S5, 20261026140000).
+      .eq('tipo', 'semanal')
       .order('orden'),
   ])
   return {
