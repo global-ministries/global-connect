@@ -15,7 +15,8 @@
 --   d. Same family: the adult's own child is not reported and the
 --      registration still refuses it as hijo_ya_registrado; registering it
 --      for another adult is still allowed (warning, not block).
---   e. Out of scope (campus B only) and parentless people are not reported.
+--   e. Out of scope (campus B only), parentless people and adults outside
+--      the Niños age range are not reported.
 --   f. Invalid input: non-array or more than 10 children is 22023.
 --   g. A random user is denied; h. anon cannot execute it.
 --
@@ -104,7 +105,7 @@ SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'dup-' || n || '@e
 
 -- 1 anfitrión (campus A), 2 random user; 3 parent A and 4 childless parent
 -- (campus A); 5 parent B (campus B); 10 family A's child, 11 family B's
--- child, 12 parentless namesake (campus A).
+-- child, 12 parentless namesake (campus A), 13 adult child of parent 3.
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero, fecha_nacimiento) VALUES
   (pg_temp.id('us', 1), pg_temp.id('au', 1), 'ZZ Dup', 'U1', 'dup-1@example.test', 'Soltero', 'Masculino', NULL),
   (pg_temp.id('us', 2), pg_temp.id('au', 2), 'ZZ Dup', 'U2', 'dup-2@example.test', 'Soltero', 'Masculino', NULL),
@@ -113,17 +114,20 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
   (pg_temp.id('us', 5), NULL, 'ZZ Bea', 'ZZ Dup', NULL, 'Casado', 'Femenino', NULL),
   (pg_temp.id('us', 10), NULL, 'José Ángel', 'ZZ Dup', NULL, 'No especificado', 'Masculino', '2020-05-05'),
   (pg_temp.id('us', 11), NULL, 'José Ángel', 'ZZ Dup', NULL, 'No especificado', 'Masculino', '2020-05-05'),
-  (pg_temp.id('us', 12), NULL, 'José Ángel', 'ZZ Dup', NULL, 'No especificado', 'Masculino', '2020-05-05');
+  (pg_temp.id('us', 12), NULL, 'José Ángel', 'ZZ Dup', NULL, 'No especificado', 'Masculino', '2020-05-05'),
+  (pg_temp.id('us', 13), NULL, 'ZZ Adulto', 'ZZ Dup', NULL, 'Soltero', 'Masculino', '1990-01-01');
 INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal) VALUES
   (pg_temp.id('us', 3), (SELECT v::uuid FROM t_dup_ctx WHERE k = 'campus_a'), true),
   (pg_temp.id('us', 4), (SELECT v::uuid FROM t_dup_ctx WHERE k = 'campus_a'), true),
   (pg_temp.id('us', 5), pg_temp.id('ca', 2), true),
   (pg_temp.id('us', 10), (SELECT v::uuid FROM t_dup_ctx WHERE k = 'campus_a'), true),
   (pg_temp.id('us', 11), pg_temp.id('ca', 2), true),
-  (pg_temp.id('us', 12), (SELECT v::uuid FROM t_dup_ctx WHERE k = 'campus_a'), true);
+  (pg_temp.id('us', 12), (SELECT v::uuid FROM t_dup_ctx WHERE k = 'campus_a'), true),
+  (pg_temp.id('us', 13), (SELECT v::uuid FROM t_dup_ctx WHERE k = 'campus_a'), true);
 INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal) VALUES
   (pg_temp.id('us', 10), pg_temp.id('us', 3), 'padre', true),
-  (pg_temp.id('us', 11), pg_temp.id('us', 5), 'padre', true);
+  (pg_temp.id('us', 11), pg_temp.id('us', 5), 'padre', true),
+  (pg_temp.id('us', 13), pg_temp.id('us', 3), 'padre', false);
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Dup R', true),
@@ -210,6 +214,9 @@ SELECT pg_temp.assert_eq('e: family B (campus B only) and the parentless namesak
   $q$SELECT count(*)::text
        FROM jsonb_array_elements(pg_temp.avisos(jsonb_build_array(pg_temp.hijo('José Ángel', 'ZZ Dup', '2020-05-05')), NULL)) e
       WHERE e ->> 'nino_id' IN (pg_temp.id('us', 11)::text, pg_temp.id('us', 12)::text)$q$, '0');
+
+SELECT pg_temp.assert_eq('e: an adult with a parent link is never returned (no birth date check of adults)',
+  $q$SELECT pg_temp.avisos(jsonb_build_array(pg_temp.hijo('ZZ Adulto', 'ZZ Dup', '1990-01-01')), 4)::text$q$, '[]');
 
 -- ── f. invalid input ─────────────────────────────────────────────────
 
