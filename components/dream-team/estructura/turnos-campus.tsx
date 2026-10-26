@@ -5,6 +5,10 @@
  * every dirección (D12). One row per shift with its day and hour and, for
  * someone who manages the structure, a switch to enable or disable it and a
  * form to add one. A shift is never deleted: servicios may be assigned to it.
+ *
+ * A shift is "Semanal" (a weekday) or "Por fechas" (A3 of
+ * odd/tasks/tlr-calendario-servicios.md): a dated one has no weekday, its dates
+ * are planned in Mi equipo, and only the teams that choose it serve it.
  */
 import { useState, useTransition, type FormEvent, type ReactElement } from 'react'
 
@@ -12,6 +16,7 @@ import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema
 import { cn } from '@/lib/utils'
 import { cambiarActivoTurno, crearTurno } from '@/app/(auth)/admin/dream-team/estructura/turnos-actions'
 import { DIAS_SEMANA, detalleTurno, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
+import type { TipoTurno } from '@/lib/platform/dream-team/turno-fechas'
 
 import { ANILLO_FOCO, reportarResultado, type Toast } from './mensajes'
 
@@ -99,6 +104,7 @@ function FormularioTurnoNuevo({
   const [isPending, startTransition] = useTransition()
   const [campusId, setCampusId] = useState(campus[0]?.id ?? '')
   const [nombre, setNombre] = useState('')
+  const [tipo, setTipo] = useState<TipoTurno>('semanal')
   const [dia, setDia] = useState('0')
   const [hora, setHora] = useState('09:00')
   const label = nombre.trim()
@@ -109,7 +115,11 @@ function FormularioTurnoNuevo({
     // New shifts go last in their campus.
     const orden = Math.max(0, ...turnos.filter((turno) => turno.campusId === campusId).map((turno) => turno.orden)) + 1
     startTransition(async () => {
-      const resultado = await crearTurno({ campusId, nombre: label, diaSemana: Number(dia), hora, orden })
+      const resultado = await crearTurno(
+        tipo === 'fechas'
+          ? { campusId, nombre: label, diaSemana: 0, hora, orden, tipo }
+          : { campusId, nombre: label, diaSemana: Number(dia), hora, orden },
+      )
       if (reportarResultado(toast, resultado, 'Turno agregado correctamente.')) {
         setNombre('')
         onActualizado()
@@ -136,13 +146,31 @@ function FormularioTurnoNuevo({
         disabled={isPending}
       />
       <SelectSistema
-        label="Día"
-        opciones={DIAS_SEMANA.map((nombreDia, indice) => ({ valor: String(indice), etiqueta: nombreDia }))}
-        value={dia}
-        onValueChange={setDia}
+        label="Tipo"
+        opciones={[
+          { valor: 'semanal', etiqueta: 'Semanal' },
+          { valor: 'fechas', etiqueta: 'Por fechas' },
+        ]}
+        value={tipo}
+        onValueChange={(valor) => setTipo(valor === 'fechas' ? 'fechas' : 'semanal')}
         disabled={isPending}
       />
+      {tipo === 'semanal' && (
+        <SelectSistema
+          label="Día"
+          opciones={DIAS_SEMANA.map((nombreDia, indice) => ({ valor: String(indice), etiqueta: nombreDia }))}
+          value={dia}
+          onValueChange={setDia}
+          disabled={isPending}
+        />
+      )}
       <InputSistema label="Hora" type="time" value={hora} onChange={(event) => setHora(event.target.value)} disabled={isPending} />
+      {tipo === 'fechas' && (
+        <p className="text-sm text-muted-foreground sm:col-span-2">
+          Sin día fijo: sus fechas se planifican en Mi equipo, en el Calendario del equipo. Sólo lo sirven los equipos que lo eligen
+          en «Turnos de este equipo».
+        </p>
+      )}
       <div className="flex items-end">
         <BotonSistema type="submit" variante="outline" disabled={isPending || !label || !campusId || !hora}>
           Agregar turno
