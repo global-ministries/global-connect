@@ -4,7 +4,9 @@
  * here. The body is size-limited and parsed (lib/platform/ninos/preregistro),
  * a filled honeypot gets a silent ok, and the row is stored with the service
  * client through ninos_preregistro_crear (service_role only), which applies
- * the per-IP-hash rate limit. The answer never carries data back.
+ * the per-IP-hash rate limit. The answer carries no personal data; when a
+ * service of today is open it returns the notice offer (preregistro id,
+ * one-time token, today's services).
  */
 import { NextRequest, NextResponse } from 'next/server'
 
