@@ -466,3 +466,14 @@ comment on function public.uno_a_uno_dirigidos_de(uuid) is
   'Who a usuario leads by their own role, one row per person with every context. Internal: the 1:1 functions call it.';
 comment on function public.mis_dirigidos() is
   'The people the caller leads, with their spouse when the caller leads them too, and why.';
+
+-- Privileges, stated explicitly. CREATE OR REPLACE keeps the ACL a function
+-- already had, so these statements match what production holds after this
+-- migration (checked 2026-10-26): only mis_dirigidos is callable by
+-- authenticated; the other four are internal and stay service_role only.
+revoke all on function public.uno_a_uno_dirigidos_de(uuid) from public, anon, authenticated;
+revoke all on function public.uno_a_uno_relaciones() from public, anon, authenticated;
+revoke all on function public.uno_a_uno_ubicaciones() from public, anon, authenticated;
+revoke all on function public.uno_a_uno_crear(uuid, uuid, text, timestamptz, text, text, text, text) from public, anon, authenticated;
+revoke all on function public.mis_dirigidos() from public, anon;
+grant execute on function public.mis_dirigidos() to authenticated;
