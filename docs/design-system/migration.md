@@ -49,7 +49,43 @@ prototype patterns.
 | Perfil | `app/(auth)/perfil`, `components/perfil` | no | no | pending | `ContenedorDashboard`. |
 | Auth | `app/auth`, `app/signup`, `components/auth` | n/a | no | pending | `ContenedorPrincipal` + `FondoAutenticacion`; `components/auth` imports a legacy primitive. |
 | Shared reports | `components/reportes` | yes | no | pending | `DashboardRiesgo` takes chart colors from the status tokens; "En riesgo" mixes `--warning` and `--danger` (`color-mix(in oklch, …)`) in SVG fills and inline styles, while its text and tile stay `orange-*` and "Atención" text stays `amber-*`. Move the text to `text-warning-text` / `text-danger-text`. |
-| App chrome | `components/ui/{sidebar-moderna,desktop-header,header-movil,menu-inferior-movil}.tsx`, `components/navegacion` | yes | — | pending | Uses `--glass-*` tokens and `glass-panel-elevated` (drawer, popovers). Phone nav bar + large title is planned. |
+| App chrome | `components/ui/{sidebar-moderna,desktop-header,header-movil,menu-inferior-movil}.tsx`, `components/navegacion` | yes | — | pending | Uses `--glass-*` tokens and `glass-panel-elevated` (drawer, popovers). `BarraNavegacionMovil` + `TituloGrande` exist (Phase 1); screens opt in, the chrome is unchanged. |
+
+## Phase 1 — base components
+
+Branch `feat/ds-fase-1` (2026-10-26). The pieces exist and are tested;
+screens adopt them from Phase 2 (Servidores, T6) on. No screen changed
+behavior; the looks changed on purpose (P1a).
+
+| Part | Pieces | Status |
+| --- | --- | --- |
+| P1a foundations | `--shadow-sheet`, `--shadow-fab`; flat `TarjetaSistema` (`default`/`elevated` on the card surface); flat `primario`; `PastillasFiltro` and `TarjetasFiltro` on `bg-brand-tint` | done |
+| P1b feedback | `PuntoEstado`, `MetricasAtencion`, `ControlSegmentado`, `EstadoVacioSistema`, `SkeletonLista` | done |
+| P1c overlays and phone nav | `HojaInferior`, `DetalleResponsivo`, `NavegacionMovilProvider`, `BarraNavegacionMovil`, `TituloGrande` | done |
+| P1d lists and toolbar | `BarraHerramientas`, `BotonFiltrosMovil`, `ChipsFiltrosActivos`, `HojaFiltros`, `GrupoFiltro`, `SelectsFiltro`, `ListaResponsiva` | done; `MigasPan` not built (see [components.md](components.md#planned-components)) |
+| Gallery | `/design-system` (`app/(auth)/design-system/page.tsx`, `components/ui/galeria-sistema.tsx`) | done; 404 in production, login required on previews |
+
+`ConfirmationModal` moved to the `peligro` variant (every caller is
+destructive; the old gradient hid its forced red).
+
+Fixed from the gallery review: pressed metrics on phone get the 1.5px inset
+brand ring (they have no border there); the sort arrow in `ListaResponsiva`
+headers had no space before it (a flex box drops the text space).
+
+Open from Phase 1:
+
+- `SkeletonLista` pulses; the prototype's gradient shimmer needs a `shimmer`
+  keyframe in `app/globals.css`.
+- `HeaderMovil` renders the route title as an `h1`; once a screen adopts
+  `TituloGrande` (also an `h1`) the phone has two. Hide the header title or
+  demote it on screens with a large title.
+- `HojaInferior` hides the `ui/drawer` built-in handle with
+  `[&>div:first-child]:hidden!`, which couples it to the drawer's markup.
+  Give the drawer a prop or a `data-slot` for its handle instead.
+- `BotonSistema` `secundario` and `peligro` keep `shadow-lg` while
+  `primario` and the cards are flat.
+- In dark mode the phone list card (`bg-card` on `--surface-primary`, no
+  border below `md`) barely separates from the page.
 
 ## Open follow-ups
 
@@ -72,13 +108,12 @@ Carried over from the v1 docs, still open on `ff8a7bea`:
   exists now, so replace them.
 - Grupos de Vida still uses `orange-*` classes (17 files); `text-brand-text`
   and `bg-brand-tint` exist now, so replace them.
-- `TarjetaSistema` `default`/`elevated` render `glass-panel`; move them to
-  the card surface (Phase 1).
 - `BadgeSistema` uses raw palette colors and the `error` name; map to the
-  status tokens (Phase 1).
+  status tokens.
 - Remove `@deprecated` components once they have no consumers.
 - The old roadmap's `TablaSistema` (sorting and pagination built in) is now
-  the planned responsive list row ([components.md](components.md#planned-components)).
+  `ListaResponsiva` ([components.md](components.md#lists-and-toolbar));
+  pagination is not built.
 
 Resolved since the v1 docs (kept here so nobody re-opens them):
 `BotonSistema` has a `peligro` variant; `BotonSistema` has a link form
@@ -86,7 +121,8 @@ Resolved since the v1 docs (kept here so nobody re-opens them):
 warning text token exists (`--warning-text`) and Grupos de Vida no longer
 uses `amber-700` / `yellow-700` text; Talleres confirms use `peligro`; the
 Dream Team pages render `PaginaSistema` (no `ContenedorDashboard` islands);
-`coloresMarca` points at the CSS variables.
+`coloresMarca` points at the CSS variables; `TarjetaSistema`
+`default`/`elevated` are on the card surface (Phase 1).
 
 ## Decisions (2026-10-26)
 

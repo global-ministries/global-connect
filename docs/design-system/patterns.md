@@ -37,7 +37,7 @@ Every screen that lists people or items follows this order, top to bottom:
 | Toolbar | Search, Filtros, segmented control in one wrapping row | same | Filled search only; Filtros moves to the nav bar icon, the view switch into the sheet |
 | Metrics | 4 columns with bar and hint | 2×2 | 2×2 compact, no bar or hint, pressed = inset brand ring |
 | Scope cards | Auto-fill grid (≥ 240px) with count, flags, etapa bar | same | Inset grouped list: name, responsible, count, chevron; warning flag only |
-| List | Table-like rows with sortable headers | Two-line rows, no headers | Inset grouped rows with avatar, status dot, chevron |
+| List (`ListaResponsiva`) | Table-like rows with sortable headers (`aria-sort`) | Same header grid and sortable headers; columns marked `ocultarEnTablet` (Turno) hide until `lg` | Inset grouped rows with avatar, status dot, chevron |
 
 Rules:
 
@@ -102,7 +102,8 @@ One drawer per item replaces per-row menus.
 - **Empty, no match**: title + one line pointing at the filters ("Nadie
   coincide con estos filtros" / "Quitá alguno o usá «Limpiar todo».").
 - Both render inside the list container, centered, muted. Use the one
-  canonical empty state (planned; until then the area's existing one).
+  canonical empty state (`EstadoVacioSistema`) and `SkeletonLista` for the
+  loading rows.
 - Always handle loading, show errors visibly, and disable buttons during
   actions (`cargando`).
 

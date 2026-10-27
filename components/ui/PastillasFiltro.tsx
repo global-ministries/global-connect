@@ -5,7 +5,7 @@
  * They sit one level below the KPI filter cards (components/ui/TarjetasFiltro):
  * the cards choose WHERE to look (dirección, área, equipo), the pills narrow
  * WHAT is shown. One look everywhere — label, then the count in bold — and the
- * pressed pill uses the same brand accent as a selected card.
+ * pressed pill uses the same brand tint (`bg-brand-tint`) as a selected card.
  *
  * Without `cantidad` (chips whose counts are not loaded, quick ranges) the
  * pill shows only its label, with the same look.
@@ -38,7 +38,7 @@ export function PastillaFiltro({ etiqueta, cantidad, activa, onClick }: Pastilla
       className={cn(
         'flex min-h-[44px] shrink-0 items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] px-4 text-sm font-medium transition-colors',
         activa
-          ? 'border-[var(--brand-primary)] bg-[var(--brand-accent)] text-foreground'
+          ? 'border-brand bg-brand-tint text-foreground'
           : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
         ANILLO,
       )}

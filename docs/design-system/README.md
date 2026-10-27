@@ -49,13 +49,25 @@ screenshots in [`prototipos/capturas/`](prototipos/capturas/).
    (`success`, `warning`, `info`, `danger`, `brand`), never raw palette
    classes. See [foundations.md](foundations.md).
 
+## Gallery
+
+`/design-system` renders every design system v2 piece with Servidores-like
+sample data, so a change to a canonical component can be checked at phone,
+tablet and desktop widths before a screen adopts it. It exists only in local
+development and preview deployments (`VERCEL_ENV !== "production"`; production
+returns 404) and sits under `(auth)`, so previews still require a login. It
+is not linked from any menu. Code:
+[`app/(auth)/design-system/page.tsx`](<../../app/(auth)/design-system/page.tsx>)
+and [`components/ui/galeria-sistema.tsx`](../../components/ui/galeria-sistema.tsx).
+Add each new canonical piece to the gallery in the PR that builds it.
+
 ## File map
 
 | File | What it holds |
 | --- | --- |
 | [foundations.md](foundations.md) | Tokens: color, status, brand, radius, typography, spacing, control sizes, motion, shadows; legacy tokens and their replacements |
 | [layout.md](layout.md) | App shell, `PaginaSistema`, desktop header and breadcrumb, gutters, hero, sections and fields, action footer, side panel, dialogs, navigation, phone shell |
-| [components.md](components.md) | Canonical catalog with API and file path, deprecation table, planned components |
+| [components.md](components.md) | Canonical catalog with API and file path, deprecation table, planned components; the `/design-system` gallery shows them all |
 | [patterns.md](patterns.md) | Recipes: list screen anatomy, filters sheet, detail drawer, empty and loading states, permission-gated actions, URL-synced filters, forms, feedback |
 | [mobile.md](mobile.md) | Native-app rules for phones |
 | [migration.md](migration.md) | Status per area, open follow-ups, the lint guardrail |

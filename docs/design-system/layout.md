@@ -156,8 +156,8 @@ the `pie` actions. Padding is 16px mobile, 24px from `sm`.
 - Extra header content (e.g. a step indicator) goes at the top of the body;
   `descripcion` renders inside a `<p>`, so it takes text only.
 - The prototype's detail drawer is 440px wide on desktop and a bottom sheet
-  on phone; the bottom-sheet variant is planned (see
-  [patterns.md](patterns.md#detail-drawer)).
+  on phone: `DetalleResponsivo` renders this panel from `md` and
+  `HojaInferior` below (see [patterns.md](patterns.md#detail-drawer)).
 
 ## Dialogs
 
@@ -213,6 +213,7 @@ Below `md` the page is a native-app screen. The full rules are in
    home indicator.
 5. Drawers and filters open as bottom sheets.
 
-Today `HeaderMovil` shows the route title with a menu and avatar; the
-navigation bar with back and large title is planned
-([components.md](components.md#planned-components)).
+Today `HeaderMovil` shows the route title with a menu and avatar. Screens
+opt into the navigation bar with back and the large title with
+`BarraNavegacionMovil` and `TituloGrande`
+([components.md](components.md#phone-navigation)).

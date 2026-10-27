@@ -41,7 +41,7 @@ values, `backgroundColor: 'white'`. Charts (Recharts) take `var(--border)` and
   is about 2:1 on white.
 - Text and icons read on a card, the page or a tinted badge use the `-text`
   tokens (`text-warning-text`, `text-danger-text`). Each reaches at least
-  4.5:1 on the card, the page and its own 15% tint, in light and dark.
+  4.5:1 on the card, the page and its own tint (10% light, 13% dark), in light and dark.
 - `-foreground` is only for text on the solid fill (`bg-danger
   text-danger-foreground`).
 - Use these instead of raw palette colors (`text-red-600`, `bg-green-500/10`).
@@ -53,7 +53,7 @@ values, `backgroundColor: 'white'`. Charts (Recharts) take `var(--border)` and
 Etapa colors in the prototype: Postulado `warning`, En orientación `info`,
 Activo `success`, En pausa `muted-foreground`, Inactivo faint muted,
 Retirado `danger`. A status is shown as a dot plus a label (see the status
-dot in [components.md](components.md#planned-components)), never as color
+dot, `PuntoEstado`, in [components.md](components.md#surfaces-and-status)), never as color
 alone.
 
 ## Brand color (decided)
@@ -74,7 +74,7 @@ is left.
 
 | Legacy | Replacement | Note |
 | --- | --- | --- |
-| `--glass-*` tokens, `glass-panel`, `glass-panel-elevated`, `glass-panel-subtle`, `glass-border-glow`, `scrollbar-glass` | `bg-card border border-border` (cards), the planned shadow tokens (sheets) | The glass look is retired. `TarjetaSistema` `default`/`elevated` still render `glass-panel`; Phase 1 moves them to the card surface. Translucent blur stays only for system bars (phone nav bar and tab bar, sticky desktop header). |
+| `--glass-*` tokens, `glass-panel`, `glass-panel-elevated`, `glass-panel-subtle`, `glass-border-glow`, `scrollbar-glass` | `bg-card border border-border` (cards), `shadow-sheet` / `shadow-fab` (sheets, FAB) | The glass look is retired. `TarjetaSistema` renders the card surface (Phase 1). Translucent blur stays only for system bars (phone nav bar and tab bar, sticky desktop header). |
 | `--destructive`, `bg-destructive`, `text-destructive` | `--danger`, `bg-danger`, `text-danger-text` | Same role, two names. shadcn primitives still read `--destructive`. |
 | `--brand-primary-light` (#F59E0B), `--brand-dark` (#363D45), `--brand-accent` (8% tint), `--brand-primary-rgb` | `bg-brand`, `bg-brand-tint`, `text-foreground` | No Tailwind class. `PastillasFiltro` and `TarjetasFiltro` read `var(--brand-accent)` directly for the pressed state; Decided: one tint; Phase 1 moves them to `bg-brand-tint`. |
 | `coloresMarca` (`components/ui/sistema-diseno.tsx`) | Tailwind classes | Now points at the CSS variables. Reach for it only where a class cannot (inline styles, SVG attributes). The old hex object is gone. |
@@ -181,8 +181,9 @@ override it.
 ## Shadows
 
 Decided (2026-10-26). The prototype is flat: cards use a 1px border and no
-shadow. Only floating layers get a shadow, through these two tokens (Phase 1
-adds them to `app/globals.css`; the legacy `--glass-shadow*` retire):
+shadow. Only floating layers get a shadow, through these two tokens (in
+`app/globals.css` since Phase 1, as `shadow-sheet` and `shadow-fab`; the
+legacy `--glass-shadow*` retire):
 
 | Token | Light | Dark | Use |
 | --- | --- | --- | --- |

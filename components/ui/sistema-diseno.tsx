@@ -324,7 +324,8 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
     const baseClasses = "inline-flex shrink-0 items-center justify-center font-medium rounded-xl transition-[background-color,box-shadow,transform] duration-200 ease-expo focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background press-scale touch-manipulation"
 
     const variantes = {
-      primario: "bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl focus:ring-orange-500",
+      // Flat brand fill, no gradient (docs/design-system/migration.md#decisions-2026-10-26).
+      primario: "bg-brand hover:bg-brand/90 text-brand-foreground focus:ring-brand",
       secundario: "bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-lg hover:shadow-xl focus:ring-secondary",
       outline: "border-2 border-border hover:border-border/80 text-foreground hover:bg-accent focus:ring-ring",
       ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring",
@@ -375,16 +376,21 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
 )
 BotonSistema.displayName = "BotonSistema"
 
-// ─── Tarjeta Liquid Glass ───
+// ─── Tarjeta del Sistema ───
 interface TarjetaSistemaProps extends React.HTMLAttributes<HTMLDivElement> {
   variante?: 'default' | 'elevated' | 'outlined'
 }
 
+/**
+ * Cards are flat: the card surface with a 1px border and no shadow (the glass
+ * look is retired, docs/design-system/foundations.md#shadows). `elevated`
+ * keeps its name for existing callers and renders the same surface.
+ */
 export const TarjetaSistema = React.forwardRef<HTMLDivElement, TarjetaSistemaProps>(
   ({ className, variante = 'default', ...props }, ref) => {
     const variantes = {
-      default: "glass-panel",
-      elevated: "glass-panel-elevated",
+      default: "bg-card border border-border",
+      elevated: "bg-card border border-border",
       outlined: "bg-card border border-border shadow-lg"
     }
 
