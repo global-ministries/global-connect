@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-import { componerNavegacion, type EntradaMenu } from '@/components/navegacion/componer-navegacion'
+import { componerNavegacion, paginasTalleres, type EntradaMenu } from '@/components/navegacion/componer-navegacion'
 import { useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
 import { useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
@@ -30,8 +30,8 @@ export function useCredencialesNavegacion(): CredencialesNavegacion {
 }
 
 /**
- * The visible navigation for the sidebar, the mobile drawer and the bottom
- * bar (components/navegacion/componer-navegacion.ts): the main list in its
+ * The visible navigation for the sidebar, the phone tab bar and its "Más"
+ * sheet (components/navegacion/componer-navegacion.ts): the main list in its
  * current order, the footer and account links, the entries by section, the
  * phone tabs and the "Más" sheet contents.
  */
@@ -43,10 +43,14 @@ export function useEntradasNavegacion() {
   const ninos = useNinosMenuItem()
   // Server-fed flags (hooks/useUnoAUnoAcceso): whoever leads, supervises or takes part in a 1:1.
   const unoAUno = useUnoAUnoMenuItem()
+  const talleres = useMemo(
+    () => paginasTalleres((platformSession?.capabilities ?? []).map((capacidad) => capacidad.key)),
+    [platformSession],
+  )
 
   const navegacion = useMemo(
-    () => componerNavegacion({ credenciales, dreamTeam, ninos, unoAUno, plataforma }),
-    [credenciales, dreamTeam, ninos, unoAUno, plataforma],
+    () => componerNavegacion({ credenciales, dreamTeam, ninos, unoAUno, plataforma, talleres }),
+    [credenciales, dreamTeam, ninos, unoAUno, plataforma, talleres],
   )
 
   return { ...navegacion, platformSession }

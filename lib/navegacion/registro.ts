@@ -22,9 +22,8 @@ import type { SeccionNavegacion } from '@/lib/navegacion/secciones'
 
 /**
  * The single list of the app's own navigation entries, read by the desktop
- * sidebar (components/ui/sidebar-moderna.tsx), the mobile drawer
- * (components/ui/header-movil.tsx) and the mobile bottom bar
- * (components/ui/menu-inferior-movil.tsx).
+ * sidebar (components/ui/sidebar-moderna.tsx), the phone tab bar and its
+ * "Más" sheet (components/ui/menu-inferior-movil.tsx).
  *
  * Who sees an entry is decided only by `roles` / `capabilities`, through
  * canAccess (lib/navigation/canAccess.ts), exactly as before the registry.
@@ -45,6 +44,8 @@ export interface SubEntradaNavegacion {
   roles?: string[]
   /** Support capabilities that can see it. Undefined: everyone. */
   capabilities?: string[]
+  /** One line under the label where a page lists its section's pages (components/navegacion/accesos-seccion.tsx). */
+  descripcion?: string
 }
 
 export interface EntradaNavegacion extends SubEntradaNavegacion {
@@ -53,6 +54,8 @@ export interface EntradaNavegacion extends SubEntradaNavegacion {
   children?: SubEntradaNavegacion[]
   /** Shorter visible text in the phone tab bar (label stays the accessible name). */
   labelMovil?: string
+  /** Where the phone tab opens when it is not `href`: a root page listing the group's pages (Dream Team: /dream-team). */
+  hrefRaiz?: string
 }
 
 export interface CredencialesNavegacion {
@@ -124,7 +127,7 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
   },
   { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/actualizaciones', seccion: 'pie' },
   { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda', seccion: 'pie' },
-  { id: 'perfil', label: 'Mi Perfil', icon: User, href: '/perfil', seccion: 'cuenta' },
+  { id: 'perfil', label: 'Mi perfil', icon: User, href: '/perfil', seccion: 'cuenta' },
 ]
 
 /** The registry entries in these sections, in registry order. */

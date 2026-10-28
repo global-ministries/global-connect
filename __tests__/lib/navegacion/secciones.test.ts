@@ -4,6 +4,7 @@ import {
   agruparPorSeccion,
   contenidoMas,
   esPestanaActiva,
+  filasDeMas,
   pestanasBarraInferior,
   type SeccionNavegacion,
 } from '@/lib/navegacion/secciones'
@@ -44,9 +45,14 @@ const CONFIG = e('configuracion-global', 'administracion', {
   label: 'Configuración', href: '/configuracion',
   children: [{ id: 'config-general', label: 'General', href: '/configuracion' }],
 })
+const CONFIG_SOPORTE = { id: 'config-soporte', label: 'Configuración de soporte', href: '/configuracion/soporte' }
+const TALLERES_PAGINAS = [
+  { id: 'talleres_catalogo', label: 'Catálogo', href: '/talleres' },
+  { id: 'talleres_participante_explorar', label: 'Explorar', href: '/talleres/explorar' },
+]
 const ACTUALIZACIONES = e('actualizaciones', 'pie', { label: 'Actualizaciones' })
 const AYUDA = e('ayuda', 'pie', { label: 'Ayuda' })
-const PERFIL = e('perfil', 'cuenta', { label: 'Mi Perfil' })
+const PERFIL = e('perfil', 'cuenta', { label: 'Mi perfil' })
 
 const ids = (entradas: readonly { id: string }[]) => entradas.map((entrada) => entrada.id)
 
@@ -144,37 +150,119 @@ describe('bottom tab bar', () => {
   })
 })
 
+const bloques = (mas: { subpaginas: { grupo: { id: string }; paginas: { href: string }[] }[] }) =>
+  mas.subpaginas.map((bloque) => [bloque.grupo.id, bloque.paginas.map((pagina) => pagina.href)])
+
 describe('"Más" sheet contents', () => {
   it('lists account, then every entry not in the tabs by section without submenus, then the footer', () => {
     const entradas = [INICIO, UNO_A_UNO, USUARIOS, GRUPOS, DREAM_TEAM, NINOS, TALLERES, CONFIG, ACTUALIZACIONES, AYUDA, PERFIL]
     const mas = contenidoMas(entradas, pestanasBarraInferior(entradas))
 
     expect(ids(mas.cuenta)).toEqual(['perfil'])
+    // Configuración has sub-pages, so it moves from its section to its own block (S10).
     expect(mas.secciones.map((grupo) => [grupo.seccion, ids(grupo.entradas)])).toEqual([
       ['general', ['mis-uno-a-uno']],
       ['ministerios', ['platform-talleres_participation-taller-global']],
-      ['administracion', ['usuarios', 'configuracion-global']],
+      ['administracion', ['usuarios']],
     ])
     expect(ids(mas.pie)).toEqual(['actualizaciones', 'ayuda'])
     const filas = [...mas.cuenta, ...mas.secciones.flatMap((grupo) => grupo.entradas), ...mas.pie]
     expect(filas.every((fila) => !('children' in fila))).toBe(true)
   })
 
-  it('shows a group as one row to its own page (root or first page)', () => {
-    const entradas = [INICIO, CONFIG, GRUPOS, AYUDA]
+  it('shows a group without visible sub-pages as one row to its own page', () => {
+    const configSinHijas = { ...CONFIG, children: [] }
+    const entradas = [INICIO, configSinHijas, AYUDA]
     const mas = contenidoMas(entradas, [])
     expect(mas.secciones.flatMap((grupo) => grupo.entradas).map((fila) => [fila.id, fila.href])).toEqual([
       ['dashboard', '/dashboard'],
-      ['grupos-vida', '/grupos-vida'],
       ['configuracion-global', '/configuracion'],
     ])
+    expect(mas.subpaginas).toEqual([])
   })
 
   it('leaves out an entry whose page a tab already opens (a platform Grupos de Vida item)', () => {
     const gruposPlataforma = e('platform-grupos_vida_stage-etapa-adultos', 'ministerios', { label: 'Grupos de Vida — Adultos', href: '/grupos-vida' })
-    const entradas = [INICIO, GRUPOS, gruposPlataforma, TALLERES, ACTUALIZACIONES, AYUDA, PERFIL]
+    const entradas = [INICIO, { ...GRUPOS, children: [] }, gruposPlataforma, TALLERES, ACTUALIZACIONES, AYUDA, PERFIL]
     const mas = contenidoMas(entradas, pestanasBarraInferior(entradas))
     expect(mas.secciones).toEqual([])
     expect(ids(mas.pie)).toEqual(['actualizaciones'])
+  })
+})
+
+describe('"Más" sub-page blocks (S10)', () => {
+  it('gives Grupos de Vida a block with its sub-pages even though Grupos is a tab', () => {
+    const entradas = [INICIO, GRUPOS, AYUDA]
+    const mas = contenidoMas(entradas, pestanasBarraInferior(entradas))
+
+    expect(bloques(mas)).toEqual([['grupos-vida', ['/grupos-vida/mapa']]])
+    expect(mas.subpaginas[0].grupo).toMatchObject({ label: 'Grupos de Vida' })
+    expect(mas.subpaginas[0].grupo).not.toHaveProperty('children')
+  })
+
+  it('gives Configuración a block with General and Configuración de soporte, and drops its section row', () => {
+    const config = { ...CONFIG, children: [...CONFIG.children!, CONFIG_SOPORTE] }
+    const entradas = [INICIO, GRUPOS, USUARIOS, config, AYUDA]
+    const mas = contenidoMas(entradas, pestanasBarraInferior(entradas))
+
+    expect(bloques(mas)).toEqual([
+      ['grupos-vida', ['/grupos-vida/mapa']],
+      ['configuracion-global', ['/configuracion', '/configuracion/soporte']],
+    ])
+    expect(mas.subpaginas[1].paginas.map((pagina) => pagina.label)).toEqual(['General', 'Configuración de soporte'])
+    expect(mas.secciones.map((grupo) => [grupo.seccion, ids(grupo.entradas)])).toEqual([['administracion', ['usuarios']]])
+  })
+
+  it('starts the block with the group page when no child and no tab opens it', () => {
+    const config = { ...CONFIG, children: [CONFIG_SOPORTE] }
+    const mas = contenidoMas([INICIO, config], [INICIO])
+
+    expect(bloques(mas)).toEqual([['configuracion-global', ['/configuracion', '/configuracion/soporte']]])
+    expect(mas.subpaginas[0].paginas[0]).toMatchObject({ id: 'configuracion-global', label: 'Configuración' })
+    expect(mas.secciones).toEqual([])
+  })
+
+  it('gives no block to Dream Team, nor to Niños and Talleres when they are tabs', () => {
+    const talleres = { ...TALLERES, children: TALLERES_PAGINAS }
+    const conNinos = [INICIO, GRUPOS, DREAM_TEAM, NINOS, AYUDA]
+    expect(bloques(contenidoMas(conNinos, pestanasBarraInferior(conNinos)))).toEqual([['grupos-vida', ['/grupos-vida/mapa']]])
+
+    const conTalleres = [INICIO, GRUPOS, talleres, AYUDA]
+    expect(ids(pestanasBarraInferior(conTalleres))).toContain(talleres.id)
+    expect(bloques(contenidoMas(conTalleres, pestanasBarraInferior(conTalleres)))).toEqual([['grupos-vida', ['/grupos-vida/mapa']]])
+
+    const sinPestanas = [DREAM_TEAM]
+    expect(contenidoMas(sinPestanas, []).subpaginas).toEqual([])
+  })
+
+  it('gives Niños and Talleres a block when they are not tabs', () => {
+    const talleres = { ...TALLERES, children: TALLERES_PAGINAS }
+    const entradas = [INICIO, GRUPOS, DREAM_TEAM, NINOS, talleres, AYUDA]
+    const pestanas = pestanasBarraInferior(entradas)
+    expect(ids(pestanas)).not.toContain(talleres.id)
+    const mas = contenidoMas(entradas, pestanas)
+    expect(bloques(mas)).toEqual([
+      ['grupos-vida', ['/grupos-vida/mapa']],
+      [talleres.id, ['/talleres', '/talleres/explorar']],
+    ])
+    expect(mas.secciones).toEqual([])
+
+    const ninosSinPestana = contenidoMas([NINOS], [])
+    expect(bloques(ninosSinPestana)).toEqual([['ninos', ['/ninos/checkin']]])
+  })
+
+  it('orders the blocks by sidebar section, not by list order', () => {
+    const config = { ...CONFIG, children: [CONFIG_SOPORTE] }
+    const mas = contenidoMas([INICIO, config, GRUPOS], [INICIO])
+    expect(mas.subpaginas.map((bloque) => bloque.grupo.id)).toEqual(['grupos-vida', 'configuracion-global'])
+  })
+
+  it('lists every row in order with filasDeMas', () => {
+    const config = { ...CONFIG, children: [...CONFIG.children!, CONFIG_SOPORTE] }
+    const entradas = [INICIO, UNO_A_UNO, GRUPOS, USUARIOS, config, ACTUALIZACIONES, AYUDA, PERFIL]
+    const mas = contenidoMas(entradas, pestanasBarraInferior(entradas))
+    expect(filasDeMas(mas).map((fila) => fila.href)).toEqual([
+      '/perfil', '/mis-uno-a-uno', '/users', '/grupos-vida/mapa', '/configuracion', '/configuracion/soporte', '/actualizaciones',
+    ])
   })
 })

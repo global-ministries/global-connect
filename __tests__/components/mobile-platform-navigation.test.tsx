@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { HeaderMovil } from '@/components/ui/header-movil'
+import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 let currentRoles = ['miembro']
@@ -10,6 +10,7 @@ let currentLoading = false
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',
+  useRouter: () => ({ push: jest.fn() }),
 }))
 jest.mock('@/hooks/useCurrentUser', () => ({
   useCurrentUser: () => ({
@@ -35,7 +36,25 @@ const basePlatformSession: PlatformSession = {
   capabilities: [],
 }
 
-describe('HeaderMovil platform navigation', () => {
+/**
+ * The phone menus in platform navigation mode. The drawer is gone
+ * (odd/tasks/sistema-diseno-v2.md, S9.6): what it listed is now split between
+ * the tab bar and the "Más" sheet, so these tests read both.
+ */
+async function abrirMas() {
+  await userEvent.click(screen.getByRole('button', { name: 'Más' }))
+  return within(screen.getByRole('dialog', { name: 'Más' }))
+}
+
+/** Every link on the phone: the tabs (hidden from the tree while the sheet is open), then the open "Más" sheet. */
+function enlacesMovil() {
+  return screen.queryAllByRole('link', { hidden: true }).map((link) => ({
+    nombre: link.getAttribute('aria-label') ?? link.textContent ?? '',
+    href: link.getAttribute('href'),
+  }))
+}
+
+describe('phone platform navigation (tab bar and "Más")', () => {
   beforeEach(() => {
     currentRoles = ['miembro']
     currentPlatformSession = null
@@ -47,7 +66,7 @@ describe('HeaderMovil platform navigation', () => {
   it.each([
     ['feature flag is off', undefined, undefined],
     ['kill switch is active', 'true', 'true'],
-  ])('keeps legacy mobile drawer behavior when the %s', async (_label, enabled, killSwitch) => {
+  ])('keeps the legacy entries when the %s', async (_label, enabled, killSwitch) => {
     if (enabled) process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = enabled
     if (killSwitch) process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_KILL_SWITCH = killSwitch
     currentRoles = ['admin']
@@ -55,11 +74,11 @@ describe('HeaderMovil platform navigation', () => {
       { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
     ])
 
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    render(<MenuInferiorMovil />)
+    const hoja = await abrirMas()
 
-    expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
-    expect(screen.queryByRole('link', { name: 'DPS Música' })).not.toBeInTheDocument()
+    expect(hoja.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
+    expect(enlacesMovil().some(({ nombre }) => nombre.includes('DPS Música'))).toBe(false)
   })
 
   it('keeps gated legacy items visible while loading after they were already resolved', async () => {
@@ -67,18 +86,18 @@ describe('HeaderMovil platform navigation', () => {
     currentRoles = ['admin']
     currentPlatformSession = null
 
-    const { rerender } = render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    const { rerender } = render(<MenuInferiorMovil />)
+    await abrirMas()
     expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
 
     currentLoading = true
     currentRoles = []
-    rerender(<HeaderMovil />)
+    rerender(<MenuInferiorMovil />)
 
     expect(screen.getByRole('link', { name: 'Usuarios' })).toHaveAttribute('href', '/users')
   })
 
-  it('shows scoped platform navigation in the mobile drawer when the flag is on and the route is available', async () => {
+  it('opens the scoped platform Grupos de Vida item from the Grupos tab when the flag is on', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -86,14 +105,17 @@ describe('HeaderMovil platform navigation', () => {
       { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
     ])
 
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    render(<MenuInferiorMovil />)
 
-    expect(await screen.findByRole('link', { name: 'Grupos de Vida — Adultos' })).toHaveAttribute('href', '/grupos-vida')
-    expect(screen.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
+    // Talleres resolves with the platform items; the scoped Grupos de Vida item opens the Grupos tab's page.
+    expect(await screen.findByLabelText('Navegar a Talleres')).toBeInTheDocument()
+    expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
+    const hoja = await abrirMas()
+    expect(hoja.queryByRole('link', { name: 'Grupos de Vida — Adultos' })).not.toBeInTheDocument()
+    expect(hoja.queryByRole('link', { name: 'Usuarios' })).not.toBeInTheDocument()
   })
 
-  it('suppresses unavailable and global platform access in the mobile drawer', async () => {
+  it('suppresses unavailable and global platform access in the tab bar and "Más"', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -109,17 +131,17 @@ describe('HeaderMovil platform navigation', () => {
       { experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', label: 'Grupos de Vida — Adultos' },
     ])
 
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    render(<MenuInferiorMovil />)
+    expect(await screen.findByLabelText('Navegar a Talleres — de-hombre-a-hombre')).toHaveAttribute('href', '/talleres/explorar')
+    await abrirMas()
 
-    expect(await screen.findByRole('link', { name: 'Grupos de Vida — Adultos' })).toHaveAttribute('href', '/grupos-vida')
-    await waitFor(() => expect(screen.queryByRole('link', { name: 'DPS Música' })).not.toBeInTheDocument())
-    expect(screen.queryByRole('link', { name: 'Niños' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Estudiantes' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Talleres' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Administración DPS' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Administración NextGen' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: '1:1 Global' })).not.toBeInTheDocument()
+    await waitFor(() => expect(enlacesMovil().some(({ nombre }) => nombre.includes('DPS Música'))).toBe(false))
+    const nombres = enlacesMovil().map(({ nombre }) => nombre)
+    for (const oculto of ['Niños', 'Estudiantes', 'Administración DPS', 'Administración NextGen', '1:1 Global', 'Usuarios']) {
+      expect(nombres.some((nombre) => nombre === oculto || nombre === `Navegar a ${oculto}`)).toBe(false)
+    }
+    // Only the shared Talleres entry (a tab) reaches /talleres; no global Talleres admin.
+    expect(enlacesMovil().filter(({ href }) => href?.startsWith('/talleres')).map(({ href }) => href)).toEqual(['/talleres/explorar'])
   })
 })
 

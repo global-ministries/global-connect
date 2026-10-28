@@ -2,13 +2,17 @@
  * Navigation of the Directores page: "Directores" lives inside Grupos de Vida,
  * right after "Segmentos" (admin, pastor and director general), and
  * "Directores Generales" is gone from Configuración. Covers the desktop
- * sidebar and the phone drawer.
+ * sidebar and the phone menus. The phone drawer is gone
+ * (odd/tasks/sistema-diseno-v2.md, S9.6): the Grupos tab opens Grupos de Vida
+ * and the "Más" sheet lists its pages in a "Grupos de Vida" block (S10), with
+ * Directores right after Segmentos for the same roles as the sidebar.
  */
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import { HeaderMovil } from '@/components/ui/header-movil'
+import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 
 let currentRoles = ['admin']
 let currentPathname = '/grupos-vida/directores'
@@ -82,32 +86,39 @@ describe('SidebarModerna — Directores', () => {
   })
 })
 
-describe('HeaderMovil — Directores', () => {
-  async function abrirMenu() {
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+describe('phone menus — Directores', () => {
+  async function abrirMas() {
+    render(<MenuInferiorMovil />)
+    await userEvent.click(screen.getByRole('button', { name: 'Más' }))
+    return within(screen.getByRole('dialog', { name: 'Más' }))
   }
 
-  it.each([['admin'], ['pastor'], ['director-general']])('shows Directores right after Segmentos for the role %s', async (rol) => {
+  it.each([['admin'], ['pastor'], ['director-general']])('lists Directores right after Segmentos in the Grupos de Vida block for the role %s', async (rol) => {
     currentRoles = [rol]
-    await abrirMenu()
+    const hoja = await abrirMas()
 
-    expect(screen.getByRole('link', { name: 'Directores' })).toHaveAttribute('href', '/grupos-vida/directores')
-    const textos = enlaces()
+    expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
+    const grupos = within(hoja.getByRole('region', { name: 'Grupos de Vida' }))
+    expect(grupos.getByRole('link', { name: 'Directores' })).toHaveAttribute('href', '/grupos-vida/directores')
+    const textos = grupos.getAllByRole('link').map((a) => a.textContent?.trim())
     expect(textos[textos.indexOf('Segmentos') + 1]).toBe('Directores')
   })
 
-  it('does not show Directores to a director de etapa', async () => {
+  it('does not list Directores for a director de etapa', async () => {
     currentRoles = ['director-etapa']
-    await abrirMenu()
-    expect(screen.queryByRole('link', { name: 'Directores' })).not.toBeInTheDocument()
+    const hoja = await abrirMas()
+
+    const grupos = within(hoja.getByRole('region', { name: 'Grupos de Vida' }))
+    expect(grupos.getByRole('link', { name: 'Segmentos' })).toBeInTheDocument()
+    expect(hoja.queryByRole('link', { name: 'Directores' })).not.toBeInTheDocument()
   })
 
   it('removes Directores Generales from Configuración', async () => {
-    currentPathname = '/configuracion/soporte' // expands the Configuración group
-    await abrirMenu()
-    expect(screen.getByRole('link', { name: 'General' })).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Directores Generales' })).not.toBeInTheDocument()
+    currentPathname = '/configuracion/soporte'
+    const hoja = await abrirMas()
+    const configuracion = within(hoja.getByRole('region', { name: 'Configuración' }))
+    expect(configuracion.getByRole('link', { name: 'General' })).toHaveAttribute('href', '/configuracion')
+    expect(hoja.queryByRole('link', { name: 'Directores Generales' })).not.toBeInTheDocument()
     expect(document.body.innerHTML).not.toContain('/configuracion/directores-generales')
   })
 

@@ -1,5 +1,5 @@
 import { buildNinosMenuItem, getNinosNavItems } from '@/components/ninos/ninos-menu-item'
-import { componerNavegacion } from '@/components/navegacion/componer-navegacion'
+import { componerNavegacion, paginasTalleres } from '@/components/navegacion/componer-navegacion'
 import { buildDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import { resolvePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
 import { buildUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
@@ -58,6 +58,7 @@ async function navegacionDe(nombre: string, { plataforma = true } = {}) {
     })),
     unoAUno: buildUnoAUnoMenuItem({ ...SIN_ACCESO_UNO_A_UNO, lidera: rol.unoAUno === true }),
     plataforma: items,
+    talleres: paginasTalleres(platformSession.capabilities.map((capacidad) => capacidad.key)),
   })
 }
 
@@ -134,6 +135,25 @@ describe('shell navigation per role', () => {
     expect(ids(mas.pie)).toEqual(['actualizaciones'])
   })
 
+  it('gives the admin "Más" blocks for Grupos de Vida, Talleres (not a tab) and Configuración (S10)', async () => {
+    const { mas } = await navegacionDe('admin')
+    expect(mas.subpaginas.map((bloque) => [bloque.grupo.label, bloque.paginas.map((pagina) => pagina.href)])).toEqual([
+      ['Grupos de Vida', [
+        '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/directores', '/grupos-vida/temporadas',
+        '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo',
+        '/grupos-vida/solicitudes', '/grupos-vida/configuracion',
+      ]],
+      ['Talleres', paginasTalleres([]).map((pagina) => pagina.href)],
+      ['Configuración', ['/configuracion']],
+    ])
+    expect(paginasTalleres([]).map((pagina) => pagina.href)).toEqual(['/talleres', '/talleres/explorar', '/talleres/mi-recorrido'])
+  })
+
+  it('gives no Talleres block where Talleres is a tab (a leader)', async () => {
+    const { mas } = await navegacionDe('lider')
+    expect(mas.subpaginas).toEqual([])
+  })
+
   it('still has tabs without platform navigation (flag off or still loading)', async () => {
     const { pestanas } = await navegacionDe('lider', { plataforma: false })
     expect(pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Ayuda'])
@@ -143,7 +163,10 @@ describe('shell navigation per role', () => {
     for (const nombre of Object.keys(ROLES)) {
       const { principales, pie, cuenta, pestanas, mas } = await navegacionDe(nombre)
       const visibles = new Set([...principales, ...pie, ...cuenta].map((entrada) => entrada.id))
-      const ofrecidas = [...pestanas, ...mas.cuenta, ...mas.secciones.flatMap((grupo) => grupo.entradas), ...mas.pie]
+      const ofrecidas = [
+        ...pestanas, ...mas.cuenta, ...mas.secciones.flatMap((grupo) => grupo.entradas),
+        ...mas.subpaginas.map((bloque) => bloque.grupo), ...mas.pie,
+      ]
       expect(ofrecidas.filter((entrada) => !visibles.has(entrada.id))).toEqual([])
     }
   })

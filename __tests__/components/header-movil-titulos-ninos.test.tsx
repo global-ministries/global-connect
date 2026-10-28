@@ -57,14 +57,14 @@ describe('HeaderMovil title on the Niños screens', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(titulo)
   })
 
-  it('keeps the existing titles (Mi equipo, Mi Perfil) and the logo on the dashboard', () => {
+  it('keeps the existing titles (Mi equipo, Mi perfil) and the logo on the dashboard', () => {
     currentPathname = '/dream-team/mi-equipo'
     const { unmount } = render(<HeaderMovil />)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Mi equipo')
     unmount()
     currentPathname = '/perfil'
     const segundo = render(<HeaderMovil />)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Mi Perfil')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Mi perfil')
     segundo.unmount()
     currentPathname = '/dashboard'
     render(<HeaderMovil />)

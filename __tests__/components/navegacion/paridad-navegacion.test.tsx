@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
 
-import { HeaderMovil } from '@/components/ui/header-movil'
+import { AccesosSeccion } from '@/components/navegacion/accesos-seccion'
+import { MenuCuenta } from '@/components/navegacion/menu-cuenta'
 import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import { NinosAccesoProvider } from '@/hooks/useNinosAcceso'
@@ -23,7 +24,9 @@ import type { PlatformSession } from '@/lib/platform/session/types'
  * drawer hid it; since the app shell (odd/tasks/sistema-diseno-v2.md, S9.6-7)
  * it holds up to four tabs picked from what the sidebar shows (Inicio, Grupos,
  * Niños, Equipo, then Talleres and Ayuda), in every navigation mode, and the
- * rest moves to the "Más" sheet (see BARRA_INFERIOR_DESPUES).
+ * rest moves to the "Más" sheet (see BARRA_INFERIOR_DESPUES). The phone has no
+ * drawer any more: tabs, "Más" (with its sub-page blocks, S10) and the
+ * /dream-team root page together reach exactly the sidebar's pages.
  */
 
 type Perfil = {
@@ -98,7 +101,7 @@ const GRUPOS_VIDA_DIRECCION = [
 const GRUPOS_VIDA_ETAPA = GRUPOS_VIDA_DIRECCION.filter((href) => href !== '/grupos-vida/directores' && href !== '/grupos-vida/temporadas')
 const PIE = ['/actualizaciones', '/ayuda', '/perfil']
 
-/** Sidebar and drawer list the same entries (the drawer is the sidebar's twin). */
+/** Sidebar and the old mobile drawer (removed in S9.6) listed the same entries before the app shell. */
 const MENU_PRINCIPAL: Record<string, string[]> = {
   miembro: ['/dashboard', '/grupos-vida', ...PIE],
   lider: ['/dashboard', '/users', '/grupos-vida', ...PIE],
@@ -119,8 +122,11 @@ const MENU_PRINCIPAL: Record<string, string[]> = {
   'plataforma-grupos-pastoral': ['/dashboard', '/users', '/grupos-vida', '/grupos-vida', '/talleres/explorar', ...PIE],
 }
 
-/** Only the desktop sidebar opens Talleres as a submenu (TalleresNavSubmenu). */
-const SIDEBAR: Record<string, string[]> = {
+/**
+ * The sidebar before the app shell. Only the desktop sidebar opens Talleres as
+ * a submenu (TalleresNavSubmenu).
+ */
+const SIDEBAR_ANTES: Record<string, string[]> = {
   ...MENU_PRINCIPAL,
   'plataforma-grupos-pastoral': [
     '/dashboard', '/users', '/grupos-vida', '/grupos-vida',
@@ -128,21 +134,84 @@ const SIDEBAR: Record<string, string[]> = {
   ],
 }
 
+/**
+ * The sidebar since the app shell (odd/tasks/sistema-diseno-v2.md, S9.2 and
+ * S9.4): the same pages, ordered by section — general (Inicio, Mis 1 a 1) ·
+ * Ministerios (Grupos de Vida, Niños, Talleres…) · Dream Team · Administración
+ * (Usuarios, Configuración, Cola de soporte) · footer (Actualizaciones, Ayuda).
+ * Mi perfil moved to the account menu of the header.
+ */
+const PIE_SIDEBAR = ['/actualizaciones', '/ayuda']
+const NINOS = ['/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/salon', '/ninos/cartel', '/ninos/reportes']
+const DREAM_TEAM = ['/dream-team/mi-equipo', '/dream-team/mi-equipo', '/admin/dream-team/servidores', '/admin/dream-team/estructura']
+const SIDEBAR: Record<string, string[]> = {
+  miembro: ['/dashboard', '/grupos-vida', ...PIE_SIDEBAR],
+  lider: ['/dashboard', '/grupos-vida', '/users', ...PIE_SIDEBAR],
+  'director-etapa': ['/dashboard', '/grupos-vida', ...GRUPOS_VIDA_ETAPA, '/users', ...PIE_SIDEBAR],
+  'director-general': ['/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/users', '/configuracion', ...PIE_SIDEBAR],
+  pastor: [
+    '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
+    '/users', '/configuracion', '/configuracion', ...PIE_SIDEBAR,
+  ],
+  admin: [
+    '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
+    '/users', '/configuracion', '/configuracion', ...PIE_SIDEBAR,
+  ],
+  'staff-soporte': ['/dashboard', '/grupos-vida', '/ayuda/admin', ...PIE_SIDEBAR],
+  'director-general-soporte': [
+    '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION,
+    '/users', '/configuracion', '/configuracion/soporte', '/ayuda/admin', ...PIE_SIDEBAR,
+  ],
+  'admin-dream-team-ninos': [
+    '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion', ...NINOS,
+    ...DREAM_TEAM,
+    '/users', '/configuracion', '/configuracion', ...PIE_SIDEBAR,
+  ],
+  'lider-uno-a-uno': ['/dashboard', '/mis-uno-a-uno', '/grupos-vida', '/users', ...PIE_SIDEBAR],
+  'plataforma-grupos-pastoral': [
+    '/dashboard', '/grupos-vida', '/grupos-vida',
+    '/talleres/explorar', '/talleres', '/talleres/explorar', '/talleres/mi-recorrido',
+    '/users', ...PIE_SIDEBAR,
+  ],
+}
+
+/** Where Mi perfil lives since the app shell (S9.4). */
+const MENU_CUENTA = ['/perfil']
+
 const BARRA_INFERIOR_ANTES: Record<string, string[]> = {
   ...Object.fromEntries(Object.keys(PERFILES).map((perfil) => [perfil, ['/dashboard', '/users', '/grupos-vida', '/ayuda']])),
   'plataforma-grupos-pastoral': ['/grupos-vida', '/talleres/explorar'],
 }
 
 /**
+ * The Equipo tab's root page (app/(auth)/dream-team/page.tsx). Not a sidebar
+ * link: it lists the Dream Team pages the sidebar shows the user (L21).
+ */
+const RAIZ_DREAM_TEAM = '/dream-team'
+
+/**
  * The one intended change, the tab bar (S9.7): Usuarios moves to "Más"; Niños
- * and Equipo (Dream Team) take their slots when allowed; platform mode keeps
- * Inicio, Grupos and Ayuda next to Talleres instead of replacing them.
+ * and Equipo (Dream Team, opening its root page) take their slots when allowed;
+ * platform mode keeps Inicio, Grupos and Ayuda next to Talleres instead of
+ * replacing them.
  */
 const BARRA_INFERIOR_DESPUES: Record<string, string[]> = {
   ...Object.fromEntries(Object.keys(PERFILES).map((perfil) => [perfil, ['/dashboard', '/grupos-vida', '/ayuda']])),
-  'admin-dream-team-ninos': ['/dashboard', '/grupos-vida', '/ninos/checkin', '/dream-team/mi-equipo'],
+  'admin-dream-team-ninos': ['/dashboard', '/grupos-vida', '/ninos/checkin', RAIZ_DREAM_TEAM],
   'plataforma-grupos-pastoral': ['/dashboard', '/grupos-vida', '/talleres/explorar', '/ayuda'],
 }
+
+/**
+ * Pages a phone reaches from a tab's root page rather than from "Más" (S10):
+ * when Niños or Talleres is a tab, its root page leads to the rest of the
+ * group, so "Más" has no block for it.
+ */
+const DESDE_RAIZ_PESTANA: Record<string, string[]> = {
+  'admin-dream-team-ninos': ['/ninos/familias', '/ninos/salon', '/ninos/cartel', '/ninos/reportes'],
+  'plataforma-grupos-pastoral': ['/talleres', '/talleres/mi-recorrido'],
+}
+
+const unicos = (hrefs: readonly string[]) => [...new Set(hrefs)].sort()
 
 function conProveedores(ui: ReactElement, perfil: Perfil): ReactElement {
   const conUnoAUno = perfil.unoAUno ? <UnoAUnoAccesoProvider acceso={perfil.unoAUno}>{ui}</UnoAUnoAccesoProvider> : ui
@@ -175,11 +244,45 @@ describe('navigation parity per permission set', () => {
     await waitFor(() => expect(hrefsDe(nav)).toEqual(SIDEBAR[perfil]))
   })
 
-  it.each(Object.keys(PERFILES))('mobile drawer keeps the same entries for %s', async (perfil) => {
+  it.each(Object.keys(PERFILES))('desktop sidebar plus account menu keep the same set of pages for %s', (perfil) => {
+    // Only the order changed (by section) and Mi perfil moved to the account menu.
+    const despues = [...SIDEBAR[perfil], ...MENU_CUENTA].sort()
+    expect(despues).toEqual([...SIDEBAR_ANTES[perfil]].sort())
+  })
+
+  it.each(Object.keys(PERFILES))('account menu links Mi perfil for %s', async (perfil) => {
     usarPerfil(perfil)
-    render(conProveedores(<HeaderMovil />, PERFILES[perfil]))
-    const drawer = screen.getByLabelText('Menú de navegación')
-    await waitFor(() => expect(hrefsDe(drawer)).toEqual(MENU_PRINCIPAL[perfil]))
+    render(conProveedores(<MenuCuenta />, PERFILES[perfil]))
+    fireEvent.click(screen.getByRole('button', { name: 'Tu cuenta: Ana Pérez' }))
+    const menu = screen.getByRole('dialog', { name: 'Ana Pérez' })
+
+    await waitFor(() => expect(hrefsDe(menu)).toEqual(MENU_CUENTA))
+  })
+
+  it.each(Object.keys(PERFILES))('phone keeps the same pages for %s', async (perfil) => {
+    // Tabs + "Más" (sections, S10 blocks, Mi perfil) + the /dream-team list
+    // (+ what the Niños and Talleres tab roots lead to) == sidebar + account menu.
+    usarPerfil(perfil)
+    render(conProveedores(<MenuInferiorMovil />, PERFILES[perfil]))
+    const barra = screen.getByRole('navigation', { name: 'Navegación inferior' })
+    await waitFor(() => expect(hrefsDe(barra)).toEqual(BARRA_INFERIOR_DESPUES[perfil]))
+    const pestanas = hrefsDe(barra)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más' }))
+    const mas = hrefsDe(screen.getByRole('dialog', { name: 'Más' }))
+
+    let dreamTeam: string[] = []
+    if (pestanas.includes(RAIZ_DREAM_TEAM)) {
+      const { container } = render(conProveedores(<AccesosSeccion seccion="dream-team" />, PERFILES[perfil]))
+      dreamTeam = hrefsDe(container)
+      expect(dreamTeam.length).toBeGreaterThan(0)
+    }
+
+    const telefono = [...pestanas, ...mas, ...dreamTeam, ...(DESDE_RAIZ_PESTANA[perfil] ?? [])]
+      .filter((href) => href !== RAIZ_DREAM_TEAM)
+    expect(unicos(telefono)).toEqual(unicos([...SIDEBAR[perfil], ...MENU_CUENTA]))
+    // Nothing reached only from a tab root is a page "Más" already lists.
+    expect(mas.filter((href) => (DESDE_RAIZ_PESTANA[perfil] ?? []).includes(href))).toEqual([])
   })
 
   it.each(Object.keys(PERFILES))('bottom bar shows the expected entries for %s', async (perfil) => {
@@ -191,14 +294,15 @@ describe('navigation parity per permission set', () => {
   })
 
   it.each(Object.keys(PERFILES))('bottom bar only offers pages the sidebar shows %s', (perfil) => {
-    expect(BARRA_INFERIOR_DESPUES[perfil].filter((href) => !SIDEBAR[perfil].includes(href))).toEqual([])
+    // The Equipo tab opens the /dream-team root, which lists sidebar pages only.
+    expect(BARRA_INFERIOR_DESPUES[perfil].filter((href) => href !== RAIZ_DREAM_TEAM && !SIDEBAR[perfil].includes(href))).toEqual([])
   })
 
   it('documents the bottom bar as the only intended difference', () => {
     // Every profile drops /users (now in "Más"); none gains a page it could not open before.
     for (const perfil of Object.keys(PERFILES)) {
       const ganadas = BARRA_INFERIOR_DESPUES[perfil].filter((href) => !BARRA_INFERIOR_ANTES[perfil].includes(href))
-      expect(ganadas.every((href) => MENU_PRINCIPAL[perfil].includes(href))).toBe(true)
+      expect(ganadas.every((href) => href === RAIZ_DREAM_TEAM || MENU_PRINCIPAL[perfil].includes(href))).toBe(true)
       expect(BARRA_INFERIOR_DESPUES[perfil]).not.toContain('/users')
       expect(BARRA_INFERIOR_DESPUES[perfil].length).toBeLessThanOrEqual(4)
     }
