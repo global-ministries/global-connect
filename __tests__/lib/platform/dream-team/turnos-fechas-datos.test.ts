@@ -124,9 +124,9 @@ describe('write path', () => {
     expect(c.rpc).toHaveBeenLastCalledWith('dream_team_turno_fecha_guardar', {
       p_turno_id: T1,
       p_fecha: '2026-11-08',
-      p_hora: null,
-      p_nota: null,
-      p_turno_fecha_id: null,
+      p_hora: undefined,
+      p_nota: undefined,
+      p_turno_fecha_id: undefined,
     })
     await guardarFechaDeTurno(c as never, T1, { fecha: '2026-11-15', hora: '10:30', nota: 'Cena' }, F1)
     expect(c.rpc).toHaveBeenLastCalledWith('dream_team_turno_fecha_guardar', {

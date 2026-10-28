@@ -417,9 +417,10 @@ export async function guardarFechaDeTurno(
   const { data, error } = await client.rpc('dream_team_turno_fecha_guardar', {
     p_turno_id: turnoId,
     p_fecha: datos.fecha,
-    p_hora: datos.hora,
-    p_nota: datos.nota,
-    p_turno_fecha_id: turnoFechaId,
+    // Blank values are left out: the function defaults them to NULL.
+    p_hora: datos.hora ?? undefined,
+    p_nota: datos.nota ?? undefined,
+    p_turno_fecha_id: turnoFechaId ?? undefined,
   })
   if (error) fallar(error)
   return data as string

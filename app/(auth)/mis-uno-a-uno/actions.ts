@@ -46,20 +46,23 @@ function fechaHora(fecha: unknown, hora: unknown): string {
   return fechaHoraCaracasAIso(fecha.trim(), hora.trim()) ?? invalido('La fecha o la hora no son válidas.')
 }
 
-/** Trimmed text, null when blank; rejects anything over `max`. */
-function opcional(value: unknown, max: number, campo: string): string | null {
-  if (value === undefined || value === null) return null
+/**
+ * Trimmed text, undefined when blank; rejects anything over `max`. Undefined
+ * leaves the RPC argument out, so the function's DEFAULT NULL applies.
+ */
+function opcional(value: unknown, max: number, campo: string): string | undefined {
+  if (value === undefined || value === null) return undefined
   if (typeof value !== 'string') return invalido(`${campo} no es válido.`)
   const trimmed = value.trim()
   if (trimmed.length > max) return invalido(`${campo} admite hasta ${max} caracteres.`)
-  return trimmed || null
+  return trimmed || undefined
 }
 
 function resumen(value: unknown): string {
   return opcional(value, LIMITES_UNO_A_UNO.resumen, 'El resumen') ?? invalido('El resumen es obligatorio.')
 }
 
-function celebracion(value: unknown): string | null {
+function celebracion(value: unknown): string | undefined {
   return opcional(value, LIMITES_UNO_A_UNO.celebracion, 'La celebración')
 }
 
