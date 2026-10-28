@@ -73,7 +73,7 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Inicio')).toHaveAttribute('href', '/dashboard')
     // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
@@ -87,7 +87,7 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Inicio')).toHaveAttribute('href', '/dashboard')
     // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
@@ -101,7 +101,7 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Inicio')).toHaveAttribute('href', '/dashboard')
     // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
@@ -115,14 +115,20 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    expect(screen.getByLabelText('Navegar a Dashboard')).toHaveAttribute('href', '/dashboard')
+    expect(screen.getByLabelText('Navegar a Inicio')).toHaveAttribute('href', '/dashboard')
     // Members do not see Usuarios: the bottom bar follows the sidebar's role rule.
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Navegar a Grupos de Vida')).toHaveAttribute('href', '/grupos-vida')
     expect(screen.getByLabelText('Navegar a Ayuda')).toHaveAttribute('href', '/ayuda')
   })
 
-  it('shows scoped platform navigation when the flag is on and the route is available', async () => {
+  // Since the app shell (odd/tasks/sistema-diseno-v2.md, S9.6-7) platform mode
+  // no longer replaces the bar: the tabs come from what the sidebar shows (the
+  // registry entries plus the platform items), so the bar is never empty and
+  // Talleres takes its slot after Inicio and Grupos.
+  const TABS_CON_TALLERES = ['/dashboard', '/grupos-vida', '/talleres/explorar', '/ayuda']
+
+  it('adds Talleres to the tabs when the flag is on and the route is available', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -132,12 +138,11 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
+    expect(await screen.findByLabelText('Navegar a Talleres')).toHaveAttribute('href', '/talleres/explorar')
+    expect(hrefsDeLaBarra()).toEqual(TABS_CON_TALLERES)
+    // The scoped Grupos de Vida item opens the same page as the Grupos tab.
+    expect(screen.queryByLabelText('Navegar a Grupos de Vida — Adultos')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Grupos de Vida')).not.toBeInTheDocument()
-    expect(await screen.findByLabelText('Navegar a Grupos de Vida — Adultos')).toHaveAttribute('href', '/grupos-vida')
-    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
   })
 
   it('preserves previously resolved platform links while the user session reloads', async () => {
@@ -149,15 +154,13 @@ describe('MenuInferiorMovil platform navigation', () => {
     ])
 
     const { rerender } = render(<MenuInferiorMovil />)
-    expect(await screen.findByLabelText('Navegar a Grupos de Vida — Adultos')).toHaveAttribute('href', '/grupos-vida')
+    expect(await screen.findByLabelText('Navegar a Talleres')).toHaveAttribute('href', '/talleres/explorar')
 
     currentLoading = true
     rerender(<MenuInferiorMovil />)
 
-    expect(await screen.findByLabelText('Navegar a Grupos de Vida — Adultos')).toHaveAttribute('href', '/grupos-vida')
-    expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
+    expect(await screen.findByLabelText('Navegar a Talleres')).toHaveAttribute('href', '/talleres/explorar')
+    expect(hrefsDeLaBarra()).toEqual(TABS_CON_TALLERES)
   })
 
   it('does not present unavailable and global platform entries in the bottom navigation', async () => {
@@ -178,18 +181,21 @@ describe('MenuInferiorMovil platform navigation', () => {
 
     render(<MenuInferiorMovil />)
 
-    expect(await screen.findByLabelText('Navegar a Grupos de Vida — Adultos')).toHaveAttribute('href', '/grupos-vida')
-    await waitFor(() => expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument())
+    // A scoped Talleres grant keeps its scoped name; the tab text stays "Talleres".
+    const talleres = await screen.findByLabelText('Navegar a Talleres — de-hombre-a-hombre')
+    expect(talleres).toHaveAttribute('href', '/talleres/explorar')
+    expect(talleres).toHaveTextContent(/^Talleres$/)
+    expect(hrefsDeLaBarra()).toEqual(TABS_CON_TALLERES)
+    expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Niños')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Estudiantes')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Talleres')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Administración DPS')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Administración NextGen')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a 1:1 Global')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
   })
 
-  it('does not fall back to legacy global links when the only platform route is the shared Talleres entry', async () => {
+  it('keeps Inicio, Grupos and Ayuda next to the shared Talleres entry when it is the only platform route', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
@@ -198,16 +204,14 @@ describe('MenuInferiorMovil platform navigation', () => {
     render(<MenuInferiorMovil />)
 
     // finding #1: every authenticated session resolves the shared "Talleres"
-    // parent (/talleres/explorar), so the bottom nav shows exactly that platform
-    // link and must NOT fall back to the legacy global links.
+    // parent (/talleres/explorar); the other tabs are the sidebar's own entries.
     expect(await screen.findByLabelText('Navegar a Talleres')).toHaveAttribute('href', '/talleres/explorar')
-    expect(screen.queryByLabelText('Navegar a Dashboard')).not.toBeInTheDocument()
+    expect(hrefsDeLaBarra()).toEqual(TABS_CON_TALLERES)
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Navegar a Ayuda')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument()
   })
 
-  it('drops stale platform links while transitioning, keeping only the shared Talleres entry', async () => {
+  it('drops stale platform links while transitioning', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     currentPlatformSession = withCapabilities([
       { key: 'grupos_vida.stage.read', experience: 'grupos_vida', scopeType: 'etapa', scopeId: 'adultos', source: 'gdv' },
@@ -216,27 +220,23 @@ describe('MenuInferiorMovil platform navigation', () => {
     ])
 
     const { rerender } = render(<MenuInferiorMovil />)
-    expect(await screen.findByLabelText('Navegar a Grupos de Vida — Adultos')).toHaveAttribute('href', '/grupos-vida')
+    expect(await screen.findByLabelText('Navegar a Talleres')).toHaveAttribute('href', '/talleres/explorar')
 
     currentPlatformSession = withCapabilities([
       { key: 'dps.team.serve', experience: 'dps', scopeType: 'equipo', scopeId: 'musica', source: 'dream-team' },
     ])
     rerender(<MenuInferiorMovil />)
 
-    // finding #1: the stale grupos link is dropped on transition; the only
-    // platform link that survives is the always-revealed shared "Talleres"
-    // parent (/talleres/explorar) — never a legacy fallback, never a retained
-    // grupos link.
-    await waitFor(() => {
-      const links = screen.queryAllByRole('link')
-      expect(links).toHaveLength(1)
-      expect(links[0]).toHaveAttribute('href', '/talleres/explorar')
-    })
+    await waitFor(() => expect(hrefsDeLaBarra()).toEqual(TABS_CON_TALLERES))
     expect(screen.queryByLabelText('Navegar a Grupos de Vida — Adultos')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a Usuarios')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Navegar a DPS Música')).not.toBeInTheDocument()
   })
 })
+
+function hrefsDeLaBarra(): string[] {
+  return screen.queryAllByRole('link').map((link) => link.getAttribute('href') ?? '')
+}
 
 function restoreEnv(key: string, value: string | undefined) {
   if (value === undefined) {

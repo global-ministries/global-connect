@@ -2,21 +2,16 @@
 
 import { useMemo } from 'react'
 
-import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
-import { insertDreamTeamMenuItem, useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
+import { componerNavegacion, type EntradaMenu } from '@/components/navegacion/componer-navegacion'
+import { useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
+import { useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
-import { insertUnoAUnoMenuItem, useUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
+import { useUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
-import {
-  entradasDelGrupo,
-  filtrarVisibles,
-  type CredencialesNavegacion,
-  type EntradaNavegacion,
-} from '@/lib/navegacion/registro'
+import type { CredencialesNavegacion } from '@/lib/navegacion/registro'
 
-/** One entry as the sidebar and the drawer render it (registry, Dream Team, Niños or platform). */
-export type EntradaMenu = Pick<EntradaNavegacion, 'id' | 'label' | 'href' | 'icon' | 'roles' | 'capabilities' | 'children'>
+export type { EntradaMenu }
 
 /**
  * The signed-in user's roles and support capabilities, keeping the last known
@@ -35,41 +30,26 @@ export function useCredencialesNavegacion(): CredencialesNavegacion {
 }
 
 /**
- * The visible entries for the sidebar and the mobile drawer: the registry's
- * main list with "Mis 1 a 1" right after Dashboard, Dream Team and Niños right
- * after Grupos de Vida, then the platform navigation items, then the footer
- * and account links.
+ * The visible navigation for the sidebar, the mobile drawer and the bottom
+ * bar (components/navegacion/componer-navegacion.ts): the main list in its
+ * current order, the footer and account links, the entries by section, the
+ * phone tabs and the "Más" sheet contents.
  */
 export function useEntradasNavegacion() {
   const { platformSession } = useCurrentUser()
   const credenciales = useCredencialesNavegacion()
-  const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
-  const dreamTeam: EntradaMenu | null = useDreamTeamMenuItem(platformSession)
-  const ninos: EntradaMenu | null = useNinosMenuItem()
-  // Server-fed flags (hooks/useUnoAUnoAcceso): whoever leads, supervises or takes part in a 1:1. Not in the bottom bar.
-  const unoAUno: EntradaMenu | null = useUnoAUnoMenuItem()
+  const plataforma = usePlatformNavigationViewItems(platformSession)
+  const dreamTeam = useDreamTeamMenuItem(platformSession)
+  const ninos = useNinosMenuItem()
+  // Server-fed flags (hooks/useUnoAUnoAcceso): whoever leads, supervises or takes part in a 1:1.
+  const unoAUno = useUnoAUnoMenuItem()
 
-  const principales = useMemo(
-    () =>
-      filtrarVisibles<EntradaMenu>(
-        [
-          ...insertUnoAUnoMenuItem<EntradaMenu>(
-            insertNinosMenuItem<EntradaMenu>(
-              insertDreamTeamMenuItem<EntradaMenu>(entradasDelGrupo('principal'), dreamTeam),
-              ninos,
-            ),
-            unoAUno,
-          ),
-          ...platformNavigationItems,
-        ],
-        credenciales,
-      ),
-    [credenciales, dreamTeam, ninos, unoAUno, platformNavigationItems],
+  const navegacion = useMemo(
+    () => componerNavegacion({ credenciales, dreamTeam, ninos, unoAUno, plataforma }),
+    [credenciales, dreamTeam, ninos, unoAUno, plataforma],
   )
-  const pie = useMemo(() => filtrarVisibles<EntradaMenu>(entradasDelGrupo('pie'), credenciales), [credenciales])
-  const cuenta = useMemo(() => filtrarVisibles<EntradaMenu>(entradasDelGrupo('cuenta'), credenciales), [credenciales])
 
-  return { principales, pie, cuenta, platformSession }
+  return { ...navegacion, platformSession }
 }
 
 /** Talleres platform items open the role-grouped TalleresNavSubmenu instead of plain children. */

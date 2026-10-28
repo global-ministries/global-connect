@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 
 import { canAccess } from '@/lib/navigation/canAccess'
+import type { SeccionNavegacion } from '@/lib/navegacion/secciones'
 
 /**
  * The single list of the app's own navigation entries, read by the desktop
@@ -29,13 +30,11 @@ import { canAccess } from '@/lib/navigation/canAccess'
  * canAccess (lib/navigation/canAccess.ts), exactly as before the registry.
  * Sections built from the session — Dream Team, Niños and the platform
  * navigation items — keep their own modules and are composed in
- * components/navegacion/use-entradas-navegacion.ts.
+ * components/navegacion/componer-navegacion.ts. Each entry's `seccion` and the
+ * phone tab bar rule live in lib/navegacion/secciones.ts.
  */
 
 export type IconoNavegacion = ComponentType<{ className?: string }>
-
-/** principal: the main list; pie: the footer links; cuenta: the account link next to Tema / Cerrar sesión. */
-export type GrupoNavegacion = 'principal' | 'pie' | 'cuenta'
 
 export interface SubEntradaNavegacion {
   id: string
@@ -50,11 +49,9 @@ export interface SubEntradaNavegacion {
 
 export interface EntradaNavegacion extends SubEntradaNavegacion {
   icon: IconoNavegacion
-  grupo: GrupoNavegacion
+  seccion: SeccionNavegacion
   children?: SubEntradaNavegacion[]
-  /** Position in the mobile bottom bar (1 = first). Undefined: not in the bottom bar. */
-  prioridadMovil?: number
-  /** Shorter visible text in the mobile bottom bar, so up to five entries fit (label stays the accessible name). */
+  /** Shorter visible text in the phone tab bar (label stays the accessible name). */
   labelMovil?: string
 }
 
@@ -68,15 +65,15 @@ const ROLES_DIRECCION_ETAPA = [...ROLES_DIRECCION, 'director-etapa']
 const ROLES_ADMIN_PASTOR = ['admin', 'pastor']
 
 export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard', grupo: 'principal', prioridadMovil: 1 },
+  // "Inicio" since the app shell (S9.1); the id and the route stay 'dashboard'.
+  { id: 'dashboard', label: 'Inicio', icon: Home, href: '/dashboard', seccion: 'general' },
   {
     id: 'usuarios',
     label: 'Usuarios',
     icon: Users,
     href: '/users',
-    grupo: 'principal',
+    seccion: 'administracion',
     roles: [...ROLES_DIRECCION_ETAPA, 'lider'],
-    prioridadMovil: 2,
   },
   {
     id: 'grupos-vida',
@@ -84,8 +81,7 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
     labelMovil: 'Grupos',
     icon: UserCheck,
     href: '/grupos-vida',
-    grupo: 'principal',
-    prioridadMovil: 3,
+    seccion: 'ministerios',
     children: [
       { id: 'gv-casas', label: 'Casas Anfitrionas', href: '/grupos-vida/casas-anfitrionas', icon: House, roles: ROLES_DIRECCION_ETAPA },
       { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ROLES_DIRECCION_ETAPA },
@@ -104,7 +100,7 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
     label: 'Configuración',
     icon: Settings,
     href: '/configuracion',
-    grupo: 'principal',
+    seccion: 'administracion',
     roles: ROLES_DIRECCION,
     children: [
       { id: 'config-general', label: 'General', href: '/configuracion', icon: Settings, roles: ROLES_ADMIN_PASTOR },
@@ -123,16 +119,17 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
     label: 'Cola de soporte',
     icon: Inbox,
     href: '/ayuda/admin',
-    grupo: 'principal',
+    seccion: 'administracion',
     capabilities: ['support.view', 'support.reply', 'support.manage'],
   },
-  { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/actualizaciones', grupo: 'pie' },
-  { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda', grupo: 'pie', prioridadMovil: 4 },
-  { id: 'perfil', label: 'Mi Perfil', icon: User, href: '/perfil', grupo: 'cuenta' },
+  { id: 'actualizaciones', label: 'Actualizaciones', icon: Megaphone, href: '/actualizaciones', seccion: 'pie' },
+  { id: 'ayuda', label: 'Ayuda', icon: HelpCircle, href: '/ayuda', seccion: 'pie' },
+  { id: 'perfil', label: 'Mi Perfil', icon: User, href: '/perfil', seccion: 'cuenta' },
 ]
 
-export function entradasDelGrupo(grupo: GrupoNavegacion): EntradaNavegacion[] {
-  return ENTRADAS_NAVEGACION.filter((entrada) => entrada.grupo === grupo)
+/** The registry entries in these sections, in registry order. */
+export function entradasDeSecciones(...secciones: SeccionNavegacion[]): EntradaNavegacion[] {
+  return ENTRADAS_NAVEGACION.filter((entrada) => secciones.includes(entrada.seccion))
 }
 
 /** Entries the credentials can see, each with only the children it can see. */
@@ -147,14 +144,6 @@ export function filtrarVisibles<T extends SubEntradaNavegacion & { children?: Su
         ? { ...entrada, children: entrada.children.filter((hija) => canAccess(hija, credenciales)) }
         : entrada,
     )
-}
-
-/** The bottom bar's own entries (when it is not showing platform items), in bar order. */
-export function entradasBarraInferior(credenciales: CredencialesNavegacion): EntradaNavegacion[] {
-  return filtrarVisibles(
-    ENTRADAS_NAVEGACION.filter((entrada) => entrada.prioridadMovil !== undefined),
-    credenciales,
-  ).sort((a, b) => (a.prioridadMovil ?? 0) - (b.prioridadMovil ?? 0))
 }
 
 /** The route is the entry or below it. /dashboard only matches itself. */

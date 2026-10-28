@@ -109,14 +109,15 @@ describe('mobile top bar and drawer', () => {
 
 describe('mobile bottom bar', () => {
   it('marks the current entry with the brand tint and keeps clear of the safe area', () => {
-    currentPathname = '/users/123'
+    // Usuarios left the tab bar for "Más" (odd/tasks/sistema-diseno-v2.md, S9.7); a group page marks Grupos.
+    currentPathname = '/grupos-vida/123'
     render(<MenuInferiorMovil />)
     const barra = screen.getByRole('navigation', { name: 'Navegación inferior' })
 
-    const usuarios = within(barra).getByLabelText('Navegar a Usuarios')
-    expect(usuarios).toHaveAttribute('aria-current', 'page')
-    expect(usuarios).toHaveClass('bg-brand-tint', 'text-brand-text', 'min-h-14', 'min-w-0')
-    expect(within(barra).getByLabelText('Navegar a Dashboard')).not.toHaveAttribute('aria-current')
+    const grupos = within(barra).getByLabelText('Navegar a Grupos de Vida')
+    expect(grupos).toHaveAttribute('aria-current', 'page')
+    expect(grupos).toHaveClass('bg-brand-tint', 'text-brand-text', 'min-h-14', 'min-w-0')
+    expect(within(barra).getByLabelText('Navegar a Inicio')).not.toHaveAttribute('aria-current')
     expect(within(barra).getByRole('list')).toHaveClass('safe-area-pb', 'safe-area-pl', 'safe-area-pr')
   })
 
@@ -124,6 +125,6 @@ describe('mobile bottom bar', () => {
     currentPathname = '/dashboard-otra'
     render(<MenuInferiorMovil />)
 
-    expect(screen.getByLabelText('Navegar a Dashboard')).not.toHaveAttribute('aria-current')
+    expect(screen.getByLabelText('Navegar a Inicio')).not.toHaveAttribute('aria-current')
   })
 })

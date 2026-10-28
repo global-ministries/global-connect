@@ -133,7 +133,7 @@ describe('HeaderMovil Dream Team section', () => {
     const topLevel = drawer
       .getAllByRole('link')
       .map((link) => link.textContent)
-      .filter((label) => ['Dashboard', 'Usuarios', 'Grupos de Vida', 'Dream Team'].includes(label ?? ''))
+      .filter((label) => ['Inicio', 'Usuarios', 'Grupos de Vida', 'Dream Team'].includes(label ?? ''))
 
     expect(topLevel.indexOf('Dream Team')).toBe(topLevel.indexOf('Grupos de Vida') + 1)
   })
@@ -182,7 +182,7 @@ describe('HeaderMovil Dream Team section', () => {
 
     const drawer = renderOpenDrawer()
 
-    expect(drawer.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/dashboard')
+    expect(drawer.getByRole('link', { name: 'Inicio' })).toHaveAttribute('href', '/dashboard')
     expect(drawer.getByRole('link', { name: 'Grupos de Vida' })).toHaveAttribute('href', '/grupos-vida')
     expect(drawer.getByRole('link', { name: 'Actualizaciones' })).toHaveAttribute('href', '/actualizaciones')
   })

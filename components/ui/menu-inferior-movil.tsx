@@ -1,73 +1,33 @@
 "use client"
 
-import { type ComponentType } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { useCurrentUser } from '@/hooks/useCurrentUser'
-import { getPlatformNavigationFlags } from '@/lib/platform/flags'
-import { usePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
-import { resolvePlatformNavigationGate } from '@/lib/platform/navigation'
-import { useCredencialesNavegacion } from '@/components/navegacion/use-entradas-navegacion'
-import { entradasBarraInferior, esRutaActiva, type EntradaNavegacion } from '@/lib/navegacion/registro'
-import { insertNinosMenuItem, useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
-
-type MenuInferiorMovilItem = {
-  nombre: string
-  icono: ComponentType<{ className?: string }>
-  enlace: string
-  id: string
-  /** Active on every route below this prefix (Niños: any /ninos/ screen), not only on `enlace`. */
-  activoBajo?: string
-  /** Visible text when shorter than `nombre` (the accessible name keeps `nombre`). */
-  nombreCorto?: string
-}
+import { useEntradasNavegacion } from '@/components/navegacion/use-entradas-navegacion'
+import { esPestanaActiva } from '@/lib/navegacion/secciones'
 
 export function MenuInferiorMovil() {
   const pathname = usePathname()
-  const { platformSession, loading } = useCurrentUser()
-  const platformNavigationItems = usePlatformNavigationViewItems(platformSession)
-  // The bottom bar's own entries come from the navigation registry
-  // (lib/navegacion/registro.ts) and follow the same role rule as the sidebar.
-  const credenciales = useCredencialesNavegacion()
-  const platformNavigationFlags = getPlatformNavigationFlags()
-  const platformNavigationGate = resolvePlatformNavigationGate({
-    flags: platformNavigationFlags,
-    platformSession,
-  })
-  // #224 navigation states: legacy links while loading/flag-off/kill-switch; resolved platform
-  // items once available; fail-closed empty when a scoped platform session exists but has no
-  // visible routes, so we never fall back to global legacy links in that case.
-  const hasPlatformNavigationItems = platformNavigationItems.length > 0
-  const hasPlatformCapabilities = (platformSession?.capabilities.length ?? 0) > 0
-  const showPlatformItems = hasPlatformNavigationItems && (loading || platformNavigationGate.ok)
-  const suppressLegacyForFailClosed = !loading && platformNavigationGate.ok && !hasPlatformNavigationItems && hasPlatformCapabilities
-
-  // Niños (F5): whoever has Niños access gets it after Grupos de Vida, on their first Niños screen.
-  const ninos = useNinosMenuItem()
-  const navigationItems = suppressLegacyForFailClosed
-    ? []
-    : insertNinosMenuItem(
-        showPlatformItems
-          ? toMenuInferiorMovilItems(platformNavigationItems)
-          : toMenuInferiorMovilItems(entradasBarraInferior(credenciales)),
-        ninos && { nombre: ninos.label, icono: ninos.icon, enlace: ninos.href, id: ninos.id, activoBajo: '/ninos' },
-      )
+  // The tabs (up to four, lib/navegacion/secciones.ts) are picked from the
+  // entries the sidebar shows this user, in every navigation mode, so the bar
+  // never shows anything the menus hide. The "Más" sheet (`mas`) comes with
+  // the phone shell (odd/tasks/sistema-diseno-v2.md, T8d).
+  const { pestanas } = useEntradasNavegacion()
 
   return (
     <nav aria-label="Navegación inferior" className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/60 dark:bg-[rgba(35,35,45,0.60)] backdrop-blur-[40px] [-webkit-backdrop-filter:blur(40px)] backdrop-saturate-[1.8] border-t border-[var(--glass-border)] shadow-[var(--glass-shadow)] [transform:translateZ(0)] touch-manipulation">
       {/* Height: 8px + a 56px item + the bottom inset (at least 8px); the (auth) layout pads the page by it. */}
       <ul className="flex min-w-0 items-stretch justify-around gap-1 px-2 pt-2 safe-area-pb safe-area-pl safe-area-pr">
-        {navigationItems.map((elemento) => {
-          const Icono = elemento.icono
-          const esActivo = esRutaActiva(pathname, elemento.activoBajo ?? elemento.enlace)
+        {pestanas.map((elemento) => {
+          const Icono = elemento.icon
+          const esActivo = esPestanaActiva(pathname, elemento)
 
           return (
             <li key={elemento.id} className="flex min-w-0 flex-1">
               <Link
-                href={elemento.enlace}
+                href={elemento.href}
                 prefetch={false}
-                aria-label={`Navegar a ${elemento.nombre}`}
+                aria-label={`Navegar a ${elemento.label}`}
                 aria-current={esActivo ? "page" : undefined}
                 className={cn(
                   "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1.5",
@@ -80,7 +40,7 @@ export function MenuInferiorMovil() {
               >
                 <Icono aria-hidden="true" className={cn("size-5 shrink-0", esActivo ? "text-brand" : "text-muted-foreground")} />
                 <span className={cn("max-w-full truncate text-xs", esActivo ? "font-semibold" : "font-medium")}>
-                  {elemento.nombreCorto ?? elemento.nombre}
+                  {elemento.labelMovil}
                 </span>
               </Link>
             </li>
@@ -89,14 +49,4 @@ export function MenuInferiorMovil() {
       </ul>
     </nav>
   )
-}
-
-function toMenuInferiorMovilItems(items: ReadonlyArray<PlatformNavigationViewItem | EntradaNavegacion>): MenuInferiorMovilItem[] {
-  return items.map((item) => ({
-    nombre: item.label,
-    nombreCorto: 'labelMovil' in item ? item.labelMovil : undefined,
-    icono: item.icon,
-    enlace: item.href,
-    id: item.id,
-  }))
 }

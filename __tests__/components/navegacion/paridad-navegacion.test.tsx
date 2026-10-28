@@ -18,9 +18,12 @@ import type { PlatformSession } from '@/lib/platform/session/types'
  * menu-inferior-movil.tsx. The registry must keep every one of them, in the
  * same order, for every representative permission set.
  *
- * The only intended difference: the bottom bar's legacy links used to ignore
- * roles, so a member saw "Usuarios" there while the sidebar and the drawer
- * hid it. The bottom bar now applies the same rule (see BOTTOM_BAR_CHANGES).
+ * The only intended difference is the bottom bar. Its legacy links used to
+ * ignore roles, so a member saw "Usuarios" there while the sidebar and the
+ * drawer hid it; since the app shell (odd/tasks/sistema-diseno-v2.md, S9.6-7)
+ * it holds up to four tabs picked from what the sidebar shows (Inicio, Grupos,
+ * Niños, Equipo, then Talleres and Ayuda), in every navigation mode, and the
+ * rest moves to the "Más" sheet (see BARRA_INFERIOR_DESPUES).
  */
 
 type Perfil = {
@@ -130,14 +133,16 @@ const BARRA_INFERIOR_ANTES: Record<string, string[]> = {
   'plataforma-grupos-pastoral': ['/grupos-vida', '/talleres/explorar'],
 }
 
-/** The one intended change: the bottom bar's legacy links follow the same role rule. */
-const BOTTOM_BAR_CHANGES: Record<string, string[]> = {
-  miembro: ['/dashboard', '/grupos-vida', '/ayuda'],
-  'staff-soporte': ['/dashboard', '/grupos-vida', '/ayuda'],
-  // F5 (odd/tasks/ninos-roles-ui.md): whoever has Niños access gets Niños after Grupos de Vida.
-  'admin-dream-team-ninos': ['/dashboard', '/users', '/grupos-vida', '/ninos/checkin', '/ayuda'],
+/**
+ * The one intended change, the tab bar (S9.7): Usuarios moves to "Más"; Niños
+ * and Equipo (Dream Team) take their slots when allowed; platform mode keeps
+ * Inicio, Grupos and Ayuda next to Talleres instead of replacing them.
+ */
+const BARRA_INFERIOR_DESPUES: Record<string, string[]> = {
+  ...Object.fromEntries(Object.keys(PERFILES).map((perfil) => [perfil, ['/dashboard', '/grupos-vida', '/ayuda']])),
+  'admin-dream-team-ninos': ['/dashboard', '/grupos-vida', '/ninos/checkin', '/dream-team/mi-equipo'],
+  'plataforma-grupos-pastoral': ['/dashboard', '/grupos-vida', '/talleres/explorar', '/ayuda'],
 }
-const BARRA_INFERIOR_DESPUES: Record<string, string[]> = { ...BARRA_INFERIOR_ANTES, ...BOTTOM_BAR_CHANGES }
 
 function conProveedores(ui: ReactElement, perfil: Perfil): ReactElement {
   const conUnoAUno = perfil.unoAUno ? <UnoAUnoAccesoProvider acceso={perfil.unoAUno}>{ui}</UnoAUnoAccesoProvider> : ui
@@ -185,17 +190,17 @@ describe('navigation parity per permission set', () => {
     await waitFor(() => expect(hrefsDe(barra)).toEqual(BARRA_INFERIOR_DESPUES[perfil]))
   })
 
+  it.each(Object.keys(PERFILES))('bottom bar only offers pages the sidebar shows %s', (perfil) => {
+    expect(BARRA_INFERIOR_DESPUES[perfil].filter((href) => !SIDEBAR[perfil].includes(href))).toEqual([])
+  })
+
   it('documents the bottom bar as the only intended difference', () => {
-    const cambiados = Object.keys(BARRA_INFERIOR_ANTES).filter(
-      (perfil) => BARRA_INFERIOR_ANTES[perfil].join() !== BARRA_INFERIOR_DESPUES[perfil].join(),
-    )
-    expect(cambiados).toEqual(['miembro', 'staff-soporte', 'admin-dream-team-ninos'])
-    for (const perfil of ['miembro', 'staff-soporte']) {
-      expect(BARRA_INFERIOR_ANTES[perfil].filter((href) => !BARRA_INFERIOR_DESPUES[perfil].includes(href))).toEqual(['/users'])
+    // Every profile drops /users (now in "Más"); none gains a page it could not open before.
+    for (const perfil of Object.keys(PERFILES)) {
+      const ganadas = BARRA_INFERIOR_DESPUES[perfil].filter((href) => !BARRA_INFERIOR_ANTES[perfil].includes(href))
+      expect(ganadas.every((href) => MENU_PRINCIPAL[perfil].includes(href))).toBe(true)
+      expect(BARRA_INFERIOR_DESPUES[perfil]).not.toContain('/users')
+      expect(BARRA_INFERIOR_DESPUES[perfil].length).toBeLessThanOrEqual(4)
     }
-    // The Niños profile only gains Niños; nothing is removed.
-    const ninos = 'admin-dream-team-ninos'
-    expect(BARRA_INFERIOR_DESPUES[ninos].filter((href) => !BARRA_INFERIOR_ANTES[ninos].includes(href))).toEqual(['/ninos/checkin'])
-    expect(BARRA_INFERIOR_ANTES[ninos].every((href) => BARRA_INFERIOR_DESPUES[ninos].includes(href))).toBe(true)
   })
 })

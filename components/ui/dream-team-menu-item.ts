@@ -7,6 +7,7 @@ import {
   isDreamTeamEnabledClient,
   type DreamTeamNavItem,
 } from '@/lib/platform/dream-team/navigation'
+import type { SeccionNavegacion } from '@/lib/navegacion/secciones'
 import type { PlatformSession } from '@/lib/platform/session/types'
 import { useDreamTeamAcceso } from '@/hooks/useDreamTeamAcceso'
 
@@ -28,11 +29,14 @@ export interface DreamTeamMenuChild {
   icon?: IconComponent
 }
 
+/** One expandable group in its own sidebar section; "Equipo" in the phone tab bar. */
 export interface DreamTeamMenuItem {
   id: string
   label: string
+  labelMovil: string
   icon: IconComponent
   href: string
+  seccion: SeccionNavegacion
   children: DreamTeamMenuChild[]
 }
 
@@ -50,8 +54,10 @@ export function buildDreamTeamMenuItem(items: readonly DreamTeamNavItem[]): Drea
   return {
     id: 'dream-team',
     label: 'Dream Team',
+    labelMovil: 'Equipo',
     icon: HeartHandshake,
     href: items[0].href,
+    seccion: 'dream-team',
     children: items.map((item) => ({
       id: item.id,
       label: item.label,
