@@ -1,0 +1,10 @@
+{
+  "title": "Servidores · corrección del prototipo aprobado",
+  "brief": "El prototipo aprobado de Servidores (docs/design-system/prototipos/servidores.html), corregido según gentle-design y docs/design-system: sin URLs externas ni controles de prototipo mezclados, cortes md 768 / lg 1024, solo tokens de design/system.md, contraste AA, foco visible, movimiento reducido, tabla ARIA de ListaResponsiva y diálogos accesibles. Mismo diseño y jerarquía; tres viewports.",
+  "feature": "odd/tasks/sistema-diseno-v2.md",
+  "artboards": [
+    { "file": "01-escritorio.html", "title": "Escritorio (≥ 1024) · Dirección de Conexión", "tradeoff": "Todo a la vista: barra lateral de 256px, 4 métricas con barra y pista, tarjetas de alcance y tabla con Turno; el panel lateral de 480px tapa parte de la lista mientras está abierto", "width": 1440, "height": 900 },
+    { "file": "02-tablet.html", "title": "Tablet (768–1023) · Dirección de Niños", "tradeoff": "Riel de íconos de 64px y métricas 2×2 para dar ancho a la lista; la columna Turno se oculta hasta lg y las migas largas se truncan", "width": 820, "height": 1180 },
+    { "file": "03-celular.html", "title": "Celular (< 768) · Servidores", "tradeoff": "Patrones nativos (barra con atrás, título grande, listas agrupadas, hojas inferiores, FAB); Filtros y Vista pasan a la hoja y la fila muestra solo resumen y punto de estado", "width": 390, "height": 844 }
+  ]
+}

@@ -1,13 +1,18 @@
 # Patterns
 
 Recipes built from the [components](components.md). The reference is the
-Servidores prototype ([`prototipos/servidores.html`](prototipos/servidores.html));
-screenshots: [desktop](prototipos/capturas/servidores-desk.png),
-[tablet](prototipos/capturas/servidores-tablet.png),
-[phone](prototipos/capturas/servidores-phone.png),
-[phone light](prototipos/capturas/servidores-phone-light.png),
-[phone filters](prototipos/capturas/servidores-phone-filters.png),
-[phone person](prototipos/capturas/servidores-phone-person.png).
+Servidores prototype v3 in [`prototipos/servidores/`](prototipos/servidores/):
+[desktop](prototipos/servidores/01-escritorio.html),
+[tablet](prototipos/servidores/02-tablet.html),
+[phone](prototipos/servidores/03-celular.html). Screenshots:
+[desktop](prototipos/capturas/servidores-v3-escritorio-claro.png),
+[desktop dark](prototipos/capturas/servidores-v3-escritorio-oscuro.png),
+[desktop filters](prototipos/capturas/servidores-v3-escritorio-filtros.png),
+[tablet](prototipos/capturas/servidores-v3-tablet-claro.png),
+[phone](prototipos/capturas/servidores-v3-celular-claro.png),
+[phone dark](prototipos/capturas/servidores-v3-celular-oscuro.png),
+[phone filters](prototipos/capturas/servidores-v3-celular-filtros.png).
+[`prototipos/servidores.html`](prototipos/servidores.html) is the superseded v2.
 
 Widths below: desktop `lg`+ (≥ 1024px), tablet `md`–`lg`, phone < `md` (768px)
 (decided 2026-10-26; see [foundations.md](foundations.md#spacing-and-gutters-decided)).
@@ -23,7 +28,8 @@ Every screen that lists people or items follows this order, top to bottom:
 3. **Toolbar** — search, "Filtros" with active count, segmented view switch.
 4. **Attention metrics** — 4 toggle cards with what needs action
    ("Sirviendo", "Por activar", "Sin cuenta", "Sin turno"). Pressing one
-   filters the list; pressing it again clears it.
+   filters the list; pressing it again clears it. Hints are short and say
+   what to do: "Sin cuenta" reads "por invitar".
 5. **Scope cards** — the next level of the tree (Direcciones → Áreas →
    Equipos). They choose WHERE; entering one updates the breadcrumb and
    every number on the screen. Hidden at the leaf level.
@@ -32,11 +38,11 @@ Every screen that lists people or items follows this order, top to bottom:
 
 | | Desktop | Tablet | Phone |
 | --- | --- | --- | --- |
-| Header | Breadcrumb + primary button | same, 28px gutters | Nav bar; primary action becomes the FAB |
-| Hero | `h1` 30px + summary | same | Large title 34px + summary |
+| Header | Breadcrumb + primary button (`tamaño="sm"`) | same, 28px gutters | Nav bar; primary action becomes the FAB |
+| Hero | `h1` 24px + summary | same | Large title 28px + summary |
 | Toolbar | Search, Filtros, segmented control in one wrapping row | same | Filled search only; Filtros moves to the nav bar icon, the view switch into the sheet |
 | Metrics | 4 columns with bar and hint | 2×2 | 2×2 compact, no bar or hint, pressed = inset brand ring |
-| Scope cards | Auto-fill grid (≥ 240px) with count, flags, etapa bar | same | Inset grouped list: name, responsible, count, chevron; warning flag only |
+| Scope cards | Auto-fill grid (≥ 240px) with count, flags, etapa bar, single-line responsible | same | Inset grouped list: name, responsible, count, chevron; warning flag only |
 | List (`ListaResponsiva`) | Table-like rows with sortable headers (`aria-sort`) | Same header grid and sortable headers; columns marked `ocultarEnTablet` (Turno) hide until `lg` | Inset grouped rows with avatar, status dot, chevron |
 
 Rules:

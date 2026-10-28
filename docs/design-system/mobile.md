@@ -1,13 +1,14 @@
 # Mobile
 
 On phones Global Connect looks and behaves like a native app. Reference:
-the prototype in phone mode
-([`prototipos/servidores.html`](prototipos/servidores.html), "Celular") and
-[`capturas/servidores-phone.png`](prototipos/capturas/servidores-phone.png),
-[`servidores-phone-light.png`](prototipos/capturas/servidores-phone-light.png),
-[`servidores-phone-filters.png`](prototipos/capturas/servidores-phone-filters.png),
-[`servidores-phone-person.png`](prototipos/capturas/servidores-phone-person.png),
-[`servidores-phone-oriel.png`](prototipos/capturas/servidores-phone-oriel.png).
+the phone artboard
+[`prototipos/servidores/03-celular.html`](prototipos/servidores/03-celular.html)
+and its screenshots
+[`servidores-v3-celular-claro.png`](prototipos/capturas/servidores-v3-celular-claro.png),
+[`servidores-v3-celular-oscuro.png`](prototipos/capturas/servidores-v3-celular-oscuro.png),
+[`servidores-v3-celular-filtros.png`](prototipos/capturas/servidores-v3-celular-filtros.png),
+[`servidores-v3-celular-opciones.png`](prototipos/capturas/servidores-v3-celular-opciones.png).
+The `servidores-phone-*.png` screenshots belong to the superseded v2.
 
 Test at 390px (and 360px for overflow). Desktop keeps its full-width layout;
 these rules apply below the phone breakpoint only.
@@ -29,8 +30,9 @@ these rules apply below the phone breakpoint only.
 
 ## Large title
 
-- First block of the content: 34px bold title, tracking `-.03em`, and the
-  summary line (15px muted, numbers in `strong`).
+- First block of the content: 28px bold title, tracking `-.03em`, and the
+  summary line (15px muted, numbers in `strong`). Decided 2026-10-28 (was
+  34px); `TituloGrande` still renders 34px until Phase 2.
 - Replaces the desktop hero; the desktop breadcrumb becomes the back button.
 
 ## Search
@@ -73,11 +75,24 @@ these rules apply below the phone breakpoint only.
 - Tab bar: `MenuInferiorMovil`, translucent, entries from the navigation
   registry, active entry in brand color, 24px icons, safe-area bottom
   padding.
-- FAB: `BotonFlotante`, 56px, brand fill, above the tab bar on the right, for
+- Tab labels fit at 390px without truncation. Use short labels ("Inicio",
+  "Equipo", "Niños", "Grupos", "Más"), not the full page names.
+- FAB: `BotonFlotante`, 56px, `--brand-strong` fill (decided, pending; see
+  [foundations.md](foundations.md#brand-color-decided)) with `shadow-fab`,
+  above the tab bar on the right, for
   the screen's one primary action (the desktop header button). Hidden when
   the user cannot take that action. Always has `label`.
 - Leave room at the bottom of the content (prototype 140px) so the last row
   is not hidden under the tab bar and FAB.
+
+## Prototype options
+
+The artboards' prototype controls (theme, permissions, simulate loading)
+never cover content: they sit after the list in a collapsible "Opciones del
+prototipo" block, marked as not part of the screen, never floating over the
+list, the tab bar or the FAB
+([`servidores-v3-celular-opciones.png`](prototipos/capturas/servidores-v3-celular-opciones.png)).
+They are not part of the app.
 
 ## Safe areas
 

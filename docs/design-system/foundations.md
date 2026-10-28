@@ -7,7 +7,9 @@ radius or font that a token covers.
 
 Status labels in this file: **decided** (use it), **legacy** (do not use in
 new code; replacement given), **planned** (not in code yet; Phase 1 adds it),
-**decided** (accepted by the user, see [migration.md](migration.md#decisions-2026-10-26)).
+**decided** (accepted by the user, see [migration.md](migration.md#decisions-2026-10-26)),
+**decided, pending** (accepted by the user, not in `app/globals.css` or the
+components yet; see [migration.md](migration.md#decisions-2026-10-28)).
 
 ## Color: surfaces and text
 
@@ -60,12 +62,25 @@ alone.
 
 | Class | Token | Use |
 | --- | --- | --- |
-| `bg-brand`, `border-brand` | `--brand-primary` (#E96C20) | Brand fills, active indicators, primary button, FAB |
-| `text-brand-foreground` | white | Large or bold text and icons on `bg-brand` (3.2:1) |
+| `bg-brand`, `border-brand` | `--brand-primary` (#E96C20) | Logo, focus outline, borders, active indicators, decoration without text |
+| — (pending) | `--brand-strong` (#BE5413) | Filled brand surfaces that carry text or icons: primary button fill, FAB, count badges. White text 4.70:1 |
+| — (pending) | `--brand-strong-hover` (#B04E11) | Hover of those surfaces. White text 5.32:1 |
+| `text-brand-foreground` | white | Text and icons on a filled brand surface |
 | `bg-brand-tint` | `--brand-accent-strong` | Selected rows, pressed cards and pills, active nav entry |
-| `text-brand-text` | `--brand-text` | Orange text at body size (≥ 4.5:1, light and dark) |
+| `text-brand-text` | `--brand-text` | Orange text at any size (≥ 4.5:1, light and dark) |
 
-`text-brand` is 3.2:1 on white: keep it for icons and large headings.
+`--brand-strong` and `--brand-strong-hover` are **decided 2026-10-28,
+pending in `app/globals.css` (Phase 2a)**. Same value in light and dark.
+White on `--brand-primary` is only 3.17:1, so once they land:
+
+- Filled brand surfaces with text or icons (`BotonSistema primario`,
+  `BotonFlotante`, count badges such as the Filtros badge) use
+  `--brand-strong`, hover `--brand-strong-hover`.
+- `--brand-primary` stays for the logo, focus, borders, tints and
+  decoration that carries no text.
+- Text in brand color uses `--brand-text`, never `text-brand`.
+
+Until Phase 2a, the code still fills those surfaces with `bg-brand`.
 
 ## Legacy tokens
 
@@ -109,15 +124,22 @@ radius (prototype 26px, `rounded-t-3xl`).
 
 | Role | Desktop | Phone |
 | --- | --- | --- |
-| Page title (hero `h1`) | 30px, weight 650, tracking `-.03em` | Large title 34px, weight 700 |
+| Page title (hero `h1`) | 24px, weight 650, tracking `-0.02em` (desktop and tablet) | Large title 28px, weight 700, tracking `-.03em` |
 | Summary under the title | 15px muted | 15px muted |
 | Section heading (`h2`) | 12px uppercase, tracking `.08em`, muted | same |
 | Metric value | 30px mono | 26px mono |
 | Row name | 15px semibold | 16px |
 | Secondary line, tags | 13px / 12px | 13px / 11px |
 
+- Decided 2026-10-28 (was 30px desktop and 34px phone): the hero `h1` is
+  24px and the phone large title 28px. Pending in `TituloGrande` and the
+  hero (Phase 2).
 - Body text never goes below 12px. `TituloSistema` and `TextoSistema` keep
   their levels; see [components.md](components.md#typography).
+- Contrast at small sizes: text at 12–13px (secondary lines, hints, tags,
+  list headers) uses `--muted-foreground` or a darker token, never a fainter
+  one (no `muted-foreground/60`, no faint gray). Status tags use the status
+  `-text` tokens (`text-warning-text` on `bg-warning/10`), never the fill.
 
 ## Spacing and gutters (decided)
 

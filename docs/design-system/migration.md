@@ -31,7 +31,7 @@ prototype patterns.
 
 | Area | Paths | v1 | Lint | v2 | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Servidores (pilot) | `app/(auth)/admin/dream-team/servidores`, `components/dream-team/servidores` | yes | no | pending | Pilot of v2 (task T6), starts after TLR T2 merges. Parity checklist: `odd/tasks/sistema-diseno-v2.md` L3. "Agrupar por equipo" is removed (the scope cards replace it). |
+| Servidores (pilot) | `app/(auth)/admin/dream-team/servidores`, `components/dream-team/servidores` | yes | no | pending | Pilot of v2 (task T6), after the app shell (Phase 2b). Reference: prototype v3 in [`prototipos/servidores/`](prototipos/servidores/). Parity checklist: `odd/tasks/sistema-diseno-v2.md` L3. "Agrupar por equipo" is removed (the scope cards replace it). |
 | Mi equipo | `app/(auth)/dream-team/mi-equipo`, `components/dream-team` | yes | no | pending | Uses `TarjetasFiltro` and `PastillasFiltro`; one row per person (#604). Next after Servidores. |
 | Estructura | `app/(auth)/admin/dream-team/estructura`, `components/dream-team/estructura` | yes | no | pending | TLR T2 is changing dated shifts here. |
 | Grupos de Vida | `app/(auth)/grupos-vida`, `components/grupos`, `components/grupos-vida` | yes | yes | pending | `components/ui/FiltrosGrupos` brings its own `p-6`; the filter panel cancels the panel body padding around it. Drop that padding when it migrates. Another agent is active on `feat/grupos-filtros`. |
@@ -49,7 +49,7 @@ prototype patterns.
 | Perfil | `app/(auth)/perfil`, `components/perfil` | no | no | pending | `ContenedorDashboard`. |
 | Auth | `app/auth`, `app/signup`, `components/auth` | n/a | no | pending | `ContenedorPrincipal` + `FondoAutenticacion`; `components/auth` imports a legacy primitive. |
 | Shared reports | `components/reportes` | yes | no | pending | `DashboardRiesgo` takes chart colors from the status tokens; "En riesgo" mixes `--warning` and `--danger` (`color-mix(in oklch, …)`) in SVG fills and inline styles, while its text and tile stay `orange-*` and "Atención" text stays `amber-*`. Move the text to `text-warning-text` / `text-danger-text`. |
-| App chrome | `components/ui/{sidebar-moderna,desktop-header,header-movil,menu-inferior-movil}.tsx`, `components/navegacion` | yes | — | pending | Uses `--glass-*` tokens and `glass-panel-elevated` (drawer, popovers). `BarraNavegacionMovil` + `TituloGrande` exist (Phase 1); screens opt in, the chrome is unchanged. |
+| App chrome | `components/ui/{sidebar-moderna,desktop-header,header-movil,menu-inferior-movil}.tsx`, `components/navegacion` | yes | — | next (Phase 2b) | App shell (sidebar, desktop header, phone header, tab bar, Más sheet): next (Phase 2b). Uses `--glass-*` tokens and `glass-panel-elevated` (drawer, popovers). `BarraNavegacionMovil` + `TituloGrande` exist (Phase 1); screens opt in, the chrome is unchanged. |
 
 ## Phase 1 — base components
 
@@ -89,6 +89,34 @@ Open from Phase 1:
 
 ## Open follow-ups
 
+From the audit of the Servidores prototype v3 (2026-10-28):
+
+- f1 — White on `--brand-primary` is 3.17:1 (primary button, FAB, count
+  badges). Resolved by `--brand-strong` (decision 1 of
+  [2026-10-28](#decisions-2026-10-28)); pending in `app/globals.css`
+  (Phase 2a).
+- f2 — The phone inset grouped background (`--bg-grouped` in the
+  prototype) has no token. Add a grouped background token for phone.
+- f3 — "Inactivo" uses a faint muted tone that has no token and no
+  `PuntoEstado` `tono`. Add a faint/muted tone (its label still follows the
+  12–13px contrast rule in [foundations.md](foundations.md#typography-decided)).
+- f4 — `BotonFlotante` uses an orange gradient + `shadow-xl`; move it to
+  `bg-brand-strong` + `shadow-fab`.
+- f5 — `SelectsFiltro` switches columns at the `md` viewport breakpoint;
+  inside a 480px side panel it should use `@container` queries.
+- f6 — The tint comment in `app/globals.css` says 15%, while the tokens
+  are 10% light / 13% dark. Also `--success-text` on a 15% success tint in
+  light is 4.45:1 (below 4.5). Align the comment with the tokens and keep
+  status tags off 15% tints until `--success-text` is checked there.
+- f7 — `styles/globals.css` is an older shadcn token set that nothing
+  imports. Remove it.
+- f8 — `InputSistema` and `SelectSistema` errors use `text-red-500`; move
+  them to `text-danger-text`.
+- f9 — [`servidores-phone-person.png`](prototipos/capturas/servidores-phone-person.png)
+  is stale (v2). The v3 screenshots are `servidores-v3-*.png`.
+- App shell (sidebar, desktop header, phone header, tab bar, Más sheet):
+  next (Phase 2b).
+
 Carried over from the v1 docs, still open on `ff8a7bea`:
 
 - Lint list: add Usuarios, Talleres, Ayuda/Tickets, Notas de líderes,
@@ -123,6 +151,38 @@ uses `amber-700` / `yellow-700` text; Talleres confirms use `peligro`; the
 Dream Team pages render `PaginaSistema` (no `ContenedorDashboard` islands);
 `coloresMarca` points at the CSS variables; `TarjetaSistema`
 `default`/`elevated` are on the card surface (Phase 1).
+
+## Decisions (2026-10-28)
+
+The user approved the corrected Servidores prototype (v3,
+[`prototipos/servidores/`](prototipos/servidores/)) and the order: (1) port
+it to these docs, (2) the app shell, (3) Servidores. Binding, same rule as
+below.
+
+1. **Brand contrast**: "Naranja un poco más oscuro". New tokens
+   `--brand-strong` (#BE5413, white text 4.70:1) and `--brand-strong-hover`
+   (#B04E11, 5.32:1), same in light and dark, for filled brand surfaces
+   that carry text or icons (primary button, FAB, count badges).
+   `--brand-primary` (#E96C20) stays for logo, focus, borders, tints and
+   decoration; brand text uses `--brand-text`. Pending in
+   `app/globals.css` (Phase 2a). See
+   [foundations.md](foundations.md#brand-color-decided).
+2. **Type scale**: phone large title 28px bold (was 34px); desktop and
+   tablet hero `h1` 24px, weight 650, tracking `-0.02em` (was 30px).
+3. **Small text contrast**: 12–13px text uses `--muted-foreground` or
+   darker, never a fainter token; tags use the status `-text` tokens.
+4. **Header action**: the desktop header primary action is `tamaño="sm"`
+   (36px visual, ≥ 44px hit area).
+5. **Scope cards**: the responsible line is single-line (first name + first
+   surname, ellipsis; full name in `title` and `sr-only`).
+6. **Phone tab bar**: labels fit at 390px without truncation (short labels,
+   e.g. "Equipo").
+7. **Copy**: the "Sin cuenta" metric hint reads "por invitar".
+8. **Source of truth**: `docs/design-system/` is the single source of
+   truth; `design/system.md` is a derived snapshot. The current visual
+   reference is [`prototipos/servidores/`](prototipos/servidores/) (3
+   artboards); [`prototipos/servidores.html`](prototipos/servidores.html)
+   is the superseded v2.
 
 ## Decisions (2026-10-26)
 
