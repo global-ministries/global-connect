@@ -224,7 +224,9 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
         id: turno.id,
         label: turno.nombre,
         campusId: turno.campusId,
+        tipo: turno.tipo,
       }))}
+      hayTurnosPorFechas={turnos.some((turno) => turno.activo && turno.tipo === 'fechas')}
     />
   )
 }

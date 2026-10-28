@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase/database.types'
 import { FRECUENCIA_SEMANAL, validarFrecuencia, type FrecuenciaTurno } from '@/lib/platform/dream-team/frecuencia-turno'
+import {
+  TEXTO_POR_FECHAS,
+  type DatosFechaTurno,
+  type FechaTurno,
+  type TipoTurno,
+} from '@/lib/platform/dream-team/turno-fechas'
 
 /**
  * Campus service shifts ("turnos", D12 in odd/tasks/ninos-voluntarios-waumba.md).
@@ -11,6 +17,9 @@ import { FRECUENCIA_SEMANAL, validarFrecuencia, type FrecuenciaTurno } from '@/l
  * person's principal campus. The database enforces all of it
  * (supabase/migrations/20261005100000_dream_team_turnos.sql); this module holds
  * the pure rules the screens share plus the few queries they run.
+ *
+ * A shift is weekly or dated (`tipo`, 20261026140000): a dated one happens
+ * only on its planned dates (dream_team_turno_fechas), see turno-fechas.ts.
  */
 
 type DbClient = SupabaseClient<Database, 'public'>
@@ -25,6 +34,8 @@ export interface Turno {
   readonly hora: string
   readonly orden: number
   readonly activo: boolean
+  /** Absent = `semanal`. On a dated shift `diaSemana` is a reference only. */
+  readonly tipo?: TipoTurno
 }
 
 export const DIAS_SEMANA: readonly string[] = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -39,8 +50,9 @@ const TURNOS_MAX = 20
 
 // ── Pure rules ───────────────────────────────────────────────────────────
 
-/** "Sábado · 17:30". */
-export function detalleTurno(turno: Pick<Turno, 'diaSemana' | 'hora'>): string {
+/** "Sábado · 17:30", or "Por fechas · 10:00" for a dated shift. */
+export function detalleTurno(turno: Pick<Turno, 'diaSemana' | 'hora' | 'tipo'>): string {
+  if (turno.tipo === 'fechas') return `${TEXTO_POR_FECHAS} · ${turno.hora}`
   return `${DIAS_SEMANA[turno.diaSemana] ?? '—'} · ${turno.hora}`
 }
 
@@ -98,6 +110,7 @@ export interface DatosTurno {
   readonly diaSemana: number
   readonly hora: string
   readonly orden: number
+  readonly tipo: TipoTurno
 }
 
 export interface EntradaTurno {
@@ -105,13 +118,18 @@ export interface EntradaTurno {
   readonly diaSemana?: unknown
   readonly hora?: unknown
   readonly orden?: unknown
+  /** Absent = `semanal`. */
+  readonly tipo?: unknown
 }
 
 export function validarDatosTurno(entrada: EntradaTurno): ResultadoValidacion<{ readonly datos: DatosTurno }> {
   const nombre = typeof entrada.nombre === 'string' ? entrada.nombre.trim() : ''
   if (!nombre) return { ok: false, message: 'El nombre del turno es obligatorio.' }
   if (nombre.length > NOMBRE_MAX) return { ok: false, message: `El nombre no puede superar los ${NOMBRE_MAX} caracteres.` }
-  const dia = entrada.diaSemana
+  const tipo = entrada.tipo ?? 'semanal'
+  if (tipo !== 'semanal' && tipo !== 'fechas') return { ok: false, message: 'El tipo de turno debe ser semanal o por fechas.' }
+  // A dated shift has no weekday; the column is NOT NULL, so it keeps Sunday as a reference.
+  const dia = tipo === 'fechas' && entrada.diaSemana === undefined ? 0 : entrada.diaSemana
   if (typeof dia !== 'number' || !Number.isInteger(dia) || dia < 0 || dia > 6) {
     return { ok: false, message: 'Elige un día de la semana.' }
   }
@@ -121,7 +139,7 @@ export function validarDatosTurno(entrada: EntradaTurno): ResultadoValidacion<{ 
   if (typeof orden !== 'number' || !Number.isInteger(orden)) return { ok: false, message: 'El orden debe ser un número entero.' }
   return {
     ok: true,
-    datos: { nombre, diaSemana: dia, hora: `${hora[1].padStart(2, '0')}:${hora[2]}`, orden },
+    datos: { nombre, diaSemana: dia, hora: `${hora[1].padStart(2, '0')}:${hora[2]}`, orden, tipo },
   }
 }
 
@@ -145,6 +163,7 @@ interface TurnoRow {
   readonly hora: string
   readonly orden: number
   readonly activo: boolean
+  readonly tipo?: string | null
 }
 
 function aTurno(row: TurnoRow): Turno {
@@ -156,6 +175,7 @@ function aTurno(row: TurnoRow): Turno {
     hora: row.hora.slice(0, 5),
     orden: row.orden,
     activo: row.activo,
+    tipo: row.tipo === 'fechas' ? 'fechas' : 'semanal',
   }
 }
 
@@ -168,7 +188,7 @@ function fallar(error: unknown): never {
 export async function fetchTurnos(client: DbClient): Promise<Turno[]> {
   const { data, error } = await client
     .from('dream_team_turnos')
-    .select('id, campus_id, nombre, dia_semana, hora, orden, activo')
+    .select('id, campus_id, nombre, dia_semana, hora, orden, activo, tipo')
     .order('orden')
   if (error) fallar(error)
   return ordenarTurnos(((data ?? []) as TurnoRow[]).map(aTurno))
@@ -340,4 +360,86 @@ export async function guardarTurnosDeServicio(
 /** Replaces the restriction of a node; an empty list makes it inherit again. */
 export function guardarTurnosDeEquipo(client: DbClient, equipoId: string, turnoIds: readonly string[]): Promise<void> {
   return reemplazar(client, 'dream_team_equipo_turnos', 'equipo_id', equipoId, turnoIds)
+}
+
+// ── Dated shifts (turno-fechas.ts) ───────────────────────────────────────
+
+interface FechaRow {
+  readonly id: string
+  readonly turno_id: string
+  readonly fecha: string
+  readonly hora: string | null
+  readonly nota: string | null
+}
+
+/**
+ * The planned dates of these shifts, by date, with who serves on each.
+ * Dates are readable by every session; who serves follows the servicio's RLS.
+ */
+export async function fetchFechasDeTurnos(client: DbClient, turnoIds: readonly string[]): Promise<FechaTurno[]> {
+  const unicos = [...new Set(turnoIds)]
+  if (unicos.length === 0) return []
+  const [fechas, servidores] = await Promise.all([
+    client.from('dream_team_turno_fechas').select('id, turno_id, fecha, hora, nota').in('turno_id', unicos).order('fecha'),
+    client.from('dream_team_turno_fecha_servidores').select('turno_fecha_id, servicio_id').in('turno_id', unicos),
+  ])
+  if (fechas.error) fallar(fechas.error)
+  if (servidores.error) fallar(servidores.error)
+  const porFecha = new Map<string, string[]>()
+  for (const row of (servidores.data ?? []) as { turno_fecha_id: string; servicio_id: string }[]) {
+    const lista = porFecha.get(row.turno_fecha_id)
+    if (lista) lista.push(row.servicio_id)
+    else porFecha.set(row.turno_fecha_id, [row.servicio_id])
+  }
+  return ((fechas.data ?? []) as FechaRow[]).map((row) => ({
+    id: row.id,
+    turnoId: row.turno_id,
+    fecha: row.fecha,
+    hora: row.hora ? row.hora.slice(0, 5) : null,
+    nota: row.nota,
+    servidores: porFecha.get(row.id) ?? [],
+  }))
+}
+
+/** Whether the caller may plan the dates of a shift (A1, dream_team_puede_gestionar_turno). Fails closed. */
+export async function puedeGestionarTurno(client: DbClient, turnoId: string): Promise<boolean> {
+  const { data, error } = await client.rpc('dream_team_puede_gestionar_turno', { p_turno_id: turnoId })
+  return !error && data === true
+}
+
+/** Plans a date of a dated shift, or edits `turnoFechaId`; returns its id. Errors keep the database code and message. */
+export async function guardarFechaDeTurno(
+  client: DbClient,
+  turnoId: string,
+  datos: DatosFechaTurno,
+  turnoFechaId: string | null = null,
+): Promise<string> {
+  const { data, error } = await client.rpc('dream_team_turno_fecha_guardar', {
+    p_turno_id: turnoId,
+    p_fecha: datos.fecha,
+    p_hora: datos.hora,
+    p_nota: datos.nota,
+    p_turno_fecha_id: turnoFechaId,
+  })
+  if (error) fallar(error)
+  return data as string
+}
+
+export async function borrarFechaDeTurno(client: DbClient, turnoFechaId: string): Promise<void> {
+  const { error } = await client.rpc('dream_team_turno_fecha_borrar', { p_turno_fecha_id: turnoFechaId })
+  if (error) fallar(error)
+}
+
+/** Replaces who serves on a planned date ("Todos" = every assigned servicio); returns how many serve. */
+export async function fijarServidoresDeFecha(
+  client: DbClient,
+  turnoFechaId: string,
+  servicioIds: readonly string[],
+): Promise<number> {
+  const { data, error } = await client.rpc('dream_team_turno_fecha_servidores_fijar', {
+    p_turno_fecha_id: turnoFechaId,
+    p_servicio_ids: [...servicioIds],
+  })
+  if (error) fallar(error)
+  return Number(data ?? 0)
 }

@@ -8,7 +8,9 @@
  * refusal comes back as a message shown in the dialog.
  *
  * Each chosen shift has a frequency (T10): weekly, or biweekly from an anchor
- * Sunday, which defaults to the coming Sunday.
+ * Sunday, which defaults to the coming Sunday. A dated shift (tipo `fechas`)
+ * reads "Por fechas" and has no frequency: it is always saved weekly, and who
+ * serves on each date is chosen in Mi equipo's Calendario.
  */
 import { useEffect, useId, useState, type ReactElement } from 'react'
 
@@ -104,6 +106,7 @@ export function TurnosServicioDialog({
     if (carga.estado !== 'listo') return
     const elegidas = carga.turnos.filter((turno) => elegidos.has(turno.id))
     const ancladaMal = elegidas.find((turno) => {
+      if (turno.tipo === 'fechas') return false
       const ancla = frecuencias[turno.id]?.fechaAncla
       return frecuencias[turno.id]?.frecuencia === 'quincenal' && !(ancla && esDomingo(ancla))
     })
@@ -116,7 +119,9 @@ export function TurnosServicioDialog({
     try {
       // Keep the campus order of the list, not the order of the clicks.
       const turnoIds = elegidas.map((turno) => turno.id)
-      const frecuenciasElegidas = Object.fromEntries(turnoIds.map((id) => [id, frecuencias[id] ?? FRECUENCIA_SEMANAL]))
+      const frecuenciasElegidas = Object.fromEntries(
+        elegidas.map((turno) => [turno.id, turno.tipo === 'fechas' ? FRECUENCIA_SEMANAL : (frecuencias[turno.id] ?? FRECUENCIA_SEMANAL)]),
+      )
       const respuesta = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -175,7 +180,7 @@ export function TurnosServicioDialog({
                       <span className="text-xs text-muted-foreground">{detalleTurno(turno)}</span>
                     </label>
                   </div>
-                  {elegidos.has(turno.id) && (
+                  {elegidos.has(turno.id) && turno.tipo !== 'fechas' && (
                     <div className="flex flex-wrap items-center gap-2 pb-2 pl-9">
                       <select
                         aria-label={`Frecuencia de ${turno.nombre}`}

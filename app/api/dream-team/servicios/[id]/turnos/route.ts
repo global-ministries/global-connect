@@ -30,6 +30,8 @@ import {
  *        frequency, unlisted ones weekly; without it stored ones are kept. RLS lets the
  *        same people who edit the servicio do it; a trigger rejects a shift of
  *        another campus, an inactive one or one the node does not serve (422).
+ *        A dated shift (tipo `fechas`) takes no biweekly frequency (400 here,
+ *        refused by the database too).
  *
  * Besides the Dream Team read/write capabilities, the Atención al Voluntario
  * coordinator reads and saves the shifts of a servicio in their area (the equipos
@@ -98,6 +100,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     if (!validacion.ok) return NextResponse.json({ error: validacion.message }, { status: 400 })
     const frecuencias = validarFrecuencias((body as { frecuencias?: unknown }).frecuencias, validacion.turnoIds)
     if (!frecuencias.ok) return NextResponse.json({ error: frecuencias.message }, { status: 400 })
+    const quincenales = Object.entries(frecuencias.frecuencias ?? {})
+      .filter(([, f]) => f.frecuencia === 'quincenal')
+      .map(([turnoId]) => turnoId)
+    if (quincenales.length > 0) {
+      const turnos = await fetchTurnos(supabase)
+      if (turnos.some((turno) => turno.tipo === 'fechas' && quincenales.includes(turno.id))) {
+        return NextResponse.json({ error: 'Un turno por fechas no admite frecuencia quincenal.' }, { status: 400 })
+      }
+    }
 
     const servicio = await createSupabaseDreamTeamRepository(supabase).getServicioById(id)
     if (!servicio) return NextResponse.json({ error: 'Servicio no encontrado' }, { status: 404 })

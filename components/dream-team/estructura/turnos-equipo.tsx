@@ -9,6 +9,13 @@
  *
  * `efectivos` comes resolved from the database (dream_team_turnos_del_equipo),
  * which sees the ancestors this screen may not.
+ *
+ * Dated shifts (tipo `fechas`, odd/tasks/tlr-calendario-servicios.md) are never
+ * inherited by default: only a team that chooses one (and its sub-teams) serves
+ * it, and choosing one does not take the weekly shifts away. Each kind is
+ * saved apart: a dated shift the team still inherits unchanged is not written
+ * as its own choice, and when the save lists a dated shift, neither are the
+ * weekly ones the team inherits unchanged, so they stay inherited.
  */
 import { useId, useState, useTransition, type ReactElement } from 'react'
 
@@ -57,7 +64,40 @@ export function TurnosEquipo({
   const otrosCampus = propios.filter((id) => !idsDelCampus.has(id))
   const heredado = propios.every((id) => !idsDelCampus.has(id))
   const activos = ordenarTurnos(delCampus.filter((turno) => turno.activo))
+  const semanales = activos.filter((turno) => turno.tipo !== 'fechas')
+  const porFechas = activos.filter((turno) => turno.tipo === 'fechas')
   const nombres = activos.filter((turno) => efectivos.includes(turno.id)).map((turno) => turno.nombre)
+  const ningunSemanal = semanales.length > 0 && !semanales.some((turno) => elegidos.has(turno.id))
+
+  /** The chosen shifts of one kind, and whether the team inherits that kind and the choice did not change. */
+  function eleccionDe(grupo: readonly Turno[], esFechas: boolean): { readonly ids: string[]; readonly heredadaIgual: boolean } {
+    const ids = grupo.filter((turno) => elegidos.has(turno.id)).map((turno) => turno.id)
+    const efectivosGrupo = grupo.filter((turno) => efectivos.includes(turno.id)).map((turno) => turno.id)
+    const heredaGrupo = !delCampus.some((turno) => (turno.tipo === 'fechas') === esFechas && propios.includes(turno.id))
+    const igual = ids.length === efectivosGrupo.length && ids.every((id) => efectivosGrupo.includes(id))
+    return { ids, heredadaIgual: heredaGrupo && igual }
+  }
+
+  function eleccion(): string[] {
+    const semanal = eleccionDe(semanales, false)
+    const fechas = eleccionDe(porFechas, true)
+    const idsFechas = fechas.heredadaIgual ? [] : fechas.ids
+    const idsSemanales = semanal.heredadaIgual && idsFechas.length > 0 ? [] : semanal.ids
+    return [...otrosCampus, ...idsSemanales, ...idsFechas]
+  }
+
+  function casilla(turno: Turno): ReactElement {
+    const id = `${idBase}-${turno.id}`
+    return (
+      <li key={turno.id} className="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-accent">
+        <Checkbox id={id} checked={elegidos.has(turno.id)} disabled={isPending} onCheckedChange={() => alternar(turno.id)} />
+        <label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer flex-col py-2">
+          <span className="text-sm font-medium text-foreground">{turno.nombre}</span>
+          <span className="text-xs text-muted-foreground">{detalleTurno(turno)}</span>
+        </label>
+      </li>
+    )
+  }
 
   function alternar(id: string): void {
     setElegidos((previos) => {
@@ -90,20 +130,17 @@ export function TurnosEquipo({
 
       {puedeEditar && activos.length > 0 && (
         <div className="border-t border-border px-5 py-3 sm:px-6">
-          <ul className="grid gap-1 sm:grid-cols-2">
-            {activos.map((turno) => {
-              const id = `${idBase}-${turno.id}`
-              return (
-                <li key={turno.id} className="flex min-h-11 items-center gap-3 rounded-xl px-2 hover:bg-accent">
-                  <Checkbox id={id} checked={elegidos.has(turno.id)} disabled={isPending} onCheckedChange={() => alternar(turno.id)} />
-                  <label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer flex-col py-2">
-                    <span className="text-sm font-medium text-foreground">{turno.nombre}</span>
-                    <span className="text-xs text-muted-foreground">{detalleTurno(turno)}</span>
-                  </label>
-                </li>
-              )
-            })}
-          </ul>
+          {semanales.length > 0 && <ul className="grid gap-1 sm:grid-cols-2">{semanales.map(casilla)}</ul>}
+          {porFechas.length > 0 && (
+            <div role="group" aria-label="Turnos por fechas" className="mt-3 grid gap-1">
+              <p className="text-sm font-semibold text-foreground">Turnos por fechas</p>
+              <p className="text-sm text-muted-foreground">
+                Un turno por fechas sólo lo sirven los equipos que lo eligen aquí (y sus sub-equipos). Elegirlo no quita los turnos
+                semanales.
+              </p>
+              <ul className="grid gap-1 sm:grid-cols-2">{porFechas.map(casilla)}</ul>
+            </div>
+          )}
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             {!heredado && (
               <BotonSistema
@@ -117,13 +154,8 @@ export function TurnosEquipo({
             )}
             <BotonSistema
               type="button"
-              disabled={isPending || elegidos.size === 0}
-              onClick={() =>
-                guardar(
-                  [...otrosCampus, ...activos.filter((turno) => elegidos.has(turno.id)).map((turno) => turno.id)],
-                  'Turnos del equipo guardados.',
-                )
-              }
+              disabled={isPending || elegidos.size === 0 || ningunSemanal}
+              onClick={() => guardar(eleccion(), 'Turnos del equipo guardados.')}
             >
               Guardar turnos
             </BotonSistema>

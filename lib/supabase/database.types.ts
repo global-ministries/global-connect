@@ -1961,6 +1961,77 @@ export type Database = {
           },
         ]
       }
+      dream_team_turno_fecha_servidores: {
+        Row: {
+          created_at: string
+          servicio_id: string
+          turno_fecha_id: string
+          turno_id: string
+        }
+        Insert: {
+          created_at?: string
+          servicio_id: string
+          turno_fecha_id: string
+          turno_id: string
+        }
+        Update: {
+          created_at?: string
+          servicio_id?: string
+          turno_fecha_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_turno_fecha_servidores_servicio_id_turno_id_fkey"
+            columns: ["servicio_id", "turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicio_turnos"
+            referencedColumns: ["servicio_id", "turno_id"]
+          },
+          {
+            foreignKeyName: "dream_team_turno_fecha_servidores_turno_fecha_id_turno_id_fkey"
+            columns: ["turno_fecha_id", "turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turno_fechas"
+            referencedColumns: ["id", "turno_id"]
+          },
+        ]
+      }
+      dream_team_turno_fechas: {
+        Row: {
+          created_at: string
+          fecha: string
+          hora: string | null
+          id: string
+          nota: string | null
+          turno_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha: string
+          hora?: string | null
+          id?: string
+          nota?: string | null
+          turno_id: string
+        }
+        Update: {
+          created_at?: string
+          fecha?: string
+          hora?: string | null
+          id?: string
+          nota?: string | null
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dream_team_turno_fechas_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dream_team_turnos: {
         Row: {
           activo: boolean
@@ -1971,6 +2042,7 @@ export type Database = {
           id: string
           nombre: string
           orden: number
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -1982,6 +2054,7 @@ export type Database = {
           id?: string
           nombre: string
           orden?: number
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -1993,6 +2066,7 @@ export type Database = {
           id?: string
           nombre?: string
           orden?: number
+          tipo?: string
           updated_at?: string
         }
         Relationships: [
@@ -8412,6 +8486,32 @@ export type Database = {
       dream_team_turno_sirve_en: {
         Args: { p_domingo: string; p_fecha_ancla: string; p_frecuencia: string }
         Returns: boolean
+      }
+      dream_team_turno_activo_en: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: boolean
+      }
+      dream_team_puede_gestionar_turno: {
+        Args: { p_turno_id: string }
+        Returns: boolean
+      }
+      dream_team_turno_fecha_guardar: {
+        Args: {
+          p_fecha: string
+          p_hora?: string | null
+          p_nota?: string | null
+          p_turno_fecha_id?: string | null
+          p_turno_id: string
+        }
+        Returns: string
+      }
+      dream_team_turno_fecha_borrar: {
+        Args: { p_turno_fecha_id: string }
+        Returns: boolean
+      }
+      dream_team_turno_fecha_servidores_fijar: {
+        Args: { p_servicio_ids: string[]; p_turno_fecha_id: string }
+        Returns: number
       }
       dream_team_registrar_persona: {
         Args: {

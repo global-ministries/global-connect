@@ -11,6 +11,8 @@
  * daylight-saving change never shifts a day.
  */
 
+import { TEXTO_POR_FECHAS, type TipoTurno } from './turno-fechas'
+
 export type Frecuencia = 'semanal' | 'quincenal'
 
 export interface FrecuenciaTurno {
@@ -83,8 +85,17 @@ export function textoFrecuencia(frecuencia: FrecuenciaTurno, hoy: string): strin
   return `Quincenal (semana ${semanaDeAncla(frecuencia.fechaAncla)}) · próximo ${proximo.getUTCDate()} ${MESES[proximo.getUTCMonth()]}`
 }
 
-/** "Domingo 9:00", or "Domingo 9:00 · Quincenal (semana B) · próximo 18 oct" for a biweekly shift. */
-export function nombreConFrecuencia(nombre: string, frecuencia: FrecuenciaTurno | undefined, hoy: string): string {
+/**
+ * "Domingo 9:00", or "Domingo 9:00 · Quincenal (semana B) · próximo 18 oct" for a biweekly shift, or
+ * "The Living Room · Por fechas" for a dated shift (tipo `fechas`, turno-fechas.ts), which has no frequency.
+ */
+export function nombreConFrecuencia(
+  nombre: string,
+  frecuencia: FrecuenciaTurno | undefined,
+  hoy: string,
+  tipo?: TipoTurno,
+): string {
+  if (tipo === 'fechas') return `${nombre} · ${TEXTO_POR_FECHAS}`
   if (!frecuencia || frecuencia.frecuencia === 'semanal' || frecuencia.fechaAncla === null) return nombre
   return `${nombre} · ${textoFrecuencia(frecuencia, hoy)}`
 }

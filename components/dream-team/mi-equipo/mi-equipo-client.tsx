@@ -13,6 +13,10 @@
  *
  * Everything that crosses in from the server page is plain serializable data.
  * Icons and callbacks are created here, inside the island.
+ *
+ * When the campus has a dated shift (The Living Room), the selected card shows
+ * its "Calendario" (A2 of odd/tasks/tlr-calendario-servicios.md), loaded on
+ * the client for that card only.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
@@ -40,7 +44,9 @@ import {
 } from '@/lib/platform/dream-team/mi-equipo-vista'
 import { contarPorRangoEdad, type RangoEdad } from '@/lib/platform/dream-team/edad'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
+import type { TipoTurno } from '@/lib/platform/dream-team/turno-fechas'
 
+import { CalendarioTurnos } from './calendario-turnos'
 import { EncabezadoMiEquipo } from './encabezado'
 import { FranjaPendientes } from './franja-pendientes'
 import { ListaPersonas } from './lista-personas'
@@ -60,7 +66,14 @@ export interface MiEquipoClientProps {
    * Every active campus shift, in campus order: names the shifts of each
    * person; the "Turno" filter offers those of the campus selected in the app.
    */
-  readonly turnos?: readonly { readonly id: string; readonly label: string; readonly campusId?: string }[]
+  readonly turnos?: readonly {
+    readonly id: string
+    readonly label: string
+    readonly campusId?: string
+    readonly tipo?: TipoTurno
+  }[]
+  /** Some active campus shift is dated: the selected card asks for its Calendario. */
+  readonly hayTurnosPorFechas?: boolean
 }
 
 const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
@@ -98,6 +111,7 @@ function MiEquipoVistaDireccion({
   equiposAsignables,
   rolesPorEquipo,
   turnos = SIN_TURNOS,
+  hayTurnosPorFechas = false,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
   const puedeAgregar = puedeEditar || puedeRegistrar
   const router = useRouter()
@@ -197,6 +211,16 @@ function MiEquipoVistaDireccion({
         onSeleccionar={seleccionarTarjeta}
         onVolver={volver}
       />
+
+      {hayTurnosPorFechas && (
+        <CalendarioTurnos
+          // "Toda la dirección" is the direccion's own equipo.
+          key={tarjetaSeleccionada.id}
+          equipoId={tarjetaSeleccionada.id === TODOS_LOS_EQUIPOS ? direccionId : tarjetaSeleccionada.id}
+          personas={delEquipo}
+          toast={toast}
+        />
+      )}
 
       {turnosDelCampus.length > 0 && (
         <div className="max-w-xs">

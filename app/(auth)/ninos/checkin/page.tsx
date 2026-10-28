@@ -42,6 +42,8 @@ export default async function NinosCheckinPage({ searchParams }: Props) {
         .in('campus_id', campus)
         .eq('activo', true)
         .eq('dia_semana', 0)
+        // Dated Dream Team shifts (The Living Room) never reach Niños (S5, 20261026140000).
+        .eq('tipo', 'semanal')
         .order('orden')
     : { data: [] as TurnoFila[] }
 

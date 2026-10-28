@@ -41,6 +41,7 @@ import {
 import { MAX_SERVICIOS_POR_PERSONA, recortarServicios } from '@/lib/platform/dream-team/servidores-vista'
 import { isoLocal, nombreConFrecuencia } from '@/lib/platform/dream-team/frecuencia-turno'
 import type { FrecuenciasPorTurno } from '@/lib/platform/dream-team/turnos'
+import type { TipoTurno } from '@/lib/platform/dream-team/turno-fechas'
 
 export interface ListaPersonasProps {
   readonly titulo: string
@@ -55,12 +56,12 @@ export interface ListaPersonasProps {
   readonly puedeEditar: boolean
   readonly onActualizado: () => void
   /** Every active campus shift, in campus order; when there is any, each row names its shifts. */
-  readonly turnos?: readonly { readonly id: string; readonly label: string }[]
+  readonly turnos?: readonly { readonly id: string; readonly label: string; readonly tipo?: TipoTurno }[]
 }
 
 const SIN_TURNOS: NonNullable<ListaPersonasProps['turnos']> = []
 
-/** "Domingo 9:00, Domingo 11:00 · Quincenal (semana B) · próximo 18 oct", or "—" when the person has none. */
+/** "Domingo 9:00, Domingo 11:00 · Quincenal (semana B) · próximo 18 oct" ("TLR · Por fechas" for a dated shift), or "—" when none. */
 function textoDeTurnos(
   turnoIds: readonly string[] | undefined,
   turnos: NonNullable<ListaPersonasProps['turnos']>,
@@ -69,7 +70,7 @@ function textoDeTurnos(
   const hoy = isoLocal(new Date())
   const nombres = turnos
     .filter((turno) => turnoIds?.includes(turno.id))
-    .map((turno) => nombreConFrecuencia(turno.label, frecuencias?.[turno.id], hoy))
+    .map((turno) => nombreConFrecuencia(turno.label, frecuencias?.[turno.id], hoy, turno.tipo))
   return nombres.length > 0 ? nombres.join(', ') : '—'
 }
 

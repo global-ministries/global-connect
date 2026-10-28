@@ -585,7 +585,7 @@ function textoDeTurnos(
   if (!turnoIds || turnoIds.length === 0) return SIN_TURNOS_TEXTO
   const nombres = turnos
     .filter((turno) => turnoIds.includes(turno.id))
-    .map((turno) => nombreConFrecuencia(turno.nombre, frecuencias?.[turno.id], isoLocal(hoy)))
+    .map((turno) => nombreConFrecuencia(turno.nombre, frecuencias?.[turno.id], isoLocal(hoy), turno.tipo))
   return nombres.length > 0 ? nombres.join(', ') : SIN_TURNOS_TEXTO
 }
 

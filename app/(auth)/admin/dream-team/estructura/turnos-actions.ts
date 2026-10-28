@@ -11,6 +11,10 @@
  *
  * Shifts are never deleted from here: a servicio may be assigned to one, so a
  * shift that stops being used is disabled (`activo = false`).
+ *
+ * A shift is weekly or dated (`tipo`, A3 of odd/tasks/tlr-calendario-servicios.md):
+ * a dated one has no weekday (its dates are planned in Mi equipo) and only the
+ * teams that list it serve it.
  */
 
 import { revalidatePath } from 'next/cache'
@@ -22,6 +26,7 @@ import {
   requireDreamTeamSession,
 } from '@/lib/platform/dream-team/route-access'
 import { guardarTurnosDeEquipo, validarDatosTurno, validarTurnoIds } from '@/lib/platform/dream-team/turnos'
+import type { TipoTurno } from '@/lib/platform/dream-team/turno-fechas'
 
 const ESTRUCTURA_PATH = '/admin/dream-team/estructura'
 
@@ -57,6 +62,8 @@ export interface CrearTurnoInput {
   readonly diaSemana: number
   readonly hora: string
   readonly orden?: number
+  /** Absent = `semanal`. */
+  readonly tipo?: TipoTurno
 }
 
 export async function crearTurno(input: CrearTurnoInput): Promise<TurnoActionResult> {
@@ -73,6 +80,7 @@ export async function crearTurno(input: CrearTurnoInput): Promise<TurnoActionRes
     dia_semana: datos.diaSemana,
     hora: datos.hora,
     orden: datos.orden,
+    tipo: datos.tipo,
   })
   if (error) return fallo(error, 'crearTurno')
   revalidatePath(ESTRUCTURA_PATH)

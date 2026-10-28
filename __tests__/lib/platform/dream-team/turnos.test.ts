@@ -59,7 +59,7 @@ describe('validarDatosTurno', () => {
   it('normalizes a valid shift', () => {
     expect(validarDatosTurno({ nombre: '  Domingo 9:00 ', diaSemana: 0, hora: '9:00', orden: 2 })).toEqual({
       ok: true,
-      datos: { nombre: 'Domingo 9:00', diaSemana: 0, hora: '09:00', orden: 2 },
+      datos: { nombre: 'Domingo 9:00', diaSemana: 0, hora: '09:00', orden: 2, tipo: 'semanal' },
     })
   })
 
@@ -131,7 +131,7 @@ describe('fetchTurnos', () => {
       },
     })
     expect(await fetchTurnos(c as never)).toEqual([
-      { id: T1, campusId: 'c1', nombre: 'Domingo 9:00', diaSemana: 0, hora: '09:00', orden: 1, activo: true },
+      { id: T1, campusId: 'c1', nombre: 'Domingo 9:00', diaSemana: 0, hora: '09:00', orden: 1, activo: true, tipo: 'semanal' },
     ])
   })
 
