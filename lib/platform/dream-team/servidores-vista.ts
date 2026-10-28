@@ -251,6 +251,10 @@ export interface TarjetaConteo {
   readonly personas: number
   /** Of those, the ones in `postulado` or `en_orientacion`. */
   readonly porActivar: number
+  /** Of those, the ones without an account (an unknown account status never counts). */
+  readonly sinCuenta: number
+  /** Servicios per etapa under the same filters: the card's stacked etapa bar. */
+  readonly porEtapa: Readonly<Record<DreamTeamEstado, number>>
   /** An área with equipos below: tapping it enters it instead of picking an equipo. */
   readonly esArea: boolean
 }
@@ -662,10 +666,16 @@ function esRol(rolLabel: string, rol: 'coordinador' | 'director'): boolean {
   return rol === 'coordinador' ? clave.startsWith('coordinador') : clave === 'director' || clave === 'directora'
 }
 
-function conteo(filas: readonly FilaServidor[]): Pick<TarjetaConteo, 'personas' | 'porActivar'> {
+function conteo(filas: readonly FilaServidor[]): Pick<TarjetaConteo, 'personas' | 'porActivar' | 'sinCuenta' | 'porEtapa'> {
+  const personasQueCumplen = (cumple: (fila: FilaServidor) => boolean): number =>
+    new Set(filas.filter(cumple).map((fila) => fila.personaId)).size
+  const porEtapa = Object.fromEntries(DREAM_TEAM_ESTADOS.map((estado) => [estado, 0])) as Record<DreamTeamEstado, number>
+  for (const fila of filas) porEtapa[fila.estado] += 1
   return {
-    personas: new Set(filas.map((fila) => fila.personaId)).size,
-    porActivar: new Set(filas.filter((fila) => ESTADOS_POR_ACTIVAR.includes(fila.estado)).map((fila) => fila.personaId)).size,
+    personas: personasQueCumplen(() => true),
+    porActivar: personasQueCumplen((fila) => ESTADOS_POR_ACTIVAR.includes(fila.estado)),
+    sinCuenta: personasQueCumplen((fila) => fila.tieneCuenta === false),
+    porEtapa,
   }
 }
 

@@ -30,8 +30,11 @@ import {
   ID_MDH,
   ID_PAREJAS,
   ID_PDP,
+  ID_NINOS,
   ID_TALLERES,
+  arbolNinos,
   arbolServidores,
+  filasNinos,
   fila,
   todasLasFilas,
   filasConexion,
@@ -64,7 +67,7 @@ jest.mock('@/components/ui/desktop-header', () => ({
   }) => (
     <header>
       {breadcrumbs}
-      <h1>{titulo}</h1>
+      {titulo && <h1>{titulo}</h1>}
       {accionPrincipal}
     </header>
   ),
@@ -205,8 +208,11 @@ describe('ServidoresClient — etapa pills in the filters sheet (criterion 1)', 
 describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criterion 2)', () => {
   it('without a dirección the cards are the direcciones; tapping one enters it and shows the breadcrumbs', async () => {
     render(<ServidoresClient {...props({ filtrosIniciales: PLANO })} />)
-    expect(tarjeta('Todas las direcciones')).toHaveAttribute('aria-pressed', 'true')
-    expect(tarjeta('Todas las direcciones')).toHaveTextContent('38personas')
+    // As in the prototype there is no "Todas las direcciones" card: nothing is pressed at the root.
+    expect(screen.queryByRole('button', { name: /^Todas las direcciones/ })).not.toBeInTheDocument()
+    const direcciones = within(screen.getByRole('group', { name: 'Direcciones' })).getAllByRole('button')
+    expect(direcciones.map((boton) => boton.getAttribute('aria-pressed'))).toEqual(['false', 'false'])
+    expect(tarjeta('Dirección de Conexión')).toHaveTextContent('36personas')
     expect(tarjeta('Dirección de Conexión')).toHaveTextContent('Dirige Antholy Ludovic Gómez')
     expect(screen.queryByRole('navigation', { name: 'Ubicación' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Volver a / })).not.toBeInTheDocument()
@@ -217,7 +223,8 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     expect(within(migas()).getByRole('button', { name: 'Servidores' })).toBeInTheDocument()
     expect(within(migas()).getByText('Dirección de Conexión')).toHaveAttribute('aria-current', 'page')
     // The hero (desktop) and the large title (phone) carry the same summary.
-    const resumenes = screen.getAllByText(/Dirige Antholy Ludovic Gómez · /, { selector: 'p' })
+    // The name is in a <strong>, so the summary is matched on the whole paragraph.
+    const resumenes = screen.getAllByText((_, el) => el?.tagName === 'P' && (el.textContent ?? '').startsWith('Dirige Antholy Ludovic Gómez · '))
     expect(resumenes).toHaveLength(2)
     for (const resumen of resumenes) expect(resumen).toHaveTextContent('Dirige Antholy Ludovic Gómez · 36 personas · 38 servicios')
   })
@@ -228,16 +235,38 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     const nombres = within(screen.getByRole('group', { name: 'Equipos' }))
       .getAllByRole('button')
       .map((boton) => boton.querySelector('span span')?.textContent)
-    expect(nombres).toEqual(['Toda la dirección', 'De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
+    expect(nombres).toEqual(['De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
     expect(tarjeta('Punto de Partida')).toHaveTextContent('Coordina Jose Jimenez')
     expect(tarjeta('Punto de Partida')).toHaveTextContent('1 por activar')
   })
 
-  it('breadcrumbs and the phone back button go up one level; "Toda la dirección" removes only the equipo', async () => {
+  it('each card carries its flags and says its etapas in words (the prototype\'s flags and etapa bar)', async () => {
+    render(<ServidoresClient {...props()} />)
+    expect(tarjeta('Dirección de Conexión')).toHaveAccessibleName(expect.stringContaining('2 por activar 31 sin cuenta'))
+    expect(tarjeta('Dirección de Conexión')).toHaveAccessibleName(expect.stringContaining('Activo 35, En orientación 2, En pausa 1'))
+    await user.click(tarjeta('Dirección de Conexión'))
+    expect(tarjeta('Punto de Partida')).toHaveAccessibleName(expect.stringContaining('1 por activar 13 sin cuenta'))
+  })
+
+  it('a level made of áreas is headed "Áreas" and its cards enter the área (Dirección de Niños)', async () => {
+    const filtrosIniciales = { ...FILTROS_INICIALES, direccion: ID_NINOS }
+    render(<ServidoresClient {...props({ filas: [...todasLasFilas, ...filasNinos], arbol: [...arbolServidores, ...arbolNinos], filtrosIniciales })} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Áreas' })).toBeInTheDocument()
+    const areas = within(screen.getByRole('group', { name: 'Áreas' }))
+    const waumba = areas.getByRole('button', { name: (nombre) => nombre.startsWith('Waumba Land') })
+    expect(waumba).toHaveAccessibleName(expect.stringContaining('Coordina Wanda Pérez'))
+    expect(waumba).toHaveAccessibleName(expect.stringContaining('2 por activar 2 sin cuenta'))
+    expect(waumba).toHaveAccessibleName(expect.stringContaining('Activo 4, En orientación 1, Postulado 1'))
+    await user.click(waumba)
+    expect(screen.getByRole('heading', { level: 2, name: 'Equipos' })).toBeInTheDocument()
+    expect(within(migas()).getByText('Waumba Land')).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('breadcrumbs and the phone back button go up one level; at a leaf equipo the cards hide and the dirección crumb removes only the equipo', async () => {
     render(<ServidoresClient {...props()} />)
     await user.click(tarjeta('Dirección de Alabanza'))
     await user.click(tarjeta('Coro'))
-    expect(tarjeta('Coro')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('group', { name: /^(Direcciones|Áreas|Equipos)$/ })).not.toBeInTheDocument()
     expect(nombresEnLista().sort()).toEqual(['Sara Ponce', 'Tomás Rey'])
     expect(replace).toHaveBeenLastCalledWith(`/admin/dream-team/servidores?direccion=dir-alabanza&equipo=${ID_CORO}`, { scroll: false })
     expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent?.replace('/', ''))).toEqual([
@@ -250,7 +279,7 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
 
     await user.click(tarjeta('Coro'))
-    await user.click(tarjeta('Toda la dirección'))
+    await user.click(within(migas()).getByRole('button', { name: 'Dirección de Alabanza' }))
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
 
     await user.click(within(migas()).getByRole('button', { name: 'Servidores' }))
@@ -266,8 +295,8 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
       'Dirección de Conexión',
       'Talleres',
     ])
-    expect(tarjeta('Todo Talleres')).toHaveAttribute('aria-pressed', 'true')
-    expect(within(screen.getByRole('group', { name: 'Equipos' })).getAllByRole('button')).toHaveLength(5)
+    expect(screen.queryByRole('button', { name: /^Todo Talleres/ })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Equipos' })).getAllByRole('button')).toHaveLength(4)
     expect(cantidadDeFilas()).toBe(37)
     expect(screen.getByRole('button', { name: 'Volver a Dirección de Conexión' })).toBeInTheDocument()
   })
@@ -479,7 +508,8 @@ describe('ServidoresClient — search, chips and the URL (criteria 7 and 8)', ()
     render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales })} />)
 
     expect(metrica('Sirviendo')).toHaveAttribute('aria-pressed', 'true')
-    expect(tarjeta('De Hombre a Hombre')).toHaveAttribute('aria-pressed', 'true')
+    // The equipo is a leaf: its scope cards hide and the breadcrumbs carry it.
+    expect(screen.queryByRole('group', { name: 'Equipos' })).not.toBeInTheDocument()
     expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent?.replace('/', ''))).toEqual([
       'Servidores',
       'Dirección de Conexión',
@@ -821,5 +851,17 @@ describe('ServidoresClient — page layout (docs/design-system)', () => {
     expect(container.querySelector('[data-ancho="default"]')).not.toBeNull()
     await user.click(tarjeta('Dirección de Conexión'))
     expect(screen.getAllByRole('heading', { level: 1, name: 'Dirección de Conexión' }).length).toBeGreaterThan(0)
+  })
+
+  it('has one h1 per breakpoint: the desktop hero and the phone large title; the desktop header carries no title', () => {
+    render(<ServidoresClient {...props({ filtrosIniciales: { ...FILTROS_INICIALES, direccion: ID_CONEXION } })} />)
+    const titulos = screen.getAllByRole('heading', { level: 1 })
+    expect(titulos.map((h1) => h1.textContent)).toEqual(['Dirección de Conexión', 'Dirección de Conexión'])
+    const grande = titulos.find((h1) => h1.closest('[data-slot="titulo-grande"]'))
+    const hero = titulos.find((h1) => h1 !== grande)
+    expect(hero?.parentElement).toHaveClass('hidden', 'md:block')
+    expect(grande?.closest('[data-slot="titulo-grande"]')).toHaveClass('md:hidden')
+    // The responsible's name is emphasized in the summary, as in the prototype.
+    expect(screen.getAllByText('Antholy Ludovic Gómez', { selector: 'strong' })).toHaveLength(2)
   })
 })

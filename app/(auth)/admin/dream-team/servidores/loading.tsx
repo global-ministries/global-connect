@@ -2,7 +2,8 @@
  * Dream Team — loading skeleton for /admin/dream-team/servidores.
  *
  * Keeps the frame of the real screen (components/dream-team/servidores/):
- * the summary line, the toolbar, the four attention metrics and the list
+ * the hero (title in the content, not in the header: the large title on
+ * phones, 30px from md) with its summary line, the toolbar, the four attention metrics and the list
  * with six skeleton rows (docs/design-system/patterns.md#empty-and-loading-states).
  */
 import { PaginaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
@@ -10,8 +11,13 @@ import { SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 
 export default function LoadingServidores() {
   return (
-    <PaginaSistema titulo="Servidores">
-      <SkeletonSistema ancho="220px" alto="18px" />
+    <PaginaSistema>
+      <div>
+        <h1 className="px-1 text-[34px] font-bold leading-[1.1] tracking-[-0.03em] text-foreground md:px-0 md:text-3xl md:tracking-[-0.02em]">
+          Servidores
+        </h1>
+        <SkeletonSistema ancho="220px" alto="18px" className="mt-2" />
+      </div>
 
       <div className="flex flex-wrap gap-2.5">
         <SkeletonSistema alto="44px" className="min-w-0 flex-[1_1_100%] md:flex-[1_1_280px]" />

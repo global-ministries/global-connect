@@ -147,3 +147,35 @@ describe('KPI cards follow the tree, one level at a time (Dirección de Niños)'
     expect(parcheElegirTarjeta(tarjetas, 'w-anf', opciones)).toEqual({ equipo: 'w-anf', direccion: N })
   })
 })
+
+describe('KPI cards carry the flags and the etapa bar of the prototype', () => {
+  const etapas = (activo: number, enOrientacion = 0, enPausa = 0) => ({
+    postulado: 0,
+    en_orientacion: enOrientacion,
+    activo,
+    en_pausa: enPausa,
+    inactivo: 0,
+    retirado: 0,
+  })
+
+  it('each dirección counts its people without an account and its servicios per etapa', () => {
+    const { tarjetas } = vista()
+    expect(tarjetas.todas).toMatchObject({ sinCuenta: 32, porEtapa: etapas(37, 2, 1) })
+    expect(tarjetas.items.find((t) => t.id === ID_CONEXION)).toMatchObject({ sinCuenta: 31, porEtapa: etapas(35, 2, 1) })
+    expect(tarjetas.items.find((t) => t.id === ID_ALABANZA)).toMatchObject({ sinCuenta: 1, porEtapa: etapas(2) })
+  })
+
+  it('each equipo counts its whole branch, under the same filters as its people count', () => {
+    expect(vista({ direccion: ID_CONEXION }).tarjetas.items[0]).toMatchObject({
+      id: ID_DHAH,
+      personas: 9,
+      sinCuenta: 6,
+      porEtapa: etapas(8, 1),
+    })
+    expect(vista({ direccion: ID_CONEXION, etapa: 'en_orientacion' }).tarjetas.items[0]).toMatchObject({
+      personas: 1,
+      sinCuenta: 1,
+      porEtapa: etapas(0, 1),
+    })
+  })
+})

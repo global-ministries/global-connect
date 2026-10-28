@@ -9,8 +9,8 @@
  * servicio"; on phones the navigation bar with "‹ parent" and the Filtros
  * button), hero (the current level and its numbers; the large title on
  * phones), toolbar (search, Filtros, Por persona / Por servicio), the
- * attention metrics that act as filters, the cards of the next tree level,
- * the age pills, and the list with its active-filter chips and footer. A row
+ * attention metrics that act as filters, the cards of the next tree level
+ * (hidden once a leaf equipo is picked), the age pills, and the list with its active-filter chips and footer. A row
  * opens the person's detail drawer, which holds every action.
  *
  * Every rule lives in the pure view model
@@ -57,7 +57,7 @@ import {
 import { DetalleServidor } from './detalle-servidor'
 import { HojaFiltrosServidores, OPCIONES_VISTA } from './filtros-servidores'
 import { ListaServidores } from './lista-servidores'
-import { TarjetasUbicacion } from './tarjetas-ubicacion'
+import { TarjetasUbicacion, etiquetaNivel } from './tarjetas-ubicacion'
 
 export interface ServidoresClientProps {
   readonly filas: readonly FilaServidor[]
@@ -232,11 +232,13 @@ export function ServidoresClient({
   const { migas } = navegacion
   const anterior = migas.length > 1 ? migas[migas.length - 2] : null
   const porPersona = vista.filtros.agrupar === 'persona'
+  // "Dirige Ana Pérez": the name is emphasized, as in the prototype.
+  const responsable = navegacion.responsable?.match(/^(\S+) (.+)$/)
   const resumen = (
     <>
-      {navegacion.responsable && (
+      {responsable && (
         <>
-          {navegacion.responsable} ·{' '}
+          {responsable[1]} <strong className="font-semibold">{responsable[2]}</strong> ·{' '}
         </>
       )}
       <strong className="font-mono tabular-nums">{navegacion.personas}</strong> {navegacion.personas === 1 ? 'persona' : 'personas'} ·{' '}
@@ -266,8 +268,8 @@ export function ServidoresClient({
 
   return (
     <NavegacionMovilProvider>
+      {/* No `titulo`: the desktop title is the hero below, the phone one TituloGrande (one h1 per width). */}
       <PaginaSistema
-        titulo={navegacion.titulo}
         breadcrumbs={migas.length > 1 ? <MigasServidores migas={migas} onIr={(miga) => cambiar(miga.parche)} /> : undefined}
         acciones={
           puedeEditar ? (
@@ -285,7 +287,10 @@ export function ServidoresClient({
           className="-mx-4 -mt-4 pt-0 sm:-mx-6 sm:-mt-6"
         />
         <TituloGrande titulo={navegacion.titulo} resumen={resumen} />
-        <p className="-mt-2 hidden text-[15px] text-muted-foreground md:block [&_strong]:text-foreground">{resumen}</p>
+        <div className="hidden md:block">
+          <h1 className="text-3xl font-bold tracking-[-0.02em] text-foreground">{navegacion.titulo}</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground [&_strong]:text-foreground">{resumen}</p>
+        </div>
 
         <BarraHerramientas
           busqueda={{
@@ -312,14 +317,14 @@ export function ServidoresClient({
           onAlternar={(id) => cambiar(parcheAtencion(vista.filtros, id as MetricaAtencionId))}
         />
 
-        {tarjetas.items.length > 0 && (
+        {tarjetas.items.length > 0 && vista.filtros.equipo === null && (
           <section aria-labelledby="servidores-alcance" className="space-y-3">
             <div className="flex items-baseline justify-between gap-3 px-1 md:px-0">
               <h2 id="servidores-alcance" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                {tarjetas.nivel === 'direcciones' ? 'Direcciones' : 'Equipos'}
+                {etiquetaNivel(tarjetas)}
               </h2>
               <span className="hidden text-xs text-muted-foreground md:inline">
-                {tarjetas.nivel === 'direcciones' ? 'Tocá para entrar' : 'Tocá un equipo para ver su gente'}
+                {etiquetaNivel(tarjetas) === 'Equipos' ? 'Tocá un equipo para ver su gente' : 'Tocá para entrar'}
               </span>
             </div>
             <TarjetasUbicacion vista={vista} onCambio={cambiar} />
