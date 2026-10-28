@@ -4,10 +4,40 @@ import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { Sun, Moon, Monitor } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { ControlSegmentado } from "@/components/ui/control-segmentado"
+
+type Tema = "system" | "light" | "dark"
+
+const OPCIONES_TEMA = [
+    { valor: "system", etiqueta: "Sistema" },
+    { valor: "light", etiqueta: "Claro" },
+    { valor: "dark", etiqueta: "Oscuro" },
+] as const satisfies readonly { valor: Tema; etiqueta: string }[]
 
 /**
- * Toggle de tema: light → dark → system
- * Diseño Liquid Glass con animación de ícono rotante.
+ * The one theme control of the app shell (odd/tasks/sistema-diseno-v2.md,
+ * S9.4): Sistema | Claro | Oscuro as a segmented control, in the account
+ * menu on desktop and in the "Más" sheet on phone.
+ */
+export function SelectorTema({ etiqueta = "Tema", className }: { etiqueta?: string; className?: string }) {
+    const { theme, setTheme } = useTheme()
+    const valor: Tema = theme === "light" || theme === "dark" ? theme : "system"
+
+    return (
+        <ControlSegmentado
+            opciones={OPCIONES_TEMA}
+            valor={valor}
+            onCambio={setTheme}
+            etiqueta={etiqueta}
+            className={cn("grid w-full grid-cols-3", className)}
+        />
+    )
+}
+
+/**
+ * Toggle de tema: light → dark → system.
+ * @deprecated The shell uses `SelectorTema` in the account menu; kept for
+ * screens outside the shell.
  */
 export function ThemeToggle({ className }: { className?: string }) {
     const { theme, setTheme } = useTheme()

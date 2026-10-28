@@ -43,3 +43,42 @@ export const CLASE_BOTON_ICONO_NAV = cn(
   'hover:bg-[var(--brand-accent)] hover:text-foreground',
   BASE_INTERACTIVA,
 )
+
+/*
+ * Desktop and tablet sidebar (prototype design/app-shell, `.it`): an opaque
+ * surface, muted entries, the current page on `bg-brand-tint` with foreground
+ * text (no pill), and the parent of the current page in foreground.
+ */
+const BASE_SIDEBAR = 'focus-ring touch-manipulation transition-colors duration-150 ease-expo'
+
+/** A main sidebar entry: 44px. `contiene`: the entry's group holds the current page. */
+export function claseEntradaSidebar(activo: boolean, contiene = false): string {
+  return cn(
+    'group relative flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2.5 text-left text-sm',
+    BASE_SIDEBAR,
+    activo
+      ? 'bg-brand-tint font-semibold text-foreground'
+      : contiene
+        ? 'font-medium text-foreground hover:bg-accent'
+        : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+  )
+}
+
+/** A submenu row: the sm control height (36px) on a fine pointer, 44px on touch. */
+export function claseSubEntradaSidebar(activo: boolean): string {
+  return cn(
+    'flex min-h-9 w-full items-center gap-2.5 rounded-xl px-2.5 text-sm pointer-coarse:min-h-11',
+    BASE_SIDEBAR,
+    activo ? 'bg-brand-tint font-semibold text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+  )
+}
+
+/** A 44px icon button of the shell chrome (collapse, chevrons, bell, rail campus). It needs an aria-label. */
+export const CLASE_BOTON_ICONO_SHELL = cn(
+  'inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground',
+  'hover:bg-accent hover:text-foreground',
+  BASE_SIDEBAR,
+)
+
+/** Floating layers of the shell (rail flyout, account and notifications popovers). */
+export const CLASE_CAPA_FLOTANTE = 'rounded-2xl border border-border bg-card text-foreground shadow-sheet'
