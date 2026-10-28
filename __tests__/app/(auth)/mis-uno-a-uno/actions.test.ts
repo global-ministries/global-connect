@@ -157,10 +157,10 @@ describe('happy path', () => {
     expect(revalidatePathMock).toHaveBeenCalledWith('/mis-uno-a-uno')
   })
 
-  it('agendarUnoAUno sends a null lugar when it is blank', async () => {
+  it('agendarUnoAUno leaves a blank lugar out (the function defaults it to NULL)', async () => {
     const { rpc } = setup()
     await agendarUnoAUno({ ...agendarInput, lugar: '  ' })
-    expect(rpc.mock.calls[0][1]).toMatchObject({ p_lugar: null })
+    expect(JSON.stringify(rpc.mock.calls[0][1])).not.toContain('p_lugar')
   })
 
   it('registrarUnoAUno sends the resumen and the private note', async () => {
@@ -172,7 +172,7 @@ describe('happy path', () => {
       p_id: UNO,
       p_resumen: 'Bien',
       p_nota_privada: 'Orar por su trabajo',
-      p_celebracion: null,
+      p_celebracion: undefined,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/mis-uno-a-uno')
   })
@@ -189,16 +189,16 @@ describe('happy path', () => {
     expect(rpc.mock.calls[0][1]).toMatchObject({ p_celebracion: 'Consiguió trabajo' })
   })
 
-  it('registrarSinAgenda sends every field, blanks as null', async () => {
+  it('registrarSinAgenda sends every field and leaves blanks out', async () => {
     const { rpc } = setup()
     expect(await registrarSinAgenda(sinAgendaInput)).toEqual({ ok: true })
     expect(rpc).toHaveBeenCalledWith('uno_a_uno_registrar_sin_agenda', {
       p_dirigido_id: DIRIGIDO,
       p_fecha_hora: '2026-10-10T09:00:00-04:00',
       p_resumen: 'Hablamos de su familia.',
-      p_nota_privada: null,
-      p_lugar: null,
-      p_celebracion: null,
+      p_nota_privada: undefined,
+      p_lugar: undefined,
+      p_celebracion: undefined,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/mis-uno-a-uno')
   })
@@ -218,7 +218,7 @@ describe('happy path', () => {
     expect(await cancelarUnoAUno({ id: UNO, motivo: ' Viaje ' })).toEqual({ ok: true })
     expect(rpc).toHaveBeenCalledWith('uno_a_uno_cancelar', { p_id: UNO, p_motivo: 'Viaje' })
     await cancelarUnoAUno({ id: UNO })
-    expect(rpc).toHaveBeenLastCalledWith('uno_a_uno_cancelar', { p_id: UNO, p_motivo: null })
+    expect(rpc).toHaveBeenLastCalledWith('uno_a_uno_cancelar', { p_id: UNO, p_motivo: undefined })
     expect(revalidatePathMock).toHaveBeenCalledWith('/mis-uno-a-uno')
   })
 })

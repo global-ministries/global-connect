@@ -86,7 +86,8 @@ export function AgregarPadreForm({ familia, onVinculado, onCancelar }: Props) {
     setGuardando(true)
     const { error } = await createClient().rpc('ninos_vincular_padre', {
       p_nino_ids: ninoIds,
-      p_padre_id: 'id' in padre ? padre.id : null,
+      // NULL is a valid argument here (a new parent); generated RPC types never mark arguments nullable.
+      p_padre_id: ('id' in padre ? padre.id : null) as string,
       p_padre_nuevo: 'nuevo' in padre ? padre.nuevo : null,
     })
     setGuardando(false)

@@ -125,9 +125,9 @@ describe('POST /api/dream-team/turnos/[id]/fechas', () => {
     expect(rpc).toHaveBeenCalledWith('dream_team_turno_fecha_guardar', {
       p_turno_id: TLR,
       p_fecha: '2026-11-08',
-      p_hora: null,
+      p_hora: undefined,
       p_nota: 'Cena',
-      p_turno_fecha_id: null,
+      p_turno_fecha_id: undefined,
     })
   })
 
@@ -153,7 +153,7 @@ describe('PATCH and DELETE /api/dream-team/turnos/[id]/fechas/[fechaId]', () => 
       p_turno_id: TLR,
       p_fecha: '2026-11-15',
       p_hora: '11:00',
-      p_nota: null,
+      p_nota: undefined,
       p_turno_fecha_id: F1,
     })
   })
