@@ -13,9 +13,11 @@ import { RANGO_EDAD_LABELS, contarPorRangoEdad, esRangoEdad, type ContadoresEdad
  *
  * It answers work questions over the flat list of servicios: who serves where
  * and in which stage, who has no account, who serves in several teams. It owns
- * every filter rule, the reactive counters, the dirección → área → equipo cascade,
- * sorting, grouping (one item per person by default), the active-filter pills, the footer text and the URL
- * codec, so the screen only renders and the rules are testable without a DOM.
+ * every filter rule, the reactive counters and attention metrics, the
+ * dirección → área → equipo cascade and its breadcrumbs, sorting, the two
+ * views (one item per person by default, or one per servicio), the active-filter
+ * chips, the footer text and the URL codec, so the screen only renders and the
+ * rules are testable without a DOM.
  *
  * Counters are reactive: each one is computed with every filter applied EXCEPT
  * the one it belongs to, so it says what tapping it would leave on screen.
@@ -64,7 +66,12 @@ export interface FilaServidor {
 }
 
 export type Inicio = 'cualquiera' | 'mes' | 'trimestre'
-export type Agrupar = 'ninguno' | 'equipo' | 'persona'
+/**
+ * The view: one item per person ("Por persona") or per servicio ("Por
+ * servicio", `ninguno` in the URL since the old "Sin agrupar"). "Por equipo"
+ * was removed with design system v2: the scope cards replace it.
+ */
+export type Agrupar = 'ninguno' | 'persona'
 export type ColumnaOrden = 'persona' | 'equipo' | 'rol' | 'etapa' | 'inicio'
 export type SentidoOrden = 'asc' | 'desc'
 
@@ -82,6 +89,8 @@ export interface FiltrosServidores {
   readonly inicio: Inicio
   readonly sinCuenta: boolean
   readonly varios: boolean
+  /** Servicios in postulado or en orientación. */
+  readonly porActivar: boolean
   readonly q: string
   readonly agrupar: Agrupar
   readonly orden: { readonly columna: ColumnaOrden; readonly sentido: SentidoOrden }
@@ -98,6 +107,7 @@ export const FILTROS_INICIALES: FiltrosServidores = {
   inicio: 'cualquiera',
   sinCuenta: false,
   varios: false,
+  porActivar: false,
   q: '',
   agrupar: 'persona',
   orden: { columna: 'persona', sentido: 'asc' },
@@ -112,6 +122,20 @@ export const ETIQUETA_COLUMNA: Readonly<Record<ColumnaOrden, string>> = {
   etapa: 'Etapa',
   inicio: 'Inicio',
 }
+
+/** The filters the sheet holds; its "Limpiar" applies this. Scope, search, view and sort stay. */
+export const LIMPIAR_HOJA: Partial<FiltrosServidores> = {
+  etapa: null,
+  rol: null,
+  turno: null,
+  inicio: 'cualquiera',
+  sinCuenta: false,
+  varios: false,
+  porActivar: false,
+}
+
+/** "Limpiar todo": every chip, the age included. Scope and search stay. */
+export const LIMPIAR_FILTROS: Partial<FiltrosServidores> = { ...LIMPIAR_HOJA, edad: null }
 
 // ── Tree index ───────────────────────────────────────────────────────────
 
@@ -161,6 +185,8 @@ export interface FilaVista extends FilaServidor {
   readonly equiposDeLaPersona: number
   /** The shift names, in campus order, joined with ", "; "—" when none. */
   readonly turnosTexto: string
+  /** The equipo name; a name repeated in the tree carries its parent ("Anfitriones · UpStreet"). */
+  readonly equipoNombre: string
 }
 
 /**
@@ -179,10 +205,7 @@ export interface PersonaLista {
   readonly filas: readonly FilaVista[]
 }
 
-export type ItemLista =
-  | { readonly tipo: 'grupo'; readonly clave: string; readonly titulo: string; readonly detalle: string; readonly cantidad: number }
-  | { readonly tipo: 'fila'; readonly fila: FilaVista }
-  | PersonaLista
+export type ItemLista = { readonly tipo: 'fila'; readonly fila: FilaVista } | PersonaLista
 
 /** A person shows this many servicios until "+N más" expands the rest. */
 export const MAX_SERVICIOS_POR_PERSONA = 3
@@ -242,6 +265,33 @@ export interface TarjetasServidores {
   readonly modoCompacto: boolean
 }
 
+/** An attention metric: distinct people under every filter but its own. */
+export interface ContadorAtencion {
+  readonly personas: number
+  readonly activo: boolean
+}
+
+export type MetricaAtencionId = 'sirviendo' | 'porActivar' | 'sinCuenta' | 'sinTurno' | 'varios'
+
+/** One level of the tree the screen is in; applying `parche` goes back to it. */
+export interface Miga {
+  readonly id: string
+  readonly etiqueta: string
+  readonly parche: Partial<FiltrosServidores>
+}
+
+export interface NavegacionServidores {
+  /** "Servidores", then the dirección, the áreas down to the chosen one, and the equipo. */
+  readonly migas: readonly Miga[]
+  /** The label of the last crumb. */
+  readonly titulo: string
+  /** "Dirige …" / "Coordina …" of the current node; `null` at the root or without one. */
+  readonly responsable: string | null
+  /** Distinct people and servicios in the scope, before any other filter. */
+  readonly personas: number
+  readonly servicios: number
+}
+
 export interface VistaServidores {
   /** The filters actually applied (after the equipo → dirección normalization). */
   readonly filtros: FiltrosServidores
@@ -257,10 +307,9 @@ export interface VistaServidores {
    * range (the lookup failed or answered nobody), so the screen hides them.
    */
   readonly contadoresEdad: ContadoresEdad | null
-  readonly rapidos: {
-    readonly sinCuenta: { readonly cantidad: number; readonly activo: boolean }
-    readonly varios: { readonly cantidad: number; readonly activo: boolean }
-  }
+  /** The attention metrics; `total` (people in the scope) is the denominator of their bars. */
+  readonly atencion: Readonly<Record<MetricaAtencionId, ContadorAtencion>> & { readonly total: number }
+  readonly navegacion: NavegacionServidores
   readonly opciones: {
     readonly direcciones: readonly Opcion[]
     /** Inner nodes of the chosen dirección with servicios below; empty without a dirección. */
@@ -272,8 +321,11 @@ export interface VistaServidores {
   }
   readonly visibles: readonly FilaVista[]
   readonly items: readonly ItemLista[]
+  /** Every person with ALL their servicios (the detail drawer), whatever the filters show. */
+  readonly fichas: ReadonlyMap<string, PersonaLista>
+  /** The active filters as removable chips; the scope (breadcrumbs) and the search (its box) are not chips. */
   readonly pastillas: readonly Pastilla[]
-  /** Active filters that live in the phone sheet: área, rol, turno, sin cuenta, en varios equipos. */
+  /** Active filters that live in the sheet: etapa, atención, rol, turno, inicio. */
   readonly filtrosEnHoja: number
   readonly pie: { readonly resumen: string; readonly orden: string }
 }
@@ -328,7 +380,7 @@ function coincideInicio(fila: FilaServidor, inicio: Inicio, hoy: Date): boolean 
 }
 
 /** The filter a counter ignores; 'equipo' and 'ubicacion' (dirección + área + equipo) serve the KPI cards. */
-type Salvo = 'etapa' | 'edad' | 'sinCuenta' | 'varios' | 'equipo' | 'ubicacion' | null
+type Salvo = 'etapa' | 'edad' | 'sinCuenta' | 'varios' | 'porActivar' | 'turno' | 'equipo' | 'ubicacion' | null
 
 interface Contexto {
   readonly equiposPorPersona: ReadonlyMap<string, number>
@@ -341,19 +393,27 @@ function enArea(equipoId: string, areaId: string, indice: ReadonlyMap<string, No
   return equipoId === areaId || (indice.get(equipoId)?.ancestros.includes(areaId) ?? false)
 }
 
+/** Whether the row is inside the chosen dirección, área and equipo. */
+function enUbicacion(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, conEquipo: boolean): boolean {
+  if (f.direccion !== null && fila.direccionId !== f.direccion) return false
+  if (f.area !== null && !enArea(fila.equipoId, f.area, contexto.indice)) return false
+  return !conEquipo || f.equipo === null || fila.equipoId === f.equipo
+}
+
+/** Shifts are a Dream Team notion: a Grupos de Vida row never matches a shift filter. */
+function coincideTurnoDeFila(fila: FilaServidor, turno: string): boolean {
+  return fila.origen === 'dream_team' && coincideTurno(fila.turnoIds, turno)
+}
+
 function pasa(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, salvo: Salvo): boolean {
   if (!coincideTexto(fila, f.q)) return false
-  if (salvo !== 'ubicacion') {
-    if (f.direccion !== null && fila.direccionId !== f.direccion) return false
-    if (f.area !== null && !enArea(fila.equipoId, f.area, contexto.indice)) return false
-    if (salvo !== 'equipo' && f.equipo !== null && fila.equipoId !== f.equipo) return false
-  }
+  if (salvo !== 'ubicacion' && !enUbicacion(fila, f, contexto, salvo !== 'equipo')) return false
   if (f.rol !== null && fila.rolLabel !== f.rol) return false
-  // Shifts are a Dream Team notion: a Grupos de Vida row never matches a shift filter.
-  if (f.turno !== null && (fila.origen !== 'dream_team' || !coincideTurno(fila.turnoIds, f.turno))) return false
+  if (salvo !== 'turno' && f.turno !== null && !coincideTurnoDeFila(fila, f.turno)) return false
   if (!coincideInicio(fila, f.inicio, contexto.hoy)) return false
   if (salvo !== 'sinCuenta' && f.sinCuenta && fila.tieneCuenta !== false) return false
   if (salvo !== 'varios' && f.varios && (contexto.equiposPorPersona.get(fila.personaId) ?? 0) < 2) return false
+  if (salvo !== 'porActivar' && f.porActivar && !ESTADOS_POR_ACTIVAR.includes(fila.estado)) return false
   if (salvo !== 'etapa' && f.etapa !== null && fila.estado !== f.etapa) return false
   if (salvo !== 'edad' && f.edad !== null && fila.rangoEdad !== f.edad) return false
   return true
@@ -447,30 +507,7 @@ function porPersona(filas: readonly FilaVista[]): PersonaLista[] {
 }
 
 function agrupar(filas: readonly FilaVista[], como: Agrupar): ItemLista[] {
-  if (como === 'ninguno') return filas.map((fila) => ({ tipo: 'fila', fila }))
-  if (como === 'persona') return porPersona(filas)
-
-  const grupos = new Map<string, { titulo: string; filas: FilaVista[] }>()
-  for (const fila of filas) {
-    const grupo = grupos.get(fila.equipoId)
-    if (grupo) grupo.filas.push(fila)
-    else grupos.set(fila.equipoId, { titulo: fila.equipoLabel, filas: [fila] })
-  }
-
-  const items: ItemLista[] = []
-  const ordenados = [...grupos.entries()].sort(([, a], [, b]) => a.titulo.localeCompare(b.titulo, ES))
-  for (const [clave, grupo] of ordenados) {
-    const cantidad = grupo.filas.length
-    items.push({
-      tipo: 'grupo',
-      clave,
-      titulo: grupo.titulo,
-      detalle: plural(cantidad, 'persona', 'personas'),
-      cantidad,
-    })
-    for (const fila of grupo.filas) items.push({ tipo: 'fila', fila })
-  }
-  return items
+  return como === 'persona' ? porPersona(filas) : filas.map((fila) => ({ tipo: 'fila', fila }))
 }
 
 // ── Filters: cascade and pills ───────────────────────────────────────────
@@ -550,29 +587,41 @@ const ETIQUETA_INICIO: Readonly<Record<Exclude<Inicio, 'cualquiera'>, string>> =
   trimestre: 'Inicio: últimos 3 meses',
 }
 
-function construirPastillas(
-  f: FiltrosServidores,
-  direccionLabel: (id: string) => string,
-  areaLabel: (id: string) => string,
-  equipoLabel: (id: string) => string,
-  turnoLabel: (id: string) => string,
-): Pastilla[] {
+/** The chips of the filters; the scope is in the breadcrumbs and the search in its box. */
+function construirPastillas(f: FiltrosServidores, turnoLabel: (id: string) => string): Pastilla[] {
   const pastillas: Pastilla[] = []
   function agregar(clave: string, etiqueta: string, parche: Partial<FiltrosServidores>): void {
     pastillas.push({ clave, etiqueta, quitarEtiqueta: `Quitar el filtro ${etiqueta}`, parche })
   }
   if (f.etapa !== null) agregar('etapa', `Etapa: ${ESTADO_LABELS[f.etapa]}`, { etapa: null })
-  if (f.direccion !== null) agregar('direccion', direccionLabel(f.direccion), { direccion: null, area: null, equipo: null })
-  if (f.area !== null) agregar('area', `Área: ${areaLabel(f.area)}`, { area: null, equipo: null })
-  if (f.equipo !== null) agregar('equipo', `Equipo: ${equipoLabel(f.equipo)}`, { equipo: null })
   if (f.rol !== null) agregar('rol', `Rol: ${f.rol}`, { rol: null })
   if (f.turno !== null) agregar('turno', f.turno === SIN_TURNO ? 'Sin turno' : `Turno: ${turnoLabel(f.turno)}`, { turno: null })
   if (f.edad !== null) agregar('edad', `Edad: ${RANGO_EDAD_LABELS[f.edad]}`, { edad: null })
   if (f.inicio !== 'cualquiera') agregar('inicio', ETIQUETA_INICIO[f.inicio], { inicio: 'cualquiera' })
+  if (f.porActivar) agregar('por_activar', 'Por activar', { porActivar: false })
   if (f.sinCuenta) agregar('sin_cuenta', 'Sin cuenta', { sinCuenta: false })
   if (f.varios) agregar('varios', 'En varios equipos', { varios: false })
-  if (f.q.trim() !== '') agregar('q', `«${f.q.trim()}»`, { q: '' })
   return pastillas
+}
+
+/**
+ * The patch for pressing an attention metric: "Sirviendo" is the etapa
+ * Activo, "Sin turno" the shift filter "Sin turno", the rest their own flag.
+ * Pressing an active metric removes its filter.
+ */
+export function parcheAtencion(filtros: FiltrosServidores, id: MetricaAtencionId): Partial<FiltrosServidores> {
+  switch (id) {
+    case 'sirviendo':
+      return { etapa: filtros.etapa === 'activo' ? null : 'activo' }
+    case 'sinTurno':
+      return { turno: filtros.turno === SIN_TURNO ? null : SIN_TURNO }
+    case 'porActivar':
+      return { porActivar: !filtros.porActivar }
+    case 'sinCuenta':
+      return { sinCuenta: !filtros.sinCuenta }
+    case 'varios':
+      return { varios: !filtros.varios }
+  }
 }
 
 /** The shift names of a servicio in campus order; "—" when it has none (or is not a Dream Team row). */
@@ -705,6 +754,75 @@ function calcularTarjetas({ filas, arbol, filtros, contexto, direcciones }: Entr
   }
 }
 
+// ── Breadcrumbs and equipo names ─────────────────────────────────────────────
+
+/**
+ * Names each node for the list: a label that repeats in the tree ("Anfitriones"
+ * in Waumba Land and in UpStreet) carries its parent's label.
+ */
+function nombresDeEquipo(indice: ReadonlyMap<string, NodoIndexado>): ReadonlyMap<string, string> {
+  const repeticiones = new Map<string, number>()
+  for (const nodo of indice.values()) repeticiones.set(nodo.label, (repeticiones.get(nodo.label) ?? 0) + 1)
+  const nombres = new Map<string, string>()
+  for (const [id, nodo] of indice) {
+    const padre = indice.get(nodo.ancestros[nodo.ancestros.length - 1] ?? '')
+    nombres.set(id, (repeticiones.get(nodo.label) ?? 0) > 1 && padre ? `${nodo.label} · ${padre.label}` : nodo.label)
+  }
+  return nombres
+}
+
+interface EntradaNavegacion {
+  readonly filas: readonly FilaServidor[]
+  readonly filtros: FiltrosServidores
+  readonly contexto: Contexto
+  readonly nombreEquipo: (id: string) => string
+}
+
+function construirNavegacion({ filas, filtros, contexto, nombreEquipo }: EntradaNavegacion): NavegacionServidores {
+  const { direccion, area, equipo } = filtros
+  const etiqueta = (id: string): string => contexto.indice.get(id)?.label ?? id
+  const migas: Miga[] = [{ id: TARJETA_TODAS, etiqueta: 'Servidores', parche: { direccion: null, area: null, equipo: null } }]
+  if (direccion !== null) {
+    migas.push({ id: direccion, etiqueta: etiqueta(direccion), parche: { direccion, area: null, equipo: null } })
+    if (area !== null) {
+      // The áreas from below the dirección down to the chosen one.
+      for (const id of [...(contexto.indice.get(area)?.ancestros.slice(1) ?? []), area]) {
+        migas.push({ id, etiqueta: etiqueta(id), parche: { direccion, area: id, equipo: null } })
+      }
+    }
+  }
+  if (equipo !== null && equipo !== migas[migas.length - 1].id) {
+    migas.push({ id: equipo, etiqueta: nombreEquipo(equipo), parche: { direccion, area, equipo } })
+  }
+
+  const actual = migas[migas.length - 1]
+  const enAlcance = filas.filter((fila) => enUbicacion(fila, filtros, contexto, true))
+  return {
+    migas,
+    titulo: actual.etiqueta,
+    responsable:
+      actual.id === TARJETA_TODAS
+        ? null
+        : responsableDe(
+            filas.filter((fila) => fila.equipoId === actual.id),
+            actual.id === direccion ? ['director'] : ['coordinador', 'director'],
+          ),
+    personas: new Set(enAlcance.map((fila) => fila.personaId)).size,
+    servicios: enAlcance.length,
+  }
+}
+
+/** Distinct people of the rows that pass every filter but `salvo` and also match `cumple`. */
+function personasQue(
+  filas: readonly FilaServidor[],
+  filtros: FiltrosServidores,
+  contexto: Contexto,
+  salvo: Salvo,
+  cumple: (fila: FilaServidor) => boolean,
+): number {
+  return new Set(filas.filter((fila) => pasa(fila, filtros, contexto, salvo) && cumple(fila)).map((fila) => fila.personaId)).size
+}
+
 export interface EntradaVistaServidores {
   readonly filas: readonly FilaServidor[]
   readonly arbol: readonly NodoArbol<NodoEquipoArbol>[]
@@ -735,10 +853,13 @@ export function calcularVistaServidores({
   }
   const contexto: Contexto = { equiposPorPersona, hoy, indice }
   const turnosOrdenados = ordenarTurnos(turnos)
+  const nombres = nombresDeEquipo(indice)
+  const nombreEquipo = (id: string): string => nombres.get(id) ?? id
   const conVista = (fila: FilaServidor): FilaVista => ({
     ...fila,
     equiposDeLaPersona: equiposPorPersona.get(fila.personaId) ?? 0,
     turnosTexto: textoDeTurnos(fila.turnoIds, turnosOrdenados, fila.frecuencias, hoy),
+    equipoNombre: nombres.get(fila.equipoId) ?? fila.equipoLabel,
   })
 
   // Counters: every filter except the one the counter belongs to.
@@ -749,10 +870,30 @@ export function calcularVistaServidores({
     ? contarPorRangoEdad(filas.filter((fila) => pasa(fila, filtros, contexto, 'edad')))
     : null
 
-  const cantidadSinCuenta = filas.filter((fila) => pasa(fila, filtros, contexto, 'sinCuenta') && fila.tieneCuenta === false).length
-  const cantidadVarios = filas.filter(
-    (fila) => pasa(fila, filtros, contexto, 'varios') && (equiposPorPersona.get(fila.personaId) ?? 0) >= 2,
-  ).length
+  const navegacion = construirNavegacion({ filas, filtros, contexto, nombreEquipo })
+  const atencion = {
+    total: navegacion.personas,
+    sirviendo: {
+      personas: personasQue(filas, filtros, contexto, 'etapa', (fila) => fila.estado === 'activo'),
+      activo: filtros.etapa === 'activo',
+    },
+    porActivar: {
+      personas: personasQue(filas, filtros, contexto, 'porActivar', (fila) => ESTADOS_POR_ACTIVAR.includes(fila.estado)),
+      activo: filtros.porActivar,
+    },
+    sinCuenta: {
+      personas: personasQue(filas, filtros, contexto, 'sinCuenta', (fila) => fila.tieneCuenta === false),
+      activo: filtros.sinCuenta,
+    },
+    sinTurno: {
+      personas: personasQue(filas, filtros, contexto, 'turno', (fila) => coincideTurnoDeFila(fila, SIN_TURNO)),
+      activo: filtros.turno === SIN_TURNO,
+    },
+    varios: {
+      personas: personasQue(filas, filtros, contexto, 'varios', (fila) => (equiposPorPersona.get(fila.personaId) ?? 0) >= 2),
+      activo: filtros.varios,
+    },
+  }
 
   // Options: dirección → equipo cascade, roles present.
   const direccionesConServicios = new Map<string, string>()
@@ -812,8 +953,6 @@ export function calcularVistaServidores({
 
   const tarjetas = calcularTarjetas({ filas, arbol, filtros, contexto, direcciones })
 
-  const etiquetaDireccion = (id: string): string => direccionesConServicios.get(id) ?? indice.get(id)?.label ?? id
-  const etiquetaEquipo = (id: string): string => equipos.find((equipo) => equipo.id === id)?.label ?? id
   const etiquetaTurno = (id: string): string => turnosOrdenados.find((turno) => turno.id === id)?.nombre ?? id
 
   return {
@@ -822,26 +961,24 @@ export function calcularVistaServidores({
     tarjetas,
     contadoresEtapa: { todas: sinEtapa.length, porEtapa },
     contadoresEdad,
-    rapidos: {
-      sinCuenta: { cantidad: cantidadSinCuenta, activo: filtros.sinCuenta },
-      varios: { cantidad: cantidadVarios, activo: filtros.varios },
-    },
+    atencion,
+    navegacion,
     opciones: { direcciones, areas, equipos, roles, turnos: opcionesTurno },
     visibles,
     items: agrupar(visibles, filtros.agrupar),
-    pastillas: construirPastillas(
-      filtros,
-      etiquetaDireccion,
-      (id) => etiquetaArea(indice.get(id), id),
-      etiquetaEquipo,
-      etiquetaTurno,
+    fichas: new Map(
+      porPersona(ordenar(filas.map(conVista), { columna: 'equipo', sentido: 'asc' })).map((persona) => [persona.clave, persona]),
     ),
-    filtrosEnHoja:
-      (filtros.area !== null ? 1 : 0) +
-      (filtros.rol !== null ? 1 : 0) +
-      (filtros.turno !== null ? 1 : 0) +
-      (filtros.sinCuenta ? 1 : 0) +
-      (filtros.varios ? 1 : 0),
+    pastillas: construirPastillas(filtros, etiquetaTurno),
+    filtrosEnHoja: [
+      filtros.etapa !== null,
+      filtros.rol !== null,
+      filtros.turno !== null,
+      filtros.inicio !== 'cualquiera',
+      filtros.porActivar,
+      filtros.sinCuenta,
+      filtros.varios,
+    ].filter(Boolean).length,
     pie: {
       resumen:
         filtros.agrupar === 'persona'
@@ -891,7 +1028,9 @@ function leerOrden(valor: string | null): FiltrosServidores['orden'] {
 /**
  * Reads the filters from the URL. Accepts the legacy `?estado=` (etapa) that
  * older links use; `?equipo=` keeps its meaning. Invalid values are dropped.
- * Without `?agrupar=` the list is per person; "Sin agrupar" is `?agrupar=ninguno`.
+ * Without `?agrupar=` the list is per person; "Por servicio" is
+ * `?agrupar=ninguno`. The removed "Por equipo" (`?agrupar=equipo`) reads as
+ * the default.
  */
 export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores {
   const etapa = leer(parametros, 'etapa') ?? leer(parametros, 'estado')
@@ -909,8 +1048,9 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
     inicio: inicio === 'mes' || inicio === 'trimestre' ? inicio : 'cualquiera',
     sinCuenta: esVerdadero(leer(parametros, 'sin_cuenta')),
     varios: esVerdadero(leer(parametros, 'varios')),
+    porActivar: esVerdadero(leer(parametros, 'por_activar')),
     q: leer(parametros, 'q')?.trim() ?? '',
-    agrupar: agruparPor === 'equipo' || agruparPor === 'ninguno' ? agruparPor : FILTROS_INICIALES.agrupar,
+    agrupar: agruparPor === 'ninguno' ? agruparPor : FILTROS_INICIALES.agrupar,
     orden: leerOrden(leer(parametros, 'orden')),
   }
 }
@@ -928,6 +1068,7 @@ export function escribirFiltrosEnUrl(filtros: FiltrosServidores): string {
   if (filtros.inicio !== 'cualquiera') parametros.set('inicio', filtros.inicio)
   if (filtros.sinCuenta) parametros.set('sin_cuenta', '1')
   if (filtros.varios) parametros.set('varios', '1')
+  if (filtros.porActivar) parametros.set('por_activar', '1')
   if (filtros.q.trim() !== '') parametros.set('q', filtros.q.trim())
   if (filtros.agrupar !== FILTROS_INICIALES.agrupar) parametros.set('agrupar', filtros.agrupar)
   const { columna, sentido } = filtros.orden

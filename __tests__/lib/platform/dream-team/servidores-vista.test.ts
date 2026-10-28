@@ -89,26 +89,26 @@ describe('quick filters', () => {
     const v = vista({ sinCuenta: true }, filasConexion)
     expect(v.visibles).toHaveLength(31)
     expect(v.visibles.every((f) => f.tieneCuenta === false)).toBe(true)
-    expect(v.rapidos.sinCuenta).toEqual({ cantidad: 31, activo: true })
+    expect(v.atencion.sinCuenta).toEqual({ personas: 31, activo: true })
   })
 
   it('a row whose account status is unknown is never "sin cuenta"', () => {
     const filas = [fila('x', 'Persona Ajena', ID_CORO, 'Facilitador', { tieneCuenta: null })]
     expect(vista({ sinCuenta: true }, filas).visibles).toHaveLength(0)
-    expect(vista({}, filas).rapidos.sinCuenta.cantidad).toBe(0)
+    expect(vista({}, filas).atencion.sinCuenta.personas).toBe(0)
   })
 
   it('a Grupos de Vida leader without account is classified like any other row', () => {
     const filas = [fila('g', 'Marta Ruiz', ID_CORO, 'Líder de grupo', { origen: 'grupos_vida', tieneCuenta: false, editable: false })]
     expect(vista({ sinCuenta: true }, filas).visibles).toHaveLength(1)
-    expect(vista({}, filas).rapidos.sinCuenta.cantidad).toBe(1)
+    expect(vista({}, filas).atencion.sinCuenta.personas).toBe(1)
   })
 
   it('"en varios equipos" means two or more non-retired servicios of the same persona', () => {
     const v = vista({ varios: true, agrupar: 'ninguno' }, filasConexion)
     expect(nombres(v.items).sort()).toEqual(['Antholy Ludovic Gómez', 'Antholy Ludovic Gómez', 'Jose Jimenez', 'Jose Jimenez'])
     expect(v.visibles.every((f) => f.equiposDeLaPersona === 2)).toBe(true)
-    expect(v.rapidos.varios.cantidad).toBe(4)
+    expect(v.atencion.varios.personas).toBe(2)
   })
 
   it('a retired servicio does not make someone "en varios equipos"', () => {
@@ -125,12 +125,12 @@ describe('quick filters', () => {
     expect(v.visibles[0].equiposDeLaPersona).toBe(2)
   })
 
-  it('each quick count reacts to the OTHER filters', () => {
-    expect(vista({ equipo: ID_DHAH }, filasConexion).rapidos.sinCuenta.cantidad).toBe(6)
-    expect(vista({ equipo: ID_DHAH }, filasConexion).rapidos.varios.cantidad).toBe(1)
+  it('each quick count (distinct people) reacts to the OTHER filters', () => {
+    expect(vista({ equipo: ID_DHAH }, filasConexion).atencion.sinCuenta.personas).toBe(6)
+    expect(vista({ equipo: ID_DHAH }, filasConexion).atencion.varios.personas).toBe(1)
     // sin cuenta ∧ varios: only Antholy and Jose have an account among the repeated, so 0 remain.
-    expect(vista({ sinCuenta: true }, filasConexion).rapidos.varios.cantidad).toBe(0)
-    expect(vista({ varios: true }, filasConexion).rapidos.sinCuenta.cantidad).toBe(0)
+    expect(vista({ sinCuenta: true }, filasConexion).atencion.varios.personas).toBe(0)
+    expect(vista({ varios: true }, filasConexion).atencion.sinCuenta.personas).toBe(0)
   })
 })
 
@@ -276,28 +276,15 @@ describe('sorting', () => {
 })
 
 describe('grouping', () => {
-  it('without grouping the list is flat', () => {
+  it('"Por servicio" is a flat list, one row per servicio', () => {
     expect(vista({ agrupar: 'ninguno' }, filasConexion).items.every((i) => i.tipo === 'fila')).toBe(true)
   })
 
-  // Criterion 4 ("Por persona"): servidores-vista-persona.test.ts
-  it('by equipo has a header per team with its size, teams alphabetically', () => {
-    const grupos = vista({ agrupar: 'equipo' }, filasConexion).items.filter((i) => i.tipo === 'grupo')
-    expect(grupos.map((g) => (g.tipo === 'grupo' ? g.titulo : ''))).toEqual([
-      'De Hombre a Hombre',
-      'Dirección de Conexión',
-      'Mujer de Hoy',
-      'Parejas',
-      'Punto de Partida',
-    ])
-    expect(grupos[1]).toMatchObject({ detalle: '1 persona' })
-    expect(grupos[4]).toMatchObject({ detalle: '14 personas' })
-  })
-
-  it('grouped rows respect the sort inside each group', () => {
-    const items = vista({ agrupar: 'equipo', orden: { columna: 'persona', sentido: 'desc' } }, filasConexion).items
-    const primero = items.findIndex((i) => i.tipo === 'grupo' && i.titulo === 'De Hombre a Hombre')
-    const filas = items.slice(primero + 1, primero + 10).map((i) => (i.tipo === 'fila' ? i.fila.nombre : ''))
+  // Criterion 4 ("Por persona"): servidores-vista-persona.test.ts. "Por equipo" was removed
+  // (design system v2, S4): servidores-vista-atencion.test.ts pins the URL fallback.
+  it('"Por servicio" rows follow the sort', () => {
+    const items = vista({ agrupar: 'ninguno', orden: { columna: 'persona', sentido: 'desc' } }, filasConexion).items
+    const filas = items.map((i) => (i.tipo === 'fila' ? i.fila.nombre : ''))
     expect(filas).toEqual([...filas].sort((a, b) => b.localeCompare(a, 'es')))
   })
 })
@@ -307,7 +294,7 @@ describe('pills', () => {
     expect(vista().pastillas).toEqual([])
   })
 
-  it('lists every active filter with the patch that removes it', () => {
+  it('lists every active filter with the patch that removes it (scope and search are not chips)', () => {
     const v = vista({
       etapa: 'activo',
       equipo: ID_CORO,
@@ -319,19 +306,16 @@ describe('pills', () => {
     })
     expect(v.pastillas.map((p) => p.etiqueta)).toEqual([
       'Etapa: Activo',
-      'Dirección de Alabanza',
-      'Equipo: Coro',
       'Rol: Coordinador',
       'Inicio: últimos 3 meses',
       'Sin cuenta',
       'En varios equipos',
-      '«sara»',
     ])
     expect(v.pastillas[0].quitarEtiqueta).toBe('Quitar el filtro Etapa: Activo')
     expect(v.pastillas[0].parche).toEqual({ etapa: null })
-    // Removing the dirección pill also drops the equipo that depends on it.
-    expect(v.pastillas[1].parche).toEqual({ direccion: null, area: null, equipo: null })
-    expect(v.pastillas[6].parche).toEqual({ varios: false })
+    expect(v.pastillas[4].parche).toEqual({ varios: false })
+    // The scope is left through the breadcrumbs: the first one drops dirección, área and equipo.
+    expect(v.navegacion.migas[0].parche).toEqual({ direccion: null, area: null, equipo: null })
   })
 
   it('applying a pill patch removes exactly that filter', () => {
@@ -340,9 +324,9 @@ describe('pills', () => {
     expect(vista({ ...filtros, ...rol?.parche }).pastillas.map((p) => p.clave)).toEqual(['etapa'])
   })
 
-  it('counts the filters that live in the phone sheet (the equipo lives on the KPI cards)', () => {
-    expect(vista({ etapa: 'activo', q: 'x', equipo: ID_CORO }).filtrosEnHoja).toBe(0)
-    expect(vista({ area: ID_TALLERES, rol: 'Director', sinCuenta: true, varios: true }).filtrosEnHoja).toBe(4)
+  it('counts the filters that live in the sheet (the scope lives on the cards and breadcrumbs)', () => {
+    expect(vista({ q: 'x', equipo: ID_CORO }).filtrosEnHoja).toBe(0)
+    expect(vista({ area: ID_TALLERES, rol: 'Director', sinCuenta: true, varios: true }).filtrosEnHoja).toBe(3)
   })
 })
 
@@ -376,13 +360,14 @@ describe('URL codec', () => {
       inicio: 'mes',
       sinCuenta: true,
       varios: true,
+      porActivar: true,
       q: 'jose',
       agrupar: 'ninguno',
       orden: { columna: 'inicio', sentido: 'desc' },
     }
     const query = escribirFiltrosEnUrl(filtros)
     expect(query).toBe(
-      'etapa=en_pausa&direccion=dir-conexion&equipo=eq-pdp&rol=Coordinador&inicio=mes&sin_cuenta=1&varios=1&q=jose&agrupar=ninguno&orden=inicio%3Adesc',
+      'etapa=en_pausa&direccion=dir-conexion&equipo=eq-pdp&rol=Coordinador&inicio=mes&sin_cuenta=1&varios=1&por_activar=1&q=jose&agrupar=ninguno&orden=inicio%3Adesc',
     )
     expect(leerFiltrosDeUrl(new URLSearchParams(query))).toEqual(filtros)
   })
