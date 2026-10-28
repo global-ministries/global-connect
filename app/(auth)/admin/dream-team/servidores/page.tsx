@@ -15,7 +15,7 @@
  * stage-advance API calls.
  *
  * The filters come from the URL (`?etapa=&direccion=&area=&equipo=&rol=&turno=&edad=&inicio=
- * &sin_cuenta=1&varios=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
+ * &sin_cuenta=1&varios=1&por_activar=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
  * and `?estado=` of the links from Talleres and Estructura.
  *
  * Linked from the desktop sidebar's Dream Team entry

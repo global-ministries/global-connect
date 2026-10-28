@@ -111,7 +111,7 @@ describe('Servidores — age metrics', () => {
     await userEvent.click(pastilla(/^26\+/))
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?edad=26_mas&agrupar=ninguno', { scroll: false })
     const tabla = screen.getByRole('table', { name: 'Servicios' })
-    expect(within(tabla).getByText('Beto')).toBeInTheDocument()
+    expect(within(tabla).getByRole('button', { name: 'Abrir Beto en Coro' })).toBeInTheDocument()
     expect(within(tabla).queryByText('Ana')).not.toBeInTheDocument()
   })
 
