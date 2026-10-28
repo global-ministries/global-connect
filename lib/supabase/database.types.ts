@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -2856,6 +2856,110 @@ export type Database = {
           },
         ]
       }
+      invitaciones_cuenta: {
+        Row: {
+          aceptada_at: string | null
+          auth_user_id: string | null
+          created_at: string
+          email: string
+          estado: string
+          id: string
+          invitado_por: string | null
+          usuario_id: string
+        }
+        Insert: {
+          aceptada_at?: string | null
+          auth_user_id?: string | null
+          created_at?: string
+          email: string
+          estado?: string
+          id?: string
+          invitado_por?: string | null
+          usuario_id: string
+        }
+        Update: {
+          aceptada_at?: string | null
+          auth_user_id?: string | null
+          created_at?: string
+          email?: string
+          estado?: string
+          id?: string
+          invitado_por?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitaciones_cuenta_invitado_por_fkey"
+            columns: ["invitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_invitado_por_fkey"
+            columns: ["invitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_invitado_por_fkey"
+            columns: ["invitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_invitado_por_fkey"
+            columns: ["invitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_invitado_por_fkey"
+            columns: ["invitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "invitaciones_cuenta_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       municipios: {
         Row: {
           estado_id: string
@@ -2885,6 +2989,1067 @@ export type Database = {
             columns: ["estado_id"]
             isOneToOne: false
             referencedRelation: "estados"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_altas_mesa: {
+        Row: {
+          padre_id: string
+          registrado_at: string
+          registrado_por: string
+        }
+        Insert: {
+          padre_id: string
+          registrado_at?: string
+          registrado_por: string
+        }
+        Update: {
+          padre_id?: string
+          registrado_at?: string
+          registrado_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_altas_mesa_padre_id_fkey"
+            columns: ["padre_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_padre_id_fkey"
+            columns: ["padre_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_padre_id_fkey"
+            columns: ["padre_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_padre_id_fkey"
+            columns: ["padre_id"]
+            isOneToOne: true
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_padre_id_fkey"
+            columns: ["padre_id"]
+            isOneToOne: true
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_altas_mesa_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      ninos_autorizados_retiro: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id: string
+          nino_id: string
+          nombre: string
+          relacion: string | null
+          telefono: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nino_id: string
+          nombre: string
+          relacion?: string | null
+          telefono?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id?: string
+          nino_id?: string
+          nombre?: string
+          relacion?: string | null
+          telefono?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      ninos_checkins: {
+        Row: {
+          campus_id: string
+          codigo: string
+          entrada_at: string
+          entrada_por: string | null
+          fecha: string
+          id: string
+          nino_id: string
+          retirado_por_nombre: string | null
+          retiro_motivo: string | null
+          retiro_otra_persona: boolean
+          salida_at: string | null
+          salida_por: string | null
+          salon_id: string
+          turno_id: string
+          visita_id: string
+        }
+        Insert: {
+          campus_id: string
+          codigo: string
+          entrada_at?: string
+          entrada_por?: string | null
+          fecha: string
+          id?: string
+          nino_id: string
+          retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
+          salida_at?: string | null
+          salida_por?: string | null
+          salon_id: string
+          turno_id: string
+          visita_id: string
+        }
+        Update: {
+          campus_id?: string
+          codigo?: string
+          entrada_at?: string
+          entrada_por?: string | null
+          fecha?: string
+          id?: string
+          nino_id?: string
+          retirado_por_nombre?: string | null
+          retiro_motivo?: string | null
+          retiro_otra_persona?: boolean
+          salida_at?: string | null
+          salida_por?: string | null
+          salon_id?: string
+          turno_id?: string
+          visita_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_checkins_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_entrada_por_fkey"
+            columns: ["entrada_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_entrada_por_fkey"
+            columns: ["entrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_entrada_por_fkey"
+            columns: ["entrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_entrada_por_fkey"
+            columns: ["entrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_entrada_por_fkey"
+            columns: ["entrada_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salida_por_fkey"
+            columns: ["salida_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salida_por_fkey"
+            columns: ["salida_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salida_por_fkey"
+            columns: ["salida_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salida_por_fkey"
+            columns: ["salida_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salida_por_fkey"
+            columns: ["salida_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "ninos_salones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_checkins_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_fichas: {
+        Row: {
+          alergias: string | null
+          autoriza_imagen: boolean | null
+          cambio_panal: boolean | null
+          created_at: string
+          desde_casa_at: string | null
+          desde_casa_confirmado_at: string | null
+          desde_casa_por: string | null
+          es_vip_desde: string | null
+          escolarizado: boolean | null
+          grado: number | null
+          habitos: string | null
+          necesidades_especiales: string | null
+          notas: string | null
+          puede_comer: boolean | null
+          salon_preferido_id: string | null
+          updated_at: string
+          updated_by: string | null
+          usuario_id: string
+        }
+        Insert: {
+          alergias?: string | null
+          autoriza_imagen?: boolean | null
+          cambio_panal?: boolean | null
+          created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_confirmado_at?: string | null
+          desde_casa_por?: string | null
+          es_vip_desde?: string | null
+          escolarizado?: boolean | null
+          grado?: number | null
+          habitos?: string | null
+          necesidades_especiales?: string | null
+          notas?: string | null
+          puede_comer?: boolean | null
+          salon_preferido_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          usuario_id: string
+        }
+        Update: {
+          alergias?: string | null
+          autoriza_imagen?: boolean | null
+          cambio_panal?: boolean | null
+          created_at?: string
+          desde_casa_at?: string | null
+          desde_casa_confirmado_at?: string | null
+          desde_casa_por?: string | null
+          es_vip_desde?: string | null
+          escolarizado?: boolean | null
+          grado?: number | null
+          habitos?: string | null
+          necesidades_especiales?: string | null
+          notas?: string | null
+          puede_comer?: boolean | null
+          salon_preferido_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
+            columns: ["desde_casa_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_salon_preferido_id_fkey"
+            columns: ["salon_preferido_id"]
+            isOneToOne: false
+            referencedRelation: "ninos_salones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      ninos_fichas_cambios: {
+        Row: {
+          actor_id: string | null
+          autorizados_antes: Json | null
+          autorizados_despues: Json | null
+          campos: string[]
+          created_at: string
+          id: string
+          nino_id: string
+          origen: string
+        }
+        Insert: {
+          actor_id?: string | null
+          autorizados_antes?: Json | null
+          autorizados_despues?: Json | null
+          campos: string[]
+          created_at?: string
+          id?: string
+          nino_id: string
+          origen: string
+        }
+        Update: {
+          actor_id?: string | null
+          autorizados_antes?: Json | null
+          autorizados_despues?: Json | null
+          campos?: string[]
+          created_at?: string
+          id?: string
+          nino_id?: string
+          origen?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_fichas_cambios_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_fichas_cambios_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      ninos_prechecks: {
+        Row: {
+          avisos: number
+          created_at: string
+          estado: string
+          fecha: string
+          id: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at: string
+        }
+        Insert: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha: string
+          id?: string
+          nino_id: string
+          solicitado_por: string
+          turno_id: string
+          updated_at?: string
+        }
+        Update: {
+          avisos?: number
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          nino_id?: string
+          solicitado_por?: string
+          turno_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_nino_id_fkey"
+            columns: ["nino_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_prechecks_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_preregistro_avisos: {
+        Row: {
+          created_at: string
+          fecha: string
+          id: string
+          ip_hash: string | null
+          preregistro_id: string
+          turno_id: string
+        }
+        Insert: {
+          created_at?: string
+          fecha: string
+          id?: string
+          ip_hash?: string | null
+          preregistro_id: string
+          turno_id: string
+        }
+        Update: {
+          created_at?: string
+          fecha?: string
+          id?: string
+          ip_hash?: string | null
+          preregistro_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_preregistro_avisos_preregistro_id_fkey"
+            columns: ["preregistro_id"]
+            isOneToOne: false
+            referencedRelation: "ninos_preregistros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistro_avisos_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_preregistros: {
+        Row: {
+          aviso_token_hash: string | null
+          campus_id: string
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string
+          estado: string
+          familia_padre_id: string | null
+          id: string
+          ip_hash: string | null
+          payload: Json
+          solicitado_por: string | null
+        }
+        Insert: {
+          aviso_token_hash?: string | null
+          campus_id: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado?: string
+          familia_padre_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          payload: Json
+          solicitado_por?: string | null
+        }
+        Update: {
+          aviso_token_hash?: string | null
+          campus_id?: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          estado?: string
+          familia_padre_id?: string | null
+          id?: string
+          ip_hash?: string | null
+          payload?: Json
+          solicitado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_preregistros_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "ninos_preregistros_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      ninos_salones: {
+        Row: {
+          activo: boolean
+          area: string
+          campus_id: string
+          capacidad: number
+          created_at: string
+          edad_max_meses: number | null
+          edad_min_meses: number | null
+          equipo_id: string
+          es_necesidades_especiales: boolean
+          grado_max: number | null
+          grado_min: number | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          area: string
+          campus_id: string
+          capacidad?: number
+          created_at?: string
+          edad_max_meses?: number | null
+          edad_min_meses?: number | null
+          equipo_id: string
+          es_necesidades_especiales?: boolean
+          grado_max?: number | null
+          grado_min?: number | null
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          area?: string
+          campus_id?: string
+          capacidad?: number
+          created_at?: string
+          edad_max_meses?: number | null
+          edad_min_meses?: number | null
+          equipo_id?: string
+          es_necesidades_especiales?: boolean
+          grado_max?: number | null
+          grado_min?: number | null
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_salones_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_salones_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ninos_voluntarios_roster_servicios: {
+        Row: {
+          area_id: string
+          equipo_id: string
+          fecha: string
+          servicio_id: string
+          turno_id: string
+        }
+        Insert: {
+          area_id: string
+          equipo_id: string
+          fecha: string
+          servicio_id: string
+          turno_id: string
+        }
+        Update: {
+          area_id?: string
+          equipo_id?: string
+          fecha?: string
+          servicio_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_voluntarios_roster_servicios_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ninos_voluntarios_roster_servicios_turno_id_fecha_fkey"
+            columns: ["turno_id", "fecha"]
+            isOneToOne: false
+            referencedRelation: "ninos_voluntarios_rosters"
+            referencedColumns: ["turno_id", "fecha"]
+          },
+        ]
+      }
+      ninos_voluntarios_rosters: {
+        Row: {
+          congelado_at: string
+          fecha: string
+          turno_id: string
+        }
+        Insert: {
+          congelado_at?: string
+          fecha: string
+          turno_id: string
+        }
+        Update: {
+          congelado_at?: string
+          fecha?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ninos_voluntarios_rosters_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
             referencedColumns: ["id"]
           },
         ]
@@ -6465,6 +7630,239 @@ export type Database = {
           },
         ]
       }
+      uno_a_uno: {
+        Row: {
+          actualizado_en: string
+          cancelado_en: string | null
+          celebracion: string | null
+          creado_en: string
+          creado_por: string | null
+          estado: string
+          fecha_hora: string
+          id: string
+          lugar: string | null
+          motivo_cancelacion: string | null
+          nota_privada: string | null
+          realizado_en: string | null
+          recordatorio_enviado_en: string | null
+          resumen: string | null
+        }
+        Insert: {
+          actualizado_en?: string
+          cancelado_en?: string | null
+          celebracion?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fecha_hora: string
+          id?: string
+          lugar?: string | null
+          motivo_cancelacion?: string | null
+          nota_privada?: string | null
+          realizado_en?: string | null
+          recordatorio_enviado_en?: string | null
+          resumen?: string | null
+        }
+        Update: {
+          actualizado_en?: string
+          cancelado_en?: string | null
+          celebracion?: string | null
+          creado_en?: string
+          creado_por?: string | null
+          estado?: string
+          fecha_hora?: string
+          id?: string
+          lugar?: string | null
+          motivo_cancelacion?: string | null
+          nota_privada?: string | null
+          realizado_en?: string | null
+          recordatorio_enviado_en?: string | null
+          resumen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uno_a_uno_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_creado_por_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      uno_a_uno_personas: {
+        Row: {
+          lado: string
+          uno_a_uno_id: string
+          usuario_id: string
+        }
+        Insert: {
+          lado: string
+          uno_a_uno_id: string
+          usuario_id: string
+        }
+        Update: {
+          lado?: string
+          uno_a_uno_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uno_a_uno_personas_uno_a_uno_id_fkey"
+            columns: ["uno_a_uno_id"]
+            isOneToOne: false
+            referencedRelation: "uno_a_uno"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_personas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_personas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_personas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_personas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_personas_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      uno_a_uno_recordatorios: {
+        Row: {
+          creado_en: string
+          disponible_en: string
+          email: string
+          enviado_en: string | null
+          error: string | null
+          estado: string
+          fecha_hora: string
+          id: string
+          intentos: number
+          uno_a_uno_id: string
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string
+          disponible_en?: string
+          email: string
+          enviado_en?: string | null
+          error?: string | null
+          estado?: string
+          fecha_hora: string
+          id?: string
+          intentos?: number
+          uno_a_uno_id: string
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string
+          disponible_en?: string
+          email?: string
+          enviado_en?: string | null
+          error?: string | null
+          estado?: string
+          fecha_hora?: string
+          id?: string
+          intentos?: number
+          uno_a_uno_id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "uno_a_uno_recordatorios_uno_a_uno_id_fkey"
+            columns: ["uno_a_uno_id"]
+            isOneToOne: false
+            referencedRelation: "uno_a_uno"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_recordatorios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_recordatorios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_recordatorios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_recordatorios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "uno_a_uno_recordatorios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
       usuario_campus: {
         Row: {
           campus_id: string
@@ -6982,396 +8380,6 @@ export type Database = {
           },
         ]
       }
-      ninos_autorizados_retiro: {
-        Row: {
-          activo: boolean
-          created_at: string
-          id: string
-          nino_id: string
-          nombre: string
-          relacion: string | null
-          telefono: string | null
-        }
-        Insert: {
-          activo?: boolean
-          created_at?: string
-          id?: string
-          nino_id: string
-          nombre: string
-          relacion?: string | null
-          telefono?: string | null
-        }
-        Update: {
-          activo?: boolean
-          created_at?: string
-          id?: string
-          nino_id?: string
-          nombre?: string
-          relacion?: string | null
-          telefono?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ninos_autorizados_retiro_nino_id_fkey"
-            columns: ["nino_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ninos_checkins: {
-        Row: {
-          campus_id: string
-          codigo: string
-          entrada_at: string
-          entrada_por: string | null
-          fecha: string
-          id: string
-          nino_id: string
-          retirado_por_nombre: string | null
-          retiro_motivo: string | null
-          retiro_otra_persona: boolean
-          salida_at: string | null
-          salida_por: string | null
-          salon_id: string
-          turno_id: string
-          visita_id: string
-        }
-        Insert: {
-          campus_id: string
-          codigo: string
-          entrada_at?: string
-          entrada_por?: string | null
-          fecha: string
-          id?: string
-          nino_id: string
-          retirado_por_nombre?: string | null
-          retiro_motivo?: string | null
-          retiro_otra_persona?: boolean
-          salida_at?: string | null
-          salida_por?: string | null
-          salon_id: string
-          turno_id: string
-          visita_id: string
-        }
-        Update: {
-          campus_id?: string
-          codigo?: string
-          entrada_at?: string
-          entrada_por?: string | null
-          fecha?: string
-          id?: string
-          nino_id?: string
-          retirado_por_nombre?: string | null
-          retiro_motivo?: string | null
-          retiro_otra_persona?: boolean
-          salida_at?: string | null
-          salida_por?: string | null
-          salon_id?: string
-          turno_id?: string
-          visita_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ninos_checkins_campus_id_fkey"
-            columns: ["campus_id"]
-            isOneToOne: false
-            referencedRelation: "campus"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_checkins_entrada_por_fkey"
-            columns: ["entrada_por"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_checkins_nino_id_fkey"
-            columns: ["nino_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_checkins_salida_por_fkey"
-            columns: ["salida_por"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_checkins_salon_id_fkey"
-            columns: ["salon_id"]
-            isOneToOne: false
-            referencedRelation: "ninos_salones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_checkins_turno_id_fkey"
-            columns: ["turno_id"]
-            isOneToOne: false
-            referencedRelation: "dream_team_turnos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ninos_fichas: {
-        Row: {
-          alergias: string | null
-          autoriza_imagen: boolean | null
-          cambio_panal: boolean | null
-          created_at: string
-          desde_casa_at: string | null
-          desde_casa_por: string | null
-          es_vip_desde: string | null
-          escolarizado: boolean | null
-          grado: number | null
-          habitos: string | null
-          necesidades_especiales: string | null
-          notas: string | null
-          puede_comer: boolean | null
-          salon_preferido_id: string | null
-          updated_at: string
-          updated_by: string | null
-          usuario_id: string
-        }
-        Insert: {
-          alergias?: string | null
-          autoriza_imagen?: boolean | null
-          cambio_panal?: boolean | null
-          created_at?: string
-          desde_casa_at?: string | null
-          desde_casa_por?: string | null
-          es_vip_desde?: string | null
-          escolarizado?: boolean | null
-          grado?: number | null
-          habitos?: string | null
-          necesidades_especiales?: string | null
-          notas?: string | null
-          puede_comer?: boolean | null
-          salon_preferido_id?: string | null
-          updated_at?: string
-          updated_by?: string | null
-          usuario_id: string
-        }
-        Update: {
-          alergias?: string | null
-          autoriza_imagen?: boolean | null
-          cambio_panal?: boolean | null
-          created_at?: string
-          desde_casa_at?: string | null
-          desde_casa_por?: string | null
-          es_vip_desde?: string | null
-          escolarizado?: boolean | null
-          grado?: number | null
-          habitos?: string | null
-          necesidades_especiales?: string | null
-          notas?: string | null
-          puede_comer?: boolean | null
-          salon_preferido_id?: string | null
-          updated_at?: string
-          updated_by?: string | null
-          usuario_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ninos_fichas_desde_casa_por_fkey"
-            columns: ["desde_casa_por"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_fichas_salon_preferido_id_fkey"
-            columns: ["salon_preferido_id"]
-            isOneToOne: false
-            referencedRelation: "ninos_salones"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_fichas_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_fichas_usuario_id_fkey"
-            columns: ["usuario_id"]
-            isOneToOne: true
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ninos_prechecks: {
-        Row: {
-          avisos: number
-          created_at: string
-          estado: string
-          fecha: string
-          id: string
-          nino_id: string
-          solicitado_por: string
-          turno_id: string
-          updated_at: string
-        }
-        Insert: {
-          avisos?: number
-          created_at?: string
-          estado?: string
-          fecha: string
-          id?: string
-          nino_id: string
-          solicitado_por: string
-          turno_id: string
-          updated_at?: string
-        }
-        Update: {
-          avisos?: number
-          created_at?: string
-          estado?: string
-          fecha?: string
-          id?: string
-          nino_id?: string
-          solicitado_por?: string
-          turno_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ninos_prechecks_nino_id_fkey"
-            columns: ["nino_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_prechecks_solicitado_por_fkey"
-            columns: ["solicitado_por"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_prechecks_turno_id_fkey"
-            columns: ["turno_id"]
-            isOneToOne: false
-            referencedRelation: "dream_team_turnos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      ninos_preregistros: {
-        Row: {
-          campus_id: string
-          confirmado_at: string | null
-          confirmado_por: string | null
-          created_at: string
-          estado: string
-          familia_padre_id: string | null
-          id: string
-          ip_hash: string | null
-          payload: Json
-          solicitado_por: string | null
-        }
-        Insert: {
-          campus_id: string
-          confirmado_at?: string | null
-          confirmado_por?: string | null
-          created_at?: string
-          estado?: string
-          familia_padre_id?: string | null
-          id?: string
-          ip_hash?: string | null
-          payload: Json
-          solicitado_por?: string | null
-        }
-        Update: {
-          campus_id?: string
-          confirmado_at?: string | null
-          confirmado_por?: string | null
-          created_at?: string
-          estado?: string
-          familia_padre_id?: string | null
-          id?: string
-          ip_hash?: string | null
-          payload?: Json
-          solicitado_por?: string | null
-        }
-        Relationships: []
-      }
-      ninos_salones: {
-        Row: {
-          activo: boolean
-          area: string
-          campus_id: string
-          capacidad: number
-          created_at: string
-          edad_max_meses: number | null
-          edad_min_meses: number | null
-          equipo_id: string
-          es_necesidades_especiales: boolean
-          grado_max: number | null
-          grado_min: number | null
-          id: string
-          nombre: string
-          orden: number
-          updated_at: string
-        }
-        Insert: {
-          activo?: boolean
-          area: string
-          campus_id: string
-          capacidad?: number
-          created_at?: string
-          edad_max_meses?: number | null
-          edad_min_meses?: number | null
-          equipo_id: string
-          es_necesidades_especiales?: boolean
-          grado_max?: number | null
-          grado_min?: number | null
-          id?: string
-          nombre: string
-          orden?: number
-          updated_at?: string
-        }
-        Update: {
-          activo?: boolean
-          area?: string
-          campus_id?: string
-          capacidad?: number
-          created_at?: string
-          edad_max_meses?: number | null
-          edad_min_meses?: number | null
-          equipo_id?: string
-          es_necesidades_especiales?: boolean
-          grado_max?: number | null
-          grado_min?: number | null
-          id?: string
-          nombre?: string
-          orden?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ninos_salones_campus_id_fkey"
-            columns: ["campus_id"]
-            isOneToOne: false
-            referencedRelation: "campus"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ninos_salones_equipo_id_fkey"
-            columns: ["equipo_id"]
-            isOneToOne: false
-            referencedRelation: "dream_team_equipos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       v_casas_anfitrionas_disponibles: {
@@ -7826,267 +8834,6 @@ export type Database = {
       }
     }
     Functions: {
-      ninos_checkin: {
-        Args: {
-          p_fecha: string
-          p_nino_ids: string[]
-          p_salon_ids: string[]
-          p_turno_id: string
-        }
-        Returns: {
-          capacidad: number
-          codigo: string
-          nino_id: string
-          ocupacion: number
-          salon_id: string
-          sobre_capacidad: boolean
-        }[]
-      }
-      ninos_checkout: {
-        Args: {
-          p_codigo: string
-          p_fecha: string
-          p_motivo_otra?: string
-          p_retirado_por: string
-          p_turno_id: string
-        }
-        Returns: {
-          nino_id: string
-          salida_at: string
-          salon_id: string
-        }[]
-      }
-      ninos_lista_salon: {
-        Args: { p_fecha: string; p_salon_id: string; p_turno_id: string }
-        Returns: {
-          alergias: string
-          apellido: string
-          autoriza_imagen: boolean
-          cambio_panal: boolean
-          codigo: string
-          entrada_at: string
-          fecha_nacimiento: string
-          grado: number
-          habitos: string
-          necesidades_especiales: string
-          nino_id: string
-          nombre: string
-          puede_comer: boolean
-        }[]
-      }
-      ninos_buscar_codigo: {
-        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
-        Returns: {
-          apellido: string
-          autorizados: Json
-          checkin_id: string
-          entrada_at: string
-          nino_id: string
-          nombre: string
-          retirado_por_nombre: string
-          salida_at: string
-          salon: string
-          salon_id: string
-        }[]
-      }
-      ninos_hoy: { Args: never; Returns: string }
-      ninos_puede_ver_algun_salon: { Args: never; Returns: boolean }
-      ninos_puede_configurar: { Args: { p_equipo_id: string }; Returns: boolean }
-      ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
-      ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
-      ninos_puede_configurar_algun_area: { Args: never; Returns: boolean }
-      ninos_puede_marcar_voluntarios: {
-        Args: { p_equipo_id: string }
-        Returns: boolean
-      }
-      ninos_puede_marcar_voluntarios_algun_area: {
-        Args: never
-        Returns: boolean
-      }
-      ninos_reporte_asistencia: {
-        Args: { p_campus_id?: string; p_desde: string; p_hasta: string; p_turno_id?: string }
-        Returns: Json
-      }
-      ninos_reporte_voluntarios: {
-        Args: {
-          p_campus_id?: string
-          p_desde: string
-          p_hasta: string
-          p_turno_id?: string
-        }
-        Returns: Json
-      }
-      ninos_correos_visita: {
-        Args: { p_evento: string; p_fecha: string; p_nino_ids: string[]; p_turno_id: string }
-        Returns: {
-          codigo: string
-          email: string
-          entrada_at: string
-          nino_genero: string | null
-          nino_nombre: string
-          padre_id: string
-          padre_nombre: string
-          retirado_por_nombre: string | null
-          salida_at: string | null
-          salon: string
-          visita_id: string
-        }[]
-      }
-      ninos_preregistro_campus: { Args: never; Returns: { id: string; nombre: string }[] }
-      ninos_preregistro_crear: {
-        Args: { p_campus_id: string; p_ip_hash: string; p_payload: Json }
-        Returns: string
-      }
-      ninos_familia_invitar: {
-        Args: { p_email: string; p_padre_id: string }
-        Returns: Json
-      }
-      ninos_preregistro_invitar: { Args: { p_email: string; p_id: string }; Returns: Json }
-      ninos_registrar_familia_mesa: { Args: { p: Json }; Returns: Json }
-      ninos_retiro_opciones: {
-        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
-        Returns: {
-          nombre: string
-          relacion: string
-          telefono: string
-          tipo: string
-        }[]
-      }
-      ninos_preregistro_resolver: {
-        Args: { p_accion: string; p_id: string; p_payload?: Json }
-        Returns: Json
-      }
-      ninos_preregistros_pendientes: {
-        Args: never
-        Returns: { campus_id: string; created_at: string; id: string; payload: Json }[]
-      }
-      ninos_puede_ver_salon: { Args: { p_equipo_id: string }; Returns: boolean }
-      ninos_sirve_en_subarea: {
-        Args: { p_equipo_id: string; p_labels: string[] }
-        Returns: boolean
-      }
-      ninos_usuario_actual: { Args: never; Returns: string }
-      ninos_actualizar_nino: {
-        Args: { p: Json; p_nino_id: string }
-        Returns: undefined
-      }
-      ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
-      ninos_buscar_hijos_revisar_edad: {
-        Args: { p_padre_id: string; p_q: string }
-        Returns: Json
-      }
-      ninos_buscar_hijos_vincular: {
-        Args: { p_padre_id: string; p_q: string }
-        Returns: Json
-      }
-      ninos_buscar_padre: {
-        Args: { p_cedula: string; p_telefono: string }
-        Returns: Json
-      }
-      ninos_crear_ficha: {
-        Args: { p_autorizados: Json; p_ficha: Json; p_nino_id: string }
-        Returns: undefined
-      }
-      ninos_vincular_padre: {
-        Args: { p_nino_ids: string[]; p_padre_id: string | null; p_padre_nuevo: Json | null }
-        Returns: Json
-      }
-      ninos_vincular_revisando_edad: {
-        Args: { p_fecha_nacimiento: string; p_nino_id: string; p_padre_id: string | null; p_padre_nuevo: Json | null }
-        Returns: Json
-      }
-      ninos_voluntarios_del_turno: {
-        Args: { p_fecha: string; p_turno_id: string }
-        Returns: {
-          area_id: string
-          equipo_id: string
-          esperado: boolean
-          servicio_id: string
-          sin_turno: boolean
-        }[]
-      }
-      ninos_voluntarios_equipos: {
-        Args: { p_campus_id: string }
-        Returns: {
-          area_id: string
-          campus_id: string
-          equipo_id: string
-        }[]
-      }
-      ninos_voluntarios_marcables: {
-        Args: { p_campus_id: string }
-        Returns: {
-          area_id: string
-          campus_id: string
-          equipo_id: string
-        }[]
-      }
-      ninos_voluntarios_marcar: {
-        Args: {
-          p_estado: string
-          p_fecha: string
-          p_servicio_ids: string[]
-          p_solo_sin_marcar?: boolean
-          p_turno_id: string
-        }
-        Returns: Json
-      }
-      ninos_voluntarios_planilla: {
-        Args: { p_fecha: string; p_turno_id: string }
-        Returns: Json
-      }
-      ninos_voluntarios_turnos: {
-        Args: never
-        Returns: {
-          campus: string
-          campus_id: string
-          dia_semana: number
-          hora: string
-          id: string
-          nombre: string
-          orden: number
-        }[]
-      }
-      ninos_edad_maxima_anos: { Args: never; Returns: number }
-      ninos_en_rango_edad: { Args: { p_fecha_nacimiento: string }; Returns: boolean }
-      ninos_campus_operables: { Args: never; Returns: string[] }
-      ninos_en_alcance: {
-        Args: { p_campus: string[] | null; p_persona_id: string }
-        Returns: boolean
-      }
-      ninos_en_mi_alcance: { Args: { p_persona_id: string }; Returns: boolean }
-      ninos_enmascarar: {
-        Args: { p_valor: string; p_visibles: number }
-        Returns: string
-      }
-      ninos_ocupacion: {
-        Args: { p_fecha: string; p_turno_id: string }
-        Returns: {
-          area: string
-          capacidad: number
-          nombre: string
-          orden: number
-          presentes: number
-          salon_id: string
-        }[]
-      }
-      ninos_padre_coincidencias: {
-        Args: { p_cedula: string; p_telefono: string }
-        Returns: Json
-      }
-      ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
-      ninos_conyuge_de: { Args: { p_usuario_id: string }; Returns: Json }
-      ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
-      ninos_mis_hijos: { Args: never; Returns: Json }
-      ninos_mis_hijos_campus: { Args: never; Returns: Json }
-      ninos_mis_hijos_guardar: { Args: { p: Json; p_nino_id: string }; Returns: Json }
-      ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
-      ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
-      ninos_preregistros_cuentas: { Args: never; Returns: Json }
-      ninos_precheck_avisar: { Args: { p_nino_ids: string[]; p_turno_id: string }; Returns: Json }
-      ninos_precheck_cancelar: { Args: { p_turno_id: string }; Returns: Json }
-      ninos_mis_prechecks: { Args: never; Returns: Json }
-      ninos_prechecks_pendientes: { Args: { p_fecha: string; p_turno_id: string }; Returns: Json }
       _puede_ver_segmento_lider: {
         Args: {
           sl_row: Database["public"]["Tables"]["segmento_lideres"]["Row"]
@@ -8430,6 +9177,16 @@ export type Database = {
           tiene_cuenta: boolean
         }[]
       }
+      dream_team_editar_ficha: {
+        Args: { p_datos: Json; p_persona_id: string }
+        Returns: Json
+      }
+      dream_team_equipos_registrables: {
+        Args: never
+        Returns: {
+          equipo_id: string
+        }[]
+      }
       dream_team_estructura_gdv: {
         Args: never
         Returns: {
@@ -8439,6 +9196,10 @@ export type Database = {
           responsables: Json
           tipo: string
         }[]
+      }
+      dream_team_ficha_persona: {
+        Args: { p_persona_id: string }
+        Returns: Json
       }
       dream_team_gdv_visibilidad: {
         Args: never
@@ -8470,48 +9231,38 @@ export type Database = {
           rol: string
         }[]
       }
+      dream_team_nivel_desde_label: {
+        Args: { p_label: string }
+        Returns: string
+      }
       dream_team_normalizar_etiqueta: { Args: { p: string }; Returns: string }
-      dream_team_resolver_nombres: {
-        Args: { p_persona_ids: string[] }
+      dream_team_opciones_registro: { Args: never; Returns: Json }
+      dream_team_persona_por_cedula: {
+        Args: { p_cedula: string }
         Returns: {
           apellido: string
           id: string
           nombre: string
         }[]
       }
-      dream_team_turnos_del_equipo: {
-        Args: { p_campus_id: string; p_equipo_id: string }
-        Returns: string[]
-      }
-      dream_team_turno_sirve_en: {
-        Args: { p_domingo: string; p_fecha_ancla: string; p_frecuencia: string }
-        Returns: boolean
-      }
-      dream_team_turno_activo_en: {
-        Args: { p_fecha: string; p_turno_id: string }
+      dream_team_puede_editar_ficha: {
+        Args: { p_persona_id: string }
         Returns: boolean
       }
       dream_team_puede_gestionar_turno: {
         Args: { p_turno_id: string }
         Returns: boolean
       }
-      dream_team_turno_fecha_guardar: {
-        Args: {
-          p_fecha: string
-          p_hora?: string | null
-          p_nota?: string | null
-          p_turno_fecha_id?: string | null
-          p_turno_id: string
-        }
-        Returns: string
-      }
-      dream_team_turno_fecha_borrar: {
-        Args: { p_turno_fecha_id: string }
+      dream_team_puede_registrar_persona: {
+        Args: { p_equipo_id: string }
         Returns: boolean
       }
-      dream_team_turno_fecha_servidores_fijar: {
-        Args: { p_servicio_ids: string[]; p_turno_fecha_id: string }
-        Returns: number
+      dream_team_rangos_edad: {
+        Args: { p_persona_ids: string[] }
+        Returns: {
+          id: string
+          rango: string
+        }[]
       }
       dream_team_registrar_persona: {
         Args: {
@@ -8534,24 +9285,43 @@ export type Database = {
         }
         Returns: Json
       }
-      dream_team_equipos_registrables: {
-        Args: never
-        Returns: {
-          equipo_id: string
-        }[]
-      }
-      dream_team_opciones_registro: { Args: never; Returns: Json }
-      dream_team_puede_registrar_persona: {
-        Args: { p_equipo_id: string }
-        Returns: boolean
-      }
-      dream_team_persona_por_cedula: {
-        Args: { p_cedula: string }
+      dream_team_resolver_nombres: {
+        Args: { p_persona_ids: string[] }
         Returns: {
           apellido: string
           id: string
           nombre: string
         }[]
+      }
+      dream_team_turno_activo_en: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: boolean
+      }
+      dream_team_turno_fecha_borrar: {
+        Args: { p_turno_fecha_id: string }
+        Returns: boolean
+      }
+      dream_team_turno_fecha_guardar: {
+        Args: {
+          p_fecha: string
+          p_hora?: string
+          p_nota?: string
+          p_turno_fecha_id?: string
+          p_turno_id: string
+        }
+        Returns: string
+      }
+      dream_team_turno_fecha_servidores_fijar: {
+        Args: { p_servicio_ids: string[]; p_turno_fecha_id: string }
+        Returns: number
+      }
+      dream_team_turno_sirve_en: {
+        Args: { p_domingo: string; p_fecha_ancla: string; p_frecuencia: string }
+        Returns: boolean
+      }
+      dream_team_turnos_del_equipo: {
+        Args: { p_campus_id: string; p_equipo_id: string }
+        Returns: string[]
       }
       eliminar_miembro_de_grupo: {
         Args: { p_auth_id: string; p_grupo_id: string; p_usuario_id: string }
@@ -8643,6 +9413,34 @@ export type Database = {
         }
         Returns: Json
       }
+      invitacion_cuenta_crear: {
+        Args: {
+          p_email: string
+          p_reemplazar_email?: boolean
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
+      invitacion_cuenta_estado: {
+        Args: { p_usuario_id: string }
+        Returns: Json
+      }
+      invitacion_cuenta_puede_invitar: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
+      }
+      invitacion_cuenta_registrar_envio: {
+        Args: { p_auth_user_id: string; p_id: string }
+        Returns: undefined
+      }
+      invitacion_cuenta_sin_cuenta: {
+        Args: { p_usuario_ids: string[] }
+        Returns: string[]
+      }
+      invitacion_cuenta_vincular: {
+        Args: { p_auth_user_id: string; p_email: string }
+        Returns: string
+      }
       is_admin: { Args: never; Returns: boolean }
       listar_eventos_grupo: {
         Args: {
@@ -8700,129 +9498,423 @@ export type Database = {
       }
       mi_campus_principal: { Args: { p_auth_uid: string }; Returns: string }
       mis_campus_ids: { Args: { p_auth_uid: string }; Returns: string[] }
-      // Hand-added (2026-10-15, odd/tasks/uno-a-uno.md T4): the 1:1 functions of
-      // supabase/migrations/20261015120000_uno_a_uno_modelo.sql.
       mis_dirigidos: {
         Args: never
         Returns: {
           apellido: string
           contextos: string[]
-          conyuge_id: string | null
+          conyuge_id: string
           nombre: string
           usuario_id: string
         }[]
       }
       mis_uno_a_uno: {
-        Args: { p_desde?: string | null; p_hasta?: string | null }
+        Args: { p_desde?: string; p_hasta?: string }
         Returns: {
-          cancelado_en: string | null
+          cancelado_en: string
+          celebracion: string
           dirigidos: Json
           estado: string
           fecha_hora: string
           id: string
           lideres: Json
-          lugar: string | null
+          lugar: string
           mi_lado: string
-          motivo_cancelacion: string | null
-          nota_privada: string | null
-          realizado_en: string | null
-          resumen: string | null
-          celebracion: string | null
+          motivo_cancelacion: string
+          nota_privada: string
+          realizado_en: string
+          resumen: string
         }[]
       }
-      // Hand-added (2026-10-24, odd/tasks/uno-a-uno.md T7): access and supervision
-      // of supabase/migrations/20261024120000_uno_a_uno_supervision.sql.
-      uno_a_uno_acceso: { Args: never; Returns: Json }
-      uno_a_uno_agendar: {
-        Args: { p_dirigido_id: string; p_fecha_hora: string; p_lugar?: string | null }
-        Returns: string
-      }
-      uno_a_uno_cancelar: {
-        Args: { p_id: string; p_motivo?: string | null }
+      ninos_actualizar_nino: {
+        Args: { p: Json; p_nino_id: string }
         Returns: undefined
       }
-      uno_a_uno_registrar: {
+      ninos_aplicar_ficha: {
+        Args: { p: Json; p_nino_id: string; p_origen: string }
+        Returns: string[]
+      }
+      ninos_aviso_autorizados: {
+        Args: { p_auth_id: string; p_nino_id: string }
+        Returns: Json
+      }
+      ninos_buscar_codigo: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
+        Returns: {
+          apellido: string
+          autorizados: Json
+          checkin_id: string
+          entrada_at: string
+          nino_id: string
+          nombre: string
+          retirado_por_nombre: string
+          salida_at: string
+          salon: string
+          salon_id: string
+        }[]
+      }
+      ninos_buscar_familias: { Args: { p_q: string }; Returns: Json }
+      ninos_buscar_hijos_revisar_edad: {
+        Args: { p_padre_id: string; p_q: string }
+        Returns: Json
+      }
+      ninos_buscar_hijos_vincular: {
+        Args: { p_padre_id: string; p_q: string }
+        Returns: Json
+      }
+      ninos_buscar_padre: {
+        Args: { p_cedula: string; p_telefono: string }
+        Returns: Json
+      }
+      ninos_campus_operables: { Args: never; Returns: string[] }
+      ninos_checkin: {
         Args: {
-          p_celebracion?: string | null
-          p_fecha_hora?: string | null
+          p_fecha: string
+          p_nino_ids: string[]
+          p_salon_ids: string[]
+          p_turno_id: string
+        }
+        Returns: {
+          capacidad: number
+          codigo: string
+          nino_id: string
+          ocupacion: number
+          salon_id: string
+          sobre_capacidad: boolean
+        }[]
+      }
+      ninos_checkout: {
+        Args: {
+          p_codigo: string
+          p_fecha: string
+          p_motivo_otra?: string
+          p_retirado_por: string
+          p_turno_id: string
+        }
+        Returns: {
+          nino_id: string
+          salida_at: string
+          salon_id: string
+        }[]
+      }
+      ninos_clave_persona: { Args: { p_nombre: string }; Returns: string }
+      ninos_conyuge_de: { Args: { p_usuario_id: string }; Returns: Json }
+      ninos_correos_visita: {
+        Args: {
+          p_evento: string
+          p_fecha: string
+          p_nino_ids: string[]
+          p_turno_id: string
+        }
+        Returns: {
+          codigo: string
+          email: string
+          entrada_at: string
+          nino_genero: string
+          nino_nombre: string
+          padre_id: string
+          padre_nombre: string
+          retirado_por_nombre: string
+          salida_at: string
+          salon: string
+          visita_id: string
+        }[]
+      }
+      ninos_crear_ficha: {
+        Args: { p_autorizados: Json; p_ficha: Json; p_nino_id: string }
+        Returns: undefined
+      }
+      ninos_edad_maxima_anos: { Args: never; Returns: number }
+      ninos_en_alcance: {
+        Args: { p_campus: string[]; p_persona_id: string }
+        Returns: boolean
+      }
+      ninos_en_mi_alcance: { Args: { p_persona_id: string }; Returns: boolean }
+      ninos_en_rango_edad: {
+        Args: { p_fecha_nacimiento: string }
+        Returns: boolean
+      }
+      ninos_enmascarar: {
+        Args: { p_valor: string; p_visibles: number }
+        Returns: string
+      }
+      ninos_es_hijo_vinculado: { Args: { p_nino_id: string }; Returns: boolean }
+      ninos_es_mayor_de_edad: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
+      }
+      ninos_es_mi_hijo: { Args: { p_nino_id: string }; Returns: boolean }
+      ninos_familia_hijos: { Args: { p_padre_id: string }; Returns: Json }
+      ninos_familia_invitar: {
+        Args: { p_email: string; p_padre_id: string }
+        Returns: Json
+      }
+      ninos_familia_padres: { Args: { p_padre_id: string }; Returns: Json }
+      ninos_ficha_estado: { Args: { p_nino_id: string }; Returns: Json }
+      ninos_hijos_coincidencias: {
+        Args: { p_hijos: Json; p_padre_id: string }
+        Returns: Json
+      }
+      ninos_hoy: { Args: never; Returns: string }
+      ninos_lista_salon: {
+        Args: { p_fecha: string; p_salon_id: string; p_turno_id: string }
+        Returns: {
+          alergias: string
+          apellido: string
+          autoriza_imagen: boolean
+          cambio_panal: boolean
+          codigo: string
+          entrada_at: string
+          fecha_nacimiento: string
+          grado: number
+          habitos: string
+          necesidades_especiales: string
+          nino_id: string
+          nombre: string
+          puede_comer: boolean
+        }[]
+      }
+      ninos_mis_hijos: { Args: never; Returns: Json }
+      ninos_mis_hijos_campus: { Args: never; Returns: Json }
+      ninos_mis_hijos_guardar: {
+        Args: { p: Json; p_nino_id: string }
+        Returns: Json
+      }
+      ninos_mis_hijos_pendientes: { Args: never; Returns: Json }
+      ninos_mis_hijos_registrar: { Args: { p: Json }; Returns: Json }
+      ninos_mis_prechecks: { Args: never; Returns: Json }
+      ninos_ocupacion: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: {
+          area: string
+          capacidad: number
+          nombre: string
+          orden: number
+          presentes: number
+          salon_id: string
+        }[]
+      }
+      ninos_padre_coincidencias: {
+        Args: { p_cedula: string; p_telefono: string }
+        Returns: Json
+      }
+      ninos_personas_retiro: {
+        Args: { p_nino_id: string }
+        Returns: {
+          nombre: string
+          relacion: string
+          telefono: string
+          tipo: string
+        }[]
+      }
+      ninos_precheck_avisar: {
+        Args: { p_nino_ids: string[]; p_turno_id: string }
+        Returns: Json
+      }
+      ninos_precheck_cancelar: { Args: { p_turno_id: string }; Returns: Json }
+      ninos_precheck_en_ventana: {
+        Args: { p_turno_id: string }
+        Returns: boolean
+      }
+      ninos_prechecks_pendientes: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: Json
+      }
+      ninos_preregistro_avisar: {
+        Args: {
           p_id: string
-          p_nota_privada?: string | null
-          p_resumen: string
-        }
-        Returns: undefined
-      }
-      uno_a_uno_registrar_sin_agenda: {
-        Args: {
-          p_celebracion?: string | null
-          p_dirigido_id: string
-          p_fecha_hora: string
-          p_lugar?: string | null
-          p_nota_privada?: string | null
-          p_resumen: string
+          p_ip_hash: string
+          p_token_hash: string
+          p_turno_id: string
         }
         Returns: string
       }
-      // Hand-added (2026-10-24, odd/tasks/uno-a-uno.md T5): the reminder queue of
-      // supabase/migrations/20261024220000_uno_a_uno_recordatorios.sql (service_role only).
-      uno_a_uno_recordatorios_encolar: {
-        Args: { p_ahora?: string }
+      ninos_preregistro_campus: {
+        Args: never
+        Returns: {
+          id: string
+          nombre: string
+        }[]
+      }
+      ninos_preregistro_confirmar_cuenta: {
+        Args: { p: Json; p_solicitante: string }
+        Returns: Json
+      }
+      ninos_preregistro_crear:
+        | {
+            Args: { p_campus_id: string; p_ip_hash: string; p_payload: Json }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_campus_id: string
+              p_ip_hash: string
+              p_payload: Json
+              p_token_hash: string
+            }
+            Returns: Json
+          }
+      ninos_preregistro_invitar: {
+        Args: { p_email: string; p_id: string }
+        Returns: Json
+      }
+      ninos_preregistro_resolver: {
+        Args: { p_accion: string; p_id: string; p_payload?: Json }
+        Returns: Json
+      }
+      ninos_preregistro_servicios_hoy: {
+        Args: { p_campus_id: string }
+        Returns: Json
+      }
+      ninos_preregistros_cuentas: { Args: never; Returns: Json }
+      ninos_preregistros_pendientes: {
+        Args: never
+        Returns: {
+          campus_id: string
+          created_at: string
+          id: string
+          payload: Json
+        }[]
+      }
+      ninos_puede_configurar: {
+        Args: { p_equipo_id: string }
+        Returns: boolean
+      }
+      ninos_puede_configurar_algun_area: { Args: never; Returns: boolean }
+      ninos_puede_marcar_voluntarios: {
+        Args: { p_equipo_id: string }
+        Returns: boolean
+      }
+      ninos_puede_marcar_voluntarios_algun_area: {
+        Args: never
+        Returns: boolean
+      }
+      ninos_puede_operar: { Args: { p_equipo_id: string }; Returns: boolean }
+      ninos_puede_operar_algun_area: { Args: never; Returns: boolean }
+      ninos_puede_ver_algun_salon: { Args: never; Returns: boolean }
+      ninos_puede_ver_salon: { Args: { p_equipo_id: string }; Returns: boolean }
+      ninos_rango_busqueda: {
+        Args: { p_apellido: string; p_nombre: string; p_word: string }
         Returns: number
       }
-      // supabase/migrations/20261024240000_uno_a_uno_recordatorios_lote.sql (T5.2).
-      uno_a_uno_recordatorios_reclamar: {
-        Args: { p_personas?: number; p_tope_diario?: number }
+      ninos_registrar_familia: { Args: { p: Json }; Returns: Json }
+      ninos_registrar_familia_mesa: { Args: { p: Json }; Returns: Json }
+      ninos_reporte_asistencia: {
+        Args: {
+          p_campus_id?: string
+          p_desde: string
+          p_hasta: string
+          p_turno_id?: string
+        }
+        Returns: Json
+      }
+      ninos_reporte_voluntarios: {
+        Args: {
+          p_campus_id?: string
+          p_desde: string
+          p_hasta: string
+          p_turno_id?: string
+        }
+        Returns: Json
+      }
+      ninos_retiro_opciones: {
+        Args: { p_codigo: string; p_fecha: string; p_turno_id: string }
         Returns: {
-          con_quien: Json
-          email: string
-          fecha_hora: string
-          id: string
-          intentos: number
-          lado: string
-          lugar: string | null
           nombre: string
-          uno_a_uno_id: string
-          usuario_id: string
+          relacion: string
+          telefono: string
+          tipo: string
         }[]
       }
-      uno_a_uno_recordatorios_resultado: {
-        Args: { p_error?: string | null; p_id: string; p_ok: boolean }
-        Returns: undefined
+      ninos_revisar_edad_candidato: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
       }
-      uno_a_uno_reprogramar: {
-        Args: { p_fecha_hora: string; p_id: string }
-        Returns: undefined
+      ninos_sirve_en_subarea: {
+        Args: { p_equipo_id: string; p_labels: string[] }
+        Returns: boolean
       }
-      uno_a_uno_supervision: {
-        Args: { p_desde?: string | null; p_hasta?: string | null }
+      ninos_texto: { Args: { p: Json; p_key: string }; Returns: string }
+      ninos_usuario_actual: { Args: never; Returns: string }
+      ninos_vincular_padre: {
+        Args: { p_nino_ids: string[]; p_padre_id: string; p_padre_nuevo: Json }
+        Returns: Json
+      }
+      ninos_vincular_revisando_edad: {
+        Args: {
+          p_fecha_nacimiento: string
+          p_nino_id: string
+          p_padre_id: string
+          p_padre_nuevo: Json
+        }
+        Returns: Json
+      }
+      ninos_voluntarios_congelado_desde: { Args: never; Returns: string }
+      ninos_voluntarios_congelar: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: boolean
+      }
+      ninos_voluntarios_congelar_pendientes: { Args: never; Returns: number }
+      ninos_voluntarios_del_turno: {
+        Args: { p_fecha: string; p_turno_id: string }
         Returns: {
-          cancelado_en: string | null
-          celebracion: string | null
-          dirigidos: Json
-          estado: string
-          fecha_hora: string
-          id: string
-          lideres: Json
-          lugar: string | null
-          motivo_cancelacion: string | null
-          realizado_en: string | null
-          resumen: string | null
+          area_id: string
+          equipo_id: string
+          esperado: boolean
+          servicio_id: string
+          sin_turno: boolean
         }[]
       }
-      uno_a_uno_supervision_lideres: {
-        Args: { p_dias?: number }
+      ninos_voluntarios_del_turno_vivo: {
+        Args: { p_fecha: string; p_turno_id: string }
         Returns: {
-          agendados: number
-          apellido: string
-          contextos: string[]
-          dirigidos: number
+          area_id: string
+          equipo_id: string
+          esperado: boolean
+          servicio_id: string
+          sin_turno: boolean
+        }[]
+      }
+      ninos_voluntarios_equipos: {
+        Args: { p_campus_id: string }
+        Returns: {
+          area_id: string
+          campus_id: string
+          equipo_id: string
+        }[]
+      }
+      ninos_voluntarios_marcables: {
+        Args: { p_campus_id: string }
+        Returns: {
+          area_id: string
+          campus_id: string
+          equipo_id: string
+        }[]
+      }
+      ninos_voluntarios_marcar: {
+        Args: {
+          p_estado: string
+          p_fecha: string
+          p_servicio_ids: string[]
+          p_solo_sin_marcar?: boolean
+          p_turno_id: string
+        }
+        Returns: Json
+      }
+      ninos_voluntarios_planilla: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: Json
+      }
+      ninos_voluntarios_turnos: {
+        Args: never
+        Returns: {
+          campus: string
+          campus_id: string
+          dia_semana: number
+          hora: string
+          id: string
           nombre: string
-          pareja: Json
-          rango: number
-          realizados: number
-          rol: string
-          ubicaciones: Json
-          ultimo_realizado: string | null
-          usuario_id: string
+          orden: number
         }[]
       }
       normalizar_cedula_ve: { Args: { p: string }; Returns: string }
@@ -9705,6 +10797,142 @@ export type Database = {
         }[]
       }
       tiene_rol_de_liderazgo: { Args: { p_auth_id: string }; Returns: boolean }
+      uno_a_uno_acceso: { Args: never; Returns: Json }
+      uno_a_uno_agendar: {
+        Args: { p_dirigido_id: string; p_fecha_hora: string; p_lugar?: string }
+        Returns: string
+      }
+      uno_a_uno_cancelar: {
+        Args: { p_id: string; p_motivo?: string }
+        Returns: undefined
+      }
+      uno_a_uno_crear: {
+        Args: {
+          p_celebracion?: string
+          p_dirigido: string
+          p_estado: string
+          p_fecha_hora: string
+          p_lider: string
+          p_lugar: string
+          p_nota_privada: string
+          p_resumen: string
+        }
+        Returns: string
+      }
+      uno_a_uno_dirigidos_de: {
+        Args: { p_usuario: string }
+        Returns: {
+          contextos: string[]
+          usuario_id: string
+        }[]
+      }
+      uno_a_uno_recordatorios_encolar: {
+        Args: { p_ahora?: string }
+        Returns: number
+      }
+      uno_a_uno_recordatorios_reclamar: {
+        Args: { p_personas?: number; p_tope_diario?: number }
+        Returns: {
+          con_quien: Json
+          email: string
+          fecha_hora: string
+          id: string
+          intentos: number
+          lado: string
+          lugar: string
+          nombre: string
+          uno_a_uno_id: string
+          usuario_id: string
+        }[]
+      }
+      uno_a_uno_recordatorios_resultado: {
+        Args: { p_error?: string; p_id: string; p_ok: boolean }
+        Returns: undefined
+      }
+      uno_a_uno_registrar: {
+        Args: {
+          p_celebracion?: string
+          p_fecha_hora?: string
+          p_id: string
+          p_nota_privada?: string
+          p_resumen: string
+        }
+        Returns: undefined
+      }
+      uno_a_uno_registrar_sin_agenda: {
+        Args: {
+          p_celebracion?: string
+          p_dirigido_id: string
+          p_fecha_hora: string
+          p_lugar?: string
+          p_nota_privada?: string
+          p_resumen: string
+        }
+        Returns: string
+      }
+      uno_a_uno_relaciones: {
+        Args: never
+        Returns: {
+          contexto: string
+          dirigido_id: string
+          lider_id: string
+        }[]
+      }
+      uno_a_uno_reprogramar: {
+        Args: { p_fecha_hora: string; p_id: string }
+        Returns: undefined
+      }
+      uno_a_uno_supervisados_de: {
+        Args: { p_usuario: string }
+        Returns: {
+          usuario_id: string
+        }[]
+      }
+      uno_a_uno_supervision: {
+        Args: { p_desde?: string; p_hasta?: string }
+        Returns: {
+          cancelado_en: string
+          celebracion: string
+          dirigidos: Json
+          estado: string
+          fecha_hora: string
+          id: string
+          lideres: Json
+          lugar: string
+          motivo_cancelacion: string
+          realizado_en: string
+          resumen: string
+        }[]
+      }
+      uno_a_uno_supervision_lideres: {
+        Args: { p_dias?: number }
+        Returns: {
+          agendados: number
+          apellido: string
+          contextos: string[]
+          dirigidos: number
+          nombre: string
+          pareja: Json
+          rango: number
+          realizados: number
+          rol: string
+          ubicaciones: Json
+          ultimo_realizado: string
+          usuario_id: string
+        }[]
+      }
+      uno_a_uno_ubicaciones: {
+        Args: never
+        Returns: {
+          area: string
+          area_id: string
+          direccion: string
+          direccion_id: string
+          equipo: string
+          equipo_id: string
+          lider_id: string
+        }[]
+      }
       update_support_ticket_status: {
         Args: { p_status: string; p_ticket_id: string }
         Returns: undefined
@@ -9786,7 +11014,12 @@ export type Database = {
         | "Viernes"
         | "Sábado"
         | "Domingo"
-      enum_estado_civil: "Soltero" | "Casado" | "Divorciado" | "Viudo" | "No especificado"
+      enum_estado_civil:
+        | "Soltero"
+        | "Casado"
+        | "Divorciado"
+        | "Viudo"
+        | "No especificado"
       enum_genero: "Masculino" | "Femenino" | "Otro"
       enum_rol_grupo: "Líder" | "Colíder" | "Miembro"
       enum_tipo_lider: "director_general" | "director_etapa"
@@ -10029,7 +11262,13 @@ export const Constants = {
         "Sábado",
         "Domingo",
       ],
-      enum_estado_civil: ["Soltero", "Casado", "Divorciado", "Viudo", "No especificado"],
+      enum_estado_civil: [
+        "Soltero",
+        "Casado",
+        "Divorciado",
+        "Viudo",
+        "No especificado",
+      ],
       enum_genero: ["Masculino", "Femenino", "Otro"],
       enum_rol_grupo: ["Líder", "Colíder", "Miembro"],
       enum_tipo_lider: ["director_general", "director_etapa"],
@@ -10112,4 +11351,3 @@ export const Constants = {
     },
   },
 } as const
-
