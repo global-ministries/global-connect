@@ -63,24 +63,26 @@ alone.
 | Class | Token | Use |
 | --- | --- | --- |
 | `bg-brand`, `border-brand` | `--brand-primary` (#E96C20) | Logo, focus outline, borders, active indicators, decoration without text |
-| — (pending) | `--brand-strong` (#BE5413) | Filled brand surfaces that carry text or icons: primary button fill, FAB, count badges. White text 4.70:1 |
-| — (pending) | `--brand-strong-hover` (#B04E11) | Hover of those surfaces. White text 5.32:1 |
+| `bg-brand-strong` | `--brand-strong` (#BE5413) | Filled brand surfaces that carry text or icons: primary button fill, FAB, count badges. White text 4.70:1 |
+| `hover:bg-brand-strong-hover` | `--brand-strong-hover` (#B04E11) | Hover of those surfaces. White text 5.32:1 |
 | `text-brand-foreground` | white | Text and icons on a filled brand surface |
 | `bg-brand-tint` | `--brand-accent-strong` | Selected rows, pressed cards and pills, active nav entry |
 | `text-brand-text` | `--brand-text` | Orange text at any size (≥ 4.5:1, light and dark) |
 
-`--brand-strong` and `--brand-strong-hover` are **decided 2026-10-28,
-pending in `app/globals.css` (Phase 2a)**. Same value in light and dark.
-White on `--brand-primary` is only 3.17:1, so once they land:
+`--brand-strong` and `--brand-strong-hover` are **decided 2026-10-28, done
+in `app/globals.css` (Phase 2a)**. Same value in light and dark.
+White on `--brand-primary` is only 3.17:1, so:
 
 - Filled brand surfaces with text or icons (`BotonSistema primario`,
   `BotonFlotante`, count badges such as the Filtros badge) use
-  `--brand-strong`, hover `--brand-strong-hover`.
+  `bg-brand-strong text-white`, hover `hover:bg-brand-strong-hover`.
 - `--brand-primary` stays for the logo, focus, borders, tints and
   decoration that carries no text.
 - Text in brand color uses `--brand-text`, never `text-brand`.
 
-Until Phase 2a, the code still fills those surfaces with `bg-brand`.
+Done for `BotonSistema primario`, `BotonFlotante`, the Filtros badge in
+`barra-herramientas.tsx` and the active-filter badge in
+`components/ui/filtros-usuarios.tsx`.
 
 ## Legacy tokens
 

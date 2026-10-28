@@ -56,10 +56,10 @@ describe('TarjetaSistema', () => {
 })
 
 describe('BotonSistema primario', () => {
-  it('is the flat brand fill, with no gradient', () => {
+  it('is the flat brand-strong fill, with no gradient', () => {
     render(<BotonSistema>Guardar</BotonSistema>)
     const boton = screen.getByRole('button', { name: 'Guardar' })
-    expect(boton).toHaveClass('bg-brand', 'text-brand-foreground', 'focus:ring-brand', 'h-11', 'rounded-xl')
+    expect(boton).toHaveClass('bg-brand-strong', 'text-white', 'focus:ring-brand', 'h-11', 'rounded-xl')
     expect(boton.className).not.toContain('gradient')
     expect(boton.className).not.toContain('orange')
   })

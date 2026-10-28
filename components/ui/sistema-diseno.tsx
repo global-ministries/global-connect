@@ -324,8 +324,8 @@ export const BotonSistema = React.forwardRef<HTMLButtonElement, BotonSistemaProp
     const baseClasses = "inline-flex shrink-0 items-center justify-center font-medium rounded-xl transition-[background-color,box-shadow,transform] duration-200 ease-expo focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background press-scale touch-manipulation"
 
     const variantes = {
-      // Flat brand fill, no gradient (docs/design-system/migration.md#decisions-2026-10-26).
-      primario: "bg-brand hover:bg-brand/90 text-brand-foreground focus:ring-brand",
+      // Flat brand-strong fill, no gradient: white text 4.70:1 (docs/design-system/foundations.md#brand-color-decided).
+      primario: "bg-brand-strong hover:bg-brand-strong-hover text-white focus:ring-brand",
       secundario: "bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-lg hover:shadow-xl focus:ring-secondary",
       outline: "border-2 border-border hover:border-border/80 text-foreground hover:bg-accent focus:ring-ring",
       ghost: "text-muted-foreground hover:text-foreground hover:bg-accent focus:ring-ring",

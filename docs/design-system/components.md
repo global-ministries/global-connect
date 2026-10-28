@@ -51,13 +51,13 @@ Every piece is on one page with sample data: the gallery at `/design-system`
 | Component | File | API summary |
 | --- | --- | --- |
 | `BotonSistema` | `components/ui/sistema-diseno.tsx` | `variante="primario" \| "secundario" \| "outline" \| "ghost" \| "peligro"`, `tamaño="sm" \| "md" \| "lg"`, `cargando`, `icono`, `iconoPosicion="izquierda" \| "derecha"`, `asChild` (one `Link` child), `soloIcono` (requires `aria-label`, no children) |
-| `BotonFlotante` | `components/ui/BotonFlotante.tsx` | FAB, phone only (`md:hidden`): `href` or `onClick`, `icono` (default `Plus`), `label` (accessible name). Decided look: flat `--brand-strong` fill + `shadow-fab` (pending; the code still uses an orange gradient + `shadow-xl`) |
+| `BotonFlotante` | `components/ui/BotonFlotante.tsx` | FAB, phone only (`md:hidden`): `href` or `onClick`, `icono` (default `Plus`), `label` (accessible name). Flat `bg-brand-strong` fill (hover `bg-brand-strong-hover`), white icon, `shadow-fab`; no gradient |
 
 Button variants:
 
 | `variante` | Look | Use |
 | --- | --- | --- |
-| `primario` (default) | Flat brand fill, no gradient. Today `bg-brand`; decided: `--brand-strong`, hover `--brand-strong-hover` (pending, Phase 2a; see [foundations.md](foundations.md#brand-color-decided)) | The one main action of a view |
+| `primario` (default) | Flat `bg-brand-strong` fill, hover `bg-brand-strong-hover`, white text (4.70:1), no gradient (see [foundations.md](foundations.md#brand-color-decided)) | The one main action of a view |
 | `secundario` | Secondary fill | Supporting actions |
 | `outline` | 2px border | Neutral actions, cancel |
 | `ghost` | Text only | Toolbars, low-emphasis actions |
@@ -134,7 +134,7 @@ pass `cargando` (and `disabled`) so the button gives immediate feedback.
 | Component | File | API summary |
 | --- | --- | --- |
 | `BarraHerramientas` | `components/ui/barra-herramientas.tsx` | Toolbar of a list screen: `busqueda={{ valor, onCambio, placeholder, etiqueta }}`, `filtrosActivos` (badge count on "Filtros"), `onAbrirFiltros`, `vista` (slot, usually `ControlSegmentado`). "/" focuses the search on desktop unless the user types elsewhere. Below `md` the search fills the width (filled, no border) and the Filtros button and view slot hide. |
-| `BotonFiltrosMovil` | same file | Phone Filtros button for the `BarraNavegacionMovil` actions: `filtrosActivos`, `onClick`. 44px icon with a count badge; named "Filtros, N activos". |
+| `BotonFiltrosMovil` | same file | Phone Filtros button for the `BarraNavegacionMovil` actions: `filtrosActivos`, `onClick`. 44px icon with a `bg-brand-strong` count badge; named "Filtros, N activos". |
 | `ChipsFiltrosActivos` | same file | One brand-tint chip per active filter: `chips` (`{ id, etiqueta }`), `onQuitar(id)` ("Quitar …" buttons with 44px targets), `onLimpiarTodo` ("Limpiar todo" from two chips up). One scrolling row on phone, wraps from `md`. Renders nothing without chips. |
 | `HojaFiltros` | `components/ui/hoja-filtros.tsx` | The filters sheet: a `DetalleResponsivo` with `abierta`, `onCambioAbierta`, `titulo` (default "Filtros"), `resultados`, `unidad={{ singular, plural }}`, `onLimpiar`. Footer "Limpiar" \| "Ver N personas". Filters apply live; "Ver N" only closes. |
 | `GrupoFiltro` | same file | One block of the sheet: `titulo` (small uppercase label, also the group's accessible name), children. |

@@ -50,6 +50,10 @@
   --brand-dark: #363D45;
   --brand-accent: rgba(233, 108, 32, 0.08);
   --brand-accent-strong: rgba(233, 108, 32, 0.10);
+  /* Filled brand surfaces with text or icons (primary button, FAB, count
+     badges): white reaches 4.70:1 (hover 5.32:1). Same in dark. */
+  --brand-strong: #BE5413;
+  --brand-strong-hover: #B04E11;
   /* White on the orange is 3.2:1: large or bold text and icons only. */
   --brand-primary-foreground: oklch(1 0 0);
   /* Readable orange text (>= 4.5:1 on card, page and the brand tint). */
@@ -98,7 +102,7 @@
   --danger-foreground: oklch(0.98 0 0);
 
   /* Status text: the fills above are not text-safe (warning is ~2:1 on
-     white). These reach >= 4.5:1 on card, page and their own 15% tint. */
+     white). These reach >= 4.5:1 on card, page and their own tint (10% light, 13% dark). */
   --success-text: oklch(0.5 0.14 145);
   --warning-text: oklch(0.52 0.12 65);
   --info-text: oklch(0.5 0.15 250);
@@ -146,6 +150,8 @@
   /* ─── Brand (dark) ─── */
   --brand-accent: rgba(233, 108, 32, 0.12);
   --brand-accent-strong: rgba(233, 108, 32, 0.13);
+  --brand-strong: #BE5413;
+  --brand-strong-hover: #B04E11;
   --brand-text: oklch(0.74 0.15 50);
 
   /* ─── Surfaces (dark) ─── */
@@ -239,6 +245,8 @@
   --color-brand: var(--brand-primary);
   --color-brand-foreground: var(--brand-primary-foreground);
   --color-brand-tint: var(--brand-accent-strong);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-strong-hover: var(--brand-strong-hover);
   --color-brand-text: var(--brand-text);
 
   /* ─── Shadows (Tailwind utilities: shadow-sheet, shadow-fab) ─── */
