@@ -80,9 +80,8 @@ White on `--brand-primary` is only 3.17:1, so:
   decoration that carries no text.
 - Text in brand color uses `--brand-text`, never `text-brand`.
 
-Done for `BotonSistema primario`, `BotonFlotante`, the Filtros badge in
-`barra-herramientas.tsx` and the active-filter badge in
-`components/ui/filtros-usuarios.tsx`.
+Done for `BotonSistema primario`, `BotonFlotante` and the Filtros badge in
+`barra-herramientas.tsx` (Usuarios now uses that badge too).
 
 ## Legacy tokens
 
