@@ -42,7 +42,3 @@ export function personasTexto(cantidad: number): string {
   if (cantidad === 0) return 'Sin personas'
   return cantidad === 1 ? '1 persona' : `${cantidad} personas`
 }
-
-/** Focus ring shared by the custom buttons of this screen. */
-export const ANILLO_FOCO =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background'

@@ -65,7 +65,7 @@ function hrefServidores(equipoId: string): string {
 }
 
 /** "Ana María Pérez Gómez" → "Ana Gómez"; couples ("Carlos y Ana") stay whole. */
-function nombreCorto(nombre: string): string {
+export function nombreCorto(nombre: string): string {
   const partes = nombre.split(' ').filter(Boolean)
   return partes.length > 2 && !nombre.includes(' y ') ? `${partes[0]} ${partes[partes.length - 1]}` : nombre
 }

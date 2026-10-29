@@ -1,24 +1,31 @@
 'use client'
 
 /**
- * Estructura — "Turnos de servicio": the shifts of each campus, shared by
- * every dirección (D12). One row per shift with its day and hour and, for
- * someone who manages the structure, a switch to enable or disable it and a
- * form to add one. A shift is never deleted: servicios may be assigned to it.
+ * Estructura — the "Turnos del campus" tab (S12, D12; prototype
+ * `renderTurnos`): the shifts of the campus selected in the app, shared by
+ * every dirección. Two cards, "Semanales" (every team inherits them unless it
+ * chooses its own) and "Por fechas" (no weekday; only the teams that choose
+ * one serve it, its dates are planned in Mi equipo), and the deactivated ones
+ * folded under "Desactivados (n)". Each row shows the day and hour and, for
+ * someone who manages the structure, an `Interruptor` to enable or disable
+ * it. A shift is never deleted: servicios may be assigned to it.
  *
- * A shift is "Semanal" (a weekday) or "Por fechas" (A3 of
- * odd/tasks/tlr-calendario-servicios.md): a dated one has no weekday, its dates
- * are planned in Mi equipo, and only the teams that choose it serve it.
+ * "Agregar turno" (formulario-turno.tsx) opens from the page's primary
+ * action when the parent controls it (`nuevoAbierto`), else from a button
+ * here.
  */
-import { useState, useTransition, type FormEvent, type ReactElement } from 'react'
+import { useState, useTransition, type ReactElement } from 'react'
+import { ChevronDown, Plus } from 'lucide-react'
 
-import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import { Interruptor } from '@/components/ui/interruptor'
+import { PuntoEstado } from '@/components/ui/punto-estado'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
-import { cambiarActivoTurno, crearTurno } from '@/app/(auth)/admin/dream-team/estructura/turnos-actions'
-import { DIAS_SEMANA, detalleTurno, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
-import type { TipoTurno } from '@/lib/platform/dream-team/turno-fechas'
+import { cambiarActivoTurno } from '@/app/(auth)/admin/dream-team/estructura/turnos-actions'
+import { detalleTurno, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
 
-import { ANILLO_FOCO, reportarResultado, type Toast } from './mensajes'
+import { FormularioTurno } from './formulario-turno'
+import { reportarResultado, type Toast } from './mensajes'
 
 export interface CampusOpcion {
   readonly id: string
@@ -31,16 +38,16 @@ export interface TurnosCampusProps {
   /** The campus selected in the app: only it is listed. `null` (or unknown) = every campus. */
   readonly campusId?: string | null
   readonly puedeEditar: boolean
+  /** "Agregar turno" controlled by the page (header action, FAB); internal with its own button when absent. */
+  readonly nuevoAbierto?: boolean
+  readonly onNuevoAbierto?: (abierto: boolean) => void
   readonly onActualizado: () => void
   readonly toast: Toast
 }
 
-function TurnoFila({
-  turno,
-  puedeEditar,
-  onActualizado,
-  toast,
-}: {
+const TARJETA = 'overflow-hidden rounded-2xl border border-border bg-card'
+
+function TurnoFila({ turno, puedeEditar, onActualizado, toast }: {
   readonly turno: Turno
   readonly puedeEditar: boolean
   readonly onActualizado: () => void
@@ -48,135 +55,53 @@ function TurnoFila({
 }): ReactElement {
   const [isPending, startTransition] = useTransition()
 
-  function alternar(): void {
+  function alternar(activo: boolean): void {
     startTransition(async () => {
-      const resultado = await cambiarActivoTurno({ id: turno.id, activo: !turno.activo })
-      if (reportarResultado(toast, resultado, turno.activo ? 'Turno desactivado.' : 'Turno activado.')) onActualizado()
+      const resultado = await cambiarActivoTurno({ id: turno.id, activo })
+      if (reportarResultado(toast, resultado, activo ? 'Turno activado.' : 'Turno desactivado.')) onActualizado()
     })
   }
 
   return (
-    <li className="flex min-h-[60px] items-center gap-3 py-1 pl-5 pr-3 sm:pl-6">
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className={cn('truncate text-sm font-medium sm:text-base', turno.activo ? 'text-foreground' : 'text-muted-foreground')}>
-          {turno.nombre}
-        </span>
-        <span className="text-sm text-muted-foreground">
-          {turno.activo ? detalleTurno(turno) : `${detalleTurno(turno)} · Desactivado`}
-        </span>
+    <li className="flex min-h-16 items-center gap-3 py-2 pr-2.5 pl-4 sm:pl-5">
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className={cn('truncate text-[15px] font-medium', turno.activo ? 'text-foreground' : 'text-muted-foreground')}>{turno.nombre}</span>
+        <span className="text-[13px] text-muted-foreground">{turno.activo ? detalleTurno(turno) : `${detalleTurno(turno)} · Desactivado`}</span>
       </span>
       {puedeEditar ? (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={turno.activo}
-          aria-label={`Turno ${turno.nombre}`}
-          title={turno.activo ? 'Desactivar turno' : 'Activar turno'}
-          disabled={isPending}
-          onClick={alternar}
-          className={cn('flex h-11 w-12 shrink-0 items-center justify-center rounded-xl disabled:opacity-50', ANILLO_FOCO)}
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              'flex h-6 w-11 items-center rounded-full p-[3px] transition-colors',
-              turno.activo ? 'justify-end bg-brand' : 'justify-start bg-input',
-            )}
-          >
-            <span className="h-[18px] w-[18px] rounded-full bg-background shadow-sm" />
-          </span>
-        </button>
+        <Interruptor activo={turno.activo} onCambio={alternar} disabled={isPending} aria-label={`Turno ${turno.nombre}`} />
       ) : (
-        <BadgeSistema variante={turno.activo ? 'success' : 'default'} tamaño="sm">
-          {turno.activo ? 'Activo' : 'Desactivado'}
-        </BadgeSistema>
+        <PuntoEstado tono={turno.activo ? 'success' : 'muted'} etiqueta={turno.activo ? 'Activo' : 'Desactivado'} />
       )}
     </li>
   )
 }
 
-function FormularioTurnoNuevo({
-  campus,
-  turnos,
-  onActualizado,
-  toast,
-}: Omit<TurnosCampusProps, 'puedeEditar'>): ReactElement {
-  const [isPending, startTransition] = useTransition()
-  const [campusId, setCampusId] = useState(campus[0]?.id ?? '')
-  const [nombre, setNombre] = useState('')
-  const [tipo, setTipo] = useState<TipoTurno>('semanal')
-  const [dia, setDia] = useState('0')
-  const [hora, setHora] = useState('09:00')
-  const label = nombre.trim()
-
-  function agregar(event: FormEvent): void {
-    event.preventDefault()
-    if (!label || !campusId) return
-    // New shifts go last in their campus.
-    const orden = Math.max(0, ...turnos.filter((turno) => turno.campusId === campusId).map((turno) => turno.orden)) + 1
-    startTransition(async () => {
-      const resultado = await crearTurno(
-        tipo === 'fechas'
-          ? { campusId, nombre: label, diaSemana: 0, hora, orden, tipo }
-          : { campusId, nombre: label, diaSemana: Number(dia), hora, orden },
-      )
-      if (reportarResultado(toast, resultado, 'Turno agregado correctamente.')) {
-        setNombre('')
-        onActualizado()
-      }
-    })
-  }
-
+function Tarjeta({ titulo, descripcion, turnos, vacio, ...fila }: {
+  readonly titulo: string
+  readonly descripcion: string
+  readonly turnos: readonly Turno[]
+  readonly vacio: string
+  readonly puedeEditar: boolean
+  readonly onActualizado: () => void
+  readonly toast: Toast
+}): ReactElement {
   return (
-    <form onSubmit={agregar} className="grid gap-3 border-t border-border px-5 py-4 sm:grid-cols-2 sm:px-6">
-      {campus.length > 1 && (
-        <SelectSistema
-          label="Campus"
-          opciones={campus.map((opcion) => ({ valor: opcion.id, etiqueta: opcion.nombre }))}
-          value={campusId}
-          onValueChange={setCampusId}
-          disabled={isPending}
-        />
-      )}
-      <InputSistema
-        label="Nombre del turno"
-        placeholder="Domingo 9:00"
-        value={nombre}
-        onChange={(event) => setNombre(event.target.value)}
-        disabled={isPending}
-      />
-      <SelectSistema
-        label="Tipo"
-        opciones={[
-          { valor: 'semanal', etiqueta: 'Semanal' },
-          { valor: 'fechas', etiqueta: 'Por fechas' },
-        ]}
-        value={tipo}
-        onValueChange={(valor) => setTipo(valor === 'fechas' ? 'fechas' : 'semanal')}
-        disabled={isPending}
-      />
-      {tipo === 'semanal' && (
-        <SelectSistema
-          label="Día"
-          opciones={DIAS_SEMANA.map((nombreDia, indice) => ({ valor: String(indice), etiqueta: nombreDia }))}
-          value={dia}
-          onValueChange={setDia}
-          disabled={isPending}
-        />
-      )}
-      <InputSistema label="Hora" type="time" value={hora} onChange={(event) => setHora(event.target.value)} disabled={isPending} />
-      {tipo === 'fechas' && (
-        <p className="text-sm text-muted-foreground sm:col-span-2">
-          Sin día fijo: sus fechas se planifican en Mi equipo, en el Calendario del equipo. Sólo lo sirven los equipos que lo eligen
-          en «Turnos de este equipo».
-        </p>
-      )}
-      <div className="flex items-end">
-        <BotonSistema type="submit" variante="outline" disabled={isPending || !label || !campusId || !hora}>
-          Agregar turno
-        </BotonSistema>
+    <section aria-label={titulo} className={TARJETA}>
+      <div className="border-b border-border px-4 py-3.5 sm:px-5">
+        <h3 className="text-base font-semibold text-foreground">{titulo}</h3>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">{descripcion}</p>
       </div>
-    </form>
+      {turnos.length === 0 ? (
+        <p className="px-5 py-6 text-center text-sm text-muted-foreground">{vacio}</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {turnos.map((turno) => (
+            <TurnoFila key={turno.id} turno={turno} {...fila} />
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -185,41 +110,90 @@ export function TurnosCampus({
   turnos,
   campusId = null,
   puedeEditar,
+  nuevoAbierto,
+  onNuevoAbierto,
   onActualizado,
   toast,
 }: TurnosCampusProps): ReactElement {
+  const [nuevoLocal, setNuevoLocal] = useState(false)
+  const controlado = onNuevoAbierto !== undefined
+  const abierto = controlado ? (nuevoAbierto ?? false) : nuevoLocal
+  const cambiarNuevo = onNuevoAbierto ?? setNuevoLocal
   const elegido = todos.filter((opcion) => opcion.id === campusId)
   const campus = elegido.length > 0 ? elegido : todos
   const varios = campus.length > 1
-  const grupos = campus
-    .map((opcion) => ({ ...opcion, turnos: ordenarTurnos(turnos.filter((turno) => turno.campusId === opcion.id)) }))
-    .filter((grupo) => grupo.turnos.length > 0)
+  const fila = { puedeEditar, onActualizado, toast }
 
   return (
-    <TarjetaSistema role="region" aria-label="Turnos de servicio" className="flex flex-col overflow-hidden p-0">
-      <div className="border-b border-border px-5 py-4 sm:px-6">
-        <TituloSistema nivel={3}>Turnos de servicio</TituloSistema>
-        <p className="text-sm text-muted-foreground">Los turnos del campus, compartidos por todas las direcciones</p>
-      </div>
-
-      {grupos.length === 0 ? (
-        <p className="px-6 py-8 text-center text-sm text-muted-foreground">El campus todavía no tiene turnos.</p>
-      ) : (
-        grupos.map((grupo) => (
-          <section key={grupo.id} aria-label={varios ? grupo.nombre : undefined}>
-            {varios && <h4 className="px-5 pt-3 text-sm font-semibold text-foreground sm:px-6">{grupo.nombre}</h4>}
-            <ul className="divide-y divide-border">
-              {grupo.turnos.map((turno) => (
-                <TurnoFila key={turno.id} turno={turno} puedeEditar={puedeEditar} onActualizado={onActualizado} toast={toast} />
-              ))}
-            </ul>
+    <div role="region" aria-label="Turnos del campus" className="grid gap-6">
+      {puedeEditar && !controlado && campus.length > 0 && (
+        <div>
+          <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => cambiarNuevo(true)}>
+            Agregar turno
+          </BotonSistema>
+        </div>
+      )}
+      {campus.length === 0 && <p className={cn(TARJETA, 'px-6 py-8 text-center text-sm text-muted-foreground')}>El campus todavía no tiene turnos.</p>}
+      {campus.map((opcion) => {
+        const delCampus = ordenarTurnos(turnos.filter((turno) => turno.campusId === opcion.id))
+        const activos = delCampus.filter((turno) => turno.activo)
+        const apagados = delCampus.filter((turno) => !turno.activo)
+        return (
+          <section key={opcion.id} aria-label={varios ? opcion.nombre : undefined} className="grid gap-4">
+            {varios && <h2 className="text-lg font-semibold text-foreground">{opcion.nombre}</h2>}
+            {delCampus.length === 0 ? (
+              <p className={cn(TARJETA, 'px-6 py-8 text-center text-sm text-muted-foreground')}>El campus todavía no tiene turnos.</p>
+            ) : (
+              <>
+                <div className="grid items-start gap-4 lg:grid-cols-2">
+                  <Tarjeta
+                    titulo="Semanales"
+                    descripcion={`${opcion.nombre} · todos los equipos los heredan, salvo que elijan los suyos`}
+                    turnos={activos.filter((turno) => turno.tipo !== 'fechas')}
+                    vacio="No hay turnos semanales activos."
+                    {...fila}
+                  />
+                  <Tarjeta
+                    titulo="Por fechas"
+                    descripcion="Sin día fijo: solo los sirven los equipos que los eligen. Las fechas se planifican en Mi equipo."
+                    turnos={activos.filter((turno) => turno.tipo === 'fechas')}
+                    vacio="No hay turnos por fechas activos."
+                    {...fila}
+                  />
+                </div>
+                {apagados.length > 0 && (
+                  <details className={cn(TARJETA, 'group')}>
+                    <summary className="focus-ring flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-sm font-medium text-foreground sm:px-5 [&::-webkit-details-marker]:hidden">
+                      <span>
+                        Desactivados (<span className="font-mono tabular-nums">{apagados.length}</span>)
+                      </span>
+                      <ChevronDown
+                        aria-hidden="true"
+                        className="size-4 text-muted-foreground transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+                      />
+                    </summary>
+                    <ul className="divide-y divide-border border-t border-border">
+                      {apagados.map((turno) => (
+                        <TurnoFila key={turno.id} turno={turno} {...fila} />
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </>
+            )}
           </section>
-        ))
-      )}
-
+        )
+      })}
       {puedeEditar && campus.length > 0 && (
-        <FormularioTurnoNuevo campus={campus} turnos={turnos} onActualizado={onActualizado} toast={toast} />
+        <FormularioTurno
+          abierto={abierto}
+          onCambioAbierto={cambiarNuevo}
+          campus={campus}
+          turnos={turnos}
+          onActualizado={onActualizado}
+          toast={toast}
+        />
       )}
-    </TarjetaSistema>
+    </div>
   )
 }

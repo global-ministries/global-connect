@@ -170,7 +170,7 @@ export function PanelNodo({
       onCambioAbierto={onCambioAbierto}
       titulo={detalle.label}
       descripcion={ruta || undefined}
-      ancho="lg"
+      ancho="estructura"
     >
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">

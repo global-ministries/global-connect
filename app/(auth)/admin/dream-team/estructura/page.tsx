@@ -1,12 +1,14 @@
 /**
  * Dream Team — /admin/dream-team/estructura (RSC).
  *
- * The org chart and the detail of one team. Server component loads equipos +
- * roles + servicios + the virtual Grupos de Vida branch and hands a
- * pre-built, merged tree (plus the people counts and the taller links) to the
- * client island in components/dream-team/estructura/; the team shown is
- * chosen by `?equipo=<id>` and defaults to the first direccion with people
- * (lib/platform/dream-team/estructura-vista.ts). Mutations live in
+ * The org chart (design system v2, S12 of odd/tasks/sistema-diseno-v2.md).
+ * Server component loads equipos + roles + servicios + the virtual Grupos de
+ * Vida branch and hands a pre-built, merged tree (plus the people counts, the
+ * taller links and the campus shifts) to the client island in
+ * components/dream-team/estructura/. The URL state is read with
+ * `leerFiltrosEstructura` (lib/platform/dream-team/estructura-organigrama.ts):
+ * `?equipo=<id>` (the legacy link) opens that node's panel when the viewer
+ * reaches it; `q`, `problema`, `tab` and `expandidos` seed the island. Mutations live in
  * ./actions.ts (server actions) and only ever target real equipos — the
  * Grupos de Vida branch is read-only (see
  * lib/platform/dream-team/estructura-gdv.ts, estructura-arbol.ts).
@@ -14,9 +16,8 @@
  * Only serializable data reaches the client island — no components, icons or
  * functions cross the server/client boundary.
  *
- * Linked from the desktop sidebar's Dream Team entry
- * (components/ui/sidebar-moderna.tsx); the mobile bottom nav doesn't link it
- * yet.
+ * Linked from the sidebar's Dream Team group and, on phones, from the
+ * /dream-team access page.
  */
 
 import { notFound, redirect } from 'next/navigation'
@@ -36,21 +37,18 @@ import {
   tallerPorEquipoId,
 } from '@/lib/platform/dream-team/estructura-arbol'
 import { contarUso, crearVistaEstructura, type TallerVinculado } from '@/lib/platform/dream-team/estructura-vista'
+import { agruparTurnosPropios, leerFiltrosEstructura } from '@/lib/platform/dream-team/estructura-organigrama'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
 import { EstructuraClient, type TurnosEstructura } from '@/components/dream-team/estructura/estructura-client'
-import {
-  fetchTurnos,
-  fetchTurnosDisponibles,
-  fetchTurnosPropiosDeEquipo,
-} from '@/lib/platform/dream-team/turnos'
+import { fetchTurnos, fetchTurnosDisponibles } from '@/lib/platform/dream-team/turnos'
 
 export const metadata = { title: 'Estructura' }
 
 interface EstructuraPageProps {
-  readonly searchParams?: Promise<{ readonly equipo?: string | readonly string[] }>
+  readonly searchParams?: Promise<Readonly<Record<string, string | readonly string[] | undefined>>>
 }
 
 export default async function DreamTeamEstructuraPage({ searchParams }: EstructuraPageProps) {
@@ -126,15 +124,15 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   const uso = contarUso(servicios)
   const vista = crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres })
 
-  // `?equipo=` picks the team; an unknown or missing one falls back to the default.
-  const pedido = (await searchParams)?.equipo
-  const equipoPedido = Array.isArray(pedido) ? pedido[0] : (pedido as string | undefined)
-  const equipoId = equipoPedido && vista.detalle(equipoPedido) ? equipoPedido : (vista.equipoPorDefecto() ?? '')
+  // `?equipo=` opens that node's panel; an unknown one (or a node out of reach) opens nothing.
+  const filtros = leerFiltrosEstructura((await searchParams) ?? {})
+  const equipoId = filtros.equipo && vista.detalle(filtros.equipo) ? filtros.equipo : ''
 
-  // Campus service shifts (D12): the campus list for every viewer, and for the
-  // selected REAL team its own restriction plus the shifts it serves in after
-  // inheritance (resolved in the database, which sees the ancestors). A
-  // convenience on top of the tree: on failure the cards are left out.
+  // Campus service shifts (D12): the campus list and every equipo's own
+  // restriction (for "Sin turno" on the chart) for every viewer, and for the
+  // open REAL node the shifts it serves in after inheritance (resolved in the
+  // database, which sees the ancestors). A convenience on top of the tree: on
+  // failure the shift parts are left out.
   const turnosEstructura = await cargarTurnos(client, equipos.some((equipo) => equipo.id === equipoId) ? equipoId : null)
 
   return (
@@ -145,6 +143,7 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
       talleres={talleres}
       equipoId={equipoId}
       puedeEditar={puedeEditar}
+      filtros={{ ...filtros, equipo: equipoId || null }}
       turnos={turnosEstructura}
     />
   )
@@ -155,19 +154,19 @@ async function cargarTurnos(
   equipoId: string | null,
 ): Promise<TurnosEstructura | undefined> {
   try {
-    const [turnos, { data: campus, error }] = await Promise.all([
+    const [turnos, { data: campus, error }, { data: propios, error: errorPropios }] = await Promise.all([
       fetchTurnos(client),
       client.from('campus').select('id, nombre').eq('activo', true).order('nombre'),
+      // Every own restriction the viewer may read (RLS dream_team_equipo_turnos_select), one query.
+      client.from('dream_team_equipo_turnos').select('equipo_id, turno_id'),
     ])
     if (error) throw error
+    if (errorPropios) throw errorPropios
+    const propiosPorEquipo = agruparTurnosPropios(propios ?? [])
     const delEquipo = equipoId
-      ? {
-          equipoId,
-          propios: await fetchTurnosPropiosDeEquipo(client, equipoId),
-          efectivos: await fetchTurnosDisponibles(client, equipoId, turnos),
-        }
+      ? { equipoId, propios: propiosPorEquipo[equipoId] ?? [], efectivos: await fetchTurnosDisponibles(client, equipoId, turnos) }
       : undefined
-    return { campus: campus ?? [], turnos, delEquipo }
+    return { campus: campus ?? [], turnos, propiosPorEquipo, delEquipo }
   } catch (error) {
     console.error('[dream-team/estructura] shifts lookup failed', error)
     return undefined

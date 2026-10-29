@@ -26,6 +26,20 @@ describe('PastillaFiltro', () => {
     expect(boton).toHaveAttribute('aria-pressed', 'true')
     expect(boton).toHaveClass('border-brand', 'bg-brand-tint')
   })
+
+  it('draws a status dot before the label when given a tono, without changing its name', () => {
+    render(<PastillaFiltro etiqueta="Sin turno" cantidad={2} tono="danger" activa={false} onClick={() => {}} />)
+    const boton = screen.getByRole('button', { name: 'Sin turno 2' })
+    const punto = boton.querySelector('[data-punto]')
+    expect(punto).toHaveClass('bg-danger')
+    expect(punto?.closest('[aria-hidden="true"]')).not.toBeNull()
+    expect(boton.firstElementChild).toContainElement(punto as HTMLElement)
+  })
+
+  it('has no dot without a tono', () => {
+    render(<PastillaFiltro etiqueta="Activo" cantidad={12} activa={false} onClick={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Activo 12' }).querySelector('[data-punto]')).toBeNull()
+  })
 })
 
 describe('PastillaFiltro without a count', () => {

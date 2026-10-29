@@ -8,7 +8,9 @@
  * pressed pill uses the same brand tint (`bg-brand-tint`) as a selected card.
  *
  * Without `cantidad` (chips whose counts are not loaded, quick ranges) the
- * pill shows only its label, with the same look.
+ * pill shows only its label, with the same look. With `tono` a status dot
+ * (`PuntoEstado`, decorative) goes before the label, e.g. the Estructura
+ * problem pills; the accessible name stays the label and the count.
  *
  * `GrupoPastillas` lays them out: a horizontally scrollable row on phones,
  * wrapping from `md` up. Each caller keeps its own rule (single choice, a
@@ -16,6 +18,7 @@
  */
 import type { ReactElement, ReactNode } from 'react'
 
+import { PuntoEstado, type TonoEstado } from '@/components/ui/punto-estado'
 import { cn } from '@/lib/utils'
 
 const ANILLO =
@@ -27,9 +30,11 @@ export interface PastillaFiltroProps {
   readonly cantidad?: number
   readonly activa: boolean
   readonly onClick: () => void
+  /** Optional status dot before the label; none when absent. */
+  readonly tono?: TonoEstado
 }
 
-export function PastillaFiltro({ etiqueta, cantidad, activa, onClick }: PastillaFiltroProps): ReactElement {
+export function PastillaFiltro({ etiqueta, cantidad, activa, onClick, tono }: PastillaFiltroProps): ReactElement {
   return (
     <button
       type="button"
@@ -43,6 +48,11 @@ export function PastillaFiltro({ etiqueta, cantidad, activa, onClick }: Pastilla
         ANILLO,
       )}
     >
+      {tono && (
+        <span aria-hidden="true" className="inline-flex">
+          <PuntoEstado tono={tono} />
+        </span>
+      )}
       <span>{etiqueta}</span>
       {cantidad !== undefined && <span className="font-semibold tabular-nums text-foreground">{cantidad}</span>}
     </button>
