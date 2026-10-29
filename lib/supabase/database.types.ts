@@ -2112,6 +2112,693 @@ export type Database = {
           },
         ]
       }
+      estudiantes_asistencias: {
+        Row: {
+          era_visitante: boolean
+          estado: string
+          marcado_at: string
+          marcado_por: string | null
+          persona_id: string
+          reunion_id: string
+        }
+        Insert: {
+          era_visitante?: boolean
+          estado: string
+          marcado_at?: string
+          marcado_por?: string | null
+          persona_id: string
+          reunion_id: string
+        }
+        Update: {
+          era_visitante?: boolean
+          estado?: string
+          marcado_at?: string
+          marcado_por?: string | null
+          persona_id?: string
+          reunion_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_asistencias_reunion_id_fkey"
+            columns: ["reunion_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_reuniones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estudiantes_escala: {
+        Row: {
+          ambito_id: string
+          campus_id: string
+          created_at: string
+          etiqueta: string
+          numero: number
+        }
+        Insert: {
+          ambito_id: string
+          campus_id: string
+          created_at?: string
+          etiqueta: string
+          numero: number
+        }
+        Update: {
+          ambito_id?: string
+          campus_id?: string
+          created_at?: string
+          etiqueta?: string
+          numero?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_escala_ambito_id_fkey"
+            columns: ["ambito_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_escala_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estudiantes_fichas: {
+        Row: {
+          anio_actual: number | null
+          anio_final: number | null
+          campus_id: string
+          created_at: string
+          persona_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          anio_actual?: number | null
+          anio_final?: number | null
+          campus_id: string
+          created_at?: string
+          persona_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          anio_actual?: number | null
+          anio_final?: number | null
+          campus_id?: string
+          created_at?: string
+          persona_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_fichas_campus_id_anio_actual_fkey"
+            columns: ["campus_id", "anio_actual"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_escala"
+            referencedColumns: ["campus_id", "numero"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_campus_id_anio_final_fkey"
+            columns: ["campus_id", "anio_final"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_escala"
+            referencedColumns: ["campus_id", "numero"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: true
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: true
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: true
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_fichas_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      estudiantes_grupo_lideres: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          grupo_id: string
+          servicio_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          grupo_id: string
+          servicio_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          grupo_id?: string
+          servicio_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estudiantes_grupo_miembros: {
+        Row: {
+          activo: boolean
+          ambito_id: string
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string
+          created_by: string | null
+          desde: string
+          estado: string
+          grupo_id: string
+          id: string
+          persona_id: string
+          retirado_at: string | null
+        }
+        Insert: {
+          activo?: boolean
+          ambito_id: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          desde?: string
+          estado?: string
+          grupo_id: string
+          id?: string
+          persona_id: string
+          retirado_at?: string | null
+        }
+        Update: {
+          activo?: boolean
+          ambito_id?: string
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          desde?: string
+          estado?: string
+          grupo_id?: string
+          id?: string
+          persona_id?: string
+          retirado_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_confirmado_por_fkey"
+            columns: ["confirmado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_grupo_id_ambito_id_fkey"
+            columns: ["grupo_id", "ambito_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_grupos"
+            referencedColumns: ["id", "ambito_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_miembros_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+        ]
+      }
+      estudiantes_grupos: {
+        Row: {
+          activo: boolean
+          ambito_id: string
+          anio: number | null
+          campus_id: string
+          created_at: string
+          created_by: string | null
+          dia_semana: number | null
+          hora: string | null
+          id: string
+          nombre: string
+          subarea_id: string
+          updated_at: string
+          zona: string | null
+        }
+        Insert: {
+          activo?: boolean
+          ambito_id: string
+          anio?: number | null
+          campus_id: string
+          created_at?: string
+          created_by?: string | null
+          dia_semana?: number | null
+          hora?: string | null
+          id?: string
+          nombre: string
+          subarea_id: string
+          updated_at?: string
+          zona?: string | null
+        }
+        Update: {
+          activo?: boolean
+          ambito_id?: string
+          anio?: number | null
+          campus_id?: string
+          created_at?: string
+          created_by?: string | null
+          dia_semana?: number | null
+          hora?: string | null
+          id?: string
+          nombre?: string
+          subarea_id?: string
+          updated_at?: string
+          zona?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_grupos_ambito_id_fkey"
+            columns: ["ambito_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_campus_id_anio_ambito_id_fkey"
+            columns: ["campus_id", "anio", "ambito_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_escala"
+            referencedColumns: ["campus_id", "numero", "ambito_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_campus_id_fkey"
+            columns: ["campus_id"]
+            isOneToOne: false
+            referencedRelation: "campus"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupos_subarea_id_fkey"
+            columns: ["subarea_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_equipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estudiantes_reuniones: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fecha: string
+          grupo_id: string
+          id: string
+          lugar: string | null
+          turno_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fecha: string
+          grupo_id: string
+          id?: string
+          lugar?: string | null
+          turno_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fecha?: string
+          grupo_id?: string
+          id?: string
+          lugar?: string | null
+          turno_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_reuniones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_reuniones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_reuniones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_reuniones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_reuniones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_reuniones_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_reuniones_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eventos_grupo: {
         Row: {
           conteo_visitantes: number | null
@@ -9354,6 +10041,286 @@ export type Database = {
       }
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
+      estudiantes_buscar_personas: {
+        Args: {
+          p_apellido?: string
+          p_cedula?: string
+          p_grupo_id: string
+          p_nombre?: string
+          p_telefono?: string
+        }
+        Returns: {
+          apellido: string
+          coincide: string[]
+          en_este_grupo: boolean
+          grupo: string
+          grupo_id: string
+          nombre: string
+          persona_id: string
+        }[]
+      }
+      estudiantes_campus_visible: {
+        Args: { p_campus_id: string }
+        Returns: boolean
+      }
+      estudiantes_coincidencias: {
+        Args: {
+          p_apellido: string
+          p_campus_id: string
+          p_cedula: string
+          p_nombre: string
+          p_telefono: string
+        }
+        Returns: {
+          coincide: string[]
+          persona_id: string
+        }[]
+      }
+      estudiantes_confirmar_miembro: {
+        Args: { p_grupo_id: string; p_persona_id: string }
+        Returns: boolean
+      }
+      estudiantes_en_vivo: {
+        Args: { p_ambito_id: string; p_fecha: string; p_turno_id: string }
+        Returns: Json
+      }
+      estudiantes_es_subarea_grupos: {
+        Args: { p_label: string }
+        Returns: boolean
+      }
+      estudiantes_escala_campus: {
+        Args: { p_campus_id: string }
+        Returns: {
+          ambito: string
+          ambito_id: string
+          etiqueta: string
+          numero: number
+        }[]
+      }
+      estudiantes_ficha_asegurar: {
+        Args: {
+          p_actor: string
+          p_anio: number
+          p_campus_id: string
+          p_persona_id: string
+        }
+        Returns: undefined
+      }
+      estudiantes_ficha_guardar: {
+        Args: {
+          p_anio_actual: number
+          p_anio_final: number
+          p_persona_id: string
+        }
+        Returns: undefined
+      }
+      estudiantes_grupo_activar: {
+        Args: { p_activo: boolean; p_grupo_id: string }
+        Returns: undefined
+      }
+      estudiantes_grupo_crear: {
+        Args: {
+          p_anio?: number
+          p_campus_id: string
+          p_dia_semana?: number
+          p_hora?: string
+          p_nombre: string
+          p_subarea_id: string
+          p_zona?: string
+        }
+        Returns: string
+      }
+      estudiantes_grupo_editar: {
+        Args: {
+          p_anio: number
+          p_dia_semana: number
+          p_grupo_id: string
+          p_hora: string
+          p_nombre: string
+          p_zona: string
+        }
+        Returns: undefined
+      }
+      estudiantes_grupo_integrantes: {
+        Args: { p_grupo_id: string }
+        Returns: Json
+      }
+      estudiantes_grupo_lideres_fijar: {
+        Args: { p_grupo_id: string; p_servicio_ids: string[] }
+        Returns: number
+      }
+      estudiantes_grupo_lista: {
+        Args: { p_fecha: string; p_grupo_id: string; p_turno_id?: string }
+        Returns: Json
+      }
+      estudiantes_grupo_miembro_agregar: {
+        Args: { p_estado?: string; p_grupo_id: string; p_persona_id: string }
+        Returns: string
+      }
+      estudiantes_grupo_miembro_mover: {
+        Args: { p_grupo_id: string; p_persona_id: string }
+        Returns: string
+      }
+      estudiantes_grupo_miembro_quitar: {
+        Args: { p_grupo_id: string; p_persona_id: string }
+        Returns: boolean
+      }
+      estudiantes_incorporar: {
+        Args: {
+          p_actor: string
+          p_desde: string
+          p_estado: string
+          p_grupo_id: string
+          p_persona_id: string
+        }
+        Returns: string
+      }
+      estudiantes_lideres_disponibles: {
+        Args: { p_campus_id: string; p_subarea_id: string }
+        Returns: {
+          apellido: string
+          nombre: string
+          persona_id: string
+          rol: string
+          servicio_id: string
+        }[]
+      }
+      estudiantes_marca_guardar: {
+        Args: {
+          p_actor: string
+          p_era_visitante: boolean
+          p_estado: string
+          p_persona_id: string
+          p_reunion_id: string
+        }
+        Returns: undefined
+      }
+      estudiantes_marcar: {
+        Args: {
+          p_estado: string
+          p_fecha: string
+          p_grupo_id: string
+          p_persona_id: string
+          p_turno_id: string
+        }
+        Returns: Json
+      }
+      estudiantes_mis_grupos: {
+        Args: { p_incluir_inactivos?: boolean }
+        Returns: {
+          activo: boolean
+          ambito: string
+          ambito_id: string
+          anio: number
+          anio_etiqueta: string
+          campus_id: string
+          dia_semana: number
+          experiencia: string
+          grupo_id: string
+          hora: string
+          lideres: Json
+          miembros: number
+          nombre: string
+          puede_gestionar: boolean
+          puede_ver_vivo: boolean
+          soy_lider: boolean
+          subarea: string
+          subarea_id: string
+          visitantes: number
+          zona: string
+        }[]
+      }
+      estudiantes_nivel_en_campus: {
+        Args: { p_campus_id: string; p_subarea_id: string }
+        Returns: number
+      }
+      estudiantes_nivel_grupo: { Args: { p_grupo_id: string }; Returns: number }
+      estudiantes_nivel_subarea: {
+        Args: { p_subarea_id: string }
+        Returns: number
+      }
+      estudiantes_persona_en_campus: {
+        Args: { p_campus_id: string; p_persona_id: string }
+        Returns: boolean
+      }
+      estudiantes_reunion_guardar: {
+        Args: {
+          p_fecha: string
+          p_grupo_id: string
+          p_lugar?: string
+          p_turno_id: string
+        }
+        Returns: string
+      }
+      estudiantes_reunion_id: {
+        Args: {
+          p_actor: string
+          p_crear: boolean
+          p_fecha: string
+          p_grupo_id: string
+          p_turno_id: string
+        }
+        Returns: string
+      }
+      estudiantes_sesion_validar: {
+        Args: {
+          p_ambito_id: string
+          p_campus_id: string
+          p_fecha: string
+          p_turno_id: string
+        }
+        Returns: undefined
+      }
+      estudiantes_sin_grupo: {
+        Args: { p_grupo_id: string }
+        Returns: {
+          anio_etiqueta: string
+          apellido: string
+          nombre: string
+          persona_id: string
+          retirado_at: string
+          ultimo_grupo: string
+        }[]
+      }
+      estudiantes_subareas_gestionables: {
+        Args: never
+        Returns: {
+          ambito: string
+          ambito_id: string
+          campus: string
+          campus_id: string
+          experiencia: string
+          responsables: Json
+          subarea: string
+          subarea_id: string
+        }[]
+      }
+      estudiantes_tiene_rol_sistema: {
+        Args: { p_rol: string }
+        Returns: boolean
+      }
+      estudiantes_visitante_agregar: {
+        Args: {
+          p_fecha: string
+          p_grupo_id: string
+          p_persona_id: string
+          p_turno_id: string
+        }
+        Returns: Json
+      }
+      estudiantes_visitante_crear: {
+        Args: {
+          p_datos: Json
+          p_fecha: string
+          p_grupo_id: string
+          p_turno_id: string
+        }
+        Returns: Json
+      }
+      estudiantes_visitas: {
+        Args: { p_grupo_id: string; p_hasta: string; p_persona_id: string }
+        Returns: number
+      }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
       ficha_tiene_invitacion_abierta: {
         Args: { p_usuario_id: string }
