@@ -1,0 +1,35 @@
+{
+  "title": "Mi equipo · lenguaje de Servidores v3 dentro del shell",
+  "brief": "Mi equipo (/dream-team/mi-equipo), la vista del líder o coordinador sobre SU dirección, área o equipo, con la anatomía aprobada de Servidores v3 dentro del shell (barra lateral por secciones, cabecera de 64px con migas, campana y cuenta; en celular barra superior, 4 pestañas + Más): héroe con responsable y números, métricas de atención como filtros, tarjetas por nivel del árbol con migas y atrás, barra de herramientas con hoja de Filtros, una fila por persona, un solo panel de detalle con todas las acciones según permiso, «Agregar persona» en la cabecera y FAB, y el Calendario de The Living Room como pestaña. Opciones del prototipo: quién mira (director, coordinador, sin edición), tema, carga y vacío.",
+  "feature": "odd/tasks/sistema-diseno-v2.md",
+  "artboards": [
+    {
+      "file": "01-escritorio.html",
+      "title": "Escritorio (≥ 1024) · Director · Dirección de Conexión",
+      "tradeoff": "La misma anatomía que Servidores: métricas como filtros, tarjetas por nivel y una fila por persona que abre un solo panel con todas las acciones; se pierden el menú ⋯ por servicio y la franja «Revisar», que pasan al panel y a la métrica «Por activar»",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-tablet.html",
+      "title": "Tablet (768–1023) · Coordinadora · Waumba Land",
+      "tradeoff": "Riel de 64px y métricas 2×2 para dar ancho a la lista; la coordinadora registra y edita fichas pero no cambia etapas, así que el panel muestra Turnos y Editar ficha sin «Cambiar etapa»",
+      "width": 820,
+      "height": 1180
+    },
+    {
+      "file": "03-celular.html",
+      "title": "Celular (< 768) · Waumba Land dentro de Dirección de Niños",
+      "tradeoff": "Patrones nativos del shell: título de ruta arriba, «‹ Dirección de Niños» y Filtros en el contenido, listas agrupadas, hojas inferiores y FAB «Agregar persona»; Filtros y Vista pasan a la hoja",
+      "width": 390,
+      "height": 844
+    },
+    {
+      "file": "04-calendario.html",
+      "title": "Escritorio · The Living Room · pestaña Calendario",
+      "tradeoff": "El calendario TLR deja de ser una tarjeta más arriba de la lista y pasa a una pestaña «Personas | Calendario» del mismo alcance: más espacio para fechas y quién sirve, a cambio de un toque más para verlo",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

@@ -2,6 +2,8 @@
  * Age metrics (D10) in Servidores and Mi equipo: the shared age pills count
  * the people of the selected sub-area and filter the list; without any known
  * age range (lookup failed or answered nobody) the screens look as before.
+ * In Mi equipo v2 the pills live in the Filtros sheet (S11 decision 5 of
+ * odd/tasks/sistema-diseno-v2.md), so its cases open the sheet first.
  */
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
@@ -53,7 +55,7 @@ describe('Mi equipo — age metrics', () => {
         direcciones={listarDirecciones(arbolConexion, porEquipo)}
         vista={vistaDeDireccion(arbolConexion, porEquipo, ID_CONEXION)}
         direccionId={ID_CONEXION}
-        puedeEditar={false}
+        rol="sin_permisos"
         equiposAsignables={[]}
         rolesPorEquipo={{}}
       />,
@@ -61,26 +63,32 @@ describe('Mi equipo — age metrics', () => {
   }
 
   const nombres = () =>
-    within(screen.getByRole('list', { name: 'Personas del equipo' }))
-      .getAllByRole('listitem')
-      .map((item) => item.textContent ?? '')
+    within(screen.getByRole('table', { name: 'Personas del equipo', hidden: true }))
+      .getAllByRole('button', { name: /^Abrir /, hidden: true })
+      .map((boton) => boton.getAttribute('aria-label') ?? '')
+  const abrirFiltros = () => userEvent.click(screen.getAllByRole('button', { name: /^Filtros/ })[0])
+  const cerrarFiltros = () => userEvent.click(screen.getByRole('button', { name: /^Ver \d/ }))
 
-  it('counts the whole dirección, then the selected sub-area, and filters the list', async () => {
+  it('counts the whole dirección, then the selected sub-area, and filters the list (and the URL)', async () => {
     renderizar(personas)
+    await abrirFiltros()
     expect(pastilla(/^12–17/)).toHaveTextContent('12–172')
     expect(pastilla(/^26\+/)).toHaveTextContent('26+1')
+    await cerrarFiltros()
 
     await userEvent.click(screen.getByRole('button', { name: (nombre) => nombre.startsWith('Parejas') }))
+    await abrirFiltros()
     expect(pastilla(/^12–17/)).toHaveTextContent('12–171')
 
     await userEvent.click(pastilla(/^12–17/))
     expect(pastilla(/^12–17/)).toHaveAttribute('aria-pressed', 'true')
-    expect(nombres()).toHaveLength(1)
-    expect(nombres()[0]).toContain('Ana Uno')
+    expect(replace).toHaveBeenLastCalledWith(expect.stringMatching(/\?nivel=eq-parejas&edad=12_17$/), { scroll: false })
+    expect(nombres()).toEqual(['Abrir Ana Uno'])
   })
 
-  it('shows no age pills when nobody has a known range', () => {
+  it('shows no age pills when nobody has a known range', async () => {
     renderizar({ [ID_PAREJAS]: [persona('a', 'Ana Uno', 'Facilitador')] })
+    await abrirFiltros()
     expect(screen.queryByRole('group', { name: 'Filtrar por edad' })).not.toBeInTheDocument()
   })
 })

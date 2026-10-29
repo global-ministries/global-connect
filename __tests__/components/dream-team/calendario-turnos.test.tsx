@@ -2,11 +2,18 @@
  * Mi equipo — "Calendario" of a dated shift (T2 of odd/tasks/tlr-calendario-servicios.md,
  * S1, S2, S4, A2): its planned dates (upcoming first, past collapsed), "+ Fecha"
  * for whoever may plan them, and per date who serves, with "Todos" in one click.
+ *
+ * Restyled to the prototype in T7a-3 (S11 decisions 8 and 9 of
+ * odd/tasks/sistema-diseno-v2.md): the load moved into `useCalendarioTurnos`
+ * (the screen needs it to offer the tab), so the harness below mounts the
+ * hook and the list together, as the screen does. Each row now shows the date
+ * and, under it, the hora and nota, next to "N de M sirven" and its bar.
  */
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { CalendarioTurnos } from '@/components/dream-team/mi-equipo/calendario-turnos'
+import { useCalendarioTurnos } from '@/components/dream-team/mi-equipo/calendario-datos'
 import type { PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
 import { personaId } from '@/lib/platform/dream-team/types'
 
@@ -81,8 +88,14 @@ beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch
 })
 
+function Calendario() {
+  const { turnos, recargar } = useCalendarioTurnos('e-tlr', true)
+  if (!turnos || turnos.length === 0) return null
+  return <CalendarioTurnos turnos={turnos} onCambiado={recargar} personas={personas} toast={toast as never} hoy="2026-10-26" />
+}
+
 function montar() {
-  return render(<CalendarioTurnos equipoId="e-tlr" personas={personas} toast={toast as never} hoy="2026-10-26" />)
+  return render(<Calendario />)
 }
 
 describe('CalendarioTurnos', () => {
@@ -94,11 +107,13 @@ describe('CalendarioTurnos', () => {
     const proximas = within(region).getByRole('list', { name: 'Próximas fechas' })
     const filas = within(proximas).getAllByRole('button')
     expect(filas.map((f) => f.textContent)).toEqual([
-      expect.stringContaining('Domingo 8 nov · 10:00'),
-      expect.stringContaining('Domingo 22 nov · 11:00'),
+      expect.stringContaining('Domingo 8 nov10:00'),
+      expect.stringContaining('Domingo 22 nov11:00 · Bautizos'),
     ])
+    // The day tile: the day over the month.
+    expect(filas[0]).toHaveTextContent(/^8nov/)
     expect(filas[0]).toHaveTextContent('1 de 3 sirven')
-    expect(filas[1]).toHaveTextContent('Bautizos')
+    expect(within(region).getByText('Por fechas ·', { exact: false })).toHaveTextContent('Por fechas · 10:00 · 3 voluntarios asignados al turno')
     expect(within(region).getByText('Fechas pasadas (1)')).toBeInTheDocument()
     expect(within(region).getByRole('button', { name: 'Agregar fecha' })).toBeInTheDocument()
   })
@@ -184,6 +199,15 @@ describe('CalendarioTurnos', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(5))
     expect(fetchMock.mock.calls[3][0]).toBe(`/api/dream-team/turnos/${TLR}/fechas/${F2}`)
     expect(fetchMock.mock.calls[3][1].method).toBe('DELETE')
+  })
+
+  it('says so when there is no upcoming date, pointing whoever plans at "+ Fecha"', async () => {
+    const sinProximas = calendario(true)
+    sinProximas.turnos[0].fechas = sinProximas.turnos[0].fechas.filter((f) => f.id === F0)
+    fetchMock.mockReturnValueOnce(respuesta(200, sinProximas))
+    montar()
+    expect(await screen.findByText('No hay próximas fechas')).toBeInTheDocument()
+    expect(screen.getByText('Agregá la siguiente con «+ Fecha».')).toBeInTheDocument()
   })
 
   it('renders nothing when the team serves in no dated shift', async () => {

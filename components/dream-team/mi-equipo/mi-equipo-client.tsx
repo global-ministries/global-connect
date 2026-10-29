@@ -1,88 +1,96 @@
 'use client'
 
 /**
- * Dream Team — client island for /dream-team/mi-equipo.
+ * Dream Team — client island for /dream-team/mi-equipo, on design system v2
+ * (S11 of odd/tasks/sistema-diseno-v2.md; prototype
+ * docs/design-system/prototipos/mi-equipo/; the same anatomy as Servidores).
  *
- * The screen works with people: it shows ONE direccion at a time (chosen by
- * the server from `?direccion=`), its cards one tree level at a time (an área
- * card enters the área) and the people of the selected card. Everything below
- * the header is derived on the client from the already-loaded view model
- * (lib/platform/dream-team/mi-equipo-vista.ts): the entered área, the selected
- * card, the estado, age and shift filters and the name search are local state —
- * only the direccion lives in the URL.
+ * Top to bottom: header (desktop breadcrumbs of the tree + "Agregar persona"),
+ * hero (the current level, who leads it and its numbers; the Dirección
+ * selector when the viewer reaches several), the "Personas | Calendario" tabs
+ * (Calendario only when the scope serves a dated shift), then the Personas tab
+ * (personas-mi-equipo.tsx) or the Calendario (calendario-turnos.tsx). A row
+ * opens the person panel (detalle-mi-equipo.tsx), which holds every action
+ * the viewer's role allows.
  *
- * Everything that crosses in from the server page is plain serializable data.
- * Icons and callbacks are created here, inside the island.
+ * On phones the shell's header holds the page h1 ("Mi equipo"), so the
+ * content carries "‹ padre" and the Filtros button, and under them the large
+ * title names the level (an h2). "Agregar persona" becomes the FAB.
  *
- * When the campus has a dated shift (The Living Room), the selected card shows
- * its "Calendario" (A2 of odd/tasks/tlr-calendario-servicios.md), loaded on
- * the client for that card only.
+ * Every rule lives in the pure view model (calcularVistaMiEquipo in
+ * lib/platform/dream-team/mi-equipo-filtros.ts). The filters start from the
+ * URL the server page parsed and are mirrored back with
+ * `router.replace(..., { scroll: false })`, the search debounced. Switching
+ * the dirección navigates (the server sends the new dirección).
  */
-import { useMemo, useState, type ReactElement } from 'react'
-import { useRouter } from 'next/navigation'
-import { Network, Plus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Network, UserPlus, Users } from 'lucide-react'
 
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
+import { TabsContent, TabsList, TabsSistema, TabsTrigger } from '@/components/ui/TabsSistema'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
-import { ContadoresEdad } from '@/components/dream-team/contadores-edad'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
-import { SelectorTurno } from '@/components/dream-team/turnos/selector-turno'
+import { permisosMiEquipo, type RolMiEquipo } from '@/lib/platform/dream-team/acciones-servicio'
+import { isoLocal } from '@/lib/platform/dream-team/frecuencia-turno'
 import {
-  TODOS_LOS_EQUIPOS,
-  contadoresPorEstado,
-  contarPersonas,
-  filtrarPersonas,
-  nivelDeEquipos,
+  FILTROS_MI_EQUIPO,
+  LIMPIAR_FILTROS_MI_EQUIPO,
+  calcularVistaMiEquipo,
+  escribirFiltrosMiEquipo,
+  type FiltrosMiEquipo,
+  type PestanaMiEquipo,
+} from '@/lib/platform/dream-team/mi-equipo-filtros'
+import {
   personasDeSeleccion,
   type DireccionResumen,
   type EquipoAsignable,
-  type FiltroEstado,
   type VistaDireccion,
 } from '@/lib/platform/dream-team/mi-equipo-vista'
-import { contarPorRangoEdad, type RangoEdad } from '@/lib/platform/dream-team/edad'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import type { TipoTurno } from '@/lib/platform/dream-team/turno-fechas'
 
-import { CalendarioTurnos } from './calendario-turnos'
-import { EncabezadoMiEquipo } from './encabezado'
-import { FranjaPendientes } from './franja-pendientes'
-import { ListaPersonas } from './lista-personas'
-import { TarjetasEquipos } from './tarjetas-equipos'
+import { CabeceraMiEquipo, MigasMiEquipo } from './cabecera'
+import { useCalendarioTurnos } from './calendario-datos'
+import { CalendarioTurnos, contarProximas } from './calendario-turnos'
+import { DetalleMiEquipo } from './detalle-mi-equipo'
+import { HojaFiltrosMiEquipo } from './filtros-mi-equipo'
+import { nivelesMiEquipo } from './niveles'
+import { PersonasMiEquipo } from './personas-mi-equipo'
 
 export interface MiEquipoClientProps {
   readonly direcciones: readonly DireccionResumen[]
   /** `null` when the caller reaches no direccion at all. */
   readonly vista: VistaDireccion | null
   readonly direccionId: string
-  readonly puedeEditar: boolean
-  /** May register NEW people (the volunteer coordinator), even without assigning existing ones. */
-  readonly puedeRegistrar?: boolean
+  /** What the viewer may do (rolMiEquipo in mi-equipo-filtros.ts); the server checks each action again. */
+  readonly rol: RolMiEquipo
+  /** The state of the URL (leerFiltrosMiEquipo); defaults to none. */
+  readonly filtrosIniciales?: FiltrosMiEquipo
   readonly equiposAsignables: readonly EquipoAsignable[]
   readonly rolesPorEquipo: Readonly<Record<string, readonly DreamTeamRol[]>>
-  /**
-   * Every active campus shift, in campus order: names the shifts of each
-   * person; the "Turno" filter offers those of the campus selected in the app.
-   */
+  /** Every active campus shift, in campus order; the Turno filter offers those of the campus selected in the app. */
   readonly turnos?: readonly {
     readonly id: string
     readonly label: string
     readonly campusId?: string
     readonly tipo?: TipoTurno
   }[]
-  /** Some active campus shift is dated: the selected card asks for its Calendario. */
+  /** Some active campus shift is dated: the scope asks for its Calendario. */
   readonly hayTurnosPorFechas?: boolean
 }
 
 const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
+const RETRASO_BUSQUEDA_MS = 300
 
 export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
   if (!props.vista) {
     return (
       <PaginaSistema titulo="Mi equipo">
-        <EstadoVacio
+        <EstadoVacioSistema
           icono={Network}
           titulo="Todavía no hay equipos para mostrar"
           subtitulo="Puede deberse a que aún no te asignaron un área en la estructura de Dream Team."
@@ -90,31 +98,23 @@ export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
       </PaginaSistema>
     )
   }
-  // Keyed by direccion so switching it resets the level, team, filter and search.
+  // Keyed by direccion: switching it starts from the URL the server parsed.
   return <MiEquipoVistaDireccion key={props.vista.id} {...props} vista={props.vista} />
-}
-
-/** "3 personas", or "3 personas · 4 servicios" when someone serves more than once (as the Servidores footer). */
-function subtituloDeLista(cantidad: number, servicios: number, responsable: string | null, busqueda: string): string {
-  const soloPersonas = `${cantidad} ${cantidad === 1 ? 'persona' : 'personas'}`
-  const personas = servicios > cantidad ? `${soloPersonas} · ${servicios} servicios` : soloPersonas
-  const conBusqueda = busqueda.trim() ? `${personas} para «${busqueda.trim()}»` : personas
-  return responsable ? `${responsable} · ${conBusqueda}` : conBusqueda
 }
 
 function MiEquipoVistaDireccion({
   direcciones,
-  vista,
+  vista: direccion,
   direccionId,
-  puedeEditar,
-  puedeRegistrar = false,
+  rol,
+  filtrosIniciales = FILTROS_MI_EQUIPO,
   equiposAsignables,
   rolesPorEquipo,
   turnos = SIN_TURNOS,
   hayTurnosPorFechas = false,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
-  const puedeAgregar = puedeEditar || puedeRegistrar
   const router = useRouter()
+  const pathname = usePathname() ?? ''
   const toast = useNotificaciones()
   // The campus selected in the app header (read only); `null` = every campus.
   const { campusId } = useCampus()
@@ -122,143 +122,171 @@ function MiEquipoVistaDireccion({
     () => turnos.filter((opcion) => campusId === null || opcion.campusId === undefined || opcion.campusId === campusId),
     [turnos, campusId],
   )
+  const [filtros, setFiltros] = useState<FiltrosMiEquipo>(filtrosIniciales)
+  const [hojaAbierta, setHojaAbierta] = useState(false)
   const [asignadorAbierto, setAsignadorAbierto] = useState(false)
-  const [areaId, setAreaId] = useState<string | null>(null)
-  const [seleccionadoId, setSeleccionadoId] = useState<string>(TODOS_LOS_EQUIPOS)
-  const [filtro, setFiltro] = useState<FiltroEstado>('todos')
-  const [query, setQuery] = useState('')
-  const [turno, setTurno] = useState<string | null>(null)
-  const [edad, setEdad] = useState<RangoEdad | null>(null)
+  // The person stays selected after the panel closes, so the dialogs it opened stay mounted.
+  const [detalle, setDetalle] = useState<{ readonly personaId: string; readonly abierto: boolean } | null>(null)
+  const temporizadorUrl = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => void (temporizadorUrl.current && clearTimeout(temporizadorUrl.current)), [])
 
-  // A refresh can drop the entered área or the selected team; never leave the list pointing at nothing.
-  const nivel = nivelDeEquipos(vista, areaId)
-  const tarjetaSeleccionada = nivel.equipos.find((equipo) => equipo.id === seleccionadoId) ?? nivel.todas
-
-  function seleccionarTarjeta(id: string): void {
-    // An área card enters the área, which starts on its "Todo <área>" card.
-    if (nivel.equipos.some((equipo) => equipo.id === id && equipo.esArea)) setAreaId(id)
-    setSeleccionadoId(id)
-  }
-
-  function volver(): void {
-    const padreId = nivel.padre?.id ?? TODOS_LOS_EQUIPOS
-    setAreaId(padreId === TODOS_LOS_EQUIPOS ? null : padreId)
-    setSeleccionadoId(padreId)
-  }
-
-  const delEquipo = useMemo(
-    () => personasDeSeleccion(vista.personas, tarjetaSeleccionada.id),
-    [vista.personas, tarjetaSeleccionada.id],
+  const vista = useMemo(() => calcularVistaMiEquipo({ vista: direccion, filtros, turnos }), [direccion, filtros, turnos])
+  const niveles = useMemo(() => nivelesMiEquipo(direccion), [direccion])
+  const { navegacion } = vista
+  const nivel = vista.filtros.nivel
+  const alcance = useMemo(
+    () => (nivel === null ? direccion.personas : personasDeSeleccion(direccion.personas, nivel)),
+    [direccion.personas, nivel],
   )
-  // Each group of counters follows every filter but its own (estado, age), so each pill shows what it would list.
-  const porNombre = useMemo(() => filtrarPersonas(delEquipo, { query, turno }), [delEquipo, query, turno])
-  const contadores = useMemo(() => contadoresPorEstado(filtrarPersonas(porNombre, { edad })), [porNombre, edad])
-  // The age metrics of the selected card (D10); hidden when nobody has a known range.
-  const contadoresEdad = useMemo(
-    () =>
-      delEquipo.some((persona) => persona.rangoEdad !== undefined)
-        ? contarPorRangoEdad(filtrarPersonas(porNombre, { estado: filtro }))
-        : null,
-    [delEquipo, porNombre, filtro],
-  )
-  const visibles = useMemo(() => filtrarPersonas(porNombre, { estado: filtro, edad }), [porNombre, filtro, edad])
+  const calendario = useCalendarioTurnos(nivel ?? direccion.id, hayTurnosPorFechas)
+  const hayCalendario = (calendario.turnos?.length ?? 0) > 0
+  const tab: PestanaMiEquipo = hayCalendario ? vista.filtros.tab : 'personas'
+  const hoy = isoLocal(new Date())
+  const puedeAgregar = permisosMiEquipo(rol).registrar
 
-  function revisarPendientes(): void {
-    setAreaId(null)
-    setSeleccionadoId(TODOS_LOS_EQUIPOS)
-    setQuery('')
-    setTurno(null)
-    setEdad(null)
-    setFiltro('por_activar')
+  function cambiar(parche: Partial<FiltrosMiEquipo>): void {
+    const siguiente = { ...vista.filtros, ...parche }
+    setFiltros(siguiente)
+    if (temporizadorUrl.current) clearTimeout(temporizadorUrl.current)
+    const aplicar = (): void => {
+      temporizadorUrl.current = null
+      const consulta = escribirFiltrosMiEquipo(siguiente)
+      router.replace(consulta ? `${pathname}?${consulta}` : pathname, { scroll: false })
+    }
+    const soloBusqueda = Object.keys(parche).length === 1 && 'q' in parche
+    if (soloBusqueda) temporizadorUrl.current = setTimeout(aplicar, RETRASO_BUSQUEDA_MS)
+    else aplicar()
   }
 
-  // Only a real equipo can be preselected; "Toda la dirección" and virtual groups leave the choice open.
-  const equipoPreseleccionado = equiposAsignables.some((equipo) => equipo.id === tarjetaSeleccionada.id)
-    ? tarjetaSeleccionada.id
-    : undefined
+  function elegirDireccion(id: string): void {
+    router.replace(`${pathname}?${escribirFiltrosMiEquipo({ ...FILTROS_MI_EQUIPO, direccion: id })}`, { scroll: false })
+  }
 
-  const responsable = tarjetaSeleccionada.responsable
-  const lineaResponsable = responsable
-    ? `${responsable.rol === 'coordinador' ? 'Coordina' : 'Dirige'} ${responsable.nombre}`
-    : null
-
-  return (
-    <PaginaSistema titulo="Mi equipo">
-      <EncabezadoMiEquipo
-        direccionLabel={vista.label}
-        dirige={vista.todaLaDireccion.responsable?.nombre ?? null}
-        totalPersonas={vista.total}
-        totalEquipos={vista.totalEquipos}
-        direcciones={direcciones}
-        direccionId={direccionId}
-        onDireccionChange={(id) => router.replace(`?direccion=${encodeURIComponent(id)}`)}
-        query={query}
-        onQueryChange={setQuery}
+  const abrirAsignador = (): void => setAsignadorAbierto(true)
+  const vacio =
+    navegacion.servicios === 0 ? (
+      <EstadoVacioSistema
+        icono={Users}
+        titulo="Todavía no hay personas en este equipo"
+        subtitulo={puedeAgregar ? 'Usá «Agregar persona» para sumar a la primera.' : 'Cuando alguien sirva acá, lo vas a ver en esta lista.'}
+      />
+    ) : (
+      <EstadoVacioSistema
+        icono={Users}
+        titulo="Nadie coincide con estos filtros"
+        subtitulo="Quitá alguno o usá «Limpiar todo»."
         accion={
-          puedeAgregar ? (
-            <BotonSistema type="button" icono={Plus} className="hidden md:inline-flex" onClick={() => setAsignadorAbierto(true)}>
-              Agregar persona
-            </BotonSistema>
-          ) : undefined
+          <BotonSistema type="button" variante="outline" tamaño="sm" onClick={() => cambiar({ ...LIMPIAR_FILTROS_MI_EQUIPO, q: '' })}>
+            Limpiar todo
+          </BotonSistema>
         }
       />
+    )
 
-      <FranjaPendientes pendientes={vista.pendientes} onRevisar={revisarPendientes} />
+  const personas = (
+    <PersonasMiEquipo
+      vista={vista}
+      turnos={turnos}
+      hoy={hoy}
+      onCambio={cambiar}
+      onAbrirFiltros={() => setHojaAbierta(true)}
+      onAbrirPersona={(personaId) => setDetalle({ personaId, abierto: true })}
+      vacio={vacio}
+    />
+  )
 
-      <TarjetasEquipos
-        nivel={nivel}
-        seleccionadoId={tarjetaSeleccionada.id}
-        onSeleccionar={seleccionarTarjeta}
-        onVolver={volver}
+  return (
+    // No `titulo`: the h1 is the hero on desktop and the shell header on phones (one h1 per width).
+    <PaginaSistema
+      breadcrumbs={<MigasMiEquipo migas={navegacion.migas} onIr={(miga) => cambiar(miga.parche)} />}
+      acciones={
+        puedeAgregar ? (
+          // Small header action (36px, 44px on touch); the ::after widens the hit area to 48px.
+          <BotonSistema
+            type="button"
+            variante="primario"
+            tamaño="sm"
+            icono={UserPlus}
+            onClick={abrirAsignador}
+            className="relative after:absolute after:-inset-x-0.5 after:-inset-y-1.5 after:content-['']"
+          >
+            Agregar persona
+          </BotonSistema>
+        ) : null
+      }
+      className="pb-28 md:pb-0"
+    >
+      <CabeceraMiEquipo
+        navegacion={navegacion}
+        direcciones={direcciones}
+        direccionId={direccionId}
+        onDireccion={elegirDireccion}
+        onIr={(miga) => cambiar(miga.parche)}
+        filtros={tab === 'personas' ? { activos: vista.filtrosActivos, onAbrir: () => setHojaAbierta(true) } : undefined}
       />
 
-      {hayTurnosPorFechas && (
-        <CalendarioTurnos
-          // "Toda la dirección" is the direccion's own equipo.
-          key={tarjetaSeleccionada.id}
-          equipoId={tarjetaSeleccionada.id === TODOS_LOS_EQUIPOS ? direccionId : tarjetaSeleccionada.id}
-          personas={delEquipo}
-          toast={toast}
-        />
+      {hayCalendario && calendario.turnos ? (
+        <TabsSistema value={tab} onValueChange={(valor) => cambiar({ tab: valor as PestanaMiEquipo })}>
+          {/* Full width on phones, as the prototype; its own width from md. */}
+          <TabsList aria-label="Secciones de Mi equipo" className="flex w-full md:inline-flex md:w-auto">
+            <TabsTrigger value="personas" className="min-h-9 flex-1 pointer-coarse:min-h-11 md:flex-none">
+              Personas
+            </TabsTrigger>
+            <TabsTrigger value="calendario" className="min-h-9 flex-1 pointer-coarse:min-h-11 md:flex-none">
+              Calendario <span className="font-mono text-xs tabular-nums opacity-80">{contarProximas(calendario.turnos, hoy)}</span>
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent value="personas" className="mt-6">
+            {personas}
+          </TabsContent>
+          <TabsContent value="calendario" className="mt-6">
+            <CalendarioTurnos turnos={calendario.turnos} onCambiado={calendario.recargar} personas={alcance} toast={toast} hoy={hoy} />
+          </TabsContent>
+        </TabsSistema>
+      ) : (
+        personas
       )}
 
-      {turnosDelCampus.length > 0 && (
-        <div className="max-w-xs">
-          <SelectorTurno turnos={turnosDelCampus} valor={turno} onCambio={setTurno} />
-        </div>
-      )}
+      <HojaFiltrosMiEquipo
+        vista={vista}
+        turnos={turnosDelCampus}
+        abierta={hojaAbierta}
+        onCambioAbierta={setHojaAbierta}
+        onCambio={cambiar}
+      />
 
-      {contadoresEdad && <ContadoresEdad contadores={contadoresEdad} edad={edad} onEdadChange={setEdad} />}
-
-      <ListaPersonas
-        titulo={tarjetaSeleccionada.label}
-        subtitulo={subtituloDeLista(contarPersonas(visibles), visibles.length, lineaResponsable, query)}
-        personas={visibles}
-        contadores={contadores}
-        filtro={filtro}
-        onFiltroChange={setFiltro}
-        hayBusqueda={query.trim() !== ''}
-        puedeEditar={puedeEditar}
-        onActualizado={() => router.refresh()}
+      <DetalleMiEquipo
+        persona={detalle ? (vista.fichas.get(detalle.personaId) ?? null) : null}
+        abierto={detalle?.abierto ?? false}
+        onCambioAbierto={(abierto) => setDetalle((actual) => (actual ? { ...actual, abierto } : null))}
+        rol={rol}
         turnos={turnos}
+        rutaDe={niveles.rutaDe}
+        nivelDe={(servicio) => {
+          const destino = niveles.nivelDe(servicio)
+          return destino === nivel ? undefined : destino
+        }}
+        onVerEquipo={(destino) => cambiar({ nivel: destino, tab: 'personas' })}
+        onActualizado={() => router.refresh()}
       />
 
       {puedeAgregar && (
         <>
-          <BotonFlotante icono={Plus} label="Agregar persona" onClick={() => setAsignadorAbierto(true)} />
+          <BotonFlotante icono={UserPlus} label="Agregar persona" onClick={abrirAsignador} />
           <AsignadorServicioDialog
             titulo="Agregar persona"
             abierto={asignadorAbierto}
             onClose={() => setAsignadorAbierto(false)}
             nodosPlanos={equiposAsignables}
             rolesPorEquipo={rolesPorEquipo}
-            equipoIdInicial={equipoPreseleccionado}
+            // Only a real equipo can be preselected; the dirección level and virtual groups leave the choice open.
+            equipoIdInicial={equiposAsignables.some((equipo) => equipo.id === nivel) ? (nivel ?? undefined) : undefined}
             onAsignado={() => {
               setAsignadorAbierto(false)
               router.refresh()
             }}
             toast={toast}
-            soloRegistrar={!puedeEditar}
+            soloRegistrar={rol !== 'director'}
             turnos={turnosDelCampus}
           />
         </>

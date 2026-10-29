@@ -24,8 +24,11 @@ import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { FilaServidor } from '@/lib/platform/dream-team/servidores-vista'
-import { TRANSICIONES_VALIDAS } from '@/lib/platform/dream-team/state-machine'
+import { accionesDeServicio } from '@/lib/platform/dream-team/acciones-servicio'
 import { EditarFichaPanel } from './editar-ficha-panel'
+
+// The rule lives in lib/platform/dream-team/acciones-servicio.ts; re-exported for existing imports.
+export { accionesDeServicio, tieneMenu, type AccionesServicio } from '@/lib/platform/dream-team/acciones-servicio'
 
 export interface MenuServidorProps {
   readonly fila: FilaServidor
@@ -33,45 +36,6 @@ export interface MenuServidorProps {
   readonly className?: string
   /** Tells apart the menus of one person's servicios: "Acciones para Ana en Coro". */
   readonly detalle?: string
-}
-
-function editaServicio(fila: FilaServidor): boolean {
-  return fila.editable && fila.servicioId !== undefined && fila.version !== undefined
-}
-
-export function tieneMenu(fila: FilaServidor): boolean {
-  return editaServicio(fila) || fila.fichaEditable === true
-}
-
-/**
- * What the viewer may do with one servicio. The single rule behind this menu
- * and the Servidores detail drawer; the server checks every action again.
- */
-export interface AccionesServicio {
-  /** Any action at all; without it there is not even "Ver su equipo". */
-  readonly alguna: boolean
-  /** The editable servicio, when the viewer may change its stage. */
-  readonly servicio: { readonly id: string; readonly version: number } | null
-  readonly cambiarEtapa: boolean
-  /** The servicio whose shifts the viewer may change; `undefined` when none. */
-  readonly turnosDe: string | undefined
-  readonly editarFicha: boolean
-  readonly invitar: boolean
-}
-
-export function accionesDeServicio(fila: FilaServidor): AccionesServicio {
-  const servicio = editaServicio(fila) ? { id: fila.servicioId as string, version: fila.version as number } : null
-  const editarFicha = fila.fichaEditable === true
-  return {
-    alguna: tieneMenu(fila),
-    servicio,
-    cambiarEtapa: servicio !== null && (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0,
-    // A retired servicio no longer serves, so it has no shifts to change.
-    turnosDe: fila.estado === 'retirado' ? undefined : (servicio?.id ?? (editarFicha ? fila.servicioId : undefined)),
-    editarFicha,
-    // T12: the same people may invite someone without account to sign in.
-    invitar: editarFicha && fila.tieneCuenta === false,
-  }
 }
 
 export function MenuServidor({ fila, onActualizado, className, detalle }: MenuServidorProps): ReactElement | null {

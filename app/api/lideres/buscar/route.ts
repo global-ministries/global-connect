@@ -8,6 +8,10 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
  * Busca usuarios con rol 'lider' y devuelve información de sus grupos
  * actuales para saber quién está disponible.
  *
+ * Lee con service role, así que el alcance lo aplica la ruta: cada quien ve
+ * solo los líderes de su propio campus (usuario_campus) y solo el rol admin
+ * del sistema ve todos los campus. Sin campus, la lista sale vacía.
+ *
  * Query params:
  *  - q: término de búsqueda (nombre, apellido, email)
  *  - segmento_id: opcional, filtrar líderes por segmento de su grupo
@@ -16,7 +20,9 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const q = (searchParams.get('q') || '').trim();
+    // Only letters, digits, spaces and @ . - ' reach the PostgREST `or` filter,
+    // so a comma or a parenthesis cannot add conditions to it.
+    const q = (searchParams.get('q') || '').replace(/[^\p{L}\p{N}\s@.'-]+/gu, ' ').replace(/\s+/g, ' ').trim();
     const segmentoId = searchParams.get('segmento_id') || null;
     const limit = Math.min(parseInt(searchParams.get('limit') || '200', 10), 200);
 
@@ -27,6 +33,20 @@ export async function GET(req: NextRequest) {
     }
 
     const admin = createSupabaseAdminClient();
+
+    // 0. Who is asking, and which campuses they see (null = every campus).
+    const { data: yo } = await admin
+      .from('usuarios')
+      .select('id')
+      .eq('auth_id', user.id)
+      .maybeSingle();
+    if (!yo) {
+      return NextResponse.json({ lideres: [], total: 0 });
+    }
+    const campusVisibles = await campusVisiblesDe(admin, yo.id as string);
+    if (campusVisibles !== null && campusVisibles.length === 0) {
+      return NextResponse.json({ lideres: [], total: 0 });
+    }
 
     // 1. Obtener el rol_id de 'lider'
     const { data: rolData } = await admin
@@ -50,7 +70,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ lideres: [], total: 0 });
     }
 
-    const liderUserIds = rolUsuarios.map(r => r.usuario_id);
+    let liderUserIds = rolUsuarios.map(r => r.usuario_id);
+
+    if (campusVisibles !== null) {
+      const { data: delCampus } = await admin
+        .from('usuario_campus')
+        .select('usuario_id')
+        .in('campus_id', campusVisibles)
+        .in('usuario_id', liderUserIds);
+      const ids = new Set((delCampus || []).map(r => r.usuario_id));
+      liderUserIds = liderUserIds.filter(id => ids.has(id));
+      if (liderUserIds.length === 0) {
+        return NextResponse.json({ lideres: [], total: 0 });
+      }
+    }
 
     // 3. Buscar usuarios que son líderes, filtrar por búsqueda
     let query = admin
@@ -196,4 +229,33 @@ export async function GET(req: NextRequest) {
     console.error('[lideres/buscar] Error:', e);
     return NextResponse.json({ error: e?.message || 'Error interno' }, { status: 500 });
   }
+}
+
+/**
+ * Campuses a persona may see: null for the system admin role (every campus),
+ * otherwise their usuario_campus rows. A pastor is campus-bound too.
+ */
+async function campusVisiblesDe(
+  admin: ReturnType<typeof createSupabaseAdminClient>,
+  personaId: string,
+): Promise<string[] | null> {
+  const { data: rolAdmin } = await admin
+    .from('roles_sistema')
+    .select('id')
+    .eq('nombre_interno', 'admin')
+    .maybeSingle();
+  if (rolAdmin) {
+    const { data: esAdmin } = await admin
+      .from('usuario_roles')
+      .select('usuario_id')
+      .eq('usuario_id', personaId)
+      .eq('rol_id', rolAdmin.id)
+      .maybeSingle();
+    if (esAdmin) return null;
+  }
+  const { data: campus } = await admin
+    .from('usuario_campus')
+    .select('campus_id')
+    .eq('usuario_id', personaId);
+  return (campus || []).map(c => c.campus_id as string);
 }
