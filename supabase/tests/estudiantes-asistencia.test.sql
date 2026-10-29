@@ -59,7 +59,9 @@
 -- to another root), 12 VOL_LOG (dream_team.serve on Logística), 13 DIR_OTRO
 -- (dream_team.direct on Dirección de Estudiantes, campus 2), 14 ADMIN_SIS (system
 -- admin role, no campus), 15 ORG_SINCAMPUS (unscoped org.manage, no campus, not
--- admin), 16 LIDER_OTRO (lider in Chicas, campus 2). 1–12 belong to campus 1.
+-- admin), 16 LIDER_OTRO (lider in Chicas, campus 2), 17 PASTOR (system pastor
+-- role, campus 1, no grants), 18 PASTOR_OTRO (pastor, campus 2). 1–12 belong
+-- to campus 1.
 -- People without account: 20 Ana, 21 Bea, 22 Carla (G1), 23 Dani (G2),
 -- 24 Luis (G3), 25 Inés (G4), 26 Tomás (G5), 27 an existing person of campus
 -- 1 in no group, 28 a person of campus 2, 40 Carla's parent.
@@ -266,10 +268,10 @@ INSERT INTO t_ea_ctx (k, v) VALUES
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'ea-' || n || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM generate_series(1, 16) AS n;
+  FROM generate_series(1, 18) AS n;
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ea', 'U' || n, 'ea-' || n || '@example.test', 'Soltero', 'Femenino'
-  FROM generate_series(1, 16) AS n;
+  FROM generate_series(1, 18) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, telefono, cedula) VALUES
   (pg_temp.id('us', 20), 'Zzea Ana', 'Uno', 'No especificado', 'Femenino', NULL, NULL),
   (pg_temp.id('us', 21), 'Zzea Bea', 'Uno', 'No especificado', 'Femenino', NULL, NULL),
@@ -289,10 +291,12 @@ INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
 SELECT pg_temp.id('us', n), pg_temp.id('ca', CASE WHEN n = 28 THEN 2 ELSE 1 END), true
   FROM unnest(ARRAY[20, 21, 22, 23, 24, 25, 26, 27, 28, 40]) AS n;
 INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
-SELECT pg_temp.id('us', n), pg_temp.id('ca', CASE WHEN n IN (13, 16) THEN 2 ELSE 1 END), true
-  FROM unnest(ARRAY[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16]) AS n;
+SELECT pg_temp.id('us', n), pg_temp.id('ca', CASE WHEN n IN (13, 16, 18) THEN 2 ELSE 1 END), true
+  FROM unnest(ARRAY[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18]) AS n;
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
-SELECT pg_temp.id('us', 14), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'admin';
+SELECT pg_temp.id('us', v.n), rs.id
+  FROM (VALUES (14, 'admin'), (17, 'pastor'), (18, 'pastor')) AS v(n, rol)
+  JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
 
 INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal)
 VALUES (pg_temp.id('us', 22), pg_temp.id('us', 40), 'padre', true);
@@ -456,6 +460,12 @@ SELECT pg_temp.assert_eq('b: an unscoped org.manage without the admin role and w
   $q$SELECT pg_temp.mis()$q$, '');
 SELECT pg_temp.as_persona(16);
 SELECT pg_temp.assert_eq('b: a lider of the sub-área in another campus sees nothing', $q$SELECT pg_temp.mis()$q$, '');
+SELECT pg_temp.as_persona(17);
+SELECT pg_temp.assert_eq('b: a pastor sees every group of their campus without any grant',
+  $q$SELECT pg_temp.mis()$q$, 'ZZ Ea G1,ZZ Ea G2,ZZ Ea G3,ZZ Ea G4,ZZ Ea G5');
+SELECT pg_temp.assert_eq('b: a pastor gets the live view and management in their campus', $q$SELECT pg_temp.flags(1)$q$, 'false|true|true');
+SELECT pg_temp.as_persona(18);
+SELECT pg_temp.assert_eq('b: a pastor of another campus sees nothing of this one', $q$SELECT pg_temp.mis()$q$, '');
 
 RESET ROLE;
 SELECT pg_temp.exec('fixture: pause the servicio of LIDER_B',
@@ -742,6 +752,12 @@ SELECT pg_temp.assert_raises('j: a director of another campus has no live view o
 SELECT pg_temp.as_persona(14);
 SELECT pg_temp.assert_eq('j: the system admin sees the live view of any campus',
   $q$SELECT pg_temp.vivo(3, pg_temp.dom(), 1)$q$, 'ZZ Ea G1:6/1/4/0,ZZ Ea G2:1/0/0/0,ZZ Ea G3:0/0/0/1');
+SELECT pg_temp.as_persona(17);
+SELECT pg_temp.assert_eq('j: a pastor sees the live view of their campus',
+  $q$SELECT pg_temp.vivo(3, pg_temp.dom(), 1)$q$, 'ZZ Ea G1:6/1/4/0,ZZ Ea G2:1/0/0/0,ZZ Ea G3:0/0/0/1');
+SELECT pg_temp.as_persona(18);
+SELECT pg_temp.assert_raises('j: a pastor of another campus has no live view of this one',
+  $q$SELECT pg_temp.vivo(3, pg_temp.dom(), 1)$q$, '42501', 'sin_autoridad');
 RESET ROLE;
 
 -- ── g. 3rd-visit hint (Q6/L13) ───────────────────────────────────────
@@ -854,6 +870,13 @@ SELECT pg_temp.assert_raises('k: a director of another campus cannot rename a gr
   $q$SELECT public.estudiantes_grupo_editar(pg_temp.id('gr', 1), 'ZZ Ea X', 1, NULL, NULL, NULL)$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.assert_raises('k: a director of another campus cannot add members to a group of this one',
   $q$SELECT public.estudiantes_grupo_miembro_agregar(pg_temp.id('gr', 3), pg_temp.id('us', 27))$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(17);
+SELECT pg_temp.assert_eq('k: a pastor creates a group in their campus and lists its leaders',
+  $q$SELECT (public.estudiantes_grupo_crear(pg_temp.id('eq', 6), pg_temp.id('ca', 1), 'ZZ Ea P', 2) IS NOT NULL)
+       || '|' || (SELECT count(*) FROM public.estudiantes_lideres_disponibles(pg_temp.id('eq', 6), pg_temp.id('ca', 1)))$q$, 'true|3');
+SELECT pg_temp.as_persona(18);
+SELECT pg_temp.assert_raises('k: a pastor of another campus cannot create groups in this one',
+  $q$SELECT public.estudiantes_grupo_crear(pg_temp.id('eq', 6), pg_temp.id('ca', 1), 'ZZ Ea X', 1)$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.as_persona(8);
 SELECT pg_temp.assert_raises('k: a group under Logística is refused',
   $q$SELECT public.estudiantes_grupo_crear(pg_temp.id('eq', 8), pg_temp.id('ca', 1), 'ZZ Ea X', 1)$q$, '22023', 'subarea_invalida');

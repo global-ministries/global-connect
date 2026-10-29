@@ -444,9 +444,9 @@ grant select, insert, update, delete on public.estudiantes_escala, public.estudi
 
 -- ── 8. visibility (Q3) ───────────────────────────────────────────────
 
--- The system admin role (roles_sistema 'admin'): the only one who sees and
--- manages every campus (L20).
-create or replace function public.estudiantes_admin_sistema()
+-- Whether the caller has a system role (roles_sistema.nombre_interno): 'admin'
+-- sees and manages every campus, 'pastor' everything of their own campus (L20).
+create or replace function public.estudiantes_tiene_rol_sistema(p_rol text)
 returns boolean
 language sql
 stable
@@ -458,19 +458,19 @@ as $$
                    from public.usuarios u
                    join public.usuario_roles ur on ur.usuario_id = u.id
                    join public.roles_sistema rs on rs.id = ur.rol_id
-                  where u.auth_id = auth.uid() and rs.nombre_interno = 'admin')
+                  where u.auth_id = auth.uid() and rs.nombre_interno = p_rol)
 $$;
 
-comment on function public.estudiantes_admin_sistema() is
-  'Whether the caller has the system admin role, which sees and manages every campus.';
+comment on function public.estudiantes_tiene_rol_sistema(text) is
+  'Whether the caller has the given system role (roles_sistema.nombre_interno).';
 
-revoke all on function public.estudiantes_admin_sistema() from public;
-revoke all on function public.estudiantes_admin_sistema() from anon;
-revoke all on function public.estudiantes_admin_sistema() from authenticated;
-grant execute on function public.estudiantes_admin_sistema() to service_role;
+revoke all on function public.estudiantes_tiene_rol_sistema(text) from public;
+revoke all on function public.estudiantes_tiene_rol_sistema(text) from anon;
+revoke all on function public.estudiantes_tiene_rol_sistema(text) from authenticated;
+grant execute on function public.estudiantes_tiene_rol_sistema(text) to service_role;
 
 -- Everyone sees only their own campus (usuario_campus); only the system admin
--- role sees every campus, not even a pastor (L20). The Dream Team tree and its
+-- role sees every campus, a pastor included (L20). The Dream Team tree and its
 -- grants carry no campus, so every group, meeting and live view is gated here.
 create or replace function public.estudiantes_campus_visible(p_campus_id uuid)
 returns boolean
@@ -481,7 +481,7 @@ set search_path to ''
 as $$
   select auth.uid() is not null
      and p_campus_id is not null
-     and (public.estudiantes_admin_sistema()
+     and (public.estudiantes_tiene_rol_sistema('admin')
           or exists (select 1
                        from public.usuarios u
                        join public.usuario_campus uc on uc.usuario_id = u.id
@@ -507,8 +507,7 @@ set search_path to ''
 as $$
   select (case
     when auth.uid() is null or p_subarea_id is null then 0
-    when public.estudiantes_admin_sistema()
-      or public.auth_has_dream_team_capability_in_tree('dream_team.org.manage', p_subarea_id)
+    when public.auth_has_dream_team_capability_in_tree('dream_team.org.manage', p_subarea_id)
       or public.auth_has_dream_team_capability_in_tree('dream_team.direct', p_subarea_id)
       or public.auth_has_dream_team_capability_in_tree('dream_team.director.coordinate', p_subarea_id)
       or public.auth_has_dream_team_capability_in_tree('dream_team.coordinate', p_subarea_id)
@@ -537,7 +536,7 @@ as $$
 $$;
 
 comment on function public.estudiantes_nivel_subarea(uuid) is
-  'Caller''s level on a Grupos de Chicas / Chicos sub-área (Q3): 3 system admin, org.manage, direct, director.coordinate or '
+  'Caller''s level on a Grupos de Chicas / Chicos sub-área (Q3): 3 org.manage, direct, director.coordinate or '
   'coordinate on it or an ancestor, or active director de grupo in it; 2 active entrenador in it; 0 otherwise.';
 
 revoke all on function public.estudiantes_nivel_subarea(uuid) from public;
@@ -545,7 +544,33 @@ revoke all on function public.estudiantes_nivel_subarea(uuid) from anon;
 revoke all on function public.estudiantes_nivel_subarea(uuid) from authenticated;
 grant execute on function public.estudiantes_nivel_subarea(uuid) to service_role;
 
--- The caller's level on a group: its sub-área level, or 1 when an active
+-- The caller's level on a sub-área within a campus: 0 outside the campuses
+-- the caller sees; 3 for the system admin and for a pastor of the campus, who
+-- sees everything of it (L20); otherwise the sub-área level of the tree.
+create or replace function public.estudiantes_nivel_en_campus(p_subarea_id uuid, p_campus_id uuid)
+returns smallint
+language sql
+stable
+security definer
+set search_path to ''
+as $$
+  select (case
+    when p_subarea_id is null or not public.estudiantes_campus_visible(p_campus_id) then 0
+    when public.estudiantes_tiene_rol_sistema('admin') or public.estudiantes_tiene_rol_sistema('pastor') then 3
+    else public.estudiantes_nivel_subarea(p_subarea_id)
+  end)::smallint
+$$;
+
+comment on function public.estudiantes_nivel_en_campus(uuid, uuid) is
+  'Caller''s level on a sub-área in a campus: 0 when the campus is not visible to them; 3 for the system admin '
+  'and for a pastor of the campus; otherwise estudiantes_nivel_subarea.';
+
+revoke all on function public.estudiantes_nivel_en_campus(uuid, uuid) from public;
+revoke all on function public.estudiantes_nivel_en_campus(uuid, uuid) from anon;
+revoke all on function public.estudiantes_nivel_en_campus(uuid, uuid) from authenticated;
+grant execute on function public.estudiantes_nivel_en_campus(uuid, uuid) to service_role;
+
+-- The caller's level on a group: its sub-área level in the group's campus, or 1 when an active
 -- servicio of the caller in the sub-área leads the group. 0 for no group and
 -- for a group of a campus the caller does not see.
 create or replace function public.estudiantes_nivel_grupo(p_grupo_id uuid)
@@ -557,7 +582,7 @@ set search_path to ''
 as $$
   select coalesce((
     select greatest(
-             public.estudiantes_nivel_subarea(g.subarea_id),
+             public.estudiantes_nivel_en_campus(g.subarea_id, g.campus_id),
              case when exists (
                select 1
                  from public.estudiantes_grupo_lideres gl
@@ -576,7 +601,7 @@ as $$
 $$;
 
 comment on function public.estudiantes_nivel_grupo(uuid) is
-  'Caller''s level on a group (Q3): estudiantes_nivel_subarea of its sub-área, or 1 as an active leader of it; 0 otherwise '
+  'Caller''s level on a group (Q3): estudiantes_nivel_en_campus of its sub-área and campus, or 1 as an active leader of it; 0 otherwise '
   'and 0 when its campus is not visible to the caller (estudiantes_campus_visible). '
   '>= 1 sees the roster with contacts and marks; >= 2 sees the live view; >= 3 manages the group.';
 

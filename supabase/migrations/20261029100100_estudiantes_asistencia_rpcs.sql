@@ -7,7 +7,8 @@
 -- ninos_usuario_actual(), authority from estudiantes_nivel_grupo /
 -- estudiantes_nivel_subarea: 1 leader of the group, 2 entrenador of the
 -- sub-área, 3 director de grupo or higher in the tree; every level only in
--- the caller's own campus, every campus for the system admin role — L20):
+-- the caller's own campus; everything of their campus for a pastor and every
+-- campus for the system admin role — L20):
 --   Reading
 --     estudiantes_escala_campus(campus)                  signed-in users
 --     estudiantes_mis_grupos(incluir_inactivos)          groups with level >= 1
@@ -584,18 +585,15 @@ begin
   ) then
     raise exception 'ambito_invalido' using errcode = '22023';
   end if;
-  if not exists (
-    select 1 from public.dream_team_equipos s
-     where s.parent_equipo_id = p_ambito_id and public.estudiantes_es_subarea_grupos(s.label)
-       and public.estudiantes_nivel_subarea(s.id) >= 2
-  ) then
-    raise exception 'sin_autoridad' using errcode = '42501';
-  end if;
   select t.campus_id into v_campus from public.dream_team_turnos t where t.id = p_turno_id;
   if v_campus is null then
     raise exception 'turno_invalido' using errcode = '22023';
   end if;
-  if not public.estudiantes_campus_visible(v_campus) then
+  if not exists (
+    select 1 from public.dream_team_equipos s
+     where s.parent_equipo_id = p_ambito_id and public.estudiantes_es_subarea_grupos(s.label)
+       and public.estudiantes_nivel_en_campus(s.id, v_campus) >= 2
+  ) then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   perform public.estudiantes_sesion_validar(p_ambito_id, v_campus, p_fecha, p_turno_id);
@@ -621,7 +619,7 @@ begin
         left join public.estudiantes_reuniones r
           on r.grupo_id = g.id and r.fecha = p_fecha and r.turno_id = p_turno_id
        where g.ambito_id = p_ambito_id and g.campus_id = v_campus and g.activo
-         and public.estudiantes_nivel_subarea(g.subarea_id) >= 2
+         and public.estudiantes_nivel_en_campus(g.subarea_id, v_campus) >= 2
     ) gr
     cross join lateral (
       select count(*) filter (where x.estado = 'presente')::integer as presentes,
@@ -653,7 +651,7 @@ begin
         join public.estudiantes_reuniones r
           on r.grupo_id = g.id and r.fecha = p_fecha and r.turno_id = p_turno_id
        where g.ambito_id = p_ambito_id and g.campus_id = v_campus and g.activo
-         and public.estudiantes_nivel_subarea(g.subarea_id) >= 2
+         and public.estudiantes_nivel_en_campus(g.subarea_id, v_campus) >= 2
     ) gr
     join public.estudiantes_asistencias x on x.reunion_id = gr.reunion_id
     join public.usuarios u on u.id = x.persona_id
@@ -1218,8 +1216,7 @@ declare
   v_nombre text := btrim(coalesce(p_nombre, ''));
   v_id uuid;
 begin
-  if v_yo is null or public.estudiantes_nivel_subarea(p_subarea_id) < 3
-     or not public.estudiantes_campus_visible(p_campus_id) then
+  if v_yo is null or public.estudiantes_nivel_en_campus(p_subarea_id, p_campus_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   if not exists (select 1 from public.campus c where c.id = p_campus_id and c.activo) then
@@ -1358,8 +1355,7 @@ security definer
 set search_path to ''
 as $$
 begin
-  if public.ninos_usuario_actual() is null or public.estudiantes_nivel_subarea(p_subarea_id) < 3
-     or not public.estudiantes_campus_visible(p_campus_id) then
+  if public.ninos_usuario_actual() is null or public.estudiantes_nivel_en_campus(p_subarea_id, p_campus_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   return query
