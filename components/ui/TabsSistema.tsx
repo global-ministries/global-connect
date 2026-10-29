@@ -1,5 +1,10 @@
 "use client"
 
+/**
+ * TabsSistema — Radix tabs with the segmented control look
+ * (docs/design-system/components.md, `ControlSegmentado`): the active tab
+ * inverts (`bg-foreground text-background`); 36px tabs, 44px on touch.
+ */
 import * as Tabs from '@radix-ui/react-tabs'
 import { cn } from '@/lib/utils'
 import React from 'react'
@@ -18,7 +23,7 @@ export function TabsList({
   return (
     <Tabs.List
       className={cn(
-        'inline-flex items-center gap-1 rounded-2xl bg-card/60 border border-border/30 p-1 shadow-sm backdrop-blur',
+        'inline-flex items-center rounded-xl border border-border bg-card p-[3px]',
         className
       )}
       {...props}
@@ -33,9 +38,9 @@ export function TabsTrigger({
   return (
     <Tabs.Trigger
       className={cn(
-        'px-3.5 py-2 text-sm font-medium rounded-xl text-muted-foreground transition-colors',
-        'data-[state=active]:bg-orange-500 data-[state=active]:text-white',
-        'hover:bg-muted',
+        'focus-ring inline-flex min-h-9 items-center justify-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors pointer-coarse:min-h-11',
+        'data-[state=active]:bg-foreground data-[state=active]:text-background',
+        'data-[state=inactive]:hover:text-foreground',
         className
       )}
       {...props}

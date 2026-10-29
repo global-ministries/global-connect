@@ -2,7 +2,7 @@
 
 /**
  * The leaders of the supervision view (odd/tasks/uno-a-uno.md, T8), after
- * Dream Team → Servidores (tabla-servidores.tsx, tarjetas-servidores.tsx):
+ * the first Dream Team → Servidores table (now `ListaResponsiva`):
  *
  *   - from `md` up, a table with sortable header buttons (`aria-sort` on the
  *     active column) — Líder, Qué lidera, Dirigidos, Realizados, Agendados,
