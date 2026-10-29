@@ -632,7 +632,8 @@ SELECT pg_temp.assert_eq('f: ignoring the matches creates the visitor',
 SELECT pg_temp.guardar_ctx('v2',
   $q$SELECT pg_temp.crear(1, pg_temp.dom(), 1, jsonb_build_object(
        'nombre', 'Zzea', 'apellido', 'Nueva Dos', 'genero', 'Femenino',
-       'representante', jsonb_build_object('nombre', 'ZZEA MAMÁ', 'apellido', 'nueva', 'telefono', '04129990102'))) ->> 'persona_id'$q$);
+       'representante', jsonb_build_object('nombre', 'ZZEA MAMÁ', 'apellido', 'nueva', 'telefono', '04129990102',
+                                           'genero', 'Femenino'))) ->> 'persona_id'$q$);
 RESET ROLE;
 SELECT pg_temp.assert_eq('f: a sibling reuses the representante found by phone and name',
   $q$SELECT count(DISTINCT r.usuario2_id) || '|' || count(*) FROM public.relaciones_usuarios r
@@ -644,6 +645,12 @@ SELECT pg_temp.assert_raises('f: the gender is required',
 SELECT pg_temp.assert_raises('f: a representante without phone is refused',
   $q$SELECT pg_temp.crear(1, pg_temp.dom(), 1, '{"nombre":"Zzea","apellido":"Sinrep","genero":"Femenino","representante":{"nombre":"X"}}')$q$,
   '22023', 'representante_incompleto');
+SELECT pg_temp.assert_raises('f: a new representante without gender is refused',
+  $q$SELECT pg_temp.crear(1, pg_temp.dom(), 1, '{"nombre":"Zzea","apellido":"Sinrep","genero":"Femenino","representante":{"nombre":"Zzea Rep","telefono":"04269990777"}}')$q$,
+  '22023', 'genero_requerido');
+SELECT pg_temp.assert_raises('f: a representante gender other than Masculino / Femenino is refused',
+  $q$SELECT pg_temp.crear(1, pg_temp.dom(), 1, '{"nombre":"Zzea","apellido":"Sinrep","genero":"Femenino","representante":{"nombre":"Zzea Rep","telefono":"04269990777","genero":"Otro"}}')$q$,
+  '22023', 'genero_requerido');
 SELECT pg_temp.as_persona(9);
 SELECT pg_temp.assert_raises('f: The Living Room takes no representante',
   $q$SELECT pg_temp.crear(5, pg_temp.dom() - 4, NULL, '{"nombre":"Zzea","apellido":"Tlr","genero":"Masculino","representante":{"nombre":"X","telefono":"04269990999"}}')$q$,

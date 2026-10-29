@@ -958,12 +958,12 @@ begin
       v_rep_apellido := coalesce(public.ninos_texto(v_rep, 'apellido'), '');
       v_rep_telefono := public.ninos_texto(v_rep, 'telefono');
       v_rep_cedula := public.ninos_texto(v_rep, 'cedula');
-      v_rep_genero := coalesce(public.ninos_texto(v_rep, 'genero'), 'Otro');
+      v_rep_genero := public.ninos_texto(v_rep, 'genero');
       if v_rep_nombre is null or v_rep_telefono is null then
         raise exception 'representante_incompleto' using errcode = '22023';
       end if;
-      if v_rep_genero not in ('Masculino', 'Femenino', 'Otro') then
-        raise exception 'datos_invalidos' using errcode = '22023';
+      if v_rep_genero is null or v_rep_genero not in ('Masculino', 'Femenino') then
+        raise exception 'genero_requerido' using errcode = '22023';
       end if;
       if greatest(length(v_rep_nombre), length(v_rep_apellido), length(v_rep_telefono),
                   length(coalesce(v_rep_cedula, ''))) > 80 then
@@ -1045,7 +1045,7 @@ comment on function public.estudiantes_visitante_crear(uuid, date, uuid, jsonb) 
   'Transit / Inside Out, the representante linked by relaciones_usuarios; adds them to the group as visitante and '
   'marks them presente. p_datos: nombre, apellido, genero (Masculino | Femenino), telefono, cedula, '
   'fecha_nacimiento, anio (default the group''s), ignorar_coincidencias, representante {persona_id | nombre, '
-  'apellido, telefono, cedula, genero; tipo}. Errors: see the migration header.';
+  'apellido, telefono, cedula, genero (Masculino | Femenino); tipo}. Errors: see the migration header.';
 
 revoke all on function public.estudiantes_visitante_crear(uuid, date, uuid, jsonb) from public, anon;
 grant execute on function public.estudiantes_visitante_crear(uuid, date, uuid, jsonb) to authenticated, service_role;
