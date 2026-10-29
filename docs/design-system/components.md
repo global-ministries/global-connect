@@ -41,7 +41,7 @@ Every piece is on one page with sample data: the gallery at `/design-system`
 | `SeccionesSistema` | same | Grid of section cards, tracks ≥ 26rem, empty tracks collapse |
 | `CamposSistema` | same | Grid of fields, tracks ≥ 16rem, empty tracks kept |
 | `PieAccionesSistema` | same | `fijo` (default `true`, sticky). Secondary first, primary last |
-| `PanelLateralSistema` | `components/ui/panel-lateral-sistema.tsx` | `abierto`, `onAbiertoChange`, `titulo`, `descripcion`, `tamaño="md" \| "lg"` (480 / 640px), `pie`, `className` |
+| `PanelLateralSistema` | `components/ui/panel-lateral-sistema.tsx` | `abierto`, `onAbiertoChange`, `titulo`, `descripcion`, `tamaño="md" \| "lg" \| "estructura"` (480 / 640 / 560px; `ANCHOS_PANEL`; `estructura` is the Estructura node panel), `pie`, `className` |
 | `ContenedorDashboard` | `components/ui/sistema-diseno.tsx` | Legacy page wrapper under `PaginaSistema`: `titulo`, `accionPrincipal`, `botonRegreso`, `breadcrumbs`. New pages use `PaginaSistema`. |
 | `ContenedorPrincipal` | same | Pages outside the dashboard shell (auth, landing): `titulo`, `descripcion`, `accionPrincipal` |
 | `FondoAutenticacion` | same | Orb background for login and signup |
@@ -97,6 +97,7 @@ pass `cargando` (and `disabled`) so the button gives immediate feedback.
 | `InputSistema` | `components/ui/sistema-diseno.tsx` | `label`, `icono` (left), `error` (sets `aria-invalid` and `aria-describedby`), `accesorio` (right slot, e.g. show password), all input props. 44px. `className` goes on the input. |
 | `SelectSistema` | same | Native select: `label`, `opciones={[{ valor, etiqueta }]}`, `placeholder`, `value`, `onValueChange`, `error`. 44px. |
 | `TextareaSistema` | same | `label`, `filas`, `error`; starts at 44px and grows |
+| `Interruptor` | `components/ui/interruptor.tsx` | On/off switch: `activo`, `onCambio(siguiente)`, `aria-label` (required, names what it turns on: "Turno Domingo 9:00"), plus button props (`disabled`, `title`). A real `<button role="switch" aria-checked>`, 44px target around a 44×24 track; on = brand track, off = muted at 55%. Used for roles and campus shifts in Estructura. |
 | Shared form parts | `components/forms` | `SeccionFormulario` (labelled section card, `role="region"`), `AvisoFormulario` (`error` / `info` / `marca`). See [patterns.md](patterns.md#forms). |
 
 ### Surfaces and status
@@ -125,7 +126,7 @@ pass `cargando` (and `disabled`) so the button gives immediate feedback.
 | Component | File | API summary |
 | --- | --- | --- |
 | `TarjetasFiltro` | `components/ui/TarjetasFiltro.tsx` | KPI cards that ARE the filter (choose WHERE): `todas`, `items` (`{ id, label, subtitulo, total, badge }`), `seleccionadoId`, `onSeleccionar`, `unidad`, `etiqueta`, `modoCompacto` (many categories → compact list with its own search), `buscarEtiqueta`. Every card is a `<button aria-pressed>`. Scrollable row on phones, 2 → 3 → 5 column grid from `md`. Used by Mi equipo and Servidores. |
-| `PastillaFiltro`, `GrupoPastillas` | `components/ui/PastillasFiltro.tsx` | Count pills that refine WHAT: `etiqueta`, `cantidad` (optional, mono bold), `activa` (`aria-pressed`), `onClick`. `GrupoPastillas` (`etiqueta` = group name) scrolls horizontally on phones and wraps from `md`. The caller owns the rule (single choice, second tap clears, toggles). |
+| `PastillaFiltro`, `GrupoPastillas` | `components/ui/PastillasFiltro.tsx` | Count pills that refine WHAT: `etiqueta`, `cantidad` (optional, mono bold), `activa` (`aria-pressed`), `onClick`, `tono` (optional `PuntoEstado` dot before the label, decorative; e.g. the Estructura problem pills). `GrupoPastillas` (`etiqueta` = group name) scrolls horizontally on phones and wraps from `md`. The caller owns the rule (single choice, second tap clears, toggles). |
 | `TabsSistema`, `TabsList`, `TabsTrigger`, `TabsContent` | `components/ui/TabsSistema.tsx` | Radix Tabs with system styles; same props as Radix. Use for sections of one screen, not for view modes (use `ControlSegmentado`). |
 | `ControlSegmentado` | `components/ui/control-segmentado.tsx` | 2–3 option view switch ("Por persona / Por servicio"): `opciones` (`{ valor, etiqueta }`), `valor`, `onCambio`, `etiqueta` (group name). `role="group"` with `aria-pressed` buttons; the pressed one inverts (`bg-foreground text-background`). 36px segments, 44px on touch. Desktop toolbar; on phone it goes into the filters sheet. |
 
@@ -146,7 +147,7 @@ pass `cargando` (and `disabled`) so the button gives immediate feedback.
 | Component | File | API summary |
 | --- | --- | --- |
 | `HojaInferior` | `components/ui/hoja-inferior.tsx` | Phone bottom sheet on vaul (`ui/drawer`): `abierta`, `onCambioAbierta`, `titulo`, `descripcion`, `pie` (sticky equal-width footer), `className`. Grab handle, close button, up to 90% height, 26px top radius, safe-area padding, `shadow-sheet`. Escape, the scrim and dragging down close it; focus is trapped and returned. |
-| `DetalleResponsivo` | `components/ui/detalle-responsivo.tsx` | One API for detail and filter overlays: `abierto`, `onCambioAbierto`, `titulo`, `descripcion`, `pie`, `ancho="md" \| "lg"`. `PanelLateralSistema` from `md`, `HojaInferior` below; renders nothing on the server (no hydration mismatch). |
+| `DetalleResponsivo` | `components/ui/detalle-responsivo.tsx` | One API for detail and filter overlays: `abierto`, `onCambioAbierto`, `titulo`, `descripcion`, `pie`, `ancho` (any `ANCHOS_PANEL` key: `md`, `lg`, `estructura`). `PanelLateralSistema` from `md`, `HojaInferior` below; renders nothing on the server (no hydration mismatch). Same file: `useEsEscritorio()` (`true` from 768px, `null` on the server) for screens whose phone tree differs, like the Estructura org chart. |
 
 ### Phone navigation
 

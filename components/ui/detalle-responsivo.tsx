@@ -22,6 +22,15 @@ const leerEscritorio = () =>
 // Unknown on the server: render nothing there and during hydration, then the client value.
 const leerEnServidor = () => null
 
+/**
+ * Whether the viewport is at md (768px) or wider, following resizes; `null` on
+ * the server and during hydration. Screens that render a different tree on
+ * phones (not just different styles) read the same cut as this overlay.
+ */
+export function useEsEscritorio(): boolean | null {
+  return React.useSyncExternalStore(suscribir, leerEscritorio, leerEnServidor)
+}
+
 interface DetalleResponsivoProps {
   abierto: boolean
   onCambioAbierto: (abierto: boolean) => void
@@ -49,7 +58,7 @@ export function DetalleResponsivo({
   ancho = "md",
   children,
 }: DetalleResponsivoProps) {
-  const escritorio = React.useSyncExternalStore(suscribir, leerEscritorio, leerEnServidor)
+  const escritorio = useEsEscritorio()
 
   if (escritorio === null) return null
 

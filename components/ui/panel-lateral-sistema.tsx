@@ -8,11 +8,14 @@ import { PieAccionesSistema } from "@/components/ui/sistema-diseno"
 
 /**
  * Side panel widths (docs/design-system/layout.md): md 480px for short forms and
- * details, lg 640px for forms with repeated rows. Full width on mobile.
+ * details, lg 640px for forms with repeated rows, estructura 560px for the
+ * Estructura node panel (identity, quick actions and four tabs; prototype
+ * prototipos/estructura/07-b-escritorio.html). Full width on mobile.
  */
 export const ANCHOS_PANEL = {
   md: "sm:max-w-[480px]",
   lg: "sm:max-w-[640px]",
+  estructura: "sm:max-w-[560px]",
 } as const
 
 interface PanelLateralSistemaProps {
