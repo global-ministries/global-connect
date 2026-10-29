@@ -1,7 +1,7 @@
 /**
  * Readable status text tokens and the brand color token (docs/design-system.md).
  * The fill tokens (`--warning`…) are not text-safe; `--*-text` are tuned to
- * at least 4.5:1 on cards, the page and their own 15% tint, in both themes.
+ * at least 4.5:1 on cards, the page and their own tint (10% light, 13% dark).
  */
 import { readFileSync } from 'fs'
 import { join } from 'path'

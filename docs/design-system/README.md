@@ -4,10 +4,17 @@ One design language for the whole repo. Every screen, component, doc and
 agent follows this folder. If something here disagrees with another doc, a
 code comment or a generic design skill, this folder wins.
 
-The visual reference is the approved Servidores prototype:
-[`prototipos/servidores.html`](prototipos/servidores.html) (open it in a
-browser and switch between Celular, Tablet and Escritorio) and its
-screenshots in [`prototipos/capturas/`](prototipos/capturas/).
+The visual reference is the approved Servidores prototype (v3, approved
+2026-10-28): three artboards in
+[`prototipos/servidores/`](prototipos/servidores/) —
+[`01-escritorio.html`](prototipos/servidores/01-escritorio.html) (≥ 1024),
+[`02-tablet.html`](prototipos/servidores/02-tablet.html) (768–1023) and
+[`03-celular.html`](prototipos/servidores/03-celular.html) (< 768) — and
+their screenshots `prototipos/capturas/servidores-v3-*.png`. The single file
+[`prototipos/servidores.html`](prototipos/servidores.html) and the other
+screenshots in [`prototipos/capturas/`](prototipos/capturas/) are the
+superseded v2 (old orange and type scale); keep them for history, do not
+design from them.
 
 ## Single source of truth
 
@@ -71,7 +78,7 @@ Add each new canonical piece to the gallery in the PR that builds it.
 | [patterns.md](patterns.md) | Recipes: list screen anatomy, filters sheet, detail drawer, empty and loading states, permission-gated actions, URL-synced filters, forms, feedback |
 | [mobile.md](mobile.md) | Native-app rules for phones |
 | [migration.md](migration.md) | Status per area, open follow-ups, the lint guardrail |
-| [prototipos/](prototipos/) | Approved prototypes and screenshots |
+| [prototipos/](prototipos/) | Approved prototypes and screenshots: `servidores/` (v3, current), `servidores.html` (v2, superseded) |
 
 ## How agents use this
 

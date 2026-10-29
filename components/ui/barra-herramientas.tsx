@@ -40,7 +40,7 @@ function InsigniaCuenta({ cantidad, className }: { readonly cantidad: number; re
     <span
       aria-hidden="true"
       className={cn(
-        'inline-grid h-5 min-w-5 place-items-center rounded-full bg-brand px-1.5 font-mono text-xs font-semibold tabular-nums text-brand-foreground',
+        'inline-grid h-5 min-w-5 place-items-center rounded-full bg-brand-strong px-1.5 font-mono text-xs font-semibold tabular-nums text-white',
         className,
       )}
     >

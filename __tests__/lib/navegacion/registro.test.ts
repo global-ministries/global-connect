@@ -1,6 +1,6 @@
 import {
   ENTRADAS_NAVEGACION,
-  entradasBarraInferior,
+  entradasDeSecciones,
   esEntradaActiva,
   esRutaActiva,
   filtrarVisibles,
@@ -26,12 +26,12 @@ describe('navigation registry', () => {
     expect(nombres).not.toContain('Soporte')
   })
 
-  it('orders the bottom bar by mobile priority and applies the role rule', () => {
-    expect(entradasBarraInferior({ roles: ['lider'], supportCapabilities: [] }).map((e) => e.href)).toEqual([
-      '/dashboard', '/users', '/grupos-vida', '/ayuda',
-    ])
-    expect(entradasBarraInferior({ roles: ['miembro'], supportCapabilities: [] }).map((e) => e.href)).toEqual([
-      '/dashboard', '/grupos-vida', '/ayuda',
+  // The bottom bar's priority list (entradasBarraInferior) gave way to the tab
+  // rule in lib/navegacion/secciones.ts (__tests__/lib/navegacion/secciones.test.ts).
+  it('lists the entries of the requested sections in registry order', () => {
+    expect(entradasDeSecciones('pie', 'cuenta').map((e) => e.href)).toEqual(['/actualizaciones', '/ayuda', '/perfil'])
+    expect(entradasDeSecciones('general', 'ministerios', 'dream-team', 'administracion').map((e) => e.href)).toEqual([
+      '/dashboard', '/users', '/grupos-vida', '/configuracion', '/ayuda/admin',
     ])
   })
 

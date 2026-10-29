@@ -3,6 +3,7 @@
 import { useEffect, useState, type ComponentType, type Dispatch, type SetStateAction } from 'react'
 import { ClipboardList, Megaphone, Settings, User, UserCheck, Users } from 'lucide-react'
 
+import type { SeccionNavegacion } from '@/lib/navegacion/secciones'
 import { getPlatformNavigationFlags, type PlatformNavigationFlags } from '@/lib/platform/flags'
 import { resolvePlatformNavigation, resolvePlatformNavigationGate } from '@/lib/platform/navigation'
 import type {
@@ -34,6 +35,24 @@ const PLATFORM_NAVIGATION_ICONS: Partial<Record<PlatformNavigationItemId, Compon
   nextgen_admin: Settings,
   uno_a_uno_global: User,
 } satisfies Partial<Record<PlatformNavigationItemId, ComponentType<{ className?: string }>>>
+
+// The sidebar section of each platform item (odd/tasks/sistema-diseno-v2.md, S9.2).
+const PLATFORM_NAVIGATION_SECCIONES: Record<PlatformNavigationItemId, SeccionNavegacion> = {
+  grupos_vida_stage: 'ministerios',
+  dps_team_service: 'ministerios',
+  ninos_room_context: 'ministerios',
+  estudiantes_room_context: 'ministerios',
+  talleres_participation: 'ministerios',
+  dps_admin: 'administracion',
+  nextgen_admin: 'administracion',
+  uno_a_uno_global: 'administracion',
+}
+
+/** The section of a view item, from the base id inside `platform-<id>-<scope type>-<scope id>`. */
+export function seccionDePlatformNavigationViewItem(item: Pick<PlatformNavigationViewItem, 'id'>): SeccionNavegacion {
+  const baseId = item.id.split('-')[1] as PlatformNavigationItemId
+  return PLATFORM_NAVIGATION_SECCIONES[baseId] ?? 'ministerios'
+}
 
 export async function resolvePlatformNavigationViewItems(
   platformSession: PlatformNavigationSession | null | undefined,

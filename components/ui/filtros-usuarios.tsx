@@ -149,7 +149,7 @@ export function FiltrosUsuarios({
       >
         Filtros
         {tieneFiltrosActivos && (
-          <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-brand px-1.5 text-xs font-semibold tabular-nums text-brand-foreground">
+          <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-brand-strong px-1.5 text-xs font-semibold tabular-nums text-white">
             {cantidadActivos}
           </span>
         )}

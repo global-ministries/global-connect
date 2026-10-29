@@ -1,148 +1,151 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { Building2, ChevronDown, PanelLeft } from 'lucide-react'
+
 import { cn } from '@/lib/utils'
 import { LogoGlobalConnect } from '@/components/ui/logo-global-connect'
-import { SelectorCampus } from '@/components/ui/selector-campus'
-import {
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  ChevronDown,
-} from 'lucide-react'
-import { BadgeSistema } from './sistema-diseno'
+import { SelectorCampus, useNombreCampusActivo, useSelectorCampusVisible } from '@/components/ui/selector-campus'
 import { TalleresNavSubmenu } from '@/components/talleres/nav-submenu'
-import { logout } from '@/lib/actions/auth.actions'
-import { ThemeToggle } from './theme-toggle'
 import { useBranding } from '@/hooks/useBranding'
 import { esEntradaTalleres, useEntradasNavegacion, type EntradaMenu } from '@/components/navegacion/use-entradas-navegacion'
+import { PanelFlotanteRiel } from '@/components/navegacion/panel-flotante-riel'
+import {
+  CLASE_BOTON_ICONO_SHELL,
+  claseEntradaSidebar,
+  claseSubEntradaSidebar,
+} from '@/components/navegacion/estilos-navegacion'
 import { esEntradaActiva, esRutaActiva } from '@/lib/navegacion/registro'
-import { CLASE_BOTON_ICONO_NAV, claseEnlaceNav, claseIconoNav, claseSubEnlaceNav } from '@/components/navegacion/estilos-navegacion'
+import { SECCIONES_PRINCIPALES, type SeccionNavegacion } from '@/lib/navegacion/secciones'
 
 interface SidebarModernaProps {
   className?: string
 }
 
-type MenuItem = EntradaMenu & {
-  badge?: string | number
-  badgeVariant?: 'default' | 'success' | 'warning' | 'error' | 'info'
+/**
+ * movil: below md the sidebar is hidden and inert (the phone shell takes over);
+ * tablet: md–lg, always the 64px rail; escritorio: lg and up, 256px unless the
+ * user collapsed it to the rail (persisted).
+ */
+type ModoSidebar = 'movil' | 'tablet' | 'escritorio'
+
+/** Section headers of the sidebar (S9.2). General has none; Dream Team is a group entry. */
+const TITULOS_SECCION: Partial<Record<SeccionNavegacion, string>> = {
+  ministerios: 'Ministerios',
+  administracion: 'Administración',
 }
 
-// ─── Active indicator pill ───
-function ActivePill() {
+const ID_FLYOUT_CAMPUS = 'campus'
+
+function calcularModo(): ModoSidebar {
+  if (typeof window.matchMedia === 'function') {
+    if (window.matchMedia('(max-width: 767.98px)').matches) return 'movil'
+    if (window.matchMedia('(max-width: 1023.98px)').matches) return 'tablet'
+    return 'escritorio'
+  }
+  return window.innerWidth < 768 ? 'movil' : window.innerWidth < 1024 ? 'tablet' : 'escritorio'
+}
+
+function useModoSidebar(): ModoSidebar {
+  const [modo, setModo] = useState<ModoSidebar>('escritorio')
+  useEffect(() => {
+    const actualizar = () => setModo(calcularModo())
+    actualizar()
+    window.addEventListener('resize', actualizar)
+    return () => window.removeEventListener('resize', actualizar)
+  }, [])
+  return modo
+}
+
+/**
+ * PR51 — the talleres submenu (TalleresNavSubmenu) aggregates links across the
+ * WHOLE talleres route family: the participant tree (/talleres/*) AND the
+ * admin tree (/admin/talleres/*). The platform parent's own href is only the
+ * participant landing (/talleres/explorar), so the group counts as holding the
+ * current page anywhere in the family.
+ */
+function enFamiliaTalleres(pathname: string | null): boolean {
   return (
-    <div aria-hidden="true" className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand rounded-r-full animate-bounce-spring" />
+    !!pathname &&
+    (pathname === '/talleres' ||
+      pathname.startsWith('/talleres/') ||
+      pathname === '/admin/talleres' ||
+      pathname.startsWith('/admin/talleres/'))
   )
 }
 
 /**
- * Sidebar principal con navegación, submenús colapsables, selector de campus.
- * Incluye modal de confirmación de logout y tooltips en modo colapsado.
+ * A group entry opens a submenu: entries with children, and the talleres
+ * platform items (PR27: their view-item type has `children?: never`, but they
+ * open the role-grouped TalleresNavSubmenu).
+ */
+function esGrupo(entrada: EntradaMenu): boolean {
+  return (entrada.children?.length ?? 0) > 0 || esEntradaTalleres(entrada)
+}
+
+/** The group holds the current page: its own route, a child's, or (talleres) the whole family. */
+function grupoContiene(pathname: string | null, entrada: EntradaMenu): boolean {
+  if (esEntradaTalleres(entrada)) return esRutaActiva(pathname, entrada.href) || enFamiliaTalleres(pathname)
+  return esEntradaActiva(pathname, entrada)
+}
+
+/** The parent page is current only when no child already links to it (one aria-current per page). */
+function esPadreActual(pathname: string | null, entrada: EntradaMenu): boolean {
+  return pathname === entrada.href && !(entrada.children ?? []).some((hija) => hija.href === entrada.href)
+}
+
+/**
+ * The desktop and tablet sidebar of the app shell (odd/tasks/sistema-diseno-v2.md,
+ * S9; prototype design/app-shell): the campus selector under the logo, the
+ * entries by section (general · Ministerios · Dream Team · Administración) and
+ * the footer links (Actualizaciones, Ayuda). Theme, Mi perfil and Cerrar sesión
+ * live in the account menu of the header.
+ *
+ * Submenus are an accordion: one open at a time, and the group of the current
+ * page opens by itself. In the rail (tablet, or desktop collapsed) entries are
+ * icons with a tooltip, and a group opens its pages in a flyout panel.
  */
 export function SidebarModerna({ className }: SidebarModernaProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [openSubmenus, setOpenSubmenus] = useState<Set<string>>(new Set())
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
-  const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(null)
+  const [colapsado, setColapsado] = useState(false)
+  const [grupoAbierto, setGrupoAbierto] = useState<string | null>(null)
+  const [flyout, setFlyout] = useState<string | null>(null)
+  const [tooltip, setTooltip] = useState<{ id: string; label: string; top: number; left: number } | null>(null)
+  const anclaFlyout = useRef<HTMLElement | null>(null)
   const router = useRouter()
   const pathname = usePathname()
+  const modo = useModoSidebar()
+  const branding = useBranding()
+  const campusVisible = useSelectorCampusVisible()
+  const nombreCampus = useNombreCampusActivo()
 
   // Restore collapsed preference after mount to avoid SSR/client mismatch (#224)
   useEffect(() => {
     const saved = window.localStorage.getItem('sidebar-collapsed')
     /* eslint-disable react-hooks/set-state-in-effect -- restoring persisted UI preference after mount (pre-existing pattern) */
-    setIsCollapsed(parseSidebarCollapsed(saved))
+    setColapsado(parseSidebarCollapsed(saved))
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
-  // Every entry, its order and who sees it come from the navigation registry
-  // (lib/navegacion/registro.ts), shared with the mobile drawer and bottom bar.
-  const { principales, pie, cuenta, platformSession } = useEntradasNavegacion()
-  const primaryMenuItems: MenuItem[] = principales
-  const branding = useBranding()
 
-  // ─── Tooltip handlers (collapsed mode): on hover and on keyboard focus ───
-  const showTooltip = (e: React.SyntheticEvent<HTMLElement>, label: string) => {
-    if (!isCollapsed) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    setTooltip({ label, top: rect.top + rect.height / 2 })
+  // Every entry, its section, its order and who sees it come from the
+  // navigation registry (lib/navegacion/registro.ts, lib/navegacion/secciones.ts).
+  const { secciones, platformSession } = useEntradasNavegacion()
+  const cuerpo = useMemo(() => secciones.filter((grupo) => SECCIONES_PRINCIPALES.includes(grupo.seccion)), [secciones])
+  const pie = useMemo(() => secciones.find((grupo) => grupo.seccion === 'pie')?.entradas ?? [], [secciones])
+  const grupos = useMemo(() => cuerpo.flatMap((grupo) => grupo.entradas).filter(esGrupo), [cuerpo])
+  const idGrupoActual = grupos.find((entrada) => grupoContiene(pathname, entrada))?.id ?? null
+
+  // On every navigation the group of the current page opens (closing the
+  // others) and any rail flyout closes. Adjusted during render, not in an
+  // effect, so the first paint already shows the open group.
+  const claveRuta = `${pathname}|${idGrupoActual}`
+  const [rutaVista, setRutaVista] = useState<string | null>(null)
+  if (claveRuta !== rutaVista) {
+    setRutaVista(claveRuta)
+    if (idGrupoActual) setGrupoAbierto(idGrupoActual)
+    setFlyout(null)
   }
-  const hideTooltip = () => setTooltip(null)
-  const tooltipHandlers = (label: string) => ({
-    onMouseEnter: (e: React.MouseEvent<HTMLElement>) => showTooltip(e, label),
-    onMouseLeave: hideTooltip,
-    onFocus: (e: React.FocusEvent<HTMLElement>) => showTooltip(e, label),
-    onBlur: hideTooltip,
-  })
-
-  // Auto-expand submenus when a child route is active
-  useEffect(() => {
-    const newOpen = new Set<string>()
-    for (const item of primaryMenuItems) {
-      if (item.children?.some(child => esRutaActiva(pathname, child.href))) {
-        newOpen.add(item.id)
-      }
-    }
-    // PR25 + PR27 — also auto-expand the talleres sub-menu when the
-    // active route is under the talleres admin tree. The
-    // platformNavigation items themselves don't carry
-    // `children: SubItem[]` (their view-item type has
-    // `children?: never`), but the talleres platform items do get a
-    // chevron in the render path (see the `isTalleresPlatformItem`
-    // branch in the map below), and that chevron drives the same
-    // `openSubmenus` slot used by the static menu items. The id is
-    // built in `components/ui/platform-navigation-view-items.ts` as
-    // `platform-${item.id}-${scope.type}-${scope.id ?? 'global'}`,
-    // so for the talleres admin item the full id is e.g.
-    // "platform-talleres_admin-taller-global".
-    //
-    // CONVENTION NOTE: the segment between "talleres" and the role
-    // uses an UNDERSCORE (`_`), not a hyphen. The items registered in
-    // `lib/platform/navigation.ts` are `talleres_participation`,
-    // `talleres_admin`, etc., so the synthetic id always starts with
-    // `platform-talleres_` (single underscore). The matching check
-    // below uses `.startsWith('platform-talleres_')` accordingly.
-    //
-    // PR26 — we open the matching platform parent so the auto-expand
-    // path mirrors what the static `menuItems` flow does. The active
-    // check is inlined (matches the `isActive` helper defined below
-    // on every render) to avoid accessing `isActive` before its
-    // declaration inside this useEffect.
-    //
-    // PR51 — the talleres submenu (TalleresNavSubmenu) aggregates links
-    // across the WHOLE talleres route family: the participant tree
-    // (/talleres/*) AND the admin tree (/admin/talleres/*). But the
-    // platform parent's own href is only the participant landing
-    // (/talleres/explorar), so matching solely on that href left an admin
-    // sitting on /admin/talleres/* with the submenu collapsed — hiding the
-    // last sub-item "Grupos de Corto Plazo" (href /admin/talleres/abstracto).
-    // Open the parent whenever the active route is anywhere in the family.
-    const inTalleresFamily =
-      !!pathname &&
-      (pathname === '/talleres' ||
-        pathname.startsWith('/talleres/') ||
-        pathname === '/admin/talleres' ||
-        pathname.startsWith('/admin/talleres/'))
-    for (const item of primaryMenuItems) {
-      if (!esEntradaTalleres(item)) continue
-      const href = item.href
-      const isMatch =
-        pathname === href ||
-        (href !== '/dashboard' && !!pathname?.startsWith(href + '/'))
-      if (isMatch || inTalleresFamily) {
-        newOpen.add(item.id)
-      }
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- sincronización de submenús activos con la ruta actual (patrón preexistente)
-    setOpenSubmenus(prev => {
-      // Merge: keep manually opened ones, add auto-opened ones
-      const merged = new Set(prev)
-      newOpen.forEach(id => merged.add(id))
-      return merged
-    })
-  }, [pathname, primaryMenuItems])
 
   // PR21.2 + PR21.3: When the browser tab becomes visible again (user
   // switches back to the tab), refresh the server tree AND dispatch a
@@ -161,419 +164,323 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
     return () => document.removeEventListener('visibilitychange', onVisible)
   }, [router])
 
-  // Detectar si es móvil
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768)
-      if (window.innerWidth < 768) {
-        setIsCollapsed(true)
-      }
+  const esMovil = modo === 'movil'
+  const riel = modo === 'tablet' || (modo === 'escritorio' && colapsado)
+
+  const alternarColapsado = () => {
+    const nuevo = !colapsado
+    setColapsado(nuevo)
+    setFlyout(null)
+    setTooltip(null)
+    localStorage.setItem('sidebar-collapsed', JSON.stringify(nuevo))
+  }
+
+  // Accordion: opening a group closes the open one.
+  const alternarGrupo = (id: string) => setGrupoAbierto((actual) => (actual === id ? null : id))
+
+  const alternarFlyout = (id: string, boton: HTMLElement) => {
+    setTooltip(null)
+    if (flyout === id) {
+      setFlyout(null)
+      return
     }
-
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
-
-  // Guardar estado en localStorage
-  const toggleSidebar = () => {
-    const newState = !isCollapsed
-    setIsCollapsed(newState)
-    if (!isMobile) {
-      localStorage.setItem('sidebar-collapsed', JSON.stringify(newState))
-    }
+    anclaFlyout.current = boton
+    setFlyout(id)
   }
 
-  const toggleSubmenu = (id: string) => {
-    setOpenSubmenus(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+  // ─── Rail tooltips: on hover and on keyboard focus, beside the sidebar ───
+  const mostrarTooltip = (elemento: HTMLElement, id: string, label: string) => {
+    if (!riel || flyout) return
+    const rect = elemento.getBoundingClientRect()
+    const borde = elemento.closest('[data-sidebar]')?.getBoundingClientRect().right ?? rect.right
+    setTooltip({ id, label, top: rect.top + rect.height / 2, left: borde + 8 })
   }
+  const ocultarTooltip = () => setTooltip(null)
+  const manejadoresTooltip = (id: string, label: string) =>
+    riel
+      ? {
+          onMouseEnter: (e: React.MouseEvent<HTMLElement>) => mostrarTooltip(e.currentTarget, id, label),
+          onMouseLeave: ocultarTooltip,
+          onFocus: (e: React.FocusEvent<HTMLElement>) => mostrarTooltip(e.currentTarget, id, label),
+          onBlur: ocultarTooltip,
+        }
+      : {}
 
-  // Función para manejar logout
-  const handleLogout = async () => {
-    try {
-      await logout()
-    } catch (error) {
-      console.error('Error durante logout:', error)
-      router.push('/')
-    }
-  }
-
-  const confirmLogout = () => {
-    setShowLogoutModal(true)
-  }
-
-  const isActive = (href: string): boolean => esRutaActiva(pathname, href)
-  const isParentActive = (item: MenuItem): boolean => esEntradaActiva(pathname, item)
-
-  // ─── Shared link styles (components/navegacion/estilos-navegacion.ts) ───
-  const linkClasses = (active: boolean) => cn(claseEnlaceNav(active), isCollapsed && "justify-center px-2")
-  const subLinkClasses = claseSubEnlaceNav
-  const iconClasses = (active: boolean) => cn(claseIconoNav(active), isCollapsed ? "size-6" : "size-5")
-
-  // ─── Footer and account links (registry groups 'pie' and 'cuenta') ───
-  const renderEnlacePie = (item: MenuItem) => {
-    const Icon = item.icon
-    const active = isActive(item.href)
+  // ─── Entries ───
+  const renderEnlace = (entrada: EntradaMenu) => {
+    const Icono = entrada.icon
+    const activo = esRutaActiva(pathname, entrada.href)
     return (
-      <Link
-        key={item.id}
-        href={item.href}
-        prefetch={false}
-        aria-current={active ? "page" : undefined}
-        className={linkClasses(active)}
-        aria-label={isCollapsed ? item.label : undefined}
-        {...tooltipHandlers(item.label)}
-      >
-        {active && <ActivePill />}
-        <Icon className={iconClasses(active)} />
-        {!isCollapsed && (
-          <span className="font-medium truncate">{item.label}</span>
-        )}
-      </Link>
+      <li key={entrada.id}>
+        <Link
+          href={entrada.href}
+          prefetch={false}
+          aria-current={activo ? 'page' : undefined}
+          aria-label={riel ? entrada.label : undefined}
+          className={cn(claseEntradaSidebar(activo), riel && 'justify-center px-0')}
+          {...manejadoresTooltip(entrada.id, entrada.label)}
+        >
+          <Icono aria-hidden="true" className={cn('shrink-0', riel ? 'size-5' : 'size-[18px]')} />
+          {!riel && <span className="min-w-0 flex-1 truncate">{entrada.label}</span>}
+        </Link>
+      </li>
     )
   }
 
-  // ─── Sidebar width for fixed tooltip positioning ───
-  const sidebarWidth = isCollapsed ? 64 : 256
+  const renderSubmenu = (entrada: EntradaMenu) =>
+    esEntradaTalleres(entrada) ? (
+      /* PR27 — the Talleres platform item renders the role-grouped sub-menu. */
+      <TalleresNavSubmenu
+        sessionCapabilities={(platformSession?.capabilities ?? []).map((c) => c.key)}
+        counters={{}}
+      />
+    ) : (
+      <ul className={cn('grid', riel ? 'gap-0.5' : 'mt-0.5 mb-1.5 ml-5 border-l border-sidebar-border pl-2.5')}>
+        {(entrada.children ?? []).map((hija) => {
+          const activa = esRutaActiva(pathname, hija.href)
+          return (
+            <li key={hija.id}>
+              <Link
+                href={hija.href}
+                prefetch={false}
+                aria-current={activa ? 'page' : undefined}
+                className={claseSubEntradaSidebar(activa)}
+              >
+                <span className="min-w-0 truncate">{hija.label}</span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    )
+
+  const renderGrupo = (entrada: EntradaMenu) => {
+    const Icono = entrada.icon
+    const contiene = grupoContiene(pathname, entrada)
+    const padreActual = esPadreActual(pathname, entrada)
+    const idSubmenu = `submenu-${entrada.id}`
+
+    if (riel) {
+      const abierto = flyout === entrada.id
+      return (
+        <li key={entrada.id}>
+          <button
+            type="button"
+            onClick={(e) => alternarFlyout(entrada.id, e.currentTarget)}
+            aria-label={contiene ? `${entrada.label}, contiene la página actual` : entrada.label}
+            aria-haspopup="dialog"
+            aria-expanded={abierto}
+            aria-controls={abierto ? `flyout-${entrada.id}` : undefined}
+            className={cn(
+              claseEntradaSidebar(false),
+              'justify-center px-0',
+              contiene && 'bg-brand-tint text-foreground',
+              abierto && 'bg-accent text-foreground',
+            )}
+            {...manejadoresTooltip(entrada.id, entrada.label)}
+          >
+            <Icono aria-hidden="true" className="size-5 shrink-0" />
+          </button>
+        </li>
+      )
+    }
+
+    const abierto = grupoAbierto === entrada.id
+    return (
+      <li key={entrada.id}>
+        <div className="flex min-w-0 items-center gap-0.5">
+          <Link
+            href={entrada.href}
+            prefetch={false}
+            aria-current={padreActual ? 'page' : undefined}
+            className={cn(claseEntradaSidebar(padreActual, contiene), 'min-w-0 flex-1')}
+          >
+            <Icono aria-hidden="true" className="size-[18px] shrink-0" />
+            <span className="min-w-0 flex-1 truncate">{entrada.label}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => alternarGrupo(entrada.id)}
+            aria-label={abierto ? `Cerrar submenú de ${entrada.label}` : `Abrir submenú de ${entrada.label}`}
+            aria-expanded={abierto}
+            aria-controls={idSubmenu}
+            className={CLASE_BOTON_ICONO_SHELL}
+          >
+            <ChevronDown
+              aria-hidden="true"
+              className={cn('size-4 transition-transform duration-150 ease-out-quint', abierto && 'rotate-180')}
+            />
+          </button>
+        </div>
+        {/* Kept in the tree for the transition; closed, it is collapsed and inert
+            (out of the tab order and the accessibility tree). */}
+        <div
+          id={idSubmenu}
+          inert={!abierto || undefined}
+          className={cn(
+            'overflow-hidden transition-[max-height,opacity] duration-300 ease-expo',
+            abierto
+              ? esEntradaTalleres(entrada)
+                ? // PR51 — the talleres submenu can hold the full role union (up to
+                  // ~22 items for a multi-capability admin): a 1200px cap fits them all.
+                  'max-h-[1200px] opacity-100'
+                : 'max-h-[500px] opacity-100'
+              : 'max-h-0 opacity-0',
+          )}
+        >
+          {renderSubmenu(entrada)}
+        </div>
+      </li>
+    )
+  }
+
+  const entradaFlyout = flyout && flyout !== ID_FLYOUT_CAMPUS ? grupos.find((entrada) => entrada.id === flyout) : undefined
 
   return (
-    <>
-      {/* Overlay para móvil */}
-      {isMobile && !isCollapsed && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
-          onClick={() => setIsCollapsed(true)}
-          aria-hidden="true"
-        />
+    <div
+      data-sidebar=""
+      className={cn(
+        'relative hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex',
+        'transition-[width] duration-300 ease-expo',
+        riel ? 'w-16 px-2.5 pt-4 pb-3' : 'w-64 px-3.5 pt-4 pb-3',
+        className,
       )}
-
-      {/* Sidebar */}
-      <div
-        className={cn(
-          "fixed left-0 top-0 z-50 h-full hidden md:flex flex-col glass-panel-elevated border-r border-[var(--glass-border)]",
-          "transition-[width,transform] duration-300 ease-expo",
-          isCollapsed ? "w-16" : "w-64",
-          "md:relative md:z-auto",
-          isMobile && isCollapsed && "-translate-x-full md:translate-x-0",
-          className
-        )}
-        aria-hidden={isMobile ? true : undefined}
-        inert={isMobile ? true : undefined}
-      >
-        {/* Header con logo y toggle */}
-        <div className="flex items-center justify-between p-3">
-          {!isCollapsed && (
-            <div className="flex items-center">
-              <LogoGlobalConnect tamaño="md" className="w-[96px] h-auto" logoLightUrl={branding.logoLightUrl} logoDarkUrl={branding.logoDarkUrl} />
-            </div>
-          )}
-
-          <button
-            onClick={toggleSidebar}
-            aria-label={isCollapsed ? "Expandir menú" : "Contraer menú"}
-            aria-expanded={!isCollapsed}
-            className={CLASE_BOTON_ICONO_NAV}
-          >
-            {isCollapsed ? (
-              <ChevronRight aria-hidden="true" className="size-5" />
-            ) : (
-              <ChevronLeft aria-hidden="true" className="size-5" />
-            )}
-          </button>
-        </div>
-
-        {/* Selector de Campus (desktop) */}
-        {!isCollapsed && (
-          <div className="px-3 pb-2">
-            <SelectorCampus />
+      aria-hidden={esMovil ? true : undefined}
+      inert={esMovil ? true : undefined}
+    >
+      {/* Logo and the collapse toggle (desktop only; the tablet rail is automatic) */}
+      <div className={cn('mb-2.5 flex items-center gap-1', riel && 'flex-col')}>
+        {!riel && (
+          <div className="flex min-h-11 min-w-0 flex-1 items-center px-2">
+            <LogoGlobalConnect tamaño="md" className="h-auto w-[96px]" logoLightUrl={branding.logoLightUrl} logoDarkUrl={branding.logoDarkUrl} />
           </div>
         )}
-
-        {/* Navegación */}
-        <nav className="flex-1 px-3 py-2 overflow-y-auto" aria-label="Navegación principal">
-          <ul className="space-y-0.5">
-            {primaryMenuItems
-              .map((item) => {
-                const Icon = item.icon
-                // Filter children by access — if none are visible, treat as simple link
-                const visibleChildren = item.children ?? []
-                // PR27 — platform items never carry `children: SubItem[]`
-                // (their view-item type has `children?: never`), but the
-                // talleres platform items still need a chevron so the
-                // submenu follows the same collapse/expand pattern as
-                // the static menu items ("Grupos de Vida", "Configuración").
-                // We detect the talleres prefix and treat those items as
-                // having children — the TalleresNavSubmenu is rendered
-                // in the standard submenu slot below.
-                const isTalleresPlatformItem = esEntradaTalleres(item)
-                const hasChildren = visibleChildren.length > 0 || isTalleresPlatformItem
-                const parentActive = isParentActive(item)
-                const isOpen = openSubmenus.has(item.id)
-                const exactActive = pathname === item.href
-
-                return (
-                  <li key={item.id}>
-                    {hasChildren ? (
-                      <>
-                        {/* Parent item with chevron toggle */}
-                        <div className="flex items-center min-w-0">
-                          <Link
-                            href={item.href}
-                            prefetch={false}
-                            aria-current={exactActive ? "page" : undefined}
-                            className={cn(
-                              linkClasses(parentActive),
-                              "flex-1 min-w-0",
-                              !isCollapsed && "pr-1"
-                            )}
-                            aria-label={isCollapsed ? item.label : undefined}
-                            {...tooltipHandlers(item.label)}
-                          >
-                            {parentActive && <ActivePill />}
-                            <Icon className={iconClasses(parentActive)} />
-
-                            {!isCollapsed && (
-                              <>
-                                <span className="font-medium truncate flex-1">{item.label}</span>
-                                {item.badge && (
-                                  <BadgeSistema
-                                    variante={item.badgeVariant || 'default'}
-                                    tamaño="sm"
-                                    className="ml-auto"
-                                  >
-                                    {item.badge}
-                                  </BadgeSistema>
-                                )}
-                              </>
-                            )}
-                          </Link>
-
-                          {/* Chevron button — only when expanded */}
-                          {!isCollapsed && (
-                            <button
-                              onClick={() => toggleSubmenu(item.id)}
-                              aria-label={isOpen ? `Cerrar submenú de ${item.label}` : `Abrir submenú de ${item.label}`}
-                              aria-expanded={isOpen}
-                              className={cn(CLASE_BOTON_ICONO_NAV, "rounded-lg", parentActive && "text-brand")}
-                            >
-                              <ChevronDown aria-hidden="true" className={cn(
-                                "w-4 h-4 transition-transform duration-200",
-                                isOpen && "rotate-180"
-                              )} />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Submenu items */}
-                        {!isCollapsed && (
-                          <div
-                            className={cn(
-                              "overflow-hidden transition-[max-height,opacity] duration-300 ease-expo",
-                              isOpen
-                                ? isTalleresPlatformItem
-                                  // PR51 — the talleres submenu can hold the
-                                  // full role union (up to ~22 items for a
-                                  // multi-capability admin), which overflows a
-                                  // 500px cap and clips the last item ("Grupos
-                                  // de Corto Plazo"). Bounded by TALLERES_NAV_ITEMS
-                                  // length, so a 1200px cap always fits every item
-                                  // while preserving the expand animation.
-                                  ? "max-h-[1200px] opacity-100"
-                                  : "max-h-[500px] opacity-100"
-                                : "max-h-0 opacity-0"
-                            )}
-                          >
-                            {isTalleresPlatformItem ? (
-                              /* PR27 — Talleres platform item renders the
-                                  role-grouped sub-menu via TalleresNavSubmenu
-                                  when the parent is open. TalleresNavSubmenu
-                                  emits its own <ul> with the same border-l
-                                  indentation as the static sub-menus, so the
-                                  visual matches the rest of the sidebar. */
-                              <TalleresNavSubmenu
-                                sessionCapabilities={
-                                  (platformSession?.capabilities ?? []).map((c) => c.key)
-                                }
-                                counters={{}}
-                              />
-                            ) : (
-                              <ul className="ml-4 pl-3 mt-1 mb-1 space-y-0.5 border-l border-border/50">
-                                {visibleChildren
-                                  .map((child) => {
-                                    const ChildIcon = child.icon
-                                    const childActive = isActive(child.href)
-                                    return (
-                                      <li key={child.id}>
-                                          <Link
-                                            href={child.href}
-                                            prefetch={false}
-                                            aria-current={childActive ? "page" : undefined}
-                                        className={subLinkClasses(childActive)}
-                                      >
-                                        {ChildIcon && (
-                                          <ChildIcon aria-hidden="true" className={cn(claseIconoNav(childActive), "size-4")} />
-                                        )}
-                                        <span className="truncate">{child.label}</span>
-                                      </Link>
-                                    </li>
-                                  )
-                                })}
-                              </ul>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      /* Simple item (no children) */
-                      <Link
-                        href={item.href}
-                        prefetch={false}
-                        aria-current={parentActive ? "page" : undefined}
-                        className={linkClasses(parentActive)}
-                        aria-label={isCollapsed ? item.label : undefined}
-                        {...tooltipHandlers(item.label)}
-                      >
-                        {parentActive && <ActivePill />}
-                        <Icon className={iconClasses(parentActive)} />
-
-                        {!isCollapsed && (
-                          <>
-                            <span className="font-medium truncate">{item.label}</span>
-                            {item.badge && (
-                              <BadgeSistema
-                                variante={item.badgeVariant || 'default'}
-                                tamaño="sm"
-                                className="ml-auto"
-                              >
-                                {item.badge}
-                              </BadgeSistema>
-                            )}
-                          </>
-                        )}
-                      </Link>
-                    )}
-                  </li>
-                )
-              })}
-          </ul>
-        </nav>
-
-        {/* Footer con perfil y logout */}
-        <div className="mt-auto p-3 border-t border-[var(--glass-border)] space-y-0.5">
-          {/* Items secundarios */}
-          {pie.map(renderEnlacePie)}
-          {/* Theme Toggle — same layout as other footer items */}
-          <div
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-xl group relative w-full min-h-[44px]",
-              "transition-[background-color,color,transform] duration-200 ease-expo",
-              "text-foreground hover:bg-[var(--brand-accent)] hover:text-foreground",
-              "touch-manipulation cursor-pointer",
-              isCollapsed && "justify-center px-2"
-            )}
-            {...tooltipHandlers('Tema')}
-          >
-            <ThemeToggle className={cn(
-              "!min-h-0 !min-w-0 !p-0 !bg-transparent !border-0 !shadow-none !ring-0 !rounded-none flex-shrink-0",
-              isCollapsed ? "!w-6 !h-6" : "!w-5 !h-5"
-            )} />
-            {!isCollapsed && (
-              <span className="font-medium pointer-events-none">Tema</span>
-            )}
-          </div>
-
-          {cuenta.map(renderEnlacePie)}
-
-          {/* Cerrar Sesión */}
+        {modo === 'escritorio' && (
           <button
-            onClick={confirmLogout}
-            aria-label="Cerrar sesión"
-            className={cn(
-              "flex items-center gap-3 px-3 py-2 rounded-xl group relative w-full text-left min-h-[44px]",
-              "transition-[background-color,color,transform] duration-200 ease-expo",
-              "press-scale focus-ring touch-manipulation",
-              "text-foreground hover:bg-danger/10 hover:text-danger-text",
-              isCollapsed && "justify-center px-2"
-            )}
-            {...tooltipHandlers('Cerrar Sesión')}
+            type="button"
+            onClick={alternarColapsado}
+            aria-label={riel ? 'Expandir menú' : 'Contraer menú'}
+            aria-expanded={!riel}
+            className={CLASE_BOTON_ICONO_SHELL}
+            {...manejadoresTooltip('colapsar', riel ? 'Expandir menú' : 'Contraer menú')}
           >
-            <LogOut className={cn(
-              "flex-shrink-0 transition-colors text-muted-foreground group-hover:text-danger-text",
-              isCollapsed ? "w-6 h-6" : "w-5 h-5"
-            )} />
-
-            {!isCollapsed && (
-              <span className="font-medium">Cerrar Sesión</span>
-            )}
+            <PanelLeft aria-hidden="true" className="size-5" />
           </button>
-        </div>
-
-        {/* Fixed tooltip — renders outside scroll containers */}
-        {isCollapsed && tooltip && (
-          <div
-            aria-hidden="true"
-            className="fixed z-[9999] px-3 py-1.5 glass-panel-elevated text-foreground text-sm rounded-lg whitespace-nowrap pointer-events-none animate-fade-in"
-            style={{ top: tooltip.top, left: sidebarWidth + 8, transform: 'translateY(-50%)' }}
-          >
-            {tooltip.label}
-            <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-[var(--glass-bg-elevated)] rotate-45 border-l border-b border-[var(--glass-border)]" />
-          </div>
         )}
       </div>
 
-      {/* Modal de confirmación de logout — Liquid Glass */}
-      {showLogoutModal && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] animate-fade-in"
-          onClick={() => setShowLogoutModal(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="logout-modal-title"
-        >
-          <div
-            className="glass-panel-elevated rounded-2xl p-6 max-w-md mx-4 animate-bounce-spring"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="logout-modal-title" className="text-lg font-semibold text-foreground mb-4">
-              ¿Estás seguro que deseas cerrar sesión?
-            </h3>
-            <p className="text-muted-foreground mb-6">
-              Se cerrará tu sesión actual y serás redirigido a la página de inicio.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLogoutModal(false)}
-                className="px-4 py-2.5 min-h-[44px] text-foreground bg-secondary hover:bg-secondary/80 rounded-xl transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2.5 min-h-[44px] text-danger-foreground bg-danger hover:bg-danger/90 rounded-xl transition-[background-color,transform] duration-200 ease-expo press-scale focus-ring touch-manipulation"
-              >
-                Cerrar Sesión
-              </button>
-            </div>
-          </div>
+      {/* Campus selector under the logo; in the rail, a button that opens it in a flyout */}
+      {campusVisible && (
+        <div className="mb-2">
+          {riel ? (
+            <button
+              type="button"
+              onClick={(e) => alternarFlyout(ID_FLYOUT_CAMPUS, e.currentTarget)}
+              aria-label={`Campus: ${nombreCampus}`}
+              aria-haspopup="dialog"
+              aria-expanded={flyout === ID_FLYOUT_CAMPUS}
+              aria-controls={flyout === ID_FLYOUT_CAMPUS ? 'flyout-campus' : undefined}
+              className={cn(CLASE_BOTON_ICONO_SHELL, 'w-full', flyout === ID_FLYOUT_CAMPUS && 'bg-accent text-foreground')}
+              {...manejadoresTooltip(ID_FLYOUT_CAMPUS, `Campus: ${nombreCampus}`)}
+            >
+              <Building2 aria-hidden="true" className="size-5" />
+            </button>
+          ) : (
+            <SelectorCampus />
+          )}
         </div>
       )}
 
-    </>
+      <nav
+        className={cn('-mx-3.5 min-h-0 flex-1 overflow-y-auto px-3.5 pb-2', riel && '-mx-2.5 px-2.5')}
+        aria-label="Navegación principal"
+      >
+        {cuerpo.map((grupo) => {
+          const titulo = TITULOS_SECCION[grupo.seccion]
+          const idTitulo = `seccion-${grupo.seccion}`
+          const lista = (
+            <ul className="grid gap-0.5">{grupo.entradas.map((entrada) => (esGrupo(entrada) ? renderGrupo(entrada) : renderEnlace(entrada)))}</ul>
+          )
+          if (!titulo) return <div key={grupo.seccion}>{lista}</div>
+          return (
+            <div key={grupo.seccion} role="group" aria-labelledby={idTitulo}>
+              {/* In the rail the header turns into a separator line and stays as the group's name. */}
+              {riel && <div aria-hidden="true" className="mx-2 my-2.5 h-px bg-sidebar-border" />}
+              <h2
+                id={idTitulo}
+                className={
+                  riel ? 'sr-only' : 'px-2.5 pt-3.5 pb-1.5 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground'
+                }
+              >
+                {titulo}
+              </h2>
+              {lista}
+            </div>
+          )
+        })}
+      </nav>
+
+      {/* Footer links: Actualizaciones, Ayuda */}
+      {pie.length > 0 && (
+        <div className={cn('-mx-3.5 border-t border-sidebar-border px-3.5 pt-2', riel && '-mx-2.5 px-2.5')}>
+          <ul className="grid gap-0.5">{pie.map(renderEnlace)}</ul>
+        </div>
+      )}
+
+      {/* Rail flyouts: one at a time, fixed beside the rail */}
+      {riel && entradaFlyout && (
+        <PanelFlotanteRiel
+          abierto
+          onCerrar={() => setFlyout(null)}
+          ancla={anclaFlyout}
+          id={`flyout-${entradaFlyout.id}`}
+          titulo={entradaFlyout.label}
+        >
+          <ul className="grid gap-0.5">
+            <li>
+              <Link
+                href={entradaFlyout.href}
+                prefetch={false}
+                aria-current={esPadreActual(pathname, entradaFlyout) ? 'page' : undefined}
+                className={claseSubEntradaSidebar(esPadreActual(pathname, entradaFlyout))}
+              >
+                <span className="min-w-0 truncate">{entradaFlyout.label}</span>
+              </Link>
+            </li>
+          </ul>
+          {renderSubmenu(entradaFlyout)}
+        </PanelFlotanteRiel>
+      )}
+      {riel && flyout === ID_FLYOUT_CAMPUS && (
+        <PanelFlotanteRiel abierto onCerrar={() => setFlyout(null)} ancla={anclaFlyout} id="flyout-campus" titulo="Campus" etiqueta="Campus">
+          <div className="px-1 pb-1.5">
+            <SelectorCampus />
+          </div>
+        </PanelFlotanteRiel>
+      )}
+
+      {/* Rail tooltip — a fixed layer so the scrolling nav never clips it */}
+      {riel && tooltip && (
+        <div
+          role="tooltip"
+          className="pointer-events-none fixed z-[85] -translate-y-1/2 whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-[13px] font-medium text-background"
+          style={{ top: tooltip.top, left: tooltip.left }}
+        >
+          {tooltip.label}
+        </div>
+      )}
+    </div>
   )
 }
 
 function parseSidebarCollapsed(saved: string | null): boolean {
   if (saved === null) return false
-  const parsed = JSON.parse(saved)
-  return parsed === true || parsed === false ? parsed : false
+  try {
+    const parsed = JSON.parse(saved)
+    return parsed === true
+  } catch {
+    return false
+  }
 }
 
 /** Hook para leer el estado colapsado del sidebar desde localStorage. */

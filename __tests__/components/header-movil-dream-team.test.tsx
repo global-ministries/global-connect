@@ -1,17 +1,18 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
 import { HeaderMovil } from '@/components/ui/header-movil'
+import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 /**
- * Mobile drawer — Dream Team section.
+ * Phone navigation — Dream Team (odd/tasks/sistema-diseno-v2.md, S9.6-8).
  *
- * Same entries, same rule and same flag handling as the desktop sidebar
- * (sidebar-moderna-dream-team.test.tsx): a capability holder sees Mi equipo,
- * Servidores and Estructura; a Grupos de Vida director (system role, no
- * capability) sees Mi equipo alone; everyone else sees no Dream Team section;
- * the flag off hides it for everybody. The drawer is aria-hidden until opened,
- * so every test opens it first.
+ * The drawer is gone. Same rule and same flag handling as the desktop sidebar
+ * (sidebar-moderna-dream-team.test.tsx): whoever sees Dream Team gets the
+ * Equipo tab, which opens /dream-team (the page that lists the Dream Team
+ * pages they can open, accesos-seccion.test.tsx) and stays active on every
+ * Dream Team route; everyone else gets no Equipo tab. The "Más" sheet never
+ * repeats Dream Team or its submenu.
  */
 
 let currentPathname = '/dashboard'
@@ -59,132 +60,144 @@ const readCapableSession: PlatformSession = {
 
 const sessionWithRole = (role: string): PlatformSession => ({ ...basePlatformSession, globalRoles: [role] })
 
-function renderOpenDrawer() {
-  render(<HeaderMovil />)
-  fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
-  return within(screen.getByRole('dialog', { name: 'Menú de navegación' }))
+function renderBarra() {
+  render(<MenuInferiorMovil />)
+  return within(screen.getByRole('navigation', { name: 'Navegación inferior' }))
 }
 
-describe('HeaderMovil Dream Team section', () => {
+function abrirMas() {
+  fireEvent.click(screen.getByRole('button', { name: 'Más' }))
+  return within(screen.getByRole('dialog', { name: 'Más' }))
+}
+
+function hrefsMas(hoja: Pick<typeof screen, 'queryAllByRole'>) {
+  return hoja.queryAllByRole('link').map((link) => link.getAttribute('href') ?? '')
+}
+
+describe('Phone navigation Dream Team tab', () => {
   beforeEach(() => {
     currentPathname = '/dashboard'
     currentPlatformSession = null
     delete process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED
   })
 
-  it('shows a capability holder Dream Team with Mi equipo, Servidores and Estructura', () => {
+  it('gives a capability holder the Equipo tab, opening the Dream Team page', () => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = readCapableSession
 
-    const drawer = renderOpenDrawer()
+    const barra = renderBarra()
 
-    expect(drawer.getByRole('link', { name: 'Dream Team' })).toHaveAttribute('href', '/dream-team/mi-equipo')
-    expect(drawer.getByRole('link', { name: 'Mi equipo' })).toHaveAttribute('href', '/dream-team/mi-equipo')
-    expect(drawer.getByRole('link', { name: 'Servidores' })).toHaveAttribute('href', '/admin/dream-team/servidores')
-    expect(drawer.getByRole('link', { name: 'Estructura' })).toHaveAttribute('href', '/admin/dream-team/estructura')
+    const equipo = barra.getByRole('link', { name: 'Navegar a Dream Team' })
+    expect(equipo).toHaveAttribute('href', '/dream-team')
+    expect(equipo).toHaveTextContent(/^Equipo$/)
   })
 
-  it.each([['director-etapa'], ['director-general']])('shows %s without capability only Mi equipo', (role) => {
+  it.each([['director-etapa'], ['director-general']])('gives %s without capability the Equipo tab too', (role) => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = sessionWithRole(role)
 
-    const drawer = renderOpenDrawer()
+    const barra = renderBarra()
 
-    expect(drawer.getByRole('link', { name: 'Dream Team' })).toBeInTheDocument()
-    expect(drawer.getByRole('link', { name: 'Mi equipo' })).toHaveAttribute('href', '/dream-team/mi-equipo')
-    expect(drawer.queryByRole('link', { name: 'Servidores' })).not.toBeInTheDocument()
-    expect(drawer.queryByRole('link', { name: 'Estructura' })).not.toBeInTheDocument()
+    expect(barra.getByRole('link', { name: 'Navegar a Dream Team' })).toHaveAttribute('href', '/dream-team')
   })
 
-  it.each([['lider'], ['miembro'], ['admin']])('shows a plain %s no Dream Team section', (role) => {
+  it.each([['lider'], ['miembro'], ['admin']])('gives a plain %s no Equipo tab and no Dream Team in "Más"', (role) => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = sessionWithRole(role)
 
-    const drawer = renderOpenDrawer()
-
-    expect(drawer.queryByRole('link', { name: 'Dream Team' })).not.toBeInTheDocument()
-    expect(drawer.queryByRole('link', { name: 'Mi equipo' })).not.toBeInTheDocument()
+    const barra = renderBarra()
+    expect(barra.queryByRole('link', { name: 'Navegar a Dream Team' })).not.toBeInTheDocument()
+    expect(hrefsMas(abrirMas()).some((href) => href.includes('dream-team'))).toBe(false)
   })
 
-  it('shows nobody the section without a platform session', () => {
+  it('gives nobody the tab without a platform session', () => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
 
-    const drawer = renderOpenDrawer()
+    const barra = renderBarra()
 
-    expect(drawer.queryByRole('link', { name: 'Dream Team' })).not.toBeInTheDocument()
+    expect(barra.queryByRole('link', { name: 'Navegar a Dream Team' })).not.toBeInTheDocument()
   })
 
-  it('hides the section from everybody when the flag is off', () => {
+  it('hides the tab from everybody when the flag is off', () => {
     for (const session of [readCapableSession, sessionWithRole('director-etapa')]) {
       currentPlatformSession = session
-      const { unmount } = render(<HeaderMovil />)
-      fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
-      expect(screen.queryByRole('link', { name: 'Dream Team' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('link', { name: 'Mi equipo' })).not.toBeInTheDocument()
+      const { unmount } = render(<MenuInferiorMovil />)
+      expect(screen.queryByRole('link', { name: 'Navegar a Dream Team' })).not.toBeInTheDocument()
+      expect(hrefsMas(abrirMas()).some((href) => href.includes('dream-team'))).toBe(false)
       unmount()
     }
   })
 
-  it('places Dream Team right after Grupos de Vida, like the desktop sidebar', () => {
+  it('places Equipo right after Grupos, like Dream Team after Grupos de Vida in the sidebar', () => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = readCapableSession
 
-    const drawer = renderOpenDrawer()
-    const topLevel = drawer
-      .getAllByRole('link')
-      .map((link) => link.textContent)
-      .filter((label) => ['Dashboard', 'Usuarios', 'Grupos de Vida', 'Dream Team'].includes(label ?? ''))
+    const barra = renderBarra()
+    const nombres = barra.getAllByRole('link').map((link) => link.getAttribute('aria-label'))
 
-    expect(topLevel.indexOf('Dream Team')).toBe(topLevel.indexOf('Grupos de Vida') + 1)
+    expect(nombres.indexOf('Navegar a Dream Team')).toBe(nombres.indexOf('Navegar a Grupos de Vida') + 1)
   })
 
-  it('opens and closes the Dream Team submenu like the other submenus', () => {
+  it('does not repeat Dream Team or its submenu in "Más"', () => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = readCapableSession
 
-    const drawer = renderOpenDrawer()
-    const toggle = drawer.getByRole('button', { name: 'Abrir Dream Team' })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    renderBarra()
+    const hoja = abrirMas()
 
-    fireEvent.click(toggle)
-    expect(drawer.getByRole('button', { name: 'Cerrar Dream Team' })).toHaveAttribute('aria-expanded', 'true')
-
-    fireEvent.click(drawer.getByRole('button', { name: 'Cerrar Dream Team' }))
-    expect(drawer.getByRole('button', { name: 'Abrir Dream Team' })).toHaveAttribute('aria-expanded', 'false')
+    expect(hrefsMas(hoja).some((href) => href.includes('dream-team'))).toBe(false)
+    expect(hoja.queryByRole('button', { name: /Dream Team/ })).not.toBeInTheDocument()
   })
 
-  it('auto-expands the submenu and highlights the active child on a Dream Team route', () => {
-    process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
-    currentPlatformSession = readCapableSession
-    currentPathname = '/admin/dream-team/estructura'
+  it.each([['/dream-team'], ['/dream-team/mi-equipo'], ['/admin/dream-team/servidores'], ['/admin/dream-team/estructura']])(
+    'marks Equipo as the current tab on %s',
+    (pathname) => {
+      process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
+      currentPlatformSession = readCapableSession
+      currentPathname = pathname
 
-    const drawer = renderOpenDrawer()
+      const barra = renderBarra()
 
-    expect(drawer.getByRole('button', { name: 'Cerrar Dream Team' })).toHaveAttribute('aria-expanded', 'true')
-    expect(drawer.getByRole('link', { name: 'Estructura' })).toHaveAttribute('aria-current', 'page')
-    expect(drawer.getByRole('link', { name: 'Mi equipo' })).not.toHaveAttribute('aria-current')
-  })
+      expect(barra.getByRole('link', { name: 'Navegar a Dream Team' })).toHaveAttribute('aria-current', 'page')
+      expect(barra.getByRole('link', { name: 'Navegar a Inicio' })).not.toHaveAttribute('aria-current')
+      expect(screen.getByRole('button', { name: 'Más' })).not.toHaveAttribute('aria-current')
+    },
+  )
 
-  it('auto-expands a director\'s submenu and highlights Mi equipo', () => {
+  it('marks Equipo on Mi equipo for a director too', () => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = sessionWithRole('director-etapa')
     currentPathname = '/dream-team/mi-equipo'
 
-    const drawer = renderOpenDrawer()
+    const barra = renderBarra()
 
-    expect(drawer.getByRole('button', { name: 'Cerrar Dream Team' })).toHaveAttribute('aria-expanded', 'true')
-    expect(drawer.getByRole('link', { name: 'Mi equipo' })).toHaveAttribute('aria-current', 'page')
+    expect(barra.getByRole('link', { name: 'Navegar a Dream Team' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('does not touch the other drawer sections', () => {
+  it('does not touch the other tabs and footer links', () => {
     process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
     currentPlatformSession = readCapableSession
 
-    const drawer = renderOpenDrawer()
+    const barra = renderBarra()
 
-    expect(drawer.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/dashboard')
-    expect(drawer.getByRole('link', { name: 'Grupos de Vida' })).toHaveAttribute('href', '/grupos-vida')
-    expect(drawer.getByRole('link', { name: 'Actualizaciones' })).toHaveAttribute('href', '/actualizaciones')
+    expect(barra.getByRole('link', { name: 'Navegar a Inicio' })).toHaveAttribute('href', '/dashboard')
+    expect(barra.getByRole('link', { name: 'Navegar a Grupos de Vida' })).toHaveAttribute('href', '/grupos-vida')
+    expect(abrirMas().getByRole('link', { name: 'Actualizaciones' })).toHaveAttribute('href', '/actualizaciones')
+  })
+})
+
+describe('HeaderMovil without the drawer', () => {
+  it('has no menu button and no navigation drawer, and keeps the bell', () => {
+    process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'true'
+    currentPlatformSession = readCapableSession
+    currentPathname = '/admin/dream-team/servidores'
+
+    render(<HeaderMovil />)
+
+    expect(screen.queryByRole('button', { name: 'Abrir menú' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Menú de navegación')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Notificaciones' })).toHaveAttribute('aria-haspopup', 'dialog')
   })
 })
 
@@ -195,6 +208,7 @@ describe('HeaderMovil page title on the Dream Team routes', () => {
   })
 
   it.each([
+    ['/dream-team', 'Dream Team'],
     ['/dream-team/mi-equipo', 'Mi equipo'],
     ['/admin/dream-team/servidores', 'Servidores'],
     ['/admin/dream-team/estructura', 'Estructura'],

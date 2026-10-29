@@ -35,8 +35,8 @@ export function BotonFlotante({
     const classes = `
     fixed bottom-24 right-6 z-[60]
     w-14 h-14 rounded-full
-    bg-gradient-to-br from-orange-500 to-orange-600
-    text-white shadow-xl shadow-orange-500/25
+    bg-brand-strong hover:bg-brand-strong-hover
+    text-white shadow-fab
     flex items-center justify-center
     active:scale-95 transition-transform duration-150
     md:hidden

@@ -1,6 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
-import { HeaderMovil } from '@/components/ui/header-movil'
 import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 import { UnoAUnoAccesoProvider } from '@/hooks/useUnoAUnoAcceso'
@@ -74,24 +73,27 @@ describe('SidebarModerna "Mis 1 a 1"', () => {
   })
 })
 
-describe('HeaderMovil "Mis 1 a 1"', () => {
-  function abrirMenu() {
-    fireEvent.click(screen.getByRole('button', { name: 'Abrir menú' }))
-    return within(screen.getByRole('dialog', { name: 'Menú de navegación' }))
+// The phone has no drawer since the app shell (odd/tasks/sistema-diseno-v2.md,
+// S9.6): "Mis 1 a 1" is reached from the tab bar's "Más" sheet, under General.
+describe('"Más" sheet "Mis 1 a 1"', () => {
+  function abrirMas() {
+    fireEvent.click(screen.getByRole('button', { name: 'Más' }))
+    return within(screen.getByRole('dialog', { name: 'Más' }))
   }
 
-  it('lists the entry in the drawer for whoever leads someone', () => {
+  it('lists the entry under General for whoever leads someone', () => {
     render(
       <UnoAUnoAccesoProvider acceso={LIDERA}>
-        <HeaderMovil />
+        <MenuInferiorMovil />
       </UnoAUnoAccesoProvider>,
     )
-    expect(abrirMenu().getByRole('link', { name: 'Mis 1 a 1' })).toHaveAttribute('href', '/mis-uno-a-uno')
+    const general = within(abrirMas().getByRole('region', { name: 'General' }))
+    expect(general.getByRole('link', { name: 'Mis 1 a 1' })).toHaveAttribute('href', '/mis-uno-a-uno')
   })
 
-  it('leaves it out of the drawer outside the provider', () => {
-    render(<HeaderMovil />)
-    expect(abrirMenu().queryByRole('link', { name: 'Mis 1 a 1' })).not.toBeInTheDocument()
+  it('leaves it out of the sheet outside the provider', () => {
+    render(<MenuInferiorMovil />)
+    expect(abrirMas().queryByRole('link', { name: 'Mis 1 a 1' })).not.toBeInTheDocument()
   })
 })
 

@@ -72,7 +72,7 @@ background (`color-mix` of the page color + blur) and a bottom border.
 
 The first block of the content column on desktop and tablet.
 
-- `h1` (30px, see [foundations.md](foundations.md#typography-decided)) and
+- `h1` (24px, see [foundations.md](foundations.md#typography-decided)) and
   one summary line in muted 15px with the key numbers in `strong`
   ("**48** personas sirven en **12** equipos").
 - The summary is written from the current scope and filters, so it doubles

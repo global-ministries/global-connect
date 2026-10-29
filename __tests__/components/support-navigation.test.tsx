@@ -1,7 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { HeaderMovil } from '@/components/ui/header-movil'
 import { MenuInferiorMovil } from '@/components/ui/menu-inferior-movil'
 import { SidebarModerna } from '@/components/ui/sidebar-moderna'
 
@@ -18,6 +17,13 @@ jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ inf
 jest.mock('@/hooks/useCampus', () => ({ useCampus: () => ({ campusActivo: null, localidadActiva: null, campusDisponibles: [], localidadesDisponibles: [], campusId: null, localidadId: null, esSuperadmin: false, loading: false, seleccionarCampus: jest.fn(), seleccionarLocalidad: jest.fn() }) }))
 jest.mock('@/lib/actions/auth.actions', () => ({ logout: jest.fn() }))
 jest.mock('next-themes', () => ({ useTheme: () => ({ theme: 'light', setTheme: jest.fn() }) }))
+
+/** The phone "Más" sheet, which took over the drawer (odd/tasks/sistema-diseno-v2.md, S9.6). */
+async function abrirMas() {
+  render(<MenuInferiorMovil />)
+  await userEvent.click(screen.getByRole('button', { name: 'Más' }))
+  return within(screen.getByRole('dialog', { name: 'Más' }))
+}
 
 describe('support navigation links', () => {
   beforeEach(() => {
@@ -60,36 +66,54 @@ describe('support navigation links', () => {
     expect(screen.queryByRole('link', { name: 'Cola de soporte' })).not.toBeInTheDocument()
   })
 
-  it('shows the support admin entry in the mobile drawer for support-capable staff', async () => {
+  it('shows the support admin entry in the phone "Más" sheet for support-capable staff', async () => {
     currentRoles = ['admin']
     currentSupportCapabilities = ['support.reply']
 
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    const hoja = await abrirMas()
 
-    expect(screen.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
+    expect(hoja.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
   })
 
-  it('shows the support configuration entry only for higher-role support.manage capability holders', async () => {
+  it('hides the support admin entry from "Más" without a support capability', async () => {
+    currentRoles = ['admin']
+
+    const hoja = await abrirMas()
+
+    expect(hoja.queryByRole('link', { name: 'Cola de soporte' })).not.toBeInTheDocument()
+  })
+
+  it('lists Configuración and its pages in a "Más" block for a higher role (S10)', async () => {
     currentRoles = ['admin']
     currentSupportCapabilities = ['support.manage']
 
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
-    await userEvent.click(screen.getByRole('button', { name: /Abrir Configuración/i }))
+    const hoja = await abrirMas()
 
-    expect(screen.getByRole('link', { name: 'Configuración de soporte' })).toHaveAttribute('href', '/configuracion/soporte')
+    const configuracion = within(hoja.getByRole('region', { name: 'Configuración' }))
+    expect(configuracion.getAllByRole('link').map((a) => [a.textContent?.trim(), a.getAttribute('href')])).toEqual([
+      ['General', '/configuracion'],
+      ['Configuración de soporte', '/configuracion/soporte'],
+    ])
+  })
+
+  it('leaves Configuración de soporte out of "Más" without support.manage', async () => {
+    currentRoles = ['admin']
+    currentSupportCapabilities = ['support.reply']
+
+    const hoja = await abrirMas()
+
+    expect(hoja.getByRole('link', { name: 'General' })).toHaveAttribute('href', '/configuracion')
+    expect(hoja.queryByRole('link', { name: 'Configuración de soporte' })).not.toBeInTheDocument()
   })
 
   it('hides the support configuration entry for pure support.manage staff without higher role context', async () => {
     currentRoles = ['miembro']
     currentSupportCapabilities = ['support.manage']
 
-    render(<HeaderMovil />)
-    await userEvent.click(screen.getByLabelText('Abrir menú'))
+    const hoja = await abrirMas()
 
-    expect(screen.queryByRole('button', { name: /Abrir Configuración/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
-    expect(screen.queryByRole('link', { name: 'Configuración de soporte' })).not.toBeInTheDocument()
+    expect(hoja.queryByRole('link', { name: 'Configuración' })).not.toBeInTheDocument()
+    expect(hoja.getByRole('link', { name: 'Cola de soporte' })).toHaveAttribute('href', '/ayuda/admin')
+    expect(hoja.queryByRole('link', { name: 'Configuración de soporte' })).not.toBeInTheDocument()
   })
 })

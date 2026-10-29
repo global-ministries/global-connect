@@ -62,6 +62,6 @@ describe('MenuInferiorMovil — Niños', () => {
   it('has no Niños without access, and keeps the other entries', () => {
     renderBarra(null)
     expect(screen.queryByRole('link', { name: 'Navegar a Niños' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Navegar a Dashboard' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Navegar a Inicio' })).toBeInTheDocument()
   })
 })

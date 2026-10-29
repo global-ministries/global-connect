@@ -5,9 +5,28 @@ import { useCampus } from "@/hooks/useCampus"
 import { Building2, MapPin, ChevronDown } from "lucide-react"
 
 /**
- * Selector de campus y localidad para el header.
- * Solo se muestra si hay más de un campus disponible o si el usuario es superadmin.
- * Usa glassmorphism acorde al design system.
+ * Whether the campus selector has anything to offer: more than one campus, or
+ * a superadmin (who can pick "Todos los campus"). Hidden while loading.
+ */
+export function useSelectorCampusVisible(): boolean {
+    const { campusDisponibles, esSuperadmin, loading } = useCampus()
+    return !loading && (campusDisponibles.length > 1 || esSuperadmin)
+}
+
+/** The active campus name for labels ("Campus: Barquisimeto"). */
+export function useNombreCampusActivo(): string {
+    const { campusActivo } = useCampus()
+    return campusActivo?.nombre ?? "Todos los campus"
+}
+
+const CLASE_SELECT =
+    "w-full min-h-11 appearance-none rounded-xl border border-border bg-card pl-9 pr-8 text-sm font-medium text-foreground " +
+    "cursor-pointer hover:bg-accent focus-ring transition-colors"
+
+/**
+ * Campus and locality selector at the top of the sidebar (and in the rail's
+ * campus flyout): 44px native selects on the card surface. Only shown when
+ * there is a choice (see useSelectorCampusVisible).
  */
 export function SelectorCampus() {
     const {
@@ -16,36 +35,20 @@ export function SelectorCampus() {
         campusDisponibles,
         localidadesDisponibles,
         esSuperadmin,
-        loading,
         seleccionarCampus,
         seleccionarLocalidad,
     } = useCampus()
+    const visible = useSelectorCampusVisible()
 
-    // No mostrar si cargando o si solo tiene 1 campus y no es superadmin
-    if (loading) return null
-    if (campusDisponibles.length <= 1 && !esSuperadmin) return null
+    if (!visible) return null
 
     return (
         <div className="flex flex-col gap-1.5 w-full">
-            {/* Selector de Campus */}
             <div className="relative">
                 <select
                     value={campusActivo?.id ?? ""}
                     onChange={(e) => seleccionarCampus(e.target.value || null)}
-                    className="
-                        appearance-none
-                        pl-7 pr-6 py-1.5
-                        text-xs font-medium
-                        bg-[var(--surface-secondary)]
-                        border border-[var(--glass-border)]
-                        rounded-xl
-                        text-foreground
-                        hover:bg-[var(--brand-accent)]
-                        focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40 focus:border-[var(--brand-primary)]/50
-                        transition-[background-color,border-color,box-shadow] duration-200 ease-expo
-                        cursor-pointer
-                        min-w-[110px] w-full
-                    "
+                    className={CLASE_SELECT}
                     aria-label="Seleccionar campus"
                 >
                     {esSuperadmin && <option value="">Todos los campus</option>}
@@ -55,30 +58,16 @@ export function SelectorCampus() {
                         </option>
                     ))}
                 </select>
-                <Building2 className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                <Building2 aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+                <ChevronDown aria-hidden="true" className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
             </div>
 
-            {/* Selector de Localidad (solo si hay localidades) */}
             {localidadesDisponibles.length > 1 && (
                 <div className="relative">
                     <select
                         value={localidadActiva?.id ?? ""}
                         onChange={(e) => seleccionarLocalidad(e.target.value || null)}
-                        className="
-                            appearance-none
-                            pl-7 pr-6 py-1.5
-                            text-xs font-medium
-                            bg-[var(--surface-secondary)]
-                            border border-[var(--glass-border)]
-                            rounded-xl
-                            text-foreground
-                            hover:bg-[var(--brand-accent)]
-                            focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40 focus:border-[var(--brand-primary)]/50
-                            transition-[background-color,border-color,box-shadow] duration-200 ease-expo
-                            cursor-pointer
-                            min-w-[100px] w-full
-                        "
+                        className={CLASE_SELECT}
                         aria-label="Seleccionar localidad"
                     >
                         <option value="">Todas las localidades</option>
@@ -88,8 +77,8 @@ export function SelectorCampus() {
                             </option>
                         ))}
                     </select>
-                    <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-                    <ChevronDown className="absolute right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground pointer-events-none" />
+                    <MapPin aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+                    <ChevronDown aria-hidden="true" className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                 </div>
             )}
         </div>
