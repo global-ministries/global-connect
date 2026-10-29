@@ -6,7 +6,8 @@
 -- What (all definer functions, search_path '', the caller resolved by
 -- ninos_usuario_actual(), authority from estudiantes_nivel_grupo /
 -- estudiantes_nivel_subarea: 1 leader of the group, 2 entrenador of the
--- sub-área, 3 director de grupo or higher in the tree):
+-- sub-área, 3 director de grupo or higher in the tree; every level only in
+-- the caller's own campus, every campus for the system admin role — L20):
 --   Reading
 --     estudiantes_escala_campus(campus)                  signed-in users
 --     estudiantes_mis_grupos(incluir_inactivos)          groups with level >= 1
@@ -28,7 +29,7 @@
 --     estudiantes_ficha_guardar(persona, anio_actual, anio_final)
 --   Group management for C2 (level >= 3)
 --     estudiantes_grupo_crear / _editar / _activar
---     estudiantes_lideres_disponibles(subarea)
+--     estudiantes_lideres_disponibles(subarea, campus)
 --     estudiantes_grupo_lideres_fijar(grupo, servicios)
 --     estudiantes_grupo_miembro_agregar / _quitar
 --
@@ -593,6 +594,9 @@ begin
   select t.campus_id into v_campus from public.dream_team_turnos t where t.id = p_turno_id;
   if v_campus is null then
     raise exception 'turno_invalido' using errcode = '22023';
+  end if;
+  if not public.estudiantes_campus_visible(v_campus) then
+    raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   perform public.estudiantes_sesion_validar(p_ambito_id, v_campus, p_fecha, p_turno_id);
 
@@ -1214,7 +1218,8 @@ declare
   v_nombre text := btrim(coalesce(p_nombre, ''));
   v_id uuid;
 begin
-  if v_yo is null or public.estudiantes_nivel_subarea(p_subarea_id) < 3 then
+  if v_yo is null or public.estudiantes_nivel_subarea(p_subarea_id) < 3
+     or not public.estudiantes_campus_visible(p_campus_id) then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   if not exists (select 1 from public.campus c where c.id = p_campus_id and c.activo) then
@@ -1272,7 +1277,7 @@ declare
 begin
   select g.subarea_id into v_subarea from public.estudiantes_grupos g where g.id = p_grupo_id for update;
   if public.ninos_usuario_actual() is null or v_subarea is null
-     or public.estudiantes_nivel_subarea(v_subarea) < 3 then
+     or public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   if v_nombre = '' or length(v_nombre) > 80 then
@@ -1317,7 +1322,7 @@ declare
 begin
   select g.subarea_id into v_subarea from public.estudiantes_grupos g where g.id = p_grupo_id for update;
   if public.ninos_usuario_actual() is null or v_subarea is null
-     or public.estudiantes_nivel_subarea(v_subarea) < 3 then
+     or public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   if p_activo is null then
@@ -1345,7 +1350,7 @@ comment on function public.estudiantes_grupo_activar(uuid, boolean) is
 revoke all on function public.estudiantes_grupo_activar(uuid, boolean) from public, anon;
 grant execute on function public.estudiantes_grupo_activar(uuid, boolean) to authenticated, service_role;
 
-create or replace function public.estudiantes_lideres_disponibles(p_subarea_id uuid)
+create or replace function public.estudiantes_lideres_disponibles(p_subarea_id uuid, p_campus_id uuid)
 returns table (servicio_id uuid, persona_id uuid, nombre text, apellido text, rol text)
 language plpgsql
 stable
@@ -1353,7 +1358,8 @@ security definer
 set search_path to ''
 as $$
 begin
-  if public.ninos_usuario_actual() is null or public.estudiantes_nivel_subarea(p_subarea_id) < 3 then
+  if public.ninos_usuario_actual() is null or public.estudiantes_nivel_subarea(p_subarea_id) < 3
+     or not public.estudiantes_campus_visible(p_campus_id) then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   return query
@@ -1364,15 +1370,17 @@ begin
    where s.equipo_id = p_subarea_id
      and s.estado = 'activo'
      and public.dream_team_normalizar_etiqueta(r.label) in ('lider', 'entrenador', 'director de grupo')
+     and public.estudiantes_persona_en_campus(u.id, p_campus_id)
    order by u.apellido, u.nombre, s.id;
 end;
 $$;
 
-comment on function public.estudiantes_lideres_disponibles(uuid) is
-  'Active servicios of a sub-área that may lead a group (lider, entrenador, director de grupo); level >= 3.';
+comment on function public.estudiantes_lideres_disponibles(uuid, uuid) is
+  'Active servicios of a sub-área, of people of the campus, that may lead a group there (lider, entrenador, '
+  'director de grupo); level >= 3 and the campus visible to the caller.';
 
-revoke all on function public.estudiantes_lideres_disponibles(uuid) from public, anon;
-grant execute on function public.estudiantes_lideres_disponibles(uuid) to authenticated, service_role;
+revoke all on function public.estudiantes_lideres_disponibles(uuid, uuid) from public, anon;
+grant execute on function public.estudiantes_lideres_disponibles(uuid, uuid) to authenticated, service_role;
 
 create or replace function public.estudiantes_grupo_lideres_fijar(p_grupo_id uuid, p_servicio_ids uuid[])
 returns integer
@@ -1384,10 +1392,12 @@ as $$
 declare
   v_yo uuid := public.ninos_usuario_actual();
   v_subarea uuid;
+  v_campus uuid;
   v_ids uuid[];
 begin
-  select g.subarea_id into v_subarea from public.estudiantes_grupos g where g.id = p_grupo_id for update;
-  if v_yo is null or v_subarea is null or public.estudiantes_nivel_subarea(v_subarea) < 3 then
+  select g.subarea_id, g.campus_id into v_subarea, v_campus
+    from public.estudiantes_grupos g where g.id = p_grupo_id for update;
+  if v_yo is null or v_subarea is null or public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   if p_servicio_ids is null then
@@ -1404,6 +1414,7 @@ begin
          join public.dream_team_roles r on r.id = s.rol_id
         where s.id = x and s.equipo_id = v_subarea and s.estado = 'activo'
           and public.dream_team_normalizar_etiqueta(r.label) in ('lider', 'entrenador', 'director de grupo')
+          and public.estudiantes_persona_en_campus(s.persona_id, v_campus)
      )
   ) then
     raise exception 'servicio_invalido' using errcode = '22023';
@@ -1420,7 +1431,8 @@ $$;
 
 comment on function public.estudiantes_grupo_lideres_fijar(uuid, uuid[]) is
   'Replaces the leaders of a group with p_servicio_ids (level >= 3 on its sub-área); an empty array clears them. '
-  'Each id must be an active lider / entrenador / director de grupo servicio of the sub-área. Returns how many lead. '
+  'Each id must be an active lider / entrenador / director de grupo servicio of the sub-área, of a person of the '
+  'group''s campus. Returns how many lead. '
   'Errors: sin_autoridad, servicios_invalidos, servicio_invalido.';
 
 revoke all on function public.estudiantes_grupo_lideres_fijar(uuid, uuid[]) from public, anon;
@@ -1450,7 +1462,7 @@ begin
   if not found then
     raise exception 'grupo_invalido' using errcode = '22023';
   end if;
-  if public.estudiantes_nivel_subarea(v_g.subarea_id) < 3 then
+  if public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   if p_estado is null or p_estado not in ('visitante', 'miembro') then
@@ -1490,7 +1502,7 @@ declare
 begin
   select g.subarea_id into v_subarea from public.estudiantes_grupos g where g.id = p_grupo_id;
   if public.ninos_usuario_actual() is null or v_subarea is null
-     or public.estudiantes_nivel_subarea(v_subarea) < 3 then
+     or public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
   update public.estudiantes_grupo_miembros m

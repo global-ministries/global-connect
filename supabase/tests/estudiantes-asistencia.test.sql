@@ -56,7 +56,10 @@
 -- 7 COORD_LOG (dream_team.coordinate on Transit › Logística), 8 ADMIN
 -- (unscoped dream_team.org.manage), 9 LIDER_TLR (lider in TLR › Chicas,
 -- leads G5), 10 APRENDIZ (aprendiz in Chicas), 11 ORG_OTRA (org.manage scoped
--- to another root), 12 VOL_LOG (dream_team.serve on Logística).
+-- to another root), 12 VOL_LOG (dream_team.serve on Logística), 13 DIR_OTRO
+-- (dream_team.direct on Dirección de Estudiantes, campus 2), 14 ADMIN_SIS (system
+-- admin role, no campus), 15 ORG_SINCAMPUS (unscoped org.manage, no campus, not
+-- admin), 16 LIDER_OTRO (lider in Chicas, campus 2). 1–12 belong to campus 1.
 -- People without account: 20 Ana, 21 Bea, 22 Carla (G1), 23 Dani (G2),
 -- 24 Luis (G3), 25 Inés (G4), 26 Tomás (G5), 27 an existing person of campus
 -- 1 in no group, 28 a person of campus 2, 40 Carla's parent.
@@ -263,10 +266,10 @@ INSERT INTO t_ea_ctx (k, v) VALUES
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'ea-' || n || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM generate_series(1, 12) AS n;
+  FROM generate_series(1, 16) AS n;
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ea', 'U' || n, 'ea-' || n || '@example.test', 'Soltero', 'Femenino'
-  FROM generate_series(1, 12) AS n;
+  FROM generate_series(1, 16) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, telefono, cedula) VALUES
   (pg_temp.id('us', 20), 'Zzea Ana', 'Uno', 'No especificado', 'Femenino', NULL, NULL),
   (pg_temp.id('us', 21), 'Zzea Bea', 'Uno', 'No especificado', 'Femenino', NULL, NULL),
@@ -285,6 +288,11 @@ INSERT INTO public.campus (id, nombre, codigo) VALUES
 INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
 SELECT pg_temp.id('us', n), pg_temp.id('ca', CASE WHEN n = 28 THEN 2 ELSE 1 END), true
   FROM unnest(ARRAY[20, 21, 22, 23, 24, 25, 26, 27, 28, 40]) AS n;
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT pg_temp.id('us', n), pg_temp.id('ca', CASE WHEN n IN (13, 16) THEN 2 ELSE 1 END), true
+  FROM unnest(ARRAY[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16]) AS n;
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT pg_temp.id('us', 14), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'admin';
 
 INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal)
 VALUES (pg_temp.id('us', 22), pg_temp.id('us', 40), 'padre', true);
@@ -309,7 +317,7 @@ SELECT pg_temp.id('ro', n), pg_temp.id('eq', e), label, nivel, true
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
 SELECT pg_temp.id('se', n), pg_temp.id('us', n), pg_temp.id('eq', e), pg_temp.id('ro', r), 'activo',
        timestamptz '2020-01-01 12:00+00', 'admin_asignacion'
-  FROM (VALUES (1, 6, 1), (2, 6, 1), (3, 6, 2), (4, 6, 3), (9, 10, 5), (10, 6, 4)) AS v(n, e, r);
+  FROM (VALUES (1, 6, 1), (2, 6, 1), (3, 6, 2), (4, 6, 3), (9, 10, 5), (10, 6, 4), (16, 6, 1)) AS v(n, e, r);
 
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
   (pg_temp.id('us', 5), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.id('eq', 3)::text),
@@ -317,7 +325,9 @@ INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, exp
   (pg_temp.id('us', 7), 'dream_team.coordinate', 'dream_team', 'equipo', pg_temp.id('eq', 8)::text),
   (pg_temp.id('us', 8), 'dream_team.org.manage', 'dream_team', 'experience', NULL),
   (pg_temp.id('us', 11), 'dream_team.org.manage', 'dream_team', 'equipo', pg_temp.id('eq', 11)::text),
-  (pg_temp.id('us', 12), 'dream_team.serve', 'dream_team', 'equipo', pg_temp.id('eq', 8)::text);
+  (pg_temp.id('us', 12), 'dream_team.serve', 'dream_team', 'equipo', pg_temp.id('eq', 8)::text),
+  (pg_temp.id('us', 13), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.id('eq', 2)::text),
+  (pg_temp.id('us', 15), 'dream_team.org.manage', 'dream_team', 'experience', NULL);
 
 INSERT INTO public.dream_team_turnos (id, campus_id, nombre, dia_semana, hora, orden, activo) VALUES
   (pg_temp.id('tu', 1), pg_temp.id('ca', 1), 'ZZ Ea Domingo 9', 0, '09:00', 1, true),
@@ -436,6 +446,16 @@ SELECT pg_temp.as_persona(10);
 SELECT pg_temp.assert_eq('b: an aprendiz of the sub-área sees nothing', $q$SELECT pg_temp.mis()$q$, '');
 SELECT pg_temp.as_persona(11);
 SELECT pg_temp.assert_eq('b: an org.manage scoped to another branch sees nothing', $q$SELECT pg_temp.mis()$q$, '');
+SELECT pg_temp.as_persona(13);
+SELECT pg_temp.assert_eq('b: a director of Estudiantes in another campus sees nothing of this one', $q$SELECT pg_temp.mis()$q$, '');
+SELECT pg_temp.as_persona(14);
+SELECT pg_temp.assert_eq('b: the system admin sees every campus without belonging to one',
+  $q$SELECT pg_temp.mis()$q$, 'ZZ Ea G1,ZZ Ea G2,ZZ Ea G3,ZZ Ea G4,ZZ Ea G5');
+SELECT pg_temp.as_persona(15);
+SELECT pg_temp.assert_eq('b: an unscoped org.manage without the admin role and without campus sees nothing',
+  $q$SELECT pg_temp.mis()$q$, '');
+SELECT pg_temp.as_persona(16);
+SELECT pg_temp.assert_eq('b: a lider of the sub-área in another campus sees nothing', $q$SELECT pg_temp.mis()$q$, '');
 
 RESET ROLE;
 SELECT pg_temp.exec('fixture: pause the servicio of LIDER_B',
@@ -467,6 +487,9 @@ SELECT pg_temp.assert_eq('c: the entrenador reads another group of the sub-área
   $q$SELECT pg_temp.nombres(2, pg_temp.dom(), 1)$q$, 'Zzea Dani');
 SELECT pg_temp.as_persona(7);
 SELECT pg_temp.assert_raises('c: a Logística coordinator cannot read a roster',
+  $q$SELECT pg_temp.lista(1, pg_temp.dom(), 1)$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(13);
+SELECT pg_temp.assert_raises('c: a director of another campus cannot read a roster',
   $q$SELECT pg_temp.lista(1, pg_temp.dom(), 1)$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.assert_raises('c: authenticated cannot read the tables directly',
   $q$SELECT count(*) FROM public.estudiantes_grupo_miembros$q$, '42501');
@@ -713,6 +736,12 @@ SELECT pg_temp.assert_raises('j: a leader has no live view',
 SELECT pg_temp.as_persona(7);
 SELECT pg_temp.assert_raises('j: a Logística coordinator has no live view',
   $q$SELECT pg_temp.vivo(3, pg_temp.dom(), 1)$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(13);
+SELECT pg_temp.assert_raises('j: a director of another campus has no live view of this one',
+  $q$SELECT pg_temp.vivo(3, pg_temp.dom(), 1)$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(14);
+SELECT pg_temp.assert_eq('j: the system admin sees the live view of any campus',
+  $q$SELECT pg_temp.vivo(3, pg_temp.dom(), 1)$q$, 'ZZ Ea G1:6/1/4/0,ZZ Ea G2:1/0/0/0,ZZ Ea G3:0/0/0/1');
 RESET ROLE;
 
 -- ── g. 3rd-visit hint (Q6/L13) ───────────────────────────────────────
@@ -790,8 +819,12 @@ SELECT pg_temp.assert_raises('k: an Inside Out year in Transit is refused',
 SELECT pg_temp.assert_raises('k: a blank name is refused',
   $q$SELECT public.estudiantes_grupo_crear(pg_temp.id('eq', 6), pg_temp.id('ca', 1), '  ', 1)$q$, '22023', 'nombre_invalido');
 SELECT pg_temp.assert_eq('k: the leaders the sub-área offers (no aprendiz, no paused)',
-  $q$SELECT string_agg(apellido || ':' || rol, ',' ORDER BY apellido) FROM public.estudiantes_lideres_disponibles(pg_temp.id('eq', 6))$q$,
+  $q$SELECT string_agg(apellido || ':' || rol, ',' ORDER BY apellido) FROM public.estudiantes_lideres_disponibles(pg_temp.id('eq', 6), pg_temp.id('ca', 1))$q$,
   'U1:lider,U3:entrenador,U4:director de grupo');
+SELECT pg_temp.assert_raises('k: a leader of another campus cannot lead',
+  $q$SELECT public.estudiantes_grupo_lideres_fijar(pg_temp.cu('g6'), ARRAY[pg_temp.id('se', 16)])$q$, '22023', 'servicio_invalido');
+SELECT pg_temp.assert_raises('k: a director cannot list the leaders of another campus',
+  $q$SELECT count(*) FROM public.estudiantes_lideres_disponibles(pg_temp.id('eq', 6), pg_temp.id('ca', 2))$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.assert_eq('k: setting the leaders',
   $q$SELECT public.estudiantes_grupo_lideres_fijar(pg_temp.cu('g6'), ARRAY[pg_temp.id('se', 1), pg_temp.id('se', 3), pg_temp.id('se', 1)])::text$q$, '2');
 SELECT pg_temp.assert_raises('k: an aprendiz cannot lead',
@@ -813,6 +846,13 @@ SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_raises('k: the entrenador cannot create groups',
   $q$SELECT public.estudiantes_grupo_crear(pg_temp.id('eq', 6), pg_temp.id('ca', 1), 'ZZ Ea X', 1)$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.assert_raises('k: the entrenador cannot add members',
+  $q$SELECT public.estudiantes_grupo_miembro_agregar(pg_temp.id('gr', 3), pg_temp.id('us', 27))$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.as_persona(13);
+SELECT pg_temp.assert_raises('k: a director of another campus cannot create groups in this one',
+  $q$SELECT public.estudiantes_grupo_crear(pg_temp.id('eq', 6), pg_temp.id('ca', 1), 'ZZ Ea X', 1)$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.assert_raises('k: a director of another campus cannot rename a group of this one',
+  $q$SELECT public.estudiantes_grupo_editar(pg_temp.id('gr', 1), 'ZZ Ea X', 1, NULL, NULL, NULL)$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.assert_raises('k: a director of another campus cannot add members to a group of this one',
   $q$SELECT public.estudiantes_grupo_miembro_agregar(pg_temp.id('gr', 3), pg_temp.id('us', 27))$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.as_persona(8);
 SELECT pg_temp.assert_raises('k: a group under Logística is refused',
