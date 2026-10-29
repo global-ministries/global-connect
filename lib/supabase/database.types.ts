@@ -10141,6 +10141,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      estudiantes_grupo_integrantes: {
+        Args: { p_grupo_id: string }
+        Returns: Json
+      }
       estudiantes_grupo_lideres_fijar: {
         Args: { p_grupo_id: string; p_servicio_ids: string[] }
         Returns: number
@@ -10151,6 +10155,10 @@ export type Database = {
       }
       estudiantes_grupo_miembro_agregar: {
         Args: { p_estado?: string; p_grupo_id: string; p_persona_id: string }
+        Returns: string
+      }
+      estudiantes_grupo_miembro_mover: {
+        Args: { p_grupo_id: string; p_persona_id: string }
         Returns: string
       }
       estudiantes_grupo_miembro_quitar: {
@@ -10262,6 +10270,30 @@ export type Database = {
           p_turno_id: string
         }
         Returns: undefined
+      }
+      estudiantes_sin_grupo: {
+        Args: { p_grupo_id: string }
+        Returns: {
+          anio_etiqueta: string
+          apellido: string
+          nombre: string
+          persona_id: string
+          retirado_at: string
+          ultimo_grupo: string
+        }[]
+      }
+      estudiantes_subareas_gestionables: {
+        Args: never
+        Returns: {
+          ambito: string
+          ambito_id: string
+          campus: string
+          campus_id: string
+          experiencia: string
+          responsables: Json
+          subarea: string
+          subarea_id: string
+        }[]
       }
       estudiantes_tiene_rol_sistema: {
         Args: { p_rol: string }
