@@ -1,7 +1,12 @@
 /**
- * /admin/dream-team/estructura (RSC): authorization, equipo resolution from
- * the URL, and the contract that only serializable data reaches the client
- * island.
+ * /admin/dream-team/estructura (RSC): authorization, the URL state
+ * (`?equipo=` — the legacy link — plus q, problema, tab, expandidos), the
+ * campus shifts (every own restriction, for "Sin turno"), and the contract
+ * that only serializable data reaches the client island.
+ *
+ * Changed on design system v2 (S12): without `?equipo=` no node opens (the
+ * page is the org chart; it used to default to the first dirección with
+ * people, which the two-pane detail needed).
  */
 import React from 'react'
 
@@ -36,9 +41,33 @@ const TALLERES = [
   { slug: 'equipo-uno', nombre: 'Taller Uno', dream_team_equipo_id: 'eq-a1' },
   { slug: 'sin-equipo', nombre: 'Sin equipo', dream_team_equipo_id: null },
 ]
+const TURNOS_FILAS = [
+  { id: 't9', campus_id: 'c1', nombre: 'Domingo 9:00', dia_semana: 0, hora: '09:00:00', orden: 1, activo: true, tipo: 'semanal' },
+]
+let mockEquipoTurnos: { equipo_id: string; turno_id: string }[] | null = []
+const rpc = jest.fn(async () => ({ data: ['t9'], error: null }))
+/** A thenable query that also chains `.eq()` / `.order()`, like supabase-js. */
+interface Consulta extends Promise<{ data: unknown; error: unknown }> {
+  eq(): Consulta
+  order(): Consulta
+}
+function consulta(data: unknown, error: unknown = null): Consulta {
+  return Object.assign(Promise.resolve({ data, error }), { eq: () => consulta(data, error), order: () => consulta(data, error) })
+}
+const TABLAS: Record<string, () => unknown> = {
+  talleres: () => TALLERES,
+  dream_team_turnos: () => TURNOS_FILAS,
+  campus: () => [{ id: 'c1', nombre: 'Barquisimeto' }],
+}
 jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({
-    from: () => ({ select: async () => ({ data: TALLERES }) }),
+    rpc,
+    from: (tabla: string) => ({
+      select: () =>
+        tabla === 'dream_team_equipo_turnos'
+          ? consulta(mockEquipoTurnos, mockEquipoTurnos ? null : { message: 'rls' })
+          : consulta(TABLAS[tabla]?.() ?? []),
+    }),
   }),
 }))
 
@@ -95,7 +124,7 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
 import DreamTeamEstructuraPage from '@/app/(auth)/admin/dream-team/estructura/page'
 import { EstructuraClient, type EstructuraClientProps } from '@/components/dream-team/estructura/estructura-client'
 
-async function renderizar(searchParams?: { equipo?: string | string[] }): Promise<EstructuraClientProps> {
+async function renderizar(searchParams?: Record<string, string | string[]>): Promise<EstructuraClientProps> {
   const element = (await DreamTeamEstructuraPage({
     searchParams: Promise.resolve(searchParams ?? {}),
   })) as React.ReactElement<EstructuraClientProps>
@@ -118,6 +147,11 @@ function esSerializable(valor: unknown): boolean {
 
 beforeEach(() => {
   mockEquipos = EQUIPOS
+  mockEquipoTurnos = [
+    { equipo_id: 'eq-a1', turno_id: 't9' },
+    { equipo_id: 'dir-b', turno_id: 't9' },
+  ]
+  rpc.mockClear()
   mockServicios = [
     servicio('s1', 'dir-a', 'director', 'p1'),
     servicio('s2', 'eq-a1', 'coordinador', 'p2'),
@@ -152,9 +186,11 @@ describe('estructura page — authorization', () => {
   })
 })
 
-describe('estructura page — equipo resolution', () => {
-  it('defaults to the first active root with people', async () => {
-    expect((await renderizar()).equipoId).toBe('dir-a')
+describe('estructura page — URL state', () => {
+  it('opens no node without ?equipo=', async () => {
+    const props = await renderizar()
+    expect(props.equipoId).toBe('')
+    expect(props.filtros?.equipo).toBeNull()
   })
 
   it('takes the equipo from the URL, the first one when repeated', async () => {
@@ -166,8 +202,16 @@ describe('estructura page — equipo resolution', () => {
     expect((await renderizar({ equipo: 'dir-vieja' })).equipoId).toBe('dir-vieja')
   })
 
-  it('falls back to the default for an unknown equipo', async () => {
-    expect((await renderizar({ equipo: 'no-existe' })).equipoId).toBe('dir-a')
+  it('opens nothing for an unknown equipo', async () => {
+    const props = await renderizar({ equipo: 'no-existe' })
+    expect(props.equipoId).toBe('')
+    expect(props.filtros?.equipo).toBeNull()
+  })
+
+  it('hands the search, the problem pill, the tab and the open branches to the island, dropping invalid values', async () => {
+    const props = await renderizar({ equipo: 'eq-a1', q: ' Uno ', problema: 'sin_turno', tab: 'turnos', expandidos: 'dir-a,dir-b' })
+    expect(props.filtros).toEqual({ equipo: 'eq-a1', q: 'Uno', problema: 'sin_turno', tab: 'turnos', expandidos: ['dir-a', 'dir-b'] })
+    expect((await renderizar({ problema: 'otro', tab: 'x' })).filtros).toMatchObject({ problema: null, tab: 'equipos', expandidos: null })
   })
 
   it('has no equipo at all when the caller reaches nothing', async () => {
@@ -175,6 +219,29 @@ describe('estructura page — equipo resolution', () => {
     const props = await renderizar()
     expect(props.equipoId).toBe('')
     expect(props.arbol).toEqual([])
+  })
+})
+
+describe('estructura page — campus shifts', () => {
+  it('loads every own restriction once, for "Sin turno" on the chart', async () => {
+    const props = await renderizar()
+    expect(props.turnos?.propiosPorEquipo).toEqual({ 'eq-a1': ['t9'], 'dir-b': ['t9'] })
+    expect(props.turnos?.campus).toEqual([{ id: 'c1', nombre: 'Barquisimeto' }])
+    expect(props.turnos?.delEquipo).toBeUndefined()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('resolves the shifts of the open node: its own and the effective ones', async () => {
+    const props = await renderizar({ equipo: 'eq-a1' })
+    expect(props.turnos?.delEquipo).toEqual({ equipoId: 'eq-a1', propios: ['t9'], efectivos: ['t9'] })
+    expect(rpc).toHaveBeenCalledWith('dream_team_turnos_del_equipo', { p_equipo_id: 'eq-a1', p_campus_id: 'c1' })
+  })
+
+  it('leaves the shifts out when they cannot be read', async () => {
+    mockEquipoTurnos = null
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {})
+    expect((await renderizar()).turnos).toBeUndefined()
+    error.mockRestore()
   })
 })
 
