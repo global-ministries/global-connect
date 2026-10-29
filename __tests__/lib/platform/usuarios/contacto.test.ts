@@ -5,7 +5,7 @@
  * contacts nobody from the list. Nobody gets an action for their own row or a
  * person without a usable number.
  */
-import { accionesDeContacto, puedeContactar, type PersonaContactable, type VisorUsuarios } from '@/lib/platform/usuarios/contacto'
+import { accionesDeContacto, contactoPermitido, puedeContactar, type PersonaContactable, type VisorUsuarios } from '@/lib/platform/usuarios/contacto'
 
 const persona = (cambios: Partial<PersonaContactable> = {}): PersonaContactable => ({
   id: 'p-1',
@@ -47,6 +47,21 @@ describe('puedeContactar', () => {
 
   it.each([null, '', '   '])('a person without a number (%p) cannot be contacted', (telefono) => {
     expect(puedeContactar(visor(['admin']), persona({ telefono }))).toBe(false)
+  })
+})
+
+// The panel shows WhatsApp and Llamar when the role allows contact and disables
+// them without a usable number; without permission it hides them.
+describe('contactoPermitido', () => {
+  it('follows the role rule without looking at the number', () => {
+    expect(contactoPermitido(visor(['pastor']), persona({ telefono: null }))).toBe(true)
+    expect(contactoPermitido(visor(['lider']), persona({ telefono: null, esDeMiGrupo: true }))).toBe(true)
+    expect(contactoPermitido(visor(['lider']), persona({ esDeMiGrupo: false }))).toBe(false)
+    expect(contactoPermitido(visor(['miembro']), persona({ esDeMiGrupo: true }))).toBe(false)
+  })
+
+  it("never for the viewer's own row", () => {
+    expect(contactoPermitido(visor(['admin'], 'p-1'), persona())).toBe(false)
   })
 })
 

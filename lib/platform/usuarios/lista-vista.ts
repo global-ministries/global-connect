@@ -1,6 +1,6 @@
 import type { Database } from '@/lib/supabase/database.types'
 
-import { accionesDeContacto, type AccionesContacto, type VisorUsuarios } from './contacto'
+import { accionesDeContacto, contactoPermitido, type AccionesContacto, type VisorUsuarios } from './contacto'
 
 /**
  * Pure view model behind /users (S13 of odd/tasks/sistema-diseno-v2.md;
@@ -86,6 +86,8 @@ export interface FilaVistaUsuario extends PersonaUsuario {
   /** "<grupo> · <campus>", either part optional. */
   readonly detalle: string
   readonly contacto: AccionesContacto
+  /** The viewer may call and WhatsApp this person (the actions show, disabled without a usable number). */
+  readonly contactoPermitido: boolean
 }
 
 export interface EstadisticasUsuarios {
@@ -244,6 +246,7 @@ export function filasDeVista(personas: readonly PersonaUsuario[], visor: VisorUs
     rolesEtiqueta: persona.roles.length === 0 ? 'Sin rol' : persona.roles.map((r) => ETIQUETA_ROL[r] ?? r).join(' · '),
     detalle: [persona.grupoNombre, persona.campusNombre].filter(Boolean).join(' · '),
     contacto: accionesDeContacto(visor, persona),
+    contactoPermitido: contactoPermitido(visor, persona),
   }))
 }
 
@@ -313,15 +316,46 @@ export function parcheMetrica(filtros: FiltrosUsuarios, id: MetricaUsuariosId): 
   }
 }
 
-const plural = (cantidad: number, uno: string, varios: string) => `${cantidad.toLocaleString('es-VE')} ${cantidad === 1 ? uno : varios}`
+const numero = (cantidad: number) => cantidad.toLocaleString('es-VE')
 
-/** The hero line under "Usuarios": the real totals of the scope. */
-export function resumenTotales(stats: EstadisticasUsuarios): string {
-  return [
-    plural(stats.total, 'persona', 'personas'),
-    `${(stats.total - stats.sinCuenta).toLocaleString('es-VE')} con cuenta`,
-    `${(stats.total - stats.sinGrupo).toLocaleString('es-VE')} en un Grupo de Vida`,
-  ].join(' · ')
+/** Who the list covers, as the hero names it: "Todos los campus", "Campus <nombre>", "tus grupos" or "tu familia". */
+export function ambitoUsuarios(roles: readonly string[], campusNombre: string | null): string {
+  if (roles.some((rol) => ROLES_AGREGAR.includes(rol))) return campusNombre ? `Campus ${campusNombre}` : 'Todos los campus'
+  if (roles.includes('lider')) return 'tus grupos'
+  return 'tu familia'
+}
+
+/**
+ * The hero line under "Usuarios" (prototype: "148 personas · Todos los campus ·
+ * 132 con teléfono · 123 con email"): the real totals of the scope. `total`
+ * goes in `strong`, `resto` follows it.
+ */
+export function resumenTotales(stats: EstadisticasUsuarios, ambito: string): { readonly total: string; readonly resto: string } {
+  const personas = stats.total === 1 ? 'persona' : 'personas'
+  const contacto = `${numero(stats.conTelefono)} con teléfono · ${numero(stats.conEmail)} con email`
+  return {
+    total: numero(stats.total),
+    resto: ambito === 'tus grupos' ? `${personas} de tus grupos · ${contacto}` : `${personas} · ${ambito} · ${contacto}`,
+  }
+}
+
+// ── Permissions ─────────────────────────────────────────────────────────────────────
+
+/** Same roles as today's "Agregar Miembro" (the server checks puede_crear_usuario again). */
+const ROLES_AGREGAR: readonly string[] = ['admin', 'pastor', 'director-general', 'director-etapa']
+
+export interface PermisosLista {
+  /** "Agregar persona" in the header and the FAB. */
+  readonly agregar: boolean
+  /** "Seleccionar" and the bulk role change (/api/usuarios/cambiar-rol checks admin again). */
+  readonly cambiarRol: boolean
+}
+
+export function permisosLista(roles: readonly string[]): PermisosLista {
+  return {
+    agregar: roles.some((rol) => ROLES_AGREGAR.includes(rol)),
+    cambiarRol: roles.includes('admin'),
+  }
 }
 
 /** Sheet filters in use (each role counts); not the search, sort, page or open person. */
@@ -331,6 +365,61 @@ export function contarFiltrosActivos(filtros: FiltrosUsuarios): number {
     [filtros.conEmail, filtros.conTelefono, filtros.enGrupo, filtros.conCuenta].filter((v) => v !== null).length +
     (filtros.nuevos ? 1 : 0)
   )
+}
+
+// ── Chips and sort ────────────────────────────────────────────────────────────────────
+
+/** "Limpiar todo" under the list: every sheet filter and the search. */
+export const LIMPIAR_TODO: Partial<FiltrosUsuarios> = { ...LIMPIAR_FILTROS, q: '' }
+
+export interface ChipUsuarios {
+  readonly id: string
+  readonly etiqueta: string
+}
+
+const siNo = (valor: boolean, si: string, no: string) => (valor ? si : no)
+
+/** One chip per sheet filter (each role apart); the search, sort and page are not chips. */
+export function chipsActivos(filtros: FiltrosUsuarios): ChipUsuarios[] {
+  const chips: ChipUsuarios[] = filtros.roles.map((rol) => ({ id: `rol:${rol}`, etiqueta: `Rol: ${ETIQUETA_ROL[rol] ?? rol}` }))
+  if (filtros.conEmail !== null) chips.push({ id: 'email', etiqueta: siNo(filtros.conEmail, 'Con email', 'Sin email') })
+  if (filtros.conTelefono !== null) chips.push({ id: 'tel', etiqueta: siNo(filtros.conTelefono, 'Con teléfono', 'Sin teléfono') })
+  if (filtros.enGrupo !== null) chips.push({ id: 'grupo', etiqueta: siNo(filtros.enGrupo, 'En grupo', 'Sin grupo') })
+  if (filtros.conCuenta !== null) chips.push({ id: 'cuenta', etiqueta: siNo(filtros.conCuenta, 'Con cuenta', 'Sin cuenta') })
+  if (filtros.nuevos) chips.push({ id: 'nuevos', etiqueta: `Nuevos · ${NUEVOS_DIAS} días` })
+  return chips
+}
+
+export function parcheQuitarChip(filtros: FiltrosUsuarios, id: string): Partial<FiltrosUsuarios> {
+  if (id.startsWith('rol:')) return { roles: filtros.roles.filter((rol) => rol !== id.slice(4)), pagina: 1 }
+  switch (id) {
+    case 'email':
+      return { conEmail: null, pagina: 1 }
+    case 'tel':
+      return { conTelefono: null, pagina: 1 }
+    case 'grupo':
+      return { enGrupo: null, pagina: 1 }
+    case 'cuenta':
+      return { conCuenta: null, pagina: 1 }
+    case 'nuevos':
+      return { nuevos: false, pagina: 1 }
+    default:
+      return {}
+  }
+}
+
+/** The sortable columns: Persona (name) and "Cuenta · registro" (registration date). */
+export type ColumnaOrdenUsuarios = 'persona' | 'registro'
+
+export function ordenDeLista(orden: OrdenUsuarios): { readonly columna: ColumnaOrdenUsuarios; readonly sentido: 'asc' | 'desc' } {
+  if (orden === 'nombre') return { columna: 'persona', sentido: 'asc' }
+  return { columna: 'registro', sentido: orden === 'registro_desc' ? 'desc' : 'asc' }
+}
+
+/** Persona sorts by name (A–Z only); Registro starts with the newest and a second tap flips it. */
+export function parcheOrden(filtros: FiltrosUsuarios, columna: ColumnaOrdenUsuarios): Partial<FiltrosUsuarios> {
+  if (columna === 'persona') return { orden: 'nombre', pagina: 1 }
+  return { orden: filtros.orden === 'registro_desc' ? 'registro_asc' : 'registro_desc', pagina: 1 }
 }
 
 export function totalPaginas(total: number, limite: number): number {

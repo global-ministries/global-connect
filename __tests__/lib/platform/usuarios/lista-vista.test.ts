@@ -19,6 +19,14 @@ import {
   parcheMetrica,
   resumenTotales,
   totalPaginas,
+  ambitoUsuarios,
+  permisosLista,
+  chipsActivos,
+  parcheQuitarChip,
+  parcheOrden,
+  ordenDeLista,
+  LIMPIAR_FILTROS,
+  LIMPIAR_TODO,
   type FilaUsuarioRpc,
   type FiltrosUsuarios,
 } from '@/lib/platform/usuarios/lista-vista'
@@ -83,6 +91,13 @@ describe('filasDeVista', () => {
     )
     expect(mio.contacto).toEqual({ llamar: 'tel:04145550101', whatsapp: 'https://wa.me/584145550101' })
     expect(ajeno.contacto).toEqual({ llamar: null, whatsapp: null })
+    expect([mio.contactoPermitido, ajeno.contactoPermitido]).toEqual([true, false])
+  })
+
+  it('a member of the leader\'s group without a number may be contacted but has no link (disabled, not hidden)', () => {
+    const [r] = filasDeVista(aPersonas([fila({ telefono: null, es_de_mi_grupo: true })]), { roles: ['lider'], usuarioId: 'yo' })
+    expect(r.contactoPermitido).toBe(true)
+    expect(r.contacto).toEqual({ llamar: null, whatsapp: null })
   })
 })
 
@@ -129,9 +144,88 @@ describe('metrics', () => {
     expect(parcheMetrica(f(), 'sinTelefono')).toEqual({ conTelefono: false, pagina: 1 })
   })
 
-  it('the hero summary uses the real totals', () => {
-    expect(resumenTotales(stats)).toBe('200 personas · 140 con cuenta · 120 en un Grupo de Vida')
-    expect(resumenTotales({ ...stats, total: 1, sinCuenta: 0, sinGrupo: 1 })).toBe('1 persona · 1 con cuenta · 0 en un Grupo de Vida')
+  // Prototype hero: "148 personas · Todos los campus · 132 con teléfono · 123 con email".
+  it('the hero summary uses the real totals of the scope', () => {
+    expect(resumenTotales(stats, 'Campus Barquisimeto')).toEqual({
+      total: '200',
+      resto: 'personas · Campus Barquisimeto · 180 con teléfono · 150 con email',
+    })
+    expect(resumenTotales({ ...stats, total: 1, conTelefono: 1, conEmail: 0 }, 'Todos los campus')).toEqual({
+      total: '1',
+      resto: 'persona · Todos los campus · 1 con teléfono · 0 con email',
+    })
+    expect(resumenTotales({ ...stats, total: 1200, conTelefono: 1100, conEmail: 1000 }, 'Todos los campus').total).toBe('1.200')
+  })
+
+  it('a leader reads the people of their groups', () => {
+    expect(resumenTotales(stats, 'tus grupos').resto).toBe('personas de tus grupos · 180 con teléfono · 150 con email')
+  })
+})
+
+describe('ambitoUsuarios', () => {
+  it('campus roles read the header campus or every campus; a leader reads their groups', () => {
+    expect(ambitoUsuarios(['admin'], null)).toBe('Todos los campus')
+    expect(ambitoUsuarios(['pastor'], 'Barquisimeto')).toBe('Campus Barquisimeto')
+    expect(ambitoUsuarios(['director-etapa', 'lider'], 'Cabudare')).toBe('Campus Cabudare')
+    expect(ambitoUsuarios(['lider'], 'Barquisimeto')).toBe('tus grupos')
+    expect(ambitoUsuarios(['miembro'], null)).toBe('tu familia')
+  })
+})
+
+describe('permisosLista', () => {
+  it('agregar persona as today\'s "Agregar Miembro"; the bulk role change is admin only', () => {
+    expect(permisosLista(['admin'])).toEqual({ agregar: true, cambiarRol: true })
+    for (const rol of ['pastor', 'director-general', 'director-etapa']) {
+      expect(permisosLista([rol])).toEqual({ agregar: true, cambiarRol: false })
+    }
+    expect(permisosLista(['lider'])).toEqual({ agregar: false, cambiarRol: false })
+    expect(permisosLista(['miembro'])).toEqual({ agregar: false, cambiarRol: false })
+    expect(permisosLista([])).toEqual({ agregar: false, cambiarRol: false })
+  })
+})
+
+describe('active filter chips', () => {
+  it('one chip per sheet filter, roles apart, in the prototype order', () => {
+    expect(chipsActivos(f({ roles: ['lider', 'pastor'], conEmail: false, conTelefono: true, enGrupo: false, conCuenta: true, nuevos: true }))).toEqual([
+      { id: 'rol:lider', etiqueta: 'Rol: Líder' },
+      { id: 'rol:pastor', etiqueta: 'Rol: Pastor' },
+      { id: 'email', etiqueta: 'Sin email' },
+      { id: 'tel', etiqueta: 'Con teléfono' },
+      { id: 'grupo', etiqueta: 'Sin grupo' },
+      { id: 'cuenta', etiqueta: 'Con cuenta' },
+      { id: 'nuevos', etiqueta: 'Nuevos · 7 días' },
+    ])
+    expect(chipsActivos(f({ q: 'ana', orden: 'registro_desc', pagina: 2, persona: 'u-1' }))).toEqual([])
+  })
+
+  it('removing a chip clears only that filter and goes back to page 1', () => {
+    const filtros = f({ roles: ['lider', 'pastor'], conEmail: false, enGrupo: true, conCuenta: false, conTelefono: false, nuevos: true, pagina: 4 })
+    expect(parcheQuitarChip(filtros, 'rol:lider')).toEqual({ roles: ['pastor'], pagina: 1 })
+    expect(parcheQuitarChip(filtros, 'email')).toEqual({ conEmail: null, pagina: 1 })
+    expect(parcheQuitarChip(filtros, 'tel')).toEqual({ conTelefono: null, pagina: 1 })
+    expect(parcheQuitarChip(filtros, 'grupo')).toEqual({ enGrupo: null, pagina: 1 })
+    expect(parcheQuitarChip(filtros, 'cuenta')).toEqual({ conCuenta: null, pagina: 1 })
+    expect(parcheQuitarChip(filtros, 'nuevos')).toEqual({ nuevos: false, pagina: 1 })
+    expect(parcheQuitarChip(filtros, 'otro')).toEqual({})
+  })
+
+  it('"Limpiar todo" also empties the search', () => {
+    expect(LIMPIAR_TODO).toEqual({ ...LIMPIAR_FILTROS, q: '' })
+  })
+})
+
+describe('sort', () => {
+  it('the list header reads the sort as a column and a direction', () => {
+    expect(ordenDeLista('nombre')).toEqual({ columna: 'persona', sentido: 'asc' })
+    expect(ordenDeLista('registro_desc')).toEqual({ columna: 'registro', sentido: 'desc' })
+    expect(ordenDeLista('registro_asc')).toEqual({ columna: 'registro', sentido: 'asc' })
+  })
+
+  it('Persona sorts by name; Registro starts with the newest and a second tap flips it', () => {
+    expect(parcheOrden(f({ orden: 'registro_desc', pagina: 3 }), 'persona')).toEqual({ orden: 'nombre', pagina: 1 })
+    expect(parcheOrden(f(), 'registro')).toEqual({ orden: 'registro_desc', pagina: 1 })
+    expect(parcheOrden(f({ orden: 'registro_desc' }), 'registro')).toEqual({ orden: 'registro_asc', pagina: 1 })
+    expect(parcheOrden(f({ orden: 'registro_asc' }), 'registro')).toEqual({ orden: 'registro_desc', pagina: 1 })
   })
 })
 

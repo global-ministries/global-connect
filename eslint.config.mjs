@@ -18,6 +18,14 @@ const migratedToDesignSystem = [
   'components/dream-team/estructura/**',
   'app/(auth)/estudiantes/**',
   'components/estudiantes/**',
+  // Usuarios list (T8-2). The ficha (app/(auth)/users/[id], components/users/ficha) joins with T8-3;
+  // then these collapse into 'app/(auth)/users/**' and 'components/users/**'.
+  'app/(auth)/users/page.tsx',
+  'app/(auth)/users/loading.tsx',
+  'app/(auth)/users/create/**',
+  'components/users/lista/**',
+  'components/users/vinculos-pendientes-card.tsx',
+  'components/ui/filtros-usuarios.tsx',
 ]
 
 const legacyUiImports = {

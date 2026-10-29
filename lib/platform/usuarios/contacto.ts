@@ -40,11 +40,20 @@ export interface AccionesContacto {
 
 const SIN_ACCIONES: AccionesContacto = { llamar: null, whatsapp: null }
 
-export function puedeContactar(visor: VisorUsuarios, persona: PersonaContactable): boolean {
-  if (!persona.telefono || persona.telefono.trim() === '') return false
+/**
+ * The role rule alone, whatever the number: the panel shows WhatsApp and
+ * Llamar when this holds (disabled without a usable number) and hides them
+ * otherwise.
+ */
+export function contactoPermitido(visor: VisorUsuarios, persona: Pick<PersonaContactable, 'id' | 'esDeMiGrupo'>): boolean {
   if (visor.usuarioId !== null && visor.usuarioId === persona.id) return false
   if (visor.roles.some((rol) => ROLES_DE_CAMPUS.includes(rol))) return true
   return visor.roles.includes('lider') && persona.esDeMiGrupo
+}
+
+export function puedeContactar(visor: VisorUsuarios, persona: PersonaContactable): boolean {
+  if (!persona.telefono || persona.telefono.trim() === '') return false
+  return contactoPermitido(visor, persona)
 }
 
 export function accionesDeContacto(visor: VisorUsuarios, persona: PersonaContactable): AccionesContacto {

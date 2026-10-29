@@ -1,252 +1,138 @@
-"use client"
+'use client'
 
-import { useId, useState, type ReactNode } from "react"
-import { X, Filter as FilterIcon } from "lucide-react"
+/**
+ * Usuarios — the filters sheet (docs/design-system/patterns.md#toolbar-and-filters-sheet;
+ * prototype docs/design-system/prototipos/usuarios/01-lista-escritorio.html,
+ * `openFilters`): the canonical `HojaFiltros` (side panel from md, bottom
+ * sheet below) with Rol (several at once), Teléfono, Email, Grupo de Vida and
+ * Cuenta (yes/no pairs, a second tap removes the filter), Registro ("Nuevos ·
+ * 7 días" with its count), Ordenar por (Nombre, Fecha de registro ↑/↓) and,
+ * for the admin on phones, "Seleccionar personas" (the desktop toolbar has
+ * the "Seleccionar" button).
+ *
+ * Filters apply live and go back to page 1; "Limpiar" empties exactly these
+ * filters and "Ver N personas" only closes. The rules live in
+ * lib/platform/usuarios/lista-vista.ts; the sheet only reports patches.
+ */
+import type { ReactElement } from 'react'
 
-import { cn } from "@/lib/utils"
-import { BotonSistema } from "./sistema-diseno"
-import { PanelLateralSistema } from "./panel-lateral-sistema"
+import { GrupoFiltro, HojaFiltros } from '@/components/ui/hoja-filtros'
+import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
+import {
+  ETIQUETA_ROL,
+  LIMPIAR_FILTROS,
+  NUEVOS_DIAS,
+  ROLES_SISTEMA,
+  ordenDeLista,
+  parcheOrden,
+  type ColumnaOrdenUsuarios,
+  type FiltrosUsuarios,
+} from '@/lib/platform/usuarios/lista-vista'
 
-export interface FiltrosUsuarios {
-  roles: string[]
-  conEmail: boolean | null
-  conTelefono: boolean | null
-  enGrupo: boolean | null
-  estado: string[]
+type ClaveSiNo = 'conTelefono' | 'conEmail' | 'enGrupo' | 'conCuenta'
+
+const PARES: ReadonlyArray<{ readonly clave: ClaveSiNo; readonly titulo: string; readonly si: string; readonly no: string }> = [
+  { clave: 'conTelefono', titulo: 'Teléfono', si: 'Con teléfono', no: 'Sin teléfono' },
+  { clave: 'conEmail', titulo: 'Email', si: 'Con email', no: 'Sin email' },
+  { clave: 'enGrupo', titulo: 'Grupo de Vida', si: 'En grupo', no: 'Sin grupo' },
+  { clave: 'conCuenta', titulo: 'Cuenta en la plataforma', si: 'Con cuenta', no: 'Sin cuenta' },
+]
+
+const ORDENES: ReadonlyArray<{ readonly columna: ColumnaOrdenUsuarios; readonly etiqueta: string }> = [
+  { columna: 'persona', etiqueta: 'Nombre' },
+  { columna: 'registro', etiqueta: 'Fecha de registro' },
+]
+
+export interface HojaFiltrosUsuariosProps {
+  readonly filtros: FiltrosUsuarios
+  readonly abierta: boolean
+  readonly onCambioAbierta: (abierta: boolean) => void
+  /** People that match now (the "Ver N personas" footer). */
+  readonly resultados: number
+  /** People registered in the last NUEVOS_DIAS days (the scope, as the metric). */
+  readonly nuevos: number
+  readonly onCambio: (parche: Partial<FiltrosUsuarios>) => void
+  /** The admin's selection mode (phone entry point); absent hides the group. */
+  readonly seleccion?: { readonly activa: boolean; readonly onAlternar: () => void }
 }
 
-interface FiltrosUsuariosProps {
-  filtros: FiltrosUsuarios
-  onFiltrosChange: (filtros: FiltrosUsuarios) => void
-  rolesDisponibles: { nombre_interno: string; nombre_visible: string }[]
-  onLimpiarFiltros: () => void
-}
-
-const ANILLO =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-
-/** Toggle chip (control radius, 44px). Pressed chips take the brand tint. */
-function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={activo}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-11 items-center rounded-xl border px-4 text-sm font-medium transition-colors touch-manipulation",
-        activo
-          ? "border-brand bg-brand-tint text-foreground"
-          : "border-border text-muted-foreground hover:bg-accent hover:text-foreground",
-        ANILLO,
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-/** Active filter summary: the whole pill removes the filter. */
-function ChipActivo({ etiqueta, onQuitar }: { etiqueta: string; onQuitar: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onQuitar}
-      aria-label={`Quitar filtro: ${etiqueta}`}
-      className={cn(
-        "inline-flex h-9 pointer-coarse:h-11 items-center gap-1.5 rounded-full border border-border bg-muted pl-3 pr-2 text-sm text-foreground transition-colors hover:bg-accent touch-manipulation",
-        ANILLO,
-      )}
-    >
-      {etiqueta}
-      <X className="size-3.5 text-muted-foreground" aria-hidden="true" />
-    </button>
-  )
-}
-
-function GrupoFiltro({ titulo, children }: { titulo: string; children: ReactNode }) {
-  const id = useId()
-  return (
-    <section aria-labelledby={id} className="space-y-2">
-      <h3 id={id} className="text-sm font-medium text-foreground">{titulo}</h3>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </section>
-  )
-}
-
-export function FiltrosUsuarios({
+export function HojaFiltrosUsuarios({
   filtros,
-  onFiltrosChange,
-  rolesDisponibles,
-  onLimpiarFiltros,
-}: FiltrosUsuariosProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  abierta,
+  onCambioAbierta,
+  resultados,
+  nuevos,
+  onCambio,
+  seleccion,
+}: HojaFiltrosUsuariosProps): ReactElement {
+  const orden = ordenDeLista(filtros.orden)
 
-  const toggleRol = (rolInterno: string) => {
-    const nuevosRoles = filtros.roles.includes(rolInterno)
-      ? filtros.roles.filter(r => r !== rolInterno)
-      : [...filtros.roles, rolInterno]
-
-    onFiltrosChange({ ...filtros, roles: nuevosRoles })
-  }
-
-  const setConEmail = (valor: boolean) => {
-    const nuevoValor: boolean | null = filtros.conEmail === valor ? null : valor
-    onFiltrosChange({ ...filtros, conEmail: nuevoValor })
-  }
-
-  const setConTelefono = (valor: boolean) => {
-    const nuevoValor: boolean | null = filtros.conTelefono === valor ? null : valor
-    onFiltrosChange({ ...filtros, conTelefono: nuevoValor })
-  }
-
-  const setEnGrupo = (valor: boolean) => {
-    const nuevoValor: boolean | null = filtros.enGrupo === valor ? null : valor
-    onFiltrosChange({ ...filtros, enGrupo: nuevoValor })
-  }
-
-  const toggleEstado = (estado: string) => {
-    const nuevosEstados = filtros.estado.includes(estado)
-      ? filtros.estado.filter(e => e !== estado)
-      : [...filtros.estado, estado]
-
-    onFiltrosChange({ ...filtros, estado: nuevosEstados })
-  }
-
-  const cantidadActivos =
-    filtros.roles.length +
-    (filtros.conEmail !== null ? 1 : 0) +
-    (filtros.conTelefono !== null ? 1 : 0) +
-    (filtros.enGrupo !== null ? 1 : 0) +
-    filtros.estado.length
-  const tieneFiltrosActivos = cantidadActivos > 0
-
-  const obtenerTextoFiltroEmail = () => {
-    if (filtros.conEmail === true) return "Con email"
-    if (filtros.conEmail === false) return "Sin email"
-    return "Email"
-  }
-
-  const obtenerTextoFiltroTelefono = () => {
-    if (filtros.conTelefono === true) return "Con teléfono"
-    if (filtros.conTelefono === false) return "Sin teléfono"
-    return "Teléfono"
-  }
-
-  const obtenerTextoFiltroEnGrupo = () => {
-    if (filtros.enGrupo === true) return "En grupo"
-    if (filtros.enGrupo === false) return "Sin grupo"
-    return "Grupos"
+  function alternarRol(rol: string): void {
+    const roles = filtros.roles.includes(rol) ? filtros.roles.filter((r) => r !== rol) : [...filtros.roles, rol]
+    onCambio({ roles, pagina: 1 })
   }
 
   return (
-    <>
-      <BotonSistema
-        variante="outline"
-        onClick={() => setIsOpen(true)}
-        icono={FilterIcon}
-        aria-haspopup="dialog"
-        aria-expanded={isOpen}
-      >
-        Filtros
-        {tieneFiltrosActivos && (
-          <span className="ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full bg-brand-strong px-1.5 text-xs font-semibold tabular-nums text-white">
-            {cantidadActivos}
-          </span>
-        )}
-      </BotonSistema>
+    <HojaFiltros
+      abierta={abierta}
+      onCambioAbierta={onCambioAbierta}
+      resultados={resultados}
+      unidad={{ singular: 'persona', plural: 'personas' }}
+      onLimpiar={() => onCambio(LIMPIAR_FILTROS)}
+    >
+      <GrupoFiltro titulo="Rol">
+        <GrupoPastillas etiqueta="Filtrar por rol">
+          {ROLES_SISTEMA.map((rol) => (
+            <PastillaFiltro key={rol} etiqueta={ETIQUETA_ROL[rol]} activa={filtros.roles.includes(rol)} onClick={() => alternarRol(rol)} />
+          ))}
+        </GrupoPastillas>
+      </GrupoFiltro>
 
-      <PanelLateralSistema
-        abierto={isOpen}
-        onAbiertoChange={setIsOpen}
-        titulo="Filtros"
-        pie={
-          <>
-            {tieneFiltrosActivos && (
-              <BotonSistema variante="outline" onClick={onLimpiarFiltros}>
-                Limpiar
-              </BotonSistema>
-            )}
-            <BotonSistema variante="primario" onClick={() => setIsOpen(false)}>
-              Ver resultados
-            </BotonSistema>
-          </>
-        }
-      >
-        <div className="space-y-6">
-          <GrupoFiltro titulo="Roles">
-            {rolesDisponibles.map((rol) => (
-              <ChipFiltro
-                key={rol.nombre_interno}
-                activo={filtros.roles.includes(rol.nombre_interno)}
-                onClick={() => toggleRol(rol.nombre_interno)}
-              >
-                {rol.nombre_visible}
-              </ChipFiltro>
+      {PARES.map(({ clave, titulo, si, no }) => (
+        <GrupoFiltro key={clave} titulo={titulo}>
+          <GrupoPastillas etiqueta={`Filtrar por ${titulo.toLocaleLowerCase('es')}`}>
+            {([true, false] as const).map((valor) => (
+              <PastillaFiltro
+                key={String(valor)}
+                etiqueta={valor ? si : no}
+                activa={filtros[clave] === valor}
+                // A second tap on the active option removes the filter.
+                onClick={() => onCambio({ [clave]: filtros[clave] === valor ? null : valor, pagina: 1 })}
+              />
             ))}
-          </GrupoFiltro>
+          </GrupoPastillas>
+        </GrupoFiltro>
+      ))}
 
-          <GrupoFiltro titulo="Estado del Email">
-            <ChipFiltro activo={filtros.conEmail === true} onClick={() => setConEmail(true)}>Con email</ChipFiltro>
-            <ChipFiltro activo={filtros.conEmail === false} onClick={() => setConEmail(false)}>Sin email</ChipFiltro>
-          </GrupoFiltro>
+      <GrupoFiltro titulo="Registro">
+        <GrupoPastillas etiqueta="Filtrar por registro">
+          <PastillaFiltro
+            etiqueta={`Nuevos · ${NUEVOS_DIAS} días`}
+            cantidad={nuevos}
+            activa={filtros.nuevos}
+            onClick={() => onCambio({ nuevos: !filtros.nuevos, pagina: 1 })}
+          />
+        </GrupoPastillas>
+      </GrupoFiltro>
 
-          <GrupoFiltro titulo="Estado del Teléfono">
-            <ChipFiltro activo={filtros.conTelefono === true} onClick={() => setConTelefono(true)}>Con teléfono</ChipFiltro>
-            <ChipFiltro activo={filtros.conTelefono === false} onClick={() => setConTelefono(false)}>Sin teléfono</ChipFiltro>
-          </GrupoFiltro>
+      <GrupoFiltro titulo="Ordenar por">
+        <GrupoPastillas etiqueta="Ordenar la lista">
+          {ORDENES.map(({ columna, etiqueta }) => {
+            const activa = orden.columna === columna
+            // Name sorts A–Z only, so only the date shows its direction.
+            const flecha = activa && columna === 'registro' ? (orden.sentido === 'asc' ? ' ↑' : ' ↓') : ''
+            return <PastillaFiltro key={columna} etiqueta={`${etiqueta}${flecha}`} activa={activa} onClick={() => onCambio(parcheOrden(filtros, columna))} />
+          })}
+        </GrupoPastillas>
+      </GrupoFiltro>
 
-          <GrupoFiltro titulo="Pertenencia a Grupos">
-            <ChipFiltro activo={filtros.enGrupo === true} onClick={() => setEnGrupo(true)}>En grupo</ChipFiltro>
-            <ChipFiltro activo={filtros.enGrupo === false} onClick={() => setEnGrupo(false)}>Sin grupo</ChipFiltro>
-          </GrupoFiltro>
-
-          <GrupoFiltro titulo="Estado del Usuario">
-            <ChipFiltro activo={filtros.estado.includes('activo')} onClick={() => toggleEstado('activo')}>Activo</ChipFiltro>
-            <ChipFiltro activo={filtros.estado.includes('inactivo')} onClick={() => toggleEstado('inactivo')}>Inactivo</ChipFiltro>
-          </GrupoFiltro>
-
-          {/* Filtros Activos */}
-          {tieneFiltrosActivos && (
-            <div className="border-t border-border pt-4">
-              <GrupoFiltro titulo="Filtros Activos">
-                {filtros.roles.map((rol) => {
-                  const rolInfo = rolesDisponibles.find(r => r.nombre_interno === rol)
-                  return <ChipActivo key={rol} etiqueta={rolInfo?.nombre_visible || rol} onQuitar={() => toggleRol(rol)} />
-                })}
-
-                {filtros.conEmail !== null && (
-                  <ChipActivo
-                    etiqueta={obtenerTextoFiltroEmail()}
-                    onQuitar={() => setConEmail(filtros.conEmail === true ? true : false)}
-                  />
-                )}
-
-                {filtros.conTelefono !== null && (
-                  <ChipActivo
-                    etiqueta={obtenerTextoFiltroTelefono()}
-                    onQuitar={() => setConTelefono(filtros.conTelefono === true ? true : false)}
-                  />
-                )}
-
-                {filtros.enGrupo !== null && (
-                  <ChipActivo
-                    etiqueta={obtenerTextoFiltroEnGrupo()}
-                    onQuitar={() => setEnGrupo(filtros.enGrupo === true ? true : false)}
-                  />
-                )}
-
-                {filtros.estado.map((estado) => (
-                  <ChipActivo
-                    key={estado}
-                    etiqueta={estado === 'activo' ? 'Activo' : 'Inactivo'}
-                    onQuitar={() => toggleEstado(estado)}
-                  />
-                ))}
-              </GrupoFiltro>
-            </div>
-          )}
-        </div>
-      </PanelLateralSistema>
-    </>
+      {seleccion && (
+        <GrupoFiltro titulo="Cambiar rol" className="md:hidden">
+          <GrupoPastillas etiqueta="Cambiar el rol de varias personas">
+            <PastillaFiltro etiqueta="Seleccionar personas" activa={seleccion.activa} onClick={seleccion.onAlternar} />
+          </GrupoPastillas>
+        </GrupoFiltro>
+      )}
+    </HojaFiltros>
   )
 }
