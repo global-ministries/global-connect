@@ -299,6 +299,18 @@ SELECT pg_temp.as_user(pg_temp.a('LID'));
 SELECT pg_temp.assert_eq('list campus: lider with a campus outside their own gets no rows',
   $q$SELECT pg_temp.rows(pg_temp.a('LID'), pg_temp.campus('B'))$q$, '0');
 
+SELECT pg_temp.as_user(pg_temp.a('DG'));
+SELECT pg_temp.assert_eq('list campus: director general A with B gets no rows',
+  $q$SELECT pg_temp.rows(pg_temp.a('DG'), pg_temp.campus('B'))$q$, '0');
+SELECT pg_temp.assert_eq('stats campus: director general A with B counts nobody',
+  $q$SELECT pg_temp.stats(pg_temp.a('DG'), 'ZZ Ac', pg_temp.campus('B'))$q$, '0|0|0|0');
+SELECT pg_temp.as_user(pg_temp.a('MEM'));
+SELECT pg_temp.assert_eq('list campus: miembro with A drops the relative of campus B',
+  $q$SELECT pg_temp.seen(pg_temp.a('MEM'), false, pg_temp.campus('A'))$q$, pg_temp.expect('FAM', 'MEM'));
+SELECT pg_temp.as_user(pg_temp.a('LID'));
+SELECT pg_temp.assert_eq('list campus: lider with A drops the group member of campus B',
+  $q$SELECT pg_temp.seen(pg_temp.a('LID'), false, pg_temp.campus('A'))$q$, pg_temp.expect('LID', 'M1'));
+
 -- 3. The list total equals the statistics total.
 SELECT pg_temp.as_user(pg_temp.a('PAS'));
 SELECT pg_temp.assert_eq('total: pastor list total equals stats total',
@@ -428,6 +440,14 @@ SELECT pg_temp.assert_eq('highest role: director de etapa + lider lists campus A
   $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, pg_temp.campus_a());
 SELECT pg_temp.assert_eq('highest role: director de etapa + lider counts campus A',
   $q$SELECT pg_temp.stats(pg_temp.a('LID'), 'ZZ Ac')$q$, '10|1|1|10');
+
+-- 11. A caller with two campuses sees both (still not the people with no campus).
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+VALUES (pg_temp.u('PAS'), pg_temp.campus('B'), false);
+SELECT pg_temp.as_user(pg_temp.a('PAS'));
+SELECT pg_temp.assert_eq('two campuses: pastor of A and B sees both',
+  $q$SELECT pg_temp.seen(pg_temp.a('PAS'))$q$,
+  pg_temp.expect('ADM', 'PAS', 'DG', 'DE', 'LID', 'MEM', 'M1', 'FAM', 'PA1', 'PA2', 'MB', 'REL', 'PB1'));
 
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_ac_failures;

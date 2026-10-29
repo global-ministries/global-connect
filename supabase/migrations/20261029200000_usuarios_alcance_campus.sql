@@ -44,10 +44,19 @@
 --     single campus every such person gets it as their main campus (43 people
 --     in production on 2026-10-29). With more than one campus nothing is
 --     assigned. Only rows are added; nothing is updated or deleted.
+--   * New people keep a campus (section 5): the Usuarios form, the group import
+--     and the account link create usuarios rows without usuario_campus, so they
+--     would vanish from every campus-scoped list. A deferred constraint trigger
+--     on usuarios runs at commit, after the creating function had its chance to
+--     write usuario_campus itself (the Niños and Dream Team flows do), and only
+--     when the person still has no campus it adds the creator's main campus, or
+--     the only campus when there is exactly one. Otherwise nothing is added.
 --
 -- Rollback: re-apply sections 1, 2 and 3 of
--- 20260930110000_usuarios_directores_ven_a_todos.sql. The added usuario_campus
--- rows are correct data and stay.
+-- 20260930110000_usuarios_directores_ven_a_todos.sql, then
+--   DROP TRIGGER IF EXISTS usuarios_campus_por_defecto ON public.usuarios;
+--   DROP FUNCTION IF EXISTS public.usuarios_asignar_campus_por_defecto();
+-- The added usuario_campus rows are correct data and stay.
 
 -- 1. List ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.listar_usuarios_con_permisos(
@@ -557,3 +566,55 @@ SELECT u.id, c.id, true
    AND NOT EXISTS (
      SELECT 1 FROM public.usuario_campus uc WHERE uc.usuario_id = u.id
    );
+
+-- 5. New people keep a campus -------------------------------------------------
+CREATE OR REPLACE FUNCTION public.usuarios_asignar_campus_por_defecto()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_campus uuid;
+BEGIN
+  -- The creating function may have written the campus itself.
+  IF EXISTS (SELECT 1 FROM public.usuario_campus uc WHERE uc.usuario_id = NEW.id) THEN
+    RETURN NULL;
+  END IF;
+
+  -- The main campus of the person who created this one.
+  SELECT uc.campus_id
+    INTO v_campus
+    FROM public.usuario_campus uc
+    JOIN public.usuarios creador ON creador.id = uc.usuario_id
+   WHERE creador.auth_id = auth.uid()
+     AND uc.es_campus_principal
+   LIMIT 1;
+
+  -- Otherwise the only campus, when there is exactly one.
+  IF v_campus IS NULL AND (SELECT count(*) FROM public.campus) = 1 THEN
+    SELECT c.id INTO v_campus FROM public.campus c;
+  END IF;
+
+  IF v_campus IS NOT NULL THEN
+    -- noqa: insert-into (the linter points at the line before an INSERT)
+    INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal) -- noqa: insert-into
+    VALUES (NEW.id, v_campus, true)
+    ON CONFLICT ON CONSTRAINT usuario_campus_usuario_id_campus_id_key DO NOTHING;
+  END IF;
+
+  RETURN NULL;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.usuarios_asignar_campus_por_defecto() FROM PUBLIC, anon, authenticated;
+
+COMMENT ON FUNCTION public.usuarios_asignar_campus_por_defecto() IS
+  'Deferred trigger on usuarios: at commit, a person with no usuario_campus row gets the creator''s main campus, or the only campus when there is exactly one.';
+
+DROP TRIGGER IF EXISTS usuarios_campus_por_defecto ON public.usuarios;
+CREATE CONSTRAINT TRIGGER usuarios_campus_por_defecto
+  AFTER INSERT ON public.usuarios
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW
+  EXECUTE FUNCTION public.usuarios_asignar_campus_por_defecto();

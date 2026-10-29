@@ -506,7 +506,7 @@ SELECT pg_temp.u('LID'), id FROM public.roles_sistema WHERE nombre_interno = 'di
 SELECT pg_temp.as_user(pg_temp.a('LID'));
 SELECT pg_temp.assert_eq('highest role: director de etapa + lider lists their whole campus',
   $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, pg_temp.fixtures());
-SELECT pg_temp.assert_eq('highest role: director de etapa + lider counts every fixture',
+SELECT pg_temp.assert_eq('highest role: director de etapa + lider counts their whole campus',
   $q$SELECT pg_temp.stats(pg_temp.a('LID'), 'ZZ Dv')$q$, '11|1|1|11');
 -- The same person as lider + miembro (no director role) gets the lider scope,
 -- not the miembro family scope.
