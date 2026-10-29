@@ -1,0 +1,1585 @@
+<!doctype html>
+<html lang="es" data-rol="admin">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<script>/* Theme from the review link before the first paint */ (function () { const t = /(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash); if (t) document.documentElement.dataset.tema = t[1]; })();</script>
+<title>Estructura · B · celular 390 — Global Connect</title>
+<style>
+/* Tokens: copied from design/system.md (source app/globals.css). Light in :root, dark from
+   prefers-color-scheme or data-tema="oscuro". No other color, font, radius or shadow is used. */
+:root {
+  color-scheme: light;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px); --radius-2xl: calc(var(--radius) + 8px); --radius-sheet: 26px;
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1); --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1); --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-instant: 100ms; --duration-fast: 150ms; --duration-normal: 250ms; --duration-slow: 400ms; --duration-slower: 600ms; --stagger-delay: 40ms;
+  --scrim: rgba(0, 0, 0, 0.5);
+  --tinte-estado: 10%;
+
+  --background: oklch(0.985 0.002 80); --foreground: oklch(0.178 0.014 285);
+  --card: oklch(1 0 0); --card-foreground: oklch(0.178 0.014 285);
+  --secondary: oklch(0.965 0.003 80); --secondary-foreground: oklch(0.205 0.012 285);
+  --muted: oklch(0.955 0.004 80); --muted-foreground: oklch(0.48 0.01 260);
+  --accent: oklch(0.965 0.003 80); --accent-foreground: oklch(0.205 0.012 285);
+  --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.975 0.003 80); --sidebar-border: oklch(0.905 0.006 80);
+  --surface-primary: #FAFAF8;
+  --brand-primary: #E96C20; --brand-primary-foreground: oklch(1 0 0);
+  --brand-accent-strong: rgba(233, 108, 32, 0.10); --brand-text: oklch(0.52 0.15 48);
+  /* Decided 2026-10-28, pending in docs/design-system and app/globals.css: filled brand surfaces
+     that carry text or icons. White on #BE5413 = 4.70:1, on #B04E11 = 5.32:1. Same in both themes. */
+  --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+  --success: oklch(0.55 0.17 145); --success-foreground: oklch(0.98 0 0); --success-text: oklch(0.5 0.14 145);
+  --warning: oklch(0.75 0.18 80); --warning-foreground: oklch(0.22 0.02 60); --warning-text: oklch(0.52 0.12 65);
+  --info: oklch(0.55 0.15 250); --info-foreground: oklch(0.98 0 0); --info-text: oklch(0.5 0.15 250);
+  --danger: oklch(0.577 0.245 27.325); --danger-foreground: oklch(0.98 0 0); --danger-text: oklch(0.52 0.21 27);
+  --chart-1: oklch(0.646 0.222 41.116); --chart-2: oklch(0.6 0.118 184.704); --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429); --chart-5: oklch(0.769 0.188 70.08);
+  --shadow-sheet: 0 24px 60px -24px rgba(20, 20, 40, 0.28);
+  --shadow-fab: 0 16px 36px -10px rgba(233, 108, 32, 0.75);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark;
+    --tinte-estado: 13%;
+    --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+    --card: oklch(0.155 0.012 270); --card-foreground: oklch(0.96 0.003 80);
+    --secondary: oklch(0.22 0.012 270); --secondary-foreground: oklch(0.96 0.003 80);
+    --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+    --accent: oklch(0.22 0.012 270); --accent-foreground: oklch(0.96 0.003 80);
+    --border: oklch(0.26 0.012 270);
+    --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+    --surface-primary: #0E0E12;
+    --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+    --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+    --success: oklch(0.60 0.17 145); --success-foreground: oklch(0.15 0 0); --success-text: oklch(0.76 0.15 145);
+    --warning: oklch(0.70 0.16 80); --warning-foreground: oklch(0.15 0 0); --warning-text: oklch(0.8 0.14 80);
+    --info: oklch(0.60 0.15 250); --info-foreground: oklch(0.15 0 0); --info-text: oklch(0.74 0.12 250);
+    --danger: oklch(0.637 0.237 25.331); --danger-foreground: oklch(0.15 0 0); --danger-text: oklch(0.72 0.17 25);
+    --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+    --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+    --tinte-estado: 13%;
+    --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+    --card: oklch(0.155 0.012 270); --card-foreground: oklch(0.96 0.003 80);
+    --secondary: oklch(0.22 0.012 270); --secondary-foreground: oklch(0.96 0.003 80);
+    --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+    --accent: oklch(0.22 0.012 270); --accent-foreground: oklch(0.96 0.003 80);
+    --border: oklch(0.26 0.012 270);
+    --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+    --surface-primary: #0E0E12;
+    --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+    --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+    --success: oklch(0.60 0.17 145); --success-foreground: oklch(0.15 0 0); --success-text: oklch(0.76 0.15 145);
+    --warning: oklch(0.70 0.16 80); --warning-foreground: oklch(0.15 0 0); --warning-text: oklch(0.8 0.14 80);
+    --info: oklch(0.60 0.15 250); --info-foreground: oklch(0.15 0 0); --info-text: oklch(0.74 0.12 250);
+    --danger: oklch(0.637 0.237 25.331); --danger-foreground: oklch(0.15 0 0); --danger-text: oklch(0.72 0.17 25);
+    --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+    --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@keyframes slide-up-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--font-sans); background: var(--background); color: var(--foreground); -webkit-font-smoothing: antialiased; font-feature-settings: "rlig" 1, "calt" 1; }
+button, input, select { font: inherit; color: inherit; }
+button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3 { text-wrap: balance; }
+[hidden] { display: none !important; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+svg.i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 100; padding: 10px 16px; border-radius: var(--radius-xl); background: var(--card); color: var(--foreground); border: 2px solid var(--brand-primary); font-size: 14px; font-weight: 600; text-decoration: none; }
+.skip:focus { left: 8px; }
+
+/* ── Buttons (BotonSistema) ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-xl); border: 2px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer; font-size: 16px; font-weight: 500; white-space: nowrap; transition: background-color var(--duration-fast) var(--ease-expo), transform var(--duration-fast) var(--ease-expo); }
+.btn:hover { background: var(--accent); }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--brand-strong); border-color: var(--brand-strong); color: var(--brand-primary-foreground); }
+.btn.primary:hover { background: var(--brand-strong-hover); border-color: var(--brand-strong-hover); }
+.btn.ghost { border-color: transparent; color: var(--muted-foreground); }
+.btn.ghost:hover { color: var(--foreground); }
+.btn.icon { width: 44px; padding: 0; }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn[disabled]:active { transform: none; }
+@media (pointer: coarse) { .btn.sm { min-height: 44px; } }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; }
+
+/* ── Phone chrome (base = phone, < 768px) ── */
+.side, .header, .hero, .toolbar .desk { display: none; }
+.navbar { position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; min-height: 48px; padding: env(safe-area-inset-top, 0px) 8px 0; background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-bottom: 1px solid transparent; transition: border-color var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled { border-bottom-color: var(--border); }
+.navbar .back { grid-column: 1; justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; max-width: 120px; padding: 0 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); font-size: 16px; cursor: pointer; }
+.navbar .back span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navbar .ttl { grid-column: 2; margin: 0; max-width: 180px; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled .ttl { opacity: 1; }
+.navbar .actions { grid-column: 3; justify-self: end; display: flex; }
+.navbar .actions button { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); cursor: pointer; }
+.navbar .actions button:active { background: var(--accent); }
+.navbar .actions .count { position: absolute; top: 4px; right: 2px; }
+
+main { display: grid; gap: 22px; min-width: 0; padding: 4px 16px 24px; }
+.large { padding: 2px 4px 0; }
+.large h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+.large p, .hero p { margin: 4px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.large p strong, .hero p strong { color: var(--foreground); font-weight: 600; }
+#sentinela { display: block; height: 1px; }
+
+/* Toolbar (BarraHerramientas) */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.search { flex: 1 1 100%; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid transparent; background: color-mix(in oklab, var(--foreground) 8%, transparent); color: var(--muted-foreground); transition: border-color var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo); }
+.search:focus-within { border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.search input { flex: 1; min-width: 0; height: 38px; border: 0; background: none; outline: none; font-size: 16px; color: var(--foreground); }
+.search input::placeholder { color: var(--muted-foreground); }
+.search input::-webkit-search-cancel-button { cursor: pointer; }
+.search kbd { display: none !important; font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--muted-foreground); }
+.seg { display: inline-flex; padding: 3px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.seg button:hover { color: var(--foreground); }
+.seg button[aria-pressed="true"] { background: var(--foreground); color: var(--background); }
+@media (pointer: coarse) { .seg button { min-height: 44px; } }
+
+/* Section headings */
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 8px; padding: 0 4px; }
+.sec-h h2 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.sec-h .hint { display: none; font-size: 13px; color: var(--muted-foreground); }
+
+/* Attention metrics (MetricasAtencion) */
+.attention { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.metric { min-width: 0; display: grid; gap: 6px; padding: 12px; text-align: left; cursor: pointer; border-radius: var(--radius-2xl); border: 1px solid transparent; background: var(--card); transition: background-color var(--duration-fast) var(--ease-expo), border-color var(--duration-fast) var(--ease-expo); }
+.metric:hover { background: var(--accent); }
+.metric[aria-pressed="true"] { background: var(--brand-accent-strong); box-shadow: inset 0 0 0 1.5px var(--brand-primary); }
+.metric .v { font-size: 26px; font-weight: 600; line-height: 1; color: var(--foreground); }
+.metric .bar, .metric .s { display: none; }
+.bar { height: 4px; border-radius: 9999px; background: var(--muted); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: var(--c); transition: width 500ms var(--ease-out-quint); }
+.metric .s { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Status dot (PuntoEstado) */
+.estado { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.d { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 9999px; background: var(--c); box-shadow: 0 0 0 4px color-mix(in oklab, var(--c) 20%, transparent); }
+[data-t="success"] { --c: var(--success); } [data-t="warning"] { --c: var(--warning); } [data-t="info"] { --c: var(--info); }
+[data-t="danger"] { --c: var(--danger); } [data-t="muted"] { --c: var(--muted-foreground); }
+[data-t="faint"] { --c: color-mix(in oklab, var(--muted-foreground) 50%, transparent); }
+
+/* Tags (status badges on surfaces) */
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px; border: 1px solid var(--border); font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--muted-foreground); }
+.tag.warn { color: var(--warning-text); border-color: color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); }
+.tag.info { color: var(--info-text); border-color: color-mix(in oklab, var(--info) 40%, transparent); background: color-mix(in oklab, var(--info) var(--tinte-estado), transparent); }
+
+/* Scope (phone: inset grouped list) */
+.scope { list-style: none; margin: 0; padding: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.scope li { position: relative; }
+.scope li + li::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.node { width: 100%; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; align-items: center; gap: 4px 10px; padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer; }
+.node:active { background: var(--accent); }
+.node:focus-visible { outline-offset: -2px; }
+.node .n-top { display: contents; }
+.n-txt { grid-column: 1; grid-row: 1; min-width: 0; }
+.n-name { display: block; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n-who { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n-go { grid-column: 3; grid-row: 1; color: var(--muted-foreground); display: grid; }
+.n-stats { grid-column: 2; grid-row: 1; justify-self: end; }
+.n-n { font-size: 17px; font-weight: 500; color: var(--muted-foreground); }
+.n-u { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.n-flags { grid-column: 1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.n-flags:empty { display: none; }
+.n-flags .tag.info { display: none; }
+.stack { display: none; height: 6px; border-radius: 9999px; overflow: hidden; background: var(--muted); }
+.stack i { display: block; height: 100%; }
+
+/* Chips (ChipsFiltrosActivos) */
+.chips { display: flex; align-items: center; gap: 8px; padding: 0 2px; overflow-x: auto; scrollbar-width: none; }
+.chips:empty { display: none; }
+.chip { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 4px 0 12px; border-radius: 9999px; border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); background: var(--brand-accent-strong); font-size: 13px; white-space: nowrap; }
+.chip button { position: relative; width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 9999px; background: none; color: var(--muted-foreground); cursor: pointer; }
+.chip button::after { content: ''; position: absolute; inset: -8px; }
+.chip button:hover { color: var(--foreground); }
+.link { flex: none; min-height: 44px; padding: 0 4px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+.link:hover { color: var(--foreground); }
+
+/* List (ListaResponsiva) */
+.lista { min-width: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.cab { display: none; }
+.fila { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 64px; padding: 10px 14px; transition: background-color var(--duration-fast) var(--ease-expo); }
+.fila:active { background: var(--accent); }
+.fila + .fila::before { content: ''; position: absolute; top: 0; left: 66px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.fila:has(.abrir:focus-visible) { box-shadow: inset 0 0 0 2px var(--brand-primary); }
+.c-d { display: none; }
+.c-m { display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; }
+.c-m .txt { flex: 1; min-width: 0; }
+.c-m .t1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.c-m .nm { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.c-m .ins { flex: none; display: flex; gap: 4px; }
+.c-m .t2 { margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-m .estado .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.c-abrir { flex: none; display: flex; justify-content: flex-end; }
+.abrir { width: 28px; height: 28px; display: grid; place-items: center; border: 0; background: none; color: var(--muted-foreground); cursor: pointer; outline: none; }
+.abrir::after { content: ''; position: absolute; inset: 0; }
+.avatar { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 9999px; font-size: 13px; font-weight: 600; color: var(--foreground); background: color-mix(in oklab, var(--c) 26%, var(--card)); border: 1px solid color-mix(in oklab, var(--c) 40%, transparent); }
+[data-h="1"] { --c: var(--chart-1); } [data-h="2"] { --c: var(--chart-2); } [data-h="3"] { --c: var(--chart-3); } [data-h="4"] { --c: var(--chart-4); } [data-h="5"] { --c: var(--chart-5); }
+.who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.who .txt { min-width: 0; }
+.who .nm { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 3px; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+.svcs { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.svc { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; height: 30px; padding: 0 10px; border-radius: var(--radius-xl); background: var(--background); border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: 13px; }
+.svc .eq { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.svc .rol { color: var(--muted-foreground); white-space: nowrap; }
+.svc.mas { color: var(--muted-foreground); }
+.turno { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.turno.none { color: var(--danger-text); }
+.vacio { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 20px; text-align: center; }
+.vacio svg.i { width: 40px; height: 40px; color: color-mix(in oklab, var(--muted-foreground) 40%, transparent); }
+.vacio p { margin: 0; max-width: 28rem; }
+.vacio .t { font-size: 16px; font-weight: 600; }
+.vacio .s { margin-top: 6px; font-size: 14px; color: var(--muted-foreground); }
+.skel { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 16px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.skel:last-child { border-bottom: 0; }
+.skel span { display: block; background: var(--muted); border-radius: var(--radius-md); animation: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite; }
+.skel .a { width: 40px; height: 40px; border-radius: 9999px; flex: none; }
+.skel .l { flex: 1; display: grid; gap: 8px; animation: none; background: none; }
+.skel .l span:first-child { width: 40%; height: 14px; } .skel .l span:last-child { width: 60%; height: 12px; }
+.foot { display: flex; justify-content: center; gap: 8px; padding: 0 4px; font-size: 13px; color: var(--muted-foreground); }
+.foot .orden { display: none; }
+.people { display: grid; gap: 10px; min-width: 0; }
+
+/* Tab bar + FAB (MenuInferiorMovil, BotonFlotante) */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 6px max(8px, env(safe-area-inset-bottom, 0px)); background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-top: 1px solid var(--border); }
+.tabbar a { min-width: 0; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 4px; padding: 6px 0; border-radius: var(--radius-xl); color: var(--muted-foreground); text-decoration: none; font-size: 12px; font-weight: 500; }
+.tabbar a span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabbar a[aria-current="page"] { color: var(--brand-text); font-weight: 600; }
+.tabbar svg.i { width: 24px; height: 24px; }
+.fab { position: fixed; right: 16px; bottom: 88px; z-index: 45; width: 56px; height: 56px; display: grid; place-items: center; border: 0; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); box-shadow: var(--shadow-fab); cursor: pointer; transition: transform var(--duration-fast) var(--ease-expo), background-color var(--duration-fast) var(--ease-expo); }
+.fab:hover { background: var(--brand-strong-hover); }
+.fab:active { transform: scale(.97); }
+.fab svg.i { width: 24px; height: 24px; }
+
+/* Overlays (HojaInferior below md, PanelLateralSistema from md) */
+.scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; z-index: 70; left: 0; right: 0; bottom: 0; max-height: 90vh; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: var(--shadow-sheet); transform: translateY(105%); visibility: hidden; transition: transform var(--duration-slow) var(--ease-out-quint), visibility 0s linear var(--duration-slow); }
+.sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
+.sheet:focus { outline: none; }
+.grab { display: block; flex: none; width: 38px; height: 5px; margin: 8px auto 0; border-radius: 9999px; background: var(--border); }
+.sh-head { position: relative; display: grid; gap: 16px; padding: 12px 18px 16px; border-bottom: 1px solid var(--border); }
+.sh-head h2 { margin: 0; padding-right: 48px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.sh-close { position: absolute; top: 4px; right: 8px; }
+.sh-body { container-type: inline-size; flex: 1; min-height: 0; overflow: auto; display: grid; gap: 18px; align-content: start; padding: 16px 18px max(12px, env(safe-area-inset-bottom, 0px)); }
+.sh-foot { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: inherit; }
+.idrow { display: flex; gap: 14px; align-items: center; padding-right: 48px; }
+.idrow .avatar { width: 56px; height: 56px; border-radius: var(--radius-xl); font-size: 18px; }
+.idrow h2 { padding-right: 0; font-size: 20px; letter-spacing: -.02em; }
+.idrow .meta { margin-top: 4px; font-size: 14px; color: var(--muted-foreground); }
+.quick { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 8px; }
+.quick .btn { flex-direction: column; gap: 6px; min-height: 66px; padding: 0 8px; font-size: 13px; }
+.motivo { margin: -8px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.callout { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); font-size: 14px; }
+.callout > svg.i { color: var(--warning-text); margin-top: 1px; }
+.callout b { font-weight: 600; }
+.callout p { margin: 2px 0 0; color: var(--muted-foreground); }
+.callout .btn { margin-top: 10px; }
+.nota { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.sh-sec { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.s-card { display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--background); }
+.s-card .t { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.s-card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.s-card .ruta { margin-top: 2px; font-size: 12px; color: var(--muted-foreground); }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.kv div { display: grid; gap: 4px; min-width: 0; }
+.kv dt { font-size: 12px; color: var(--muted-foreground); }
+.kv dd { margin: 0; font-size: 13px; font-weight: 500; }
+.kv .none { color: var(--danger-text); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts .btn { font-size: 14px; padding: 0 14px; }
+.group { display: grid; gap: 10px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.group legend, .group > .g-t { padding: 0; margin-bottom: 10px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 9999px; border: 1.5px solid var(--border); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.pill:hover { background: var(--accent); color: var(--foreground); }
+.pill b { font-weight: 600; color: var(--foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.pill[aria-pressed="true"] { border-color: var(--brand-primary); background: var(--brand-accent-strong); color: var(--foreground); }
+.selects { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.campo { display: grid; gap: 8px; min-width: 0; }
+.campo label { font-size: 14px; font-weight: 500; }
+.campo .sel { position: relative; }
+.campo select { width: 100%; height: 44px; padding: 0 40px 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; appearance: none; cursor: pointer; }
+.campo select:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.campo select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.campo .sel svg { position: absolute; right: 12px; top: 13px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+.campo option { background: var(--card); color: var(--foreground); }
+
+/* Prototype options: not part of the design */
+/* Phone: the options sit after the list, in the page flow, so they never cover rows; the bottom
+   margin clears the tab bar and the FAB. From md up they float in the sidebar corner. */
+.opciones { position: relative; margin: 0 16px calc(160px + env(safe-area-inset-bottom, 0px)); padding-top: 16px; border-top: 1px dashed var(--border); font-size: 13px; }
+.opciones summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 9999px; border: 1px dashed var(--border); background: var(--card); color: var(--muted-foreground); cursor: pointer; }
+.opciones summary::-webkit-details-marker { display: none; }
+.opciones[open] summary { color: var(--foreground); }
+.opciones .panel { position: static; left: 0; bottom: 52px; margin-top: 8px; display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px dashed var(--border); background: var(--card); }
+.opciones .panel p { margin: 0; font-size: 12px; color: var(--muted-foreground); }
+.opciones .fila-op { display: grid; gap: 6px; }
+.opciones .fila-op > span { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.opciones .seg { justify-self: start; }
+
+/* ── Tablet (768–1023) ── */
+@media (min-width: 768px) {
+  body { background: var(--surface-primary); }
+  .navbar, .large, .tabbar, .fab, .movil { display: none !important; }
+  .app { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-height: 100vh; }
+  .content { min-width: 0; display: flex; flex-direction: column; }
+  .header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 0 24px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); background: color-mix(in oklab, var(--surface-primary) 85%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  .crumbs { flex: 1; min-width: 0; overflow: hidden; }
+  .crumbs ol { display: flex; align-items: center; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+  .crumbs li { flex: 0 1 auto; display: flex; align-items: center; gap: 2px; min-width: 0; }
+  .crumbs li:last-child { flex-shrink: 0; max-width: 45%; }
+  .crumbs li + li::before { content: '/'; flex: none; padding: 0 4px; color: var(--muted-foreground); }
+  .crumbs button { min-width: 0; max-width: 100%; min-height: 44px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted-foreground); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs button:hover { background: var(--accent); color: var(--foreground); }
+  .crumbs [aria-current="page"] { min-width: 0; padding: 0 8px; color: var(--foreground); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn.assign { position: relative; min-height: 36px; padding: 0 14px; gap: 6px; font-size: 14px; }
+  .btn.assign svg.i { width: 16px; height: 16px; }
+  .btn.assign::after { content: ''; position: absolute; inset: -6px -2px; }
+  .me { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 9999px; background: none; cursor: pointer; }
+  .me span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9999px; background: var(--brand-accent-strong); border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); font-size: 12px; font-weight: 600; color: var(--foreground); }
+  main { padding: 32px 24px 120px; gap: 28px; }
+  .hero { display: block; }
+  .hero h1 { margin: 0; font-size: 24px; font-weight: 650; line-height: 1.15; letter-spacing: -.02em; }
+  .hero p { margin-top: 6px; }
+  .toolbar .desk { display: inline-flex; }
+  .search { flex: 1 1 280px; min-height: 44px; padding: 0 14px; border-color: var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); }
+  .search input { height: 42px; }
+  .search kbd { display: inline-block !important; }
+  .sec-h { margin-bottom: 12px; padding: 0; }
+  .sec-h .hint { display: block; }
+  .attention { gap: 12px; }
+  .metric { padding: 16px; gap: 10px; border-color: var(--border); }
+  .metric[aria-pressed="true"] { border-color: var(--brand-primary); box-shadow: none; }
+  .metric .v { font-size: 30px; }
+  .metric .bar, .metric .s { display: block; }
+  .scope { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; background: none; border-radius: 0; overflow: visible; }
+  .scope li + li::before { display: none; }
+  .node { height: 100%; display: grid; grid-template-columns: none; align-content: start; gap: 14px; padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); transition: background-color var(--duration-fast) var(--ease-expo), transform var(--duration-normal) var(--ease-out-quint); }
+  .node:hover { background: var(--accent); transform: translateY(-1px); }
+  .node:active { background: var(--accent); }
+  .node:focus-visible { outline-offset: 2px; }
+  .node .n-top { display: flex; justify-content: space-between; gap: 8px; }
+  .n-txt, .n-go, .n-stats, .n-flags { grid-column: auto; grid-row: auto; }
+  .n-name { font-size: 15px; font-weight: 600; white-space: normal; }
+  .n-who { margin-top: 4px; }
+  .n-stats { justify-self: start; display: flex; align-items: baseline; gap: 6px; }
+  .n-n { font-size: 26px; font-weight: 600; line-height: 1; color: var(--foreground); }
+  .n-u { position: static; width: auto; height: auto; overflow: visible; clip: auto; font-size: 13px; color: var(--muted-foreground); }
+  .n-flags { min-height: 22px; }
+  .n-flags:empty { display: flex; }
+  .n-flags .tag.info { display: inline-flex; }
+  .stack { display: flex; }
+  .chips { flex-wrap: wrap; overflow: visible; padding: 0; }
+  .lista { border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+  .tabla { --cols: minmax(200px, 1.1fr) minmax(0, 2fr) 130px 28px; }
+  .cab, .fila { display: grid; grid-template-columns: var(--cols); gap: 16px; align-items: center; padding: 0 18px; }
+  .cab { min-height: 44px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .cab [role="columnheader"] { display: flex; align-items: center; min-width: 0; }
+  .cab button { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; margin: 0 -4px; padding: 0 4px; border: 0; border-radius: var(--radius-md); background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+  .cab button:hover, .cab [aria-sort] button { color: var(--foreground); }
+  .fila { min-height: 72px; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+  .fila:last-child { border-bottom: 0; }
+  .fila + .fila::before { display: none; }
+  .fila:hover { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+  .fila:active { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+  .entrada .fila { animation: slide-up-fade 300ms var(--ease-expo) both; }
+  .c-d { display: flex; align-items: center; min-width: 0; }
+  .c-m { display: none; }
+  .c-turno { display: none !important; }
+  .avatar { border-radius: var(--radius-lg); }
+  .foot { justify-content: space-between; }
+  .foot .orden { display: inline; }
+  .opciones { position: fixed; left: 10px; bottom: 12px; z-index: 50; margin: 0; padding: 0; border: 0; }
+  .opciones summary { width: 44px; padding: 0; justify-content: center; }
+  .opciones summary .lbl-op { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .opciones .panel { position: absolute; width: 272px; margin: 0; box-shadow: var(--shadow-sheet); }
+  .sheet { top: 0; left: auto; width: min(480px, 100%); max-height: none; border-radius: 0; border-left: 1px solid var(--border); background: var(--background); transform: translateX(105%); }
+  .grab { display: none; }
+  .sh-head { padding: 16px 24px; }
+  .sh-close { top: 8px; right: 8px; }
+  .sh-body { padding: 20px 24px; }
+  .sh-foot { padding: 12px 24px; }
+  .s-card { background: var(--card); }
+  .kv { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 560px) { .selects { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 768px) and (pointer: coarse) { .cab button { min-height: 44px; } }
+
+/* ── Desktop (≥ 1024) ── */
+@media (min-width: 1024px) {
+  .app { grid-template-columns: 256px minmax(0, 1fr); }
+  .header { padding: 0 48px; }
+  main { padding: 32px 48px 120px; }
+  .attention { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tabla { --cols: minmax(240px, 1.1fr) minmax(0, 2fr) 150px 130px 28px; }
+  .opciones summary { width: auto; padding: 0 14px; }
+  .opciones summary .lbl-op { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+  .c-turno { display: flex !important; }
+}
+
+/* App shell (design/app-shell): sidebar by sections, Dream Team group, header icons */
+.sel { position: relative; }
+.sel select { width: 100%; height: 44px; padding: 0 36px 0 40px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 14px; font-weight: 500; appearance: none; cursor: pointer; }
+.sel select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; border-color: var(--brand-primary); }
+.sel .ic { position: absolute; left: 12px; top: 13px; width: 18px; height: 18px; color: var(--muted-foreground); pointer-events: none; }
+.sel .ch { position: absolute; right: 12px; top: 14px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+.sel option { background: var(--card); color: var(--foreground); }
+.sel.plain select { padding-left: 12px; font-size: 16px; }
+.campana { position: relative; }
+.campana .count { position: absolute; top: 3px; right: 1px; box-shadow: 0 0 0 2px var(--background); }
+@media (min-width: 768px) {
+  .app.rail { grid-template-columns: 64px minmax(0, 1fr); }
+  .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; min-width: 0; padding: 18px 14px 12px; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); }
+  .rail .side { padding: 16px 10px 12px; }
+  .s-top { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+  .rail .s-top { flex-direction: column; align-items: stretch; gap: 4px; }
+  .logo { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; padding: 0 8px; font-weight: 700; font-size: 15px; }
+  .rail .logo { justify-content: center; padding: 0; }
+  .logo i { width: 28px; height: 28px; flex: none; border-radius: var(--radius-sm); background: var(--brand-primary); }
+  .s-icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo); }
+  .s-icon:hover { background: var(--accent); color: var(--foreground); }
+  .s-icon[aria-expanded="true"] { background: var(--accent); color: var(--foreground); }
+  .s-campus { margin-bottom: 8px; }
+  .s-scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -14px; padding: 0 14px 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .rail .s-scroll { margin: 0 -10px; padding: 0 10px 8px; scrollbar-width: none; }
+  .s-sec + .s-sec { margin-top: 4px; }
+  .s-sec h2 { margin: 0; padding: 14px 10px 6px; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
+  .rail .s-sec h2 { height: 1px; margin: 10px 8px; padding: 0; overflow: hidden; background: var(--sidebar-border); color: transparent; }
+  .s-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .it { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; text-align: left; text-decoration: none; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+  .it:hover { background: var(--accent); color: var(--foreground); }
+  .it[aria-current="page"] { background: var(--brand-accent-strong); color: var(--foreground); font-weight: 600; }
+  .it.contiene { color: var(--foreground); font-weight: 500; }
+  .it .lbl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it .ch { width: 16px; height: 16px; color: var(--muted-foreground); transition: transform var(--duration-fast) var(--ease-out-quint); }
+  .it[aria-expanded="true"] .ch, .s-icon.chev[aria-expanded="true"] .ch { transform: rotate(180deg); }
+  .padre { display: flex; align-items: center; gap: 2px; }
+  .padre .it { flex: 1; min-width: 0; }
+  .s-icon.chev { background: none; }
+  .s-icon.chev:hover { background: var(--accent); }
+  .s-icon.chev .ch { width: 16px; height: 16px; transition: transform var(--duration-fast) var(--ease-out-quint); }
+  .s-sub { list-style: none; margin: 2px 0 6px 20px; padding: 0 0 0 10px; display: grid; gap: 2px; border-left: 1px solid var(--sidebar-border); }
+  .s-sub .it { min-height: 36px; font-size: 14px; }
+  .s-sub { gap: 0; }
+  .rail .it { justify-content: center; padding: 0; }
+  .rail .it .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .rail .it.contiene { background: var(--brand-accent-strong); }
+  .rail .it[aria-expanded="true"] { background: var(--accent); }
+  .s-pie { margin: 0 -14px; padding: 8px 14px 0; border-top: 1px solid var(--sidebar-border); }
+  .rail .s-pie { margin: 0 -10px; padding: 8px 10px 0; }
+  .h-icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--muted-foreground); cursor: pointer; }
+  .h-icon:hover { background: var(--accent); color: var(--foreground); }
+  .me[aria-expanded="true"] span { border-color: var(--brand-primary); }
+}
+@media (min-width: 768px) and (pointer: coarse) { .s-sub .it { min-height: 44px; } }
+
+/* Shared with Mi equipo (design/mi-equipo/.capturas/partes/extra.css): phone header row, tabs, fields, options. */
+h1:focus, h2:focus { outline: none; } h1:focus-visible, h2:focus-visible { outline: 2px solid var(--brand-primary); }
+.navbar .ttl { opacity: 1; }
+.navbar .actions .campana .count { top: 3px; right: 1px; }
+
+/* Phone content row: "‹ parent" (BotonAtrasMovil) + one brand icon action, as Servidores in production. */
+.m-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px -8px 0; min-height: 44px; }
+.m-cab .large { flex: 1; min-width: 0; padding-left: 12px; }
+.atras { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; max-width: 75%; padding: 0 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); font-size: 16px; cursor: pointer; }
+.atras span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-acc { position: relative; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); cursor: pointer; }
+.m-acc:active { background: var(--accent); }
+.large h2 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+
+/* Hero row: title block + page sections (TabsSistema with the ControlSegmentado look). */
+.hero-fila { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.hero-fila .hero { min-width: 0; }
+.hero-acc { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; width: 100%; }
+.tabs { flex: 1; display: flex; padding: 3px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.tabs button { flex: 1; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.tabs button:hover { color: var(--foreground); }
+.tabs button[aria-selected="true"] { background: var(--foreground); color: var(--background); }
+@media (pointer: coarse) { .tabs button { min-height: 44px; } }
+
+/* Fields (InputSistema / SelectSistema), checks (Checkbox + label), notes. */
+.campo input { width: 100%; height: 44px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; }
+.campo input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.campo .ayuda { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.campo .sel select { padding: 0 40px 0 12px; font-size: 16px; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.check { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 8px; border-radius: var(--radius-xl); cursor: pointer; }
+.check:hover { background: var(--accent); }
+.check input { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--brand-strong); cursor: pointer; }
+.check .txt { flex: 1; min-width: 0; }
+.check b { display: block; font-size: 15px; font-weight: 500; }
+.check small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.btn.peligro { background: var(--danger); border-color: var(--danger); color: var(--danger-foreground); }
+.aviso { margin: 0; font-size: 14px; color: var(--muted-foreground); }
+.tag.gdv { color: var(--muted-foreground); }
+
+/* Dates (from the Mi equipo calendar): 44px day box. */
+.dia { width: 44px; height: 44px; flex: none; display: grid; place-content: center; text-align: center; border-radius: var(--radius-lg); background: var(--brand-accent-strong); border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); }
+.dia b { display: block; font-size: 17px; font-weight: 600; line-height: 1; }
+.dia small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--brand-text); text-transform: uppercase; letter-spacing: .04em; }
+.pasada .dia, .dia.pasada { background: var(--muted); border-color: var(--border); }
+.pasada .dia small, .dia.pasada small { color: var(--muted-foreground); }
+
+@media (min-width: 768px) {
+  .m-cab { display: none; }
+  .hero-acc { width: auto; }
+  .tabs { flex: none; }
+  .tabs button { flex: none; }
+  /* Prototype options: in the sidebar corner (as Servidores v3), never over the content. Prototype-only. */
+  .opciones { left: 10px; right: auto; bottom: 10px; }
+  .opciones .panel { left: 0; right: auto; bottom: 52px; width: 300px; }
+  .side, .rail .side { padding-bottom: 60px; }
+  #sentinela { display: none; }
+}
+main { position: relative; }
+#sentinela { position: absolute; top: 96px; left: 0; width: 1px; }
+
+/* Estructura: master–detail built only from the Servidores v3 / Mi equipo pieces and tokens above. */
+.md { display: grid; gap: 24px; min-width: 0; }
+.arbol { display: none; }
+.detalle { display: grid; gap: 22px; min-width: 0; align-content: start; }
+
+/* Tree rows (ArbolNavegable): a fold chevron (aria-expanded) + the row button (aria-current on the open node). */
+.ar-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 6px 18px; }
+.ar-h h2 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.ar-buscar { padding: 0 14px 10px; }
+.ar-lista { flex: 1; min-height: 0; overflow-y: auto; padding: 0 8px 12px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.t-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.t-li { display: flex; align-items: center; gap: 2px; min-width: 0; padding-left: calc(var(--p, 0) * 16px); }
+.t-tog, .t-hueco { width: 32px; height: 44px; flex: none; }
+.t-tog { display: grid; place-items: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); cursor: pointer; }
+.t-tog:hover { background: var(--accent); color: var(--foreground); }
+.t-tog svg.i { width: 16px; height: 16px; transition: transform var(--duration-fast) var(--ease-out-quint); }
+.t-tog[aria-expanded="true"] svg.i { transform: rotate(90deg); }
+.t-sel { flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: none; color: var(--foreground); font-size: 14px; font-weight: 500; text-align: left; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo); }
+.t-sel.raiz { font-weight: 600; }
+.t-sel:hover { background: var(--accent); }
+.t-sel[aria-current="true"] { background: var(--brand-accent-strong); font-weight: 600; box-shadow: inset 2px 0 0 var(--brand-primary); }
+.t-sel.apagado { color: var(--muted-foreground); }
+.t-sel .lb { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-sel .ct { flex: none; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
+.t-sel mark { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.t-inact { width: 100%; min-height: 44px; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 0; border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); border-radius: 0; background: none; color: var(--muted-foreground); font-size: 13px; font-weight: 600; cursor: pointer; }
+.t-inact:hover { color: var(--foreground); }
+.t-nada { margin: 0; padding: 28px 12px; text-align: center; font-size: 14px; color: var(--muted-foreground); }
+@media (pointer: coarse) { .t-tog, .t-hueco { width: 44px; } }
+
+/* Detail header: node title (h2 20px, as the drawer identity), tags, small actions. */
+.d-cab { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 20px; }
+.d-cab .txt { min-width: 0; }
+.d-cab h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+.d-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; }
+.d-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Summary cells: responsible, people (→ Mi equipo), flags. Not buttons; links are EnlaceSistema marca. */
+.resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+.r-cel { min-width: 0; display: grid; align-content: start; gap: 4px; padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); }
+.r-l { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.r-v { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.r-s { font-size: 13px; color: var(--muted-foreground); }
+.r-n { font-size: 30px; font-weight: 600; line-height: 1.1; }
+.enlace { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin: -6px 0 -10px; padding: 0; border: 0; background: none; color: var(--brand-text); font-size: 14px; font-weight: 500; text-decoration: none; cursor: pointer; justify-self: start; }
+.enlace:hover { text-decoration: underline; text-underline-offset: 3px; }
+.enlace svg.i { width: 14px; height: 14px; }
+
+/* Section cards (TarjetaSistema p-0 inside SeccionesSistema): heading row, hairline rows, footer form. */
+.secciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr)); gap: 16px; align-items: start; }
+.secciones .ancho { grid-column: 1 / -1; }
+.tarjeta { min-width: 0; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); overflow: hidden; }
+.tj-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 14px 20px; border-bottom: 1px solid var(--border); }
+.tj-h .txt { min-width: 0; }
+.tj-h h3 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.tj-h p { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.rr-ul { list-style: none; margin: 0; padding: 0; }
+.rr { position: relative; display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 60px; padding: 8px 12px 8px 20px; }
+.rr + .rr { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.rr .txt { flex: 1; min-width: 0; }
+.rr .t1 { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; font-weight: 600; }
+.rr .t1 span:first-child { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr .t2 { margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rr.apagado .t1 { color: var(--muted-foreground); }
+.rr .der { flex: none; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted-foreground); }
+.rr.ir:hover { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+.rr.ir:has(.abrir:focus-visible) { box-shadow: inset 0 0 0 2px var(--brand-primary); }
+.rr .abrir { position: static; }
+.rr .nivel { width: 150px; }
+.rr .nivel select { height: 40px; font-size: 14px; }
+.tj-pie { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; padding: 14px 16px 16px 20px; border-top: 1px solid var(--border); }
+.tj-pie .campo { flex: 1 1 12rem; }
+.tj-pie .campo.nivel { flex: 0 0 150px; }
+.tj-vacio { padding: 28px 20px; text-align: center; }
+.tj-vacio .t { margin: 0; font-size: 15px; font-weight: 600; }
+.tj-vacio .s { margin: 4px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.tj-cuerpo { display: grid; gap: 12px; padding: 16px 20px; }
+
+/* Switch (role="switch", as roles-equipo.tsx / turnos-campus.tsx): 44px target, brand track when on. */
+.sw { width: 52px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; cursor: pointer; }
+.sw .pista { width: 44px; height: 24px; display: flex; align-items: center; padding: 3px; border-radius: 9999px; background: color-mix(in oklab, var(--muted-foreground) 55%, transparent); transition: background-color var(--duration-fast) var(--ease-expo); }
+.sw .pista i { width: 18px; height: 18px; border-radius: 9999px; background: var(--background); transition: transform var(--duration-fast) var(--ease-out-quint); }
+.sw[aria-checked="true"] .pista { background: var(--brand-primary); }
+.sw[aria-checked="true"] .pista i { transform: translateX(20px); }
+
+/* Shift chips (as .svc): weekly day · hour, dated with its next date. */
+.tchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tchip { display: inline-flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 10px; border-radius: var(--radius-xl); background: var(--background); border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: 13px; }
+.tchip .k { color: var(--muted-foreground); }
+.fechas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.grupo-t { margin: 0; padding: 14px 20px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.plegado summary { display: flex; align-items: center; min-height: 48px; padding: 0 20px; border-top: 1px solid var(--border); font-size: 14px; font-weight: 500; color: var(--muted-foreground); cursor: pointer; }
+.plegado summary:focus-visible { outline-offset: -2px; }
+
+/* Centered dialog (ui/dialog: DialogoNombre, ConfirmationModal). */
+.dialogo { position: fixed; z-index: 75; left: 50%; top: 50%; width: min(440px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto; display: grid; gap: 16px; padding: 24px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-sheet); opacity: 0; visibility: hidden; transform: translate(-50%, -48%); transition: opacity var(--duration-normal) var(--ease-out-quint), transform var(--duration-normal) var(--ease-out-quint), visibility 0s linear var(--duration-normal); }
+.dialogo.on { opacity: 1; visibility: visible; transform: translate(-50%, -50%); transition-delay: 0s; }
+.dialogo:focus { outline: none; }
+.dialogo h2 { margin: 0; padding-right: 40px; font-size: 18px; font-weight: 600; }
+.dialogo p { margin: 0; font-size: 14px; color: var(--muted-foreground); }
+.dialogo .sh-close { top: 8px; right: 8px; }
+.dg-pie { display: flex; flex-direction: column-reverse; gap: 10px; }
+
+/* Phone: inset grouped rows for the summary, roles and shifts of a node page. */
+.ilist { list-style: none; margin: 0; padding: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.ilist li { position: relative; }
+.ilist li + li::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.irow { width: 100%; min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 0; background: none; color: inherit; text-align: left; text-decoration: none; }
+button.irow, a.irow { cursor: pointer; }
+button.irow:active, a.irow:active { background: var(--accent); }
+.irow:focus-visible { outline-offset: -2px; }
+.irow .txt { flex: 1; min-width: 0; }
+.irow .t1 { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.irow .t2 { margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.irow .der { flex: none; display: flex; align-items: center; gap: 6px; font-size: 15px; color: var(--muted-foreground); }
+.irow.marca .t1 { color: var(--brand-text); }
+.irow.peligro .t1 { color: var(--danger-text); }
+.movil-sec { display: grid; gap: 8px; min-width: 0; }
+.movil-sec .sec-h { margin: 0; }
+
+/* Tablet (768–1023): the tree lives in a side panel; the detail takes the width. */
+@media (min-width: 768px) {
+  .detalle { gap: 24px; }
+  .dg-pie { flex-direction: row; justify-content: flex-end; }
+  .sheet .ar-lista { padding: 4px 16px 16px; }
+}
+/* Desktop (≥ 1024): the tree is a sticky pane at the left of the detail; it folds to a 44px rail. */
+@media (min-width: 1024px) {
+  .md { grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
+  .md.cerrado { grid-template-columns: 44px minmax(0, 1fr); }
+  .arbol { position: sticky; top: 88px; display: flex; flex-direction: column; max-height: calc(100vh - 112px); border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); overflow: hidden; }
+  .md.cerrado .arbol { border: 0; background: none; overflow: visible; }
+  .arbol .search { flex: none; }
+}
+/* SkeletonSistema: Tailwind animate-pulse (stopped by the reduced-motion block). */
+@keyframes pulse { 50% { opacity: .5; } }
+/* Phone node pages: the page tabs belong to the root level only. */
+@media (max-width: 767.98px) { .hero-fila.en-nivel { display: none; } }
+/* Phone: section cards become inset grouped surfaces (no border), as the list on phone. */
+@media (max-width: 767.98px) { .tarjeta { border: 0; } .tj-h { padding: 14px 14px 12px; } .rr { padding-left: 14px; } .plegado summary { padding: 0 14px; } }
+@media (min-width: 1024px) { .md.sin-arbol { grid-template-columns: minmax(0, 1fr); } }
+
+/* Estructura v2: shared pieces of the three directions, only from the tokens and components above. */
+/* Phone: no screen nav bar (as Servidores v3), so the content clears the safe area itself. */
+main { padding-top: max(12px, env(safe-area-inset-top, 0px)); }
+/* A grid with a definite height shrinks overflow-hidden rows (min size 0): size the rows to their content. */
+.sh-body { grid-auto-rows: max-content; }
+.vista { display: grid; gap: 22px; min-width: 0; }
+.m-cab[hidden] + .large { padding-top: 8px; }
+
+/* Status tags on surfaces, by health tone (dot + text, never color alone). */
+.tag.t-warning { color: var(--warning-text); border-color: color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); }
+.tag.t-info { color: var(--info-text); border-color: color-mix(in oklab, var(--info) 40%, transparent); background: color-mix(in oklab, var(--info) var(--tinte-estado), transparent); }
+.tag.t-danger { color: var(--danger-text); border-color: color-mix(in oklab, var(--danger) 40%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); }
+.warning-t { color: var(--warning-text) !important; } .info-t { color: var(--info-text) !important; } .danger-t { color: var(--danger-text) !important; }
+.t2 { display: block; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trunc { display: block; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.celda2 { display: grid; min-width: 0; font-size: 14px; }
+.sdots { display: inline-flex; align-items: center; gap: 6px; padding: 0 2px; }
+.sdots .d { width: 7px; height: 7px; box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 20%, transparent); }
+
+/* Responsible cell: small avatar + name / role; missing → "?" in the warning tone. */
+.resp { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.resp .txt { min-width: 0; display: grid; }
+.resp .nm { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.resp.falta .nm { color: var(--warning-text); }
+.avatar.chico { width: 32px; height: 32px; font-size: 12px; border-radius: 9999px; }
+.avatar.vacio-av { --c: var(--warning); color: var(--warning-text); border-style: dashed; }
+
+/* Pills that filter or highlight by health (GrupoPastillas). */
+a.btn { text-decoration: none; }
+.pill[disabled] { border-style: dashed; cursor: default; }
+.pill[disabled]:hover { background: none; color: var(--muted-foreground); }
+.pill .d { width: 7px; height: 7px; box-shadow: none; }
+.salud-pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+
+/* Detail panel (DetalleResponsivo lg): wider from md, tabs under the quick actions. */
+.sheet.ancho .sh-head { gap: 14px; }
+.sheet.ancho .idrow { padding-right: 48px; }
+.sheet.ancho .idrow h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avatar.nodo { border-radius: var(--radius-xl); }
+.d-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.quick .btn svg.i { width: 18px; height: 18px; }
+.ptabs { width: 100%; }
+.ptabs button { flex: 1; padding: 0 8px; }
+.ptabs button .d { width: 6px; height: 6px; box-shadow: none; }
+.ptabs button[aria-selected="true"] .d { box-shadow: 0 0 0 2px var(--background); }
+.callout[data-t] { border-color: color-mix(in oklab, var(--c) 40%, transparent); background: color-mix(in oklab, var(--c) var(--tinte-estado), transparent); }
+.callout[data-t="faint"] { border-color: var(--border); background: var(--muted); }
+.callout > .d { margin-top: 6px; }
+.callout .btn { margin-top: 10px; }
+.kv2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.kv2 dd { font-size: 15px; font-weight: 600; min-width: 0; }
+.kv2 dd .t2 { font-weight: 400; }
+.kv2 .big { font-size: 26px; font-weight: 600; line-height: 1.1; display: block; }
+.sh-body .acts { gap: 4px 20px; }
+.sh-body .enlace { margin: -8px 0; }
+.ilist.borde { border: 1px solid var(--border); border-radius: var(--radius-xl); }
+.sheet .ilist { background: var(--card); }
+.sh-body .rr { padding-left: 14px; }
+.sh-body .rr .der { flex-wrap: wrap; justify-content: flex-end; }
+.sh-body .rr .t1 { flex-wrap: wrap; row-gap: 2px; }
+@container (max-width: 470px) {
+  .sh-body .rr { flex-wrap: wrap; padding-top: 10px; padding-bottom: 6px; }
+  .sh-body .rr .txt { flex-basis: calc(100% - 64px); }
+  .sh-body .rr .der { width: 100%; justify-content: flex-start; }
+  .sh-body .rr .der .campo.nivel { flex: 1; width: auto; }
+}
+.nuevo-rol .fila-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.nuevo-rol .fila-form input { flex: 1 1 10rem; width: auto; }
+.nuevo-rol .fila-form .campo.nivel { flex: 0 0 140px; }
+.sheet .rr .nivel { width: 140px; }
+@media (min-width: 768px) { .sheet.ancho { width: min(560px, 100%); } }
+
+/* Rows: the open one keeps the brand tint while its panel is open. */
+.fila.sel, .fila.sel:hover { background: var(--brand-accent-strong); }
+.fila.apagado .nm, .node.apagado .n-name { color: var(--muted-foreground); }
+.node.apagado { border-style: dashed; }
+.m-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.m-tags:empty { display: none; }
+
+/* Legend of the health dots (B, C). */
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--muted-foreground); }
+.leyenda li { display: inline-flex; align-items: center; gap: 8px; }
+.leyenda .d { width: 7px; height: 7px; box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 20%, transparent); }
+
+@media (min-width: 768px) {
+  main { padding-top: 32px; }
+  .salud-pills { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; }
+  .toolbar { flex-wrap: nowrap; }
+}
+@keyframes pulse { 50% { opacity: .5; } }
+/* A metric at 0 has nothing to filter: not pressable, its value muted. */
+.metric[disabled] { cursor: default; }
+.metric[disabled]:hover { background: var(--card); }
+.metric[disabled] .v { color: var(--muted-foreground); }
+
+/* Direction B: the org chart. Boxes are cards (TarjetaSistema look), connectors are border-colored lines. */
+.lienzo { display: grid; gap: 14px; min-width: 0; }
+.lz-barra { display: grid; gap: 10px; min-width: 0; }
+.lz-res { font-size: 13px; color: var(--muted-foreground); }
+.lz-res:empty { display: none; }
+
+/* Box: avatar (responsible or "?"), name, responsible, people in the branch, health dots. */
+.caja, .ov-c { width: 100%; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); color: var(--foreground); text-align: left; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), opacity var(--duration-fast) var(--ease-expo), border-color var(--duration-fast) var(--ease-expo); }
+.caja:hover, .ov-c:hover { background: var(--accent); }
+.caja.raiz { cursor: default; background: var(--brand-accent-strong); border-color: color-mix(in oklab, var(--brand-primary) 40%, transparent); }
+.caja.raiz .avatar, .ov-raiz .avatar { --c: var(--brand-primary); color: var(--brand-text); }
+.caja.raiz .avatar svg.i, .ov-raiz .avatar svg.i { width: 16px; height: 16px; }
+.cj-txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.cj-n { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cj-r { font-size: 12.5px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cj-der { flex: none; display: grid; justify-items: end; gap: 6px; }
+.cj-c { font-size: 15px; font-weight: 600; line-height: 1; }
+.cj-der .sdots { padding: 0; min-height: 7px; }
+.caja.apagado, .ov-c.apagado { border-style: dashed; background: none; }
+.caja.apagado .cj-n, .ov-c.apagado .cj-n { color: var(--muted-foreground); }
+.caja.gdv .cj-r::after, .ov-c.gdv .cj-r::after { content: ' · solo lectura'; }
+.caja.sel, .ov-c.sel { border-color: var(--brand-primary); background: var(--brand-accent-strong); box-shadow: inset 0 0 0 1px var(--brand-primary); }
+/* Highlight: lit boxes get the brand ring, the rest step back (opacity, never hidden). */
+.caja.luce, .ov-c.luce { border-color: var(--brand-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--brand-primary) 25%, transparent); }
+.caja.tenue, .ov-c.tenue { background: none; border-style: dashed; }
+/* Stepping back keeps text at muted-foreground (AA); only the decorative avatar and dots fade. */
+.tenue .cj-n, .tenue .cj-r, .tenue .cj-c { color: var(--muted-foreground) !important; font-weight: 500; }
+.tenue .avatar, .tenue .sdots { opacity: .45; }
+.cj-mini { width: 14px; height: 10px; border: 1px dashed var(--muted-foreground); border-radius: 3px; }
+
+/* Phone (base): vertical chart, one rail per level. */
+.org-v { display: grid; gap: 8px; min-width: 0; }
+.ov-raiz { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 0 12px; border-radius: var(--radius-xl); background: var(--brand-accent-strong); border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); }
+.ov-raiz b { display: block; font-size: 15px; }
+.ov { list-style: none; margin: 0; padding: 0 0 0 14px; display: grid; gap: 8px; border-left: 1.5px solid var(--border); margin-left: 16px; }
+.ov li { position: relative; display: grid; gap: 8px; min-width: 0; }
+.ov li::before { content: ''; position: absolute; left: -14px; top: 28px; width: 12px; border-top: 1.5px solid var(--border); }
+.ov > li:last-child::after { content: ''; position: absolute; left: -16px; top: 29.5px; bottom: 0; width: 3px; background: var(--background); }
+.ov-fila { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
+.ov-c { flex: 1; min-height: 56px; }
+.ov-tog { flex: none; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 6px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--muted-foreground); font-size: 12px; font-weight: 600; cursor: pointer; }
+.ov-tog svg.i { transition: transform var(--duration-fast) var(--ease-out-quint); }
+.ov-tog[aria-expanded="true"] svg.i { transform: rotate(90deg); }
+.ov-tog:active { background: var(--accent); }
+.ov-acts { justify-content: center; }
+.lz-zoom, .lz-ley { display: none !important; }
+
+/* Desktop: a canvas card that fills the viewport; pan by dragging or scrolling, zoom bottom right, legend bottom left. */
+@media (min-width: 768px) {
+  .lienzo { position: relative; gap: 0; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); overflow: hidden; }
+  .lz-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .lz-barra .search { flex: 0 1 300px; min-height: 40px; }
+  .lz-barra .search input { height: 38px; }
+  .lz-barra .pill { min-height: 40px; padding: 0 14px; }
+  .lz-vista { position: relative; height: max(460px, calc(100vh - 286px)); overflow: auto; cursor: grab; background-color: var(--background); background-image: radial-gradient(color-mix(in oklab, var(--border) 90%, transparent) 1px, transparent 1px); background-size: 20px 20px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .lz-vista.arrastrando { cursor: grabbing; user-select: none; }
+  .lz-vista:focus-visible { outline-offset: -2px; }
+  /* Bottom padding keeps the last box clear of the legend and zoom bars. */
+  .lz-plano { position: relative; padding: 24px 24px 76px; box-sizing: content-box; }
+  .lz-capa { position: relative; transform-origin: 0 0; }
+  .lz-lineas { position: absolute; inset: 0; overflow: visible; }
+  .lz-lineas path { fill: none; stroke: color-mix(in oklab, var(--muted-foreground) 45%, transparent); stroke-width: 1.5; }
+  .cj-w { position: absolute; width: 256px; height: 56px; }
+  .cj-w:has(.cj-tog) .caja { padding-right: 24px; }
+  .caja { height: 100%; }
+  .cj-tog { position: absolute; right: -14px; top: 50%; z-index: 1; min-width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 0 6px; transform: translateY(-50%); border-radius: 9999px; border: 1px solid var(--border); background: var(--card); color: var(--muted-foreground); font-size: 12px; font-weight: 600; cursor: pointer; }
+  .cj-tog::after { content: ''; position: absolute; inset: -8px; }
+  .cj-tog:hover { color: var(--foreground); background: var(--accent); }
+  .cj-tog.plegado { color: var(--foreground); }
+  .cj-tog .d { width: 6px; height: 6px; box-shadow: none; }
+  .lz-zoom, .lz-ley { display: flex !important; position: absolute; z-index: 2; bottom: 12px; align-items: center; gap: 2px; padding: 4px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-sheet); }
+  .lz-zoom { right: 12px; }
+  .lz-pct { min-width: 52px; text-align: center; font-size: 13px; color: var(--muted-foreground); }
+  .lz-sep { width: 1px; height: 24px; margin: 0 4px; background: var(--border); }
+  .lz-ley { left: 12px; gap: 6px 14px; padding: 8px 12px; font-size: 12px; box-shadow: none; }
+  .vista[data-dir="b"] .toolbar { display: none; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<div class="app" id="app">
+  <nav class="side" id="side" aria-label="Menú principal"></nav>
+
+  <div class="content">
+    <header class="header">
+      <nav class="crumbs" aria-label="Ruta"><ol id="crumbs"></ol></nav>
+      <span id="h-accion"></span>
+      <button type="button" class="h-icon campana" aria-label="Notificaciones, 3 sin leer"><svg class="i" viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="count" aria-hidden="true">3</span></button>
+      <button type="button" class="me" id="me"><span aria-hidden="true" id="me-ini"></span></button>
+    </header>
+
+    <main id="contenido">
+      <div class="m-cab" id="m-cab"></div>
+      <div class="large" id="m-large"></div>
+      <span id="sentinela" aria-hidden="true"></span>
+
+      <div class="hero-fila" id="hero-fila">
+        <div class="hero"><h1 id="title" tabindex="-1">Estructura</h1><p id="summary"></p></div>
+        <div class="hero-acc">
+          <div class="tabs" id="tabs" role="tablist" aria-label="Secciones de Estructura">
+            <button type="button" role="tab" id="tab-equipos" aria-controls="panel-equipos" aria-selected="true" data-tab="equipos">Equipos</button>
+            <button type="button" role="tab" id="tab-turnos" aria-controls="panel-turnos" aria-selected="false" tabindex="-1" data-tab="turnos">Turnos del campus</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-equipos" role="tabpanel" aria-labelledby="tab-equipos"><div class="vista" id="vista"></div></div>
+      <div id="panel-turnos" role="tabpanel" aria-labelledby="tab-turnos" hidden></div>
+    </main>
+  </div>
+</div>
+
+<nav class="tabbar" id="tabbar" aria-label="Navegación inferior"></nav>
+<button type="button" class="fab" id="fab" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+
+<details class="opciones" id="opciones">
+  <summary><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span class="lbl-op">Opciones del prototipo</span></summary>
+  <div class="panel">
+    <p>Controles para revisar el diseño. No forman parte de la pantalla. El admin de estructura edita todo; el director de área solo ve su rama y no la modifica; sin permisos no alcanza ningún nodo.</p>
+    <div class="fila-op"><label for="op-rol">Quién mira</label>
+      <div class="sel plain"><select id="op-rol">
+        <option value="admin">Admin de estructura</option>
+        <option value="director">Director de área (Niños)</option>
+        <option value="sin">Sin permisos</option>
+      </select><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
+    <div class="fila-op"><span id="op-tema">Tema</span>
+      <div class="seg" role="group" aria-labelledby="op-tema">
+        <button type="button" data-tema="" aria-pressed="true">Sistema</button><button type="button" data-tema="claro" aria-pressed="false">Claro</button><button type="button" data-tema="oscuro" aria-pressed="false">Oscuro</button>
+      </div></div>
+    <div class="fila-op"><span id="op-estado">Estado</span>
+      <div class="seg" role="group" aria-labelledby="op-estado"><button type="button" id="op-carga">Simular carga</button></div></div>
+  </div>
+</details>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="drawer" role="dialog" aria-modal="true" aria-labelledby="d-name" tabindex="-1"></div>
+<div class="dialogo" id="dialogo" role="dialog" aria-modal="true" aria-labelledby="dg-t" aria-describedby="dg-d" tabindex="-1"></div>
+
+<script>
+// ── Sample data: the org tree of one campus (Barquisimeto). Real equipos + the read-only Grupos de Vida branch. ──
+// R(nombre, rol, heredadoDe?) = who holds the director/coordinador role (derived from servicios, never edited here).
+const R = (nombre, rol, heredadoDe) => ({ nombre, rol, heredadoDe });
+// Roles: [label, nivel, uso, activo]
+const ROL = (label, nivel, uso, activo = true) => ({ id: label, label, nivel, uso, activo });
+// The two default roles of a new equipo, with how many people hold each one in that equipo.
+const RB = (coord, vol) => [ROL('Coordinador', 'coordinador', coord), ROL('Voluntario', 'voluntario', vol)];
+const TREE = [
+  { id: 'conexion', label: 'Dirección de Conexión', exp: 'Conexión', resp: R('Antholy Ludovic Gómez', 'Director'), personas: 2,
+    roles: [ROL('Director', 'director', 1), ROL('Asistente de dirección', 'voluntario', 1)], children: [
+    { id: 'talleres', label: 'Talleres', exp: 'Conexión', resp: R('Jose Jimenez', 'Coordinador'), personas: 1, roles: [ROL('Coordinador', 'coordinador', 1)], children: [
+      { id: 'dhah', label: 'De Hombre a Hombre', exp: 'Conexión', resp: R('Edmir Muñoz', 'Coordinador'), personas: 9, taller: 'De Hombre a Hombre',
+        roles: [ROL('Coordinador', 'coordinador', 1), ROL('Facilitador', 'lider', 6), ROL('Logística', 'voluntario', 2), ROL('Recepción', 'voluntario', 0, false)] },
+      { id: 'mdh', label: 'Mujer de Hoy', exp: 'Conexión', resp: R('Edith Pérez', 'Coordinador'), personas: 11, taller: 'Mujer de Hoy',
+        roles: [ROL('Coordinador', 'coordinador', 1), ROL('Facilitador', 'lider', 7), ROL('Logística', 'voluntario', 3)] },
+      { id: 'parejas', label: 'Parejas', exp: 'Conexión', resp: R('Antholy Ludovic Gómez', 'Director', 'Dirección de Conexión'), personas: 6, taller: 'Parejas que Crecen', roles: RB(0, 6) },
+      { id: 'pdp', label: 'Punto de Partida', exp: 'Conexión', resp: null, personas: 4, taller: 'Punto de Partida', roles: RB(0, 4) } ] },
+    { id: 'bienvenida', label: 'Bienvenida', exp: 'Conexión', resp: R('Mariela Castillo', 'Coordinador'), personas: 14,
+      roles: [ROL('Coordinador', 'coordinador', 1), ROL('Ujier', 'voluntario', 8), ROL('Anfitrión', 'voluntario', 5)] } ] },
+  { id: 'ninos', label: 'Dirección de Niños', exp: 'Niños', resp: R('Nina Rodríguez', 'Director'), personas: 1, roles: [ROL('Director', 'director', 1)],
+    turnos: ['t-d9', 't-d11'], children: [
+    { id: 'waumba', label: 'Waumba Land', exp: 'Niños', resp: R('Wanda Pérez', 'Coordinador'), personas: 2, roles: [ROL('Coordinador', 'coordinador', 1), ROL('Líder de salón', 'lider', 1)], children: [
+      { id: 'w-anf', label: 'Anfitriones', exp: 'Niños', resp: R('Johanna Queralez', 'Coordinador'), personas: 7, roles: [ROL('Coordinador', 'coordinador', 1), ROL('Anfitrión', 'voluntario', 6)] },
+      { id: 'w-atv', label: 'Atención al Voluntario', exp: 'Niños', resp: R('María Fernanda Martínez', 'Coordinador'), personas: 3, turnos: ['t-s10'], roles: RB(1, 2) },
+      { id: 'w-sal', label: 'Salones', exp: 'Niños', resp: R('Carla Ruiz', 'Coordinador'), personas: 21,
+        roles: [ROL('Coordinador', 'coordinador', 1), ROL('Líder de salón', 'lider', 5), ROL('Maestro', 'voluntario', 11), ROL('Asistente', 'voluntario', 4), ROL('Recepción de niños', 'voluntario', 0, false)] } ] },
+    { id: 'upstreet', label: 'UpStreet', exp: 'Niños', resp: R('Daniel Ortega', 'Coordinador'), personas: 1, roles: [ROL('Coordinador', 'coordinador', 1)], children: [
+      { id: 'u-anf', label: 'Anfitriones', exp: 'Niños', resp: R('Mirian Briceño', 'Coordinador'), personas: 5, roles: RB(1, 4) },
+      { id: 'u-lid', label: 'Líderes de grupo', exp: 'Niños', resp: null, personas: 8, turnos: ['t-s10'], roles: [ROL('Líder de grupo', 'lider', 8)] } ] } ] },
+  { id: 'estudiantes', label: 'Estudiantes', exp: 'Estudiantes', resp: R('Samuel Linares', 'Director'), personas: 1, roles: [ROL('Director', 'director', 1)],
+    turnos: ['t-s17', 't-mie'], children: [
+    { id: 'transit', label: 'Transit', exp: 'Estudiantes', resp: R('Valeria Colmenares', 'Coordinador'), personas: 12, roles: [ROL('Coordinador', 'coordinador', 1), ROL('Líder de grupo', 'lider', 6), ROL('Producción', 'voluntario', 5)] },
+    { id: 'inside', label: 'Inside Out', exp: 'Estudiantes', resp: R('Ricardo Aponte', 'Coordinador'), personas: 15, turnos: ['t-camp'], roles: [ROL('Coordinador', 'coordinador', 1), ROL('Líder de grupo', 'lider', 9), ROL('Alabanza', 'voluntario', 5)] },
+    { id: 'tlr', label: 'The Living Room', exp: 'Estudiantes', resp: R('Gabriela Torres', 'Coordinador'), personas: 3, turnos: ['t-tlr'], roles: [ROL('Coordinador', 'coordinador', 1), ROL('Anfitrión', 'voluntario', 2)], children: [
+      { id: 'tlr-bien', label: 'Bienvenida', exp: 'Estudiantes', resp: R('Andrés Pineda', 'Coordinador'), personas: 6, roles: [ROL('Coordinador', 'coordinador', 1), ROL('Ujier', 'voluntario', 5)] },
+      { id: 'tlr-prod', label: 'Producción', exp: 'Estudiantes', resp: R('Lucía Rangel', 'Coordinador'), personas: 5, roles: [ROL('Coordinador', 'coordinador', 1), ROL('Operador de cámara', 'voluntario', 2), ROL('Luces', 'voluntario', 2)] },
+      { id: 'tlr-alab', label: 'Alabanza', exp: 'Estudiantes', resp: R('Gabriela Torres', 'Coordinador', 'The Living Room'), personas: 7, roles: RB(0, 7) } ] } ] },
+  { id: 'gdv', label: 'Grupos de Vida', gdv: true, resp: R('Pastores Pérez', 'Directores generales'), personas: 0, children: [
+    { id: 'gdv-jov', label: 'Segmento Jóvenes', gdv: true, resp: R('Luis Herrera', 'Director de segmento'), personas: 24 },
+    { id: 'gdv-mat', label: 'Segmento Matrimonios', gdv: true, resp: R('Carlos y Ana Mendoza', 'Directores de segmento'), personas: 31 } ] },
+  { id: 'eventos', label: 'Dirección de Eventos', exp: 'Eventos', activo: false, resp: null, personas: 0, roles: RB(0, 0), children: [
+    { id: 'logistica', label: 'Logística', exp: 'Eventos', activo: false, resp: null, personas: 0, roles: RB(0, 0) } ] },
+];
+
+// Campus shifts (D12): weekly or dated (TLR calendar). Dated shifts carry the dates planned in Mi equipo.
+const CAMPUS = [{ id: 'bqto', nombre: 'Barquisimeto' }, { id: 'cabudare', nombre: 'Cabudare' }];
+const TURNOS = [
+  { id: 't-d9', nombre: 'Domingo 9:00', tipo: 'semanal', dia: 0, hora: '09:00', activo: true },
+  { id: 't-d11', nombre: 'Domingo 11:00', tipo: 'semanal', dia: 0, hora: '11:00', activo: true },
+  { id: 't-mie', nombre: 'Miércoles de estudiantes', tipo: 'semanal', dia: 3, hora: '19:00', activo: true },
+  { id: 't-s17', nombre: 'Sábado 5:00 p. m.', tipo: 'semanal', dia: 6, hora: '17:00', activo: true },
+  { id: 't-s10', nombre: 'Sábado 10:00', tipo: 'semanal', dia: 6, hora: '10:00', activo: false },
+  { id: 't-tlr', nombre: 'The Living Room', tipo: 'fechas', hora: '19:00', activo: true, fechas: ['2026-10-24', '2026-11-07', '2026-11-21', '2026-12-05'] },
+  { id: 't-camp', nombre: 'Campamento Inside Out', tipo: 'fechas', hora: '08:00', activo: true, fechas: ['2026-12-12'] },
+];
+const HOY = '2026-10-29';
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+const NIVELES = [['director', 'Director'], ['coordinador', 'Coordinador'], ['lider', 'Líder'], ['voluntario', 'Voluntario']];
+
+// Who looks: org.manage edits everything; a scoped area director only reads their branch; without read access the tree is empty.
+const VISTAS = {
+  admin: { nombre: 'Isaac Páez', ini: 'IP', edita: true, raices: ['conexion', 'ninos', 'estudiantes', 'gdv', 'eventos'] },
+  director: { nombre: 'Nina Rodríguez', ini: 'NR', edita: false, raices: ['ninos'] },
+  sin: { nombre: 'Pedro Suárez', ini: 'PS', edita: false, raices: [] },
+};
+
+// Index: path (ancestor ids), the branch count, the effective shifts after inheritance.
+const index = {};
+(function walk(nodes, path) {
+  nodes.forEach(n => {
+    n.activo = n.activo !== false;
+    index[n.id] = Object.assign(n, { path });
+    if (n.children) walk(n.children, [...path, n.id]);
+  });
+})(TREE, []);
+const rama = id => { const n = index[id]; return n.personas + (n.children || []).reduce((s, c) => s + rama(c.id), 0); };
+const editable = n => !n.gdv;
+function turnosDe(id) {
+  const n = index[id], cadena = [...n.path, id].map(x => index[x]).reverse();
+  const tipo = t => TURNOS.find(x => x.id === t)?.tipo;
+  const conSemanal = cadena.find(x => (x.turnos || []).some(t => tipo(t) === 'semanal'));
+  const semanales = conSemanal ? conSemanal.turnos.filter(t => tipo(t) === 'semanal') : TURNOS.filter(t => t.tipo === 'semanal' && t.activo).map(t => t.id);
+  const fechas = [...new Set(cadena.flatMap(x => (x.turnos || []).filter(t => tipo(t) === 'fechas')))];
+  const propios = (n.turnos || []).length > 0;
+  return { ids: [...semanales, ...fechas], propios, origen: conSemanal && conSemanal !== n ? conSemanal.label : null };
+}
+
+// ── Health of one node (its own setup, not its branch). Grupos de Vida and inactive nodes are not checked. ──
+const SALUD = [
+  { k: 'resp', label: 'Sin responsable', corto: 'sin responsable', t: 'warning', s: 'nadie dirige o coordina' },
+  { k: 'roles', label: 'Roles sin asignar', corto: 'rol sin asignar', t: 'info', s: 'roles activos que nadie tiene' },
+  { k: 'turno', label: 'Sin turno', corto: 'sin turno', t: 'danger', s: 'su turno semanal está desactivado' },
+  { k: 'inactivo', label: 'Inactivos', corto: 'inactivo', t: 'faint', s: 'no reciben personas' },
+];
+const rolesLibres = n => (n.roles || []).filter(r => r.activo && r.uso === 0);
+const sinTurno = n => { const t = turnosDe(n.id); return !t.ids.map(id => TURNOS.find(x => x.id === id)).some(x => x && x.activo && x.tipo === 'semanal'); };
+function problemas(n) {
+  if (n.gdv) return [];
+  if (!n.activo) return ['inactivo'];
+  return [!n.resp && 'resp', rolesLibres(n).length && 'roles', sinTurno(n) && 'turno'].filter(Boolean);
+}
+const descendientes = id => (index[id].children || []).flatMap(c => [c, ...descendientes(c.id)]);
+
+// ── Helpers (as Mi equipo) ──
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+const personas = n => (n === 0 ? 'Sin personas' : plural(n, 'persona', 'personas'));
+const nombreCorto = n => { const p = n.split(' ').filter(w => !/\.$/.test(w)); return p.length > 2 && !n.includes(' y ') ? `${p[0]} ${p.at(-1)}` : n; };
+const svg = (d, size = 18) => `<svg class="i" viewBox="0 0 24 24" style="width:${size}px;height:${size}px" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  chev: svg('<path d="m9 6 6 6-6 6"/>', 16), chevIzq: svg('<path d="m15 6-6 6 6 6"/>', 24), x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
+  mas: svg('<path d="M12 5v14M5 12h14"/>', 16), lapiz: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>', 16),
+  puntos: svg('<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>', 22),
+  red: svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4v11h0"/>', 16),
+  cerrarPanel: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 10l-2 2 2 2"/>', 18),
+  abrirPanel: svg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M13 10l2 2-2 2"/>', 18),
+  flecha: svg('<path d="M5 12h14M13 6l6 6-6 6"/>', 14), lupa: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  chevDown: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+  vacio: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2"/></svg>',
+};
+const NAV = {
+  inicio: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
+  unoauno: '<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+  gdv: '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/>',
+  talleres: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/>',
+  equipo: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/>',
+  novedades: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  ayuda: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  campus: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01"/>',
+  chevAbajo: '<path d="m6 9 6 6 6-6"/>', mas: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+};
+const nav = (k, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${NAV[k]}</svg>`;
+const punto = (t, l) => `<span class="estado"><span class="d" data-t="${t}" aria-hidden="true"></span><span class="lbl">${esc(l)}</span></span>`;
+const dUTC = iso => new Date(iso + 'T00:00:00Z');
+const diaBox = (iso, pasada) => { const d = dUTC(iso); return `<span class="dia${pasada ? ' pasada' : ''}" title="${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]}"><b class="num">${d.getUTCDate()}</b><small>${MESES[d.getUTCMonth()]}</small></span>`; };
+const detalleTurno = t => (t.tipo === 'fechas' ? `Por fechas · <span class="num">${t.hora}</span>` : `${DIAS[t.dia]} · <span class="num">${t.hora}</span>`);
+const turno = id => TURNOS.find(t => t.id === id);
+
+// ── Shell: sidebar by sections with Dream Team open (Estructura current), header, phone tab bar ──
+const mqTablet = matchMedia('(min-width: 768px) and (max-width: 1023.98px)');
+function renderShell() {
+  const riel = mqTablet.matches, v = V(), hijos = st.quien === 'admin' ? ['Mi equipo', 'Servidores', 'Estructura'] : ['Mi equipo', 'Estructura'];
+  $('#app').classList.toggle('rail', riel);
+  const a = (k, l) => `<li><a href="#" class="it">${k ? nav(k) : ''}<span class="lbl">${l}</span></a></li>`;
+  const dt = riel
+    ? `<li><a href="#" class="it contiene" aria-current="page">${nav('equipo')}<span class="lbl">Dream Team · Estructura</span></a></li>`
+    : `<li><button type="button" class="it contiene" aria-expanded="true" aria-controls="sub-dt">${nav('equipo')}<span class="lbl">Dream Team</span>${nav('chevAbajo', 'ch')}</button>
+        <ul class="s-sub" id="sub-dt">${hijos.map(h => `<li><a href="#" class="it"${h === 'Estructura' ? ' aria-current="page"' : ''}><span class="lbl">${h}</span></a></li>`).join('')}</ul></li>`;
+  $('#side').innerHTML = `<div class="s-top"><div class="logo"><i aria-hidden="true"></i><span class="${riel ? 'sr' : ''}">Global Connect</span></div></div>
+    ${riel ? `<button type="button" class="s-icon s-campus" style="width:100%" aria-label="Campus: Barquisimeto">${nav('campus')}</button>`
+      : `<div class="sel s-campus"><label class="sr" for="campus">Campus</label>${nav('campus', 'ic')}<select id="campus"><option>Barquisimeto</option>${st.quien === 'admin' ? '<option>Cabudare</option>' : ''}</select>${nav('chevAbajo', 'ch')}</div>`}
+    <div class="s-scroll">
+      <div class="s-sec"><ul class="s-list">${a('inicio', 'Inicio')}${a('unoauno', 'Mis 1 a 1')}</ul></div>
+      <div class="s-sec" role="group" aria-labelledby="sec-min"><h2 id="sec-min">Ministerios</h2><ul class="s-list">${a('gdv', 'Grupos de Vida')}${a('talleres', 'Talleres')}</ul></div>
+      <div class="s-sec"><ul class="s-list">${dt}</ul></div>
+    </div>
+    <div class="s-pie"><ul class="s-list">${a('novedades', 'Actualizaciones')}${a('ayuda', 'Ayuda')}</ul></div>`;
+  $('#me-ini').textContent = v.ini; $('#me').setAttribute('aria-label', `Tu cuenta: ${v.nombre}`);
+  const tabs = [['inicio', 'Inicio'], ['gdv', 'Grupos'], ['equipo', 'Equipo'], ['talleres', 'Talleres']];
+  $('#tabbar').innerHTML = tabs.map(([k, l]) => `<a href="#"${k === 'equipo' ? ' aria-current="page"' : ''}>${nav(k)}<span>${l}</span></a>`).join('') + `<a href="#">${nav('mas')}<span>Más</span></a>`;
+}
+
+// ── Detail of the open node (desktop and tablet): header + Resumen, Subequipos, Roles, Turnos, Talleres ──
+const nivelLabel = k => NIVELES.find(([v]) => v === k)[1];
+const usoRol = r => (!r.activo ? 'Desactivado: no se puede asignar' : r.uso === 0 ? 'Nadie lo tiene todavía' : personas(r.uso));
+const talleresRama = n => (n.children || []).flatMap(c => [...(c.taller ? [c] : []), ...talleresRama(c)]);
+const sw = (dato, id, on, nombre) => `<button type="button" class="sw" role="switch" data-${dato}="${id}" aria-checked="${on}" aria-label="${esc(nombre)}" title="${on ? 'Desactivar' : 'Activar'}"><span class="pista" aria-hidden="true"><i></i></span></button>`;
+const selNivel = (aria, valor, dato) => `<div class="campo nivel"><div class="sel"><select aria-label="${esc(aria)}" ${dato}>${NIVELES.map(([v, l]) => `<option value="${v}"${v === valor ? ' selected' : ''}>${l}</option>`).join('')}</select>${ICON.chevDown}</div></div>`;
+function alertas(n) {
+  const sinResp = (n.children || []).filter(c => c.activo && !c.resp).length, rolesOff = (n.roles || []).filter(r => !r.activo).length;
+  return [!n.resp && !n.gdv && ['warn', 'Este equipo no tiene responsable'], sinResp && ['warn', `${plural(sinResp, 'subequipo', 'subequipos')} sin responsable`],
+    rolesOff && ['', `${plural(rolesOff, 'rol desactivado', 'roles desactivados')}`], !n.activo && ['', 'Inactivo: no se le asignan personas']].filter(Boolean);
+}
+
+function chipsTurnos(n) {
+  const t = turnosDe(n.id);
+  return t.ids.map(turno).filter(x => x && x.activo).map(x => x.tipo === 'fechas'
+    ? `<span class="tchip"><b>${esc(x.nombre)}</b><span class="k">Por fechas · próx. ${proxima(x) || 'sin fecha'}</span></span>`
+    : `<span class="tchip"><b>${esc(x.nombre)}</b>${norm(x.nombre).startsWith(norm(DIAS[x.dia])) ? '' : `<span class="k">${detalleTurno(x)}</span>`}</span>`).join('');
+}
+const proxima = t => { const f = (t.fechas || []).find(d => d >= HOY); if (!f) return ''; const d = dUTC(f); return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]}`; };
+
+// ── Turnos del campus (D12): weekly and dated shifts of the app's campus; a shift is disabled, never deleted. ──
+const equiposQueSirven = id => Object.values(index).filter(n => editable(n) && n.activo && alcanza(n.id) && turnosDe(n.id).ids.includes(id));
+function filaTurno(t) {
+  const sirven = equiposQueSirven(t.id), edita = V().edita;
+  const quienes = t.tipo === 'fechas' ? (sirven.length ? `Lo eligen: ${sirven.filter(n => (n.turnos || []).includes(t.id)).map(n => esc(n.label)).join(', ')}` : 'Ningún equipo lo eligió')
+    : `Lo sirven ${plural(sirven.length, 'equipo', 'equipos')}`;
+  const prox = (t.fechas || []).filter(f => f >= HOY), pas = (t.fechas || []).filter(f => f < HOY).length;
+  return `<li class="rr${t.activo ? '' : ' apagado'}"><div class="txt"><div class="t1"><span>${esc(t.nombre)}</span></div>
+      <div class="t2">${detalleTurno(t)}${t.activo ? ` · ${quienes}` : ' · Desactivado'}</div>
+      ${t.tipo === 'fechas' && t.activo ? `<div class="fechas" aria-label="Próximas fechas">${prox.slice(0, 4).map(f => diaBox(f)).join('')}${prox.length ? '' : '<span class="aviso">Sin próximas fechas.</span>'}<a class="enlace" href="#" data-ir="calendario" style="margin:0 0 0 6px">Planificar en Mi equipo ${ICON.flecha}</a></div>
+        ${pas ? `<div class="t2">${plural(pas, 'fecha pasada', 'fechas pasadas')}</div>` : ''}` : ''}</div>
+    <div class="der">${edita ? sw('turno', t.id, t.activo, `Turno ${t.nombre}`) : punto(t.activo ? 'success' : 'faint', t.activo ? 'Activo' : 'Desactivado')}</div></li>`;
+}
+function renderTurnos() {
+  const sem = TURNOS.filter(t => t.tipo === 'semanal' && t.activo), fec = TURNOS.filter(t => t.tipo === 'fechas' && t.activo), off = TURNOS.filter(t => !t.activo);
+  $('#panel-turnos').innerHTML = `<div class="secciones">
+    <section class="tarjeta" aria-labelledby="h-sem"><div class="tj-h"><div class="txt"><h3 id="h-sem">Semanales</h3><p>Barquisimeto · todos los equipos los heredan, salvo que elijan los suyos</p></div></div>
+      <ul class="rr-ul">${sem.map(filaTurno).join('')}</ul></section>
+    <section class="tarjeta" aria-labelledby="h-fec"><div class="tj-h"><div class="txt"><h3 id="h-fec">Por fechas</h3><p>Sin día fijo: solo los sirven los equipos que los eligen. Las fechas se planifican en Mi equipo.</p></div></div>
+      <ul class="rr-ul">${fec.map(filaTurno).join('')}</ul></section>
+  </div>
+  ${off.length ? `<details class="tarjeta plegado" style="margin-top:16px"><summary>Desactivados (<span class="num">${off.length}</span>)</summary><ul class="rr-ul">${off.map(filaTurno).join('')}</ul></details>` : ''}`;
+}
+
+// Agregar turno (campus): name, Semanal / Por fechas, day only for weekly, hour.
+function openTurnoNuevo(tipo = 'semanal') {
+  const d = $('#drawer'), sel = (id, l, opts) => `<div class="campo"><label for="${id}">${l}</label><div class="sel"><select id="${id}">${opts}</select>${ICON.chevDown}</div></div>`;
+  d.innerHTML = cabeza('Agregar turno', 'Turnos del campus') + `<form class="sh-body" id="f-turno" onsubmit="event.preventDefault()">
+    ${st.quien === 'admin' ? sel('tn-campus', 'Campus', CAMPUS.map(c => `<option>${c.nombre}</option>`).join('')) : ''}
+    <div class="campo"><label for="tn-nombre">Nombre del turno</label><input id="tn-nombre" placeholder="Domingo 9:00" autofocus /></div>
+    ${sel('tn-tipo', 'Tipo', `<option value="semanal"${tipo === 'semanal' ? ' selected' : ''}>Semanal</option><option value="fechas"${tipo === 'fechas' ? ' selected' : ''}>Por fechas</option>`)}
+    ${tipo === 'semanal' ? sel('tn-dia', 'Día', DIAS.map(x => `<option>${x}</option>`).join('')) : ''}
+    <div class="campo"><label for="tn-hora">Hora</label><input id="tn-hora" type="time" value="${tipo === 'fechas' ? '19:00' : '09:00'}" /></div>
+    ${tipo === 'fechas' ? '<p class="nota">Sin día fijo: sus fechas se planifican en Mi equipo, en el Calendario del equipo. Solo lo sirven los equipos que lo eligen en «Turnos de este equipo».</p>' : ''}
+  </form>` + `<div class="sh-foot"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" form="f-turno" class="btn primary" data-close>Agregar turno</button></div>`;
+  d.dataset.hoja = 'turno-nuevo'; show(d);
+}
+// Centered dialogs: one-field name (DialogoNombre) and the destructive confirmation (ConfirmationModal, peligro).
+function openNombre(tipo, rolId) {
+  const n = index[st.sel], g = $('#dialogo'), r = rolId && n.roles.find(x => x.id === rolId);
+  const C = { renombrar: ['Renombrar equipo', 'El nuevo nombre se verá en todas las pantallas de Dream Team.', 'Nombre del equipo', n.label, 'Guardar'],
+    sub: ['Agregar subequipo', `Se creará dentro de «${n.label}» con su misma experiencia.`, 'Nombre del subequipo', '', 'Crear'],
+    rol: ['Renombrar rol', `Nuevo nombre para el rol ${r?.label} de este equipo.`, 'Nombre del rol', r?.label || '', 'Guardar'] }[tipo];
+  g.innerHTML = `<h2 id="dg-t">${esc(C[0])}</h2><button type="button" class="btn icon ghost sh-close" data-close aria-label="Cerrar">${ICON.x}</button><p id="dg-d">${esc(C[1])}</p>
+    <form class="campo" onsubmit="event.preventDefault()"><label for="dg-in">${C[2]}</label><input id="dg-in" value="${esc(C[3])}" autofocus /></form>
+    <div class="dg-pie"><button type="button" class="btn" data-close>Cancelar</button><button type="button" class="btn primary" data-close>${C[4]}</button></div>`;
+  show(g);
+}
+function openConfirmar() {
+  const n = index[st.sel], g = $('#dialogo'), c = rama(n.id);
+  g.innerHTML = `<h2 id="dg-t">Desactivar «${esc(n.label)}»</h2><p id="dg-d">El equipo pasará a estar inactivo y no se le podrán asignar personas.${c ? ` Sus <strong class="num">${c}</strong> personas conservan su historial.` : ''} Podrás reactivarlo luego desde esta misma pantalla.</p>
+    <div class="dg-pie"><button type="button" class="btn" data-close autofocus>Cancelar</button><button type="button" class="btn peligro" data-confirmar>Sí, desactivar</button></div>`;
+  show(g);
+}
+
+// ── State: the scope level (A), the node open in the detail panel (?equipo=) and its tab, the page tab,
+// the search, the health filter, folded branches (B, C) and the zoom (B). ──
+const st = { quien: 'admin', nivel: null, sel: null, ptab: 'resumen', psub: null, tab: 'equipos', q: '', filtro: null, abiertos: new Set(), zoom: 1, loading: false };
+const V = () => VISTAS[st.quien];
+const esEscritorio = () => matchMedia('(min-width: 768px)').matches;
+const raices = () => V().raices.map(id => index[id]);
+const alcanza = id => V().raices.some(r => r === id || index[id]?.path.includes(r));
+const puedeEditar = n => V().edita && editable(n);
+const ruta = id => [...index[id].path, id];
+const visibles = () => raices().flatMap(n => [n, ...descendientes(n.id)]);
+const enAlcance = id => (id ? [index[id], ...descendientes(id)] : visibles());
+const cuenta = (nodos, k) => nodos.filter(n => problemas(n).includes(k)).length;
+const iniciales = s => s.replace(/^(Dirección|Segmento) de /, '').split(/\s+/).filter(w => !/^(de|del|la|el|y|a)$/i.test(w)).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+const tono = s => 1 + [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 5;
+const salud = k => SALUD.find(x => x.k === k);
+const padreDe = n => (n.path.length ? index[n.path.at(-1)] : null);
+const coincideQ = (n, q) => !q || norm(n.label).includes(q) || norm(n.resp?.nombre || '').includes(q);
+
+// ── Row pieces shared by the three directions: responsible, roles, shifts, state, health tags and dots ──
+function respCelda(n) {
+  const r = n.resp;
+  if (!r) return `<span class="resp falta"><span class="avatar chico vacio-av" aria-hidden="true">?</span><span class="txt"><span class="nm">Sin responsable</span><span class="t2">${n.activo ? 'Nadie con rol de coordinador' : 'Equipo inactivo'}</span></span></span>`;
+  return `<span class="resp"><span class="avatar chico" data-h="${tono(r.nombre)}" aria-hidden="true">${iniciales(r.nombre)}</span><span class="txt"><span class="nm" title="${esc(r.nombre)}">${esc(nombreCorto(r.nombre))}</span><span class="t2">${r.heredadoDe ? `Heredado de ${esc(r.heredadoDe)}` : esc(r.rol)}</span></span></span>`;
+}
+function rolesCelda(n) {
+  if (n.gdv) return '<span class="t2">—</span>';
+  const act = (n.roles || []).filter(r => r.activo).length, lib = rolesLibres(n).length, off = (n.roles || []).length - act;
+  return `<span class="celda2"><span>${plural(act, 'rol', 'roles')}</span>${lib ? `<span class="t2 info-t">${plural(lib, 'sin asignar', 'sin asignar')}</span>` : off ? `<span class="t2">${plural(off, 'desactivado', 'desactivados')}</span>` : '<span class="t2">todos asignados</span>'}</span>`;
+}
+const turnosActivos = n => turnosDe(n.id).ids.map(turno).filter(x => x && x.activo);
+function turnosCelda(n) {
+  if (n.gdv) return '<span class="t2">—</span>';
+  if (sinTurno(n)) return `<span class="celda2"><span class="danger-t">Sin turno</span><span class="t2">${esc(turnosDe(n.id).ids.map(turno).filter(x => x.tipo === 'semanal').map(x => x.nombre).join(', '))} desactivado</span></span>`;
+  const t = turnosDe(n.id), ts = turnosActivos(n);
+  const corto = s => s.replace(/^Domingo /, 'Dom ').replace(/^Sábado /, 'Sáb ').replace(/^Miércoles de estudiantes/, 'Mié 7:00 p. m.');
+  return `<span class="celda2"><span class="trunc" title="${esc(ts.map(x => x.nombre).join(', '))}">${esc(ts.map(x => corto(x.nombre)).join(' · '))}</span><span class="t2">${t.propios ? 'Propios' : `Heredados${t.origen ? ` de ${esc(t.origen)}` : ' del campus'}`}</span></span>`;
+}
+const estadoCelda = n => (n.gdv ? punto('muted', 'Solo lectura') : punto(n.activo ? 'success' : 'faint', n.activo ? 'Activo' : 'Inactivo'));
+const tagsSalud = n => problemas(n).filter(k => k !== 'inactivo').map(k => `<span class="tag t-${salud(k).t}">${salud(k).label.replace('Roles sin asignar', 'Rol sin asignar')}</span>`).join('') + (n.activo ? '' : '<span class="tag">Inactivo</span>') + (n.gdv && n.path.length ? '<span class="tag">Grupos de Vida</span>' : '');
+// Health dots (never color alone: each one has its label for screen readers and as a tooltip; the legend names them).
+const puntosSalud = n => { const p = problemas(n).filter(k => k !== 'inactivo'); return p.length ? `<span class="sdots" title="${esc(p.map(k => salud(k).label).join(', '))}">${p.map(k => `<span class="d" data-t="${salud(k).t}" aria-hidden="true"></span>`).join('')}<span class="sr">${esc(p.map(k => salud(k).label).join(', '))}</span></span>` : ''; };
+// Branch health: how many nodes under (and including) a node have each problem.
+const banderasRama = id => SALUD.filter(s => s.k !== 'inactivo').map(s => [s, cuenta(enAlcance(id), s.k)]).filter(([, c]) => c).map(([s, c]) => `<span class="tag t-${s.t}">${c} ${c === 1 ? s.corto : s.corto.replace('rol sin', 'roles sin')}</span>`).join('');
+
+// ── Header: breadcrumb (scope), the one primary action, hero, page tabs ──
+function resumenEstructura() {
+  const r = raices().filter(n => n.activo), eq = visibles().filter(n => n.activo && !n.gdv).length;
+  return `<strong class="num">${r.length}</strong> ${r.length === 1 ? 'dirección' : 'direcciones'} · <strong class="num">${eq}</strong> equipos activos · <strong class="num">${r.reduce((s, n) => s + rama(n.id), 0)}</strong> personas sirviendo`;
+}
+function resumenNivel(n) {
+  const eq = descendientes(n.id).filter(x => x.activo).length, c = rama(n.id);
+  const quienTxt = n.resp ? `${/Director/.test(n.resp.rol) ? 'Dirige' : 'Coordina'} <strong>${esc(n.resp.nombre)}</strong>` : '<strong>Sin responsable</strong>';
+  return `${quienTxt} · <strong class="num">${c}</strong> ${c === 1 ? 'persona' : 'personas'} · <span class="num">${eq}</span> ${eq === 1 ? 'equipo' : 'equipos'}`;
+}
+function renderHeader() {
+  const turnos = st.tab === 'turnos', nivel = st.nivel && index[st.nivel];
+  const est = (nivel || turnos) ? '<li><button type="button" data-nivel-ir="">Estructura</button></li>' : '<li><span aria-current="page">Estructura</span></li>';
+  const niveles = turnos ? '<li><span aria-current="page">Turnos del campus</span></li>'
+    : nivel ? ruta(nivel.id).map((id, i, all) => `<li>${i === all.length - 1 ? `<span aria-current="page">${esc(index[id].label)}</span>` : `<button type="button" data-nivel-ir="${id}">${esc(index[id].label)}</button>`}</li>`).join('') : '';
+  $('#crumbs').innerHTML = '<li><span class="txt">Dream Team</span></li>' + est + niveles;
+  const vacio = !raices().length;
+  $('#title').textContent = nivel && !turnos ? nivel.label : 'Estructura';
+  $('#summary').innerHTML = vacio ? 'No hay equipos para mostrar' : nivel && !turnos ? resumenNivel(nivel) : resumenEstructura();
+  // One primary action: "Agregar turno" on the shifts tab, "Agregar subequipo" on an editable level (A). Hidden otherwise.
+  const accion = turnos ? (V().edita ? ['data-turno-nuevo', 'Agregar turno'] : null) : (nivel && puedeEditar(nivel) ? [`data-sub="${nivel.id}"`, 'Agregar subequipo'] : null);
+  $('#h-accion').innerHTML = accion ? `<button type="button" class="btn primary assign" ${accion[0]}>${ICON.mas}${accion[1]}</button>` : '';
+  const fab = $('#fab');
+  fab.hidden = !accion || vacio;
+  if (accion) { fab.setAttribute('aria-label', accion[1]); fab.toggleAttribute('data-turno-nuevo', turnos); if (turnos) fab.removeAttribute('data-sub'); else fab.setAttribute('data-sub', nivel.id); }
+  $('#tabs').hidden = vacio;
+  ['equipos', 'turnos'].forEach(t => { const b = $('#tab-' + t), on = st.tab === t; b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; $('#panel-' + t).hidden = !on; });
+  // Phone: "‹ parent" row and the large title (the hero is desktop only).
+  const padre = nivel && !turnos ? (padreDe(nivel)?.label || 'Estructura') : null;
+  $('#m-cab').innerHTML = padre ? `<button type="button" class="atras" data-nivel-ir="${padreDe(nivel)?.id || ''}" aria-label="Volver a ${esc(padre)}">${ICON.chevIzq}<span aria-hidden="true">${esc(padre)}</span></button>` : '';
+  $('#m-cab').hidden = !padre;
+  $('#m-large').innerHTML = `<h2 id="l-title" tabindex="-1">${esc($('#title').textContent)}</h2><p>${$('#summary').innerHTML}</p>`;
+  document.title = `${turnos ? 'Turnos del campus' : nivel ? nivel.label : 'Estructura'} · Estructura · Global Connect`;
+}
+const buscador = (ph, extra = '') => `<div class="search">${ICON.lupa}<input id="q" type="search" data-buscar aria-label="${ph}" placeholder="${ph}" autocomplete="off" value="${esc(st.q)}" /><kbd aria-hidden="true">/</kbd></div>${extra}`;
+// Health filter as pills (B, C) or metric cards (A). The pressed one narrows or highlights; pressing it again clears it.
+function pastillasSalud(nodos, etiqueta) {
+  return `<div class="pills salud-pills" role="group" aria-label="${etiqueta}">${SALUD.map(s => { const c = cuenta(nodos, s.k); return `<button type="button" class="pill" data-filtro="${s.k}" aria-pressed="${st.filtro === s.k}"${c ? '' : ' disabled'}><span class="d" data-t="${s.t}" aria-hidden="true"></span>${s.label} <b>${c}</b></button>`; }).join('')}</div>`;
+}
+const vacioHTML = (t, s, icono = ICON.vacio) => `<div class="lista"><div class="vacio">${icono}<p><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></p></div></div>`;
+
+// ── Detail of one node (DetalleResponsivo: side panel from md, bottom sheet below). Same in the three directions:
+// identity, quick actions, then the node's whole setup in tabs Resumen · Roles · Turnos · Taller. ──
+const PTABS = [['resumen', 'Resumen'], ['roles', 'Roles'], ['turnos', 'Turnos'], ['taller', 'Taller']];
+function abrirDetalle(id, ptab = 'resumen') {
+  st.sel = id; st.ptab = index[id].gdv ? 'resumen' : ptab; st.psub = null;
+  renderDetalle(); VISTA.marcar?.();
+  if (!$('#drawer').classList.contains('on')) show($('#drawer'));
+  else $('#d-name').focus({ preventScroll: true });
+}
+function renderDetalle() {
+  const n = index[st.sel], edita = puedeEditar(n), d = $('#drawer'), tabs = n.gdv ? PTABS.slice(0, 1) : PTABS;
+  const p = problemas(n).filter(k => k !== 'inactivo').length;
+  const camino = n.path.map(id => index[id].label).join(' › ');
+  d.classList.add('ancho');
+  d.innerHTML = `<span class="grab" aria-hidden="true"></span><div class="sh-head">
+      <div class="idrow"><span class="avatar nodo" data-h="${tono(n.label)}" aria-hidden="true">${iniciales(n.label)}</span><div style="min-width:0"><h2 id="d-name" tabindex="-1">${esc(n.label)}</h2><p class="meta">${esc(camino || 'Dirección')}</p></div></div>
+      <button type="button" class="btn icon ghost sh-close" data-close aria-label="Cerrar">${ICON.x}</button>
+      <div class="d-tags">${n.gdv ? '<span class="tag">Grupos de Vida</span>' : `<span class="tag">${esc(n.exp)}</span>`}${estadoCelda(n)}${p ? `<span class="tag t-warning">${plural(p, 'cosa por revisar', 'cosas por revisar')}</span>` : ''}</div>
+      ${edita ? `<div class="quick" style="--n:3"><button type="button" class="btn" data-sub="${n.id}">${ICON.mas}Subequipo</button><button type="button" class="btn" data-renombrar>${ICON.lapiz}Renombrar</button>${n.activo ? `<button type="button" class="btn" data-desactivar>${svg('<circle cx="12" cy="12" r="9"/><path d="M5.7 5.7l12.6 12.6"/>', 16)}Desactivar</button>` : `<button type="button" class="btn" data-activar>${svg('<path d="M12 3v9"/><path d="M6.3 7.5a8 8 0 1 0 11.4 0"/>', 16)}Activar</button>`}</div>` : ''}
+      ${tabs.length > 1 ? `<div class="tabs ptabs" role="tablist" aria-label="Secciones del equipo">${tabs.map(([k, l]) => `<button type="button" role="tab" id="pt-${k}" aria-controls="d-body" aria-selected="${st.ptab === k}" tabindex="${st.ptab === k ? 0 : -1}" data-ptab="${k}">${l}${k === 'roles' && rolesLibres(n).length ? '<span class="d" data-t="info" aria-hidden="true"></span>' : ''}${k === 'turnos' && sinTurno(n) ? '<span class="d" data-t="danger" aria-hidden="true"></span>' : ''}</button>`).join('')}</div>` : ''}
+    </div>
+    <div class="sh-body" id="d-body" role="tabpanel"${tabs.length > 1 ? ` aria-labelledby="pt-${st.ptab}"` : ''}>${({ resumen: pResumen, roles: pRoles, turnos: pTurnos, taller: pTaller })[st.ptab](n, edita)}</div>
+    ${st.ptab === 'turnos' && st.psub === 'editar' ? `<div class="sh-foot">${turnosDe(n.id).propios ? '<button type="button" class="btn" data-turnos-volver>Heredar del superior</button>' : '<button type="button" class="btn" data-turnos-volver>Cancelar</button>'}<button type="button" class="btn primary" data-turnos-volver>Guardar turnos</button></div>` : ''}`;
+}
+// Resumen: what needs fixing first (one callout per problem, each with its fix), then who, how many, and the subequipos.
+function pResumen(n, edita) {
+  const r = n.resp, c = rama(n.id), hijos = n.children || [];
+  const FIX = {
+    resp: ['warning', 'Este equipo no tiene responsable', 'Nadie tiene el rol de coordinador. Se asigna en Servidores.', edita ? '<a class="btn sm" href="#" data-ir="servidores">Asignar en Servidores</a>' : ''],
+    roles: ['info', `${plural(rolesLibres(n).length, 'rol activo que nadie tiene', 'roles activos que nadie tiene')}`, esc(rolesLibres(n).map(x => x.label).join(', ')) + '. Asignalo en Servidores o desactivalo.', `<button type="button" class="btn sm" data-ptab="roles">Ver roles</button>`],
+    turno: ['danger', 'Sin turno', `Eligió ${esc(turnosDe(n.id).ids.map(turno).filter(x => x.tipo === 'semanal').map(x => x.nombre).join(', '))}, que está desactivado: su gente no sabe cuándo sirve.`, edita ? '<button type="button" class="btn sm" data-ptab="turnos" data-psub="editar">Elegir turnos</button>' : ''],
+    inactivo: ['faint', 'Inactivo', 'No se le asignan personas. Sus subequipos tampoco reciben gente.', edita ? '<button type="button" class="btn sm" data-activar>Activar</button>' : ''],
+  };
+  return `${problemas(n).map(k => { const [t, tt, s, b] = FIX[k]; return `<div class="callout" data-t="${t}"><span class="d" aria-hidden="true"></span><div><b>${tt}</b><p>${s}</p>${b}</div></div>`; }).join('')}
+    ${n.gdv ? '<p class="nota">Este nodo viene de Grupos de Vida: se ve acá con su gente, pero se gestiona desde Grupos de Vida.</p>' : ''}
+    <dl class="kv kv2"><div><dt>Responsable</dt><dd>${r ? `${esc(r.nombre)}<span class="t2">${esc(r.rol)}${r.heredadoDe ? ` · heredado de ${esc(r.heredadoDe)}` : ''}</span>` : '<span class="warning-t">Sin responsable</span>'}</dd></div>
+      <div><dt>Personas</dt><dd><span class="num big">${c}</span><span class="t2">${hijos.length ? 'en toda la rama' : 'en este equipo'}</span></dd></div></dl>
+    <div class="acts"><a class="enlace" href="#" data-ir="mi-equipo">Ver su gente en Mi equipo ${ICON.flecha}</a>${r && !r.heredadoDe && edita ? `<a class="enlace" href="#" data-ir="servidores">Cambiar en Servidores ${ICON.flecha}</a>` : ''}</div>
+    <section class="movil-sec" aria-labelledby="p-sub-h"><div class="sec-h"><h3 class="sh-sec" id="p-sub-h">Subequipos · <span class="num">${hijos.length}</span></h3></div>
+      ${hijos.length || edita ? `<ul class="ilist borde">${hijos.map(h => `<li><button type="button" class="irow" data-abrir="${h.id}" aria-label="Abrir ${esc(h.label)}"><span class="txt"><span class="t1" style="display:block">${esc(h.label)}</span><span class="t2" style="display:block">${h.resp ? esc(nombreCorto(h.resp.nombre)) : 'Sin responsable'}${problemas(h).length ? ' · ' + problemas(h).map(k => salud(k).corto).join(', ') : ''}</span></span><span class="der">${puntosSalud(h)}<span class="num">${rama(h.id)}</span>${ICON.chev}</span></button></li>`).join('')}
+        ${edita ? `<li><button type="button" class="irow marca" data-sub="${n.id}"><span class="txt"><span class="t1" style="display:block">Agregar subequipo</span></span><span class="der">${ICON.mas}</span></button></li>` : ''}</ul>` : '<p class="nota">Este equipo no tiene equipos dentro.</p>'}
+    </section>`;
+}
+// Roles: name, how many hold it, level, rename and on/off; the add form at the end.
+function pRoles(n, edita) {
+  const roles = n.roles || [];
+  return `<p class="nota">Los puestos que se pueden asignar en ${esc(n.label)}. Un rol desactivado no se puede asignar; nunca se borra.</p>
+    <ul class="rr-ul ilist borde">${roles.map(r => `<li class="rr${r.activo ? '' : ' apagado'}"><div class="txt"><div class="t1"><span>${esc(r.label)}</span>${r.activo && r.uso === 0 ? '<span class="tag t-info">Sin asignar</span>' : ''}</div><div class="t2">${usoRol(r)}</div></div>
+      ${edita ? `<div class="der">${selNivel(`Nivel del rol ${r.label}`, r.nivel, `data-nivel="${esc(r.id)}"`)}<button type="button" class="btn icon ghost" data-rol-renombrar="${esc(r.id)}" aria-label="Renombrar el rol ${esc(r.label)}" title="Renombrar rol">${ICON.lapiz}</button>${sw('rol', esc(r.id), r.activo, `Rol ${r.label}`)}</div>`
+        : `<div class="der"><span>${nivelLabel(r.nivel)}</span>${punto(r.activo ? 'success' : 'faint', r.activo ? 'Activo' : 'Desactivado')}</div>`}</li>`).join('')}</ul>
+    ${edita ? `<form class="campo nuevo-rol" onsubmit="event.preventDefault()"><label for="rol-nuevo">Agregar rol</label><div class="fila-form"><input id="rol-nuevo" placeholder="Ej.: Recepción" />${selNivel('Nivel del rol nuevo', 'voluntario', 'id="rol-nuevo-nivel"')}<button type="submit" class="btn">Agregar</button></div><p class="ayuda">El nivel decide qué puede hacer quien tiene el rol.</p></form>` : ''}`;
+}
+// Turnos: the effective shifts and where they come from; "Editar" swaps to the weekly + dated checkboxes in place.
+function pTurnos(n, edita) {
+  const t = turnosDe(n.id);
+  if (st.psub === 'editar' && edita) {
+    const caja = x => `<li><label class="check"><input type="checkbox" ${t.ids.includes(x.id) ? 'checked' : ''} /><span class="txt"><b>${esc(x.nombre)}</b><small>${detalleTurno(x)}${x.tipo === 'fechas' && proxima(x) ? ` · próx. ${proxima(x)}` : ''}</small></span></label></li>`;
+    return `<button type="button" class="atras" style="margin:-8px 0 -4px -8px;justify-self:start" data-turnos-volver>${ICON.chevIzq}<span>Turnos de ${esc(n.label)}</span></button>
+      <fieldset class="group"><legend>Semanales</legend><ul class="checks">${TURNOS.filter(x => x.activo && x.tipo === 'semanal').map(caja).join('')}</ul></fieldset>
+      <fieldset class="group"><legend>Por fechas</legend><p class="nota">Solo lo sirven los equipos que lo eligen acá (y sus subequipos). Elegirlo no quita los semanales.</p><ul class="checks">${TURNOS.filter(x => x.activo && x.tipo === 'fechas').map(caja).join('')}</ul></fieldset>
+      <p class="nota">Sus subequipos heredan esta elección. Hace falta al menos un turno semanal.</p>`;
+  }
+  return `${sinTurno(n) ? '' : `<p class="nota">${t.propios ? 'Elegidos para este equipo' : `Heredados de ${esc(t.origen || 'todo el campus')}`} · sus subequipos los heredan.</p>`}
+    <div class="tchips">${chipsTurnos(n) || '<span class="danger-t">Ningún turno semanal activo</span>'}</div>
+    ${edita ? `<button type="button" class="btn sm" style="justify-self:start" data-psub="editar">${ICON.lapiz}Editar turnos</button>` : ''}
+    <a class="enlace" href="#" data-tab="turnos">Ver los turnos del campus ${ICON.flecha}</a>`;
+}
+function pTaller(n) {
+  const lista = (n.taller ? [n] : []).concat(talleresRama(n));
+  return lista.length ? `<ul class="ilist borde">${lista.map(x => `<li><a class="irow" href="#" aria-label="Abrir el taller ${esc(x.taller)}"><span class="txt"><span class="t1" style="display:block">${esc(x.taller)}</span><span class="t2" style="display:block">${x === n ? 'Taller vinculado a este equipo' : `Vinculado a ${esc(x.label)}`}</span></span><span class="der">${ICON.chev}</span></a></li>`).join('')}</ul><p class="nota">El vínculo con el taller se hace desde Talleres.</p>`
+    : '<div class="tj-vacio"><p class="t">Sin taller</p><p class="s">Este equipo no está vinculado a un taller.</p></div>';
+}
+
+// ── Overlays: the detail panel, and a centered dialog that can sit on top of it (rename, confirm). Focus moves in,
+// Tab stays inside the top one, Escape / scrim / close return focus to whatever opened it. ──
+const FONDO = ['#app', '#tabbar', '#fab', '#opciones'];
+const pila = [];
+const abierto = () => pila.at(-1)?.el;
+function show(el) {
+  const sobre = el.id === 'dialogo' && $('#drawer').classList.contains('on');
+  if (!sobre) while (pila.length) pila.pop().el.classList.remove('on');
+  pila.push({ el, volver: document.activeElement });
+  if (sobre) $('#drawer').inert = true;
+  el.classList.add('on'); $('#scrim').classList.add('on');
+  FONDO.forEach(s => $(s).inert = true);
+  document.body.style.overflow = 'hidden';
+  el.querySelector('.sh-body')?.scrollTo(0, 0);
+  (el.querySelector('[autofocus]') || el).focus({ preventScroll: true });
+}
+function closeAll(volver = true) {
+  const top = pila.pop(); if (!top) return;
+  top.el.classList.remove('on');
+  if (pila.length) { $('#drawer').inert = false; renderDetalle(); }
+  else { $('#scrim').classList.remove('on'); FONDO.forEach(s => $(s).inert = false); document.body.style.overflow = ''; if (top.el.id === 'drawer') { st.sel = null; VISTA.marcar?.(); } }
+  // The trigger may have been re-rendered: find it again by its data attribute.
+  let el = top.volver;
+  if (el && !el.isConnected) { const k = [...el.attributes].find(a => a.name.startsWith('data-') || a.name === 'id'); el = k && document.querySelector(k.name === 'id' ? '#' + k.value : `[${k.name}="${CSS.escape(k.value)}"]`); }
+  if (volver && el && el.offsetParent !== null) el.focus({ preventScroll: true });
+  else if (pila.length) $('#d-name')?.focus({ preventScroll: true });
+}
+function focoDentro(e) {
+  const d = abierto(); if (!d || e.key !== 'Tab') return;
+  const f = [...d.querySelectorAll('button:not([disabled]), select, input:not([disabled]), [href], summary')].filter(x => x.offsetParent !== null);
+  if (!f.length) return;
+  const first = f[0], last = f.at(-1);
+  if (e.shiftKey && (document.activeElement === first || document.activeElement === d)) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+const cabeza = (titulo, meta = '') => `<span class="grab" aria-hidden="true"></span><div class="sh-head"><div><h2 id="d-name" tabindex="-1">${titulo}</h2>${meta ? `<p class="nota" style="margin-top:4px">${meta}</p>` : ''}</div><button type="button" class="btn icon ghost sh-close" data-close aria-label="Cerrar">${ICON.x}</button></div>`;
+
+// ── Render: header, then the page tab (the direction's view, or the campus shifts). ──
+function render(opts = {}) {
+  if (st.nivel && !alcanza(st.nivel)) st.nivel = null;
+  renderHeader();
+  const vacio = !raices().length;
+  $('#vista').dataset.dir = VISTA.id;
+  if (vacio) { $('#vista').innerHTML = vacioHTML('No se encontraron equipos', 'Puede que la estructura esté vacía, o que tu sesión no tenga acceso de lectura sobre ningún nodo del árbol.'); return; }
+  if (st.loading) return renderCarga();
+  if (st.tab === 'turnos') renderTurnos(); else VISTA.render(opts);
+  if (opts.foco) (esEscritorio() ? $('#title') : $('#l-title'))?.focus({ preventScroll: true });
+}
+function renderCarga() {
+  const sk = (w, h = 14) => `<span style="display:block;width:${w};height:${h}px;border-radius:var(--radius-md);background:var(--muted);animation:pulse 2s cubic-bezier(.4,0,.6,1) infinite"></span>`;
+  $('#vista').innerHTML = `<div role="status" aria-busy="true" style="display:grid;gap:20px"><span class="sr">Cargando</span>${sk('100%', 44)}
+    <div class="attention">${'<div class="metric" style="cursor:default">' + sk('50%') + sk('30%', 26) + '</div>'.repeat(1)}${('<div class="metric" style="cursor:default">' + sk('50%') + sk('30%', 26) + '</div>').repeat(3)}</div>
+    <div class="lista">${'<div class="skel" aria-hidden="true"><span class="a"></span><span class="l"><span></span><span></span></span></div>'.repeat(6)}</div></div>`;
+}
+
+// ── Direction B · "Organigrama visual": the tree drawn as connected boxes (left to right on desktop, an indented chart
+// with connectors on phone). Search and health pills highlight boxes without hiding the rest; a box opens the panel. ──
+const CJ = { W: 256, H: 56, GX: 56, GY: 10 };
+const VISTA = {
+  id: 'b',
+  // Desktop and phone open the direcciones; deeper branches start folded ("+n"). The first desktop render fits the zoom.
+  inicio() { st.abiertos = new Set(raices().filter(n => (n.children || []).length && !n.gdv && n.activo).map(n => n.id)); st.zoom = 1; this.auto = true; },
+  // A box is lit when it matches the search and the pressed health pill; with neither, every box is lit.
+  activo() { return !!(st.filtro || st.q.trim()); },
+  luce(n) { const q = norm(st.q.trim()); return (!st.filtro || problemas(n).includes(st.filtro)) && (!q || coincideQ(n, q)); },
+  // Branches open: the folded state plus, while highlighting, the ancestors of every lit box.
+  abiertos() { const s = new Set(st.abiertos); if (this.activo()) visibles().filter(n => this.luce(n)).forEach(n => n.path.forEach(id => s.add(id))); return s; },
+  render(opts = {}) {
+    const lit = visibles().filter(n => this.activo() && this.luce(n));
+    const res = this.activo() ? `${plural(lit.length, 'equipo resaltado', 'equipos resaltados')}${lit.length ? '' : ' · probá con otra palabra'}` : '';
+    if (opts.busqueda && $('#lz-cuerpo')) { $('#lz-cuerpo').innerHTML = this.cuerpo(); $('#lz-res').textContent = res; this.alPrimero(); return; }
+    $('#vista').innerHTML = `<section class="lienzo" aria-labelledby="lz-h"><h2 class="sr" id="lz-h">Organigrama</h2>
+      <div class="lz-barra">${buscador('Buscar en el organigrama')}${pastillasSalud(visibles(), 'Resaltar en el organigrama')}<span class="lz-res" id="lz-res" role="status">${res}</span></div>
+      <div id="lz-cuerpo">${this.cuerpo()}</div></section>`;
+    if (this.auto) requestAnimationFrame(() => this.reajustar());
+    if (this.activo()) this.alPrimero();
+  },
+  // Until the user zooms by hand, the chart fits the canvas (on load and when the window changes size).
+  reajustar() { if (!this.auto || !esEscritorio() || !$('#lz-vista') || st.tab !== 'equipos') return; const z = this.encaje(); if (z !== st.zoom) { st.zoom = z; $('#lz-cuerpo').innerHTML = this.cuerpo(); } },
+  // The automatic fit never goes below 80 % (text stays readable); smaller is a manual choice.
+  encaje() { const v = $('#lz-vista'), c = $('.lz-capa'); return Math.max(0.8, Math.min(1, Math.floor(Math.min((v.clientHeight - 100) / c.offsetHeight, (v.clientWidth - 52) / c.offsetWidth) * 20) / 20)); },
+  cuerpo() { return esEscritorio() ? this.dibujo() : this.vertical(); },
+  // Desktop: tidy left-to-right layout; the campus is the root box; a folded box shows "+n" and its branch health.
+  dibujo() {
+    const ab = this.abiertos(), cajas = [], lineas = [];
+    let y = 0, maxX = 0;
+    const colocar = (n, prof) => {
+      const hijos = n.children || [], abierto = hijos.length && (n.raiz || ab.has(n.id));
+      let top;
+      if (!abierto) { top = y; y += CJ.H + CJ.GY; }
+      else { const ys = hijos.map(h => colocar(h, prof + 1)); top = (ys[0] + ys.at(-1)) / 2; ys.forEach(yh => lineas.push([prof, top, yh])); }
+      const x = prof * (CJ.W + CJ.GX); maxX = Math.max(maxX, x + CJ.W);
+      cajas.push(this.caja(n, x, top, abierto));
+      return top;
+    };
+    const raiz = { id: 'campus', raiz: true, label: 'Barquisimeto', children: raices() };
+    colocar(raiz, 0);
+    const alto = y - CJ.GY, z = st.zoom;
+    const camino = ([p, y1, y2]) => { const x1 = p * (CJ.W + CJ.GX) + CJ.W, x2 = x1 + CJ.GX, xm = x1 + CJ.GX / 2, a = y1 + CJ.H / 2, b = y2 + CJ.H / 2, r = Math.min(8, Math.abs(b - a) / 2), s = Math.sign(b - a);
+      return s ? `M${x1} ${a}H${xm - r}Q${xm} ${a} ${xm} ${a + r * s}V${b - r * s}Q${xm} ${b} ${xm + r} ${b}H${x2}` : `M${x1} ${a}H${x2}`; };
+    return `<div class="lz-vista" id="lz-vista" tabindex="0" aria-label="Organigrama, desplazable con las flechas">
+        <div class="lz-plano" style="width:${maxX * z}px;height:${alto * z}px"><div class="lz-capa" style="width:${maxX}px;height:${alto}px;transform:scale(${z})">
+          <svg class="lz-lineas" width="${maxX}" height="${alto}" aria-hidden="true"><path d="${lineas.map(camino).join('')}"/></svg>${cajas.join('')}</div></div></div>
+      <div class="lz-zoom" role="group" aria-label="Zoom y ramas">
+        <button type="button" class="btn icon ghost" data-zoom="-1" aria-label="Alejar"${z <= 0.6 ? ' disabled' : ''}>${svg('<path d="M5 12h14"/>', 18)}</button><span class="num lz-pct" aria-live="polite">${Math.round(z * 100)} %</span><button type="button" class="btn icon ghost" data-zoom="1" aria-label="Acercar"${z >= 1.2 ? ' disabled' : ''}>${ICON.mas}</button>
+        <span class="lz-sep" aria-hidden="true"></span><button type="button" class="btn sm ghost" data-ajustar>Ajustar</button><button type="button" class="btn sm ghost" data-todo="1">Expandir todo</button><button type="button" class="btn sm ghost" data-todo="0">Contraer</button></div>
+      <ul class="leyenda lz-ley">${SALUD.filter(s => s.k !== 'inactivo').map(s => `<li><span class="d" data-t="${s.t}" aria-hidden="true"></span>${s.label}</li>`).join('')}<li><span class="cj-mini" aria-hidden="true"></span>Inactivo</li></ul>`;
+  },
+  caja(n, x, y, abierto) {
+    if (n.raiz) { const c = raices().reduce((s, r) => s + rama(r.id), 0);
+      return `<div class="cj-w" style="left:0;top:${y}px"><div class="caja raiz"><span class="avatar chico nodo" aria-hidden="true">${nav('campus')}</span><span class="cj-txt"><span class="cj-n">Barquisimeto</span><span class="cj-r">Dream Team · <span class="num">${c}</span> personas</span></span></div></div>`; }
+    const lit = this.activo() && this.luce(n), dim = this.activo() && !lit, hijos = (n.children || []).length;
+    const malRama = hijos && !abierto ? descendientes(n.id).some(d => problemas(d).some(k => k !== 'inactivo')) : false;
+    const desc = `${n.label}, ${n.resp ? nombreCorto(n.resp.nombre) : 'sin responsable'}, ${personas(rama(n.id))}${problemas(n).length ? ', ' + problemas(n).map(k => salud(k).label).join(', ') : ''}${n.gdv ? ', solo lectura' : ''}`;
+    return `<div class="cj-w" style="left:${x}px;top:${y}px"><button type="button" class="caja${n.activo ? '' : ' apagado'}${n.gdv ? ' gdv' : ''}${lit ? ' luce' : ''}${dim ? ' tenue' : ''}${st.sel === n.id ? ' sel' : ''}" data-abrir="${n.id}" data-id="${n.id}" aria-label="${esc(desc)}">
+        <span class="avatar chico${n.resp ? '' : ' vacio-av'}" data-h="${n.resp ? tono(n.resp.nombre) : 1}" aria-hidden="true">${n.resp ? iniciales(n.resp.nombre) : '?'}</span>
+        <span class="cj-txt"><span class="cj-n">${esc(n.label)}</span><span class="cj-r${n.resp ? '' : ' warning-t'}">${n.resp ? esc(nombreCorto(n.resp.nombre)) : n.activo ? 'Sin responsable' : 'Inactivo'}</span></span>
+        <span class="cj-der" aria-hidden="true"><span class="num cj-c">${rama(n.id)}</span>${puntosSalud(n).replace(/<span class="sr">.*?<\/span>/, '')}</span></button>
+      ${hijos ? `<button type="button" class="cj-tog${abierto ? '' : ' plegado'}" data-tog="${n.id}" aria-expanded="${!!abierto}" aria-label="${abierto ? 'Contraer' : `Expandir, ${plural(hijos, 'equipo', 'equipos')} dentro de`} ${esc(n.label)}${malRama ? ', con cosas por revisar' : ''}">${abierto ? svg('<path d="M6 12h12"/>', 14) : `<span class="num">+${hijos}</span>`}${malRama ? '<span class="d" data-t="warning" aria-hidden="true"></span>' : ''}</button>` : ''}</div>`;
+  },
+  // Phone: the chart turned vertical; each level indented on a connector rail, folded branches show "+n".
+  vertical() {
+    const ab = this.abiertos();
+    const rama_ = nodos => `<ul class="ov">${nodos.map(n => { const hijos = n.children || [], abierto = hijos.length && ab.has(n.id), lit = this.activo() && this.luce(n), dim = this.activo() && !lit;
+      return `<li><div class="ov-fila"><button type="button" class="ov-c${n.activo ? '' : ' apagado'}${n.gdv ? " gdv" : ""}${lit ? ' luce' : ''}${dim ? ' tenue' : ''}${st.sel === n.id ? ' sel' : ''}" data-abrir="${n.id}" data-id="${n.id}" aria-label="${esc(n.label)}, ${n.resp ? esc(nombreCorto(n.resp.nombre)) : 'sin responsable'}, ${personas(rama(n.id))}${problemas(n).length ? ', ' + problemas(n).map(k => salud(k).label).join(', ') : ''}">
+          <span class="avatar chico${n.resp ? '' : ' vacio-av'}" data-h="${n.resp ? tono(n.resp.nombre) : 1}" aria-hidden="true">${n.resp ? iniciales(n.resp.nombre) : '?'}</span>
+          <span class="cj-txt"><span class="cj-n">${esc(n.label)}</span><span class="cj-r${n.resp ? '' : ' warning-t'}">${n.resp ? esc(nombreCorto(n.resp.nombre)) : n.activo ? 'Sin responsable' : 'Inactivo'}</span></span>
+          <span class="cj-der" aria-hidden="true"><span class="num cj-c">${rama(n.id)}</span>${puntosSalud(n).replace(/<span class="sr">.*?<\/span>/, '')}</span></button>
+        ${hijos.length ? `<button type="button" class="ov-tog" data-tog="${n.id}" aria-expanded="${!!abierto}" aria-label="${abierto ? 'Contraer' : 'Expandir'} ${esc(n.label)}">${abierto ? '' : `<span class="num">+${hijos.length}</span>`}${ICON.chev}</button>` : ''}</div>
+        ${abierto ? rama_(hijos) : ''}</li>`; }).join('')}</ul>`;
+    const c = raices().reduce((s, r) => s + rama(r.id), 0);
+    return `<div class="org-v"><div class="ov-raiz"><span class="avatar chico nodo" aria-hidden="true">${nav('campus')}</span><span><b>Barquisimeto</b><span class="t2">Dream Team · <span class="num">${c}</span> personas</span></span></div>${rama_(raices())}</div>
+      <div class="acts ov-acts"><button type="button" class="link" data-todo="1">Expandir todo</button><button type="button" class="link" data-todo="0">Contraer todo</button></div>`;
+  },
+  alPrimero() { const b = document.querySelector('#lz-cuerpo .luce'); if (b) (b.closest('.cj-w') || b).scrollIntoView({ block: 'nearest', inline: 'nearest' }); },
+  // The open node is always visible: its folded ancestors open, and the canvas scrolls to it.
+  marcar() {
+    if (st.sel && $('#lz-cuerpo') && !document.querySelector(`#lz-cuerpo [data-id="${st.sel}"]`)) { index[st.sel].path.forEach(id => st.abiertos.add(id)); $('#lz-cuerpo').innerHTML = this.cuerpo(); }
+    document.querySelectorAll('#lz-cuerpo [data-id]').forEach(b => b.classList.toggle('sel', b.dataset.id === st.sel));
+    const b = st.sel && document.querySelector(`#lz-cuerpo [data-id="${st.sel}"]`); if (b && esEscritorio()) b.closest('.cj-w').scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  },
+  click(t, ds) {
+    if (ds.tog) { st.abiertos.has(ds.tog) ? st.abiertos.delete(ds.tog) : st.abiertos.add(ds.tog); $('#lz-cuerpo').innerHTML = this.cuerpo(); return document.querySelector(`[data-tog="${ds.tog}"]`)?.focus(); }
+    if (ds.todo) { st.abiertos = ds.todo === '1' ? new Set(visibles().filter(n => (n.children || []).length).map(n => n.id)) : new Set(); $('#lz-cuerpo').innerHTML = this.cuerpo(); return document.querySelector(`[data-todo="${ds.todo}"]`)?.focus(); }
+    if (ds.zoom || ds.ajustar !== undefined) {
+      this.auto = ds.ajustar !== undefined;
+      st.zoom = ds.zoom ? Math.min(1.2, Math.max(0.6, Math.round((st.zoom + ds.zoom * 0.1) * 10) / 10)) : this.encaje();
+      $('#lz-cuerpo').innerHTML = this.cuerpo(); return (document.querySelector(ds.zoom ? `[data-zoom="${ds.zoom}"]:not([disabled])` : '[data-ajustar]') || $('#lz-vista')).focus();
+    }
+  },
+};
+addEventListener('resize', () => VISTA.reajustar());
+// Pan: drag the empty canvas (pointer), or scroll it with the arrows (it is a focusable scroll region).
+let arrastre = null;
+document.addEventListener('pointerdown', e => { const v = e.target.closest?.('#lz-vista'); if (!v || e.target.closest('button') || e.button !== 0) return; arrastre = { v, x: e.clientX, y: e.clientY, l: v.scrollLeft, t: v.scrollTop }; v.classList.add('arrastrando'); });
+document.addEventListener('pointermove', e => { if (!arrastre) return; arrastre.v.scrollLeft = arrastre.l - (e.clientX - arrastre.x); arrastre.v.scrollTop = arrastre.t - (e.clientY - arrastre.y); });
+document.addEventListener('pointerup', () => { if (arrastre) arrastre.v.classList.remove('arrastrando'); arrastre = null; });
+
+// ── Events (shared). The direction gets the clicks it owns through VISTA.click. ──
+const conEditor = id => { if (id) st.sel = id; };
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href="#"]'); if (a) e.preventDefault();
+  const t = e.target.closest('button, a[data-ir], a[data-tab]'); if (!t || t.disabled) return;
+  const ds = t.dataset;
+  if (ds.tema !== undefined) {
+    document.querySelectorAll('[data-tema]').forEach(b => b.setAttribute('aria-pressed', b === t));
+    if (ds.tema) document.documentElement.dataset.tema = ds.tema; else delete document.documentElement.dataset.tema;
+    return;
+  }
+  if (t.id === 'op-carga') { st.loading = true; render(); setTimeout(() => { st.loading = false; render(); }, 1500); return; }
+  if (ds.close !== undefined) return closeAll();
+  if (ds.confirmar !== undefined) { index[st.sel].activo = false; closeAll(); return render(); }
+  if (ds.activar !== undefined) { index[st.sel].activo = true; renderDetalle(); render(); return $('#d-name')?.focus(); }
+  if (ds.abrir) return abrirDetalle(ds.abrir);
+  if (ds.ptab) { st.ptab = ds.ptab; st.psub = ds.psub || null; renderDetalle(); $('#d-body').scrollTo(0, 0); return (st.psub ? $('#d-body button, #d-body input') : $('#pt-' + st.ptab))?.focus(); }
+  if (ds.psub) { st.psub = ds.psub; renderDetalle(); return $('#d-body [data-turnos-volver]')?.focus(); }
+  if (ds.turnosVolver !== undefined) { st.psub = null; renderDetalle(); return $('[data-psub="editar"]')?.focus(); }
+  if (ds.nivelIr !== undefined) { st.tab = 'equipos'; st.nivel = ds.nivelIr || null; st.filtro = null; scrollTo(0, 0); return render({ foco: true }); }
+  if (ds.filtro) { st.filtro = st.filtro === ds.filtro ? null : ds.filtro; VISTA.render(); return document.querySelector(`[data-filtro="${ds.filtro}"]`)?.focus(); }
+  if (ds.limpiar !== undefined) { st.filtro = null; st.q = ''; VISTA.render(); return $('#q')?.focus(); }
+  if (ds.tab) { st.tab = ds.tab; if (pila.length && ds.tab === 'turnos') while (pila.length) closeAll(false); render(); scrollTo(0, 0); return $('#tab-' + st.tab).focus(); }
+  if (ds.renombrar !== undefined) { conEditor(ds.renombrar); return openNombre('renombrar'); }
+  if (ds.sub !== undefined) { conEditor(ds.sub); return openNombre('sub'); }
+  if (ds.desactivar !== undefined) return openConfirmar();
+  if (ds.rolRenombrar) return openNombre('rol', ds.rolRenombrar);
+  if (ds.turnoNuevo !== undefined) return openTurnoNuevo();
+  if (ds.rol && t.getAttribute('role') === 'switch') { const r = index[st.sel].roles.find(x => x.id === ds.rol); r.activo = !r.activo; renderDetalle(); VISTA.render(); return document.querySelector(`#drawer [data-rol="${CSS.escape(ds.rol)}"]`)?.focus(); }
+  if (ds.turno && t.getAttribute('role') === 'switch') { const x = turno(ds.turno); x.activo = !x.activo; render(); return document.querySelector(`[data-turno="${ds.turno}"]`)?.focus(); }
+  VISTA.click?.(t, ds);
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'op-rol') cambiarRol(e.target.value);
+  if (e.target.id === 'tn-tipo') { closeAll(false); openTurnoNuevo(e.target.value); $('#tn-tipo').focus(); }
+  if (e.target.dataset?.nivel) { const r = index[st.sel].roles.find(x => x.id === e.target.dataset.nivel); r.nivel = e.target.value; }
+});
+document.addEventListener('input', e => {
+  if (e.target.dataset?.buscar === undefined) return;
+  st.q = e.target.value; VISTA.render({ busqueda: true });
+});
+$('#scrim').addEventListener('click', () => closeAll());
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (abierto()) { e.preventDefault(); closeAll(); } else if ($('#opciones').open) { $('#opciones').open = false; $('#opciones summary').focus(); } return; }
+  if (e.key === '/' && !abierto() && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName) && $('#q')) { e.preventDefault(); return $('#q').focus(); }
+  focoDentro(e);
+  const tab = e.target.closest?.('[role=tablist]');
+  if (tab && e.target.getAttribute('role') === 'tab' && ['ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    const ts = [...tab.querySelectorAll('[role=tab]')], i = ts.indexOf(e.target), sig = ts[(i + (e.key === 'ArrowRight' ? 1 : ts.length - 1)) % ts.length];
+    sig.click(); document.getElementById(sig.id)?.focus();
+  }
+  VISTA.tecla?.(e);
+});
+function cambiarRol(rol) {
+  while (pila.length) closeAll(false);
+  st.quien = rol; st.nivel = null; st.sel = null; st.q = ''; st.tab = 'equipos'; st.filtro = null;
+  $('#op-rol').value = rol; VISTA.inicio?.(); renderShell(); render();
+}
+mqTablet.addEventListener('change', () => { renderShell(); render(); });
+matchMedia('(min-width: 768px)').addEventListener('change', () => render());
+
+// ── Start: initial state per artboard, then review links ──
+const html = document.documentElement;
+st.quien = html.dataset.rol || 'admin'; st.nivel = html.dataset.nivel || null; st.tab = html.dataset.tab || 'equipos';
+$('#op-rol').value = st.quien;
+VISTA.inicio?.(); renderShell(); render();
+// Review links: #oscuro, #claro, #rol=<admin|director|sin>, #nivel=<id>, #nodo=<id>[, #ptab=<resumen|roles|turnos|taller>],
+// #turnos-editar, #filtro=<resp|roles|turno|inactivo>, #buscar=<texto>, #turnos, #turno-nuevo[=fechas], #renombrar, #sub, #desactivar,
+// #carga, #zoom=<n>, #abrir=<id>, #cerrar=<id>, #opciones
+for (const k of decodeURIComponent(location.hash.slice(1)).split(',').filter(Boolean)) {
+  const [c, v] = k.split('=');
+  if (c === 'oscuro' || c === 'claro') document.querySelector(`[data-tema="${c}"]`).click();
+  if (c === 'rol' && VISTAS[v]) cambiarRol(v);
+  if (c === 'nivel') { st.nivel = index[v] ? v : null; render(); }
+  if (c === 'filtro') { st.filtro = v; render(); }
+  if (c === 'buscar') { st.q = v; render(); }
+  if (c === 'zoom') { st.zoom = +v; VISTA.auto = false; render(); }
+  if (c === 'abrir' && index[v]) { st.abiertos.add(v); render(); }
+  if (c === 'cerrar' && index[v]) { st.abiertos.delete(v); render(); }
+  if (c === 'turnos') { st.tab = 'turnos'; render(); }
+  if (c === 'carga') { st.loading = true; render(); }
+  if (c === 'nodo' && index[v]) abrirDetalle(v);
+  if (c === 'ptab' && st.sel) { st.ptab = v; renderDetalle(); }
+  if (c === 'turnos-editar' && st.sel) { st.ptab = 'turnos'; st.psub = 'editar'; renderDetalle(); }
+  if (c === 'turno-nuevo') openTurnoNuevo(v || 'semanal');
+  if (c === 'renombrar') openNombre('renombrar');
+  if (c === 'sub') openNombre('sub');
+  if (c === 'desactivar') openConfirmar();
+  if (c === 'opciones') $('#opciones').open = true;
+}
+</script>
+</body>
+</html>

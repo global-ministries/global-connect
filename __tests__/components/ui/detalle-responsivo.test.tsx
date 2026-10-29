@@ -5,7 +5,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
 
-import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
+import { DetalleResponsivo, useEsEscritorio } from '@/components/ui/detalle-responsivo'
 
 type Oyente = (evento: MediaQueryListEvent) => void
 
@@ -83,6 +83,12 @@ describe('DetalleResponsivo', () => {
     expect(screen.getByRole('dialog')).toHaveClass('sm:max-w-[640px]')
   })
 
+  it('offers the 560px width of the Estructura node panel', () => {
+    simularViewport(true)
+    render(<Detalle ancho="estructura" />)
+    expect(screen.getByRole('dialog')).toHaveClass('sm:max-w-[560px]')
+  })
+
   it('renders the bottom sheet below md, and only that overlay', () => {
     simularViewport(false)
     render(<Detalle />)
@@ -121,5 +127,21 @@ describe('DetalleResponsivo', () => {
   it('renders nothing on the server, so hydration cannot mismatch', () => {
     simularViewport(false)
     expect(renderToString(<Detalle />)).toBe('')
+  })
+})
+
+describe('useEsEscritorio', () => {
+  function Corte() {
+    const escritorio = useEsEscritorio()
+    return <p>{escritorio === null ? 'servidor' : escritorio ? 'escritorio' : 'celular'}</p>
+  }
+
+  it('follows the same 768px cut, and is unknown on the server', () => {
+    const viewport = simularViewport(false)
+    expect(renderToString(<Corte />)).toContain('servidor')
+    render(<Corte />)
+    expect(screen.getByText('celular')).toBeInTheDocument()
+    viewport.cambiar(true)
+    expect(screen.getByText('escritorio')).toBeInTheDocument()
   })
 })
