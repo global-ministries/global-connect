@@ -2,8 +2,9 @@
 --
 -- Covers:
 --   1. List (listar_usuarios_con_permisos): director general and director de
---      etapa see everybody; lider, miembro, admin and pastor keep the scope the
---      original function gave them; p_contexto_relacion is unchanged.
+--      etapa see their campus (since 20261029200000; every fixture shares one
+--      campus); lider, miembro, admin and pastor keep the scope the original
+--      function gave them; p_contexto_relacion is unchanged.
 --   2. Statistics (obtener_estadisticas_usuarios_con_permisos): same scope as the
 --      list, the caller must be auth.uid() (or service_role), no anon access,
 --      p_campus_id still filters.
@@ -120,6 +121,18 @@ RETURNS text LANGUAGE sql AS $$
          || '|' || (SELECT count(*) FROM public.usuarios WHERE nombre NOT LIKE 'ZZ Dv%');
 $$;
 
+-- Expected text for "the fixture campus": every fixture surname and nobody else.
+CREATE OR REPLACE FUNCTION pg_temp.fixtures()
+RETURNS text LANGUAGE sql AS $$
+  SELECT (SELECT string_agg(apellido, ',' ORDER BY apellido) FROM public.usuarios WHERE nombre LIKE 'ZZ Dv%')
+         || '|0';
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.campus()
+RETURNS uuid LANGUAGE sql AS $$
+  SELECT 'e3000000-0000-4000-8000-0000000000ca'::uuid;
+$$;
+
 -- What a statistics call returns: "total|con_email|con_telefono|registrados_hoy".
 CREATE OR REPLACE FUNCTION pg_temp.stats(p_auth uuid, p_busqueda text DEFAULT '', p_campus uuid DEFAULT NULL)
 RETURNS text LANGUAGE sql AS $$
@@ -160,6 +173,16 @@ INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil, email, 
   ('e3000000-0000-4000-8000-000000000009', 'ZZ Dv', 'X',   'Otro', 'Soltero', NULL, NULL, NULL, NULL, NULL),
   ('e3000000-0000-4000-8000-000000000010', 'ZZ Dv', 'REL', 'Otro', 'Soltero', NULL, NULL, NULL, 'e3000000-0000-4000-8000-000000000107', NULL),
   ('e3000000-0000-4000-8000-000000000011', 'ZZ Dv', 'FAM', 'Otro', 'Soltero', NULL, NULL, NULL, NULL, 'e3000000-0000-4000-8000-0000000000f1');
+
+-- Every fixture person belongs to one fixture campus (since 20261029200000 the
+-- pastor and the directors see only their campus).
+INSERT INTO public.campus (id, nombre, codigo) VALUES
+  ('e3000000-0000-4000-8000-0000000000ca', 'ZZ Dv Campus', 'ZZDVC');
+
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT u.id, 'e3000000-0000-4000-8000-0000000000ca', true
+  FROM public.usuarios u
+ WHERE u.nombre LIKE 'ZZ Dv%';
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT v.usuario_id::uuid, rs.id
@@ -207,14 +230,14 @@ SELECT pg_temp.as_user(pg_temp.a('ADM'));
 SELECT pg_temp.assert_eq('list: admin sees everybody',
   $q$SELECT pg_temp.seen(pg_temp.a('ADM'))$q$, pg_temp.everybody());
 SELECT pg_temp.as_user(pg_temp.a('PAS'));
-SELECT pg_temp.assert_eq('list: pastor sees everybody',
-  $q$SELECT pg_temp.seen(pg_temp.a('PAS'))$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('list: pastor sees their whole campus',
+  $q$SELECT pg_temp.seen(pg_temp.a('PAS'))$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user(pg_temp.a('DG'));
-SELECT pg_temp.assert_eq('list: director general sees everybody, the outsider included',
-  $q$SELECT pg_temp.seen(pg_temp.a('DG'))$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('list: director general sees their whole campus, the outsider included',
+  $q$SELECT pg_temp.seen(pg_temp.a('DG'))$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user(pg_temp.a('DE'));
-SELECT pg_temp.assert_eq('list: director de etapa sees everybody, the outsider included',
-  $q$SELECT pg_temp.seen(pg_temp.a('DE'))$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('list: director de etapa sees their whole campus, the outsider included',
+  $q$SELECT pg_temp.seen(pg_temp.a('DE'))$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user(pg_temp.a('LID'));
 SELECT pg_temp.assert_eq('list: lider keeps the members of the groups they lead',
   $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, 'LID,M1|0');
@@ -222,14 +245,14 @@ SELECT pg_temp.as_user(pg_temp.a('MEM'));
 SELECT pg_temp.assert_eq('list: miembro keeps family, relationships and self',
   $q$SELECT pg_temp.seen(pg_temp.a('MEM'))$q$, 'FAM,MEM,REL|0');
 SELECT pg_temp.as_user(pg_temp.a('LID'));
-SELECT pg_temp.assert_eq('list: contexto relacion, lider sees everybody',
-  $q$SELECT pg_temp.seen(pg_temp.a('LID'), true)$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('list: contexto relacion, lider sees their whole campus',
+  $q$SELECT pg_temp.seen(pg_temp.a('LID'), true)$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user(pg_temp.a('MEM'));
 SELECT pg_temp.assert_eq('list: contexto relacion, miembro keeps the family scope',
   $q$SELECT pg_temp.seen(pg_temp.a('MEM'), true)$q$, 'FAM,MEM,REL|0');
 SELECT pg_temp.as_user(pg_temp.a('DE'));
-SELECT pg_temp.assert_eq('list: contexto relacion, director de etapa still sees everybody',
-  $q$SELECT pg_temp.seen(pg_temp.a('DE'), true)$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('list: contexto relacion, director de etapa still sees their whole campus',
+  $q$SELECT pg_temp.seen(pg_temp.a('DE'), true)$q$, pg_temp.fixtures());
 
 -- 2. Statistics. Searching 'ZZ Dv' isolates the fixtures:
 --    11 people, one email (M1), one phone (OUT), all registered today.
@@ -252,10 +275,10 @@ SELECT pg_temp.as_user(pg_temp.a('MEM'));
 SELECT pg_temp.assert_eq('stats: miembro keeps family, relationships and self',
   $q$SELECT pg_temp.stats(pg_temp.a('MEM'), 'ZZ Dv')$q$, '3|0|0|3');
 SELECT pg_temp.as_service();
-SELECT pg_temp.assert_eq('stats: director general total equals the admin total (no search)',
-  $q$SELECT (pg_temp.stats(pg_temp.a('DG')) = pg_temp.stats(pg_temp.a('ADM')))::text$q$, 'true');
-SELECT pg_temp.assert_eq('stats: director de etapa total equals the admin total (no search)',
-  $q$SELECT (pg_temp.stats(pg_temp.a('DE')) = pg_temp.stats(pg_temp.a('ADM')))::text$q$, 'true');
+SELECT pg_temp.assert_eq('stats: director general total equals the admin total for their campus (no search)',
+  $q$SELECT (pg_temp.stats(pg_temp.a('DG')) = pg_temp.stats(pg_temp.a('ADM'), '', pg_temp.campus()))::text$q$, 'true');
+SELECT pg_temp.assert_eq('stats: director de etapa total equals the admin total for their campus (no search)',
+  $q$SELECT (pg_temp.stats(pg_temp.a('DE')) = pg_temp.stats(pg_temp.a('ADM'), '', pg_temp.campus()))::text$q$, 'true');
 SELECT pg_temp.assert_eq('stats: the campus filter still applies (unknown campus counts nobody)',
   $q$SELECT pg_temp.stats(pg_temp.a('ADM'), 'ZZ Dv', 'e3000000-0000-4000-8000-0000000000ff')$q$, '0|0|0|0');
 -- Identity.
@@ -477,13 +500,13 @@ SELECT pg_temp.assert_eq('report identity: service_role can execute',
   $q$SELECT has_function_privilege('service_role', 'public.obtener_reporte_asistencia_usuario(uuid,uuid,date,date)', 'execute')$q$, 'true');
 
 -- 7. Highest role wins. LID (lider of G1) also becomes director de etapa: the
--- director scope (everybody) applies to the list and to the statistics.
+-- director scope (their campus) applies to the list and to the statistics.
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT pg_temp.u('LID'), id FROM public.roles_sistema WHERE nombre_interno = 'director-etapa';
 SELECT pg_temp.as_user(pg_temp.a('LID'));
-SELECT pg_temp.assert_eq('highest role: director de etapa + lider lists everybody',
-  $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, pg_temp.everybody());
-SELECT pg_temp.assert_eq('highest role: director de etapa + lider counts every fixture',
+SELECT pg_temp.assert_eq('highest role: director de etapa + lider lists their whole campus',
+  $q$SELECT pg_temp.seen(pg_temp.a('LID'))$q$, pg_temp.fixtures());
+SELECT pg_temp.assert_eq('highest role: director de etapa + lider counts their whole campus',
   $q$SELECT pg_temp.stats(pg_temp.a('LID'), 'ZZ Dv')$q$, '11|1|1|11');
 -- The same person as lider + miembro (no director role) gets the lider scope,
 -- not the miembro family scope.

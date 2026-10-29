@@ -8,9 +8,11 @@
 --      activo filter), lider, miembro (family, relationships, self), and a
 --      person with no role.
 --      (Updated for 20260930110000: director general and director de etapa now
---      see everybody; search and paging checks run as the lider.)
+--      see everybody; search and paging checks run as the lider. Updated for
+--      20261029200000: pastor and directors see their campus; every fixture
+--      shares one campus.)
 --   2. A person with pastor + director-general gets the pastor scope.
---   3. p_contexto_relacion = true gives everything to director general,
+--   3. p_contexto_relacion = true gives the whole campus to director general,
 --      director de etapa and lider, but not to miembro.
 --   4. Search: a quote-based payload matches nothing and raises no error; %, _
 --      and \ are literal; nombre, apellido, email and cedula still match.
@@ -113,6 +115,13 @@ RETURNS text LANGUAGE sql AS $$
          || '|' || (SELECT count(*) FROM public.usuarios WHERE nombre NOT LIKE 'ZZ Ul%');
 $$;
 
+-- Expected text for "the fixture campus": every fixture surname and nobody else.
+CREATE OR REPLACE FUNCTION pg_temp.fixtures()
+RETURNS text LANGUAGE sql AS $$
+  SELECT (SELECT string_agg(apellido, ',' ORDER BY apellido) FROM public.usuarios WHERE nombre LIKE 'ZZ Ul%')
+         || '|0';
+$$;
+
 -- Fixtures (as postgres). ----------------------------------------------------
 INSERT INTO public.segmentos (id, nombre) VALUES
   ('e2000000-0000-4000-8000-0000000000a1', 'ZZ Ul S1'),
@@ -155,6 +164,16 @@ INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil, email, 
   ('e2000000-0000-4000-8000-000000000023', 'ZZ Ul a_b',  'USC',  'Otro', 'Soltero', NULL, NULL, NULL, NULL),
   ('e2000000-0000-4000-8000-000000000024', 'ZZ Ul aXb',  'USCX', 'Otro', 'Soltero', NULL, NULL, NULL, NULL),
   ('e2000000-0000-4000-8000-000000000025', 'ZZ Ul c\d',  'BSL',  'Otro', 'Soltero', NULL, NULL, NULL, NULL);
+
+-- Every fixture person belongs to one fixture campus (since 20261029200000 the
+-- pastor and the directors see only their campus).
+INSERT INTO public.campus (id, nombre, codigo) VALUES
+  ('e2000000-0000-4000-8000-0000000000ca', 'ZZ Ul Campus', 'ZZULC');
+
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT u.id, 'e2000000-0000-4000-8000-0000000000ca', true
+  FROM public.usuarios u
+ WHERE u.nombre LIKE 'ZZ Ul%';
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT v.usuario_id::uuid, rs.id
@@ -208,16 +227,16 @@ SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000101');
 SELECT pg_temp.assert_eq('admin sees everybody',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000101')$q$, pg_temp.everybody());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000102');
-SELECT pg_temp.assert_eq('pastor sees everybody',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000102')$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('pastor sees their whole campus',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000102')$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000104');
--- Since 20260930110000 both directors see everybody; the group scopes are
--- still covered by the lider case below.
-SELECT pg_temp.assert_eq('director general sees everybody',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104')$q$, pg_temp.everybody());
+-- Since 20261029200000 both directors see their whole campus; the group scopes
+-- are still covered by the lider case below.
+SELECT pg_temp.assert_eq('director general sees their whole campus',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104')$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000105');
-SELECT pg_temp.assert_eq('director de etapa sees everybody',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000105')$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('director de etapa sees their whole campus',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000105')$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000106');
 SELECT pg_temp.assert_eq('lider: members of the groups they lead',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106')$q$, 'LID,P1|0');
@@ -228,10 +247,10 @@ SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000108');
 SELECT pg_temp.assert_eq('person with no role sees nothing',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000108')$q$, '|0');
 
--- 2. Highest role wins: pastor + director-general sees everybody.
+-- 2. Highest role wins: pastor + director-general sees their whole campus.
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000103');
 SELECT pg_temp.assert_eq('pastor + director-general gets the pastor scope',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000103')$q$, pg_temp.everybody());
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000103')$q$, pg_temp.fixtures());
 -- One row per role is kept: the two-role person appears twice for an admin.
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000101');
 SELECT pg_temp.assert_eq('a person with two roles keeps one row per role',
@@ -239,14 +258,14 @@ SELECT pg_temp.assert_eq('a person with two roles keeps one row per role',
 
 -- 3. p_contexto_relacion.
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000104');
-SELECT pg_temp.assert_eq('contexto: director general sees everybody',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104', '', '{}', NULL, NULL, true)$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('contexto: director general sees their whole campus',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000104', '', '{}', NULL, NULL, true)$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000105');
-SELECT pg_temp.assert_eq('contexto: director de etapa sees everybody',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000105', '', '{}', NULL, NULL, true)$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('contexto: director de etapa sees their whole campus',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000105', '', '{}', NULL, NULL, true)$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000106');
-SELECT pg_temp.assert_eq('contexto: lider sees everybody',
-  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106', '', '{}', NULL, NULL, true)$q$, pg_temp.everybody());
+SELECT pg_temp.assert_eq('contexto: lider sees their whole campus',
+  $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000106', '', '{}', NULL, NULL, true)$q$, pg_temp.fixtures());
 SELECT pg_temp.as_user('e2000000-0000-4000-8000-000000000107');
 SELECT pg_temp.assert_eq('contexto: miembro keeps the family scope',
   $q$SELECT pg_temp.seen('e2000000-0000-4000-8000-000000000107', '', '{}', NULL, NULL, true)$q$, 'FAM,MEM,REL|0');
