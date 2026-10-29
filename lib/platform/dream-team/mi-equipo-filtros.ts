@@ -24,6 +24,9 @@ import { DREAM_TEAM_ESTADOS, type DreamTeamEstado } from './types'
 import { RANGO_EDAD_LABELS, contarPorRangoEdad, esRangoEdad, type ContadoresEdad, type RangoEdad } from './edad'
 import { SIN_TURNO, coincideTurno } from './turnos'
 import { responsableCorto } from './servidores-vista'
+import { accionesDeServicioMiEquipo, type AccionesServicio, type RolMiEquipo } from './acciones-servicio'
+import { nombreConFrecuencia } from './frecuencia-turno'
+import type { TipoTurno } from './turno-fechas'
 import {
   ESTADOS_POR_ACTIVAR,
   MAX_EQUIPOS_EN_TARJETAS,
@@ -411,6 +414,63 @@ export function calcularVistaMiEquipo({ vista, filtros: pedidos, turnos = [] }: 
     filtrosActivos: pastillas.length,
     pie: filtros.vista === 'persona' ? `${nPersonas} · ${nServicios}` : `${nServicios} · ${nPersonas}`,
   }
+}
+
+// ── Who may do what ──────────────────────────────────────────────────────
+
+/**
+ * The viewer's role, from the flags the server page already computes:
+ * - `director`: the Dream Team write capability (`hasDreamTeamWriteCapability`),
+ *   who changed stages and shifts from the old menu;
+ * - `coordinador`: no write capability but some equipo to register people in
+ *   (`fetchEquiposRegistrables`, the volunteer coordinator), who registered,
+ *   fixed fichas and shifts and invited, never the stage;
+ * - `sin_permisos`: neither (a Grupos de Vida director, an area coordinator
+ *   with dream_team.coordinate only): read-only.
+ */
+export function rolMiEquipo(permisos: { readonly puedeEditar: boolean; readonly puedeRegistrar: boolean }): RolMiEquipo {
+  if (permisos.puedeEditar) return 'director'
+  return permisos.puedeRegistrar ? 'coordinador' : 'sin_permisos'
+}
+
+/**
+ * The actions on one servicio: the role's grants (`accionesDeServicioMiEquipo`)
+ * narrowed by what the server granted for that servicio — the ficha (and with
+ * it the invite, and the coordinator's shifts) only where `fichaEditable`, as
+ * the old per-servicio menu did. The server checks each action again.
+ */
+export function accionesPersonaMiEquipo(servicio: PersonaVista, rol: RolMiEquipo): AccionesServicio {
+  const porRol = accionesDeServicioMiEquipo(servicio, rol)
+  if (servicio.fichaEditable === true || !porRol.editarFicha) return porRol
+  return {
+    ...porRol,
+    alguna: porRol.servicio !== null,
+    turnosDe: servicio.estado === 'retirado' ? undefined : porRol.servicio?.id,
+    editarFicha: false,
+    invitar: false,
+  }
+}
+
+/** A campus shift as the screen names it. */
+export interface TurnoMiEquipo {
+  readonly id: string
+  readonly label: string
+  readonly tipo?: TipoTurno
+}
+
+/**
+ * "Domingo 9:00, Domingo 11:00 · Quincenal (semana B) · próximo 18 oct" ("… ·
+ * Por fechas" for a dated shift) in campus order, or "—" when none.
+ */
+export function textoTurnosMiEquipo(
+  servicio: Pick<PersonaVista, 'turnoIds' | 'frecuencias'>,
+  turnos: readonly TurnoMiEquipo[],
+  hoy: string,
+): string {
+  const nombres = turnos
+    .filter((turno) => servicio.turnoIds?.includes(turno.id))
+    .map((turno) => nombreConFrecuencia(turno.label, servicio.frecuencias?.[turno.id], hoy, turno.tipo))
+  return nombres.length > 0 ? nombres.join(', ') : '—'
 }
 
 // ── URL codec ────────────────────────────────────────────────────────────

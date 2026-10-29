@@ -224,3 +224,41 @@ describe('DetallePersona — closing', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })
+
+describe('DetallePersona — Mi equipo additions (T7a-3)', () => {
+  it('without start dates the third datum is the Origen; the age range goes next to the count', () => {
+    const { desde: _desde, ...sinDesde } = CORO
+    render(
+      <DetallePersona
+        {...base({
+          persona: { nombre: 'Ana Ruiz', telefono: null, tieneCuenta: true, soloGruposVida: false, edad: '26+' },
+          servicios: [sinDesde, GDV],
+        })}
+      />,
+    )
+    expect(within(panel()).getByText('2 servicios · Edad 26+')).toBeInTheDocument()
+    expect(tarjeta('Coro').getByText('Origen')).toBeInTheDocument()
+    expect(tarjeta('Coro').getByText('Dream Team')).toBeInTheDocument()
+    expect(tarjeta('Coro').queryByText('Desde')).not.toBeInTheDocument()
+    // A screen that passes a start date (Servidores) keeps "Desde", a dash when null.
+    expect(tarjeta('Matrimonios').getByText('Desde')).toBeInTheDocument()
+  })
+
+  it('"Ver su equipo" inside the screen closes the panel and calls back with the servicio', async () => {
+    const onVerEquipo = jest.fn()
+    const props = base({
+      servicios: [{ ...CORO, acciones: { ...SIN_ACCIONES, irAEquipo: true } }],
+      onVerEquipo,
+    })
+    render(<Controlado {...props} />)
+    await user.click(tarjeta('Coro').getByRole('button', { name: 'Ver su equipo' }))
+    expect(onVerEquipo).toHaveBeenCalledWith('s-coro')
+    expect(props.onCambioAbierto).toHaveBeenCalledWith(false)
+  })
+
+  it('without irAEquipo nor a link there is no "Ver su equipo"', () => {
+    render(<DetallePersona {...base({ servicios: [GDV], onVerEquipo: jest.fn() })} />)
+    expect(tarjeta('Matrimonios').queryByRole('button', { name: 'Ver su equipo' })).not.toBeInTheDocument()
+    expect(tarjeta('Matrimonios').queryByRole('link', { name: 'Ver su equipo' })).not.toBeInTheDocument()
+  })
+})

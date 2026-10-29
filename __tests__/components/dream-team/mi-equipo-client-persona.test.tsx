@@ -1,10 +1,14 @@
 /**
- * `<MiEquipoClient>` lists a person once (S12): the list, the "pendientes"
- * strip and the counts of the header, cards and subtitle follow people, while
- * the etapa pills keep counting servicios (as Servidores).
+ * `<MiEquipoClient>` lists a person once (S12): the list, the "Por activar"
+ * metric (which replaced the pending strip in T7a-3) and the counts of the
+ * hero, cards and footer follow people, while the etapa pills keep counting
+ * servicios (as Servidores). The servicios of a person show as chips in the
+ * row and as one card each in the person panel (which replaced the
+ * per-servicio menus).
  */
 import React from 'react'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 import { MiEquipoClient } from '@/components/dream-team/mi-equipo/mi-equipo-client'
 import { listarDirecciones, vistaDeDireccion, type PersonaEntrada, type PersonasPorEquipo } from '@/lib/platform/dream-team/mi-equipo-vista'
@@ -13,9 +17,12 @@ import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol
 import { personaId, type DreamTeamEstado } from '@/lib/platform/dream-team/types'
 
 jest.mock('@/hooks/useCampus', () => ({ useCampus: () => ({ campusId: null }) }))
-jest.mock('next/navigation', () => ({ useRouter: () => ({ replace: jest.fn(), refresh: jest.fn(), push: jest.fn() }) }))
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: jest.fn(), refresh: jest.fn(), push: jest.fn() }),
+  usePathname: () => '/dream-team/mi-equipo',
+}))
 jest.mock('@/components/ui/desktop-header', () => ({
-  DesktopHeader: ({ titulo }: { titulo?: string }) => <h1>{titulo}</h1>,
+  DesktopHeader: () => <header />,
 }))
 
 function nodo(id: string, label: string, hijos: readonly NodoArbol<NodoEquipoArbol>[] = [], nivel = 0): NodoArbol<NodoEquipoArbol> {
@@ -53,34 +60,41 @@ function renderizar() {
       direcciones={listarDirecciones(arbol, personas)}
       vista={vistaDeDireccion(arbol, personas, 'dir')}
       direccionId="dir"
-      puedeEditar
+      rol="director"
       equiposAsignables={[]}
       rolesPorEquipo={{}}
     />,
   )
 }
 
+const filaDe = (nombre: string) =>
+  screen.getByRole('button', { name: `Abrir ${nombre}`, hidden: true }).closest('[role="row"]') as HTMLElement
+
 describe('MiEquipoClient — one row per person', () => {
-  it('lists Gabriel once with both servicios, each with its own menu', () => {
+  it('lists Gabriel once with a chip per servicio, and his panel with one card per servicio', async () => {
     renderizar()
+    const tabla = screen.getByRole('table', { name: 'Personas del equipo', hidden: true })
+    expect(within(tabla).getAllByRole('button', { name: /^Abrir /, hidden: true })).toHaveLength(2)
+    expect(within(filaDe('Gabriel Salas')).getByTitle('Banda · Voluntario · En orientación')).toBeInTheDocument()
+    expect(within(filaDe('Gabriel Salas')).getByTitle('Coro · Voluntario · En orientación')).toBeInTheDocument()
 
-    const filas = within(screen.getByRole('list', { name: 'Personas del equipo' })).getAllByRole('listitem')
-    expect(filas).toHaveLength(2)
-    expect(screen.getByRole('button', { name: 'Acciones para Gabriel Salas en Banda' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Acciones para Gabriel Salas en Coro' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir Gabriel Salas', hidden: true }))
+    const panel = within(await screen.findByRole('dialog', { name: 'Gabriel Salas' }))
+    expect(panel.getByText('2 servicios')).toBeInTheDocument()
+    for (const equipo of ['Banda', 'Coro']) {
+      expect(within(panel.getByRole('group', { name: equipo })).getByRole('button', { name: 'Cambiar etapa' })).toBeInTheDocument()
+    }
   })
 
-  it('counts people in the subtitle, and the servicios when someone serves more than once', () => {
+  it('counts people in the hero and the footer, and the servicios when someone serves more than once', () => {
     renderizar()
-
-    expect(screen.getByText('2 personas · 3 servicios')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Estudiantes' }).nextElementSibling).toHaveTextContent('2 personas · 3 servicios')
+    expect(screen.getByText('2 personas · 3 servicios', { selector: 'p[role="status"]' })).toBeInTheDocument()
   })
 
-  it('names a pending person once in the strip, with every team where they wait', () => {
+  it('counts a pending person once in "Por activar", with both servicios in the row', () => {
     renderizar()
-
-    const franja = screen.getByRole('region', { name: 'Pendientes' })
-    expect(franja).toHaveTextContent('1 persona espera que la actives')
-    expect(franja).toHaveTextContent('Gabriel Salas · Banda, Coro')
+    const metrica = within(screen.getByRole('group', { name: 'Necesitan atención' })).getByRole('button', { name: /^Por activar/ })
+    expect(metrica).toHaveTextContent('1')
   })
 })

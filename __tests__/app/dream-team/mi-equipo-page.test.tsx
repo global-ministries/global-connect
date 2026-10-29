@@ -117,7 +117,7 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
 import DreamTeamMiEquipoPage from '@/app/(auth)/dream-team/mi-equipo/page'
 import { MiEquipoClient, type MiEquipoClientProps } from '@/components/dream-team/mi-equipo/mi-equipo-client'
 
-async function renderizar(searchParams?: { direccion?: string | string[] }): Promise<MiEquipoClientProps> {
+async function renderizar(searchParams?: Record<string, string | string[]>): Promise<MiEquipoClientProps> {
   const element = (await DreamTeamMiEquipoPage({
     searchParams: Promise.resolve(searchParams ?? {}),
   })) as React.ReactElement<MiEquipoClientProps>
@@ -173,8 +173,8 @@ describe('mi-equipo page — the volunteer coordinator (T7/T11)', () => {
     hasDreamTeamWriteCapability.mockReturnValue(false)
     mockRegistrables = [{ equipo_id: 'eq-a1' }]
     const props = await renderizar()
-    expect(props.puedeRegistrar).toBe(true)
-    expect(props.puedeEditar).toBe(false)
+    // Registering without the write capability is the coordinador (rolMiEquipo).
+    expect(props.rol).toBe('coordinador')
   })
 
   it('still 404s without access when the registrables lookup answers nothing', async () => {
@@ -215,6 +215,20 @@ describe('mi-equipo page — direccion resolution', () => {
     expect((await renderizar({ direccion })).direccionId).toBe('dir-a')
   })
 
+  it('reads the level, filters, view and tab of the URL; an unknown dirección follows the default', async () => {
+    const props = await renderizar({ direccion: 'dir-b', nivel: 'eq-b1', por_activar: '1', q: 'ana', vista: 'servicio', tab: 'calendario' })
+    expect(props.filtrosIniciales).toMatchObject({
+      direccion: 'dir-b',
+      nivel: 'eq-b1',
+      porActivar: true,
+      q: 'ana',
+      vista: 'servicio',
+      tab: 'calendario',
+    })
+    expect((await renderizar({ direccion: 'inventada' })).filtrosIniciales?.direccion).toBe('dir-a')
+    expect((await renderizar()).filtrosIniciales?.direccion).toBeNull()
+  })
+
   it('takes the first value when the param is repeated', async () => {
     expect((await renderizar({ direccion: ['dir-b', 'dir-a'] })).direccionId).toBe('dir-b')
   })
@@ -226,16 +240,17 @@ describe('mi-equipo page — direccion resolution', () => {
 
   it('passes the write flag, the assignable equipos of the direccion and their roles', async () => {
     const props = await renderizar({ direccion: 'dir-a' })
-    expect(props.puedeEditar).toBe(true)
+    expect(props.rol).toBe('director')
     expect(props.equiposAsignables.map((e) => e.id)).toEqual(['dir-a', 'eq-a1'])
     expect(Object.keys(props.rolesPorEquipo).sort()).toEqual(['dir-a', 'eq-a1'])
 
     hasDreamTeamWriteCapability.mockReturnValue(false)
-    expect((await renderizar()).puedeEditar).toBe(false)
+    expect((await renderizar()).rol).toBe('sin_permisos')
   })
 
   it('does not offer registering when the registrables lookup is unavailable (fails closed)', async () => {
-    expect((await renderizar()).puedeRegistrar).toBe(false)
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    expect((await renderizar()).rol).toBe('sin_permisos')
   })
 
   it('shows an empty screen when nothing is reachable', async () => {
@@ -376,7 +391,7 @@ describe('mi-equipo page — phone and account of each person', () => {
     hasDreamTeamWriteCapability.mockReturnValue(false)
     fetchContactosPersonas.mockResolvedValue(CONTACTOS)
     const props = await renderizar()
-    expect(props.puedeEditar).toBe(false)
+    expect(props.rol).not.toBe('director')
     expect(props.vista?.personas.find((p) => p.nombre === 'Ana Directora')).toMatchObject({ telefono: '04125457346' })
   })
 

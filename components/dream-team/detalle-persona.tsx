@@ -31,6 +31,9 @@ import { AvatarServidor, TONO_ESTADO, telefonoARevisar, telefonoVisible } from '
 import type { DreamTeamEstado } from '@/lib/platform/dream-team/types'
 import { enlaceWhatsapp } from '@/lib/utils/telefono'
 
+/** The quick actions are 66px stacked buttons, icon over label (docs/design-system/patterns.md#detail-drawer). */
+const ACCION_RAPIDA = 'h-[66px] min-w-0 flex-col gap-1 px-2 text-[13px]'
+
 export function formatearFecha(valor: string | null): string {
   // A Grupos de Vida director de etapa has no start date: a dash, never 1970.
   if (valor === null) return '—'
@@ -51,6 +54,8 @@ export interface AccionesServicioDetalle {
   readonly invitar: boolean
   /** "Ver su equipo" link; absent hides it. */
   readonly verEquipo?: string
+  /** "Ver su equipo" inside the same screen (calls `onVerEquipo`); used when there is no `verEquipo` link. */
+  readonly irAEquipo?: boolean
 }
 
 export interface ServicioDetalle {
@@ -66,8 +71,8 @@ export interface ServicioDetalle {
   readonly estado: DreamTeamEstado
   /** The shifts as shown; "—" when none. */
   readonly turnoTexto: string
-  /** Start date (ISO); `null` shows a dash. */
-  readonly desde: string | null
+  /** Start date (ISO); `null` shows a dash. Omitted (a screen without start dates): the third datum is the Origen. */
+  readonly desde?: string | null
   readonly origen: 'dream_team' | 'grupos_vida'
   readonly acciones: AccionesServicioDetalle
 }
@@ -79,6 +84,8 @@ export interface PersonaDetalle {
   readonly tieneCuenta: boolean | null
   /** Every listed servicio comes from Grupos de Vida: the mark goes next to the count. */
   readonly soloGruposVida: boolean
+  /** The age range as shown ("26+"); absent hides it. */
+  readonly edad?: string
 }
 
 export interface DetallePersonaProps {
@@ -90,6 +97,8 @@ export interface DetallePersonaProps {
   readonly onTurnos: (clave: string) => void
   readonly onEditarFicha: () => void
   readonly onInvitar: () => void
+  /** "Ver su equipo" of a servicio with `irAEquipo`: the screen moves to that equipo. */
+  readonly onVerEquipo?: (clave: string) => void
 }
 
 function DatoServicio({ etiqueta, valor }: { readonly etiqueta: string; readonly valor: string }): ReactElement {
@@ -105,12 +114,15 @@ function TarjetaServicio({
   servicio,
   onCambiarEtapa,
   onTurnos,
+  onVerEquipo,
 }: {
   readonly servicio: ServicioDetalle
   readonly onCambiarEtapa: () => void
   readonly onTurnos: () => void
+  readonly onVerEquipo?: () => void
 }): ReactElement {
   const { acciones } = servicio
+  const irAEquipo = acciones.verEquipo === undefined && acciones.irAEquipo === true && onVerEquipo !== undefined
   return (
     <TarjetaSistema role="group" aria-label={servicio.equipoNombre ?? servicio.equipoLabel} className="space-y-3 p-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -123,9 +135,13 @@ function TarjetaServicio({
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <DatoServicio etiqueta="Rol" valor={servicio.rolLabel} />
         <DatoServicio etiqueta="Turno" valor={servicio.turnoTexto} />
-        <DatoServicio etiqueta="Desde" valor={formatearFecha(servicio.desde)} />
+        {servicio.desde === undefined ? (
+          <DatoServicio etiqueta="Origen" valor={servicio.origen === 'grupos_vida' ? ORIGEN_GRUPOS_VIDA_LABEL : 'Dream Team'} />
+        ) : (
+          <DatoServicio etiqueta="Desde" valor={formatearFecha(servicio.desde)} />
+        )}
       </dl>
-      {(acciones.cambiarEtapa || acciones.turnos || acciones.verEquipo !== undefined) && (
+      {(acciones.cambiarEtapa || acciones.turnos || acciones.verEquipo !== undefined || irAEquipo) && (
         <div className="flex flex-wrap items-center gap-2">
           {acciones.cambiarEtapa && (
             <BotonSistema type="button" variante="outline" tamaño="sm" icono={ArrowRightLeft} onClick={onCambiarEtapa}>
@@ -140,6 +156,11 @@ function TarjetaServicio({
           {acciones.verEquipo !== undefined && (
             <BotonSistema asChild variante="ghost" tamaño="sm" icono={ArrowRight} iconoPosicion="derecha">
               <Link href={acciones.verEquipo}>Ver su equipo</Link>
+            </BotonSistema>
+          )}
+          {irAEquipo && (
+            <BotonSistema type="button" variante="ghost" tamaño="sm" icono={ArrowRight} iconoPosicion="derecha" onClick={onVerEquipo}>
+              Ver su equipo
             </BotonSistema>
           )}
         </div>
@@ -157,6 +178,7 @@ export function DetallePersona({
   onTurnos,
   onEditarFicha,
   onInvitar,
+  onVerEquipo,
 }: DetallePersonaProps): ReactElement {
   const editarFicha = servicios.some((s) => s.acciones.editarFicha)
   const invitar = servicios.some((s) => s.acciones.invitar)
@@ -180,34 +202,35 @@ export function DetallePersona({
             <p>
               {`${cantidad} ${cantidad === 1 ? 'servicio' : 'servicios'}`}
               {persona.soloGruposVida && ` · ${ORIGEN_GRUPOS_VIDA_LABEL}`}
+              {persona.edad && ` · Edad ${persona.edad}`}
             </p>
             <p className={telefono ? 'font-mono tabular-nums' : undefined}>{telefono ?? 'Sin teléfono'}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           {whatsapp ? (
-            <BotonSistema asChild variante="outline" icono={MessageCircle}>
+            <BotonSistema asChild variante="outline" icono={MessageCircle} className={ACCION_RAPIDA}>
               <a href={whatsapp} target="_blank" rel="noopener noreferrer">
                 WhatsApp
               </a>
             </BotonSistema>
           ) : (
-            <BotonSistema type="button" variante="outline" icono={MessageCircle} disabled>
+            <BotonSistema type="button" variante="outline" icono={MessageCircle} className={ACCION_RAPIDA} disabled>
               WhatsApp
             </BotonSistema>
           )}
           {llamar ? (
-            <BotonSistema asChild variante="outline" icono={Phone}>
+            <BotonSistema asChild variante="outline" icono={Phone} className={ACCION_RAPIDA}>
               <a href={llamar}>Llamar</a>
             </BotonSistema>
           ) : (
-            <BotonSistema type="button" variante="outline" icono={Phone} disabled>
+            <BotonSistema type="button" variante="outline" icono={Phone} className={ACCION_RAPIDA} disabled>
               Llamar
             </BotonSistema>
           )}
           {editarFicha && (
-            <BotonSistema type="button" variante="outline" icono={UserPen} onClick={() => elegir(onEditarFicha)}>
+            <BotonSistema type="button" variante="outline" icono={UserPen} className={ACCION_RAPIDA} onClick={() => elegir(onEditarFicha)}>
               Editar ficha
             </BotonSistema>
           )}
@@ -251,6 +274,7 @@ export function DetallePersona({
               servicio={servicio}
               onCambiarEtapa={() => elegir(() => onCambiarEtapa(servicio.clave))}
               onTurnos={() => elegir(() => onTurnos(servicio.clave))}
+              onVerEquipo={onVerEquipo ? () => elegir(() => onVerEquipo(servicio.clave)) : undefined}
             />
           ))}
         </section>
