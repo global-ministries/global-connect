@@ -5,7 +5,9 @@
  * desktop sidebar's Dream Team entry (components/ui/sidebar-moderna.tsx). It
  * shows ONE direccion at a time — a root node of the org tree the caller
  * reaches, chosen by `?direccion=<id>` and defaulting to the first one with
- * people — as team cards plus the people of the selected team.
+ * people — on design system v2 (S11 of odd/tasks/sistema-diseno-v2.md). The
+ * rest of the URL (level, filters, view, tab) is read here with
+ * leerFiltrosMiEquipo, so a shared link opens the same screen.
  *
  * Data: real equipos PLUS the virtual Grupos de Vida branch merged in (see
  * lib/platform/dream-team/estructura-gdv.ts, estructura-arbol.ts), and per
@@ -42,6 +44,7 @@ import {
   vistaDeDireccion,
   type PersonaEntrada,
 } from '@/lib/platform/dream-team/mi-equipo-vista'
+import { leerFiltrosMiEquipo, rolMiEquipo } from '@/lib/platform/dream-team/mi-equipo-filtros'
 import type { DreamTeamRol, PersonaId } from '@/lib/platform/dream-team/types'
 import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
@@ -50,7 +53,7 @@ import { MiEquipoClient } from '@/components/dream-team/mi-equipo/mi-equipo-clie
 export const metadata = { title: 'Mi equipo' }
 
 interface MiEquipoPageProps {
-  readonly searchParams?: Promise<{ readonly direccion?: string | readonly string[] }>
+  readonly searchParams?: Promise<Readonly<Record<string, string | readonly string[] | undefined>>>
 }
 
 export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPageProps) {
@@ -202,9 +205,8 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   }
 
   const direcciones = listarDirecciones(arbol, personasPorEquipo)
-  const pedida = (await searchParams)?.direccion
-  const direccionPedida = Array.isArray(pedida) ? pedida[0] : (pedida as string | undefined)
-  const direccionId = direcciones.find((direccion) => direccion.id === direccionPedida)?.id ?? direcciones[0]?.id ?? ''
+  const filtrosIniciales = leerFiltrosMiEquipo((await searchParams) ?? {})
+  const direccionId = direcciones.find((direccion) => direccion.id === filtrosIniciales.direccion)?.id ?? direcciones[0]?.id ?? ''
 
   const asignables = direccionId ? listarEquiposAsignables(arbol, direccionId) : []
   const rolesPorEquipo: Record<string, readonly DreamTeamRol[]> = Object.fromEntries(
@@ -216,8 +218,10 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       direcciones={direcciones}
       vista={direccionId ? vistaDeDireccion(arbol, personasPorEquipo, direccionId) : null}
       direccionId={direccionId}
-      puedeEditar={hasDreamTeamWriteCapability(session)}
-      puedeRegistrar={puedeRegistrar}
+      // The write capability is the director, registering without it the coordinador (see rolMiEquipo).
+      rol={rolMiEquipo({ puedeEditar: hasDreamTeamWriteCapability(session), puedeRegistrar })}
+      // An unknown ?direccion= falls back to the default, and the URL follows it.
+      filtrosIniciales={{ ...filtrosIniciales, direccion: filtrosIniciales.direccion === null ? null : direccionId || null }}
       equiposAsignables={asignables}
       rolesPorEquipo={rolesPorEquipo}
       turnos={ordenarTurnos(turnos.filter((turno) => turno.activo)).map((turno) => ({

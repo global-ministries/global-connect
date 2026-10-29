@@ -137,7 +137,7 @@ describe('mi-equipo — a director de etapa without capability', () => {
 
   it('is read-only: no edit flag, nothing to assign, no roles to offer, no editable row', async () => {
     const props = await renderMiEquipo()
-    expect(props.puedeEditar).toBe(false)
+    expect(props.rol).toBe('sin_permisos')
     expect(props.equiposAsignables).toEqual([])
     expect(props.rolesPorEquipo).toEqual({})
     expect(props.vista?.personas.every((persona) => !persona.editable && persona.origen === 'grupos_vida')).toBe(true)
@@ -162,7 +162,7 @@ describe('mi-equipo — a director de etapa without capability', () => {
     fetchContactosPersonas.mockRejectedValue(new Error('rpc down'))
     const props = await renderMiEquipo()
     expect(props.vista?.personas).toHaveLength(3)
-    expect(props.puedeEditar).toBe(false)
+    expect(props.rol).toBe('sin_permisos')
   })
 
   it('roots the tree at their segmento when the Grupos de Vida root is not readable', async () => {
@@ -191,7 +191,7 @@ describe('mi-equipo — a director de etapa without capability', () => {
     const props = await renderMiEquipo()
     expect(props.vista).toBeNull()
     expect(props.direcciones).toEqual([])
-    expect(props.puedeEditar).toBe(false)
+    expect(props.rol).toBe('sin_permisos')
   })
 
   it('still opens (with the segmento alone) for a director whose team has no groups yet', async () => {
@@ -265,7 +265,7 @@ describe('mi-equipo — a capability holder sees no change', () => {
     for (const roles of [[], ['director-etapa']]) {
       mockSession = session(roles, [orgManage])
       const props = await renderMiEquipo()
-      expect(props.puedeEditar).toBe(true)
+      expect(props.rol).toBe('director')
       expect(props.direcciones.map((d) => d.id)).toEqual(['dir-a'])
     }
   })

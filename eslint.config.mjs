@@ -12,6 +12,8 @@ const migratedToDesignSystem = [
   'components/grupos-vida/**',
   'app/(auth)/admin/dream-team/servidores/**',
   'components/dream-team/servidores/**',
+  'app/(auth)/dream-team/mi-equipo/**',
+  'components/dream-team/mi-equipo/**',
 ]
 
 const legacyUiImports = {
