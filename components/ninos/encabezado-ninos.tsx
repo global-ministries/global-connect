@@ -1,7 +1,6 @@
 /**
- * Niños — in-page header, the same shape as Dream Team's
- * components/dream-team/mi-equipo/encabezado.tsx: a `TituloSistema` title,
- * a muted subtitle and the actions on the right (stacked on phones).
+ * Niños — in-page header: a `TituloSistema` title, a muted subtitle and the
+ * actions on the right (stacked on phones).
  * The page title in the desktop bar comes from `ContenedorDashboard` in each
  * page.tsx.
  */
