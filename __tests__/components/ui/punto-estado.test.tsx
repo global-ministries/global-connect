@@ -6,6 +6,7 @@
 import { render, screen } from '@testing-library/react'
 
 import { PuntoEstado } from '@/components/ui/punto-estado'
+import { MetricasAtencion } from '@/components/ui/metricas-atencion'
 
 describe('PuntoEstado', () => {
   it('shows the dot and the label, and the dot stays out of the accessibility tree', () => {
@@ -44,5 +45,30 @@ describe('PuntoEstado', () => {
   it('uses only design tokens, never raw palette colors', () => {
     const { container } = render(<PuntoEstado tono="danger" etiqueta="Retirado" />)
     expect(container.innerHTML).not.toMatch(/\b(?:bg|text|ring)-(?:red|green|amber|yellow|blue|gray|slate|zinc)-\d/)
+  })
+})
+
+describe('PuntoEstado halo', () => {
+  // The dot's halo is a 4px ring drawn outside the dot: any ancestor inside the
+  // component that clips (overflow hidden / truncate) cuts it in half.
+  it('never clips the dot halo; long labels truncate on the label itself', () => {
+    const { container } = render(<PuntoEstado tono="success" etiqueta="Sirviendo" className="min-w-0" />)
+    const raiz = container.firstElementChild as HTMLElement
+    expect(raiz.className).not.toMatch(/\b(truncate|overflow-hidden)\b/)
+    expect(screen.getByText('Sirviendo').className).toMatch(/\btruncate\b/)
+  })
+
+  it('MetricasAtencion does not clip the halo of its dots', () => {
+    const { container } = render(
+      <MetricasAtencion
+        etiqueta="Necesitan atención"
+        onAlternar={() => {}}
+        metricas={[{ id: 's', etiqueta: 'Sirviendo', valor: 345, total: 345, tono: 'success', activa: false }]}
+      />,
+    )
+    const punto = container.querySelector('[data-punto]') as HTMLElement
+    for (let nodo = punto.parentElement; nodo && nodo.tagName !== 'BUTTON'; nodo = nodo.parentElement) {
+      expect(nodo.className).not.toMatch(/\b(truncate|overflow-hidden)\b/)
+    }
   })
 })

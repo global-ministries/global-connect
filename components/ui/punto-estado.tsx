@@ -40,13 +40,14 @@ export interface PuntoEstadoProps {
 
 export function PuntoEstado({ tono, etiqueta, ocultarEtiquetaEnMovil = false, className }: PuntoEstadoProps): ReactElement {
   return (
-    <span className={cn('inline-flex items-center gap-2 whitespace-nowrap text-[13px] text-muted-foreground', className)}>
+    <span className={cn('inline-flex min-w-0 max-w-full items-center gap-2 whitespace-nowrap text-[13px] text-muted-foreground', className)}>
       <span
         data-punto=""
         aria-hidden="true"
         className={cn('inline-block size-2 shrink-0 rounded-full ring-4', FONDO_TONO[tono], ANILLO_TONO[tono])}
       />
-      {etiqueta && <span className={cn(ocultarEtiquetaEnMovil && 'sr-only md:not-sr-only')}>{etiqueta}</span>}
+      {/* Truncate the label, never the wrapper: the dot's halo is a ring drawn outside it. */}
+      {etiqueta && <span className={cn('min-w-0 truncate', ocultarEtiquetaEnMovil && 'sr-only md:not-sr-only')}>{etiqueta}</span>}
     </span>
   )
 }
