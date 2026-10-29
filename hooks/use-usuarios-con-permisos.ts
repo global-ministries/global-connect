@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import type { CuentaEstado, OrdenUsuarios } from '@/lib/platform/usuarios/lista-vista'
 
 interface Usuario {
   id: string
@@ -17,6 +18,13 @@ interface Usuario {
   rol_nombre_visible: string
   puede_ver: boolean
   foto_perfil_url: string | null
+  /** si | invitada | no (listar_usuarios_con_permisos_v2). */
+  cuenta: CuentaEstado
+  grupo_id: string | null
+  grupo_nombre: string | null
+  campus_nombre: string | null
+  /** A current member of an active group the viewer leads. */
+  es_de_mi_grupo: boolean
 }
 
 interface EstadisticasUsuarios {
@@ -24,6 +32,11 @@ interface EstadisticasUsuarios {
   con_email: number
   con_telefono: number
   registrados_hoy: number
+  nuevos_7d: number
+  sin_grupo: number
+  sin_cuenta: number
+  sin_telefono: number
+  invitadas: number
 }
 
 interface FiltrosUsuarios {
@@ -32,6 +45,10 @@ interface FiltrosUsuarios {
   con_email: boolean | null
   con_telefono: boolean | null
   en_grupo: boolean | null
+  con_cuenta?: boolean | null
+  /** Registered in the last N days. */
+  nuevos_dias?: number | null
+  orden?: OrdenUsuarios
   limite?: number
 }
 
@@ -58,6 +75,18 @@ interface UseUsuariosConPermisosReturn {
 
 const CACHE_ESTADISTICAS_MS = 5 * 60 * 1000 // 5 minutos
 
+const FILTROS_POR_DEFECTO: FiltrosUsuarios = {
+  busqueda: '',
+  roles: [],
+  con_email: null,
+  con_telefono: null,
+  en_grupo: null,
+  con_cuenta: null,
+  nuevos_dias: null,
+  orden: 'nombre',
+  limite: 20,
+}
+
 // Cache para estadísticas por clave de filtros
 const cacheEstadisticas: Record<string, { datos: EstadisticasUsuarios; timestamp: number }> = {}
 
@@ -70,14 +99,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   const [error, setError] = useState<string | null>(null)
   const [paginaActual, setPaginaActual] = useState(1)
   const [totalUsuarios, setTotalUsuarios] = useState(0)
-  const [filtros, setFiltros] = useState<FiltrosUsuarios>({
-    busqueda: '',
-    roles: [],
-    con_email: null,
-    con_telefono: null,
-  en_grupo: null,
-    limite: 20
-  })
+  const [filtros, setFiltros] = useState<FiltrosUsuarios>(FILTROS_POR_DEFECTO)
 
   const { toast } = useToast()
   const { authUserId } = useCurrentUser()
@@ -86,7 +108,19 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   // The search text is confirmed by the page (Enter / "Buscar"), so it applies immediately.
   const busqueda = filtros.busqueda
 
-  // Cargar usuarios con permisos
+  // Optional filters are sent only when set, so the database defaults apply.
+  const filtrosRpc = useMemo(() => ({
+    p_busqueda: busqueda,
+    ...(filtros.roles.length > 0 ? { p_roles_filtro: filtros.roles } : {}),
+    ...(filtros.con_email !== null ? { p_con_email: filtros.con_email } : {}),
+    ...(filtros.con_telefono !== null ? { p_con_telefono: filtros.con_telefono } : {}),
+    ...(filtros.en_grupo !== null ? { p_en_grupo: filtros.en_grupo } : {}),
+    ...(filtros.con_cuenta != null ? { p_con_cuenta: filtros.con_cuenta } : {}),
+    ...(filtros.nuevos_dias != null ? { p_nuevos_dias: filtros.nuevos_dias } : {}),
+    ...(campusId ? { p_campus_id: campusId } : {}),
+  }), [busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, filtros.con_cuenta, filtros.nuevos_dias, campusId])
+
+  // Cargar usuarios con permisos (listar_usuarios_con_permisos_v2)
   const cargarUsuarios = useCallback(async () => {
     setCargando(true)
     setError(null)
@@ -97,87 +131,21 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
       }
 
       const limite = filtros.limite || 20
-      const offset = (paginaActual - 1) * limite
-
-      const rpcParams: any = {
+      const { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos_v2', {
         p_auth_id: authUserId,
-        p_busqueda: busqueda,
-        p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : null,
-        p_con_email: filtros.con_email,
-        p_con_telefono: filtros.con_telefono,
+        ...filtrosRpc,
+        p_orden: filtros.orden ?? 'nombre',
         p_limite: limite,
-        p_offset: offset,
-      }
-      if (filtros.en_grupo !== null) {
-        rpcParams.p_en_grupo = filtros.en_grupo
-      }
-      if (campusId) {
-        rpcParams.p_campus_id = campusId
-      }
-
-      let { data, error: errorRPC } = await supabase.rpc('listar_usuarios_con_permisos', rpcParams)
-      // Flag para saber si el filtro en_grupo se aplicó en el servidor
-      let filtroGrupoAplicadoEnServidor = true
-
-      // Fallback de compatibilidad si el RPC no acepta p_en_grupo (instancias viejas)
-      if (errorRPC && filtros.en_grupo !== null) {
-        const { data: data2, error: error2 } = await supabase.rpc('listar_usuarios_con_permisos', {
-          p_auth_id: authUserId,
-          p_busqueda: busqueda,
-          p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
-          p_con_email: filtros.con_email ?? undefined,
-          p_con_telefono: filtros.con_telefono ?? undefined,
-          p_limite: limite,
-          p_offset: offset,
-        })
-        data = data2 as any
-        errorRPC = error2 as any
-        filtroGrupoAplicadoEnServidor = false
-      }
+        p_offset: (paginaActual - 1) * limite,
+      })
 
       if (errorRPC) {
         throw errorRPC
       }
 
-      if (data && data.length > 0) {
-        let lista = data as any[]
-
-        // Si el servidor no aplicó el filtro por grupo pero el usuario lo pidió, filtramos en cliente
-        if (filtros.en_grupo !== null && !filtroGrupoAplicadoEnServidor) {
-          try {
-            const ids = lista.map((u) => u.id).filter(Boolean)
-            if (ids.length > 0) {
-              const { data: miembros, error: errMiembros } = await supabase
-                .from('grupo_miembros')
-                .select('usuario_id')
-                .in('usuario_id', ids)
-                .is('fecha_salida', null)
-
-              if (!errMiembros) {
-                const setMiembros = new Set((miembros || []).map((m: any) => m.usuario_id))
-                if (filtros.en_grupo === true) {
-                  lista = lista.filter((u) => setMiembros.has(u.id))
-                } else {
-                  lista = lista.filter((u) => !setMiembros.has(u.id))
-                }
-              }
-            }
-          } catch (e) {
-            // Silenciar errores de fallback local; no interrumpir la carga principal
-          }
-        }
-
-        setUsuarios(lista as any)
-        // Si filtramos en cliente, el total del servidor ya no es confiable; usar el tamaño filtrado
-        const total = (filtros.en_grupo !== null && !filtroGrupoAplicadoEnServidor)
-          ? Number(lista.length)
-          : Number((data as any)[0].total_count) || 0
-        setTotalUsuarios(total)
-      } else {
-        setUsuarios([])
-        setTotalUsuarios(0)
-      }
-
+      const lista = (data ?? []) as unknown as Usuario[]
+      setUsuarios(lista)
+      setTotalUsuarios(lista.length > 0 ? Number((data as Array<{ total_count: number }>)[0].total_count) || 0 : 0)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error al cargar usuarios'
       setError(errorMessage)
@@ -189,22 +157,14 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargando(false)
     }
-  }, [supabase, authUserId, paginaActual, busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId, toast])
+  }, [supabase, authUserId, paginaActual, filtrosRpc, filtros.orden, filtros.limite, toast])
 
-  // Cargar estadísticas con caché
+  // Cargar estadísticas con caché (obtener_estadisticas_usuarios_con_permisos_v2)
   const cargarEstadisticas = useCallback(async () => {
     const ahora = Date.now()
-    // Construir clave de filtros para cachear por combinación
-    const filtrosKey = JSON.stringify({
-      campusId: campusId || null,
-      busqueda: busqueda || '',
-      roles: [...filtros.roles].sort(),
-      con_email: filtros.con_email,
-      con_telefono: filtros.con_telefono,
-      en_grupo: filtros.en_grupo,
-    })
+    // Cache key: the filter combination
+    const filtrosKey = JSON.stringify({ ...filtrosRpc, p_roles_filtro: [...filtros.roles].sort() })
 
-    // Verificar caché por clave
     const entry = cacheEstadisticas[filtrosKey]
     if (entry && (ahora - entry.timestamp) < CACHE_ESTADISTICAS_MS) {
       setEstadisticas(entry.datos)
@@ -218,38 +178,27 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
         throw new Error('Usuario no autenticado')
       }
 
-      // Intentar nueva firma con filtros
-      let { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
+      const { data, error: errorRPC } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos_v2', {
         p_auth_id: authUserId,
-        p_busqueda: busqueda || '',
-        p_roles_filtro: filtros.roles.length > 0 ? filtros.roles : undefined,
-        p_con_email: filtros.con_email ?? undefined,
-        p_con_telefono: filtros.con_telefono ?? undefined,
-        ...(filtros.en_grupo !== null ? { p_en_grupo: filtros.en_grupo } : {}),
-        ...(campusId ? { p_campus_id: campusId } : {}),
+        ...filtrosRpc,
       })
-
-      // Fallback: si el RPC no acepta parámetros extra, usar la firma antigua (solo p_auth_id)
-      if (errorRPC && !campusId) {
-        const { data: data2, error: error2 } = await supabase.rpc('obtener_estadisticas_usuarios_con_permisos', {
-          p_auth_id: authUserId
-        })
-        data = data2
-        errorRPC = error2 as any
-      }
 
       if (errorRPC) {
         throw errorRPC
       }
 
-      const stats = data?.[0] || {
+      const stats: EstadisticasUsuarios = data?.[0] ?? {
         total_usuarios: 0,
         con_email: 0,
         con_telefono: 0,
-        registrados_hoy: 0
+        registrados_hoy: 0,
+        nuevos_7d: 0,
+        sin_grupo: 0,
+        sin_cuenta: 0,
+        sin_telefono: 0,
+        invitadas: 0,
       }
 
-      // Actualizar caché por clave
       cacheEstadisticas[filtrosKey] = {
         datos: stats,
         timestamp: ahora,
@@ -264,7 +213,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
     } finally {
       setCargandoEstadisticas(false)
     }
-  }, [supabase, authUserId, busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
+  }, [supabase, authUserId, filtrosRpc, filtros.roles])
 
   // Efectos para cargar datos
   useEffect(() => {
@@ -278,7 +227,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setPaginaActual(1)
-  }, [busqueda, filtros.roles, filtros.con_email, filtros.con_telefono, filtros.en_grupo, campusId])
+  }, [filtrosRpc, filtros.orden])
 
   // Funciones de control
   const actualizarFiltros = useCallback((nuevosFiltros: Partial<FiltrosUsuarios>) => {
@@ -298,14 +247,7 @@ export function useUsuariosConPermisos(options: UseUsuariosConPermisosOptions = 
 
   const limpiarFiltros = useCallback(() => {
     setPaginaActual(1)
-    setFiltros({
-      busqueda: '',
-      roles: [],
-      con_email: null,
-      con_telefono: null,
-  en_grupo: null,
-      limite: 20
-    })
+    setFiltros(FILTROS_POR_DEFECTO)
   }, [])
 
   // Valores calculados

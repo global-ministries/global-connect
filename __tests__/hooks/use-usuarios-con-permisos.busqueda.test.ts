@@ -17,8 +17,8 @@ jest.mock('@/lib/supabase/client', () => ({ createClient: () => supabase }))
 jest.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast }) }))
 jest.mock('@/hooks/useCurrentUser', () => ({ useCurrentUser: () => ({ authUserId: 'auth-1' }) }))
 
-const LISTAR = 'listar_usuarios_con_permisos'
-const ESTADISTICAS = 'obtener_estadisticas_usuarios_con_permisos'
+const LISTAR = 'listar_usuarios_con_permisos_v2'
+const ESTADISTICAS = 'obtener_estadisticas_usuarios_con_permisos_v2'
 
 const fila = (id: string) => ({ id, nombre: 'Ana', apellido: 'Pérez', total_count: 50 })
 
