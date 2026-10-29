@@ -31,7 +31,7 @@ prototype patterns.
 
 | Area | Paths | v1 | Lint | v2 | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Servidores (pilot) | `app/(auth)/admin/dream-team/servidores`, `components/dream-team/servidores` | yes | no | pending | Pilot of v2 (task T6), after the app shell (Phase 2b). Reference: prototype v3 in [`prototipos/servidores/`](prototipos/servidores/). Parity checklist: `odd/tasks/sistema-diseno-v2.md` L3. "Agrupar por equipo" is removed (the scope cards replace it). |
+| Servidores (pilot) | `app/(auth)/admin/dream-team/servidores`, `components/dream-team/servidores` | yes | yes | yes | First v2 screen (T6; reference: prototype v3 in [`prototipos/servidores/`](prototipos/servidores/); parity checklist `odd/tasks/sistema-diseno-v2.md` L3): breadcrumbs and phone back by tree level, attention metrics as filters (Sirviendo, Por activar, Sin cuenta, Sin turno; `?por_activar=1` is new, "Sin turno" is `?turno=sin_turno`), `HojaFiltros`, `ListaResponsiva` (Por persona / Por servicio), one detail drawer instead of the row menu, `EstadoVacioSistema` and `SkeletonLista`. "Agrupar por equipo" is removed; old `?agrupar=equipo` links open "Por persona". The URL uses `replace` for every change (no `push` per level yet: the island keeps its filters in local state, so Back would not re-read them). Left for Mi equipo's migration: `menu-servidor.tsx` (its permission rule `accionesDeServicio` now feeds the drawer; only tests render the menu), `tabla-servidores.tsx` (only `BotonVerMas`) and `telefono-servidor.tsx`, imported by Mi equipo. The scope cards are `TarjetasFiltro presentacion="alcance"` with flags, the etapa bar and the one-line responsible (`subtituloCorto`, decision 5 of [2026-10-28](#decisions-2026-10-28)). Aligned with prototype v3 and the app shell (#609): hero `h1` 24px/650; "Asignar servicio" `tamaño="sm"` with a 48px hit area; the root crumb reads "Todas las direcciones". On phones the shell header holds the `h1` ("Servidores") and the bell and has no back slot, so the screen has no `BarraNavegacionMovil`: a content row carries "‹ parent" (`BotonAtrasMovil`) and Filtros, and `TituloGrande nivel={2}` names the level below the root (at the root only the summary shows). The "Sin cuenta" hint stays "invitalos a la plataforma" (user correction 2026-10-28). |
 | Mi equipo | `app/(auth)/dream-team/mi-equipo`, `components/dream-team` | yes | no | pending | Uses `TarjetasFiltro` and `PastillasFiltro`; one row per person (#604). Next after Servidores. |
 | Estructura | `app/(auth)/admin/dream-team/estructura`, `components/dream-team/estructura` | yes | no | pending | TLR T2 is changing dated shifts here. |
 | Grupos de Vida | `app/(auth)/grupos-vida`, `components/grupos`, `components/grupos-vida` | yes | yes | pending | `components/ui/FiltrosGrupos` brings its own `p-6`; the filter panel cancels the panel body padding around it. Drop that padding when it migrates. Another agent is active on `feat/grupos-filtros`. |
@@ -177,7 +177,7 @@ below.
    surname, ellipsis; full name in `title` and `sr-only`).
 6. **Phone tab bar**: labels fit at 390px without truncation (short labels,
    e.g. "Equipo").
-7. **Copy**: the "Sin cuenta" metric hint reads "por invitar".
+7. **Copy**: the "Sin cuenta" metric hint reads "invitalos a la plataforma" (the 2026-10-28 "por invitar" change was reverted by the user).
 8. **Source of truth**: `docs/design-system/` is the single source of
    truth; `design/system.md` is a derived snapshot. The current visual
    reference is [`prototipos/servidores/`](prototipos/servidores/) (3

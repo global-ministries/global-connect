@@ -136,3 +136,55 @@ export const filasAlabanza: readonly FilaServidor[] = [
 ]
 
 export const todasLasFilas: readonly FilaServidor[] = [...filasConexion, ...filasAlabanza]
+
+// ── Niños-like tree: a dirección with two áreas, each with its equipos ──
+
+export const ID_NINOS = 'dir-ninos'
+export const ID_WAUMBA = 'area-waumba'
+export const ID_UPSTREET = 'area-upstreet'
+
+export const arbolNinos: readonly NodoArbol<NodoEquipoArbol>[] = [
+  nodo(ID_NINOS, 'Dirección de Niños', [
+    nodo(ID_WAUMBA, 'Waumba Land', [nodo('w-anf', 'Anfitriones', [], 2), nodo('w-salab', 'Sala B', [], 2)], 1),
+    nodo(ID_UPSTREET, 'UpStreet', [nodo('u-anf', 'Anfitriones', [], 2), nodo('u-gp', 'Grupos pequeños', [], 2)], 1),
+  ]),
+]
+
+const EQUIPOS_NINOS: Readonly<Record<string, { label: string; ruta: string }>> = {
+  [ID_NINOS]: { label: 'Dirección de Niños', ruta: '' },
+  [ID_WAUMBA]: { label: 'Waumba Land', ruta: 'Dirección de Niños' },
+  [ID_UPSTREET]: { label: 'UpStreet', ruta: 'Dirección de Niños' },
+  'w-anf': { label: 'Anfitriones', ruta: 'Dirección de Niños · Waumba Land' },
+  'w-salab': { label: 'Sala B', ruta: 'Dirección de Niños · Waumba Land' },
+  'u-anf': { label: 'Anfitriones', ruta: 'Dirección de Niños · UpStreet' },
+  'u-gp': { label: 'Grupos pequeños', ruta: 'Dirección de Niños · UpStreet' },
+}
+
+function filaNinos(clave: string, nombre: string, equipoId: string, rol: string, extra: Partial<FilaServidor> = {}): FilaServidor {
+  const equipo = EQUIPOS_NINOS[equipoId]
+  return {
+    ...fila(`n${clave}`, nombre, ID_CORO, rol),
+    equipoId,
+    equipoLabel: equipo.label,
+    equipoRuta: equipo.ruta,
+    direccionId: ID_NINOS,
+    ...extra,
+  }
+}
+
+/** 13 servicios, 12 personas (Ana Lucía Marín serves in both áreas), 4 without an account. */
+export const filasNinos: readonly FilaServidor[] = [
+  filaNinos('1', 'Nina Rodríguez', ID_NINOS, 'Director', { tieneCuenta: true, telefono: '04141234567' }),
+  filaNinos('2', 'Wanda Pérez', ID_WAUMBA, 'Coordinador', { tieneCuenta: true, telefono: '04121112233' }),
+  filaNinos('3', 'Ana Lucía Marín', 'w-anf', 'Facilitador', { telefono: '0424831126' }),
+  filaNinos('4', 'Beto Salas', 'w-anf', 'Facilitador', { tieneCuenta: true, telefono: '04265554433' }),
+  filaNinos('5', 'Carla Méndez', 'w-salab', 'Facilitador', { estado: 'postulado' }),
+  filaNinos('6', 'Diego Torres', 'w-salab', 'Facilitador', { tieneCuenta: true, estado: 'en_orientacion' }),
+  filaNinos('7', 'Elena Ruiz', 'w-salab', 'Facilitador', { tieneCuenta: true, turnoIds: ['t-9'] }),
+  filaNinos('8', 'Daniel Ortega', ID_UPSTREET, 'Coordinador', { tieneCuenta: true }),
+  filaNinos('9', 'Ana Lucía Marín', 'u-anf', 'Facilitador', { telefono: '0424831126' }),
+  filaNinos('10', 'Fabiola Castillo de los Ángeles Hernández', 'u-anf', 'Facilitador', { tieneCuenta: true, estado: 'en_pausa' }),
+  filaNinos('11', 'Gabriel Núñez', 'u-gp', 'Facilitador'),
+  filaNinos('12', 'Helena Vargas', 'u-gp', 'Facilitador'),
+  filaNinos('13', 'Iván Rojas', 'u-gp', 'Facilitador', { tieneCuenta: true }),
+]

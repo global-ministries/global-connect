@@ -55,7 +55,37 @@ interface BarraNavegacionMovilProps {
 }
 
 const CLASE_ATRAS =
-  "inline-flex min-h-11 max-w-[120px] items-center gap-0.5 rounded-xl px-2 text-base text-brand-text focus-ring touch-manipulation"
+  "inline-flex min-h-11 min-w-0 items-center gap-0.5 rounded-xl px-2 text-base text-brand-text focus-ring touch-manipulation"
+
+interface BotonAtrasMovilProps {
+  atras: AtrasNavegacion
+  /** Width cap; the bar uses 120px. */
+  className?: string
+}
+
+/**
+ * The bar's back control on its own ("‹ parent", named "Volver a …"): a link
+ * with `href`, a button otherwise. Screens inside the app shell, whose phone
+ * header has no back slot, put it in their content above the large title.
+ */
+export function BotonAtrasMovil({ atras, className }: BotonAtrasMovilProps) {
+  const contenido = (
+    <>
+      <ChevronLeft aria-hidden="true" className="size-6 shrink-0 -ml-1" />
+      <span className="truncate">{atras.etiqueta}</span>
+    </>
+  )
+  const clase = cn(CLASE_ATRAS, className)
+  return atras.href ? (
+    <Link href={atras.href} aria-label={`Volver a ${atras.etiqueta}`} className={clase}>
+      {contenido}
+    </Link>
+  ) : (
+    <button type="button" onClick={atras.onClick} aria-label={`Volver a ${atras.etiqueta}`} className={clase}>
+      {contenido}
+    </button>
+  )
+}
 
 /**
  * Phone-only navigation bar (docs/design-system/mobile.md#navigation-bar): sticky and
@@ -66,13 +96,6 @@ export function BarraNavegacionMovil({ titulo, atras, acciones, className }: Bar
   const contexto = React.useContext(ContextoNavegacionMovil)
   const desplazada = contexto?.tituloGrandeVisible === false
   const mostrarTitulo = contexto?.tituloGrandeVisible !== true
-
-  const contenidoAtras = atras && (
-    <>
-      <ChevronLeft aria-hidden="true" className="size-6 shrink-0 -ml-1" />
-      <span className="truncate">{atras.etiqueta}</span>
-    </>
-  )
 
   return (
     <nav
@@ -88,15 +111,7 @@ export function BarraNavegacionMovil({ titulo, atras, acciones, className }: Bar
       )}
     >
       <div className="col-start-1 flex min-w-0 justify-start">
-        {atras?.href ? (
-          <Link href={atras.href} aria-label={`Volver a ${atras.etiqueta}`} className={CLASE_ATRAS}>
-            {contenidoAtras}
-          </Link>
-        ) : atras ? (
-          <button type="button" onClick={atras.onClick} aria-label={`Volver a ${atras.etiqueta}`} className={CLASE_ATRAS}>
-            {contenidoAtras}
-          </button>
-        ) : null}
+        {atras && <BotonAtrasMovil atras={atras} className="max-w-[120px]" />}
       </div>
       <p
         aria-hidden={mostrarTitulo ? undefined : true}
@@ -114,20 +129,24 @@ export function BarraNavegacionMovil({ titulo, atras, acciones, className }: Bar
 }
 
 interface TituloGrandeProps {
-  titulo: string
+  /** Omit it when the app shell's phone header already shows the same title: only the summary renders. */
+  titulo?: string
+  /** 2 when the app shell's phone header already holds the page `h1`. */
+  nivel?: 1 | 2
   /** Summary line; wrap numbers in `strong`. */
   resumen?: React.ReactNode
   className?: string
 }
 
 /**
- * Phone large title (docs/design-system/mobile.md#large-title): 34px bold title and a
+ * Phone large title (docs/design-system/mobile.md#large-title): 28px bold title and a
  * summary line; the desktop title stays in the header. Inside a
  * `NavegacionMovilProvider` it reports when it scrolls under the nav bar.
  */
-export function TituloGrande({ titulo, resumen, className }: TituloGrandeProps) {
+export function TituloGrande({ titulo, nivel = 1, resumen, className }: TituloGrandeProps) {
   const setVisible = React.useContext(ContextoNavegacionMovil)?.setTituloGrandeVisible
   const centinela = React.useRef<HTMLSpanElement>(null)
+  const Encabezado = nivel === 2 ? "h2" : "h1"
 
   React.useEffect(() => {
     const elemento = centinela.current
@@ -147,7 +166,7 @@ export function TituloGrande({ titulo, resumen, className }: TituloGrandeProps) 
 
   return (
     <div data-slot="titulo-grande" className={cn("md:hidden px-1 pt-0.5", className)}>
-      <h1 className="text-[34px] font-bold leading-[1.1] tracking-[-0.03em] text-foreground">{titulo}</h1>
+      {titulo && <Encabezado className="text-[28px] font-bold leading-[1.1] tracking-[-0.03em] text-foreground">{titulo}</Encabezado>}
       <span ref={centinela} aria-hidden="true" className="block h-px" />
       {resumen && <p className="mt-1 text-[15px] text-muted-foreground [&_strong]:text-foreground">{resumen}</p>}
     </div>

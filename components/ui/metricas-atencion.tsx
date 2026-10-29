@@ -60,7 +60,7 @@ export function MetricasAtencion({ metricas, onAlternar, etiqueta, className }: 
               : 'border-transparent bg-card hover:bg-accent md:border-border',
           )}
         >
-          <PuntoEstado tono={metrica.tono} etiqueta={metrica.etiqueta} className="min-w-0 truncate" />
+          <PuntoEstado tono={metrica.tono} etiqueta={metrica.etiqueta} className="min-w-0" />
           <span className="font-mono text-[26px] font-semibold leading-none tracking-[-0.02em] text-foreground tabular-nums md:text-3xl">
             {metrica.valor}
           </span>

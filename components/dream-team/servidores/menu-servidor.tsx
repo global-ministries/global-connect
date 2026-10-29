@@ -43,22 +43,50 @@ export function tieneMenu(fila: FilaServidor): boolean {
   return editaServicio(fila) || fila.fichaEditable === true
 }
 
+/**
+ * What the viewer may do with one servicio. The single rule behind this menu
+ * and the Servidores detail drawer; the server checks every action again.
+ */
+export interface AccionesServicio {
+  /** Any action at all; without it there is not even "Ver su equipo". */
+  readonly alguna: boolean
+  /** The editable servicio, when the viewer may change its stage. */
+  readonly servicio: { readonly id: string; readonly version: number } | null
+  readonly cambiarEtapa: boolean
+  /** The servicio whose shifts the viewer may change; `undefined` when none. */
+  readonly turnosDe: string | undefined
+  readonly editarFicha: boolean
+  readonly invitar: boolean
+}
+
+export function accionesDeServicio(fila: FilaServidor): AccionesServicio {
+  const servicio = editaServicio(fila) ? { id: fila.servicioId as string, version: fila.version as number } : null
+  const editarFicha = fila.fichaEditable === true
+  return {
+    alguna: tieneMenu(fila),
+    servicio,
+    cambiarEtapa: servicio !== null && (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0,
+    // A retired servicio no longer serves, so it has no shifts to change.
+    turnosDe: fila.estado === 'retirado' ? undefined : (servicio?.id ?? (editarFicha ? fila.servicioId : undefined)),
+    editarFicha,
+    // T12: the same people may invite someone without account to sign in.
+    invitar: editarFicha && fila.tieneCuenta === false,
+  }
+}
+
 export function MenuServidor({ fila, onActualizado, className, detalle }: MenuServidorProps): ReactElement | null {
   const [etapaAbierta, setEtapaAbierta] = useState(false)
   const [turnosAbierto, setTurnosAbierto] = useState(false)
   const [fichaAbierta, setFichaAbierta] = useState(false)
   const [invitarAbierto, setInvitarAbierto] = useState(false)
   const toast = useNotificaciones()
-  if (!tieneMenu(fila)) return null
+  const acciones = accionesDeServicio(fila)
+  if (!acciones.alguna) return null
 
-  const servicio = editaServicio(fila) ? { id: fila.servicioId as string, version: fila.version as number } : null
-  const puedeCambiarEtapa = servicio !== null && (TRANSICIONES_VALIDAS[fila.estado]?.size ?? 0) > 0
-  const puedeEditarFicha = fila.fichaEditable === true
-  // A retired servicio no longer serves, so it has no shifts to change.
-  const turnosDe =
-    fila.estado === 'retirado' ? undefined : (servicio?.id ?? (puedeEditarFicha ? fila.servicioId : undefined))
-  // T12: the same people may invite someone without account to sign in.
-  const puedeInvitar = puedeEditarFicha && fila.tieneCuenta === false
+  const { servicio, turnosDe } = acciones
+  const puedeCambiarEtapa = acciones.cambiarEtapa && servicio !== null
+  const puedeEditarFicha = acciones.editarFicha
+  const puedeInvitar = acciones.invitar
 
   return (
     <>

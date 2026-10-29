@@ -7,6 +7,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react'
 
 import {
   BarraNavegacionMovil,
+  BotonAtrasMovil,
   NavegacionMovilProvider,
   TituloGrande,
 } from '@/components/ui/barra-navegacion-movil'
@@ -126,12 +127,44 @@ describe('BarraNavegacionMovil', () => {
 })
 
 describe('TituloGrande', () => {
-  it('renders the 34px phone title and the summary line', () => {
+  it('renders the 28px phone title (decision 2026-10-28) and the summary line', () => {
     render(<Pantalla />)
     const titulo = screen.getByRole('heading', { level: 1, name: 'Servidores' })
-    expect(titulo).toHaveClass('text-[34px]', 'font-bold')
+    expect(titulo).toHaveClass('text-[28px]', 'font-bold', 'tracking-[-0.03em]')
+    expect(titulo).not.toHaveClass('text-[34px]')
     expect(titulo.closest('[data-slot="titulo-grande"]')).toHaveClass('md:hidden')
     expect(screen.getByText('48').tagName).toBe('STRONG')
     expect(screen.getByText(/personas/)).toBeInTheDocument()
+  })
+
+  it('renders an h2 with nivel={2}, for screens whose shell header already holds the h1', () => {
+    render(<TituloGrande titulo="Dirección de Niños" nivel={2} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Dirección de Niños' })).toHaveClass('text-[28px]')
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+  })
+
+  it('renders only the summary line without a titulo', () => {
+    const { container } = render(<TituloGrande resumen={<><strong>48</strong> personas</>} />)
+    expect(screen.queryByRole('heading')).toBeNull()
+    expect(container.querySelector('[data-slot="titulo-grande"]')).toHaveClass('md:hidden')
+    expect(screen.getByText('48').tagName).toBe('STRONG')
+  })
+})
+
+describe('BotonAtrasMovil', () => {
+  it('is the bar\'s back control on its own: a 44px button named "Volver a …" with the label visible', () => {
+    const onClick = jest.fn()
+    render(<BotonAtrasMovil atras={{ etiqueta: 'Dirección de Alabanza', onClick }} className="max-w-[70%]" />)
+    const atras = screen.getByRole('button', { name: 'Volver a Dirección de Alabanza' })
+    expect(atras).toHaveClass('min-h-11', 'focus-ring', 'text-brand-text', 'max-w-[70%]')
+    expect(atras).not.toHaveClass('max-w-[120px]')
+    expect(atras).toHaveTextContent('Dirección de Alabanza')
+    fireEvent.click(atras)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('is a link with href', () => {
+    render(<BotonAtrasMovil atras={{ etiqueta: 'Dream Team', href: '/dream-team' }} />)
+    expect(screen.getByRole('link', { name: 'Volver a Dream Team' })).toHaveAttribute('href', '/dream-team')
   })
 })

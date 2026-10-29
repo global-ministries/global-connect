@@ -8,6 +8,7 @@ import {
   TARJETA_TODAS,
   calcularVistaServidores,
   parcheElegirTarjeta,
+  responsableCorto,
   type FilaServidor,
   type FiltrosServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
@@ -145,5 +146,56 @@ describe('KPI cards follow the tree, one level at a time (Dirección de Niños)'
     const { tarjetas, opciones } = vistaNinos({ direccion: N, area: W })
     expect(resumen(tarjetas)).toEqual(['Todo Waumbaland: 4', 'Anfitriones: 2', 'Atención al Voluntario: 1'])
     expect(parcheElegirTarjeta(tarjetas, 'w-anf', opciones)).toEqual({ equipo: 'w-anf', direccion: N })
+  })
+})
+
+describe('KPI cards carry the flags and the etapa bar of the prototype', () => {
+  const etapas = (activo: number, enOrientacion = 0, enPausa = 0) => ({
+    postulado: 0,
+    en_orientacion: enOrientacion,
+    activo,
+    en_pausa: enPausa,
+    inactivo: 0,
+    retirado: 0,
+  })
+
+  it('each dirección counts its people without an account and its servicios per etapa', () => {
+    const { tarjetas } = vista()
+    expect(tarjetas.todas).toMatchObject({ sinCuenta: 32, porEtapa: etapas(37, 2, 1) })
+    expect(tarjetas.items.find((t) => t.id === ID_CONEXION)).toMatchObject({ sinCuenta: 31, porEtapa: etapas(35, 2, 1) })
+    expect(tarjetas.items.find((t) => t.id === ID_ALABANZA)).toMatchObject({ sinCuenta: 1, porEtapa: etapas(2) })
+  })
+
+  it('each equipo counts its whole branch, under the same filters as its people count', () => {
+    expect(vista({ direccion: ID_CONEXION }).tarjetas.items[0]).toMatchObject({
+      id: ID_DHAH,
+      personas: 9,
+      sinCuenta: 6,
+      porEtapa: etapas(8, 1),
+    })
+    expect(vista({ direccion: ID_CONEXION, etapa: 'en_orientacion' }).tarjetas.items[0]).toMatchObject({
+      personas: 1,
+      sinCuenta: 1,
+      porEtapa: etapas(0, 1),
+    })
+  })
+})
+
+describe('responsableCorto (the one-line responsible of a scope card, decision 5 of 2026-10-28)', () => {
+  it.each([
+    ['Dirige Antholy Ludovic Gómez', 'Dirige Antholy Gómez'],
+    ['Coordina Ana María Pérez López', 'Coordina Ana Pérez'],
+    ['Coordina Edith Pérez', 'Coordina Edith Pérez'],
+    ['Coordina Jose', 'Coordina Jose'],
+    ['Dirige Ana M. Pérez', 'Dirige Ana Pérez'],
+    ['Coordina  Wanda   Lucía  Pérez ', 'Coordina Wanda Pérez'],
+  ])('%s → %s', (completo, corto) => {
+    expect(responsableCorto(completo)).toBe(corto)
+  })
+
+  it('the cards keep the full responsible; the short one is derived from it', () => {
+    const conexion = vista().tarjetas.items.find((tarjeta) => tarjeta.id === ID_CONEXION)
+    expect(conexion?.responsable).toBe('Dirige Antholy Ludovic Gómez')
+    expect(responsableCorto(conexion?.responsable ?? '')).toBe('Dirige Antholy Gómez')
   })
 })

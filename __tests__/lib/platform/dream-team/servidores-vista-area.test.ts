@@ -124,11 +124,11 @@ describe('área drill-down', () => {
     expect(parcheElegirDireccion('ninos')).toEqual({ direccion: 'ninos', area: null, equipo: null })
   })
 
-  it('shows a pill that clears the area and its equipo', () => {
-    const pastilla = vista({ direccion: 'ninos', area: 'sala-b' }).pastillas.find((p) => p.clave === 'area')
-    expect(pastilla?.etiqueta).toBe('Área: Waumba Land › Sala B')
-    expect(pastilla?.parche).toEqual({ area: null, equipo: null })
-    expect(vista({ direccion: 'ninos' }).pastillas.find((p) => p.clave === 'direccion')?.parche).toEqual({
+  it('shows a breadcrumb per level; going back to the dirección clears the area and its equipo', () => {
+    const { migas } = vista({ direccion: 'ninos', area: 'sala-b' }).navegacion
+    expect(migas.map((m) => m.etiqueta)).toEqual(['Servidores', 'Dirección de Niños', 'Waumba Land', 'Sala B'])
+    expect(migas[1].parche).toEqual({ direccion: 'ninos', area: null, equipo: null })
+    expect(vista({ direccion: 'ninos' }).navegacion.migas[0].parche).toEqual({
       direccion: null,
       area: null,
       equipo: null,

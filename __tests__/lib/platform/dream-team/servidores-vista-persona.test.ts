@@ -1,7 +1,7 @@
 /**
  * `servidores-vista` — the per-person view (the default "Por persona"): one
  * item per person with the servicios that pass the filters, in the order of
- * the current sort. "Sin agrupar" keeps one row per servicio.
+ * the current sort. "Por servicio" keeps one row per servicio.
  *
  * Fixture: tests/helpers/servidores-conexion.ts (Conexión: 38 servicios, 36
  * personas; Antholy Ludovic Gómez and Jose Jimenez serve in two teams).
@@ -62,11 +62,11 @@ describe('per-person view (default)', () => {
     expect(personaDe(porRol.items, 'Antholy Ludovic Gómez')?.filas.map((f) => f.equipoId)).toEqual([ID_PAREJAS])
   })
 
-  it('keeps the counters meaning servicios', () => {
+  it('keeps the etapa counters meaning servicios; the attention metrics count people', () => {
     const v = vista()
     expect(v.contadoresEtapa.todas).toBe(38)
-    expect(v.rapidos.varios.cantidad).toBe(4)
-    expect(v.rapidos.sinCuenta.cantidad).toBe(31)
+    expect(v.atencion.varios.personas).toBe(2)
+    expect(v.atencion.sinCuenta.personas).toBe(31)
   })
 
   it('orders persons by the sort applied to their servicios, and the servicios inside by the same sort', () => {
@@ -108,7 +108,7 @@ describe('per-person view (default)', () => {
   })
 })
 
-describe('"Sin agrupar" keeps one row per servicio', () => {
+describe('"Por servicio" keeps one row per servicio', () => {
   it('lists 38 rows', () => {
     const { items } = vista({ agrupar: 'ninguno' })
     expect(items).toHaveLength(38)
@@ -130,19 +130,19 @@ describe('showing at most three servicios per person', () => {
 })
 
 describe('URL codec for the grouping', () => {
-  it('omits the default (por persona) and writes "Sin agrupar" explicitly', () => {
+  it('omits the default (por persona) and writes "Por servicio" explicitly', () => {
     expect(escribirFiltrosEnUrl(FILTROS_INICIALES)).toBe('')
     expect(escribirFiltrosEnUrl({ ...FILTROS_INICIALES, agrupar: 'ninguno' })).toBe('agrupar=ninguno')
-    expect(escribirFiltrosEnUrl({ ...FILTROS_INICIALES, agrupar: 'equipo' })).toBe('agrupar=equipo')
   })
 
-  it('round-trips every grouping, and old links keep working', () => {
-    for (const agrupar of ['persona', 'ninguno', 'equipo'] as const) {
+  it('round-trips both views, and old links keep working', () => {
+    for (const agrupar of ['persona', 'ninguno'] as const) {
       const filtros = { ...FILTROS_INICIALES, agrupar }
       expect(leerFiltrosDeUrl(new URLSearchParams(escribirFiltrosEnUrl(filtros)))).toEqual(filtros)
     }
     expect(leerFiltrosDeUrl(new URLSearchParams('agrupar=persona')).agrupar).toBe('persona')
-    expect(leerFiltrosDeUrl(new URLSearchParams('agrupar=equipo')).agrupar).toBe('equipo')
+    // "Por equipo" was removed (S4): its old links open the default view.
+    expect(leerFiltrosDeUrl(new URLSearchParams('agrupar=equipo')).agrupar).toBe('persona')
     expect(leerFiltrosDeUrl(new URLSearchParams('')).agrupar).toBe('persona')
     expect(leerFiltrosDeUrl(new URLSearchParams('agrupar=raro')).agrupar).toBe('persona')
   })
