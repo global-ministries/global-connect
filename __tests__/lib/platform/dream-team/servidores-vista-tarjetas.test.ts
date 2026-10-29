@@ -8,6 +8,7 @@ import {
   TARJETA_TODAS,
   calcularVistaServidores,
   parcheElegirTarjeta,
+  responsableCorto,
   type FilaServidor,
   type FiltrosServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
@@ -177,5 +178,24 @@ describe('KPI cards carry the flags and the etapa bar of the prototype', () => {
       sinCuenta: 1,
       porEtapa: etapas(0, 1),
     })
+  })
+})
+
+describe('responsableCorto (the one-line responsible of a scope card, decision 5 of 2026-10-28)', () => {
+  it.each([
+    ['Dirige Antholy Ludovic Gómez', 'Dirige Antholy Gómez'],
+    ['Coordina Ana María Pérez López', 'Coordina Ana Pérez'],
+    ['Coordina Edith Pérez', 'Coordina Edith Pérez'],
+    ['Coordina Jose', 'Coordina Jose'],
+    ['Dirige Ana M. Pérez', 'Dirige Ana Pérez'],
+    ['Coordina  Wanda   Lucía  Pérez ', 'Coordina Wanda Pérez'],
+  ])('%s → %s', (completo, corto) => {
+    expect(responsableCorto(completo)).toBe(corto)
+  })
+
+  it('the cards keep the full responsible; the short one is derived from it', () => {
+    const conexion = vista().tarjetas.items.find((tarjeta) => tarjeta.id === ID_CONEXION)
+    expect(conexion?.responsable).toBe('Dirige Antholy Ludovic Gómez')
+    expect(responsableCorto(conexion?.responsable ?? '')).toBe('Dirige Antholy Gómez')
   })
 })

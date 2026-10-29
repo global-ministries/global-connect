@@ -214,13 +214,16 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     expect(direcciones.map((boton) => boton.getAttribute('aria-pressed'))).toEqual(['false', 'false'])
     expect(tarjeta('Dirección de Conexión')).toHaveTextContent('36personas')
     expect(tarjeta('Dirección de Conexión')).toHaveTextContent('Dirige Antholy Ludovic Gómez')
-    expect(screen.queryByRole('navigation', { name: 'Ubicación' })).not.toBeInTheDocument()
+    // The root crumb is the only one, and it is the current page (prototype v3).
+    expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Todas las direcciones'])
+    expect(within(migas()).getByText('Todas las direcciones')).toHaveAttribute('aria-current', 'page')
+    expect(within(migas()).queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Volver a / })).not.toBeInTheDocument()
 
     await user.click(tarjeta('Dirección de Conexión'))
     expect(cantidadDeFilas()).toBe(38)
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion&agrupar=ninguno', { scroll: false })
-    expect(within(migas()).getByRole('button', { name: 'Servidores' })).toBeInTheDocument()
+    expect(within(migas()).getByRole('button', { name: 'Todas las direcciones' })).toBeInTheDocument()
     expect(within(migas()).getByText('Dirección de Conexión')).toHaveAttribute('aria-current', 'page')
     // The hero (desktop) and the large title (phone) carry the same summary.
     // The name is in a <strong>, so the summary is matched on the whole paragraph.
@@ -238,6 +241,15 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     expect(nombres).toEqual(['De Hombre a Hombre', 'Mujer de Hoy', 'Parejas', 'Punto de Partida'])
     expect(tarjeta('Punto de Partida')).toHaveTextContent('Coordina Jose Jimenez')
     expect(tarjeta('Punto de Partida')).toHaveTextContent('1 por activar')
+  })
+
+  it('shows the responsible on one line as first name + first surname; the full name stays in title and for screen readers', () => {
+    render(<ServidoresClient {...props()} />)
+    const linea = within(tarjeta('Dirección de Conexión')).getByTitle('Dirige Antholy Ludovic Gómez')
+    expect(linea).toHaveClass('truncate')
+    expect(within(linea).getByText('Dirige Antholy Gómez')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(linea).getByText('Dirige Antholy Ludovic Gómez')).toHaveClass('sr-only')
+    expect(tarjeta('Dirección de Conexión')).toHaveAccessibleName(expect.stringContaining('Dirige Antholy Ludovic Gómez'))
   })
 
   it('each card carries its flags and says its etapas in words (the prototype\'s flags and etapa bar)', async () => {
@@ -270,7 +282,7 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     expect(nombresEnLista().sort()).toEqual(['Sara Ponce', 'Tomás Rey'])
     expect(replace).toHaveBeenLastCalledWith(`/admin/dream-team/servidores?direccion=dir-alabanza&equipo=${ID_CORO}`, { scroll: false })
     expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent?.replace('/', ''))).toEqual([
-      'Servidores',
+      'Todas las direcciones',
       'Dirección de Alabanza',
       'Coro',
     ])
@@ -282,7 +294,7 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     await user.click(within(migas()).getByRole('button', { name: 'Dirección de Alabanza' }))
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
 
-    await user.click(within(migas()).getByRole('button', { name: 'Servidores' }))
+    await user.click(within(migas()).getByRole('button', { name: 'Todas las direcciones' }))
     expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
     expect(cantidadDeFilas()).toBe(38)
   })
@@ -291,7 +303,7 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     const filtrosIniciales = leerFiltrosDeUrl(new URLSearchParams(`direccion=${ID_CONEXION}&area=${ID_TALLERES}&agrupar=ninguno`))
     render(<ServidoresClient {...props({ filtrosIniciales })} />)
     expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent?.replace('/', ''))).toEqual([
-      'Servidores',
+      'Todas las direcciones',
       'Dirección de Conexión',
       'Talleres',
     ])
@@ -511,7 +523,7 @@ describe('ServidoresClient — search, chips and the URL (criteria 7 and 8)', ()
     // The equipo is a leaf: its scope cards hide and the breadcrumbs carry it.
     expect(screen.queryByRole('group', { name: 'Equipos' })).not.toBeInTheDocument()
     expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent?.replace('/', ''))).toEqual([
-      'Servidores',
+      'Todas las direcciones',
       'Dirección de Conexión',
       'De Hombre a Hombre',
     ])
@@ -756,15 +768,39 @@ describe('ServidoresClient — Grupos de Vida directors', () => {
   })
 })
 
-describe('ServidoresClient — phone shell', () => {
-  it('has a navigation bar with the Filtros button counting the sheet filters, and a large title', async () => {
-    render(<ServidoresClient {...props({ filas: filasConexion })} />)
-    const barra = screen.getByRole('navigation', { name: 'Navegación de Servidores' })
-    expect(within(barra).getByRole('button', { name: 'Filtros' })).toBeInTheDocument()
+describe('ServidoresClient — phone, inside the app shell (S9: the shell header holds the title and the bell)', () => {
+  const cabeceraMovil = (container: HTMLElement) => container.querySelector('[data-slot="cabecera-movil"]') as HTMLElement
+
+  it('adds no navigation bar of its own; the Filtros button sits in the content and counts the sheet filters', async () => {
+    const { container } = render(<ServidoresClient {...props({ filas: filasConexion })} />)
+    expect(screen.queryByRole('navigation', { name: /^Navegación de/ })).not.toBeInTheDocument()
+    const cabecera = cabeceraMovil(container)
+    expect(cabecera).toHaveClass('md:hidden')
+    expect(within(cabecera).getByRole('button', { name: 'Filtros' })).toBeInTheDocument()
 
     await user.click(metrica('Sin cuenta'))
-    expect(within(barra).getByRole('button', { name: 'Filtros, 1 activo' })).toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { level: 1, name: 'Servidores' }).length).toBeGreaterThan(0)
+    expect(within(cabecera).getByRole('button', { name: 'Filtros, 1 activo' })).toBeInTheDocument()
+  })
+
+  it('at the root shows only the summary: the shell header already says "Servidores"', () => {
+    const { container } = render(<ServidoresClient {...props()} />)
+    const cabecera = cabeceraMovil(container)
+    expect(within(cabecera).queryByRole('heading')).not.toBeInTheDocument()
+    expect(within(cabecera).queryByRole('button', { name: /^Volver a / })).not.toBeInTheDocument()
+    expect(cabecera).toHaveTextContent('38 personas · 40 servicios')
+  })
+
+  it('below the root: "‹ parent" goes up a level and the large title (an h2, the shell holds the h1) names the level', async () => {
+    const { container } = render(<ServidoresClient {...props()} />)
+    await user.click(tarjeta('Dirección de Alabanza'))
+    const cabecera = cabeceraMovil(container)
+    const grande = within(cabecera).getByRole('heading', { level: 2, name: 'Dirección de Alabanza' })
+    expect(grande).toHaveClass('text-[28px]')
+    await user.click(tarjeta('Coro'))
+    await user.click(within(cabecera).getByRole('button', { name: 'Volver a Dirección de Alabanza' }))
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
+    await user.click(within(cabecera).getByRole('button', { name: 'Volver a Servidores' }))
+    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
   })
 
   it('the sheet filters live; "Ver N personas" counts and closes; "Limpiar" empties the sheet filters but keeps the scope', async () => {
@@ -853,15 +889,27 @@ describe('ServidoresClient — page layout (docs/design-system)', () => {
     expect(screen.getAllByRole('heading', { level: 1, name: 'Dirección de Conexión' }).length).toBeGreaterThan(0)
   })
 
-  it('has one h1 per breakpoint: the desktop hero and the phone large title; the desktop header carries no title', () => {
+  it('has one h1: the desktop hero (24px, weight 650); the header carries no title and the phone large title is an h2', () => {
     render(<ServidoresClient {...props({ filtrosIniciales: { ...FILTROS_INICIALES, direccion: ID_CONEXION } })} />)
     const titulos = screen.getAllByRole('heading', { level: 1 })
-    expect(titulos.map((h1) => h1.textContent)).toEqual(['Dirección de Conexión', 'Dirección de Conexión'])
-    const grande = titulos.find((h1) => h1.closest('[data-slot="titulo-grande"]'))
-    const hero = titulos.find((h1) => h1 !== grande)
-    expect(hero?.parentElement).toHaveClass('hidden', 'md:block')
-    expect(grande?.closest('[data-slot="titulo-grande"]')).toHaveClass('md:hidden')
+    expect(titulos.map((h1) => h1.textContent)).toEqual(['Dirección de Conexión'])
+    const [hero] = titulos
+    expect(hero).toHaveClass('text-2xl', 'font-[650]', 'tracking-[-0.02em]')
+    expect(hero.parentElement).toHaveClass('hidden', 'md:block')
+    const grande = screen.getByRole('heading', { level: 2, name: 'Dirección de Conexión' })
+    expect(grande.closest('[data-slot="titulo-grande"]')).toHaveClass('md:hidden')
     // The responsible's name is emphasized in the summary, as in the prototype.
     expect(screen.getAllByText('Antholy Ludovic Gómez', { selector: 'strong' })).toHaveLength(2)
+  })
+
+  it('the header action "Asignar servicio" is small (36px, 44px on touch) on brand-strong, with a 48px hit area', () => {
+    render(<ServidoresClient {...props({ puedeEditar: true })} />)
+    const accion = within(screen.getByRole('banner')).getByRole('button', { name: 'Asignar servicio' })
+    expect(accion).toHaveClass('h-9', 'pointer-coarse:h-11', 'bg-brand-strong', 'relative', 'after:-inset-y-1.5')
+  })
+
+  it('keeps the original "Sin cuenta" hint, "invitalos a la plataforma" (user correction 2026-10-28)', () => {
+    render(<ServidoresClient {...props()} />)
+    expect(within(metrica('Sin cuenta')).getByText('invitalos a la plataforma')).toBeInTheDocument()
   })
 })

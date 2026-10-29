@@ -18,6 +18,7 @@ import { ESTADO_LABELS } from '@/components/dream-team/labels'
 import type { DreamTeamEstado } from '@/lib/platform/dream-team/types'
 import {
   parcheElegirTarjeta,
+  responsableCorto,
   type FiltrosServidores,
   type TarjetaConteo,
   type VistaServidores,
@@ -49,6 +50,8 @@ function aTarjeta(tarjeta: TarjetaConteo): TarjetaFiltro {
     id: tarjeta.id,
     label: tarjeta.label,
     subtitulo: tarjeta.responsable,
+    // One line on the card: first name + first surname; the full name stays in title (decisions 2026-10-28, 5).
+    subtituloCorto: tarjeta.responsable ? responsableCorto(tarjeta.responsable) : undefined,
     total: tarjeta.personas,
     badge: null,
     insignias,

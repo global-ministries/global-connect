@@ -29,7 +29,7 @@ Every screen that lists people or items follows this order, top to bottom:
 4. **Attention metrics** — 4 toggle cards with what needs action
    ("Sirviendo", "Por activar", "Sin cuenta", "Sin turno"). Pressing one
    filters the list; pressing it again clears it. Hints are short and say
-   what to do: "Sin cuenta" reads "por invitar".
+   what to do: "Sin cuenta" reads "invitalos a la plataforma".
 5. **Scope cards** — the next level of the tree (Direcciones → Áreas →
    Equipos). They choose WHERE; entering one updates the breadcrumb and
    every number on the screen. Hidden at the leaf level.

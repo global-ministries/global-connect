@@ -6,12 +6,16 @@
  * prototype docs/design-system/prototipos/servidores.html).
  *
  * Top to bottom: header (desktop breadcrumbs of the tree + "Asignar
- * servicio"; on phones the navigation bar with "‹ parent" and the Filtros
- * button), hero (the current level and its numbers; the large title on
- * phones), toolbar (search, Filtros, Por persona / Por servicio), the
+ * servicio"), hero (the current level and its numbers), toolbar (search, Filtros, Por persona / Por servicio), the
  * attention metrics that act as filters, the cards of the next tree level
  * (hidden once a leaf equipo is picked), the age pills, and the list with its active-filter chips and footer. A row
  * opens the person's detail drawer, which holds every action.
+ *
+ * On phones the app shell's header (components/ui/header-movil.tsx) holds the
+ * page h1 ("Servidores") and the bell, and has no back slot, so this screen
+ * adds no navigation bar: a row in the content carries "‹ parent" and the
+ * Filtros button, and under it the large title names the level (an h2; at the
+ * root only the summary shows, the header already says "Servidores").
  *
  * Every rule lives in the pure view model
  * (lib/platform/dream-team/servidores-vista.ts); this island keeps the
@@ -28,7 +32,7 @@ import { UserPlus, Users } from 'lucide-react'
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
 import { BarraHerramientas, BotonFiltrosMovil, ChipsFiltrosActivos } from '@/components/ui/barra-herramientas'
-import { BarraNavegacionMovil, NavegacionMovilProvider, TituloGrande } from '@/components/ui/barra-navegacion-movil'
+import { BotonAtrasMovil, TituloGrande } from '@/components/ui/barra-navegacion-movil'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { MetricasAtencion, type MetricaAtencion } from '@/components/ui/metricas-atencion'
@@ -113,7 +117,10 @@ function metricasDe({ atencion }: VistaServidores): MetricaAtencion[] {
   ]
 }
 
-/** Desktop breadcrumbs of the tree: every level but the current one goes back there. */
+/**
+ * Desktop breadcrumbs of the tree: every level but the current one goes back
+ * there. The root reads "Todas las direcciones" (prototype v3), also alone at the root.
+ */
 function MigasServidores({ migas, onIr }: { readonly migas: readonly Miga[]; readonly onIr: (miga: Miga) => void }): ReactElement {
   return (
     <nav aria-label="Ubicación">
@@ -129,7 +136,7 @@ function MigasServidores({ migas, onIr }: { readonly migas: readonly Miga[]; rea
               )}
               {actual ? (
                 <span aria-current="page" className="truncate px-2 py-1.5 font-semibold text-foreground">
-                  {miga.etiqueta}
+                  {etiquetaMiga(miga, i)}
                 </span>
               ) : (
                 <button
@@ -137,7 +144,7 @@ function MigasServidores({ migas, onIr }: { readonly migas: readonly Miga[]; rea
                   onClick={() => onIr(miga)}
                   className="focus-ring truncate rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pointer-coarse:min-h-11"
                 >
-                  {miga.etiqueta}
+                  {etiquetaMiga(miga, i)}
                 </button>
               )}
             </li>
@@ -147,6 +154,8 @@ function MigasServidores({ migas, onIr }: { readonly migas: readonly Miga[]; rea
     </nav>
   )
 }
+
+const etiquetaMiga = (miga: Miga, i: number): string => (i === 0 ? 'Todas las direcciones' : miga.etiqueta)
 
 export function ServidoresClient({
   filas,
@@ -242,7 +251,7 @@ export function ServidoresClient({
         </>
       )}
       <strong className="font-mono tabular-nums">{navegacion.personas}</strong> {navegacion.personas === 1 ? 'persona' : 'personas'} ·{' '}
-      <strong className="font-mono tabular-nums">{navegacion.servicios}</strong> {navegacion.servicios === 1 ? 'servicio' : 'servicios'}
+      <span className="font-mono tabular-nums">{navegacion.servicios}</span> {navegacion.servicios === 1 ? 'servicio' : 'servicios'}
     </>
   )
   const abrirAsignador = (): void => setAsignadorAbierto(true)
@@ -267,124 +276,138 @@ export function ServidoresClient({
     )
 
   return (
-    <NavegacionMovilProvider>
-      {/* No `titulo`: the desktop title is the hero below, the phone one TituloGrande (one h1 per width). */}
-      <PaginaSistema
-        breadcrumbs={migas.length > 1 ? <MigasServidores migas={migas} onIr={(miga) => cambiar(miga.parche)} /> : undefined}
-        acciones={
-          puedeEditar ? (
-            <BotonSistema type="button" variante="primario" tamaño="sm" icono={UserPlus} onClick={abrirAsignador}>
-              Asignar servicio
-            </BotonSistema>
-          ) : null
-        }
-        className="pb-28 md:pb-0"
-      >
-        <BarraNavegacionMovil
-          titulo={navegacion.titulo}
-          atras={anterior ? { etiqueta: anterior.etiqueta, onClick: () => cambiar(anterior.parche) } : undefined}
-          acciones={<BotonFiltrosMovil filtrosActivos={vista.filtrosEnHoja} onClick={() => setHojaAbierta(true)} />}
-          className="-mx-4 -mt-4 pt-0 sm:-mx-6 sm:-mt-6"
-        />
-        <TituloGrande titulo={navegacion.titulo} resumen={resumen} />
-        <div className="hidden md:block">
-          <h1 className="text-3xl font-bold tracking-[-0.02em] text-foreground">{navegacion.titulo}</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground [&_strong]:text-foreground">{resumen}</p>
-        </div>
-
-        <BarraHerramientas
-          busqueda={{
-            valor: vista.filtros.q,
-            onCambio: (q) => cambiar({ q }),
-            placeholder: 'Buscar por nombre o teléfono',
-            etiqueta: 'Buscar servidores',
-          }}
-          filtrosActivos={vista.filtrosEnHoja}
-          onAbrirFiltros={() => setHojaAbierta(true)}
-          vista={
-            <ControlSegmentado
-              etiqueta="Vista"
-              opciones={OPCIONES_VISTA}
-              valor={vista.filtros.agrupar}
-              onCambio={(agrupar) => cambiar({ agrupar })}
+    // No `titulo`: the h1 is the hero below on desktop and the shell header on phones (one h1 per width).
+    <PaginaSistema
+      breadcrumbs={<MigasServidores migas={migas} onIr={(miga) => cambiar(miga.parche)} />}
+      acciones={
+        puedeEditar ? (
+          // Small header action (36px, 44px on touch); the ::after widens the hit area to 48px (decisions 2026-10-28, 4).
+          <BotonSistema
+            type="button"
+            variante="primario"
+            tamaño="sm"
+            icono={UserPlus}
+            onClick={abrirAsignador}
+            className="relative after:absolute after:-inset-x-0.5 after:-inset-y-1.5 after:content-['']"
+          >
+            Asignar servicio
+          </BotonSistema>
+        ) : null
+      }
+      className="pb-28 md:pb-0"
+    >
+      {/* Filtros sits top right, as in the prototype's nav bar: beside "‹ parent" below the root, beside the summary at it. */}
+      <div data-slot="cabecera-movil" className="md:hidden">
+        <div className={`flex items-center justify-between gap-2 ${anterior ? '-mx-2 -mt-2 mb-1' : '-mr-2'}`}>
+          {anterior ? (
+            <BotonAtrasMovil
+              atras={{ etiqueta: anterior.etiqueta, onClick: () => cambiar(anterior.parche) }}
+              className="max-w-[75%]"
             />
-          }
-        />
-
-        <MetricasAtencion
-          etiqueta="Necesitan atención"
-          metricas={metricasDe(vista)}
-          onAlternar={(id) => cambiar(parcheAtencion(vista.filtros, id as MetricaAtencionId))}
-        />
-
-        {tarjetas.items.length > 0 && vista.filtros.equipo === null && (
-          <section aria-labelledby="servidores-alcance" className="space-y-3">
-            <div className="flex items-baseline justify-between gap-3 px-1 md:px-0">
-              <h2 id="servidores-alcance" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-                {etiquetaNivel(tarjetas)}
-              </h2>
-              <span className="hidden text-xs text-muted-foreground md:inline">
-                {etiquetaNivel(tarjetas) === 'Equipos' ? 'Tocá un equipo para ver su gente' : 'Tocá para entrar'}
-              </span>
-            </div>
-            <TarjetasUbicacion vista={vista} onCambio={cambiar} />
-          </section>
-        )}
-
-        {vista.contadoresEdad && (
-          <ContadoresEdad contadores={vista.contadoresEdad} edad={vista.filtros.edad} onEdadChange={(edad) => cambiar({ edad })} />
-        )}
-
-        <section aria-labelledby="servidores-lista" className="space-y-3">
-          <h2 id="servidores-lista" className="px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:px-0">
-            {porPersona ? 'Personas' : 'Servicios'}
-          </h2>
-          <ChipsFiltrosActivos
-            chips={vista.pastillas.map((p) => ({ id: p.clave, etiqueta: p.etiqueta }))}
-            onQuitar={quitarChip}
-            onLimpiarTodo={() => cambiar(LIMPIAR_FILTROS)}
-          />
-          <ListaServidores
-            vista={vista}
-            onOrdenar={ordenar}
-            onAbrir={(personaId) => setDetalle({ personaId, abierto: true })}
-            vacio={vacio}
-          />
-          {vista.visibles.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
-              <span className="font-mono tabular-nums">{vista.pie.resumen}</span>
-              <span>{vista.pie.orden}</span>
-            </div>
+          ) : (
+            <TituloGrande resumen={resumen} className="min-w-0 flex-1" />
           )}
+          <BotonFiltrosMovil filtrosActivos={vista.filtrosEnHoja} onClick={() => setHojaAbierta(true)} />
+        </div>
+        {anterior && <TituloGrande titulo={navegacion.titulo} nivel={2} resumen={resumen} />}
+      </div>
+      <div className="hidden md:block">
+        <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">{navegacion.titulo}</h1>
+        <p className="mt-1.5 text-[15px] text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">{resumen}</p>
+      </div>
+
+      <BarraHerramientas
+        busqueda={{
+          valor: vista.filtros.q,
+          onCambio: (q) => cambiar({ q }),
+          placeholder: 'Buscar por nombre o teléfono',
+          etiqueta: 'Buscar servidores',
+        }}
+        filtrosActivos={vista.filtrosEnHoja}
+        onAbrirFiltros={() => setHojaAbierta(true)}
+        vista={
+          <ControlSegmentado
+            etiqueta="Vista"
+            opciones={OPCIONES_VISTA}
+            valor={vista.filtros.agrupar}
+            onCambio={(agrupar) => cambiar({ agrupar })}
+          />
+        }
+      />
+
+      <MetricasAtencion
+        etiqueta="Necesitan atención"
+        metricas={metricasDe(vista)}
+        onAlternar={(id) => cambiar(parcheAtencion(vista.filtros, id as MetricaAtencionId))}
+      />
+
+      {tarjetas.items.length > 0 && vista.filtros.equipo === null && (
+        <section aria-labelledby="servidores-alcance" className="space-y-3">
+          <div className="flex items-baseline justify-between gap-3 px-1 md:px-0">
+            <h2 id="servidores-alcance" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              {etiquetaNivel(tarjetas)}
+            </h2>
+            <span className="hidden text-xs text-muted-foreground md:inline">
+              {etiquetaNivel(tarjetas) === 'Equipos' ? 'Tocá un equipo para ver su gente' : 'Tocá para entrar'}
+            </span>
+          </div>
+          <TarjetasUbicacion vista={vista} onCambio={cambiar} />
         </section>
+      )}
 
-        {puedeEditar && <BotonFlotante icono={UserPlus} label="Asignar servicio" onClick={abrirAsignador} />}
+      {vista.contadoresEdad && (
+        <ContadoresEdad contadores={vista.contadoresEdad} edad={vista.filtros.edad} onEdadChange={(edad) => cambiar({ edad })} />
+      )}
 
-        <HojaFiltrosServidores
+      <section aria-labelledby="servidores-lista" className="space-y-3">
+        <h2 id="servidores-lista" className="px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:px-0">
+          {porPersona ? 'Personas' : 'Servicios'}
+        </h2>
+        <ChipsFiltrosActivos
+          chips={vista.pastillas.map((p) => ({ id: p.clave, etiqueta: p.etiqueta }))}
+          onQuitar={quitarChip}
+          onLimpiarTodo={() => cambiar(LIMPIAR_FILTROS)}
+        />
+        <ListaServidores
           vista={vista}
-          abierta={hojaAbierta}
-          onCambioAbierta={setHojaAbierta}
-          onCambio={cambiar}
           onOrdenar={ordenar}
+          onAbrir={(personaId) => setDetalle({ personaId, abierto: true })}
+          vacio={vacio}
         />
+        {vista.visibles.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
+            <span className="font-mono tabular-nums">{vista.pie.resumen}</span>
+            <span>{vista.pie.orden}</span>
+          </div>
+        )}
+      </section>
 
-        <DetalleServidor
-          persona={detalle ? (vista.fichas.get(detalle.personaId) ?? null) : null}
-          abierto={detalle?.abierto ?? false}
-          onCambioAbierto={(abierto) => setDetalle((actual) => (actual ? { ...actual, abierto } : null))}
-          onActualizado={refrescar}
-        />
+      {puedeEditar && <BotonFlotante icono={UserPlus} label="Asignar servicio" onClick={abrirAsignador} />}
 
-        <AsignadorServicioDialog
-          abierto={asignadorAbierto}
-          onClose={() => setAsignadorAbierto(false)}
-          nodosPlanos={nodosPlanos}
-          rolesPorEquipo={rolesPorEquipo}
-          onAsignado={cerrarAsignadorYRefrescar}
-          toast={toast}
-          turnos={turnosAsignables}
-        />
-      </PaginaSistema>
-    </NavegacionMovilProvider>
+      <HojaFiltrosServidores
+        vista={vista}
+        abierta={hojaAbierta}
+        onCambioAbierta={setHojaAbierta}
+        onCambio={cambiar}
+        onOrdenar={ordenar}
+      />
+
+      <DetalleServidor
+        persona={detalle ? (vista.fichas.get(detalle.personaId) ?? null) : null}
+        abierto={detalle?.abierto ?? false}
+        onCambioAbierto={(abierto) => setDetalle((actual) => (actual ? { ...actual, abierto } : null))}
+        onActualizado={refrescar}
+      />
+
+      <AsignadorServicioDialog
+        abierto={asignadorAbierto}
+        onClose={() => setAsignadorAbierto(false)}
+        nodosPlanos={nodosPlanos}
+        rolesPorEquipo={rolesPorEquipo}
+        onAsignado={cerrarAsignadorYRefrescar}
+        toast={toast}
+        turnos={turnosAsignables}
+      />
+    </PaginaSistema>
   )
 }

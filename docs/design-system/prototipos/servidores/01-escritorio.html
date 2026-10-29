@@ -670,7 +670,7 @@ function renderAttention(people) {
   const M = [
     { k: 'activos', l: 'Sirviendo', v: activos, s: `${Math.round(activos / total * 100)}% del equipo`, t: 'success', on: st.estado === 'activo' },
     { k: 'porActivar', l: 'Por activar', v: porActivar, s: 'postulados y en orientación', t: 'info', on: st.porActivar },
-    { k: 'sinCuenta', l: 'Sin cuenta', v: sinCuenta, s: 'por invitar', t: 'warning', on: st.sinCuenta },
+    { k: 'sinCuenta', l: 'Sin cuenta', v: sinCuenta, s: 'invitalos a la plataforma', t: 'warning', on: st.sinCuenta },
     { k: 'sinTurno', l: 'Sin turno', v: sinTurno, s: 'no saben cuándo sirven', t: 'danger', on: st.sinTurno },
   ];
   $('#attention').innerHTML = M.map(m => `<button type="button" class="metric" aria-pressed="${m.on}" data-metric="${m.k}">${punto(m.t, m.l)}<span class="v num">${m.v}</span><span class="bar" aria-hidden="true"><i data-t="${m.t}" style="width:${Math.round(m.v / total * 100)}%"></i></span><span class="s">${m.s}</span></button>`).join('');

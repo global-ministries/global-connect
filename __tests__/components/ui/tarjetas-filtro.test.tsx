@@ -111,6 +111,18 @@ describe('TarjetasFiltro scope presentation (presentacion="alcance")', () => {
     expect(within(tarjeta(/Waumba Land/)).getByText('Coordina Wanda Pérez')).toHaveClass('truncate')
   })
 
+  it('shows a short responsible on one line, keeping the full name in title and for screen readers', () => {
+    const largo: TarjetaFiltro = { ...waumba, subtitulo: 'Coordina Wanda Lucía Pérez', subtituloCorto: 'Coordina Wanda Pérez' }
+    renderTarjetas({ presentacion: 'alcance', items: [largo, legado] })
+    const card = tarjeta(/Waumba Land/)
+    const linea = within(card).getByTitle('Coordina Wanda Lucía Pérez')
+    expect(linea).toHaveClass('truncate', 'block')
+    expect(within(linea).getByText('Coordina Wanda Pérez')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(linea).getByText('Coordina Wanda Lucía Pérez')).toHaveClass('sr-only')
+    expect(card).toHaveAccessibleName(expect.stringContaining('Coordina Wanda Lucía Pérez'))
+    expect(card).not.toHaveAccessibleName(expect.stringContaining('Coordina Wanda Pérez'))
+  })
+
   it('separates the phone rows with hairlines inset 14px, none above the first row', () => {
     renderTarjetas({ presentacion: 'alcance' })
     const [primera, segunda] = within(screen.getByRole('group', { name: 'Áreas' })).getAllByRole('button')

@@ -44,6 +44,11 @@ export interface TarjetaFiltro {
   readonly label: string
   /** Second line, e.g. "Coordina Edith Pérez"; hidden on phones. */
   readonly subtitulo: string | null
+  /**
+   * Scope cards: the one-line form of `subtitulo` ("Coordina Ana Pérez"). It is
+   * what shows; the full `subtitulo` stays in `title` and for screen readers.
+   */
+  readonly subtituloCorto?: string
   readonly total: number
   /** Optional info badge, e.g. "2 por activar". */
   readonly badge: string | null
@@ -139,6 +144,18 @@ function BarraEtapas({
   )
 }
 
+/** One line: the short form shows, the full one stays in `title` and in the accessible name. */
+function LineaResponsable({ completo, corto }: { readonly completo: string; readonly corto?: string }): ReactElement {
+  const clase = 'mt-0.5 block truncate text-[13px] text-muted-foreground md:mt-1'
+  if (!corto || corto === completo) return <span className={clase}>{completo}</span>
+  return (
+    <span title={completo} className={clase}>
+      <span aria-hidden="true">{corto}</span>
+      <span className="sr-only">{completo}</span>
+    </span>
+  )
+}
+
 /**
  * A scope card: on phones an inset grouped row (name and responsible, count,
  * chevron; flags on a second line), from `md` a card (name and responsible
@@ -176,9 +193,7 @@ function TarjetaAlcance({
         <span className="block truncate text-base font-medium text-foreground md:whitespace-normal md:text-[15px] md:font-semibold">
           {tarjeta.label}
         </span>
-        {tarjeta.subtitulo && (
-          <span className="mt-0.5 block truncate text-[13px] text-muted-foreground md:mt-1">{tarjeta.subtitulo}</span>
-        )}
+        {tarjeta.subtitulo && <LineaResponsable completo={tarjeta.subtitulo} corto={tarjeta.subtituloCorto} />}
       </span>
       <span className="col-start-2 row-start-1 flex items-baseline justify-self-end md:col-span-2 md:col-start-1 md:row-start-2 md:justify-self-start">
         <span className="font-mono text-[17px] font-medium tabular-nums text-muted-foreground md:text-[26px] md:font-semibold md:leading-none md:text-foreground">

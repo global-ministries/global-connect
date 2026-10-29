@@ -660,6 +660,23 @@ function responsableDe(filas: readonly FilaServidor[], roles: readonly ('coordin
   return null
 }
 
+/**
+ * The one-line responsible of a scope card (docs/design-system/migration.md,
+ * decisions 2026-10-28, 5): "Dirige Antholy Ludovic Gómez" → "Dirige Antholy
+ * Gómez". Keeps the verb, the first name and the first surname: the last word
+ * of a three-word name (as the prototype), the second to last of a longer one
+ * ("Ana María Pérez López" → "Ana Pérez"). Initials ("M.") are dropped.
+ */
+export function responsableCorto(responsable: string): string {
+  const [verbo = '', ...nombre] = responsable.split(/\s+/).filter(Boolean)
+  const palabras = nombre.filter((palabra) => !palabra.endsWith('.'))
+  const corto =
+    palabras.length <= 2
+      ? palabras
+      : [palabras[0], palabras.length === 3 ? palabras[2] : palabras[palabras.length - 2]]
+  return [verbo, ...corto].join(' ')
+}
+
 /** A Dream Team director or coordinador; a Grupos de Vida "Director de etapa" is neither. */
 function esRol(rolLabel: string, rol: 'coordinador' | 'director'): boolean {
   const clave = sinAcentos(rolLabel)
