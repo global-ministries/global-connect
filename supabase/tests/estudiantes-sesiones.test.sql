@@ -1,4 +1,4 @@
--- Estudiantes C3 sessions and history (20261031100000_estudiantes_sesiones.sql).
+-- Estudiantes C3 sessions and history (20261031110000_estudiantes_sesiones.sql).
 --
 -- Covers:
 --   s. estudiantes_grupo_sesiones: a Transit group lists the dates of the
