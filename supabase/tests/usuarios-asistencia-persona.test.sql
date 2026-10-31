@@ -13,6 +13,10 @@
 --   4. Talleres: nombre of the taller, area of the group, no_aplica left out,
 --      total_sesiones.
 --   5. A person with no records gets an empty list; identity and privileges.
+--   6. Gaps from the #620 review (fixtures added after section 5): branch 2d
+--      director de etapa; director general of the same campus; ex-leader in
+--      branch 2c; Líder role in Estudiantes; a cancelled taller sesion left
+--      out; NULL p_auth_id.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept; fixture rows
 -- live under this file's own e9b00000-... namespace and every fixture person has
@@ -308,6 +312,90 @@ SELECT pg_temp.assert_eq('privileges: authenticated runs obtener_asistencia_pers
 SELECT pg_temp.assert_eq('privileges: the gate is not callable by clients',
   $q$SELECT (has_function_privilege('authenticated', 'public.puede_ver_asistencia_persona(uuid,uuid)', 'execute')
           OR has_function_privilege('anon', 'public.puede_ver_asistencia_persona(uuid,uuid)', 'execute'))::text$q$, 'false');
+
+-- 6. Gaps from the #620 review. ------------------------------------------------
+-- Runs a fixture statement; a failure is recorded instead of aborting the run.
+CREATE OR REPLACE FUNCTION pg_temp.exec(p_case text, p_sql text)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  EXECUTE p_sql;
+EXCEPTION
+  WHEN OTHERS THEN
+    PERFORM pg_temp.fail(p_case, 'error ' || SQLSTATE || ' ' || SQLERRM);
+END;
+$$;
+
+-- New people of campus A: DEP director de etapa of G1, DGA director general,
+-- LEX a former Líder of G1 (fecha_salida set).
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+SELECT ('e9b00000-0000-4000-8000-0000000001' || n)::uuid, 'authenticated', 'authenticated',
+       'zzas-auth-' || n || '@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
+  FROM generate_series(12, 14) n;
+
+INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil, auth_id)
+SELECT ('e9b00000-0000-4000-8000-0000000000' || v.n)::uuid, 'ZZ As', v.tag, 'Otro', 'Soltero',
+       ('e9b00000-0000-4000-8000-0000000001' || v.n)::uuid
+  FROM (VALUES (12, 'DEP'), (13, 'DGA'), (14, 'LEX')) AS v(n, tag);
+
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT pg_temp.u(t), 'e9b00000-0000-4000-8000-0000000000ca'::uuid, true
+  FROM unnest(ARRAY['DEP', 'DGA', 'LEX']) t;
+
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT pg_temp.u(v.tag), rs.id
+  FROM (VALUES ('DEP', 'director-etapa'), ('DGA', 'director-general'), ('LEX', 'lider')) AS v(tag, rol)
+  JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
+
+SELECT pg_temp.exec('fixture: director de etapa of G1',
+  $q$INSERT INTO public.segmento_lideres (id, usuario_id, segmento_id, tipo_lider) VALUES
+       ('e9b00000-0000-4000-8000-0000000000a2', pg_temp.u('DEP'), 'e9b00000-0000-4000-8000-0000000000a1', 'director_etapa');
+     INSERT INTO public.director_etapa_grupos (director_etapa_id, grupo_id) VALUES
+       ('e9b00000-0000-4000-8000-0000000000a2', 'e9b00000-0000-4000-8000-0000000000c1')$q$);
+SELECT pg_temp.exec('fixture: former leader of G1',
+  $q$INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, estado, fecha_asignacion, fecha_salida) VALUES
+       ('e9b00000-0000-4000-8000-0000000000c1', pg_temp.u('LEX'), 'Líder', NULL, current_date - 400, current_date - 100)$q$);
+
+-- P leads a second The Living Room group (an active lider servicio).
+SELECT pg_temp.exec('fixture: P leads E2',
+  $q$INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo) VALUES
+       ('e9b00000-0000-4000-8000-0000000000d5', 'e9b00000-0000-4000-8000-0000000000d4', 'lider', 'lider', true);
+     INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual) VALUES
+       ('e9b00000-0000-4000-8000-0000000000d6', pg_temp.u('P'), 'e9b00000-0000-4000-8000-0000000000d4',
+        'e9b00000-0000-4000-8000-0000000000d5', 'activo', timestamptz '2020-01-01 12:00+00', 'admin_asignacion');
+     INSERT INTO public.estudiantes_grupos (id, campus_id, subarea_id, nombre, zona) VALUES
+       ('e9b00000-0000-4000-8000-0000000000f4', 'e9b00000-0000-4000-8000-0000000000ca', 'e9b00000-0000-4000-8000-0000000000d4', 'ZZ As E2', 'Sur');
+     INSERT INTO public.estudiantes_grupo_lideres (grupo_id, servicio_id) VALUES
+       ('e9b00000-0000-4000-8000-0000000000f4', 'e9b00000-0000-4000-8000-0000000000d6')$q$);
+
+-- A fourth taller sesion with a presente mark, then cancelled.
+SELECT pg_temp.exec('fixture: cancelled taller sesion',
+  $q$INSERT INTO public.taller_sesiones (id, grupo_id, numero, fecha_programada, estado) VALUES
+       ('e9b00000-0000-4000-8000-0000000000b7', 'e9b00000-0000-4000-8000-0000000000b2', 4, current_date - 3, 'programada');
+     INSERT INTO public.taller_asistencias (sesion_id, inscripcion_id, persona_id, estado) VALUES
+       ('e9b00000-0000-4000-8000-0000000000b7', 'e9b00000-0000-4000-8000-0000000000b6', pg_temp.u('P'), 'presente');
+     UPDATE public.taller_sesiones SET estado = 'cancelada' WHERE id = 'e9b00000-0000-4000-8000-0000000000b7'$q$);
+
+SELECT pg_temp.assert_eq('gaps 2d: the director de etapa of a current group of the person',
+  $q$SELECT (pg_temp.de('DEP') IS NOT NULL)::text$q$, 'true');
+SELECT pg_temp.assert_eq('gaps 2b: the director general of the person''s campus',
+  $q$SELECT (pg_temp.de('DGA') IS NOT NULL)::text$q$, 'true');
+-- Known rule, pinned as it is: branch 2c (here and in the report) does not
+-- look at the leader's fecha_salida, so a former leader still sees.
+SELECT pg_temp.assert_eq('gaps 2c: a former leader of the person''s group (no fecha_salida check)',
+  $q$SELECT (pg_temp.de('LEX') IS NOT NULL)::text || '/' || pg_temp.reporte_permite('LEX')::text$q$, 'true/true');
+SELECT pg_temp.assert_eq('gaps gate: never wider than obtener_reporte_asistencia_usuario (new callers)',
+  $q$SELECT count(*)::text
+       FROM unnest(ARRAY['DEP', 'DGA', 'LEX']) t
+      WHERE pg_temp.de(t) IS NOT NULL AND NOT pg_temp.reporte_permite(t)$q$, '0');
+SELECT pg_temp.assert_eq('gaps estudiantes: rol Líder for an active lider servicio',
+  $q$SELECT (g ->> 'rol') || '|' || (g ->> 'actual') || '|' || pg_temp.marcas(g)
+       FROM pg_temp.grupo(pg_temp.de('ADM'), 'estudiantes', 'ZZ As E2') g$q$, 'Líder|true|0|0|0');
+SELECT pg_temp.assert_eq('gaps talleres: a cancelled sesion is left out of marks and total_sesiones',
+  $q$SELECT (g ->> 'total_sesiones') || '|' || pg_temp.marcas(g)
+       FROM pg_temp.grupo(pg_temp.de('ADM'), 'talleres', 'ZZ As Taller') g$q$, '3|2|1|0');
+SELECT pg_temp.as_user(pg_temp.a('ADM'));
+SELECT pg_temp.assert_eq('gaps identity: NULL p_auth_id gets NULL',
+  $q$SELECT (public.obtener_asistencia_persona(pg_temp.u('P'), NULL) IS NULL)::text$q$, 'true');
 
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_as_failures;

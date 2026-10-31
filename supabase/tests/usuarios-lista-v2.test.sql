@@ -16,6 +16,13 @@
 --      p_campus_id narrows; outside the caller's campuses nobody).
 --   8. v1 functions return their v1 columns and the same people as v2.
 --   9. Identity and privileges.
+--  10. Gaps from the #620 review (fixtures added after section 9, so the
+--      cases above keep their data): miembro scope; director general and
+--      director de etapa limited to their campus; lider with
+--      p_contexto_relacion; a person with no usuario_campus is invisible to
+--      the pastor; v1 with a foreign caller and with NULL p_auth_id;
+--      es_de_mi_grupo with an eliminado group and with an ex-leader
+--      (fecha_salida); phone search through v1.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept; fixture rows
 -- live under this file's own e9a00000-... namespace and every fixture person has
@@ -343,6 +350,128 @@ SELECT pg_temp.assert_eq('definer: v2 functions are SECURITY DEFINER with search
                       'public.obtener_estadisticas_usuarios_con_permisos_v2(uuid,text,text[],boolean,boolean,boolean,uuid,boolean,integer)'::regprocedure,
                       'public.usuarios_lista_filtrada(uuid,text,text[],boolean,boolean,boolean,boolean,uuid,boolean,integer)'::regprocedure)
         AND p.prosecdef AND p.proconfig @> ARRAY['search_path=public']$q$, '3');
+
+-- 10. Gaps from the #620 review. -----------------------------------------------
+-- New people (campus A unless noted): DGA director general, DEA director de
+-- etapa, MEM miembro in family F with FAM, REL (campus B) related to MEM, NOC
+-- with no campus, LX lider who left G1 (fecha_salida). G3 is an eliminado group
+-- led by LID with M2.
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) VALUES
+  ('e9a00000-0000-4000-8000-000000000108', 'authenticated', 'authenticated', 'zzlv-auth-dga@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
+  ('e9a00000-0000-4000-8000-000000000109', 'authenticated', 'authenticated', 'zzlv-auth-dea@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
+  ('e9a00000-0000-4000-8000-000000000110', 'authenticated', 'authenticated', 'zzlv-auth-mem@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()),
+  ('e9a00000-0000-4000-8000-000000000114', 'authenticated', 'authenticated', 'zzlv-auth-lx@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now());
+
+INSERT INTO public.familias (id, nombre) VALUES
+  ('e9a00000-0000-4000-8000-0000000000f1', 'ZZ Lv familia');
+
+INSERT INTO public.usuarios (id, nombre, apellido, genero, estado_civil, email, telefono, auth_id, familia_id) VALUES
+  ('e9a00000-0000-4000-8000-000000000008', 'ZZ Lv', 'DGA', 'Otro', 'Soltero', NULL, NULL, 'e9a00000-0000-4000-8000-000000000108', NULL),
+  ('e9a00000-0000-4000-8000-000000000009', 'ZZ Lv', 'DEA', 'Otro', 'Soltero', NULL, NULL, 'e9a00000-0000-4000-8000-000000000109', NULL),
+  ('e9a00000-0000-4000-8000-000000000010', 'ZZ Lv', 'MEM', 'Otro', 'Soltero', NULL, NULL, 'e9a00000-0000-4000-8000-000000000110', 'e9a00000-0000-4000-8000-0000000000f1'),
+  ('e9a00000-0000-4000-8000-000000000011', 'ZZ Lv', 'FAM', 'Otro', 'Soltero', NULL, NULL, NULL, 'e9a00000-0000-4000-8000-0000000000f1'),
+  ('e9a00000-0000-4000-8000-000000000012', 'ZZ Lv', 'REL', 'Otro', 'Soltero', NULL, NULL, NULL, NULL),
+  ('e9a00000-0000-4000-8000-000000000013', 'ZZ Lv', 'NOC', 'Otro', 'Soltero', NULL, NULL, NULL, NULL),
+  ('e9a00000-0000-4000-8000-000000000014', 'ZZ Lv', 'LX',  'Otro', 'Soltero', NULL, NULL, 'e9a00000-0000-4000-8000-000000000114', NULL);
+
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT v.usuario_id::uuid, v.campus_id::uuid, true
+  FROM (VALUES
+    ('e9a00000-0000-4000-8000-000000000008', 'e9a00000-0000-4000-8000-0000000000ca'),
+    ('e9a00000-0000-4000-8000-000000000009', 'e9a00000-0000-4000-8000-0000000000ca'),
+    ('e9a00000-0000-4000-8000-000000000010', 'e9a00000-0000-4000-8000-0000000000ca'),
+    ('e9a00000-0000-4000-8000-000000000011', 'e9a00000-0000-4000-8000-0000000000ca'),
+    ('e9a00000-0000-4000-8000-000000000012', 'e9a00000-0000-4000-8000-0000000000cb'),
+    ('e9a00000-0000-4000-8000-000000000014', 'e9a00000-0000-4000-8000-0000000000ca')
+  ) v(usuario_id, campus_id);
+
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT v.usuario_id::uuid, rs.id
+  FROM (VALUES
+    ('e9a00000-0000-4000-8000-000000000008', 'director-general'),
+    ('e9a00000-0000-4000-8000-000000000009', 'director-etapa'),
+    ('e9a00000-0000-4000-8000-000000000010', 'miembro'),
+    ('e9a00000-0000-4000-8000-000000000014', 'lider')
+  ) v(usuario_id, rol)
+  JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
+
+INSERT INTO public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion) VALUES
+  ('e9a00000-0000-4000-8000-000000000010', 'e9a00000-0000-4000-8000-000000000012', 'otro_familiar');
+
+INSERT INTO public.grupos (id, nombre, temporada_id, segmento_id, activo, eliminado) VALUES
+  ('e9a00000-0000-4000-8000-0000000000c3', 'ZZ Lv G3', (SELECT id FROM public.temporadas WHERE activa LIMIT 1), 'e9a00000-0000-4000-8000-0000000000a1', true, true);
+
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol, estado, fecha_salida) VALUES
+  ('e9a00000-0000-4000-8000-0000000000c3', 'e9a00000-0000-4000-8000-000000000003', 'Líder',   'activo', NULL),
+  ('e9a00000-0000-4000-8000-0000000000c3', 'e9a00000-0000-4000-8000-000000000005', 'Miembro', 'activo', NULL),
+  ('e9a00000-0000-4000-8000-0000000000c1', 'e9a00000-0000-4000-8000-000000000014', 'Líder',   'activo', now() - interval '10 days');
+
+-- The fixture surnames of a v2 call with p_contexto_relacion, in order.
+CREATE OR REPLACE FUNCTION pg_temp.v2_ctx(p_auth uuid)
+RETURNS text LANGUAGE sql AS $$
+  SELECT coalesce(string_agg(v.apellido, ',' ORDER BY v.n), '')
+    FROM (
+      SELECT x.apellido, x.nombre, row_number() OVER () AS n
+        FROM public.listar_usuarios_con_permisos_v2(p_auth, 'ZZ Lv', '{}', NULL, NULL, NULL, 5000, 0, true) x
+    ) v
+   WHERE v.nombre = 'ZZ Lv';
+$$;
+
+-- Campus A after the new fixtures (NOC and the campus B people excluded).
+CREATE OR REPLACE FUNCTION pg_temp.campus_a()
+RETURNS text LANGUAGE sql AS $$
+  SELECT 'ADM,DEA,DGA,FAM,LID,LX,M1,M2,M3,MEM,PAS'::text;
+$$;
+
+SELECT pg_temp.as_user(pg_temp.a('MEM'));
+SELECT pg_temp.assert_eq('gaps miembro: family, relations (other campus) and self',
+  $q$SELECT pg_temp.v2(pg_temp.a('MEM'))$q$, 'FAM,MEM,REL');
+SELECT pg_temp.as_user(pg_temp.a('DGA'));
+SELECT pg_temp.assert_eq('gaps director general A: campus A only',
+  $q$SELECT pg_temp.v2(pg_temp.a('DGA'))$q$, pg_temp.campus_a());
+SELECT pg_temp.assert_eq('gaps director general A asking for campus B: nobody',
+  $q$SELECT pg_temp.v2(pg_temp.a('DGA'), 'ZZ Lv', NULL, NULL, 'nombre', pg_temp.campus('B'))$q$, '');
+SELECT pg_temp.as_user(pg_temp.a('DEA'));
+SELECT pg_temp.assert_eq('gaps director de etapa A: campus A only',
+  $q$SELECT pg_temp.v2(pg_temp.a('DEA'))$q$, pg_temp.campus_a());
+SELECT pg_temp.assert_eq('gaps director de etapa A asking for campus B: nobody',
+  $q$SELECT pg_temp.v2(pg_temp.a('DEA'), 'ZZ Lv', NULL, NULL, 'nombre', pg_temp.campus('B'))$q$, '');
+SELECT pg_temp.as_user(pg_temp.a('LID'));
+SELECT pg_temp.assert_eq('gaps lider with p_contexto_relacion: campus A plus their groups (MB of campus B)',
+  $q$SELECT pg_temp.v2_ctx(pg_temp.a('LID'))$q$, 'ADM,DEA,DGA,FAM,LID,LX,M1,M2,M3,MB,MEM,PAS');
+SELECT pg_temp.as_user(pg_temp.a('PAS'));
+SELECT pg_temp.assert_eq('gaps pastor: a person with no usuario_campus is not listed',
+  $q$SELECT pg_temp.v2(pg_temp.a('PAS'))$q$, pg_temp.campus_a());
+SELECT pg_temp.as_user(pg_temp.a('ADM'));
+SELECT pg_temp.assert_eq('gaps admin: the person with no usuario_campus is listed',
+  $q$SELECT (',' || pg_temp.v2(pg_temp.a('ADM')) || ',' LIKE '%,NOC,%')::text$q$, 'true');
+SELECT pg_temp.as_user(pg_temp.a('PAS'));
+SELECT pg_temp.assert_eq('gaps v1: acting for somebody else lists nobody',
+  $q$SELECT pg_temp.v1(pg_temp.a('ADM'))$q$, '');
+SELECT pg_temp.assert_eq('gaps v1: NULL p_auth_id lists nobody',
+  $q$SELECT count(*)::text FROM public.listar_usuarios_con_permisos(NULL, 'ZZ Lv', '{}', NULL, NULL, NULL, 5000, 0)$q$, '0');
+SELECT pg_temp.assert_eq('gaps v1 stats: NULL p_auth_id counts zeros',
+  $q$SELECT s.total_usuarios || '|' || s.con_email || '|' || s.con_telefono || '|' || s.registrados_hoy
+       FROM public.obtener_estadisticas_usuarios_con_permisos(NULL, 'ZZ Lv') s$q$, '0|0|0|0');
+SELECT pg_temp.as_user(pg_temp.a('LID'));
+SELECT pg_temp.assert_eq('gaps es_de_mi_grupo: a member of an eliminado group the caller leads is false',
+  $q$SELECT pg_temp.columna(pg_temp.a('LID'), 'es_de_mi_grupo')$q$, 'LID:false,M1:true,M2:false,M3:false,MB:true');
+SELECT pg_temp.as_user(pg_temp.a('LX'));
+SELECT pg_temp.assert_eq('gaps ex-leader: lists nobody without the relationship context',
+  $q$SELECT pg_temp.v2(pg_temp.a('LX'))$q$, '');
+SELECT pg_temp.assert_eq('gaps ex-leader: es_de_mi_grupo false for a member of the group they left',
+  $q$SELECT v.es_de_mi_grupo::text
+       FROM public.listar_usuarios_con_permisos_v2(pg_temp.a('LX'), 'ZZ Lv', '{}', NULL, NULL, NULL, 5000, 0, true) v
+      WHERE v.nombre = 'ZZ Lv' AND v.apellido = 'M1'$q$, 'false');
+SELECT pg_temp.as_user(pg_temp.a('ADM'));
+SELECT pg_temp.assert_eq('gaps v1 phone search: local form with spaces',
+  $q$SELECT coalesce(string_agg(DISTINCT v.apellido, ','), '')
+       FROM public.listar_usuarios_con_permisos(pg_temp.a('ADM'), '0414 555 0101', '{}', NULL, NULL, NULL, 5000, 0) v
+      WHERE v.nombre = 'ZZ Lv'$q$, 'M1');
+SELECT pg_temp.assert_eq('gaps v1 phone search: +58 form',
+  $q$SELECT coalesce(string_agg(DISTINCT v.apellido, ','), '')
+       FROM public.listar_usuarios_con_permisos(pg_temp.a('ADM'), '+58 424 555 0202', '{}', NULL, NULL, NULL, 5000, 0) v
+      WHERE v.nombre = 'ZZ Lv'$q$, 'M3');
 
 SELECT count(*) AS failing_cases, coalesce(string_agg(case_name, E'\n'), 'all cases ok') AS detail
   FROM t_lv_failures;
