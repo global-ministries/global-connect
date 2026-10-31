@@ -21,7 +21,7 @@ export default async function CreateUserPage() {
 
   return (
     <PaginaSistema
-      titulo="Agregar Miembro"
+      titulo="Agregar persona"
       regreso={{ href: '/users', texto: 'Volver a Usuarios' }}
     >
       <UserCreateForm />

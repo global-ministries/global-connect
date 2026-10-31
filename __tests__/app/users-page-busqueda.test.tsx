@@ -1,213 +1,163 @@
 /**
- * /users page: the search is "type first, then search". Typing only edits a
- * local draft; the search runs when the person confirms (Enter or the
- * "Buscar" button) and the confirmed text is applied through
- * `actualizarFiltros({ busqueda })`.
+ * /users page: the search is "type first, then search" (kept from before
+ * T8-2). Typing only edits a local draft; the search runs when the person
+ * confirms (Enter; on phones the keyboard's search key submits the search form), and the confirmed
+ * text goes to the URL (`?q=`) and to the list. The box is the prototype's
+ * "Buscar personas" (name, phone, email or cédula); "Enter para buscar" shows
+ * while the draft differs from the applied text.
  */
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-const actualizarFiltros = jest.fn()
-const limpiarFiltros = jest.fn()
+import { aEstadisticas, aPersonas, FILTROS_INICIALES, type FiltrosUsuarios } from '@/lib/platform/usuarios/lista-vista'
 
-type FiltrosMock = {
-  busqueda: string
-  roles: string[]
-  con_email: boolean | null
-  con_telefono: boolean | null
-  en_grupo: boolean | null
-  limite: number
-}
+const mockReplace = jest.fn()
+const mockHook = jest.fn()
+let mockCargando = false
 
-function estadoDelHook(overrides: { busqueda?: string; cargando?: boolean } = {}) {
-  const filtros: FiltrosMock = {
-    busqueda: overrides.busqueda ?? '',
-    roles: [],
-    con_email: null,
-    con_telefono: null,
-    en_grupo: null,
-    limite: 20,
-  }
-  return {
-    usuarios: [
-      {
-        id: 'u-1',
-        nombre: 'Ana',
-        apellido: 'Pérez',
-        email: 'ana@example.com',
-        telefono: null,
-        cedula: null,
-        fecha_registro: '2026-01-01',
-        rol_nombre_interno: 'miembro',
-        rol_nombre_visible: 'Miembro',
-        puede_ver: true,
-        foto_perfil_url: null,
-      },
-    ],
-    estadisticas: { total_usuarios: 1, con_email: 1, con_telefono: 0, registrados_hoy: 0 },
-    cargando: overrides.cargando ?? false,
-    filtros,
-    paginaActual: 1,
-    totalPaginas: 1,
-    actualizarFiltros,
-    recargarDatos: jest.fn(),
-    limpiarFiltros,
-    cambiarPagina: jest.fn(),
-  }
-}
-
-let hookState = estadoDelHook()
-
-// The pending-links card loads through a server action; it has its own tests.
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace, push: jest.fn(), refresh: jest.fn() }),
+  usePathname: () => '/users',
+}))
+jest.mock('@/components/users/lista/use-lista-usuarios', () => ({
+  useListaUsuarios: (o: unknown) => {
+    mockHook(o)
+    return {
+      personas: aPersonas([{ id: 'u-1', nombre: 'Ana', apellido: 'Pérez', email: 'ana@example.com', telefono: null, cedula: null, fecha_registro: null, rol_nombre_interno: 'miembro', rol_nombre_visible: 'Miembro', foto_perfil_url: null, total_count: 1, puede_ver: true, cuenta: 'si', grupo_id: null, grupo_nombre: null, campus_nombre: null, es_de_mi_grupo: false }]),
+      total: 1,
+      estadisticas: aEstadisticas({ total_usuarios: 1 }),
+      cargando: mockCargando,
+      error: null,
+      recargar: jest.fn(),
+    }
+  },
+}))
 jest.mock('@/components/users/vinculos-pendientes-card', () => ({ VinculosPendientesCard: () => null }))
-jest.mock('@/hooks/use-usuarios-con-permisos', () => ({
-  useUsuariosConPermisos: () => hookState,
-}))
-jest.mock('@/hooks/useCurrentUser', () => ({
-  useCurrentUser: () => ({ roles: ['miembro'] }),
-}))
-jest.mock('@/hooks/useCampus', () => ({
-  useCampus: () => ({ campusId: null }),
-}))
+jest.mock('@/lib/supabase/client', () => ({ createClient: () => ({ rpc: async () => ({ data: false, error: null }) }) }))
+// The create form pulls server actions; the "Agregar persona" panel has its own test.
+jest.mock('@/components/forms/UserCreateForm', () => function UserCreateForm() {
+  return null
+})
+jest.mock('@/hooks/useCurrentUser', () => ({ useCurrentUser: () => ({ roles: ['miembro'], authUserId: 'auth-1', usuario: { id: 'yo' } }) }))
+jest.mock('@/hooks/useCampus', () => ({ useCampus: () => ({ campusId: null, campusActivo: null }) }))
 // PaginaSistema lazy-loads its desktop header behind Suspense — synchronous test double.
-jest.mock('@/components/ui/desktop-header', () => ({
-  DesktopHeader: () => null,
-}))
+jest.mock('@/components/ui/desktop-header', () => ({ DesktopHeader: () => null }))
 
-import PaginaUsuarios from '@/app/(auth)/users/page'
+import { UsuariosClient } from '@/components/users/lista/usuarios-client'
 
-const cajaDeBusqueda = () => screen.getByRole('textbox', { name: 'Buscar usuarios' }) as HTMLInputElement
-const botonBuscar = () => screen.getByRole('button', { name: 'Buscar' })
+const f = (cambios: Partial<FiltrosUsuarios> = {}): FiltrosUsuarios => ({ ...FILTROS_INICIALES, ...cambios })
+const caja = () => screen.getByRole('searchbox', { name: 'Buscar personas' }) as HTMLInputElement
+const busquedaAplicada = () => (mockHook.mock.calls.at(-1)?.[0] as { filtros: FiltrosUsuarios }).filtros.q
 
 beforeEach(() => {
   jest.clearAllMocks()
-  hookState = estadoDelHook()
+  mockCargando = false
 })
 
 describe('/users search box', () => {
-  it('renders a named search box with a submit "Buscar" button in one form', () => {
-    render(<PaginaUsuarios />)
+  it('renders a named search box inside a search form', () => {
+    render(<UsuariosClient filtrosIniciales={f()} />)
 
-    const caja = cajaDeBusqueda()
-    expect(caja).toHaveAttribute('placeholder', 'Buscar por nombre, email, cédula...')
-    expect(botonBuscar()).toHaveAttribute('type', 'submit')
-    expect(caja.closest('form')).toBe(botonBuscar().closest('form'))
-    expect(caja.closest('form')).not.toBeNull()
+    expect(caja()).toHaveAttribute('placeholder', 'Buscar por nombre, teléfono, email o cédula')
+    expect(caja().closest('form')).toBe(screen.getByRole('search'))
   })
 
-  it('starts with the applied search text', () => {
-    hookState = estadoDelHook({ busqueda: 'ana' })
-    render(<PaginaUsuarios />)
+  it('starts with the applied search text from the URL', () => {
+    render(<UsuariosClient filtrosIniciales={f({ q: 'ana' })} />)
 
-    expect(cajaDeBusqueda()).toHaveValue('ana')
+    expect(caja()).toHaveValue('ana')
+    expect(busquedaAplicada()).toBe('ana')
   })
 
-  it('does not search while typing', async () => {
+  it('does not search while typing; it says how to search', async () => {
     const user = userEvent.setup()
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f()} />)
 
-    await user.type(cajaDeBusqueda(), 'ana perez')
+    await user.type(caja(), 'ana perez')
 
-    expect(cajaDeBusqueda()).toHaveValue('ana perez')
-    expect(actualizarFiltros).not.toHaveBeenCalled()
+    expect(caja()).toHaveValue('ana perez')
+    expect(mockReplace).not.toHaveBeenCalled()
+    expect(busquedaAplicada()).toBe('')
+    expect(screen.getByText('Enter para buscar')).toBeInTheDocument()
   })
 
-  it('applies the trimmed text once when pressing Enter', async () => {
+  it('applies the trimmed text once when pressing Enter, back to page 1', async () => {
     const user = userEvent.setup()
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f({ pagina: 3 })} />)
 
-    await user.type(cajaDeBusqueda(), '  ana  {Enter}')
+    await user.type(caja(), '  ana  {Enter}')
 
-    expect(actualizarFiltros).toHaveBeenCalledTimes(1)
-    expect(actualizarFiltros).toHaveBeenCalledWith({ busqueda: 'ana' })
-    expect(cajaDeBusqueda()).toHaveValue('ana')
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/users?q=ana', { scroll: false })
+    expect(busquedaAplicada()).toBe('ana')
+    expect(caja()).toHaveValue('ana')
+    expect(screen.queryByText('Enter para buscar')).toBeNull()
   })
 
-  it('applies the text when clicking "Buscar"', async () => {
+  it('searches by phone or cédula with the same box', async () => {
     const user = userEvent.setup()
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f()} />)
 
-    await user.type(cajaDeBusqueda(), 'maria')
-    expect(actualizarFiltros).not.toHaveBeenCalled()
-    await user.click(botonBuscar())
-
-    expect(actualizarFiltros).toHaveBeenCalledTimes(1)
-    expect(actualizarFiltros).toHaveBeenCalledWith({ busqueda: 'maria' })
+    await user.type(caja(), '0414 552{Enter}')
+    expect(busquedaAplicada()).toBe('0414 552')
   })
 
   it('clears the search when confirming an empty box', async () => {
     const user = userEvent.setup()
-    hookState = estadoDelHook({ busqueda: 'ana' })
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f({ q: 'ana' })} />)
 
-    await user.clear(cajaDeBusqueda())
-    expect(actualizarFiltros).not.toHaveBeenCalled()
-    await user.click(botonBuscar())
+    await user.clear(caja())
+    expect(mockReplace).not.toHaveBeenCalled()
+    await user.type(caja(), '{Enter}')
 
-    expect(actualizarFiltros).toHaveBeenCalledTimes(1)
-    expect(actualizarFiltros).toHaveBeenCalledWith({ busqueda: '' })
+    expect(mockReplace).toHaveBeenCalledTimes(1)
+    expect(mockReplace).toHaveBeenCalledWith('/users', { scroll: false })
+    expect(busquedaAplicada()).toBe('')
   })
 
   it('does not search again when confirming the text that is already applied', async () => {
     const user = userEvent.setup()
-    hookState = estadoDelHook({ busqueda: 'ana' })
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f({ q: 'ana' })} />)
 
-    await user.click(botonBuscar())
-    await user.type(cajaDeBusqueda(), '  {Enter}')
+    await user.type(caja(), '  {Enter}')
 
-    expect(actualizarFiltros).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
   it('does not search when confirming an empty box and nothing is applied', async () => {
     const user = userEvent.setup()
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f()} />)
 
-    await user.type(cajaDeBusqueda(), '   {Enter}')
-    await user.click(botonBuscar())
+    await user.type(caja(), '   {Enter}')
 
-    expect(actualizarFiltros).not.toHaveBeenCalled()
+    expect(mockReplace).not.toHaveBeenCalled()
   })
 
-  it('empties the box when "Limpiar Filtros" is clicked', async () => {
+  it('empties the box when "Limpiar todo" is clicked', async () => {
     const user = userEvent.setup()
-    hookState = estadoDelHook({ busqueda: 'ana' })
-    render(<PaginaUsuarios />)
+    render(<UsuariosClient filtrosIniciales={f({ q: 'ana', conEmail: true })} />)
 
-    await user.type(cajaDeBusqueda(), ' perez')
-    expect(cajaDeBusqueda()).toHaveValue('ana perez')
-    await user.click(screen.getByRole('button', { name: 'Limpiar Filtros' }))
+    await user.type(caja(), ' perez')
+    expect(caja()).toHaveValue('ana perez')
+    await user.click(screen.getAllByRole('button', { name: 'Limpiar todo' })[0])
 
-    expect(limpiarFiltros).toHaveBeenCalledTimes(1)
-    expect(cajaDeBusqueda()).toHaveValue('')
+    expect(mockReplace).toHaveBeenLastCalledWith('/users', { scroll: false })
+    expect(caja()).toHaveValue('')
+    expect(busquedaAplicada()).toBe('')
   })
 
-  it('keeps the draft through the loading skeleton', async () => {
+  it('keeps the box and its draft while the list loads (the frame stays)', async () => {
     const user = userEvent.setup()
-    const { rerender } = render(<PaginaUsuarios />)
-    await user.type(cajaDeBusqueda(), 'ana')
+    const { rerender } = render(<UsuariosClient filtrosIniciales={f()} />)
+    await user.type(caja(), 'ana')
 
-    hookState = estadoDelHook({ cargando: true })
-    rerender(<PaginaUsuarios />)
-    // The whole page, input included, is replaced by the skeleton while loading.
-    expect(screen.queryByRole('textbox', { name: 'Buscar usuarios' })).toBeNull()
+    mockCargando = true
+    rerender(<UsuariosClient filtrosIniciales={f()} />)
+    expect(caja()).toHaveValue('ana')
 
-    hookState = estadoDelHook({ cargando: false })
-    rerender(<PaginaUsuarios />)
-    expect(cajaDeBusqueda()).toHaveValue('ana')
-  })
-
-  it('follows the applied value when it changes from outside', () => {
-    const { rerender } = render(<PaginaUsuarios />)
-    expect(cajaDeBusqueda()).toHaveValue('')
-
-    hookState = estadoDelHook({ busqueda: 'maria' })
-    rerender(<PaginaUsuarios />)
-    expect(cajaDeBusqueda()).toHaveValue('maria')
-
-    hookState = estadoDelHook({ busqueda: '' })
-    rerender(<PaginaUsuarios />)
-    expect(cajaDeBusqueda()).toHaveValue('')
+    mockCargando = false
+    rerender(<UsuariosClient filtrosIniciales={f()} />)
+    expect(caja()).toHaveValue('ana')
   })
 })

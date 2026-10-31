@@ -10455,6 +10455,42 @@ export type Database = {
           total_count: number
         }[]
       }
+      listar_usuarios_con_permisos_v2: {
+        Args: {
+          p_auth_id: string
+          p_busqueda?: string
+          p_campus_id?: string
+          p_con_cuenta?: boolean
+          p_con_email?: boolean
+          p_con_telefono?: boolean
+          p_contexto_relacion?: boolean
+          p_en_grupo?: boolean
+          p_limite?: number
+          p_nuevos_dias?: number
+          p_offset?: number
+          p_orden?: string
+          p_roles_filtro?: string[]
+        }
+        Returns: {
+          apellido: string
+          campus_nombre: string
+          cedula: string
+          cuenta: string
+          email: string
+          es_de_mi_grupo: boolean
+          fecha_registro: string
+          foto_perfil_url: string
+          grupo_id: string
+          grupo_nombre: string
+          id: string
+          nombre: string
+          puede_ver: boolean
+          rol_nombre_interno: string
+          rol_nombre_visible: string
+          telefono: string
+          total_count: number
+        }[]
+      }
       mark_operating_core_notification_outbox_dispatched: {
         Args: { p_dispatched_at?: string; p_id: string }
         Returns: undefined
@@ -10904,6 +10940,15 @@ export type Database = {
           usuario_id: string
         }[]
       }
+      obtener_asistencia_persona: {
+        Args: {
+          p_auth_id: string
+          p_fecha_fin?: string
+          p_fecha_inicio?: string
+          p_usuario_id: string
+        }
+        Returns: Json
+      }
       obtener_auditoria_miembros: {
         Args: {
           p_action?: string
@@ -10980,6 +11025,30 @@ export type Database = {
           con_email: number
           con_telefono: number
           registrados_hoy: number
+          total_usuarios: number
+        }[]
+      }
+      obtener_estadisticas_usuarios_con_permisos_v2: {
+        Args: {
+          p_auth_id: string
+          p_busqueda?: string
+          p_campus_id?: string
+          p_con_cuenta?: boolean
+          p_con_email?: boolean
+          p_con_telefono?: boolean
+          p_en_grupo?: boolean
+          p_nuevos_dias?: number
+          p_roles_filtro?: string[]
+        }
+        Returns: {
+          con_email: number
+          con_telefono: number
+          invitadas: number
+          nuevos_7d: number
+          registrados_hoy: number
+          sin_cuenta: number
+          sin_grupo: number
+          sin_telefono: number
           total_usuarios: number
         }[]
       }
