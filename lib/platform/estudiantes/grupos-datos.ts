@@ -102,27 +102,27 @@ export interface GradoEscala {
   readonly ambitoId: string
 }
 
-type Objeto = { readonly [clave: string]: Json | undefined }
+export type Objeto = { readonly [clave: string]: Json | undefined }
 
-function esObjeto(valor: Json | undefined): valor is Objeto {
+export function esObjeto(valor: Json | undefined): valor is Objeto {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
 }
 
-function lista(valor: Json | undefined): readonly Objeto[] {
+export function lista(valor: Json | undefined): readonly Objeto[] {
   return Array.isArray(valor) ? valor.filter(esObjeto) : []
 }
 
-function texto(objeto: Objeto, clave: string): string | null {
+export function texto(objeto: Objeto, clave: string): string | null {
   const valor = objeto[clave]
   return typeof valor === 'string' && valor !== '' ? valor : null
 }
 
-function numero(objeto: Objeto, clave: string): number | null {
+export function numero(objeto: Objeto, clave: string): number | null {
   const valor = objeto[clave]
   return typeof valor === 'number' ? valor : null
 }
 
-function nombreCompleto(objeto: Objeto): string {
+export function nombreCompleto(objeto: Objeto): string {
   return [texto(objeto, 'nombre'), texto(objeto, 'apellido')].filter(Boolean).join(' ')
 }
 
@@ -135,7 +135,7 @@ function aPersonaRol(objeto: Objeto): PersonaRol {
   }
 }
 
-const experienciaDe = (valor: string | null): Experiencia => (valor === 'the_living_room' ? 'the_living_room' : 'estudiantes')
+export const experienciaDe = (valor: string | null): Experiencia => (valor === 'the_living_room' ? 'the_living_room' : 'estudiantes')
 
 function aIntegrante(objeto: Objeto): Integrante {
   return {
