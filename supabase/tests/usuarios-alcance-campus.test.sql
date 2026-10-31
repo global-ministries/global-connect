@@ -341,10 +341,9 @@ SELECT pg_temp.assert_eq('ficha: pastor A, person of campus B',
   $q$SELECT pg_temp.outcome($$SELECT public.puede_ver_usuario_ficha(pg_temp.a('PAS'), pg_temp.u('PB1'))$$)$q$, 'false');
 SELECT pg_temp.assert_eq('ficha: pastor A, person with no campus',
   $q$SELECT pg_temp.outcome($$SELECT public.puede_ver_usuario_ficha(pg_temp.a('PAS'), pg_temp.u('NOC'))$$)$q$, 'false');
--- Known gap, unchanged here: the pastor's EDIT right (puede_editar_usuario) is
--- still global, so pastor A may edit PB1 while the ficha gate refuses it.
-SELECT pg_temp.assert_eq('edit: pastor A still edits a person of campus B (puede_editar_usuario unchanged)',
-  $q$SELECT pg_temp.outcome($$SELECT public.puede_editar_usuario(pg_temp.a('PAS'), pg_temp.u('PB1'))$$)$q$, 'true');
+-- Since 20261031100000 the pastor's EDIT right follows the campus too.
+SELECT pg_temp.assert_eq('edit: pastor A cannot edit a person of campus B (20261031100000)',
+  $q$SELECT pg_temp.outcome($$SELECT public.puede_editar_usuario(pg_temp.a('PAS'), pg_temp.u('PB1'))$$)$q$, 'false');
 SELECT pg_temp.assert_eq('ficha: pastor, themself',
   $q$SELECT pg_temp.outcome($$SELECT public.puede_ver_usuario_ficha(pg_temp.a('PAS'), pg_temp.u('PAS'))$$)$q$, 'true');
 SELECT pg_temp.as_user(pg_temp.a('DG'));
