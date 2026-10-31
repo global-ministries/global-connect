@@ -4,7 +4,7 @@
  * into plain serializable shapes the client island can hold.
  *
  * Sources (supabase/migrations/20261029100100_estudiantes_asistencia_rpcs.sql,
- * 20261031100000_estudiantes_sesiones.sql):
+ * 20261031110000_estudiantes_sesiones.sql):
  * - estudiantes_grupo_lista(grupo, fecha, turno?): the group, the meeting and
  *   every active member with their mark, visits and representantes.
  * - estudiantes_grupo_sesiones(grupo, dias?): the meetings the group can mark
