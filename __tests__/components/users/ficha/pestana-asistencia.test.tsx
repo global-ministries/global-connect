@@ -122,12 +122,64 @@ describe('Asistencia tab', () => {
     await user.click(screen.getByRole('button', { name: 'Talleres' }))
     const lista = screen.getByRole('region', { name: 'Asistencia por taller' })
     expect(within(lista).getByText('Crecimiento 1')).toBeInTheDocument()
+    // An in-progress taller reads as progress over its 8 sesiones (prototype).
     expect(lista).toHaveTextContent('2 de 8')
+    expect(lista).toHaveTextContent('sesiones')
     expect(lista).toHaveTextContent('En curso')
     expect(lista).toHaveTextContent('Completado')
     expect(screen.getByRole('list', { name: 'Historial' })).not.toHaveTextContent('· pasado')
     expect(screen.queryByRole('img', { name: /Promedio/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Ver asistencia del grupo/ })).not.toBeInTheDocument()
+  })
+
+  describe('weekly curve (presente is yes/no; amber only when a week mixes groups)', () => {
+    const grupoGdv = (id: string, filas: readonly [string, boolean][]) => ({
+      tipo: 'gdv', id, nombre: `Grupo ${id}`, area: null, rol: 'Miembro', actual: true, marcas: marcas(filas),
+    })
+    const franja = () => within(screen.getByRole('list', { name: 'Detalle por semana' })).getAllByRole('listitem')
+    const ultimaSemana = () => franja()[franja().length - 1]
+
+    it('one group with two meetings in a week, attended once, is a full attended week with no amber', () => {
+      const { container } = render(
+        <PestanaAsistencia nombre="Ana" asistencia={datos([grupoGdv('a', [['2026-10-27', true], ['2026-10-28', false]])])} onCambiarRango={jest.fn()} />,
+      )
+      expect(ultimaSemana()).toHaveTextContent('asistió')
+      expect(ultimaSemana()).toHaveClass('bg-success')
+      expect(container.querySelector('.bg-warning, .fill-warning')).toBeNull()
+      expect(container.textContent).not.toMatch(/a parte|parcial|una de sus reuniones|en parte/i)
+    })
+
+    it('two groups in a week, one attended, is amber with "Asistió a una de sus reuniones"', () => {
+      renderizar([grupoGdv('a', [['2026-10-27', true]]), grupoGdv('b', [['2026-10-28', false]])])
+      expect(ultimaSemana()).toHaveClass('bg-warning')
+      expect(ultimaSemana()).toHaveTextContent('asistió a una de sus reuniones')
+      expect(screen.getByText('Asistió a una de sus reuniones')).toBeInTheDocument()
+      expect(screen.queryByText('Asistió en parte de sus grupos')).not.toBeInTheDocument()
+    })
+
+    it('three groups in a week, two attended, says "Asistió en 2 de 3 grupos"', () => {
+      renderizar([
+        grupoGdv('a', [['2026-10-27', true]]),
+        grupoGdv('b', [['2026-10-28', true]]),
+        grupoGdv('c', [['2026-10-29', false]]),
+      ])
+      expect(ultimaSemana()).toHaveClass('bg-warning')
+      expect(ultimaSemana()).toHaveTextContent('asistió en 2 de 3 grupos')
+      expect(screen.getByText('Asistió en parte de sus grupos')).toBeInTheDocument()
+      expect(screen.queryByText(/una de sus reuniones/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('Talleres say "N de M sesiones" when the range holds every sesión of the taller', () => {
+    renderizar([
+      {
+        tipo: 'talleres', id: 't-3', nombre: 'Liderazgo', area: 'Grupo jueves', rol: 'Participante', actual: false,
+        completado: true, total_sesiones: 2, marcas: marcas([['2026-09-03', true], ['2026-09-10', false]]),
+      },
+    ])
+    const lista = screen.getByRole('region', { name: 'Asistencia por taller' })
+    expect(lista).toHaveTextContent('1 de 2 sesiones')
+    expect(lista).not.toHaveTextContent('en el período')
   })
 
   it('applies the Desde/Hasta range', async () => {

@@ -65,7 +65,7 @@ export function PestanaFamilia({
                     )}
                   </span>
                   {f.id ? (
-                    <Link href={`/users/${f.id}`} className="focus-ring truncate rounded-md text-[15px] font-semibold text-foreground hover:underline">
+                    <Link href={`/users/${f.id}`} className="focus-ring truncate rounded-md text-[15px] font-semibold text-foreground hover:underline pointer-coarse:min-h-11 pointer-coarse:leading-[2.75rem]">
                       {nombre}
                     </Link>
                   ) : (

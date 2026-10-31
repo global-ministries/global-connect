@@ -137,6 +137,8 @@ describe('Familia tab', () => {
     const panel = screen.getByRole('tabpanel')
     expect(within(panel).getByText('Principal')).toBeInTheDocument()
     expect(within(panel).getByRole('link', { name: 'Luis Pérez' })).toHaveAttribute('href', '/users/u-3')
+    // A 44px touch target on touch screens (pointer-coarse), as the other small controls.
+    expect(within(panel).getByRole('link', { name: 'Luis Pérez' })).toHaveClass('pointer-coarse:min-h-11')
     await user.click(within(panel).getByRole('button', { name: 'Quitar relación con Luis Pérez' }))
     expect(screen.getByRole('alertdialog')).toHaveTextContent('Confirmar Eliminación')
     await user.click(within(panel).getByRole('button', { name: /Agregar familiar/ }))

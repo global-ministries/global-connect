@@ -7,7 +7,7 @@
  * contact button is disabled, and the notices.
  */
 import Link from 'next/link'
-import { Info, Mail, MessageCircle, Pencil, Phone, type LucideIcon } from 'lucide-react'
+import { Mail, MessageCircle, Pencil, Phone, type LucideIcon } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 
 import { BotonAtrasMovil } from '@/components/ui/barra-navegacion-movil'
@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import type { PersonaFicha, ResumenFicha } from '@/lib/platform/usuarios/ficha-persona'
 import type { AccionesFicha, AvisoFicha } from '@/lib/platform/usuarios/ficha-vista'
 import { ETIQUETA_CUENTA, type CuentaEstado } from '@/lib/platform/usuarios/lista-vista'
+
+import { AvisosUsuario } from '../avisos-usuario'
 
 import { AvatarFicha, EtiquetaNeutra } from './partes-ficha'
 
@@ -106,34 +108,9 @@ export function CabeceraFicha({ persona, resumen, cuenta, acciones, avisos, acci
         ))}
       </div>
       {acciones.motivo && <p className="-mt-1 text-[13px] text-muted-foreground">{acciones.motivo}</p>}
-      {avisos.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))] gap-2.5">
-          {avisos.map((a) => (
-            <div
-              key={a.id}
-              role="note"
-              className={cn(
-                'flex items-start gap-3 rounded-2xl border p-3.5 text-sm',
-                a.tono === 'warning' ? 'border-warning/40 bg-warning/10' : 'border-info/40 bg-info/10',
-              )}
-            >
-              <Icono id={a.id} tono={a.tono} />
-              <div className="min-w-0">
-                <p className="font-semibold text-foreground">{a.titulo}</p>
-                <p className="mt-0.5 text-muted-foreground [overflow-wrap:anywhere]">{a.texto}</p>
-                {accionAviso[a.id] && <div className="mt-2.5">{accionAviso[a.id]}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <AvisosUsuario avisos={avisos} accionAviso={accionAviso} />
     </div>
   )
-}
-
-function Icono({ id, tono }: { readonly id: AvisoFicha['id']; readonly tono: AvisoFicha['tono'] }): ReactElement {
-  const Svg = id === 'telefono' ? Phone : id === 'cuenta' ? Mail : Info
-  return <Svg aria-hidden="true" className={cn('mt-0.5 size-[18px] shrink-0', tono === 'warning' ? 'text-warning-text' : 'text-info-text')} />
 }
 
 /** "Corregir en la ficha" for an editor, under the phone notice. */

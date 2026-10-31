@@ -26,6 +26,7 @@ import { TabsContent, TabsList, TabsSistema, TabsTrigger } from '@/components/ui
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { deleteFamilyRelation } from '@/lib/actions/user.actions'
 import type { AsistenciaPersona, GrupoAsistencia } from '@/lib/platform/usuarios/asistencia-persona'
+import { cambiarRolUsuarios } from '@/lib/platform/usuarios/cambiar-rol'
 import type { VisorUsuarios } from '@/lib/platform/usuarios/contacto'
 import type { PersonaFicha, ResumenFicha } from '@/lib/platform/usuarios/ficha-persona'
 import type { ServicioPersona } from '@/lib/platform/usuarios/ficha-servicio'
@@ -125,14 +126,10 @@ export function FichaUsuario(props: FichaUsuarioProps): ReactElement {
   }
 
   const guardarRol = async (rol: string) => {
-    const res = await fetch('/api/usuarios/cambiar-rol', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ userIds: [persona.id], rol }),
-    })
-    const json = (await res.json().catch(() => ({}))) as { error?: string }
-    if (!res.ok) {
-      notificar.error(json.error || 'No se pudo cambiar el rol.')
+    try {
+      await cambiarRolUsuarios([persona.id], rol)
+    } catch (e) {
+      notificar.error(e instanceof Error ? e.message : 'No se pudo cambiar el rol.')
       return
     }
     notificar.success('Rol actualizado.')

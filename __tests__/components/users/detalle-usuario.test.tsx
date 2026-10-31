@@ -84,6 +84,24 @@ describe('DetalleUsuario', () => {
     expect(screen.getByText('Sin teléfono registrado: WhatsApp y Llamar no están disponibles.')).toBeInTheDocument()
   })
 
+  it('a landline: Llamar works, WhatsApp is disabled and the panel says why (as the ficha)', async () => {
+    abrir(['pastor'], { telefono: '02125551234' })
+
+    expect(await screen.findByRole('button', { name: /WhatsApp/ })).toBeDisabled()
+    expect(screen.getByRole('link', { name: /Llamar/ })).toHaveAttribute('href', 'tel:02125551234')
+    expect(screen.getByText('Es un teléfono fijo, así que WhatsApp no está disponible.')).toBeInTheDocument()
+    expect(screen.queryByText('Revisar teléfono')).toBeNull()
+  })
+
+  it('a number to check: the reason and a warning "Revisar teléfono" notice, as in the ficha', async () => {
+    abrir(['pastor'], { telefono: '123' })
+
+    expect(await screen.findByText('El teléfono necesita revisión, así que WhatsApp no está disponible.')).toBeInTheDocument()
+    const aviso = screen.getByText('Revisar teléfono').closest('[role="note"]')
+    expect(aviso).toHaveClass('border-warning/40', 'bg-warning/10')
+    expect(aviso).toHaveTextContent('«123» no parece un número válido, así que WhatsApp no funciona.')
+  })
+
   it('Editar shows only when puede_editar_usuario allows it', async () => {
     rpc.mockResolvedValue({ data: true, error: null })
     abrir(['lider'], { es_de_mi_grupo: true })

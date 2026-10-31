@@ -17,9 +17,11 @@
  *
  * Every rule is in lib/platform/usuarios/lista-vista.ts. The filters start
  * from the URL the server page parsed and every change goes back with
- * `router.replace(..., { scroll: false })`; the page size stays local.
+ * `router.replace(..., { scroll: false })`; the page size stays local. A
+ * switch of the header campus goes back to page 1 and empties the selection;
+ * a page past the end (a hand-written ?pagina=99) goes to the last page.
  */
-import { useMemo, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { SquareCheckBig, UserPlus, Users } from 'lucide-react'
 
@@ -35,6 +37,7 @@ import UserCreateForm from '@/components/forms/UserCreateForm'
 import { VinculosPendientesCard } from '@/components/users/vinculos-pendientes-card'
 import { useCampus } from '@/hooks/useCampus'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { cambiarRolUsuarios } from '@/lib/platform/usuarios/cambiar-rol'
 import {
   LIMPIAR_TODO,
   ambitoUsuarios,
@@ -61,21 +64,11 @@ import { useListaUsuarios } from './use-lista-usuarios'
 
 const TITULO_SECCION = 'text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground'
 
-async function cambiarRolEnServidor(userIds: readonly string[], rol: string): Promise<void> {
-  const res = await fetch('/api/usuarios/cambiar-rol', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ userIds, rol }),
-  })
-  const json = await res.json().catch(() => null)
-  if (!res.ok) throw new Error(json?.error || 'No se pudo cambiar el rol.')
-}
-
 export function UsuariosClient({ filtrosIniciales }: { readonly filtrosIniciales: FiltrosUsuarios }): ReactElement {
   const router = useRouter()
   const pathname = usePathname() ?? '/users'
   const { roles, usuario } = useCurrentUser()
-  const { campusId, campusActivo } = useCampus()
+  const { campusId, campusActivo, loading: cargandoCampus } = useCampus()
   const escritorio = useEsEscritorio()
 
   const [filtros, setFiltros] = useState(filtrosIniciales)
@@ -88,11 +81,25 @@ export function UsuariosClient({ filtrosIniciales }: { readonly filtrosIniciales
   const [panel, setPanel] = useState(filtrosIniciales.persona ? { id: filtrosIniciales.persona, abierto: true } : null)
   const [seleccion, setSeleccion] = useState<ReadonlySet<string> | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
+  // undefined while the campus context restores the saved campus: that first value is not a switch.
+  const campusActual = cargandoCampus ? undefined : (campusId ?? null)
+  const [campusVisto, setCampusVisto] = useState(campusActual)
+  const consultaEscrita = useRef(escribirFiltrosEnUrl(filtrosIniciales))
 
   // The draft follows the applied search when it changes from outside (Limpiar todo, a chip).
   if (qAplicada !== filtros.q) {
     setQAplicada(filtros.q)
     setBorrador(filtros.q)
+  }
+
+  // Another header campus is another list: page 1 and nobody marked (as before the redesign).
+  if (campusActual !== undefined && campusActual !== campusVisto) {
+    setCampusVisto(campusActual)
+    if (campusVisto !== undefined) {
+      setSeleccion((actual) => (actual ? new Set() : actual))
+      setAviso(null)
+      if (filtros.pagina !== 1) setFiltros({ ...filtros, pagina: 1 })
+    }
   }
 
   const lista = useListaUsuarios({ filtros, campusId: campusId ?? null, limite })
@@ -105,11 +112,26 @@ export function UsuariosClient({ filtrosIniciales }: { readonly filtrosIniciales
   const chips = chipsActivos(filtros)
   const paginas = totalPaginas(lista.total, limite)
 
+  // A page past the end (people left the scope, or ?pagina=99 by hand) shows the last one.
+  if (!lista.cargando && !lista.error && lista.total > 0 && lista.personas.length === 0 && filtros.pagina > paginas) {
+    setFiltros({ ...filtros, pagina: paginas })
+  }
+
+  function escribirUrl(siguiente: FiltrosUsuarios): void {
+    const consulta = escribirFiltrosEnUrl(siguiente)
+    consultaEscrita.current = consulta
+    router.replace(consulta ? `${pathname}?${consulta}` : pathname, { scroll: false })
+  }
+
+  // The corrections made while rendering (campus switch, page past the end) reach the URL here.
+  useEffect(() => {
+    if (escribirFiltrosEnUrl(filtros) !== consultaEscrita.current) escribirUrl(filtros)
+  })
+
   function cambiar(parche: Partial<FiltrosUsuarios>): void {
     const siguiente = { ...filtros, ...parche }
     setFiltros(siguiente)
-    const consulta = escribirFiltrosEnUrl(siguiente)
-    router.replace(consulta ? `${pathname}?${consulta}` : pathname, { scroll: false })
+    escribirUrl(siguiente)
   }
 
   function buscar(evento: React.FormEvent<HTMLFormElement>): void {
@@ -154,7 +176,7 @@ export function UsuariosClient({ filtrosIniciales }: { readonly filtrosIniciales
 
   async function cambiarRol(rol: string): Promise<void> {
     if (!seleccion) return
-    await cambiarRolEnServidor([...seleccion], rol)
+    await cambiarRolUsuarios([...seleccion], rol)
     const n = seleccion.size
     setSeleccion(null)
     setAviso(`Rol actualizado para ${n.toLocaleString('es-VE')} ${n === 1 ? 'persona' : 'personas'}`)

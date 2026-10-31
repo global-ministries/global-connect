@@ -6,9 +6,10 @@
  * (side panel from md, bottom sheet below) per person, opened from the row.
  *
  * Order: identity (avatar, "rol · campus", phone in mono); quick actions
- * (WhatsApp, Llamar, Email, Editar), with one line on what is missing;
- * callouts ("Revisar teléfono", no account, no group); Datos and Grupo de
- * Vida; footer "Asistencia" and "Ver ficha completa".
+ * (WhatsApp, Llamar, Email, Editar), with one line on what is missing (the
+ * ficha's motivoContacto); the ficha's notices ("Revisar teléfono", no
+ * account, no group: AvisosUsuario); Datos and Grupo de Vida; footer
+ * "Asistencia" and "Ver ficha completa".
  *
  * WhatsApp and Llamar show when the role allows contact
  * (lib/platform/usuarios/contacto.ts: decision 6, a leader only for their own
@@ -24,26 +25,22 @@ import { Mail, MessageCircle, Phone, UserPen } from 'lucide-react'
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { PuntoEstado } from '@/components/ui/punto-estado'
-import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
-import { telefonoARevisar, telefonoVisible } from '@/components/dream-team/servidores/lista-servidores'
+import { telefonoVisible } from '@/components/dream-team/servidores/lista-servidores'
 import { createClient } from '@/lib/supabase/client'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
+import { motivoContacto } from '@/lib/platform/usuarios/contacto'
+import { avisosFicha } from '@/lib/platform/usuarios/ficha-vista'
+import { fechaCorta } from '@/lib/platform/usuarios/fechas'
 import { ETIQUETA_ROL, type FilaVistaUsuario } from '@/lib/platform/usuarios/lista-vista'
 import { cn } from '@/lib/utils'
 
-import { AvatarUsuario, cedulaVisible, fechaCorta } from './lista-usuarios'
+import { AvisosUsuario } from '../avisos-usuario'
+
+import { AvatarUsuario, cedulaVisible } from './lista-usuarios'
 
 /** The quick actions are 66px stacked buttons, icon over label (as in the Dream Team panel). */
 const ACCION_RAPIDA = 'h-[66px] min-w-0 flex-col gap-1 px-2 text-[13px]'
-
-/** What the quick actions cannot do, in one line (prototype `motivoContacto`). */
-export function motivoContacto(fila: FilaVistaUsuario): string | null {
-  if (fila.contactoPermitido && !fila.telefono) return 'Sin teléfono registrado: WhatsApp y Llamar no están disponibles.'
-  if (fila.contactoPermitido && !fila.contacto.whatsapp) return 'El teléfono necesita revisión, así que WhatsApp no está disponible.'
-  if (!fila.email) return 'Sin email registrado.'
-  return null
-}
 
 /** puede_editar_usuario for the open person; `false` until the server answers. */
 function usePuedeEditar(personaId: string | null): boolean {
@@ -112,7 +109,8 @@ export function DetalleUsuario({ fila, abierto, onCambioAbierto, puedeInvitar, o
   if (!fila) return null
 
   const telefono = telefonoVisible(fila.telefono)
-  const motivo = motivoContacto(fila)
+  const motivo = motivoContacto({ permitido: fila.contactoPermitido, telefono: fila.telefono, whatsapp: fila.contacto.whatsapp, email: fila.email })
+  const avisos = avisosFicha({ telefono: fila.telefono, cuenta: fila.cuenta, tieneGrupo: Boolean(fila.grupoNombre) })
   const roles = fila.roles.length > 0 ? fila.roles.map((rol) => ETIQUETA_ROL[rol] ?? rol).join(', ') : 'Sin rol'
   const linea = [fila.roles[0] ? (ETIQUETA_ROL[fila.roles[0]] ?? fila.roles[0]) : 'Sin rol', fila.campusNombre].filter(Boolean).join(' · ')
   const acciones = (fila.contactoPermitido ? 3 : 1) + (puedeEditar ? 1 : 0)
@@ -159,25 +157,15 @@ export function DetalleUsuario({ fila, abierto, onCambioAbierto, puedeInvitar, o
           </div>
           {motivo && <p className="-mt-2 text-[13px] text-muted-foreground">{motivo}</p>}
 
-          {telefonoARevisar(fila.telefono) && (
-            <AvisoFormulario tono="info" className="space-y-2">
-              <p className="font-semibold text-foreground">Revisar teléfono</p>
-              <p>{`«${fila.telefono}» no parece un número válido, así que WhatsApp no funciona.`}</p>
-              {puedeEditar && (
+          <AvisosUsuario
+            avisos={avisos}
+            accionAviso={{
+              telefono: puedeEditar ? (
                 <BotonSistema asChild variante="outline" tamaño="sm">
                   <Link href={`/users/${fila.id}/edit`}>Corregir en la ficha</Link>
                 </BotonSistema>
-              )}
-            </AvisoFormulario>
-          )}
-
-          {fila.cuenta !== 'si' && (
-            <AvisoFormulario tono="marca" className="space-y-2">
-              <p className="font-semibold text-foreground">
-                {fila.cuenta === 'invitada' ? 'Invitación enviada, todavía sin cuenta' : 'No tiene cuenta en la plataforma'}
-              </p>
-              <p>No ve sus grupos ni recibe recordatorios.</p>
-              {puedeInvitar && (
+              ) : null,
+              cuenta: puedeInvitar ? (
                 // The panel closes first, so two modals never fight for focus.
                 <BotonSistema
                   type="button"
@@ -189,16 +177,9 @@ export function DetalleUsuario({ fila, abierto, onCambioAbierto, puedeInvitar, o
                 >
                   {fila.cuenta === 'invitada' ? 'Reenviar invitación' : 'Invitar a la plataforma'}
                 </BotonSistema>
-              )}
-            </AvisoFormulario>
-          )}
-
-          {!fila.grupoNombre && (
-            <AvisoFormulario tono="info" className="space-y-1">
-              <p className="font-semibold text-foreground">No está en un Grupo de Vida</p>
-              <p>Conéctalo con un grupo cerca de su casa desde Grupos de Vida.</p>
-            </AvisoFormulario>
-          )}
+              ) : null,
+            }}
+          />
 
           <section aria-labelledby="usuario-datos" className="space-y-3">
             <h2 id="usuario-datos" className={TITULO_SECCION}>
@@ -209,7 +190,7 @@ export function DetalleUsuario({ fila, abierto, onCambioAbierto, puedeInvitar, o
                 <Dato etiqueta="Cédula">
                   <span className="font-mono tabular-nums">{cedulaVisible(fila.cedula) ?? 'No especificada'}</span>
                 </Dato>
-                <Dato etiqueta="Registro">{fechaCorta(fila.fechaRegistro) ?? 'No especificado'}</Dato>
+                <Dato etiqueta="Registro">{fechaCorta(fila.fechaRegistro) || 'No especificado'}</Dato>
                 <Dato etiqueta="Email" className="col-span-2">{fila.email ?? 'No especificado'}</Dato>
                 <Dato etiqueta="Cuenta">
                   <PuntoEstado tono={fila.cuentaTono} etiqueta={fila.cuentaEtiqueta} />

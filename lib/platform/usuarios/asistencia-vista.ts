@@ -5,6 +5,7 @@ import {
   type GrupoAsistencia,
   type TipoAsistencia,
 } from './asistencia-persona'
+import { fechaCorta } from './fechas'
 
 /**
  * Pure view model of the ficha's Asistencia tab (S13 of
@@ -13,8 +14,9 @@ import {
  *
  * It is the PERSON's own attendance: a leader's line is their own presence,
  * and the group's attendance lives on the group page ("Ver asistencia del
- * grupo →"). Presente is yes/no; a week mixes only when the person had
- * meetings in two groups and attended one of them.
+ * grupo →"). Presente is yes/no: per group and week the person attended or
+ * not (present at any of that group's meetings), so a week mixes only when
+ * two or more groups met and the person attended some of them.
  */
 
 export const ETIQUETA_TIPO: Readonly<Record<TipoAsistencia, string>> = {
@@ -34,6 +36,15 @@ export interface Semana {
 
 /** One point per week: 0–100, or null when the person had no meeting. */
 export type Serie = readonly (number | null)[]
+
+/** A week of the curve: how many of the selected groups met, and in how many the person was present. */
+export interface SemanaAsistencia {
+  readonly grupos: number
+  readonly asistidos: number
+}
+
+/** One entry per week; null when no selected group met. */
+export type DetalleSemanal = readonly (SemanaAsistencia | null)[]
 
 export interface Tendencia {
   /** Rolling average now minus 4 points before, in percentage points. */
@@ -65,7 +76,6 @@ export interface FilaHistorial {
 export const TODOS_LOS_GRUPOS = 'todos'
 
 const MS_DIA = 86_400_000
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'] as const
 
 function aDia(iso: string): number | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
@@ -79,14 +89,6 @@ function aIso(ms: number): string {
 function media(valores: readonly (number | null)[]): number | null {
   const v = valores.filter((x): x is number => x !== null)
   return v.length === 0 ? null : Math.round(v.reduce((s, x) => s + x, 0) / v.length)
-}
-
-/** "1 sep 2026"; '' for an invalid date. */
-export function fechaCorta(iso: string): string {
-  const dia = aDia(iso)
-  if (dia === null) return ''
-  const d = new Date(dia)
-  return `${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
 }
 
 /** The kinds that have at least one group, in selector order. */
@@ -114,13 +116,42 @@ export function semanasHasta(hasta: string, n = 12): Semana[] {
   })
 }
 
-/** Per week, the share of the selected groups' meetings the person attended. */
-export function serieSemanal(grupos: readonly GrupoAsistencia[], semanas: readonly Semana[]): Serie {
-  const marcas = grupos.flatMap((g) => g.marcas)
+/**
+ * Per week, the selected groups that met and those the person attended. A
+ * group with two meetings that week counts once: attended if present at any.
+ */
+export function detalleSemanal(grupos: readonly GrupoAsistencia[], semanas: readonly Semana[]): (SemanaAsistencia | null)[] {
   return semanas.map(({ inicio, fin }) => {
-    const enSemana = marcas.filter((m) => m.fecha >= inicio && m.fecha <= fin)
-    return totalesDeMarcas(enSemana).porcentaje
+    const reunidos = grupos
+      .map((g) => g.marcas.filter((m) => m.fecha >= inicio && m.fecha <= fin))
+      .filter((enSemana) => enSemana.length > 0)
+    if (reunidos.length === 0) return null
+    return { grupos: reunidos.length, asistidos: reunidos.filter((enSemana) => enSemana.some((m) => m.presente)).length }
   })
+}
+
+/** The curve's points: the share of the groups that met that the person attended. */
+export function serieDeDetalle(detalle: DetalleSemanal): (number | null)[] {
+  return detalle.map((d) => (d === null ? null : Math.round((d.asistidos / d.grupos) * 100)))
+}
+
+export function serieSemanal(grupos: readonly GrupoAsistencia[], semanas: readonly Semana[]): Serie {
+  return serieDeDetalle(detalleSemanal(grupos, semanas))
+}
+
+/** The week's line ("asistió", "asistió en 2 de 3 grupos", …), for the tooltip and screen readers. */
+export function textoSemana(d: SemanaAsistencia | null): string {
+  if (d === null) return 'sin reunión'
+  if (d.asistidos === d.grupos) return 'asistió'
+  if (d.asistidos === 0) return 'no asistió'
+  return d.grupos === 2 ? 'asistió a una de sus reuniones' : `asistió en ${d.asistidos} de ${d.grupos} grupos`
+}
+
+/** The legend item of the mixed (amber) weeks; null when no week mixes. */
+export function leyendaMixta(detalle: DetalleSemanal): string | null {
+  const mixtas = detalle.filter((d): d is SemanaAsistencia => d !== null && d.asistidos > 0 && d.asistidos < d.grupos)
+  if (mixtas.length === 0) return null
+  return mixtas.some((d) => d.grupos > 2) ? 'Asistió en parte de sus grupos' : 'Asistió a una de sus reuniones'
 }
 
 /** Rolling average of the last 4 weeks with a value; null where the week has none. */
@@ -168,6 +199,34 @@ export function historialAsistencia(grupos: readonly GrupoAsistencia[], limite =
 /** Current groups the person leads (the "Ver asistencia del grupo →" callout). */
 export function gruposQueLidera(grupos: readonly GrupoAsistencia[]): GrupoAsistencia[] {
   return grupos.filter((g) => g.rol === 'Líder' && g.actual)
+}
+
+export interface ResumenTaller {
+  /** "2 de 8" or "2". */
+  readonly valor: string
+  readonly detalle: string
+  /** 0–100, the card's bar. */
+  readonly porcentaje: number
+}
+
+/**
+ * A taller card: "N de M sesiones", the sesiones attended over the sesiones
+ * of the taller that were not cancelled (the approved prototype). The marks
+ * come from the selected range, so a range that cuts the taller counts only
+ * the sesiones inside it. Without a known total the card counts the sesiones
+ * attended in the period.
+ */
+export function resumenTaller(taller: GrupoAsistencia): ResumenTaller {
+  const { presentes, reuniones } = taller.totales
+  const total = taller.totalSesiones
+  if (total !== null && total > 0) {
+    return { valor: `${presentes} de ${total}`, detalle: 'sesiones', porcentaje: Math.min(100, (presentes / total) * 100) }
+  }
+  return {
+    valor: String(presentes),
+    detalle: presentes === 1 ? 'sesión asistida en el período' : 'sesiones asistidas en el período',
+    porcentaje: reuniones ? (presentes / reuniones) * 100 : 0,
+  }
 }
 
 /** The status line of a group card. */

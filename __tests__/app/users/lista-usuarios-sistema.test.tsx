@@ -221,4 +221,39 @@ describe('/users list', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Mostrar' }), '50')
     expect(ultimoHook()).toEqual(expect.objectContaining({ limite: 50, filtros: expect.objectContaining({ pagina: 1 }) }))
   })
+
+  it('switching the header campus goes back to page 1 and clears the selection; the first load keeps the page', async () => {
+    const user = userEvent.setup()
+    mockCampus = { campusId: 'c-1', campusActivo: { nombre: 'Barquisimeto' } }
+    const { rerender } = render(<UsuariosClient filtrosIniciales={f({ pagina: 3 })} />)
+    expect(ultimoHook().filtros.pagina).toBe(3)
+    expect(mockReplace).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Seleccionar' }))
+    await user.click(screen.getByRole('button', { name: 'Seleccionar a Ana Pérez' }))
+    const barra = () => screen.getByRole('region', { name: 'Personas seleccionadas' })
+    expect(barra()).toHaveTextContent('1 seleccionada')
+
+    mockCampus = { campusId: 'c-2', campusActivo: { nombre: 'Cabudare' } }
+    rerender(<UsuariosClient filtrosIniciales={f({ pagina: 3 })} />)
+
+    expect(ultimoHook()).toEqual({ filtros: f({ pagina: 1 }), campusId: 'c-2', limite: 20 })
+    expect(mockReplace).toHaveBeenLastCalledWith('/users', { scroll: false })
+    expect(barra()).toHaveTextContent('0 seleccionadas')
+  })
+
+  it('a page past the end (?pagina=99) goes to the last page', () => {
+    datos({ personas: [], total: 25 })
+    render(<UsuariosClient filtrosIniciales={f({ pagina: 99 })} />)
+
+    expect(ultimoHook().filtros.pagina).toBe(2)
+    expect(mockReplace).toHaveBeenLastCalledWith('/users?pagina=2', { scroll: false })
+  })
+
+  it('the registration date uses the short month ("sept")', () => {
+    datos({ personas: aPersonas([rpcFila({ fecha_registro: '2025-09-07T12:00:00Z' })]), total: 1 })
+    render(<UsuariosClient filtrosIniciales={f()} />)
+
+    expect(screen.getByRole('table', { name: 'Personas' })).toHaveTextContent('Desde 7 sept 2025')
+  })
 })

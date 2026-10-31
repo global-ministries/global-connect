@@ -27,6 +27,7 @@ import {
   type FilaVistaUsuario,
   type OrdenUsuarios,
 } from '@/lib/platform/usuarios/lista-vista'
+import { fechaCorta } from '@/lib/platform/usuarios/fechas'
 import { formatearCedula } from '@/lib/utils/cedula'
 import { cn } from '@/lib/utils'
 
@@ -37,14 +38,6 @@ export function esNuevo(fechaRegistro: string | null, ahora: number = Date.now()
   if (!fechaRegistro) return false
   const fecha = Date.parse(fechaRegistro)
   return Number.isFinite(fecha) && ahora - fecha <= NUEVOS_DIAS * MS_DIA
-}
-
-/** "7 dic 2019"; `null` without a date. */
-export function fechaCorta(valor: string | null): string | null {
-  if (!valor) return null
-  const fecha = new Date(valor)
-  if (Number.isNaN(fecha.getTime())) return null
-  return fecha.toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' }).replace('.', '')
 }
 
 /** "V-23.580.237" for a Venezuelan cédula, "E-81110494" for a foreign one; anything else as stored. */

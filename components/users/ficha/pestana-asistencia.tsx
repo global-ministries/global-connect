@@ -7,7 +7,8 @@
  * (Grupos de Vida · Estudiantes · Talleres), the Desde/Hasta range, KPIs, a
  * card per group ("Todos los grupos" when there are several), the leader
  * callout, the 4-week rolling curve with its week strip, and the historial.
- * Talleres show "N de M sesiones" cards and no curve. Presente is yes/no.
+ * Talleres show "N de M sesiones" cards (or the sesiones attended in the
+ * period when the range cuts the taller) and no curve. Presente is yes/no.
  */
 import { BarChart3, Lock } from 'lucide-react'
 import { useState, type FormEvent, type ReactElement } from 'react'
@@ -19,17 +20,18 @@ import type { AsistenciaPersona, TipoAsistencia } from '@/lib/platform/usuarios/
 import {
   ETIQUETA_TIPO,
   TODOS_LOS_GRUPOS,
-  fechaCorta,
   gruposDeSeleccion,
   gruposDeTipo,
   gruposQueLidera,
   historialAsistencia,
   kpisAsistencia,
+  detalleSemanal,
   semanasHasta,
-  serieSemanal,
+  serieDeDetalle,
   tendencia4,
   tiposConRegistros,
 } from '@/lib/platform/usuarios/asistencia-vista'
+import { fechaCorta } from '@/lib/platform/usuarios/fechas'
 
 import { CurvaAsistencia } from './curva-asistencia'
 import { ChipTendencia, Historial, Kpis, ListaTarjetas, LlamadaLider, TarjetaGrupo, TarjetaTaller, TarjetaTodos } from './partes-asistencia'
@@ -151,7 +153,8 @@ export function PestanaAsistencia({ nombre, asistencia, onCambiarRango }: Pestan
   const elegidos = gruposDeSeleccion(grupos, seleccion)
   const seleccionado = elegidos.length === 1 && grupos.length > 1 ? elegidos[0] : null
   const semanas = semanasHasta(asistencia.hasta, semanasDelRango(asistencia.desde, asistencia.hasta))
-  const serie = serieSemanal(elegidos, semanas)
+  const detalle = detalleSemanal(elegidos, semanas)
+  const serie = serieDeDetalle(detalle)
   const tendencia = tendencia4(serie)
   const k = kpisAsistencia(elegidos)
   const lidera = gruposQueLidera(grupos)
@@ -194,7 +197,7 @@ export function PestanaAsistencia({ nombre, asistencia, onCambiarRango }: Pestan
         accion={tendencia ? <ChipTendencia tendencia={tendencia} /> : undefined}
       >
         {serie.some((v) => v !== null) ? (
-          <CurvaAsistencia serie={serie} semanas={semanas} />
+          <CurvaAsistencia detalle={detalle} semanas={semanas} />
         ) : (
           <EstadoVacioSistema icono={BarChart3} titulo="Sin reuniones en el período" subtitulo="Cambia el rango de fechas o el grupo." className="py-7" />
         )}

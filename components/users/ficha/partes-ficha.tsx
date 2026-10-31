@@ -8,7 +8,7 @@ import { useId, type ReactElement, type ReactNode } from 'react'
 
 import { TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { cn } from '@/lib/utils'
-import { fechaCorta } from '@/lib/platform/usuarios/asistencia-vista'
+import { fechaCorta } from '@/lib/platform/usuarios/fechas'
 
 /** A section card with its h2 and an optional action on the right. */
 export function TarjetaFicha({

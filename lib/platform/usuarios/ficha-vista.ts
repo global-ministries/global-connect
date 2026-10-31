@@ -1,8 +1,8 @@
-import { esTelefonoReconocible } from '@/lib/utils/telefono'
-
-import { accionesDeContacto, puedeContactar, type VisorUsuarios } from './contacto'
+import { accionesDeContacto, contactoPermitido as permiteContacto, motivoContacto, telefonoPorRevisar, type VisorUsuarios } from './contacto'
 import type { TipoAsistencia } from './asistencia-persona'
 import { ETIQUETA_ROL, type CuentaEstado } from './lista-vista'
+
+export { telefonoPorRevisar }
 
 /**
  * Pure view model of the ficha /users/[id] (S13 of
@@ -88,21 +88,8 @@ export interface AccionesFicha {
   readonly motivo: string | null
 }
 
-export function telefonoPorRevisar(telefono: string | null | undefined): boolean {
-  return Boolean(telefono && telefono.trim() !== '' && !esTelefonoReconocible(telefono))
-}
-
-function motivoContacto(permitido: boolean, telefono: string | null, whatsapp: string | null, email: string | null): string | null {
-  if (permitido && (!telefono || telefono.trim() === '')) return 'Sin teléfono registrado: WhatsApp y Llamar no están disponibles.'
-  if (permitido && telefonoPorRevisar(telefono)) return 'El teléfono necesita revisión, así que WhatsApp no está disponible.'
-  if (permitido && !whatsapp) return 'Es un teléfono fijo, así que WhatsApp no está disponible.'
-  if (!email) return 'Sin email registrado.'
-  return null
-}
-
 export function accionesFicha(visor: VisorUsuarios, persona: PersonaFichaContacto, puedeEditar: boolean): AccionesFicha {
-  // The role rule alone: a placeholder number tells whether a phone would be offered.
-  const contactoPermitido = puedeContactar(visor, { ...persona, telefono: '0' })
+  const contactoPermitido = permiteContacto(visor, persona)
   const { llamar, whatsapp } = accionesDeContacto(visor, persona)
   const email = persona.email ? `mailto:${persona.email}` : null
   return {
@@ -111,7 +98,7 @@ export function accionesFicha(visor: VisorUsuarios, persona: PersonaFichaContact
     whatsapp,
     email,
     editar: puedeEditar,
-    motivo: motivoContacto(contactoPermitido, persona.telefono, whatsapp, persona.email),
+    motivo: motivoContacto({ permitido: contactoPermitido, telefono: persona.telefono, whatsapp, email: persona.email }),
   }
 }
 

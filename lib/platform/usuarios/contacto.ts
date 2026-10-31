@@ -1,4 +1,4 @@
-import { enlaceWhatsapp, normalizarTelefono } from '@/lib/utils/telefono'
+import { enlaceWhatsapp, esTelefonoReconocible, normalizarTelefono } from '@/lib/utils/telefono'
 
 /**
  * Who may call or WhatsApp a person from Usuarios (S13 decision 6 of
@@ -64,4 +64,27 @@ export function accionesDeContacto(visor: VisorUsuarios, persona: PersonaContact
     llamar: `tel:${canonico.replace(/[^\d+]/g, '')}`,
     whatsapp: enlaceWhatsapp(telefono),
   }
+}
+
+/** A stored number that is not a recognizable phone ("Revisar teléfono"). */
+export function telefonoPorRevisar(telefono: string | null | undefined): boolean {
+  return Boolean(telefono && telefono.trim() !== '' && !esTelefonoReconocible(telefono))
+}
+
+export interface EntradaMotivo {
+  /** contactoPermitido: the role rule, phone aside. */
+  readonly permitido: boolean
+  readonly telefono: string | null
+  /** The WhatsApp link, or null (no number, a number to check, a landline). */
+  readonly whatsapp: string | null
+  readonly email: string | null
+}
+
+/** Why a contact button is disabled, in one line (the list's person panel and the ficha); null when nothing is. */
+export function motivoContacto({ permitido, telefono, whatsapp, email }: EntradaMotivo): string | null {
+  if (permitido && (!telefono || telefono.trim() === '')) return 'Sin teléfono registrado: WhatsApp y Llamar no están disponibles.'
+  if (permitido && telefonoPorRevisar(telefono)) return 'El teléfono necesita revisión, así que WhatsApp no está disponible.'
+  if (permitido && !whatsapp) return 'Es un teléfono fijo, así que WhatsApp no está disponible.'
+  if (!email) return 'Sin email registrado.'
+  return null
 }

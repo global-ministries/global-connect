@@ -9,10 +9,10 @@ import type { ReactElement, ReactNode } from 'react'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { cn } from '@/lib/utils'
 import type { GrupoAsistencia } from '@/lib/platform/usuarios/asistencia-persona'
-import { estadoDeGrupo, type FilaHistorial, type Tendencia } from '@/lib/platform/usuarios/asistencia-vista'
+import { estadoDeGrupo, resumenTaller, type FilaHistorial, type Tendencia } from '@/lib/platform/usuarios/asistencia-vista'
+import { diaMes } from '@/lib/platform/usuarios/fechas'
 import { enlaceAsistenciaGrupo } from '@/lib/platform/usuarios/ficha-vista'
 
-import { etiquetaSemana } from './curva-asistencia'
 import { EtiquetaNeutra } from './partes-ficha'
 
 const NUM = 'font-mono tabular-nums tracking-[-0.02em]'
@@ -92,8 +92,7 @@ export function TarjetaGrupo({ grupo, pulsada, onPulsar }: { readonly grupo: Gru
 
 export function TarjetaTaller({ taller }: { readonly taller: GrupoAsistencia }): ReactElement {
   const estado = estadoDeGrupo(taller)
-  const total = taller.totalSesiones ?? taller.totales.reuniones
-  const { presentes } = taller.totales
+  const resumen = resumenTaller(taller)
   return (
     <div className={CLASE_TARJETA}>
       <span className="truncate font-semibold">{taller.nombre}</span>
@@ -102,10 +101,10 @@ export function TarjetaTaller({ taller }: { readonly taller: GrupoAsistencia }):
         {taller.area && <span className="text-muted-foreground">{taller.area}</span>}
       </span>
       <span className="flex items-baseline gap-2">
-        <span className={cn(NUM, 'text-[22px] font-semibold')}>{`${presentes} de ${total}`}</span>
-        <span className="text-[13px] text-muted-foreground">sesiones</span>
+        <span className={cn(NUM, 'text-[22px] font-semibold')}>{resumen.valor}</span>{' '}
+        <span className="text-[13px] text-muted-foreground">{resumen.detalle}</span>
       </span>
-      <Barra porcentaje={total ? (presentes / total) * 100 : 0} tono={taller.completado ? 'success' : 'brand'} />
+      <Barra porcentaje={resumen.porcentaje} tono={taller.completado ? 'success' : 'brand'} />
     </div>
   )
 }
@@ -146,7 +145,7 @@ export function Historial({ filas }: { readonly filas: readonly FilaHistorial[] 
     <ul aria-label="Historial" className="m-0 list-none p-0">
       {filas.map((f) => (
         <li key={`${f.grupoId}-${f.fecha}`} className="flex min-h-[52px] items-center gap-3 border-t border-border/60 first:border-t-0">
-          <span className={cn(NUM, 'w-16 shrink-0 text-[13px] text-muted-foreground')}>{etiquetaSemana(f.fecha)}</span>
+          <span className={cn(NUM, 'w-16 shrink-0 text-[13px] text-muted-foreground')}>{diaMes(f.fecha)}</span>
           <span className="min-w-0 flex-1 truncate text-[15px]">
             {f.grupo}
             {f.pasado && <span className="text-[13px] text-muted-foreground"> · pasado</span>}
