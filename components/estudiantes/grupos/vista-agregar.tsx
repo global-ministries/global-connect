@@ -8,7 +8,8 @@
  * church by cédula, teléfono or full name (estudiantes_buscar_personas).
  * Each row ends in "Agregar", "Mover aquí" (already in another group of the
  * ámbito) or "Ya está en este grupo". A director adds people as members
- * (A12). "Registrar nuevo" (the visitor form of artboard 02) arrives with C3.
+ * (A12). "Registrar nuevo" (footer) opens the visitor form of artboard 02:
+ * that person joins as visitante of the group's newest meeting.
  */
 import { useEffect, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -192,7 +193,7 @@ export function VistaAgregar({ grupo, accion }: VistaAgregarProps): ReactElement
       </div>
 
       <p id="agregar-registrar-pista" className="text-[13px] text-muted-foreground">
-        «Registrar nuevo» llegará pronto, junto con la lista del líder.
+        ¿No está? «Registrar nuevo» lo crea y lo suma como visitante de la última reunión del grupo.
       </p>
     </div>
   )

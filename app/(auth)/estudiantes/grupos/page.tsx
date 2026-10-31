@@ -11,7 +11,8 @@
  * (lib/actions/estudiantes-grupos.actions.ts). The database checks every
  * change again.
  *
- * Filters come from the URL: `?ambito=&area=&metrica=&anio=&orden=&q=`.
+ * Filters come from the URL: `?ambito=&area=&metrica=&anio=&orden=&q=`;
+ * `?grupo=` opens that group's drawer (the "‹ Grupos" of its leader list).
  * Not in the menu yet: C4 adds the Estudiantes tab.
  */
 import { notFound, redirect } from 'next/navigation'
@@ -45,6 +46,7 @@ export default async function EstudiantesGruposPage({ searchParams }: Estudiante
       subareas={datos.subareas}
       escalas={datos.escalas}
       filtrosIniciales={leerFiltrosDeUrl(parametros)}
+      grupoInicial={typeof parametros.grupo === 'string' ? parametros.grupo : null}
     />
   )
 }

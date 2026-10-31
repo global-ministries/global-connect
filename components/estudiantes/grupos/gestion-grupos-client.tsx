@@ -58,6 +58,8 @@ export interface GestionGruposClientProps {
   readonly subareas: readonly SubareaGestionable[]
   readonly escalas: Readonly<Record<string, readonly GradoEscala[]>>
   readonly filtrosIniciales: FiltrosGrupos
+  /** `?grupo=`: the group whose drawer opens on load (back from its leader list). */
+  readonly grupoInicial?: string | null
 }
 
 function MigasGrupos({ migas, onIr }: { readonly migas: readonly Miga[]; readonly onIr: (miga: Miga) => void }): ReactElement {
@@ -128,7 +130,7 @@ function Resumen({ vista }: { readonly vista: VistaGrupos }): ReactElement {
 
 type Detalle = { readonly grupoId: string; readonly abierto: boolean }
 
-export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciales }: GestionGruposClientProps): ReactElement {
+export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciales, grupoInicial = null }: GestionGruposClientProps): ReactElement {
   const router = useRouter()
   const pathname = usePathname() ?? ''
   const { campusId } = useCampus()
@@ -136,7 +138,9 @@ export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciale
   const [filtros, setFiltros] = useState<FiltrosGrupos>(filtrosIniciales)
   const [hojaAbierta, setHojaAbierta] = useState(false)
   // The group stays selected after the drawer closes, so it can animate out.
-  const [detalle, setDetalle] = useState<Detalle | null>(null)
+  const [detalle, setDetalle] = useState<Detalle | null>(() =>
+    grupoInicial && grupos.some((g) => g.id === grupoInicial) ? { grupoId: grupoInicial, abierto: true } : null,
+  )
   const [formulario, setFormulario] = useState<{ readonly modo: ModoFormulario; readonly abierto: boolean; readonly clave: number } | null>(null)
   const temporizadorUrl = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -306,6 +310,7 @@ export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciale
         grupo={grupoDetalle}
         grupos={grupos}
         subareas={subareas}
+        escalas={escalas}
         abierto={detalle?.abierto ?? false}
         onCambioAbierto={(abierto) => setDetalle((actual) => (actual ? { ...actual, abierto } : null))}
         onEditar={abrirEditar}
