@@ -43,11 +43,12 @@ export function TarjetaFicha({
   )
 }
 
-/** Cards side by side, each at least 26rem (prototype `.secciones`). */
+/**
+ * Cards in two equal columns from lg (one below), so two cards always share
+ * the row half and half; an `ancha` card takes the whole row.
+ */
 export function SeccionesFicha({ children }: { readonly children: ReactNode }): ReactElement {
-  return (
-    <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,26rem),1fr))] gap-3 md:gap-4">{children}</div>
-  )
+  return <div className="grid min-w-0 grid-cols-1 gap-3 md:gap-4 lg:grid-cols-2">{children}</div>
 }
 
 export function NoEspecificado(): ReactElement {

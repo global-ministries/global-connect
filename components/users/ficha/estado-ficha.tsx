@@ -58,7 +58,7 @@ export function CargandoFicha(): ReactElement {
           </div>
         </div>
         <SkeletonSistema ancho="min(100%, 520px)" alto="44px" />
-        <div aria-hidden="true" className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,26rem),1fr))] gap-4">
+        <div aria-hidden="true" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {[0, 1].map((i) => (
             <TarjetaSistema key={i} className="grid gap-4 p-4 md:px-6 md:py-5">
               <SkeletonSistema ancho="160px" alto="18px" />
