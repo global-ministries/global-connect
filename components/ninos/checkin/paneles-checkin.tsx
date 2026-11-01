@@ -4,8 +4,10 @@
  * Niños › Check-in — the one overlay of the desk (S4: "new family in a sheet
  * without leaving the screen"): `DetalleResponsivo`, a side panel from md and
  * a bottom sheet on the phone. Only one is open at a time:
- * - Nueva familia: the desk registration form; on success the family opens
- *   at the mesa with its children already marked.
+ * - Nueva familia: the one-screen registration (N4b, prototype 04). With
+ *   the service's `turnoId` it offers "Registrar y dar ingreso · N" and shows
+ *   the code here; "Solo registrar" opens the family at the mesa with its
+ *   children already marked.
  * - Cambiar salón: the salones with occupancy (full warns, never blocks).
  * - Completar ficha: the ficha form of a child linked without one.
  * - Agregar niño / Vincular hijo existente: an adult without children (N11).
@@ -19,7 +21,7 @@ import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vi
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 
 import { EditarNinoForm } from '../editar-nino-form'
-import { RegistrarFamiliaForm } from '../registrar-familia-form'
+import { RegistroMesa } from '../registro-rapido/registro-mesa'
 import { VincularHijoForm } from '../vincular-hijo-form'
 import { SelectorSalon } from './selector-salon'
 
@@ -35,6 +37,10 @@ export interface PanelesCheckinProps {
   readonly salones: readonly SalonFila[]
   readonly salonesNivel: readonly SalonNivel[]
   readonly fecha: string
+  /** The service of the desk: enables "Registrar y dar ingreso" in Nueva familia / Agregar niño. */
+  readonly turnoId?: string | null
+  /** After a check-in from the panel (reload occupancy and queue). */
+  readonly onIngresado?: () => void
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
   /** The salón a child of the mesa goes to now (hand-picked included). */
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
@@ -72,6 +78,11 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
     onCerrar()
     props.onAbrirFamilia(padreId, consulta)
   }
+  const ingreso = props.turnoId ? { turnoId: props.turnoId, fecha: props.fecha } : undefined
+  const ingresado = () => {
+    onCerrar()
+    props.onIngresado?.()
+  }
 
   return (
     <DetalleResponsivo
@@ -82,7 +93,15 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
       ancho={cabecera.ancho}
     >
       {panel?.tipo === 'nueva' && (
-        <RegistrarFamiliaForm salones={props.salonesNivel} onCancelar={onCerrar} onRegistrada={abrirFamilia} onAbrirFamilia={abrirFamilia} />
+        <RegistroMesa
+          salones={props.salonesNivel}
+          ingreso={ingreso}
+          ocupacion={props.ocupacion}
+          onIngresado={ingresado}
+          onCancelar={onCerrar}
+          onRegistrada={abrirFamilia}
+          onAbrirFamilia={abrirFamilia}
+        />
       )}
       {panel?.tipo === 'salon' && (
         <SelectorSalon
@@ -111,9 +130,12 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
         />
       )}
       {panel?.tipo === 'agregar' && (
-        <RegistrarFamiliaForm
+        <RegistroMesa
           key={panel.id}
           salones={props.salonesNivel}
+          ingreso={ingreso}
+          ocupacion={props.ocupacion}
+          onIngresado={ingresado}
           padreExistente={{ id: panel.id, nombre: panel.nombre }}
           onCancelar={onCerrar}
           onRegistrada={(padreId) => abrirFamilia(padreId)}

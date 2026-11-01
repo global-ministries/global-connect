@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
-import { RegistrarFamiliaForm } from '@/components/ninos/registrar-familia-form'
+import { RegistroMesa as RegistrarFamiliaForm } from '@/components/ninos/registro-rapido/registro-mesa'
 
 const rpc = jest.fn()
 jest.mock('@/lib/supabase/client', () => ({ createClient: () => ({ rpc }) }))
@@ -21,7 +21,7 @@ function llenarHijo() {
   fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
   fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Ruiz' } })
   fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-  fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
 }
 
 function payloadRegistrado() {
@@ -111,7 +111,7 @@ function llenarRepresentante() {
   fireEvent.change(screen.getByLabelText('Nombre del representante'), { target: { value: 'José' } })
   fireEvent.change(screen.getByLabelText('Apellido del representante'), { target: { value: 'Ruiz' } })
   fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '04145551234' } })
-  fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Masculino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Papá' }))
 }
 
 describe('RegistrarFamiliaForm: spouse when the new family confirms an existing adult', () => {

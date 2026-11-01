@@ -35,7 +35,7 @@ describe('Familias: an adult without children (N11)', () => {
   it('"Agregar niño" opens the add-child form with the person preselected', async () => {
     const tarjeta = await buscarAdulto()
     fireEvent.click(within(tarjeta).getByRole('button', { name: 'Agregar niño' }))
-    expect(screen.getByText('Adela Ruiz')).toBeInTheDocument()
+    expect(screen.getByText(/Representante:/)).toHaveTextContent('Representante: Adela Ruiz')
     expect(screen.queryByLabelText('Nombre del representante')).not.toBeInTheDocument()
   })
 

@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
-import { RegistrarFamiliaForm } from '@/components/ninos/registrar-familia-form'
+import { RegistroMesa as RegistrarFamiliaForm } from '@/components/ninos/registro-rapido/registro-mesa'
 
 jest.mock('@/lib/supabase/client', () => ({ createClient: () => ({ rpc: jest.fn() }) }))
 
@@ -11,19 +11,17 @@ function formulario() {
   fireEvent.click(screen.getByRole('button', { name: 'Agregar otro niño' }))
 }
 
-describe('RegistrarFamiliaForm: several children', () => {
-  it('collapses the previous child into a summary and focuses the new one', () => {
+describe('RegistrarFamiliaForm (one-screen desk form): several children', () => {
+  it('keeps every child on screen and focuses the new one', async () => {
     formulario()
-    expect(screen.getByLabelText('Nombre del niño 1')).not.toBeVisible()
-    const primero = screen.getByTestId('nino-1')
-    expect(within(primero).getByText('Luis Pérez')).toBeInTheDocument()
-    expect(screen.getByLabelText('Nombre del niño 2')).toHaveFocus()
+    expect(screen.getByLabelText('Nombre del niño 1')).toHaveValue('Luis')
+    expect(screen.getByTestId('nino-1')).toHaveTextContent('Luis Pérez')
+    await waitFor(() => expect(screen.getByLabelText('Nombre del niño 2')).toHaveFocus())
   })
 
-  it('expanding a collapsed child shows its fields again', () => {
+  it('the new child takes the surname of the first one when the parent is known', () => {
     formulario()
-    fireEvent.click(within(screen.getByTestId('nino-1')).getByRole('button', { name: /Luis Pérez/ }))
-    expect(screen.getByLabelText('Nombre del niño 1')).toBeVisible()
+    expect(screen.getByLabelText('Apellido del niño 2')).toHaveValue('Pérez')
   })
 
   it('the submit button counts the children', () => {
@@ -31,32 +29,34 @@ describe('RegistrarFamiliaForm: several children', () => {
     expect(screen.getByRole('button', { name: 'Agregar 2 niños' })).toBeInTheDocument()
   })
 
-  it('a collapsed child is a compact single row without the expanded spacing', () => {
+  it('a child can be removed only when there are several', () => {
     formulario()
-    const primero = screen.getByTestId('nino-1')
-    expect(primero).toHaveClass('py-2')
-    expect(primero).not.toHaveClass('space-y-4')
-    expect(screen.getByTestId('nino-2')).toHaveClass('p-4')
-  })
-
-  it('the collapsed summary shows the age only when the birth date exists', () => {
-    formulario()
-    const resumen = within(screen.getByTestId('nino-1')).getByRole('button', { name: /Luis Pérez/ })
-    expect(resumen).toHaveTextContent(/Luis Pérez$/)
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar niño 2' }))
+    expect(screen.queryByLabelText('Nombre del niño 2')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Quitar a Luis/ })).not.toBeInTheDocument()
   })
 })
 
-describe('RegistrarFamiliaForm: layout', () => {
-  it('the sticky footer has the page background, a top border and safe-area bottom padding', () => {
+describe('RegistrarFamiliaForm (one-screen desk form): layout', () => {
+  it('the sticky footer has a top border and safe-area bottom padding', () => {
     render(<RegistrarFamiliaForm onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
     const pie = screen.getByRole('button', { name: 'Registrar familia' }).parentElement
-    expect(pie).toHaveClass('sticky', 'bottom-0', 'bg-background', 'border-t', 'pb-[max(1rem,env(safe-area-inset-bottom))]')
+    expect(pie).toHaveClass('sticky', 'bottom-0', 'border-t', 'safe-area-pb-md')
   })
 
   it('the authorized-person row cannot grow wider than its card', () => {
     render(<RegistrarFamiliaForm onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar persona autorizada' }))
-    const fila = screen.getByLabelText('Nombre del autorizado 1').closest('.grid')
-    expect(fila?.className).toContain('minmax(0,1fr)')
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar a alguien más' }))
+    const fila = screen.getByLabelText('Nombre del autorizado 1').closest('.grid.sm\\:grid-cols-\\[minmax\\(0\\,1fr\\)_minmax\\(0\\,1fr\\)_minmax\\(0\\,1fr\\)\\]')
+    expect(fila).not.toBeNull()
+  })
+
+  it('the ficha extras (level, school, snack, diaper, photos, habits, notes) stay in «Para después»', () => {
+    render(<RegistrarFamiliaForm onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    const despues = screen.getByText('Para después').closest('details') as HTMLElement
+    expect(despues).not.toHaveAttribute('open')
+    for (const etiqueta of ['Nivel', '¿Escolarizado?', '¿Puede comer merienda?', '¿Necesita cambio de pañal?', '¿Autoriza fotos?', 'Hábitos', 'Notas', 'Cédula (opcional)']) {
+      expect(despues).toContainElement(screen.getByLabelText(etiqueta))
+    }
   })
 })

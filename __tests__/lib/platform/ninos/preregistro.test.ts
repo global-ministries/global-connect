@@ -211,6 +211,13 @@ describe('crearPreregistro', () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
     log.mockRestore()
   })
+
+  it('400 with the age rule when the database answers fuera_de_rango', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { code: '22023', message: 'fuera_de_rango' } })
+    const r = await crearPreregistro({ rpc, sal: 's', hoy: HOY }, cuerpo(), '1.2.3.4')
+    expect(r.status).toBe(400)
+    expect(JSON.stringify(r.body)).toContain('menores de 13')
+  })
 })
 
 describe('formDesdePreregistro', () => {

@@ -122,7 +122,8 @@ function telefonoValido(value: string): boolean {
   return value.replace(/\D/g, '').length >= 7
 }
 
-function fechaPasadaValida(value: string, hoy: string): boolean {
+/** A real YYYY-MM-DD date not after `hoy`. */
+export function fechaPasadaValida(value: string, hoy: string): boolean {
   if (!ISO_DATE.test(value)) return false
   const d = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value && value <= hoy
