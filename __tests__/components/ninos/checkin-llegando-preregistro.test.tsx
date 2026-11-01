@@ -21,6 +21,8 @@ jest.mock('@/lib/supabase/client', () => ({
   }),
 }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ replace: jest.fn(), push: jest.fn() }) }))
+// PaginaSistema renders DesktopHeader behind React.lazy; a plain double keeps the providers out.
+jest.mock('@/components/ui/desktop-header', () => ({ DesktopHeader: () => <header /> }))
 
 const salones: SalonFila[] = [
   { id: 's1', nombre: 'Maternal', area: 'waumba', edad_min_meses: 0, edad_max_meses: 23, grado_min: null, grado_max: null, es_necesidades_especiales: false, activo: true, orden: 10 },
@@ -64,12 +66,20 @@ describe('Llegando: a QR pre-registration', () => {
     responder([pendiente])
     render(<CheckinClient salones={salones} turnos={turnos} servicio={servicio} />)
     const lista = await screen.findByRole('region', { name: 'Llegando' })
-    const fila = within(lista).getByTestId('llegando-pre-pr1')
+    const fila = await within(lista).findByTestId('llegando-pre-pr1')
     expect(fila).toHaveTextContent('Rosa Qr')
     expect(fila).toHaveTextContent('Sol Qr')
     expect(fila).toHaveTextContent('Alergias: maní')
-    expect(fila).toHaveTextContent('Pre-registro por QR')
+    expect(fila).toHaveTextContent('Pre-registro QR')
     expect(within(lista).queryByRole('button', { name: /Llegaron/ })).not.toBeInTheDocument()
+  })
+
+  it('is not listed again under "Pre-registros por QR" while it is in Llegando', async () => {
+    responder([pendiente, { ...pendiente, id: 'pr2', payload: { ...pendiente.payload, padre: { ...pendiente.payload.padre, nombre: 'Luz', apellido: 'Mar' } } }])
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={servicio} />)
+    const seccion = await screen.findByRole('region', { name: 'Pre-registros por QR' })
+    expect(await within(seccion).findByRole('button', { name: 'Revisar registro: Luz Mar' })).toBeInTheDocument()
+    expect(within(seccion).queryByRole('button', { name: 'Revisar registro: Rosa Qr' })).not.toBeInTheDocument()
   })
 
   it('"Revisar registro" opens the pre-registration review', async () => {

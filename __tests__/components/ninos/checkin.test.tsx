@@ -31,6 +31,15 @@ jest.mock('@/lib/supabase/client', () => ({
   }),
 }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: jest.fn() }) }))
+// PaginaSistema renders DesktopHeader behind React.lazy; this double shows the crumbs and the header action.
+jest.mock('@/components/ui/desktop-header', () => ({
+  DesktopHeader: ({ breadcrumbs, accionPrincipal }: { breadcrumbs?: React.ReactNode; accionPrincipal?: React.ReactNode }) => (
+    <header>
+      {breadcrumbs}
+      {accionPrincipal}
+    </header>
+  ),
+}))
 
 const salones: SalonFila[] = [
   { id: 's1', nombre: 'Maternal', area: 'waumba', edad_min_meses: 0, edad_max_meses: 23, grado_min: null, grado_max: null, es_necesidades_especiales: false, activo: true, orden: 10 },
@@ -74,6 +83,8 @@ function llamadaRuta(nombre: string): unknown {
     : { p_codigo: b.codigo, p_turno_id: b.turnoId, p_fecha: b.fecha, p_retirado_por: b.retiradoPor, p_motivo_otra: b.motivoOtra ?? null }
 }
 
+const BUSCAR = 'Buscar familia por teléfono o nombre'
+
 function responder(overrides: Record<string, unknown> = {}) {
   fetchMock.mockReset()
   fetchMock.mockImplementation((url: string) => {
@@ -97,9 +108,9 @@ function responder(overrides: Record<string, unknown> = {}) {
 }
 
 async function buscarFamilia() {
-  fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'Pérez' } })
+  fireEvent.change(screen.getByLabelText(BUSCAR), { target: { value: 'Pérez' } })
   fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
-  return screen.findByText('Ana Pérez')
+  return screen.findByRole('heading', { name: 'Ana Pérez' })
 }
 
 beforeEach(() => {
@@ -117,6 +128,13 @@ describe('CheckinClient', () => {
     expect(rpc).toHaveBeenCalledWith('ninos_ocupacion', { p_turno_id: 't9', p_fecha: '2026-10-11' })
   })
 
+  it('sums up the campus, the children inside, the full salones and the families on their way', async () => {
+    responder()
+    render(<CheckinClient salones={salones} turnos={turnos} campus="Barquisimeto" servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    await screen.findByText('3/20')
+    expect(screen.getByTestId('resumen-checkin')).toHaveTextContent('Barquisimeto · 3 niños adentro · 0 salones llenos · 0 familias en camino')
+  })
+
   it('keeps the service in the URL', async () => {
     responder()
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
@@ -130,22 +148,43 @@ describe('CheckinClient', () => {
     await buscarFamilia()
 
     const luis = screen.getByTestId('nino-h1')
-    expect(within(luis).getByLabelText('Salón de Luis')).toHaveValue('s1')
+    expect(within(luis).getByText(/Maternal/)).toBeInTheDocument()
     expect(within(luis).getByText('Alergias: maní')).toBeInTheDocument()
+    // The salón is changed only by exception: "Cambiar" opens the select on the suggested one.
+    expect(within(luis).queryByLabelText('Salón de Luis')).not.toBeInTheDocument()
+    fireEvent.click(within(luis).getByRole('button', { name: 'Cambiar salón de Luis Pérez' }))
+    expect(within(luis).getByLabelText('Salón de Luis')).toHaveValue('s1')
 
-    expect(within(screen.getByTestId('nino-h2')).getByText('Sin salón sugerido: asígnalo manualmente')).toBeInTheDocument()
+    const eva = screen.getByTestId('nino-h2')
+    expect(within(eva).getByText('Sin salón sugerido: asígnalo manualmente')).toBeInTheDocument()
+    expect(within(eva).getByLabelText('Salón de Eva')).toHaveValue('')
 
     const teo = screen.getByTestId('nino-h3')
-    expect(await within(teo).findByText('Ya ingresó (código 1234)')).toBeInTheDocument()
+    await waitFor(() => expect(teo).toHaveTextContent('Ya ingresó (código 1234)'))
     expect(within(teo).queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
+  it('comes with every child that can go in already checked; unchecking is the exception', async () => {
+    responder()
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    await buscarFamilia()
+    await within(screen.getByTestId('nino-h3')).findByText(/Ya ingresó/)
+
+    expect(screen.getByRole('checkbox', { name: 'Luis Pérez' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Eva Pérez' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Registrar ingreso · 2 niños' })).toBeEnabled()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
+    expect(screen.getByRole('button', { name: 'Registrar ingreso · 1 niño' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Luis Pérez' }))
+    expect(screen.getByRole('button', { name: 'Marca al menos un niño' })).toBeDisabled()
   })
 
   it('a child without a room blocks the check-in until one is chosen', async () => {
     responder()
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     await buscarFamilia()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Registrar ingreso/ }))
     expect(await screen.findByText('Eva no tiene salón: asígnalo antes de registrar.')).toBeInTheDocument()
     expect(llamadaRuta('ninos_checkin')).toBeUndefined()
   })
@@ -162,16 +201,21 @@ describe('CheckinClient', () => {
     })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     await buscarFamilia()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Luis Pérez' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
     fireEvent.change(screen.getByLabelText('Salón de Eva'), { target: { value: 's2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso · 2 niños' }))
 
-    expect(await screen.findByText('4821')).toBeInTheDocument()
-    expect(screen.getByText('escríbelo en ambas etiquetas')).toBeInTheDocument()
-    expect(screen.getByText('Luis Pérez → Maternal')).toBeInTheDocument()
-    expect(screen.getByText('Eva Pérez → 1º grado')).toBeInTheDocument()
-    expect(screen.getByText('Salón lleno: Maternal 21/20')).toBeInTheDocument()
+    const codigo = await screen.findByRole('region', { name: 'Ingreso registrado' })
+    expect(within(codigo).getByText('4821')).toBeInTheDocument()
+    expect(within(codigo).getByText('Código de retiro')).toBeInTheDocument()
+    expect(codigo).toHaveTextContent('Escríbelo en las dos etiquetas: la del niño y la del representante.')
+    const lineas = within(codigo).getAllByRole('listitem')
+    expect(lineas[0]).toHaveTextContent('Luis Pérez')
+    expect(lineas[0]).toHaveTextContent('Maternal · Alergias: maní')
+    expect(lineas[1]).toHaveTextContent('Eva Pérez')
+    expect(lineas[1]).toHaveTextContent('1º grado')
+    // Over capacity warns after the fact; the check-in is saved.
+    expect(within(codigo).getByRole('alert')).toHaveTextContent('Salón lleno: Maternal 21/20Avisa a la coordinación del salón.')
+    expect(codigo).toHaveTextContent('Pueden retirar: Ana Pérez (representante)')
     expect(llamadaRuta('ninos_checkin')).toEqual({
       p_nino_ids: ['h1', 'h2'],
       p_salon_ids: ['s1', 's2'],
@@ -185,16 +229,31 @@ describe('CheckinClient', () => {
     expect(filtro).toHaveBeenCalledWith('usuario_id', 'h2')
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente familia' }))
-    expect(screen.getByLabelText('Buscar familia')).toHaveValue('')
+    expect(screen.getByLabelText(BUSCAR)).toHaveValue('')
   })
 
-  it('links to the family registration and back', () => {
+  it('a full salón warns next to the child but does not block the check-in', async () => {
+    responder({
+      ninos_ocupacion: { data: [{ salon_id: 's1', nombre: 'Maternal', area: 'waumba', presentes: 20, capacidad: 20, orden: 10 }], error: null },
+      ninos_checkin: { data: [{ nino_id: 'h1', salon_id: 's1', codigo: '4821', ocupacion: 21, capacidad: 20, sobre_capacidad: true }], error: null },
+    })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    await screen.findByText('20/20', { selector: 'b' })
+    await buscarFamilia()
+    const luis = screen.getByTestId('nino-h1')
+    expect(within(luis).getByText(/^Lleno/)).toHaveTextContent('Lleno 20/20')
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso · 1 niño' }))
+    expect(await screen.findByText('4821')).toBeInTheDocument()
+    expect(llamadaRuta('ninos_checkin')).toEqual({ p_nino_ids: ['h1'], p_salon_ids: ['s1'], p_turno_id: 't9', p_fecha: '2026-10-11' })
+  })
+
+  it('links to the family registration and back (header action and phone FAB)', () => {
     responder()
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    expect(screen.getByRole('link', { name: /Nueva familia/ })).toHaveAttribute(
-      'href',
-      '/ninos/familias?nueva=1&volver=checkin&turno=t9&fecha=2026-10-11',
-    )
+    const enlaces = screen.getAllByRole('link', { name: /Nueva familia/ })
+    expect(enlaces).toHaveLength(2)
+    for (const enlace of enlaces) expect(enlace).toHaveAttribute('href', '/ninos/familias?nueva=1&volver=checkin&turno=t9&fecha=2026-10-11')
   })
 
   const filaAdentro = {
@@ -209,7 +268,10 @@ describe('CheckinClient', () => {
 
   async function buscarCodigo() {
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
+    const retiro = screen.getByRole('button', { name: 'Retiro' })
+    expect(retiro).toHaveAttribute('aria-pressed', 'false')
+    fireEvent.click(retiro)
+    expect(retiro).toHaveAttribute('aria-pressed', 'true')
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
   }
@@ -277,7 +339,7 @@ describe('CheckinClient', () => {
   it('a wrong code shows a clear message', async () => {
     responder({ ninos_buscar_codigo: { data: [], error: null } })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retiro' }))
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '9999' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('No hay niños con el código 9999 en este servicio.')
@@ -296,7 +358,7 @@ describe('CheckinClient', () => {
       },
     })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    fireEvent.click(screen.getByRole('tab', { name: 'Retiro' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retiro' }))
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
     expect(await screen.findByText(/Retirado a las 10:42 por Ana/)).toBeInTheDocument()
@@ -337,7 +399,7 @@ describe('CheckinClient — child without ficha (N10)', () => {
       },
     })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'Pérez' } })
+    fireEvent.change(screen.getByLabelText(BUSCAR), { target: { value: 'Pérez' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
     expect(await screen.findByText('Ana Pérez · Juan Pérez')).toBeInTheDocument()
 
@@ -345,7 +407,7 @@ describe('CheckinClient — child without ficha (N10)', () => {
     expect(within(mia).getByText('Sin ficha de niños')).toBeInTheDocument()
     expect(within(mia).queryByRole('checkbox')).not.toBeInTheDocument()
     expect(within(mia).queryByLabelText('Salón de Mia')).not.toBeInTheDocument()
-    fireEvent.click(within(mia).getByRole('button', { name: 'Completar ficha' }))
+    fireEvent.click(within(mia).getByRole('button', { name: 'Completar ficha de Mia Pérez' }))
     expect(await screen.findByRole('button', { name: 'Crear ficha' })).toBeInTheDocument()
   })
 
@@ -353,7 +415,7 @@ describe('CheckinClient — child without ficha (N10)', () => {
     const adulto = { id: 'a1', nombre: 'Adela', apellido: 'Ruiz', telefono: '•••0951', cedula: null, hijos: [], padres: [], sin_hijos: true }
     responder({ ninos_buscar_familias: { data: [adulto], error: null } })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    fireEvent.change(screen.getByLabelText('Buscar familia'), { target: { value: 'V-99990951' } })
+    fireEvent.change(screen.getByLabelText(BUSCAR), { target: { value: 'V-99990951' } })
     fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Agregar niño' }))
     expect(await screen.findByLabelText('Nombre del niño 1')).toBeInTheDocument()

@@ -1,0 +1,750 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Niños · Check-in · Cola de llegada · tableta — Global Connect (prototipo)</title>
+<style>
+/* Tokens: copied from design/system.md (source app/globals.css, synced 2026-10-29). Light in :root, dark from
+   prefers-color-scheme or data-tema="oscuro". No other color, font, radius or shadow is used. */
+:root {
+  color-scheme: light;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px);
+  --radius-xl: calc(var(--radius) + 4px); --radius-2xl: calc(var(--radius) + 8px); --radius-sheet: 26px;
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1); --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms; --duration-normal: 250ms; --duration-slow: 400ms;
+  --scrim: rgba(0, 0, 0, 0.5);
+  --tinte-estado: 10%;
+  --background: oklch(0.985 0.002 80); --foreground: oklch(0.178 0.014 285);
+  --card: oklch(1 0 0); --secondary: oklch(0.965 0.003 80);
+  --muted: oklch(0.955 0.004 80); --muted-foreground: oklch(0.48 0.01 260);
+  --accent: oklch(0.965 0.003 80); --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.975 0.003 80); --sidebar-border: oklch(0.905 0.006 80);
+  --surface-primary: #FAFAF8;
+  --brand-primary: #E96C20; --brand-primary-foreground: oklch(1 0 0);
+  --brand-accent: rgba(233, 108, 32, 0.08); --brand-accent-strong: rgba(233, 108, 32, 0.10); --brand-text: oklch(0.52 0.15 48);
+  --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+  --success: oklch(0.55 0.17 145); --success-text: oklch(0.5 0.14 145);
+  --warning: oklch(0.75 0.18 80); --warning-text: oklch(0.52 0.12 65);
+  --info: oklch(0.55 0.15 250); --info-text: oklch(0.5 0.15 250);
+  --danger: oklch(0.577 0.245 27.325); --danger-text: oklch(0.52 0.21 27);
+  --chart-1: oklch(0.646 0.222 41.116); --chart-2: oklch(0.6 0.118 184.704); --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429); --chart-5: oklch(0.769 0.188 70.08);
+  --shadow-sheet: 0 24px 60px -24px rgba(20, 20, 40, 0.28);
+  --shadow-fab: 0 16px 36px -10px rgba(233, 108, 32, 0.75);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark; --tinte-estado: 13%;
+    --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+    --card: oklch(0.155 0.012 270); --secondary: oklch(0.22 0.012 270);
+    --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+    --accent: oklch(0.22 0.012 270); --border: oklch(0.26 0.012 270);
+    --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+    --surface-primary: #0E0E12;
+    --brand-accent: rgba(233, 108, 32, 0.12); --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+    --success: oklch(0.60 0.17 145); --success-text: oklch(0.76 0.15 145);
+    --warning: oklch(0.70 0.16 80); --warning-text: oklch(0.8 0.14 80);
+    --info: oklch(0.60 0.15 250); --info-text: oklch(0.74 0.12 250);
+    --danger: oklch(0.637 0.237 25.331); --danger-text: oklch(0.72 0.17 25);
+    --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+    --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+:root[data-tema="oscuro"] {
+  color-scheme: dark; --tinte-estado: 13%;
+  --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+  --card: oklch(0.155 0.012 270); --secondary: oklch(0.22 0.012 270);
+  --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+  --accent: oklch(0.22 0.012 270); --border: oklch(0.26 0.012 270);
+  --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+  --surface-primary: #0E0E12;
+  --brand-accent: rgba(233, 108, 32, 0.12); --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+  --success: oklch(0.60 0.17 145); --success-text: oklch(0.76 0.15 145);
+  --warning: oklch(0.70 0.16 80); --warning-text: oklch(0.8 0.14 80);
+  --info: oklch(0.60 0.15 250); --info-text: oklch(0.74 0.12 250);
+  --danger: oklch(0.637 0.237 25.331); --danger-text: oklch(0.72 0.17 25);
+  --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+  --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@keyframes slide-up-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--font-sans); background: var(--background); color: var(--foreground); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+button, a, select, label { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3 { text-wrap: balance; }
+[hidden] { display: none !important; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+svg.i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 100; padding: 10px 16px; border-radius: var(--radius-xl); background: var(--card); color: var(--foreground); border: 2px solid var(--brand-primary); font-size: 14px; font-weight: 600; text-decoration: none; }
+.skip:focus { left: 8px; }
+
+/* ── BotonSistema ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-xl); border: 2px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer; font-size: 16px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: background-color var(--duration-fast) var(--ease-expo), transform var(--duration-fast) var(--ease-expo); }
+.btn:hover { background: var(--accent); }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--brand-strong); border-color: var(--brand-strong); color: var(--brand-primary-foreground); }
+.btn.primary:hover { background: var(--brand-strong-hover); border-color: var(--brand-strong-hover); }
+.btn.ghost { border-color: transparent; color: var(--muted-foreground); }
+.btn.ghost:hover { color: var(--foreground); }
+.btn.link { border-color: transparent; color: var(--brand-text); padding: 0 10px; }
+.btn.icon { width: 44px; padding: 0; }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
+.btn.lg { min-height: 48px; font-size: 16px; }
+.btn.full { width: 100%; }
+@media (pointer: coarse) { .btn.sm { min-height: 44px; } }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; }
+
+/* ── Phone chrome: nav bar (BarraNavegacionMovil), large title ── */
+.navbar { position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; min-height: 48px; padding: env(safe-area-inset-top, 0px) 8px 0; background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-bottom: 1px solid transparent; transition: border-color var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled { border-bottom-color: var(--border); }
+.navbar .ttl { grid-column: 2; margin: 0; max-width: 180px; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled .ttl { opacity: 1; }
+.navbar .actions { grid-column: 3; justify-self: end; display: flex; }
+.icono-marca { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); cursor: pointer; }
+.icono-marca:active { background: var(--accent); }
+.icono-marca .count { position: absolute; top: 4px; right: 2px; }
+.back { grid-column: 1; justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; max-width: 100%; padding: 0 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); font-size: 16px; text-decoration: none; cursor: pointer; }
+.back svg.i { width: 24px; height: 24px; margin-left: -4px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-content: start; min-width: 0; padding: 4px 16px 24px; }
+.large { padding: 2px 4px 0; min-width: 0; }
+.large h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+.large p { margin: 4px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.large p strong { color: var(--foreground); font-weight: 600; }
+
+/* ── Service + Ingreso/Retiro ── */
+.controles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+.ctl { position: relative; min-width: 0; }
+.ctl select { width: 100%; height: 44px; padding: 0 40px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; font-weight: 500; appearance: none; cursor: pointer; text-overflow: ellipsis; }
+.ctl > svg.i { position: absolute; left: 12px; top: 13px; color: var(--muted-foreground); pointer-events: none; }
+.ctl > svg.ch { left: auto; right: 12px; top: 14px; width: 16px; height: 16px; }
+.ctl select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.seg { display: inline-flex; padding: 3px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.seg button[aria-pressed="true"] { background: var(--foreground); color: var(--background); }
+.seg.full { display: flex; } .seg.full button { flex: 1; }
+@media (pointer: coarse) { .seg button { min-height: 44px; } }
+
+/* ── Section headings ── */
+.sec { display: grid; gap: 8px; min-width: 0; }
+.sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px; min-width: 0; }
+.sec-h h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.sec-h .hint { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ── Salón occupancy chips (chip row: may scroll sideways on phone) ── */
+.salones { display: flex; gap: 8px; margin: 0 -16px; padding: 0 16px 4px; overflow-x: auto; scrollbar-width: none; list-style: none; }
+.salones li { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--border); background: var(--card); font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.salones li b { font-weight: 600; color: var(--foreground); }
+.salones li.lleno { border-color: color-mix(in oklab, var(--danger) 40%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); color: var(--danger-text); }
+.salones li.lleno b { color: var(--danger-text); }
+.d { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 9999px; background: var(--c); box-shadow: 0 0 0 4px color-mix(in oklab, var(--c) 20%, transparent); }
+[data-t="success"] { --c: var(--success); } [data-t="warning"] { --c: var(--warning); } [data-t="danger"] { --c: var(--danger); } [data-t="info"] { --c: var(--info); }
+
+/* ── Badges (BadgeSistema on status tokens) ── */
+.tag { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 8px; border-radius: 9999px; border: 1px solid var(--border); font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--muted-foreground); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tag svg.i { width: 12px; height: 12px; stroke-width: 2.2; }
+.tag.info { color: var(--info-text); border-color: color-mix(in oklab, var(--info) 40%, transparent); background: color-mix(in oklab, var(--info) var(--tinte-estado), transparent); }
+.tag.warn { color: var(--warning-text); border-color: color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); }
+.tag.ok { color: var(--success-text); border-color: color-mix(in oklab, var(--success) 40%, transparent); background: color-mix(in oklab, var(--success) var(--tinte-estado), transparent); }
+.tag.danger { color: var(--danger-text); border-color: color-mix(in oklab, var(--danger) 40%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+
+/* ── Inset grouped list ── */
+.lista { list-style: none; margin: 0; padding: 0; min-width: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.lista > li { position: relative; min-width: 0; }
+.lista > li + li::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.avatar { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 9999px; font-size: 13px; font-weight: 600; color: var(--foreground); background: color-mix(in oklab, var(--c) 26%, var(--card)); border: 1px solid color-mix(in oklab, var(--c) 40%, transparent); }
+[data-h="1"] { --c: var(--chart-1); } [data-h="2"] { --c: var(--chart-2); } [data-h="3"] { --c: var(--chart-3); } [data-h="4"] { --c: var(--chart-4); } [data-h="5"] { --c: var(--chart-5); }
+.trunc { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 64px; padding: 10px 14px; }
+.fila .txt { flex: 1; min-width: 0; }
+.fila .t1 { display: block; font-size: 16px; font-weight: 600; }
+.fila .t2 { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+
+/* ── Llegando queue item ── */
+.cola-item { display: grid; gap: 10px; min-width: 0; padding: 12px 14px 14px; }
+.cola-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cola-top .txt { flex: 1; min-width: 0; }
+.cola-top .t1 { display: block; font-size: 16px; font-weight: 600; }
+.cola-top .t2 { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+.ninos-mini { list-style: none; margin: 0; padding: 0 0 0 52px; display: grid; gap: 8px; min-width: 0; }
+.ninos-mini li { display: grid; gap: 4px; min-width: 0; font-size: 14px; }
+.ninos-mini .nm { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ninos-mini .nm b { font-weight: 500; }
+.ninos-mini .nm svg.i { width: 16px; height: 16px; color: var(--success-text); stroke-width: 2.4; }
+.ninos-mini .sal { font-size: 13px; color: var(--muted-foreground); }
+
+/* ── Search (BarraHerramientas below md: filled, no border) ── */
+.search { min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid transparent; background: color-mix(in oklab, var(--foreground) 8%, transparent); color: var(--muted-foreground); transition: border-color var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo); }
+.search:focus-within { border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.search input { flex: 1; min-width: 0; height: 42px; border: 0; background: none; outline: none; font-size: 16px; color: var(--foreground); }
+.search input::placeholder { color: var(--muted-foreground); }
+.nota { margin: 0; padding: 0 4px; font-size: 13px; color: var(--muted-foreground); }
+
+/* ── Family card, children pre-checked (TarjetaSistema; phone p-4) ── */
+.familia { display: grid; gap: 14px; min-width: 0; padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); }
+.fam-h { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.fam-h .txt { flex: 1; min-width: 0; }
+.fam-h h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.fam-h p { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.hijos { list-style: none; margin: 0; padding: 0; border-radius: var(--radius-xl); border: 1px solid var(--border); min-width: 0; }
+.hijos > li { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px 8px; padding: 8px 12px 10px 4px; min-width: 0; }
+.hijos > li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.hijos > li.marcado { background: var(--brand-accent-strong); }
+.hijos > li:first-child { border-radius: var(--radius-xl) var(--radius-xl) 0 0; } .hijos > li:last-child { border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
+.chk { grid-row: 1 / span 3; width: 44px; height: 44px; display: grid; place-items: center; cursor: pointer; }
+.chk input { width: 22px; height: 22px; margin: 0; accent-color: var(--brand-strong); cursor: pointer; }
+.h-nm { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 44px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.h-nm .edad { flex: none; font-size: 13px; font-weight: 400; color: var(--muted-foreground); }
+.h-sal { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; min-width: 0; font-size: 13px; color: var(--muted-foreground); }
+.h-sal .s { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.h-sal .btn.link { min-height: 36px; margin-left: auto; font-size: 14px; }
+@media (pointer: coarse) { .h-sal .btn.link { min-height: 44px; } }
+.hijos .tags { grid-column: 2; }
+.ret { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+.ret svg.i { width: 16px; height: 16px; margin-top: 1px; }
+.ret b { font-weight: 500; color: var(--foreground); }
+.err { margin: 0; font-size: 14px; color: var(--danger-text); }
+
+/* ── Notices: AvisoFormulario + warning callout ── */
+.callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); font-size: 14px; line-height: 1.4; min-width: 0; }
+.callout > svg.i { margin-top: 1px; color: var(--warning-text); }
+.callout b { font-weight: 600; }
+.callout p { margin: 2px 0 0; color: var(--muted-foreground); }
+.callout .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.aviso { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--info) 30%, transparent); background: color-mix(in oklab, var(--info) 5%, transparent); font-size: 14px; line-height: 1.4; min-width: 0; }
+.aviso > svg.i { margin-top: 1px; color: var(--info-text); }
+.aviso p { margin: 0; }
+
+/* ── Pickup code after check-in ── */
+.codigo { display: grid; gap: 14px; justify-items: stretch; text-align: center; min-width: 0; }
+.codigo .lbl { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.codigo .valor { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 72px; font-weight: 700; line-height: 1; letter-spacing: .08em; color: var(--foreground); }
+.codigo .instr { margin: 0; font-size: 15px; color: var(--muted-foreground); }
+.codigo .instr b { color: var(--foreground); font-weight: 600; }
+.codigo .marco-codigo { display: grid; gap: 8px; padding: 18px 12px; border-radius: var(--radius-2xl); border: 2px solid var(--brand-primary); background: var(--brand-accent); }
+.lineas { list-style: none; margin: 0; padding: 0; text-align: left; border-radius: var(--radius-xl); border: 1px solid var(--border); min-width: 0; }
+.lineas li { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; font-size: 15px; min-width: 0; }
+.lineas li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.lineas li .txt { flex: 1; min-width: 0; }
+.lineas li .txt b { display: block; font-weight: 600; }
+.lineas li .txt small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.lineas svg.i { color: var(--success-text); stroke-width: 2.4; }
+
+/* ── Empty state (EstadoVacioSistema inside the list) ── */
+.vacio { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 20px; text-align: center; background: var(--card); border-radius: var(--radius-2xl); }
+.vacio svg.i { width: 36px; height: 36px; color: color-mix(in oklab, var(--muted-foreground) 40%, transparent); }
+.vacio p { margin: 0; max-width: 28rem; }
+.vacio .t { font-size: 16px; font-weight: 600; }
+.vacio .s { font-size: 14px; color: var(--muted-foreground); }
+
+/* ── Tab bar + FAB (MenuInferiorMovil, BotonFlotante) ── */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 6px max(8px, env(safe-area-inset-bottom, 0px)); background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-top: 1px solid var(--border); }
+.tabbar a { min-width: 0; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 4px; padding: 6px 0; border-radius: var(--radius-xl); color: var(--muted-foreground); text-decoration: none; font-size: 12px; font-weight: 500; }
+.tabbar span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabbar [aria-current="page"] { color: var(--brand-text); font-weight: 600; }
+.tabbar svg.i { width: 24px; height: 24px; }
+.fab { position: fixed; right: 16px; bottom: 88px; z-index: 45; width: 56px; height: 56px; display: grid; place-items: center; border: 0; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); box-shadow: var(--shadow-fab); cursor: pointer; transition: transform var(--duration-fast) var(--ease-expo), background-color var(--duration-fast) var(--ease-expo); }
+.fab:hover { background: var(--brand-strong-hover); }
+.fab:active { transform: scale(.97); }
+.fab svg.i { width: 24px; height: 24px; }
+
+/* ── Bottom sheet (HojaInferior) ── */
+.scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; z-index: 70; left: 0; right: 0; bottom: 0; max-height: 90vh; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: var(--shadow-sheet); transform: translateY(105%); visibility: hidden; transition: transform var(--duration-slow) var(--ease-out-quint), visibility 0s linear var(--duration-slow); }
+.sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
+.sheet:focus { outline: none; }
+.grab { display: block; flex: none; width: 38px; height: 5px; margin: 8px auto 0; border-radius: 9999px; background: var(--border); }
+.sh-head { position: relative; padding: 12px 18px 14px; border-bottom: 1px solid var(--border); }
+.sh-head h2 { margin: 0; padding-right: 48px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.sh-head .desc { margin: 4px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.sh-close { position: absolute; top: 4px; right: 8px; }
+.sh-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 16px; padding: 16px 18px; }
+.sh-foot { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: inherit; }
+
+/* ── Fields (InputSistema / SelectSistema in CamposSistema) ── */
+.campos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.campos.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.campo { display: grid; gap: 6px; min-width: 0; }
+.campo > label { font-size: 14px; font-weight: 500; }
+.campo .opc { font-weight: 400; color: var(--muted-foreground); }
+.campo input, .campo select { width: 100%; min-width: 0; height: 44px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; }
+.campo input::placeholder { color: var(--muted-foreground); }
+.campo input:focus, .campo select:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.sh-sec { margin: 4px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+
+/* ── Salón picker rows (inside a sheet) ── */
+.op-salon { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border: 0; background: none; color: var(--foreground); text-align: left; font-size: 16px; cursor: pointer; }
+.op-salon:active { background: var(--accent); }
+.op-salon[aria-pressed="true"] { background: var(--brand-accent-strong); }
+.op-salon:focus-visible { outline-offset: -2px; }
+.op-salon .txt { flex: 1; min-width: 0; }
+.op-salon .txt b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-salon .txt small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.op-salon .cupo { flex: none; font-size: 15px; color: var(--muted-foreground); }
+.bar { height: 4px; border-radius: 9999px; background: var(--muted); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: var(--c); }
+
+/* ── Prototype only: state frames and options. Not part of the design. ── */
+.estados { display: grid; gap: 18px; margin: 8px 16px 0; padding-top: 18px; border-top: 1px dashed var(--border); min-width: 0; }
+.estados > h2 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.marco { display: grid; gap: 10px; min-width: 0; padding: 12px; border-radius: var(--radius-2xl); border: 1px dashed var(--border); background: var(--background); }
+.marco > .rotulo { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
+.marco > .rotulo .tag { font-weight: 500; }
+.nuevo-dato { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: var(--radius-xl); border: 1px dashed color-mix(in oklab, var(--info) 60%, transparent); font-size: 13px; color: var(--info-text); }
+.opciones { margin: 18px 16px calc(170px + env(safe-area-inset-bottom, 0px)); font-size: 13px; }
+.opciones summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 9999px; border: 1px dashed var(--border); background: var(--card); color: var(--muted-foreground); cursor: pointer; }
+.opciones summary::-webkit-details-marker { display: none; }
+.opciones .panel { margin-top: 8px; display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px dashed var(--border); background: var(--card); }
+.opciones .panel p { margin: 0; font-size: 12px; color: var(--muted-foreground); }
+.opciones .seg { justify-self: start; }
+.toast { position: fixed; left: 16px; right: 16px; bottom: calc(160px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); color: var(--foreground); box-shadow: var(--shadow-sheet); font-size: 14px; animation: slide-up-fade 300ms var(--ease-out-quint) both; }
+.campo > .l { font-size: 14px; font-weight: 500; }
+.sh-sec .opc { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.sh-body .familia { padding: 0; border: 0; border-radius: 0; }
+/* ═══ end of shared block ═══ */
+/* ── 04 Cola de llegada · tableta (768–1023: rail sidebar + header; overlays are side panels) ── */
+body { background: var(--surface-primary); }
+.app { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-height: 100vh; }
+.side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 2px; padding: 16px 10px 12px; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); }
+.logo { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 10px; }
+.logo i { width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--brand-primary); }
+.it { width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--muted-foreground); text-decoration: none; }
+.it:hover { background: var(--accent); color: var(--foreground); }
+.it[aria-current="page"] { background: var(--brand-accent-strong); color: var(--foreground); }
+.it svg.i { width: 20px; height: 20px; }
+.content { min-width: 0; display: flex; flex-direction: column; }
+.header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 0 24px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); background: color-mix(in oklab, var(--surface-primary) 85%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.crumbs { flex: 1; min-width: 0; }
+.crumbs ol { display: flex; align-items: center; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+.crumbs li + li::before { content: '/'; padding: 0 4px; color: var(--muted-foreground); }
+.crumbs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--muted-foreground); text-decoration: none; }
+.crumbs a:hover { background: var(--accent); color: var(--foreground); }
+.crumbs [aria-current="page"] { padding: 0 8px; font-weight: 600; }
+.h-icon { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--muted-foreground); cursor: pointer; }
+.h-icon .count { position: absolute; top: 3px; right: 1px; }
+.me { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9999px; border: 1px solid var(--border); background: var(--card); font-size: 13px; font-weight: 600; }
+.accion-h { position: relative; } .accion-h::after { content: ''; position: absolute; inset: -4px 0; }
+main { gap: 24px; padding: 24px 24px 48px; }
+.hero h1 { margin: 0; font-size: 24px; font-weight: 650; line-height: 1.15; letter-spacing: -.02em; }
+.hero p { margin: 4px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.hero p strong { color: var(--foreground); font-weight: 600; }
+.barra { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.barra .ctl { width: 280px; }
+.salones { flex-wrap: wrap; margin: 0; padding: 0; overflow: visible; }
+.salones li { min-height: 36px; }
+.mesa-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.col { display: grid; gap: 22px; min-width: 0; }
+.lista { border: 1px solid var(--border); }
+.mesa { position: sticky; top: 88px; display: grid; gap: 12px; min-width: 0; }
+.mesa .search { background: var(--card); border-color: var(--border); }
+.mesa .codigo { padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); }
+.mesa-vacia { display: grid; gap: 6px; place-items: center; padding: 40px 20px; text-align: center; border-radius: var(--radius-2xl); border: 1px dashed var(--border); color: var(--muted-foreground); font-size: 14px; }
+.mesa-vacia b { color: var(--foreground); font-size: 16px; }
+.estados { margin: 0 24px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.estados > h2 { grid-column: 1 / -1; }
+.opciones { margin: 18px 24px 48px; }
+.toast { left: auto; right: 24px; bottom: 24px; width: 360px; }
+/* PanelLateralSistema md (480px) replaces the bottom sheet from 768px */
+.sheet { left: auto; top: 0; width: 480px; max-width: calc(100vw - 64px); max-height: none; height: 100vh; border-radius: 0; border-left: 1px solid var(--border); transform: translateX(105%); }
+.sheet .grab { display: none; }
+.sh-head { padding: 18px 24px; }
+.sh-body { padding: 20px 24px; }
+.sh-foot { padding: 12px 24px 16px; grid-auto-flow: column; }
+</style>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<!-- ═══ sprite ═══ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M5 17h14v-5l-2-5H7l-2 5Z"/><path d="M3 12h18"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-add-user" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11v6M9 14h6"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></symbol>
+  <symbol id="i-ninos" viewBox="0 0 24 24"><path d="M9 12h.01M15 12h.01M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/></symbol>
+  <symbol id="i-equipo" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+  <symbol id="i-gdv" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+  <symbol id="i-mas" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+</svg>
+<!-- ═══ end sprite ═══ -->
+
+<div class="app">
+  <nav class="side" aria-label="Menú principal">
+    <div class="logo"><i aria-hidden="true"></i><span class="sr">Global Connect</span></div>
+    <a class="it" href="#" aria-label="Inicio"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></a>
+    <a class="it" href="#" aria-label="Niños" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-ninos"/></svg></a>
+    <a class="it" href="#" aria-label="Dream Team"><svg class="i" aria-hidden="true"><use href="#i-equipo"/></svg></a>
+    <a class="it" href="#" aria-label="Grupos de Vida"><svg class="i" aria-hidden="true"><use href="#i-gdv"/></svg></a>
+  </nav>
+  <div class="content">
+    <header class="header">
+      <nav class="crumbs" aria-label="Ruta"><ol><li><a href="#">Niños</a></li><li><span aria-current="page">Check-in</span></li></ol></nav>
+      <button type="button" class="btn primary sm accion-h" data-abrir="hoja-nueva"><svg class="i" aria-hidden="true"><use href="#i-add-user"/></svg>Nueva familia</button>
+      <button type="button" class="h-icon" aria-label="Notificaciones, 1 sin leer"><svg class="i" style="width:20px;height:20px" aria-hidden="true"><use href="#i-bell"/></svg><span class="count" aria-hidden="true">1</span></button>
+      <button type="button" class="me" aria-label="Menú de tu cuenta"><span aria-hidden="true">LP</span></button>
+    </header>
+
+    <main id="contenido">
+      <div class="hero">
+        <h1>Check-in</h1>
+        <p>Barquisimeto · <strong class="num">70</strong> niños adentro · <strong class="num">1</strong> salón lleno · <strong class="num">3</strong> familias en camino</p>
+      </div>
+      <div class="barra">
+        <div class="ctl"><svg class="i"><use href="#i-cal"/></svg><select aria-label="Servicio"><option>Domingo 1 nov · 11:00</option><option>Domingo 1 nov · 9:00</option><option>Domingo 1 nov · 1:00 p. m.</option></select><svg class="i ch"><use href="#i-chev-d"/></svg></div>
+        <div class="seg" role="group" aria-label="Ingreso o retiro"><button type="button" aria-pressed="true">Ingreso</button><button type="button" aria-pressed="false">Retiro</button></div>
+      </div>
+      <ul class="salones" aria-label="Ocupación de salones">
+        <li data-t="success"><span class="d" aria-hidden="true"></span>Cunas <b class="num">6/8</b></li>
+        <li class="lleno" data-t="danger"><span class="d" aria-hidden="true"></span>Caminantes <b class="num">12/12</b><span class="sr">, lleno</span></li>
+        <li data-t="success"><span class="d" aria-hidden="true"></span>Exploradores <b class="num">9/14</b></li>
+        <li data-t="warning"><span class="d" aria-hidden="true"></span>Preescolar <b class="num">16/18</b><span class="sr">, casi lleno</span></li>
+        <li data-t="success"><span class="d" aria-hidden="true"></span>1.º a 3.º <b class="num">14/20</b></li>
+        <li data-t="success"><span class="d" aria-hidden="true"></span>4.º a 6.º <b class="num">10/20</b></li>
+        <li data-t="success"><span class="d" aria-hidden="true"></span>Waumbaland Plus <b class="num">3/6</b></li>
+      </ul>
+
+      <div class="mesa-grid">
+        <div class="col">
+  <section class="sec" aria-labelledby="h-lleg" id="llegando">
+    <div class="sec-h"><h2 id="h-lleg">Llegando <span class="count" aria-label="3 familias">3</span></h2><span class="hint">Avisaron «Voy en camino»</span></div>
+    <ul class="lista" id="cola">
+      <li class="cola-item" data-familia="rodriguez">
+        <div class="cola-top">
+          <span class="avatar" data-h="1" aria-hidden="true">MR</span>
+          <span class="txt"><span class="t1 trunc">María Gabriela Rodríguez</span><span class="t2 trunc">Avisó a las <span class="num">10:52</span> · 2 niños</span></span>
+          <button type="button" class="btn primary sm" data-abrir="hoja-codigo" aria-label="Llegaron: María Gabriela Rodríguez, 2 niños">Llegaron</button>
+        </div>
+        <ul class="ninos-mini">
+          <li><span class="nm"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b class="trunc">Santiago Rodríguez</b></span><span class="sal">Waumba · Preescolar · 4 años</span></li>
+          <li><span class="nm"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b class="trunc">Valentina Rodríguez</b></span>
+            <span class="h-sal"><span class="s">Waumba · Caminantes · 2 años</span><span class="tag danger"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg>Lleno <span class="num">12/12</span></span><button type="button" class="btn link sm" data-abrir="hoja-salon" aria-label="Cambiar salón de Valentina Rodríguez">Cambiar</button></span>
+            <span class="tags"><span class="tag danger">Alergias: maní</span><span class="tag warn">Cambio de pañal</span></span></li>
+        </ul>
+      </li>
+      <li class="cola-item">
+        <div class="cola-top">
+          <span class="avatar" data-h="2" aria-hidden="true">CM</span>
+          <span class="txt"><span class="t1 trunc">Carlos Mendoza</span><span class="t2 trunc">Avisó a las <span class="num">10:55</span> · 1 niña</span></span>
+          <button type="button" class="btn primary sm" data-abrir="hoja-codigo" aria-label="Llegaron: Carlos Mendoza, 1 niña">Llegaron</button>
+        </div>
+        <ul class="ninos-mini">
+          <li><span class="nm"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><b class="trunc">Isabella Mendoza</b></span><span class="sal">UpStreet · 1.º a 3.º grado · 7 años</span>
+            <span class="tags"><span class="tag info">Registrada desde casa</span></span></li>
+        </ul>
+      </li>
+      <li class="cola-item">
+        <div class="cola-top">
+          <span class="avatar" data-h="3" aria-hidden="true">AC</span>
+          <span class="txt"><span class="t1 trunc">Andreína Colmenárez</span><span class="qr-meta"><span class="tag info"><svg class="i" aria-hidden="true"><use href="#i-qr"/></svg>Pre-registro QR</span><span class="t2" style="margin:0">Avisó <span class="num">10:58</span></span></span></span>
+          <button type="button" class="btn sm" data-abrir="hoja-nueva" data-revisar="colmenarez" aria-label="Revisar registro: Andreína Colmenárez">Revisar</button>
+        </div>
+        <ul class="ninos-mini">
+          <li><span class="nm"><b class="trunc">Mateo Colmenárez</b></span><span class="sal">Sin ficha todavía · confirma sus datos al revisar</span>
+            <span class="tags"><span class="tag danger">Alergias: penicilina</span></span></li>
+        </ul>
+      </li>
+    </ul>
+  </section>
+
+  <section class="sec" aria-labelledby="h-pre">
+    <div class="sec-h"><h2 id="h-pre">Pre-registros por QR <span class="count" aria-label="2 pendientes">2</span></h2><span class="hint">Sin aviso de llegada</span></div>
+    <ul class="lista">
+      <li class="fila"><span class="avatar" data-h="4" aria-hidden="true">YT</span><span class="txt"><span class="t1 trunc">Yusmary Torrealba</span><span class="t2 trunc">2 niños · hace 2 días</span></span><button type="button" class="btn link" data-abrir="hoja-nueva" data-revisar="torrealba" aria-label="Revisar registro: Yusmary Torrealba">Revisar</button></li>
+      <li class="fila"><span class="avatar" data-h="5" aria-hidden="true">LP</span><span class="txt"><span class="t1 trunc">Luis Alberto Piña</span><span class="t2 trunc">1 niño · ayer</span></span><button type="button" class="btn link" data-abrir="hoja-nueva" data-revisar="pina" aria-label="Revisar registro: Luis Alberto Piña">Revisar</button></li>
+    </ul>
+  </section>
+
+        </div>
+        <section class="mesa" aria-labelledby="h-mesa" id="mesa">
+          <div class="sec-h"><h2 id="h-mesa">Otra familia</h2><span class="hint">Teléfono completo o nombre</span></div>
+          <form class="search" role="search" data-mesa-buscar>
+            <svg class="i" aria-hidden="true"><use href="#i-search"/></svg>
+            <input type="search" enterkeyhint="search" aria-label="Buscar familia por teléfono o nombre" placeholder="Teléfono o nombre" value="0412 555 0187" />
+          </form>
+          <div id="mesa-cuerpo" aria-live="polite"><div data-tpl="tpl-familia"></div></div>
+        </section>
+      </div>
+    </main>
+    <section class="estados" aria-labelledby="h-est">
+      <h2 id="h-est">Estados en tableta (prototipo)</h2>
+      <div class="marco"><p class="rotulo">C · El código reemplaza la tarjeta en la columna derecha</p><div class="mesa" style="position:static"><div data-tpl="tpl-codigo"></div></div></div>
+      <div class="marco"><p class="rotulo">D · Nadie llegando (columna izquierda)</p><div data-tpl="tpl-vacio"></div>
+        <div class="sec-h"><h2>Pre-registros por QR <span class="count">2</span></h2></div><p class="nota">Siguen visibles debajo aunque nadie esté en camino.</p></div>
+      <div class="marco"><p class="rotulo">B · Salón lleno: «Cambiar» abre un panel lateral</p><div data-tpl="tpl-salon"></div></div>
+      <div class="marco"><p class="rotulo">E · Nueva familia: panel lateral de 480 px, sin salir</p><div data-tpl="tpl-nueva"></div><button type="button" class="btn primary lg full">Registrar familia</button></div>
+    </section>
+<details class="opciones">
+  <summary><svg class="i" style="width:16px;height:16px" aria-hidden="true"><use href="#i-gear"/></svg><span>Opciones del prototipo</span></summary>
+  <div class="panel">
+    <p>Controles para revisar el diseño. No forman parte de la pantalla.</p>
+    <div class="seg" role="group" aria-label="Tema">
+      <button type="button" data-tema="" aria-pressed="true">Sistema</button><button type="button" data-tema="claro" aria-pressed="false">Claro</button><button type="button" data-tema="oscuro" aria-pressed="false">Oscuro</button>
+    </div>
+  </div>
+</details>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<!-- ═══ templates ═══ (one source for the sheets and the state frames; no ids inside) -->
+<template id="tpl-familia">
+  <div class="familia">
+    <div class="fam-h">
+      <span class="avatar" data-h="2" aria-hidden="true">JG</span>
+      <div class="txt"><h3 class="trunc">José Gutiérrez · Ana Torres</h3><p>Tel. <span class="num">•••0187</span> · 3 niños</p></div>
+    </div>
+    <ul class="hijos">
+      <li class="marcado"><label class="chk"><input type="checkbox" checked aria-label="Sofía Gutiérrez, 5 años, a Waumba · Preescolar" /></label>
+        <span class="h-nm"><span class="trunc">Sofía Gutiérrez</span><span class="edad">5 años</span></span>
+        <span class="h-sal"><span class="s" data-t="warning"><span class="d" aria-hidden="true"></span><span class="trunc">Preescolar <span class="num">16/18</span></span></span><button type="button" class="btn link sm" data-abrir="hoja-salon" aria-label="Cambiar salón de Sofía Gutiérrez">Cambiar</button></span>
+        <span class="tags"><span class="tag danger">Alergias: lactosa</span><span class="tag">Sin fotos</span></span></li>
+      <li class="marcado"><label class="chk"><input type="checkbox" checked aria-label="Diego Gutiérrez, 8 años, a UpStreet · 1.º a 3.º grado" /></label>
+        <span class="h-nm"><span class="trunc">Diego Gutiérrez</span><span class="edad">8 años</span></span>
+        <span class="h-sal"><span class="s" data-t="success"><span class="d" aria-hidden="true"></span><span class="trunc">1.º a 3.º grado <span class="num">14/20</span></span></span><button type="button" class="btn link sm" data-abrir="hoja-salon" aria-label="Cambiar salón de Diego Gutiérrez">Cambiar</button></span></li>
+      <li><span class="chk" aria-hidden="true"></span>
+        <span class="h-nm"><span class="trunc">Lucas Gutiérrez</span><span class="edad">1 año</span></span>
+        <span class="h-sal"><span class="tag info">Sin ficha de niños</span><button type="button" class="btn sm" data-abrir="hoja-nueva" data-revisar="ficha" aria-label="Completar ficha de Lucas Gutiérrez"><svg class="i" aria-hidden="true"><use href="#i-clip"/></svg>Completar ficha</button></span></li>
+    </ul>
+    <p class="ret"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span>Pueden retirar: <b>Ana Torres</b> (mamá), <b>José Gutiérrez</b> (papá), <b>Carmen Pérez</b> (abuela)</span></p>
+    <button type="button" class="btn primary lg full" data-cta data-abrir="hoja-codigo">Registrar ingreso · <span data-n>2</span> niños</button>
+  </div>
+</template>
+
+<template id="tpl-codigo">
+  <div class="codigo" aria-live="polite">
+    <div class="marco-codigo">
+      <p class="lbl">Código de retiro</p>
+      <p class="valor">4827</p>
+      <p class="instr">Escríbelo en las <b>dos etiquetas</b>: la del niño y la del representante.</p>
+    </div>
+    <ul class="lineas">
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="txt"><b class="trunc">Santiago Rodríguez</b><small>Waumba · Preescolar</small></span></li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="txt"><b class="trunc">Valentina Rodríguez</b><small>Waumba · Caminantes · Alergias: maní</small></span></li>
+    </ul>
+    <div class="callout" role="alert"><svg class="i" aria-hidden="true"><use href="#i-alert"/></svg><div><b>Salón lleno: Waumba · Caminantes <span class="num">13/12</span></b><p>Avisa a la coordinación del salón.</p></div></div>
+    <p class="ret" style="text-align:left"><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><span>Pueden retirar: <b>María Gabriela Rodríguez</b> (mamá), <b>José Rodríguez</b> (papá)</span></p>
+    <button type="button" class="btn primary lg full" data-cerrar>Siguiente familia</button>
+  </div>
+</template>
+
+<template id="tpl-salon">
+  <div class="campos">
+    <p class="nota" style="padding:0">Valentina Rodríguez · 2 años. Sugerido por edad: <b>Caminantes</b>.</p>
+    <ul class="lista" style="border:1px solid var(--border)">
+      <li><button type="button" class="op-salon" aria-pressed="false"><span class="txt"><b>Waumba · Cunas</b><small>0 a 12 meses</small></span><span class="cupo num">6/8</span></button></li>
+      <li><button type="button" class="op-salon" aria-pressed="true"><span class="txt"><b>Waumba · Caminantes</b><small>1 a 2 años · sugerido</small></span><span class="tag danger">Lleno <span class="num">12/12</span></span></button></li>
+      <li><button type="button" class="op-salon" aria-pressed="false"><span class="txt"><b>Waumba · Exploradores</b><small>3 años</small></span><span class="cupo num">9/14</span></button></li>
+      <li><button type="button" class="op-salon" aria-pressed="false"><span class="txt"><b>Waumbaland Plus</b><small>Necesidades especiales</small></span><span class="cupo num">3/6</span></button></li>
+    </ul>
+    <p class="nota" style="padding:0">Si eliges otro, queda como su salón para el próximo domingo.</p>
+  </div>
+</template>
+
+<template id="tpl-vacio">
+  <div class="vacio">
+    <svg class="i" aria-hidden="true"><use href="#i-car"/></svg>
+    <p class="t">Nadie en camino por ahora</p>
+    <p class="s">Cuando una familia toque «Voy en camino», aparece aquí con sus niños listos. Mientras, busca por teléfono o nombre.</p>
+  </div>
+</template>
+
+<template id="tpl-nueva">
+  <div class="campos">
+    <p class="sh-sec">Representante</p>
+    <div class="campos dos">
+      <label class="campo"><span class="l">Nombre</span><input autocomplete="off" value="" placeholder="Andreína" data-pre="Andreína" /></label>
+      <label class="campo"><span class="l">Apellido</span><input autocomplete="off" value="" placeholder="Colmenárez" data-pre="Colmenárez" /></label>
+    </div>
+    <label class="campo"><span class="l">Teléfono</span><input type="tel" inputmode="tel" value="" placeholder="0414 555 0123" data-pre="0414 555 0162" /></label>
+    <label class="campo"><span class="l">Cédula <span class="opc">(opcional)</span></span><input inputmode="numeric" value="" placeholder="V-18456789" /></label>
+    <p class="sh-sec">Niño</p>
+    <div class="campos dos">
+      <label class="campo"><span class="l">Nombre</span><input autocomplete="off" value="" placeholder="Mateo" data-pre="Mateo" /></label>
+      <label class="campo"><span class="l">Apellido</span><input autocomplete="off" value="" placeholder="Colmenárez" data-pre="Colmenárez" /></label>
+    </div>
+    <label class="campo"><span class="l">Fecha de nacimiento</span><input type="date" value="" data-pre="2023-05-14" /></label>
+    <label class="campo"><span class="l">Alergias o condición médica <span class="opc">(opcional)</span></span><input value="" placeholder="Ej.: maní, asma" data-pre="Penicilina" /></label>
+    <div class="aviso"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><p>Salón sugerido por la edad: <b>Waumba · Exploradores</b>.</p></div>
+    <button type="button" class="btn sm" style="justify-self:start"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Agregar otro niño</button>
+    <p class="sh-sec">Personas autorizadas para retirar <span class="opc">(opcional)</span></p>
+    <button type="button" class="btn sm" style="justify-self:start"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Agregar persona</button>
+    <p class="nota" style="padding:0">Al guardar, la familia se abre lista para el ingreso.</p>
+  </div>
+</template>
+<!-- ═══ end templates ═══ -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="hoja-familia" role="dialog" aria-modal="true" aria-labelledby="hoja-familia-t" tabindex="-1">
+  <span class="grab" aria-hidden="true"></span>
+  <div class="sh-head"><h2 id="hoja-familia-t">Familia Gutiérrez</h2><p class="desc">Revisa y registra. Los niños ya van marcados.</p><button type="button" class="btn ghost icon sh-close" data-cerrar aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="sh-body" data-tpl="tpl-familia"></div>
+</div>
+<div class="sheet" id="hoja-salon" role="dialog" aria-modal="true" aria-labelledby="hoja-salon-t" tabindex="-1">
+  <span class="grab" aria-hidden="true"></span>
+  <div class="sh-head"><h2 id="hoja-salon-t">Cambiar salón</h2><button type="button" class="btn ghost icon sh-close" data-cerrar aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="sh-body" data-tpl="tpl-salon"></div>
+</div>
+<div class="sheet" id="hoja-nueva" role="dialog" aria-modal="true" aria-labelledby="hoja-nueva-t" tabindex="-1">
+  <span class="grab" aria-hidden="true"></span>
+  <div class="sh-head"><h2 id="hoja-nueva-t">Nueva familia</h2><button type="button" class="btn ghost icon sh-close" data-cerrar aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="sh-body" data-tpl="tpl-nueva"></div>
+  <div class="sh-foot"><button type="button" class="btn primary lg" id="hoja-nueva-cta" data-abrir="hoja-familia">Registrar familia</button></div>
+</div>
+<!-- ═══ end chrome ═══ -->
+<!-- ═══ script ═══ -->
+<script>
+// Prototype behavior only: mounts the templates, opens the sheets (HojaInferior), keeps the CTA count in sync.
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+$$('[data-tpl]').forEach((el) => el.append($('#' + el.dataset.tpl).content.cloneNode(true)));
+
+// Children toggles: the CTA says how many go in; with none it is disabled.
+document.addEventListener('change', (e) => {
+  const cb = e.target.closest('.hijos input[type="checkbox"]');
+  if (!cb) return;
+  cb.closest('li').classList.toggle('marcado', cb.checked);
+  const fam = cb.closest('.familia');
+  const n = $$('.hijos input:checked', fam).length;
+  const cta = $('[data-cta]', fam);
+  if (!cta) return;
+  cta.disabled = n === 0;
+  cta.innerHTML = n === 0 ? 'Marca al menos un niño' : `Registrar ingreso · <span data-n>${n}</span> ${n === 1 ? 'niño' : 'niños'}`;
+});
+
+// Sheets: scrim, Escape, focus trapped and returned.
+const scrim = $('#scrim');
+let abierta = null, origen = null, quitar = null;
+function abrir(id, desde) {
+  if (abierta) { abierta.classList.remove('on'); } else { origen = desde; }
+  abierta = $('#' + id);
+  abierta.classList.add('on'); scrim.classList.add('on');
+  abierta.focus();
+}
+function cerrar() {
+  if (!abierta) return;
+  abierta.classList.remove('on'); scrim.classList.remove('on');
+  abierta = null;
+  if (origen && document.contains(origen)) origen.focus();
+}
+function aviso(texto) {
+  const t = $('#toast'); t.textContent = texto; t.hidden = false;
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => { t.hidden = true; }, 2600);
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-abrir]');
+  if (a) {
+    const id = a.dataset.abrir;
+    if (id === 'hoja-nueva' && $('#hoja-nueva-t')) {
+      const r = a.dataset.revisar;
+      $('#hoja-nueva-t').textContent = r === 'ficha' ? 'Completar ficha' : r ? 'Revisar pre-registro' : 'Nueva familia';
+      $('#hoja-nueva-cta').textContent = r === 'ficha' ? 'Guardar ficha' : r ? 'Confirmar registro' : 'Registrar familia';
+      $$('#hoja-nueva [data-pre]').forEach((i) => { i.value = r && r !== 'ficha' ? i.dataset.pre : ''; });
+    }
+    if (a.closest('.cola-item, [data-cola]')) quitar = a.closest('.cola-item, [data-cola]');
+    if (a.closest('.sheet') && id === 'hoja-codigo') quitar = null;
+    abrir(id, a);
+    return;
+  }
+  if (e.target.closest('[data-cerrar]') || e.target === scrim) {
+    const siguiente = e.target.closest('.codigo');
+    cerrar();
+    if (siguiente && !siguiente.closest('.marco')) {
+      if (quitar) siguiente_quitar(quitar);
+      quitar = null;
+      aviso('Listo. Siguiente familia.');
+    }
+  }
+  const op = e.target.closest('.op-salon');
+  if (op) { $$('.op-salon', op.closest('ul')).forEach((b) => b.setAttribute('aria-pressed', String(b === op))); }
+  const sg = e.target.closest('.seg button');
+  if (sg) {
+    $$('button', sg.parentElement).forEach((b) => b.setAttribute('aria-pressed', String(b === sg)));
+    if (sg.dataset.tema !== undefined) {
+      if (sg.dataset.tema) document.documentElement.dataset.tema = sg.dataset.tema; else delete document.documentElement.dataset.tema;
+    } else if (sg.textContent === 'Retiro') aviso('Retiro: fuera de este prototipo (N1 es el ingreso).');
+  }
+});
+// The family that just came in leaves the queue; an empty queue shows the empty state.
+function siguiente_quitar(item) {
+  const cola = item.parentElement;
+  item.remove();
+  const n = cola.querySelectorAll('.cola-item, [data-cola]').length;
+  const c = cola.closest('.sec')?.querySelector('.sec-h .count');
+  if (c) { c.textContent = n; c.setAttribute('aria-label', `${n} ${n === 1 ? 'familia' : 'familias'}`); }
+  if (n === 0) cola.replaceWith($('#tpl-vacio').content.cloneNode(true));
+}
+$$('form[data-abrir-form]').forEach((f) => f.addEventListener('submit', (e) => { e.preventDefault(); abrir(f.dataset.abrirForm, $('input', f)); }));
+document.addEventListener('keydown', (e) => {
+  if (!abierta) return;
+  if (e.key === 'Escape') { cerrar(); return; }
+  if (e.key !== 'Tab') return;
+  const f = $$('button, input, select, a[href]', abierta).filter((x) => !x.disabled && x.offsetParent !== null);
+  if (!f.length) return;
+  if (e.shiftKey && document.activeElement === f[0]) { e.preventDefault(); f[f.length - 1].focus(); }
+  else if (!e.shiftKey && document.activeElement === f[f.length - 1]) { e.preventDefault(); f[0].focus(); }
+});
+// Compact title fades in when the large title scrolls under the nav bar.
+const grande = $('#titulo-grande'), barra = $('#navbar');
+if (grande && barra) new IntersectionObserver(([en]) => barra.classList.toggle('scrolled', !en.isIntersecting), { rootMargin: '-48px 0px 0px 0px' }).observe(grande);
+</script>
+<!-- ═══ end script ═══ -->
+<script>
+// Tablet: the right column is the desk. The code replaces the family card in place (no overlay);
+// "Siguiente familia" clears it and the family leaves the queue.
+(() => {
+  const cuerpo = document.querySelector('#mesa-cuerpo');
+  const montar = (tpl) => { cuerpo.replaceChildren(document.querySelector('#' + tpl).content.cloneNode(true)); };
+  let item = null;
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('[data-abrir="hoja-codigo"]');
+    if (a && !a.closest('.marco')) {
+      e.stopImmediatePropagation();
+      if (abierta) cerrar();
+      item = a.closest('.cola-item');
+      montar('tpl-codigo');
+      cuerpo.querySelector('.codigo button')?.focus();
+      return;
+    }
+    if (e.target.closest('#hoja-nueva-cta')) { e.stopImmediatePropagation(); cerrar(); montar('tpl-familia'); return; }
+    const sig = e.target.closest('#mesa-cuerpo .codigo [data-cerrar]');
+    if (sig) {
+      e.stopImmediatePropagation();
+      if (item) siguiente_quitar(item);
+      item = null;
+      cuerpo.innerHTML = '<div class="mesa-vacia"><b>Mesa libre</b>Toca «Llegaron» en la cola o busca la siguiente familia.</div>';
+      document.querySelector('#mesa input').value = '';
+      document.querySelector('#mesa input').focus();
+    }
+  }, true);
+  document.querySelector('[data-mesa-buscar]').addEventListener('submit', (e) => { e.preventDefault(); montar('tpl-familia'); });
+})();
+</script>
+</body>
+</html>
