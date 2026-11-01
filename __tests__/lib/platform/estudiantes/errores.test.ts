@@ -3,7 +3,7 @@
  * (supabase/migrations/20261029100100_estudiantes_asistencia_rpcs.sql and
  * 20261029130000_estudiantes_gestion_grupos.sql).
  */
-import { MENSAJES_ERROR_GRUPOS, codigoErrorGrupos, mensajeErrorGrupos } from '@/lib/platform/estudiantes/errores'
+import { MENSAJES_ERROR_GRUPOS, codigoErrorGrupos, mensajeErrorGrupos, mensajeErrorVivo } from '@/lib/platform/estudiantes/errores'
 
 const CODIGOS = [
   'sin_autoridad',
@@ -32,6 +32,8 @@ const CODIGOS = [
   'tipo_representante_invalido',
   'cedula_existente',
   'posibles_duplicados',
+  // Live view (C4b).
+  'ambito_invalido',
 ] as const
 
 describe('mensajeErrorGrupos', () => {
@@ -74,5 +76,13 @@ describe('codigoErrorGrupos', () => {
   it('explains the meeting and visitor errors in tuteo', () => {
     expect(mensajeErrorGrupos({ message: 'fecha_invalida' })).toBe('Esa fecha no tiene reunión para marcar. Elige otra.')
     expect(mensajeErrorGrupos({ message: 'cedula_existente' })).toBe('Ya hay alguien con esa cédula. Búscalo en el paso anterior y agrégalo desde ahí.')
+  })
+})
+
+describe('mensajeErrorVivo', () => {
+  it('words the missing authority for the live view, and keeps the other messages', () => {
+    expect(mensajeErrorVivo({ code: '42501', message: 'sin_autoridad' })).toBe('No tienes acceso a la vista en vivo de este ámbito.')
+    expect(mensajeErrorVivo({ code: '22023', message: 'turno_invalido' })).toBe(MENSAJES_ERROR_GRUPOS.turno_invalido)
+    expect(mensajeErrorVivo({ code: 'XX000', message: 'boom' })).toBe('No se pudo actualizar la vista en vivo. Se reintenta sola.')
   })
 })

@@ -1,6 +1,6 @@
 /**
  * Estudiantes — Spanish (tuteo) messages for the errors of the group
- * management, leader list and visitor RPCs. Each function raises its code as the exception message
+ * management, leader list, visitor and live view RPCs. Each function raises its code as the exception message
  * (`raise exception 'nombre_duplicado' using errcode = '23505'`), so the
  * message is the key; the SQLSTATE is the fallback for anything else.
  */
@@ -34,6 +34,8 @@ export const MENSAJES_ERROR_GRUPOS = {
   tipo_representante_invalido: 'Elige el parentesco del representante.',
   cedula_existente: 'Ya hay alguien con esa cédula. Búscalo en el paso anterior y agrégalo desde ahí.',
   posibles_duplicados: 'Encontramos personas parecidas. Revisa si es alguna de ellas.',
+  // Live view (C4b).
+  ambito_invalido: 'Ese ámbito ya no tiene vista en vivo. Recarga la página.',
 } as const
 
 export type CodigoErrorGrupos = keyof typeof MENSAJES_ERROR_GRUPOS
@@ -52,4 +54,12 @@ export function codigoErrorGrupos(error: ErrorRpc): CodigoErrorGrupos | null {
 export function mensajeErrorGrupos(error: ErrorRpc, fallback = 'No se pudo guardar. Inténtalo de nuevo.'): string {
   const codigo = codigoErrorGrupos(error)
   return codigo ? MENSAJES_ERROR_GRUPOS[codigo] : fallback
+}
+
+const SIN_DATOS_VIVO = 'No se pudo actualizar la vista en vivo. Se reintenta sola.'
+
+/** The live view (C4b): the same messages, with its own words for a missing authority and an unknown error. */
+export function mensajeErrorVivo(error: ErrorRpc): string {
+  if (codigoErrorGrupos(error) === 'sin_autoridad') return 'No tienes acceso a la vista en vivo de este ámbito.'
+  return mensajeErrorGrupos(error, SIN_DATOS_VIVO)
 }
