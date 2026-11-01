@@ -15,6 +15,7 @@ import { GestionGruposClient, type GestionGruposClientProps } from '@/components
 import { FILTROS_INICIALES } from '@/lib/platform/estudiantes/grupos-vista'
 import { CHICOS, GRUPOS_TRANSIT, SUBAREAS_TRANSIT, CAMPUS, TLR, TLR_CHICAS, TRANSIT, persona, subarea } from '@/lib/platform/estudiantes/__fixtures__/grupos'
 import * as acciones from '@/lib/actions/estudiantes-grupos.actions'
+import * as accionesLista from '@/lib/actions/estudiantes-lista.actions'
 
 jest.mock('@/lib/actions/estudiantes-grupos.actions', () => ({
   crearGrupo: jest.fn(),
@@ -28,6 +29,13 @@ jest.mock('@/lib/actions/estudiantes-grupos.actions', () => ({
   buscarPersonas: jest.fn(),
   sinGrupo: jest.fn(),
   lideresDisponibles: jest.fn(),
+}))
+
+jest.mock('@/lib/actions/estudiantes-lista.actions', () => ({
+  sesionReciente: jest.fn(),
+  crearVisitante: jest.fn(),
+  agregarVisitante: jest.fn(),
+  buscarCoincidencias: jest.fn(),
 }))
 
 const exito = jest.fn()
@@ -58,6 +66,7 @@ jest.mock('@/components/ui/desktop-header', () => ({
 jest.setTimeout(15_000)
 
 const mock = acciones as jest.Mocked<typeof acciones>
+const mockLista = accionesLista as jest.Mocked<typeof accionesLista>
 const OK = { ok: true as const, data: null }
 let user: ReturnType<typeof userEvent.setup>
 
@@ -228,7 +237,7 @@ describe('members', () => {
     const dialogo = await abrirGrupo('2do año · Chicas')
     await user.click(within(dialogo).getByRole('button', { name: 'Agregar integrante' }))
     expect(await within(panel()).findByRole('heading', { name: 'Sin grupo en Transit · Chicas · 1' })).toBeInTheDocument()
-    expect(within(panel()).getByRole('button', { name: 'Registrar nuevo' })).toBeDisabled()
+    expect(within(panel()).getByRole('button', { name: 'Registrar nuevo' })).toBeEnabled()
     await user.click(within(panel()).getByRole('button', { name: 'Agregar a Lucía Fernández' }))
     expect(mock.agregarIntegrante).toHaveBeenCalledWith({ grupoId: 'g2', personaId: 'p-lf' })
     expect(within(panel()).getByText('Ya está en este grupo')).toBeInTheDocument()
@@ -314,5 +323,52 @@ describe('Crear grupo', () => {
     await user.type(nombre, '3er año · Chicas A')
     await user.click(within(formulario).getByRole('button', { name: 'Guardar cambios' }))
     expect(mock.editarGrupo).toHaveBeenCalledWith({ grupoId: 'g3', nombre: '3er año · Chicas A', anio: 3, zona: null, diaSemana: null, hora: null })
+  })
+})
+
+describe('the leader list from the drawer (C3b)', () => {
+  it('"Ver la lista" opens the group’s leader list with the way back', async () => {
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('2do año · Chicas')
+    expect(within(dialogo).getByRole('link', { name: 'Ver la lista' })).toHaveAttribute('href', '/estudiantes/grupos/g2?desde=grupos')
+  })
+
+  it('?grupo= opens that group’s drawer on load', () => {
+    render(<GestionGruposClient {...props({ grupoInicial: 'g3' })} />)
+    expect(within(panel()).getByText('Elisa Cordero')).toBeInTheDocument()
+  })
+
+  it('"Registrar nuevo" registers a visitor at the newest meeting and goes back to the group', async () => {
+    mockLista.sesionReciente.mockResolvedValue({ ok: true, data: { fecha: '2026-10-25', turnoId: 't9' } })
+    mockLista.crearVisitante.mockResolvedValue({ ok: true, data: { personaId: 'p-new' } })
+    render(<GestionGruposClient {...props()} />)
+    await abrirGrupo('2do año · Chicas')
+    await user.click(within(panel()).getByRole('button', { name: 'Agregar integrante' }))
+    await user.click(within(panel()).getByRole('button', { name: 'Registrar nuevo' }))
+    expect(mockLista.sesionReciente).toHaveBeenCalledWith({ grupoId: 'g2' })
+    expect(await within(panel()).findByText('2do año · Chicas · queda como visitante del Dom 25 oct')).toBeInTheDocument()
+
+    await user.type(within(panel()).getAllByLabelText('Nombre')[0], 'Valentina')
+    await user.type(within(panel()).getAllByLabelText('Apellido')[0], 'Rangel')
+    await user.type(within(panel()).getAllByLabelText('Teléfono')[0], '0414 555 0100')
+    await user.click(within(panel()).getByRole('button', { name: 'Registrar visitante' }))
+    expect(mockLista.crearVisitante).toHaveBeenCalledWith({
+      grupoId: 'g2',
+      fecha: '2026-10-25',
+      turnoId: 't9',
+      datos: { nombre: 'Valentina', apellido: 'Rangel', genero: 'Femenino', telefono: '0414 555 0100', anio: 2 },
+    })
+    expect(exito).toHaveBeenCalledWith('Registraste a Valentina Rangel como visitante')
+    expect(await within(panel()).findByRole('button', { name: 'Agregar integrante' })).toBeInTheDocument()
+  })
+
+  it('explains when the group has no meeting to register into', async () => {
+    mockLista.sesionReciente.mockResolvedValue({ ok: true, data: null })
+    render(<GestionGruposClient {...props()} />)
+    await abrirGrupo('2do año · Chicas')
+    await user.click(within(panel()).getByRole('button', { name: 'Agregar integrante' }))
+    await user.click(within(panel()).getByRole('button', { name: 'Registrar nuevo' }))
+    expect(await within(panel()).findByText(/ningún turno del Dream Team sirvió a Transit/)).toBeInTheDocument()
+    expect(within(panel()).queryByRole('button', { name: 'Registrar visitante' })).not.toBeInTheDocument()
   })
 })

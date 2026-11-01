@@ -9,12 +9,13 @@
  * "Agregar integrante"; each row opens the member view) and Desactivar with
  * an inline confirmation. A deactivated group shows only "Reactivar grupo".
  *
- * The Sunday figures ("Domingo 25 oct", "Últimos 4") and "Ver la lista" wait
- * for C3 (attendance marking, L23); "WhatsApp" to the leaders waits for a
- * leader phone in the data.
+ * "Ver la lista" opens the group's leader list (C3b) with "‹ Grupos" back
+ * here. The Sunday figures ("Domingo 25 oct", "Últimos 4") still wait (L23);
+ * "WhatsApp" to the leaders waits for a leader phone in the data.
  */
 import { useState, type ReactElement } from 'react'
-import { Pencil, Power, Star } from 'lucide-react'
+import Link from 'next/link'
+import { ListChecks, Pencil, Power, Star } from 'lucide-react'
 
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
@@ -99,6 +100,9 @@ export function VistaGrupo({ grupo, subareas, accion, onIntegrante, onAgregar, o
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
+        <BotonSistema asChild variante="outline" tamaño="sm" icono={ListChecks}>
+          <Link href={`/estudiantes/grupos/${encodeURIComponent(grupo.id)}?desde=grupos`}>Ver la lista</Link>
+        </BotonSistema>
         <BotonSistema type="button" variante="outline" tamaño="sm" icono={Pencil} onClick={onEditar}>
           Editar grupo
         </BotonSistema>
