@@ -25,6 +25,8 @@ const migratedToDesignSystem = [
   'app/(auth)/users/create/**',
   'components/users/lista/**',
   'components/users/vinculos-pendientes-card.tsx',
+  'components/users/familia/**',
+  'components/users/familia-pendientes/**',
   'app/(auth)/users/[[]id]/page.tsx',
   'app/(auth)/users/[[]id]/loading.tsx',
   'app/(auth)/users/[[]id]/asistencia/**',
