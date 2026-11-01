@@ -5,16 +5,26 @@
  * Aprobar / Rechazar actions. Same behavior as before: nothing for a caller
  * without requests, a resolved request leaves the list, a failure keeps it
  * and says why.
+ *
+ * Familia (S15 decision 10): the notice counts both kinds and the panel gains
+ * a «Familia» section with Aprobar / Aprobar y crear ficha / Rechazar.
  */
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import { VinculosPendientesCard } from '@/components/users/vinculos-pendientes-card'
 
 const listarVinculosPendientes = jest.fn()
 const resolverVinculoPendiente = jest.fn()
+const listarFamiliaPendientes = jest.fn()
+const resolverFamiliaPendiente = jest.fn()
 
 jest.mock('@/lib/actions/auth.actions', () => ({
   listarVinculosPendientes: (...a: unknown[]) => listarVinculosPendientes(...a),
   resolverVinculoPendiente: (...a: unknown[]) => resolverVinculoPendiente(...a),
+}))
+
+jest.mock('@/lib/actions/familia-pendientes.actions', () => ({
+  listarFamiliaPendientes: (...a: unknown[]) => listarFamiliaPendientes(...a),
+  resolverFamiliaPendiente: (...a: unknown[]) => resolverFamiliaPendiente(...a),
 }))
 
 const solicitud = {
@@ -36,6 +46,9 @@ describe('VinculosPendientesCard', () => {
   beforeEach(() => {
     listarVinculosPendientes.mockReset()
     resolverVinculoPendiente.mockReset()
+    listarFamiliaPendientes.mockReset()
+    resolverFamiliaPendiente.mockReset()
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [] })
   })
 
   it('renders nothing when the caller has no requests to resolve', async () => {
@@ -96,5 +109,106 @@ describe('VinculosPendientesCard', () => {
     fireEvent.click(screen.getByRole('button', { name: /Aprobar/ }))
     expect(await screen.findByText('No se pudo resolver la solicitud.')).toBeInTheDocument()
     expect(screen.getByText(/Z\. Q\./)).toBeInTheDocument()
+  })
+})
+
+const maria = { id: 'u1', nombre: 'María Fernanda', apellido: 'Colmenárez' }
+const hermano = {
+  id: 'f1', tipo: 'hermano', creadoEn: '2026-10-30T10:00:00Z', solicitante: maria,
+  destino: { id: 'u2', nombre: 'Luis', apellido: 'Barrios', cuenta: true }, sinCuenta: null, creaFicha: false,
+}
+const padre = {
+  id: 'f2', tipo: 'padre', creadoEn: '2026-10-31T10:00:00Z', solicitante: maria, destino: null, creaFicha: true,
+  sinCuenta: { nombre: 'Rafael', apellido: 'Colmenárez', fechaNacimiento: '1958-03-12', genero: 'Masculino', cedula: 'V-4123456', telefono: null },
+}
+
+describe('VinculosPendientesCard · Familia', () => {
+  beforeEach(() => {
+    listarVinculosPendientes.mockReset()
+    resolverVinculoPendiente.mockReset()
+    listarFamiliaPendientes.mockReset()
+    resolverFamiliaPendiente.mockReset()
+    listarVinculosPendientes.mockResolvedValue({ ok: true, solicitudes: [] })
+  })
+
+  it('the notice counts both kinds', async () => {
+    listarVinculosPendientes.mockResolvedValue({ ok: true, solicitudes: [solicitud] })
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [hermano, padre] })
+    render(<VinculosPendientesCard />)
+    expect(await screen.findByText('1 cuenta por cédula · 2 de familia')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('vínculos pendientes')).toBeInTheDocument()
+  })
+
+  it('shows the notice with family requests only', async () => {
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [hermano] })
+    render(<VinculosPendientesCard />)
+    expect(await screen.findByText('1 de familia')).toBeInTheDocument()
+    expect(screen.getByText('vínculo pendiente')).toBeInTheDocument()
+    expect(screen.queryByText('Se registraron con la cédula de una ficha con servicio.')).toBeNull()
+  })
+
+  it('"Revisar" lists the Familia section with the relation, the typed data and the actions', async () => {
+    listarVinculosPendientes.mockResolvedValue({ ok: true, solicitudes: [solicitud] })
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [hermano, padre] })
+    render(<VinculosPendientesCard />)
+    const panel = await revisar()
+    const familia = within(panel).getByRole('region', { name: 'Familia' })
+    expect(within(familia).getByText('María Fernanda Colmenárez dice que Luis Barrios es su hermano o hermana')).toBeInTheDocument()
+    expect(within(familia).getByText('María Fernanda Colmenárez agregó a Rafael Colmenárez como su padre')).toBeInTheDocument()
+    expect(within(familia).getByText('Sin cuenta · nació el 12 mar 1958 · cédula V-4123456')).toBeInTheDocument()
+    expect(within(familia).getByRole('button', { name: 'Aprobar' })).toBeInTheDocument()
+    expect(within(familia).getByRole('button', { name: 'Aprobar y crear ficha' })).toBeInTheDocument()
+    expect(within(familia).getAllByRole('button', { name: 'Rechazar' })).toHaveLength(2)
+    // The cédula requests keep their own section.
+    expect(within(panel).getByRole('region', { name: 'Cuentas por cédula' })).toHaveTextContent('Z. Q.')
+  })
+
+  it('"Aprobar y crear ficha" resolves the request and removes it', async () => {
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [padre] })
+    resolverFamiliaPendiente.mockResolvedValue({ ok: true, codigo: 'APROBADA', fichaCreada: true })
+    render(<VinculosPendientesCard />)
+    const panel = await revisar()
+    fireEvent.click(screen.getByRole('button', { name: 'Aprobar y crear ficha' }))
+    await waitFor(() => expect(resolverFamiliaPendiente).toHaveBeenCalledWith('f2', true))
+    await waitFor(() => expect(within(panel).queryByRole('listitem')).toBeNull())
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Aprobado: se creó la ficha de Rafael Colmenárez y ya está en la familia de María Fernanda Colmenárez.',
+    )
+    expect(screen.getByText('No quedan vínculos pendientes')).toBeInTheDocument()
+  })
+
+  it('rejects a family request', async () => {
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [hermano] })
+    resolverFamiliaPendiente.mockResolvedValue({ ok: true, codigo: 'RECHAZADA', fichaCreada: false })
+    render(<VinculosPendientesCard />)
+    await revisar()
+    fireEvent.click(screen.getByRole('button', { name: 'Rechazar' }))
+    await waitFor(() => expect(resolverFamiliaPendiente).toHaveBeenCalledWith('f1', false))
+    expect(await screen.findByRole('status')).toHaveTextContent('Rechazado: la solicitud de María Fernanda Colmenárez.')
+    expect(resolverVinculoPendiente).not.toHaveBeenCalled()
+  })
+
+  it('shows the error message and keeps the request', async () => {
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [padre] })
+    resolverFamiliaPendiente.mockResolvedValue({
+      ok: false, codigo: 'CEDULA_EXISTENTE',
+      mensaje: 'Ya existe una ficha con esa cédula, así que no se creó otra. Rechaza esta solicitud y revisa esa ficha.',
+    })
+    render(<VinculosPendientesCard />)
+    await revisar()
+    fireEvent.click(screen.getByRole('button', { name: 'Aprobar y crear ficha' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya existe una ficha con esa cédula')
+    expect(screen.getByText('María Fernanda Colmenárez agregó a Rafael Colmenárez como su padre')).toBeInTheDocument()
+  })
+
+  it('a request already resolved leaves the list with its message', async () => {
+    listarFamiliaPendientes.mockResolvedValue({ ok: true, solicitudes: [hermano] })
+    resolverFamiliaPendiente.mockResolvedValue({ ok: false, codigo: 'YA_RESUELTO', mensaje: 'Esta solicitud ya se resolvió.' })
+    render(<VinculosPendientesCard />)
+    const panel = await revisar()
+    fireEvent.click(screen.getByRole('button', { name: 'Aprobar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esta solicitud ya se resolvió.')
+    expect(within(panel).queryByRole('listitem')).toBeNull()
   })
 })
