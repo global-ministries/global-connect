@@ -30,7 +30,10 @@ type Props = {
 /** The "Otra persona" choice (anyone outside the list, with a reason). */
 const OTRA = '__otra__'
 
-/** Check-out by code: type the code, see the children, pick who picks up from their list, confirm. */
+/**
+ * Check-out by code: type the code, see the children, pick who picks up from their list, confirm.
+ * Design-system v2 surfaces and tokens (odd/tasks/ninos-v2.md, N2b); the behavior is unchanged.
+ */
 export function RetiroPanel({ servicio, onRetirado }: Props) {
   const [texto, setTexto] = useState('')
   const [codigo, setCodigo] = useState<string | null>(null)
@@ -142,7 +145,7 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
             autoComplete="off"
             maxLength={4}
             placeholder="1234"
-            className="font-mono text-2xl tracking-widest"
+            className="font-mono text-2xl tracking-widest tabular-nums"
             value={texto}
             onChange={(e) => setTexto(e.target.value.replace(/\D/g, ''))}
           />
@@ -164,7 +167,7 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
       )}
 
       {retiro && (
-        <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
           <ul className="divide-y divide-border" aria-label="Niños con este código">
             {retiro.adentro.map((f) => (
               <li key={f.checkin_id} className="flex flex-wrap items-center justify-between gap-2 py-2 font-medium text-foreground">
@@ -198,7 +201,7 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
                 {opciones.map((o) => (
                   <div
                     key={o.nombre}
-                    className="flex flex-wrap items-center gap-x-3 rounded-xl border border-border px-3 transition-colors has-[:checked]:border-[var(--brand-primary)] has-[:checked]:bg-[var(--brand-primary)]/5"
+                    className="flex flex-wrap items-center gap-x-3 rounded-xl border border-border px-3 transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand-tint"
                   >
                     <label className="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3 text-sm">
                       <input
@@ -207,7 +210,7 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
                         value={o.nombre}
                         checked={eleccion === o.nombre}
                         onChange={() => setEleccion(o.nombre)}
-                        className="h-4 w-4 accent-[var(--brand-primary)]"
+                        className="size-5 accent-[var(--brand-strong)]"
                       />
                       <span>
                         <span className="font-medium text-foreground">{o.nombre}</span>
@@ -215,14 +218,14 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
                       </span>
                     </label>
                     {o.telefono && (
-                      <a href={`tel:${o.telefono}`} className="inline-flex min-h-[44px] items-center gap-1 text-sm text-[var(--brand-primary)] hover:underline">
+                      <a href={`tel:${o.telefono}`} className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-md font-mono text-sm tabular-nums text-brand-text hover:underline">
                         <Phone className="h-3 w-3" aria-hidden />
                         {o.telefono}
                       </a>
                     )}
                   </div>
                 ))}
-                <div className="rounded-xl border border-dashed border-border px-3 has-[:checked]:border-warning/60 has-[:checked]:bg-warning/5">
+                <div className="rounded-xl border border-dashed border-border px-3 has-[:checked]:border-warning/40 has-[:checked]:bg-warning/10">
                   <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm">
                     <input
                       type="radio"
@@ -230,7 +233,7 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
                       value={OTRA}
                       checked={eleccion === OTRA}
                       onChange={() => setEleccion(OTRA)}
-                      className="h-4 w-4 accent-[var(--brand-primary)]"
+                      className="size-5 accent-[var(--brand-strong)]"
                     />
                     <span className="font-medium text-foreground">Otra persona</span>
                   </label>

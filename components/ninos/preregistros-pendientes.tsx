@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClipboardList, Mail, RotateCw, Trash2, UserRound } from 'lucide-react'
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import {
@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 
 import { CoincidenciasCuenta } from './coincidencias-cuenta'
+import { Avatar, CLASE_LINEA_INSET, ListaInset, TituloSeccion } from './checkin/partes'
 import { RegistrarFamiliaForm } from './registrar-familia-form'
 
 type Pendiente = { id: string; campus_id: string; created_at: string; payload: PreregistroPayload }
@@ -31,6 +32,13 @@ type Props = {
   abrirId?: string | null
   /** Called once abrirId was opened, or was not found among the pending ones. */
   onAbrirAtendido?: () => void
+  /**
+   * 'tarjeta' (Familias) or 'seccion': the check-in section "Pre-registros por
+   * QR" on design-system v2 (odd/tasks/ninos-v2.md, N2a), an inset list.
+   */
+  variante?: 'tarjeta' | 'seccion'
+  /** Pending ones not to list (already in "Llegando"); they can still be opened. */
+  ocultarIds?: readonly string[]
 }
 
 const AVISO_CORREO: Record<string, string> = {
@@ -75,7 +83,7 @@ async function leerPendientes(): Promise<Lista> {
 const nombreCompleto = (p: { nombre: string; apellido: string }) => `${p.nombre} ${p.apellido}`.trim()
 
 /** "Pre-registros pendientes" of the caller's campuses (N8), shown at check-in and Familias. */
-export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, onAbrirAtendido }: Props) {
+export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, onAbrirAtendido, variante = 'tarjeta', ocultarIds = [] }: Props) {
   const [lista, setLista] = useState<Pendiente[]>([])
   const [cuentas, setCuentas] = useState<Record<string, CuentaPreregistro>>({})
   const [abierto, setAbierto] = useState<Pendiente | null>(null)
@@ -173,13 +181,8 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
   const inicialAbierto =
     formAbierto && cuentaAbierta ? { ...formAbierto, padre: { ...formAbierto.padre, id: cuentaAbierta.solicitante.id } } : formAbierto
 
-  return (
-    <TarjetaSistema className="space-y-3 p-4 md:p-5">
-      <div className="flex items-center gap-2">
-        <ClipboardList className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden />
-        <TituloSistema nivel={3}>Pre-registros pendientes</TituloSistema>
-        {lista.length > 0 && <BadgeSistema tamaño="sm">{lista.length}</BadgeSistema>}
-      </div>
+  const avisos = (
+    <>
       {aviso && (
         <p role="status" className="text-sm text-success-text">
           {aviso}
@@ -198,6 +201,155 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
           {reenvio.texto}
         </p>
       )}
+    </>
+  )
+
+  const hoja = (
+    <DetalleResponsivo
+      abierto={abierto !== null}
+      onCambioAbierto={(v) => !v && setAbierto(null)}
+      titulo="Revisar pre-registro"
+      descripcion="Confirma los datos con la familia antes de registrarla."
+      ancho="lg"
+    >
+      <div className="space-y-4">
+        {abierto && (
+          <>
+            <InputSistema
+              id="pre-revision-email"
+              label="Correo del representante (opcional)"
+              aria-label="Correo del representante"
+              icono={Mail}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextoSistema variante="sutil" className="text-xs">
+              Con correo, le enviamos la bienvenida y, si no tiene cuenta, una invitación para crearla.
+            </TextoSistema>
+            {error && (
+              <p role="alert" className="text-sm text-danger-text">
+                {error}
+              </p>
+            )}
+            {cuentaAbierta && cuentaAbierta.coincidencias.length > 0 && (
+              <CoincidenciasCuenta
+                hijos={formAbierto?.hijos ?? []}
+                coincidencias={cuentaAbierta.coincidencias}
+                elegidos={elegidos}
+                onElegir={(indice, id) =>
+                  setElegidos((e) => {
+                    const siguiente = { ...e }
+                    if (id) siguiente[indice] = id
+                    else delete siguiente[indice]
+                    return siguiente
+                  })
+                }
+              />
+            )}
+            <RegistrarFamiliaForm
+              key={abierto.id}
+              inicial={inicialAbierto}
+              padreExistente={
+                cuentaAbierta
+                  ? { id: cuentaAbierta.solicitante.id, nombre: nombreCompleto(cuentaAbierta.solicitante) }
+                  : undefined
+              }
+              textoGuardar="Confirmar familia"
+              salones={salones}
+              onCancelar={() => setAbierto(null)}
+              guardar={async (datos) => {
+                const payload = cuentaAbierta ? conExistentes(datos, elegidos) : datos
+                const r = await resolver(abierto.id, { accion: 'confirmar', payload, email: email.trim() })
+                if (!r.ok || typeof r.datos.padreId !== 'string') {
+                  return { error: typeof r.datos.error === 'string' ? r.datos.error : 'No se pudo confirmar.' }
+                }
+                setAviso(
+                  ['Familia registrada.', AVISO_CORREO[String(r.datos.correo)], AVISO_INVITACION[String(r.datos.invitacion)]]
+                    .filter(Boolean)
+                    .join(' '),
+                )
+                setReenvio(null)
+                setFallida(r.datos.invitacion === 'fallo' && email.trim() ? { id: abierto.id, email: email.trim().toLowerCase() } : null)
+                return { padreId: r.datos.padreId }
+              }}
+              onRegistrada={(padreId, consulta) => {
+                setAbierto(null)
+                void cargar()
+                onConfirmado(padreId, consulta)
+              }}
+            />
+            <div className="pb-6">
+              <BotonSistema type="button" variante="ghost" icono={Trash2} disabled={ocupado} onClick={() => void descartar()}>
+                Descartar
+              </BotonSistema>
+            </div>
+          </>
+        )}
+      </div>
+    </DetalleResponsivo>
+  )
+
+  if (variante === 'seccion') {
+    const visibles = lista.filter((p) => !ocultarIds.includes(p.id))
+    return (
+      <section aria-label="Pre-registros por QR" className="grid min-w-0 gap-2">
+        {(visibles.length > 0 || aviso || fallida || reenvio) && (
+          <TituloSeccion
+            id="checkin-preregistros"
+            texto="Pre-registros por QR"
+            cantidad={visibles.length}
+            etiquetaCantidad={`${visibles.length} pendientes`}
+            pista="Sin aviso de llegada"
+          />
+        )}
+        {avisos}
+        {visibles.length > 0 && (
+          <ListaInset etiqueta="Pre-registros por QR">
+            {visibles.map((p) => {
+              const { form } = formDesdePreregistro(p.payload)
+              const cuenta = cuentas[p.id]
+              const padre = cuenta ? cuenta.solicitante : form.padre
+              const nombre = nombreCompleto(padre)
+              const n = form.hijos.length
+              return (
+                <li key={p.id} className={`${CLASE_LINEA_INSET} flex min-h-16 min-w-0 items-center gap-3 px-3.5 py-2.5`}>
+                  <Avatar nombre={padre.nombre} apellido={padre.apellido} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-semibold text-foreground">{nombre}</span>
+                    <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
+                      {n} {n === 1 ? 'niño' : 'niños'} · <span className="font-mono tabular-nums">{horaEnCaracas(p.created_at)}</span>
+                      {cuenta && ' · desde su cuenta'}
+                    </span>
+                  </span>
+                  <BotonSistema
+                    type="button"
+                    variante="ghost"
+                    tamaño="sm"
+                    className="shrink-0 pointer-coarse:min-h-11"
+                    aria-label={`Revisar registro: ${nombre}`}
+                    onClick={() => abrir(p)}
+                  >
+                    Revisar
+                  </BotonSistema>
+                </li>
+              )
+            })}
+          </ListaInset>
+        )}
+        {hoja}
+      </section>
+    )
+  }
+
+  return (
+    <TarjetaSistema className="space-y-3 p-4 md:p-5">
+      <div className="flex items-center gap-2">
+        <ClipboardList className="h-5 w-5 text-[var(--brand-primary)]" aria-hidden />
+        <TituloSistema nivel={3}>Pre-registros pendientes</TituloSistema>
+        {lista.length > 0 && <BadgeSistema tamaño="sm">{lista.length}</BadgeSistema>}
+      </div>
+      {avisos}
       <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {lista.map((p) => {
           const { form } = formDesdePreregistro(p.payload)
@@ -227,89 +379,7 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
         })}
       </ul>
 
-      <Sheet open={abierto !== null} onOpenChange={(v) => !v && setAbierto(null)}>
-        <SheetContent side="right" className="h-dvh w-full max-w-none gap-0 p-0 sm:w-[640px] sm:max-w-[640px]">
-          <SheetHeader className="border-b border-border pr-12">
-            <SheetTitle>Revisar pre-registro</SheetTitle>
-            <SheetDescription>Confirma los datos con la familia antes de registrarla.</SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pt-4">
-            {abierto && (
-              <>
-                <InputSistema
-                  id="pre-revision-email"
-                  label="Correo del representante (opcional)"
-                  aria-label="Correo del representante"
-                  icono={Mail}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <TextoSistema variante="sutil" className="text-xs">
-                  Con correo, le enviamos la bienvenida y, si no tiene cuenta, una invitación para crearla.
-                </TextoSistema>
-                {error && (
-                  <p role="alert" className="text-sm text-danger-text">
-                    {error}
-                  </p>
-                )}
-                {cuentaAbierta && cuentaAbierta.coincidencias.length > 0 && (
-                  <CoincidenciasCuenta
-                    hijos={formAbierto?.hijos ?? []}
-                    coincidencias={cuentaAbierta.coincidencias}
-                    elegidos={elegidos}
-                    onElegir={(indice, id) =>
-                      setElegidos((e) => {
-                        const siguiente = { ...e }
-                        if (id) siguiente[indice] = id
-                        else delete siguiente[indice]
-                        return siguiente
-                      })
-                    }
-                  />
-                )}
-                <RegistrarFamiliaForm
-                  key={abierto.id}
-                  inicial={inicialAbierto}
-                  padreExistente={
-                    cuentaAbierta
-                      ? { id: cuentaAbierta.solicitante.id, nombre: nombreCompleto(cuentaAbierta.solicitante) }
-                      : undefined
-                  }
-                  textoGuardar="Confirmar familia"
-                  salones={salones}
-                  onCancelar={() => setAbierto(null)}
-                  guardar={async (datos) => {
-                    const payload = cuentaAbierta ? conExistentes(datos, elegidos) : datos
-                    const r = await resolver(abierto.id, { accion: 'confirmar', payload, email: email.trim() })
-                    if (!r.ok || typeof r.datos.padreId !== 'string') {
-                      return { error: typeof r.datos.error === 'string' ? r.datos.error : 'No se pudo confirmar.' }
-                    }
-                    setAviso(
-                      ['Familia registrada.', AVISO_CORREO[String(r.datos.correo)], AVISO_INVITACION[String(r.datos.invitacion)]]
-                        .filter(Boolean)
-                        .join(' '),
-                    )
-                    setReenvio(null)
-                    setFallida(r.datos.invitacion === 'fallo' && email.trim() ? { id: abierto.id, email: email.trim().toLowerCase() } : null)
-                    return { padreId: r.datos.padreId }
-                  }}
-                  onRegistrada={(padreId, consulta) => {
-                    setAbierto(null)
-                    void cargar()
-                    onConfirmado(padreId, consulta)
-                  }}
-                />
-                <div className="pb-6">
-                  <BotonSistema type="button" variante="ghost" icono={Trash2} disabled={ocupado} onClick={() => void descartar()}>
-                    Descartar
-                  </BotonSistema>
-                </div>
-              </>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
+      {hoja}
     </TarjetaSistema>
   )
 }

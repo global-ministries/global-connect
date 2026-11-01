@@ -1,89 +1,81 @@
 'use client'
 
+/**
+ * Niños › Check-in at the desk on design-system v2 (odd/tasks/ninos-v2.md,
+ * N2a–N2b, S3–S4; prototypes docs/design-system/prototipos/ninos/01 phone,
+ * 04 tablet, 05 desktop). Top to bottom: hero with the summary line, service
+ * + Ingreso / Retiro, salones with occupancy, then LLEGANDO (1-tap
+ * "Llegaron") and PRE-REGISTROS POR QR first, and the MESA (search, the
+ * family with its children already marked, the pickup code with "Siguiente
+ * familia"). From md the queue and the mesa sit side by side; from lg a third
+ * column shows the salones. Nueva familia, Cambiar salón, Completar ficha and
+ * the adult-without-children forms open in one panel without leaving the
+ * screen (PanelesCheckin). Every RPC, API route and permission is unchanged.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, ArrowRight, ClipboardPlus, Search, UserPlus, Users } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 
-import { TabsList, TabsSistema, TabsTrigger } from '@/components/ui/TabsSistema'
-import { BadgeSistema, BotonSistema, InputSistema, SelectSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
-import { cn } from '@/lib/utils'
-import {
-  alertasDeHijo,
-  armarCheckin,
-  avisosDeCapacidad,
-  mensajeDeErrorCheckin,
-  preferidosAGuardar,
-  type Servicio,
-  type TurnoFila,
-} from '@/lib/platform/ninos/checkin'
-import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
-import { llegandoAFamilia, type FamiliaLlegando } from '@/lib/platform/ninos/precheck'
+import { BotonFlotante } from '@/components/ui/BotonFlotante'
+import { ControlSegmentado } from '@/components/ui/control-segmentado'
+import { BotonSistema, PaginaSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import type { Servicio, TurnoFila } from '@/lib/platform/ninos/checkin'
+import { resumenCheckin, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
+import { aSalonSugerible, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import type { FamiliaLlegando } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
-import { AdultoSinHijos } from './adulto-sin-hijos'
-import { registrarIngresoApi, type FilaIngreso } from './api-visita'
-import { EditarNinoForm } from './editar-nino-form'
-import { EncabezadoNinos } from './encabezado-ninos'
-import { EstadoVacio } from './estado-vacio'
-import { Llegando } from './llegando'
-import { PanelLateralNinos } from './panel-lateral'
+import { ColaLlegando } from './checkin/cola-llegando'
+import { ColumnaSalones } from './checkin/columna-salones'
+import { EncabezadoCheckin, MigasCheckin } from './checkin/encabezado-checkin'
+import { Mesa } from './checkin/mesa'
+import { PanelesCheckin, type PanelCheckin } from './checkin/paneles-checkin'
+import { SalonesOcupacion } from './checkin/salones-ocupacion'
+import { useColaLlegando } from './checkin/use-cola-llegando'
+import { useMesa } from './checkin/use-mesa'
 import { PreregistrosPendientes } from './preregistros-pendientes'
-import { RegistrarFamiliaForm } from './registrar-familia-form'
 import { RetiroPanel } from './retiro-panel'
 import { SelectorServicio } from './selector-servicio'
-import { useBuscarFamilias } from './use-buscar-familias'
 import { useRefrescoVisible } from './use-refresco'
-import { VincularHijoForm } from './vincular-hijo-form'
 
 type Props = {
   salones: SalonFila[]
   turnos: TurnoFila[]
   servicio: Servicio
-  /** Search to run on load (a family just registered from here). */
+  /** Campus of the salones, for the summary line. */
+  campus?: string | null
+  /** Search to run on load (a family just registered from Familias). */
   consultaInicial?: string
   /** Family to select after consultaInicial. */
   padreInicial?: string
 }
 
-type Ocupacion = { salon_id: string; nombre: string; presentes: number; capacidad: number }
+type Pestana = 'ingreso' | 'retiro'
 
-type Resultado = { codigo: string; lineas: string[]; avisos: string[] }
+const PESTANAS = [
+  { valor: 'ingreso', etiqueta: 'Ingreso' },
+  { valor: 'retiro', etiqueta: 'Retiro' },
+] as const
 
 function urlCheckin(s: Servicio): string {
   return `/ninos/checkin?turno=${encodeURIComponent(s.turnoId ?? '')}&fecha=${encodeURIComponent(s.fecha)}`
 }
 
-/** Mobile-first check-in: pick the service, find a family, choose children and rooms, issue the code. */
-export function CheckinClient({ salones, turnos, servicio: servicioInicial, consultaInicial, padreInicial }: Props) {
+export function CheckinClient({ salones, turnos, servicio: servicioInicial, campus = null, consultaInicial, padreInicial }: Props) {
   const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [servicio, setServicio] = useState<Servicio>(servicioInicial)
-  const { q, setQ, familias, error: errorBusqueda, buscando, buscar, limpiar } = useBuscarFamilias()
-  const [familia, setFamilia] = useState<FamiliaEncontrada | null>(null)
-  const [ingresados, setIngresados] = useState<Record<string, string>>({})
-  const [elegidos, setElegidos] = useState<Record<string, boolean>>({})
-  const [salonManual, setSalonManual] = useState<Record<string, string>>({})
-  const [ocupacion, setOcupacion] = useState<Ocupacion[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [guardando, setGuardando] = useState(false)
-  const [resultado, setResultado] = useState<Resultado | null>(null)
-  const [pestana, setPestana] = useState<'ingreso' | 'retiro'>('ingreso')
-  const [completando, setCompletando] = useState<HijoEncontrado | null>(null)
-  /** An adult without children (N11): add a new child or link an existing one. */
-  const [paraAdulto, setParaAdulto] = useState<{ tipo: 'agregar' | 'vincular'; id: string; nombre: string } | null>(null)
+  const [pestana, setPestana] = useState<Pestana>('ingreso')
+  const [ocupacion, setOcupacion] = useState<OcupacionSalon[] | null>(null)
+  const [panel, setPanel] = useState<PanelCheckin | null>(null)
   /** A QR pre-registration of "Llegando" to open in its review (P4). */
   const [revisar, setRevisar] = useState<string | null>(null)
-  /** Bumped after a pre-registration is confirmed, so "Llegando" reads its list again. */
-  const [versionLlegando, setVersionLlegando] = useState(0)
   const atenderRevisar = useCallback(() => setRevisar(null), [])
-
-  const nombreSalon = useCallback((id: string) => salones.find((s) => s.id === id)?.nombre ?? 'salón', [salones])
 
   const cargarOcupacion = useCallback(async () => {
     if (!servicio.turnoId) return
     const { data } = await createClient().rpc('ninos_ocupacion', { p_turno_id: servicio.turnoId, p_fecha: servicio.fecha })
-    setOcupacion((data ?? []) as Ocupacion[])
+    setOcupacion((data ?? []) as OcupacionSalon[])
   }, [servicio])
 
   useEffect(() => {
@@ -91,52 +83,16 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   }, [cargarOcupacion])
   useRefrescoVisible(() => void cargarOcupacion())
 
-  const cargarIngresados = useCallback(
-    async (f: FamiliaEncontrada | null) => {
-      if (!f || !servicio.turnoId || f.hijos.length === 0) {
-        setIngresados({})
-        return
-      }
-      const { data } = await createClient()
-        .from('ninos_checkins')
-        .select('nino_id, codigo')
-        .eq('turno_id', servicio.turnoId)
-        .eq('fecha', servicio.fecha)
-        .in(
-          'nino_id',
-          f.hijos.map((h) => h.id),
-        )
-      setIngresados(Object.fromEntries(((data ?? []) as { nino_id: string; codigo: string }[]).map((c) => [c.nino_id, c.codigo])))
-    },
-    [servicio],
-  )
-
-  const elegirFamilia = useCallback(
-    (f: FamiliaEncontrada | null) => {
-      setFamilia(f)
-      setElegidos({})
-      setSalonManual({})
-      setError(null)
-      void cargarIngresados(f)
-    },
-    [cargarIngresados],
-  )
-
-  const buscarYElegir = useCallback(
-    async (texto: string, padreId?: string) => {
-      const encontradas = await buscar(texto)
-      if (!encontradas) return
-      const f =
-        encontradas.find((x) => x.id === padreId || x.padres.some((p) => p.id === padreId)) ??
-        (encontradas.length === 1 ? encontradas[0] : null)
-      elegirFamilia(f ?? null)
-    },
-    [buscar, elegirFamilia],
-  )
+  const { cola, recargar: recargarCola } = useColaLlegando(servicio)
+  const mesa = useMesa(salones, servicio, () => {
+    void cargarOcupacion()
+    void recargarCola()
+  })
+  const { busqueda, buscarYElegir } = mesa
 
   useEffect(() => {
     if (consultaInicial) {
-      setQ(consultaInicial)
+      busqueda.setQ(consultaInicial)
       void buscarYElegir(consultaInicial, padreInicial)
     }
     // Only on load.
@@ -146,463 +102,124 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, cons
   function cambiarServicio(s: Servicio) {
     setServicio(s)
     router.replace(urlCheckin(s))
-    if (familia) setIngresados({})
-  }
-
-  useEffect(() => {
-    void cargarIngresados(familia)
-    // Re-read who came in when the service changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [servicio])
-
-  function salonDe(hijoId: string): string | null {
-    if (salonManual[hijoId]) return salonManual[hijoId]
-    const h = familia?.hijos.find((x) => x.id === hijoId)
-    if (!h) return null
-    const r = salonParaHijo(h, salones, servicio.fecha)
-    return r.tipo === 'ninguno' ? null : r.salon.id
-  }
-
-  async function registrarIngreso() {
-    if (!familia || !servicio.turnoId) return
-    const seleccion = familia.hijos
-      .filter((h) => h.tiene_ficha && elegidos[h.id] && !ingresados[h.id])
-      .map((h) => ({ ninoId: h.id, salonId: salonDe(h.id), nombre: h.nombre }))
-    const armado = armarCheckin(seleccion)
-    if (!armado.ok) {
-      setError(armado.error)
-      return
-    }
-    setError(null)
-    setGuardando(true)
-    const { data, error: err } = await registrarIngresoApi({
-      ninoIds: armado.ninoIds,
-      salonIds: armado.salonIds,
-      turnoId: servicio.turnoId,
-      fecha: servicio.fecha,
-    })
-    setGuardando(false)
-    if (err || !data || data.length === 0) {
-      setError(err ? mensajeDeErrorCheckin(err) : mensajeDeErrorCheckin(null))
-      return
-    }
-    void guardarPreferidos(armado.ninoIds, armado.salonIds)
-    mostrarCodigo(familia.hijos, data)
-  }
-
-  /** The code to write on the tags, one line per child and the full-room warnings. */
-  function mostrarCodigo(hijos: readonly HijoEncontrado[], data: FilaIngreso[]) {
-    const nombres = Object.fromEntries(salones.map((s) => [s.id, s.nombre]))
-    setResultado({
-      codigo: data[0].codigo,
-      lineas: data.map((fila) => {
-        const h = hijos.find((x) => x.id === fila.nino_id)
-        return `${h ? `${h.nombre} ${h.apellido}` : 'Niño'} → ${nombreSalon(fila.salon_id)}`
-      }),
-      avisos: avisosDeCapacidad(data, nombres),
-    })
-    void cargarOcupacion()
-  }
-
-  /**
-   * "Llegaron" on a family of the Llegando list (P3): the notified children go
-   * in with their suggested rooms through the usual check-in. When a child has
-   * no suggested room the family opens in the card to pick it by hand.
-   */
-  async function llegaron(f: FamiliaLlegando): Promise<string | null> {
-    if (!servicio.turnoId) return null
-    const armado = armarCheckin(
-      f.hijos.map((h) => {
-        const r = salonParaHijo(h, salones, servicio.fecha)
-        return { ninoId: h.id, salonId: r.tipo === 'ninguno' ? null : r.salon.id, nombre: h.nombre }
-      }),
-    )
-    if (!armado.ok) {
-      const encontrada = llegandoAFamilia(f)
-      setFamilia(encontrada)
-      setElegidos(Object.fromEntries(f.hijos.map((h) => [h.id, true])))
-      setSalonManual({})
-      setError(armado.error)
-      void cargarIngresados(encontrada)
-      return null
-    }
-    const { data, error: err } = await registrarIngresoApi({
-      ninoIds: armado.ninoIds,
-      salonIds: armado.salonIds,
-      turnoId: servicio.turnoId,
-      fecha: servicio.fecha,
-    })
-    if (err || !data || data.length === 0) return mensajeDeErrorCheckin(err ?? null)
-    mostrarCodigo(f.hijos, data)
-    return null
-  }
-
-  /** Remembers a hand-picked room on the ficha so it is preselected next Sunday (same path as Familias). */
-  async function guardarPreferidos(ninoIds: string[], salonIds: string[]) {
-    if (!familia) return
-    const cambios = preferidosAGuardar(
-      ninoIds.map((ninoId, i) => {
-        const h = familia.hijos.find((x) => x.id === ninoId)
-        const r = h ? salonParaHijo(h, salones, servicio.fecha) : null
-        return { ninoId, salonId: salonIds[i], sugeridoId: r && r.tipo !== 'ninguno' ? r.salon.id : null }
-      }),
-    )
-    if (cambios.length === 0) return
-    const supabase = createClient()
-    try {
-      await Promise.all(
-        cambios.map((c) => supabase.from('ninos_fichas').update({ salon_preferido_id: c.salonId }).eq('usuario_id', c.ninoId)),
-      )
-    } catch {
-      // Best effort: the check-in is already saved; the room is just not remembered.
-    }
   }
 
   function siguienteFamilia() {
-    setResultado(null)
-    limpiar()
-    elegirFamilia(null)
+    mesa.siguienteFamilia()
+    void recargarCola()
   }
 
-  const turnoActual = turnos.find((t) => t.id === servicio.turnoId)
+  /** "Cambiar" on a child of Llegando: the family opens at the mesa with the salón panel. */
+  function cambiarSalonLlegando(f: FamiliaLlegando, hijoId: string) {
+    mesa.abrirLlegando(f)
+    const hijo = f.hijos.find((h) => h.id === hijoId)
+    if (hijo) setPanel({ tipo: 'salon', hijo })
+  }
 
-  const urlNuevaFamilia = `/ninos/familias?nueva=1&volver=checkin&turno=${encodeURIComponent(servicio.turnoId ?? '')}&fecha=${encodeURIComponent(servicio.fecha)}`
+  const porSalon = useMemo(() => new Map((ocupacion ?? []).map((o) => [o.salon_id, o])), [ocupacion])
+  const resumen = resumenCheckin(ocupacion, cola.length)
+  const ocultarPreregistros = useMemo(() => cola.flatMap((i) => (i.tipo === 'preregistro' ? [i.clave] : [])), [cola])
+  const abrirFamilia = (padreId: string, consulta = busqueda.q) => {
+    busqueda.setQ(consulta)
+    void buscarYElegir(consulta, padreId)
+  }
+  const nuevaFamilia = () => setPanel({ tipo: 'nueva' })
+  const ingreso = pestana === 'ingreso'
 
   return (
-    <>
-      <EncabezadoNinos
-        titulo="Check-in"
-        subtitulo="Ingreso y retiro de niños del servicio."
-        acciones={
-          <BotonSistema asChild variante="outline" icono={UserPlus}>
-            <Link href={urlNuevaFamilia}>Nueva familia</Link>
-          </BotonSistema>
-        }
-      />
-
-      <div className="space-y-6 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] md:items-start md:gap-6 md:space-y-0 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-        <div className="min-w-0 space-y-4">
+    <PaginaSistema
+      breadcrumbs={<MigasCheckin />}
+      acciones={
+        <BotonSistema type="button" tamaño="sm" icono={UserPlus} aria-haspopup="dialog" onClick={nuevaFamilia}>
+          Nueva familia
+        </BotonSistema>
+      }
+      className="pb-28 md:pb-0"
+    >
+      <div className="grid min-w-0 gap-6 lg:flex lg:flex-wrap lg:items-end lg:justify-between">
+        <EncabezadoCheckin campus={campus} resumen={resumen} />
+        <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end lg:w-[min(100%,640px)]">
           <SelectorServicio idPrefijo="checkin" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
-
-          <TabsSistema value={pestana} onValueChange={(v) => setPestana(v as 'ingreso' | 'retiro')}>
-            <TabsList aria-label="Ingreso o retiro" className="grid w-full grid-cols-2 sm:inline-grid sm:w-auto">
-              {(['ingreso', 'retiro'] as const).map((p) => (
-                <TabsTrigger key={p} value={p} className="min-h-[44px] px-6" onClick={() => setPestana(p)}>
-                  {p === 'ingreso' ? 'Ingreso' : 'Retiro'}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </TabsSistema>
-
-          {pestana === 'retiro' ? (
-            <TarjetaSistema className="p-4 md:p-6">
-              <RetiroPanel servicio={servicio} onRetirado={() => void cargarOcupacion()} />
-            </TarjetaSistema>
-          ) : resultado ? null : (
-            <>
-              <Llegando key={versionLlegando} servicio={servicio} salones={salones} onLlegaron={llegaron} onRevisar={setRevisar} />
-              <PreregistrosPendientes
-                salones={salonesNivel}
-                abrirId={revisar}
-                onAbrirAtendido={atenderRevisar}
-                onConfirmado={(padreId, consulta) => {
-                  setVersionLlegando((v) => v + 1)
-                  setQ(consulta)
-                  void buscarYElegir(consulta, padreId)
-                }}
-              />
-              <form
-                className="flex items-start gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  void buscarYElegir(q)
-                }}
-              >
-                <div className="min-w-0 flex-1">
-                  <InputSistema
-                    type="search"
-                    icono={Search}
-                    aria-label="Buscar familia"
-                    placeholder="Teléfono o nombre"
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                  />
-                </div>
-                <BotonSistema type="submit" icono={Search} disabled={buscando} aria-label="Buscar" />
-              </form>
-
-              {errorBusqueda && (
-                <p role="alert" className="text-sm text-danger-text">
-                  {errorBusqueda}
-                </p>
-              )}
-              {familias && familias.length === 0 && (
-                <EstadoVacio icono={Users} titulo="No se encontraron familias." subtitulo="Prueba con otro teléfono o nombre, o registra una nueva familia." />
-              )}
-
-              {!familia && familias && familias.length > 1 && (
-                <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                  {familias.map((f) => (
-                    <li key={f.id}>
-                      <button
-                        type="button"
-                        className="glass-panel flex h-full min-h-[44px] w-full items-center justify-between gap-3 rounded-2xl p-4 text-left transition-colors hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40"
-                        onClick={() => elegirFamilia(f)}
-                      >
-                        <span className="min-w-0">
-                          <span className="block font-semibold text-foreground">
-                            {f.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}
-                          </span>
-                          <span className="block text-sm text-muted-foreground">
-                            {f.hijos.map((h) => h.nombre).join(', ') || 'Sin niños registrados'}
-                          </span>
-                        </span>
-                        <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {familia?.sin_hijos && (
-                <AdultoSinHijos
-                  adulto={familia}
-                  onAgregarNino={() => setParaAdulto({ tipo: 'agregar', id: familia.id, nombre: `${familia.nombre} ${familia.apellido}` })}
-                  onVincularHijo={() => setParaAdulto({ tipo: 'vincular', id: familia.id, nombre: `${familia.nombre} ${familia.apellido}` })}
-                />
-              )}
-
-              {familia && !familia.sin_hijos && (
-                <TarjetaSistema className="space-y-4 p-4 md:p-6">
-                  <div className="flex items-start justify-between gap-2">
-                    <TituloSistema nivel={3}>{familia.padres.map((p) => `${p.nombre} ${p.apellido}`).join(' · ')}</TituloSistema>
-                    {familias && familias.length > 1 && (
-                      <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={() => elegirFamilia(null)}>
-                        Otra familia
-                      </BotonSistema>
-                    )}
-                  </div>
-                  {familia.hijos.length === 0 && (
-                    <TextoSistema variante="sutil" tamaño="sm">
-                      Esta familia no tiene niños registrados.
-                    </TextoSistema>
-                  )}
-                  <ul className="divide-y divide-border rounded-xl border border-border">
-                    {familia.hijos.map((h) => {
-                      const codigo = ingresados[h.id]
-                      const sugerencia = salonParaHijo(h, salones, servicio.fecha)
-                      const salonId = salonDe(h.id)
-                      const nombre = `${h.nombre} ${h.apellido}`
-                      return (
-                        <li key={h.id} data-testid={`nino-${h.id}`} className="space-y-2 p-3">
-                          {!h.tiene_ficha ? (
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <span className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                                {nombre}
-                                <BadgeSistema variante="info" tamaño="sm">
-                                  Sin ficha de niños
-                                </BadgeSistema>
-                              </span>
-                              <BotonSistema type="button" variante="outline" tamaño="sm" icono={ClipboardPlus} onClick={() => setCompletando(h)}>
-                                Completar ficha
-                              </BotonSistema>
-                            </div>
-                          ) : codigo ? (
-                            <div className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                              {nombre}
-                              <BadgeSistema variante="success" tamaño="sm">
-                                Ya ingresó (código {codigo})
-                              </BadgeSistema>
-                            </div>
-                          ) : (
-                            <label className="flex min-h-[44px] cursor-pointer items-center gap-3 font-medium text-foreground">
-                              <input
-                                type="checkbox"
-                                className="h-5 w-5 shrink-0 rounded accent-[var(--brand-primary)]"
-                                aria-label={nombre}
-                                checked={Boolean(elegidos[h.id])}
-                                onChange={(e) => setElegidos((x) => ({ ...x, [h.id]: e.target.checked }))}
-                              />
-                              {nombre}
-                              {h.es_vip_desde && (
-                                <BadgeSistema variante="warning" tamaño="sm">
-                                  VIP
-                                </BadgeSistema>
-                              )}
-                              {h.desde_casa && (
-                                <BadgeSistema variante="info" tamaño="sm">
-                                  Registrado desde casa
-                                </BadgeSistema>
-                              )}
-                            </label>
-                          )}
-                          {alertasDeHijo(h).length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {alertasDeHijo(h).map((a) => (
-                                <BadgeSistema key={a} variante="error" tamaño="sm">
-                                  {a}
-                                </BadgeSistema>
-                              ))}
-                            </div>
-                          )}
-                          {!codigo && h.tiene_ficha && (
-                            <div className="space-y-2">
-                              {sugerencia.tipo === 'ninguno' && !salonManual[h.id] && (
-                                <p className="flex items-center gap-2 text-sm font-medium text-warning-text">
-                                  <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-                                  Sin salón sugerido: asígnalo manualmente
-                                </p>
-                              )}
-                              <SelectSistema
-                                aria-label={`Salón de ${h.nombre}`}
-                                opciones={[{ valor: '', etiqueta: 'Elige un salón…' }, ...salones.map((s) => ({ valor: s.id, etiqueta: s.nombre }))]}
-                                value={salonId ?? ''}
-                                onValueChange={(v) => setSalonManual((x) => ({ ...x, [h.id]: v }))}
-                              />
-                            </div>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                  {error && (
-                    <p role="alert" className="text-sm text-danger-text">
-                      {error}
-                    </p>
-                  )}
-                  <BotonSistema
-                    type="button"
-                    tamaño="lg"
-                    className="w-full"
-                    disabled={guardando || !servicio.turnoId}
-                    onClick={() => void registrarIngreso()}
-                  >
-                    {guardando ? 'Registrando…' : 'Registrar ingreso'}
-                  </BotonSistema>
-                </TarjetaSistema>
-              )}
-            </>
-          )}
+          <ControlSegmentado
+            etiqueta="Ingreso o retiro"
+            opciones={PESTANAS}
+            valor={pestana}
+            onCambio={setPestana}
+            className="flex w-full md:w-auto [&>button]:flex-1 md:[&>button]:px-6"
+          />
         </div>
-
-        <aside className="min-w-0 space-y-4 md:sticky md:top-20">
-          {pestana === 'ingreso' && resultado && (
-            <TarjetaSistema variante="elevated" className="space-y-4 border-2 border-[var(--brand-primary)] p-4 text-center md:p-6" aria-live="polite">
-              <p className="text-lg font-medium text-foreground">Código</p>
-              <p className="break-all font-mono text-7xl font-black tracking-widest text-[var(--brand-primary)]">{resultado.codigo}</p>
-              <p className="text-lg font-medium text-foreground">escríbelo en ambas etiquetas</p>
-              <ul className="divide-y divide-border rounded-xl border border-border text-left">
-                {resultado.lineas.map((l) => (
-                  <li key={l} className="px-3 py-2 text-foreground">
-                    {l}
-                  </li>
-                ))}
-              </ul>
-              {resultado.avisos.map((a) => (
-                <p
-                  key={a}
-                  role="alert"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-warning/30 bg-warning/10 p-2 font-medium text-warning-text"
-                >
-                  <AlertTriangle className="h-4 w-4" aria-hidden />
-                  {a}
-                </p>
-              ))}
-              <BotonSistema type="button" tamaño="lg" className="w-full" onClick={siguienteFamilia}>
-                Siguiente familia
-              </BotonSistema>
-            </TarjetaSistema>
-          )}
-          <TarjetaSistema className="overflow-hidden p-0" aria-label="Ocupación de salones" role="region">
-            <div className="border-b border-border px-4 py-3">
-              <TituloSistema nivel={4}>Ocupación{turnoActual ? ` — ${turnoActual.nombre}` : ''}</TituloSistema>
-            </div>
-            {ocupacion === null ? (
-              <TextoSistema variante="sutil" tamaño="sm" className="px-4 py-3">
-                Cargando…
-              </TextoSistema>
-            ) : ocupacion.length === 0 ? (
-              <TextoSistema variante="sutil" tamaño="sm" className="px-4 py-3">
-                Sin salones para este servicio.
-              </TextoSistema>
-            ) : (
-              <ul className="grid grid-cols-2 gap-x-4 px-4 py-2 text-sm md:grid-cols-1 lg:grid-cols-2">
-                {ocupacion.map((o) => (
-                  <li key={o.salon_id} className="flex min-h-9 items-center justify-between gap-2 border-b border-border/50 last:border-0">
-                    <span className="min-w-0 leading-tight text-foreground">{o.nombre}</span>
-                    <span
-                      className={cn(
-                        'tabular-nums',
-                        o.presentes > o.capacidad ? 'font-semibold text-danger-text' : 'text-muted-foreground',
-                      )}
-                    >
-                      {o.presentes}/{o.capacidad}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </TarjetaSistema>
-        </aside>
       </div>
 
-      <PanelLateralNinos
-        abierto={completando !== null}
-        titulo="Completar ficha"
-        descripcion={completando ? `Datos de ${completando.nombre} ${completando.apellido}.` : ''}
-        onCerrar={() => setCompletando(null)}
-      >
-        {completando && (
-          <EditarNinoForm
-            key={completando.id}
-            salones={salonesNivel}
-            hijo={completando}
-            onCancelar={() => setCompletando(null)}
-            onGuardado={() => {
-              setCompletando(null)
-              // Reload the family so the child can be checked in right away.
-              if (familia) void buscarYElegir(q, familia.id)
-            }}
-          />
-        )}
-      </PanelLateralNinos>
+      <SalonesOcupacion ocupacion={ocupacion} columna={ingreso} />
 
-      <PanelLateralNinos
-        abierto={paraAdulto !== null}
-        titulo={paraAdulto?.tipo === 'vincular' ? 'Vincular hijo existente' : 'Agregar niño'}
-        descripcion={paraAdulto?.tipo === 'vincular' ? `Representante: ${paraAdulto.nombre}.` : ''}
-        onCerrar={() => setParaAdulto(null)}
-      >
-        {paraAdulto?.tipo === 'agregar' && (
-          <RegistrarFamiliaForm
-            salones={salonesNivel}
-            key={paraAdulto.id}
-            padreExistente={{ id: paraAdulto.id, nombre: paraAdulto.nombre }}
-            onCancelar={() => setParaAdulto(null)}
-            onRegistrada={(padreId) => {
-              setParaAdulto(null)
-              void buscarYElegir(q, padreId)
-            }}
-            onAbrirFamilia={(padreId, consulta) => {
-              setParaAdulto(null)
-              setQ(consulta)
-              void buscarYElegir(consulta, padreId)
-            }}
+      {!ingreso ? (
+        <section aria-labelledby="checkin-retiro" className="grid min-w-0 gap-2 lg:max-w-[720px]">
+          <h2 id="checkin-retiro" className="px-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Retiro por código
+          </h2>
+          <TarjetaSistema className="p-4 md:p-6">
+            <RetiroPanel servicio={servicio} onRetirado={() => void cargarOcupacion()} />
+          </TarjetaSistema>
+        </section>
+      ) : (
+        <div className="grid min-w-0 gap-6 md:grid-cols-2 md:items-start lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_272px]">
+          <div className="grid min-w-0 gap-6">
+            {servicio.turnoId && (
+              <ColaLlegando
+                cola={cola}
+                salones={salones}
+                fecha={servicio.fecha}
+                ocupacion={porSalon}
+                onLlegaron={mesa.llegaron}
+                onCambiarSalon={cambiarSalonLlegando}
+                onRevisar={setRevisar}
+              />
+            )}
+            <PreregistrosPendientes
+              variante="seccion"
+              salones={salonesNivel}
+              abrirId={revisar}
+              ocultarIds={ocultarPreregistros}
+              onAbrirAtendido={atenderRevisar}
+              onConfirmado={(padreId, consulta) => {
+                void recargarCola()
+                abrirFamilia(padreId, consulta)
+              }}
+            />
+          </div>
+          <Mesa
+            mesa={{ ...mesa, siguienteFamilia }}
+            servicio={servicio}
+            salones={salones}
+            ocupacion={porSalon}
+            panelAbierto={panel !== null}
+            onCambiarSalon={(hijo) => setPanel({ tipo: 'salon', hijo })}
+            onCompletar={(hijo) => setPanel({ tipo: 'ficha', hijo })}
+            onParaAdulto={(tipo, a) => setPanel({ tipo, id: a.id, nombre: `${a.nombre} ${a.apellido}` })}
           />
-        )}
-        {paraAdulto?.tipo === 'vincular' && (
-          <VincularHijoForm
-            key={paraAdulto.id}
-            adulto={{ id: paraAdulto.id, nombre: paraAdulto.nombre }}
-            onCancelar={() => setParaAdulto(null)}
-            onVinculado={() => {
-              const id = paraAdulto.id
-              setParaAdulto(null)
-              void buscarYElegir(q, id)
-            }}
-          />
-        )}
-      </PanelLateralNinos>
-    </>
+          <div className="hidden min-w-0 lg:block">
+            <ColumnaSalones ocupacion={ocupacion} adentro={resumen.adentro} />
+          </div>
+        </div>
+      )}
+
+      <BotonFlotante onClick={nuevaFamilia} icono={UserPlus} label="Nueva familia" />
+
+      <PanelesCheckin
+        panel={panel}
+        onCerrar={() => setPanel(null)}
+        salones={salones}
+        salonesNivel={salonesNivel}
+        fecha={servicio.fecha}
+        ocupacion={porSalon}
+        salonDe={mesa.salonDe}
+        onElegirSalon={mesa.elegirSalon}
+        onAbrirFamilia={(padreId, consulta) => abrirFamilia(padreId, consulta)}
+        onFichaGuardada={() => {
+          // Reload the family so the child can be checked in right away.
+          if (mesa.familia) abrirFamilia(mesa.familia.id)
+        }}
+      />
+    </PaginaSistema>
   )
 }
