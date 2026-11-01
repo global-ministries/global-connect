@@ -9,6 +9,10 @@
  * - "En vivo" → /estudiantes/vivo: live view of some Transit / Inside Out
  *   ámbito (sub-área level >= 2).
  * - "Grupos" → /estudiantes/grupos: group management (level 3 somewhere).
+ * - "Voluntarios" → /estudiantes/voluntarios (C5): the caller may mark some
+ *   Transit, Inside Out or The Living Room volunteer
+ *   (estudiantes_puede_marcar_voluntarios(), a second call of the layout,
+ *   merged by `conVoluntarios`).
  *
  * Fails closed: an error, no session (NULL) or an unexpected payload means no
  * access.
@@ -21,6 +25,8 @@ export interface AccesoEstudiantes {
   readonly lidera: boolean
   readonly vivo: boolean
   readonly gestiona: boolean
+  /** May mark volunteers (C5); absent = no. */
+  readonly voluntarios?: boolean
 }
 
 export const SIN_ACCESO_ESTUDIANTES: AccesoEstudiantes = { grupos: 0, lidera: false, vivo: false, gestiona: false }
@@ -40,8 +46,16 @@ export function parsearAccesoEstudiantes(
   }
 }
 
+/** Adds the Voluntarios fact when estudiantes_puede_marcar_voluntarios() is true; otherwise `acceso` as it was. */
+export function conVoluntarios(
+  acceso: AccesoEstudiantes,
+  resultado: { readonly data: unknown; readonly error: unknown } | null | undefined,
+): AccesoEstudiantes {
+  return resultado && !resultado.error && resultado.data === true ? { ...acceso, voluntarios: true } : acceso
+}
+
 export interface EntradaMenuEstudiantes {
-  readonly id: 'estudiantes-mi-grupo' | 'estudiantes-vivo' | 'estudiantes-grupos'
+  readonly id: 'estudiantes-mi-grupo' | 'estudiantes-vivo' | 'estudiantes-grupos' | 'estudiantes-voluntarios'
   readonly label: string
   readonly href: string
 }
@@ -53,5 +67,6 @@ export function entradasMenuEstudiantes(acceso: AccesoEstudiantes): EntradaMenuE
   }
   if (acceso.vivo) entradas.push({ id: 'estudiantes-vivo', label: 'En vivo', href: '/estudiantes/vivo' })
   if (acceso.gestiona) entradas.push({ id: 'estudiantes-grupos', label: 'Grupos', href: '/estudiantes/grupos' })
+  if (acceso.voluntarios) entradas.push({ id: 'estudiantes-voluntarios', label: 'Voluntarios', href: '/estudiantes/voluntarios' })
   return entradas
 }
