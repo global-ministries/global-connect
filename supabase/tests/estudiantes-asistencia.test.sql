@@ -932,6 +932,7 @@ SELECT pg_temp.assert_eq('l: authenticated executes exactly the public RPCs',
   || 'estudiantes_grupo_lideres_fijar,estudiantes_grupo_lideres_historial,estudiantes_grupo_lista,'
   || 'estudiantes_grupo_miembro_agregar,estudiantes_grupo_miembro_mover,estudiantes_grupo_miembro_quitar,'
   || 'estudiantes_grupo_sesiones,estudiantes_lideres_disponibles,estudiantes_marcar,estudiantes_mis_grupos,'
+  || 'estudiantes_promocion_aplicar,estudiantes_promocion_vista,'
   || 'estudiantes_puede_marcar_voluntarios,estudiantes_reporte_voluntarios,'
   || 'estudiantes_reunion_guardar,estudiantes_sin_grupo,estudiantes_subareas_gestionables,'
   || 'estudiantes_visitante_agregar,estudiantes_visitante_crear,estudiantes_vivo_opciones,'
@@ -946,7 +947,7 @@ SELECT pg_temp.assert_eq('l: RLS on every table and no privilege for anon or aut
        || count(*) FILTER (WHERE has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
                               OR has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE'))
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'estudiantes\_%'$q$, '9|0');
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'estudiantes\_%'$q$, '10|0');
 
 SELECT coalesce(string_agg(case_name, E'\n' ORDER BY case_name), 'ALL OK') AS result FROM t_ea_failures;
 

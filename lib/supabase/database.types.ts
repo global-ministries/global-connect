@@ -2262,6 +2262,7 @@ export type Database = {
           anio_final: number | null
           campus_id: string
           created_at: string
+          egresado_at: string | null
           persona_id: string
           updated_at: string
           updated_by: string | null
@@ -2271,6 +2272,7 @@ export type Database = {
           anio_final?: number | null
           campus_id: string
           created_at?: string
+          egresado_at?: string | null
           persona_id: string
           updated_at?: string
           updated_by?: string | null
@@ -2280,6 +2282,7 @@ export type Database = {
           anio_final?: number | null
           campus_id?: string
           created_at?: string
+          egresado_at?: string | null
           persona_id?: string
           updated_at?: string
           updated_by?: string | null
@@ -2611,7 +2614,7 @@ export type Database = {
             referencedColumns: ["miembro_id"]
           },
           {
-            foreignKeyName: "estudiantes_grupo_miembros_grupo_id_ambito_id_fkey"
+            foreignKeyName: "estudiantes_grupo_miembros_grupo_ambito_fkey"
             columns: ["grupo_id", "ambito_id"]
             isOneToOne: false
             referencedRelation: "estudiantes_grupos"
@@ -10448,6 +10451,14 @@ export type Database = {
       estudiantes_persona_en_campus: {
         Args: { p_campus_id: string; p_persona_id: string }
         Returns: boolean
+      }
+      estudiantes_promocion_aplicar: {
+        Args: { p_campus_id: string; p_decisiones: Json }
+        Returns: Json
+      }
+      estudiantes_promocion_vista: {
+        Args: { p_campus_id: string }
+        Returns: Json
       }
       estudiantes_puede_marcar_voluntarios: { Args: never; Returns: boolean }
       estudiantes_reporte_voluntarios: {
