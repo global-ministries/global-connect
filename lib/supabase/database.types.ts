@@ -2380,24 +2380,71 @@ export type Database = {
       }
       estudiantes_grupo_lideres: {
         Row: {
+          cerrado_por: string | null
           created_at: string
           created_by: string | null
+          desde: string
           grupo_id: string
+          hasta: string | null
+          id: string
           servicio_id: string
         }
         Insert: {
+          cerrado_por?: string | null
           created_at?: string
           created_by?: string | null
+          desde?: string
           grupo_id: string
+          hasta?: string | null
+          id?: string
           servicio_id: string
         }
         Update: {
+          cerrado_por?: string | null
           created_at?: string
           created_by?: string | null
+          desde?: string
           grupo_id?: string
+          hasta?: string | null
+          id?: string
           servicio_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_cerrado_por_fkey"
+            columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_cerrado_por_fkey"
+            columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_cerrado_por_fkey"
+            columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_casas_anfitrionas_disponibles"
+            referencedColumns: ["co_anfitrion_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_cerrado_por_fkey"
+            columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_lideres_con_pareja"
+            referencedColumns: ["pareja_id"]
+          },
+          {
+            foreignKeyName: "estudiantes_grupo_lideres_cerrado_por_fkey"
+            columns: ["cerrado_por"]
+            isOneToOne: false
+            referencedRelation: "v_solicitudes_pendientes"
+            referencedColumns: ["miembro_id"]
+          },
           {
             foreignKeyName: "estudiantes_grupo_lideres_created_by_fkey"
             columns: ["created_by"]
@@ -10214,6 +10261,19 @@ export type Database = {
       estudiantes_grupo_lideres_fijar: {
         Args: { p_grupo_id: string; p_servicio_ids: string[] }
         Returns: number
+      }
+      estudiantes_grupo_lideres_historial: {
+        Args: { p_grupo_id: string }
+        Returns: {
+          apellido: string
+          cerrado_por_nombre: string
+          desde: string
+          hasta: string
+          nombre: string
+          persona_id: string
+          rol: string
+          servicio_id: string
+        }[]
       }
       estudiantes_grupo_lista: {
         Args: { p_fecha: string; p_grupo_id: string; p_turno_id?: string }
