@@ -9,8 +9,10 @@ import { createSupabaseServerClient, createSupabaseServerClientOrNull } from "@/
 import { resolveCurrentUserSnapshot } from "@/lib/auth/currentUserSnapshot"
 import { DreamTeamAccesoProvider } from "@/hooks/useDreamTeamAcceso"
 import { NinosAccesoProvider } from "@/hooks/useNinosAcceso"
+import { EstudiantesAccesoProvider } from "@/hooks/useEstudiantesAcceso"
 import { UnoAUnoAccesoProvider } from "@/hooks/useUnoAUnoAcceso"
 import { parsearAccesoUnoAUno, SIN_ACCESO_UNO_A_UNO, type AccesoUnoAUno } from "@/lib/uno-a-uno/acceso"
+import { parsearAccesoEstudiantes, SIN_ACCESO_ESTUDIANTES, type AccesoEstudiantes } from "@/lib/platform/estudiantes/acceso"
 import { isDreamTeamEnabled } from "@/lib/platform/dream-team/route-access"
 import { puedeRegistrarParaNavegacion } from "@/lib/platform/dream-team/ficha-persona"
 
@@ -58,6 +60,18 @@ async function resolveUnoAUnoAcceso(supabase: SupabaseServerClient | null): Prom
   }
 }
 
+// Estudiantes menu section (odd/tasks/estudiantes-fase-b.md, C4): Mi grupo,
+// En vivo and Grupos from one estudiantes_acceso() call. Fails closed on any
+// error.
+async function resolveEstudiantesAcceso(supabase: SupabaseServerClient | null): Promise<AccesoEstudiantes> {
+  if (!supabase) return SIN_ACCESO_ESTUDIANTES
+  try {
+    return parsearAccesoEstudiantes(await supabase.rpc("estudiantes_acceso"))
+  } catch {
+    return SIN_ACCESO_ESTUDIANTES
+  }
+}
+
 async function resolveBranding(supabase: SupabaseServerClient) {
   // Obtener datos de branding para pasar a sidebar/header
   let branding = DEFAULT_BRANDING
@@ -98,12 +112,13 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   // resolveCurrentUserSnapshot's doc comment.
   // The Dream Team sidebar links Mi equipo for the volunteer coordinator, whose
   // session carries no read capability: one registrables lookup, fails closed.
-  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, unoAUnoAcceso] = await Promise.all([
+  const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, unoAUnoAcceso, estudiantesAcceso] = await Promise.all([
     supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
     resolveCurrentUserSnapshot(supabase ?? undefined),
     puedeRegistrarParaNavegacion(supabase, isDreamTeamEnabled()),
     resolveNinosAcceso(supabase),
     resolveUnoAUnoAcceso(supabase),
+    resolveEstudiantesAcceso(supabase),
   ])
 
   return (
@@ -118,6 +133,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
         <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
           <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}
             puedeConfigurar={ninosAcceso.puedeConfigurar} puedeMarcarVoluntarios={ninosAcceso.puedeMarcarVoluntarios}>
+            <EstudiantesAccesoProvider acceso={estudiantesAcceso}>
             <UnoAUnoAccesoProvider acceso={unoAUnoAcceso}>
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
@@ -130,6 +146,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
               </div>
             </CampusProvider>
             </UnoAUnoAccesoProvider>
+            </EstudiantesAccesoProvider>
           </NinosAccesoProvider>
         </DreamTeamAccesoProvider>
       </CurrentUserProvider>

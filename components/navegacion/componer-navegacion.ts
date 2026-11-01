@@ -1,3 +1,4 @@
+import { insertEstudiantesMenuItem, type EstudiantesMenuItem } from '@/components/estudiantes/estudiantes-menu-item'
 import { insertNinosMenuItem, type NinosMenuItem } from '@/components/ninos/ninos-menu-item'
 import { insertDreamTeamMenuItem, type DreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import {
@@ -22,7 +23,7 @@ import {
   SECCIONES_PRINCIPALES,
 } from '@/lib/navegacion/secciones'
 
-/** One entry as the menus render it (registry, Dream Team, Niños, Mis 1 a 1 or platform). */
+/** One entry as the menus render it (registry, Dream Team, Niños, Estudiantes, Mis 1 a 1 or platform). */
 export type EntradaMenu = Pick<
   EntradaNavegacion,
   'id' | 'label' | 'href' | 'icon' | 'roles' | 'capabilities' | 'children' | 'seccion' | 'labelMovil' | 'hrefRaiz'
@@ -32,6 +33,8 @@ export interface FuentesNavegacion {
   credenciales: CredencialesNavegacion
   dreamTeam: DreamTeamMenuItem | null
   ninos: NinosMenuItem | null
+  /** The Estudiantes section (components/estudiantes/estudiantes-menu-item.ts); none when left out. */
+  estudiantes?: EstudiantesMenuItem | null
   unoAUno: UnoAUnoMenuItem | null
   plataforma: readonly PlatformNavigationViewItem[]
   /** The Talleres pages the sidebar's TalleresNavSubmenu lists ({@link paginasTalleres}); "Más" shows them when Talleres is not a tab. */
@@ -59,20 +62,23 @@ function esTalleres(entrada: { id: string }): boolean {
  * Everything the shell renders, from the user's sources (pure; the hook is
  * components/navegacion/use-entradas-navegacion.ts):
  * - principales: the main list in its current order — "Mis 1 a 1" right after
- *   Inicio, Dream Team and Niños right after Grupos de Vida, then the platform
- *   items — each filtered by the registry role rule;
+ *   Inicio, Dream Team, Niños and Estudiantes right after Grupos de Vida, then
+ *   the platform items — each filtered by the registry role rule;
  * - pie and cuenta: the footer and account links;
  * - secciones: every visible entry grouped by section (lib/navegacion/secciones.ts);
  * - pestanas and mas: the phone tab bar and the "Más" sheet (where a Talleres
  *   item carries its `talleres` pages, so it gets a block when not a tab).
  */
-export function componerNavegacion({ credenciales, dreamTeam, ninos, unoAUno, plataforma, talleres = [] }: FuentesNavegacion) {
+export function componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes = null, unoAUno, plataforma, talleres = [] }: FuentesNavegacion) {
   const principales = filtrarVisibles<EntradaMenu>(
     [
       ...insertUnoAUnoMenuItem<EntradaMenu>(
-        insertNinosMenuItem<EntradaMenu>(
-          insertDreamTeamMenuItem<EntradaMenu>(entradasDeSecciones(...SECCIONES_PRINCIPALES), dreamTeam),
-          ninos && { ...ninos, seccion: 'ministerios' },
+        insertEstudiantesMenuItem<EntradaMenu>(
+          insertNinosMenuItem<EntradaMenu>(
+            insertDreamTeamMenuItem<EntradaMenu>(entradasDeSecciones(...SECCIONES_PRINCIPALES), dreamTeam),
+            ninos && { ...ninos, seccion: 'ministerios' },
+          ),
+          estudiantes && { ...estudiantes, seccion: 'ministerios' },
         ),
         unoAUno && { ...unoAUno, seccion: 'general' },
       ),
