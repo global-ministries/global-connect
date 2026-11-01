@@ -120,7 +120,7 @@ export const ETIQUETAS_CAMPO: Record<CampoEdicion, string> = {
   nombre: 'Nombre', apellido: 'Apellido', cedula: 'Cédula', fecha_nacimiento: 'Fecha de nacimiento', genero: 'Género',
   estado_civil: 'Estado civil', ocupacion_id: 'Ocupación', profesion_id: 'Profesión', telefono: 'Teléfono', email: 'Email',
   pais_id: 'País', estado_id: 'Estado', municipio_id: 'Municipio', parroquia_id: 'Parroquia', calle: 'Calle',
-  barrio: 'Barrio o urbanización', codigo_postal: 'Código postal', referencia: 'Referencia', ubicacion: 'Ubicación en el mapa',
+  barrio: 'Sector o urbanización', codigo_postal: 'Código postal', referencia: 'Referencia', ubicacion: 'Ubicación en el mapa',
 }
 
 /** One summary entry per error, in field order: "Apellido: El apellido debe…" (no final period). */

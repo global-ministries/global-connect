@@ -139,7 +139,7 @@ export function SeccionUbicacion({ valores: v, estado, onCambiar, onTocar, catal
       </div>
       <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
         <CampoTexto etiqueta="Calle" autoComplete="address-line1" placeholder="Calle, avenida o carrera" ayuda="Obligatoria solo si guardas una dirección." {...texto('calle')} />
-        <CampoTexto etiqueta="Barrio o urbanización" autoComplete="address-line2" {...texto('barrio')} />
+        <CampoTexto etiqueta="Sector o urbanización" autoComplete="address-line2" {...texto('barrio')} />
         <CampoTexto etiqueta="Código postal" autoComplete="postal-code" inputMode="numeric" maxLength={8} {...texto('codigo_postal')} />
         <CampoTexto etiqueta="Referencia" autoComplete="off" placeholder="Un punto conocido cerca de la casa" {...texto('referencia')} />
       </div>
