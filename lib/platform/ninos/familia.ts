@@ -206,6 +206,9 @@ export function validarFamilia(form: FamiliaForm, hoy: string = hoyEnCaracas()):
     if (!texto(h.nombre)) errores.push(`${n}: el nombre es obligatorio.`)
     if (!texto(h.apellido)) errores.push(`${n}: el apellido es obligatorio.`)
     if (!fechaPasadaValida(h.fechaNacimiento, hoy)) errores.push(`${n}: la fecha de nacimiento no es válida.`)
+    else if (!enRangoNinos(h.fechaNacimiento, hoy)) {
+      errores.push(`${n}: solo se registran en Niños los menores de ${EDAD_MAXIMA_NINOS_ANOS} años.`)
+    }
     if (!esGenero(h.genero)) errores.push(`${n}: el género es obligatorio.`)
     if (parseGrado(h.grado) === 'invalido') errores.push(`${n}: el grado no es válido.`)
     if (!salonValido(h.salonPreferidoId)) errores.push(`${n}: el nivel no es válido.`)

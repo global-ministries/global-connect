@@ -68,6 +68,30 @@ describe('parsePreregistro', () => {
     }
   })
 
+  it('keeps the parent género when given (S6)', () => {
+    for (const genero of ['Masculino', 'Femenino'] as const) {
+      const r = parsePreregistro(cuerpo({ padre: { nombre: 'Ana', apellido: 'P', telefono: '04145551234', genero } }), HOY)
+      expect(r.ok && r.payload.padre.genero).toBe(genero)
+    }
+  })
+
+  it('keeps a missing or empty parent género as null', () => {
+    const r = parsePreregistro(cuerpo({ padre: { nombre: 'Ana', apellido: 'P', telefono: '04145551234', genero: '' } }), HOY)
+    expect(r.ok && r.payload.padre.genero).toBeNull()
+  })
+
+  it('rejects an unknown parent género', () => {
+    const r = parsePreregistro(cuerpo({ padre: { nombre: 'Ana', apellido: 'P', telefono: '04145551234', genero: 'Otro' } }), HOY)
+    expect(r).toEqual({ ok: false, errores: ['Elige un género válido o déjalo vacío.'] })
+  })
+
+  it('rejects a child outside the Niños age range (S6)', () => {
+    const hijo = { nombre: 'Sofía', apellido: 'Pérez', fechaNacimiento: '2013-10-08', genero: 'Femenino', grado: '' }
+    const r = parsePreregistro(cuerpo({ hijos: [hijo] }), HOY)
+    expect(r).toEqual({ ok: false, errores: ['Niño 1: solo se registran en Niños los menores de 13 años.'] })
+    expect(parsePreregistro(cuerpo({ hijos: [{ ...hijo, fechaNacimiento: '2013-10-09' }] }), HOY).ok).toBe(true)
+  })
+
   it('rejects a malformed email', () => {
     const r = parsePreregistro(cuerpo({ padre: { nombre: 'Ana', apellido: 'P', telefono: '04145551234', email: 'ana@' } }), HOY)
     expect(r.ok).toBe(false)
@@ -154,6 +178,13 @@ describe('crearPreregistro', () => {
     })
   })
 
+  it('sends the parent género to the RPC', async () => {
+    const rpc = ok()
+    const padre = { nombre: 'Ana', apellido: 'P', telefono: '04145551234', genero: 'Masculino' }
+    await crearPreregistro({ rpc, sal: 's', hoy: HOY }, cuerpo({ padre }), '1.2.3.4')
+    expect(rpc.mock.calls[0][1].p_payload.padre.genero).toBe('Masculino')
+  })
+
   it('answers ok to a bot (honeypot) without storing anything', async () => {
     const rpc = ok()
     expect(await crearPreregistro({ rpc, sal: 's', hoy: HOY }, cuerpo({ sitioWeb: 'x' }), '1.2.3.4')).toEqual({ status: 200, body: { ok: true } })
@@ -189,6 +220,7 @@ describe('formDesdePreregistro', () => {
     const { form, email } = formDesdePreregistro(r.payload)
     expect(email).toBe('ana@example.test')
     expect(form.padre).toEqual({ nombre: 'Ana', apellido: 'Pérez', telefono: '0414-555-1234', cedula: '', genero: '' })
+    expect(formDesdePreregistro({ ...r.payload, padre: { ...r.payload.padre, genero: 'Femenino' } }).form.padre.genero).toBe('Femenino')
     expect(form.hijos[0]).toMatchObject({ nombre: 'Sofía', fechaNacimiento: '2021-03-04', alergias: 'Maní', puedeComer: true, grado: '' })
     expect(form.autorizados).toEqual([{ nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela' }])
   })
