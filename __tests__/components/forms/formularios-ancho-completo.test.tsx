@@ -144,7 +144,7 @@ describe('full-width forms', () => {
     for (const titulo of ['Información personal', 'Contacto', 'Ubicación']) {
       expect(screen.getByRole('region', { name: titulo })).toBeTruthy()
     }
-    for (const etiqueta of [/^Nombre/, /^Apellido/, 'Cédula', 'Fecha de nacimiento', 'Email', 'Teléfono', 'Calle', 'Barrio o urbanización', 'Código postal', 'Referencia']) {
+    for (const etiqueta of [/^Nombre/, /^Apellido/, 'Cédula', 'Fecha de nacimiento', 'Email', 'Teléfono', 'Calle', 'Sector o urbanización', 'Código postal', 'Referencia']) {
       expect(screen.getByLabelText(etiqueta)).toBeTruthy()
     }
     expect(screen.getByRole('region', { name: 'Ubicación' }).className).toContain('col-span-full')
