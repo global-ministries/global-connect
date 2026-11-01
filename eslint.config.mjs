@@ -35,11 +35,16 @@ const migratedToDesignSystem = [
   'components/users/editar/**',
   'app/(auth)/perfil/**',
   'components/ui/filtros-usuarios.tsx',
-  // Niños: check-in at the desk (N2a–N2b of odd/tasks/ninos-v2.md); the rest of Niños is pending.
+  // Niños: check-in at the desk (N2a–N2b of odd/tasks/ninos-v2.md) and the one-screen
+  // registration, public QR page and desk panel (N4b); the rest of Niños is pending.
   'app/(auth)/ninos/checkin/**',
   'components/ninos/checkin-client.tsx',
   'components/ninos/checkin/**',
   'components/ninos/retiro-panel.tsx',
+  'app/ninos/registro/**',
+  'components/ninos/registro/**',
+  'components/ninos/registro-rapido/**',
+  'components/ninos/registrar-familia-form.tsx',
 ]
 
 const legacyUiImports = {

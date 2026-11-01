@@ -87,6 +87,9 @@ export async function crearPreregistro(deps: DependenciasPreregistro, body: unkn
     p_ip_hash: hashIp(ip, deps.sal),
     p_token_hash: hashToken(token),
   })
+  if (error?.message === 'fuera_de_rango') {
+    return { status: 400, body: { errores: ['Solo se registran en Niños los menores de 13 años con fecha de nacimiento.'] } }
+  }
   if (error) {
     // Code only: the message may carry the submitted data.
     console.error('[ninos/preregistro] crear falló:', error.code ?? 'sin código')

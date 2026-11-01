@@ -2,7 +2,7 @@
  * N8 — "Pre-registros pendientes" at the table: review, confirm (with the
  * confirm-existing-parent rule) or discard.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 import { PreregistrosPendientes } from '@/components/ninos/preregistros-pendientes'
 
@@ -53,10 +53,10 @@ describe('PreregistrosPendientes', () => {
     expect(screen.getByLabelText('Correo del representante')).toHaveValue('ana@example.test')
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
-    expect(await screen.findByText('El género del representante es obligatorio.')).toBeInTheDocument()
+    expect(await screen.findByText('Elige mamá o papá.')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
 
-    fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
     await waitFor(() => expect(onConfirmado).toHaveBeenCalledWith('p1', 'Sofía Pérez'))
     const [url, init] = fetchMock.mock.calls[0]
@@ -72,7 +72,7 @@ describe('PreregistrosPendientes', () => {
     responder([{ id: 'px', nombre: 'Ana', apellido: 'Pérez', telefono: '•••1234', cedula: null, coincide_por: 'telefono' }])
     render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
     fireEvent.click(await screen.findByRole('button', { name: /Ana Pérez/ }))
-    fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Sí, es esta persona' }))
     await waitFor(() => expect(fetchMock).toHaveBeenCalled())
@@ -136,7 +136,7 @@ describe('PreregistrosPendientes', () => {
 
   async function confirmarConGenero() {
     fireEvent.click(await screen.findByRole('button', { name: /Ana Pérez/ }))
-    fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar familia' }))
   }
 

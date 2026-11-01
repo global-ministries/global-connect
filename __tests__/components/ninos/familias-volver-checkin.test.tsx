@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 import { FamiliasClient } from '@/components/ninos/familias-client'
 
@@ -18,11 +18,11 @@ it('a family registered from the check-in goes back with it selected', async () 
   fireEvent.change(screen.getByLabelText('Nombre del representante'), { target: { value: 'Ana' } })
   fireEvent.change(screen.getByLabelText('Apellido del representante'), { target: { value: 'Pérez' } })
   fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '04145551234' } })
-  fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
   fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
   fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Pérez' } })
   fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-  fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
   fireEvent.click(screen.getByRole('button', { name: 'Registrar familia' }))
 
   await waitFor(() =>
@@ -44,11 +44,11 @@ it('opening the other family of a duplicate child goes back to the check-in with
   fireEvent.change(screen.getByLabelText('Nombre del representante'), { target: { value: 'Ana' } })
   fireEvent.change(screen.getByLabelText('Apellido del representante'), { target: { value: 'Pérez' } })
   fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '04145551234' } })
-  fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
   fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
   fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Pérez' } })
   fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-  fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
   fireEvent.click(screen.getByRole('button', { name: 'Registrar familia' }))
 
   fireEvent.click(await screen.findByRole('button', { name: 'Abrir esa familia' }))

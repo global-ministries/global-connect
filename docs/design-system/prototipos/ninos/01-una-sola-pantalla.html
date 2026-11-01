@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Niños · Registro rápido — Global Connect (prototipo)</title>
+<style>
+/* Tokens: copied from design/system.md (source app/globals.css, synced 2026-10-29). Light in :root, dark from
+   prefers-color-scheme or data-tema="oscuro". No other color, font, radius or shadow is used. */
+:root {
+  color-scheme: light;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px);
+  --radius-xl: calc(var(--radius) + 4px); --radius-2xl: calc(var(--radius) + 8px); --radius-sheet: 26px;
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1); --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 150ms; --duration-normal: 250ms; --duration-slow: 400ms;
+  --scrim: rgba(0, 0, 0, 0.5);
+  --tinte-estado: 10%;
+  --background: oklch(0.985 0.002 80); --foreground: oklch(0.178 0.014 285);
+  --card: oklch(1 0 0); --secondary: oklch(0.965 0.003 80);
+  --muted: oklch(0.955 0.004 80); --muted-foreground: oklch(0.48 0.01 260);
+  --accent: oklch(0.965 0.003 80); --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.975 0.003 80); --sidebar-border: oklch(0.905 0.006 80);
+  --surface-primary: #FAFAF8;
+  --brand-primary: #E96C20; --brand-primary-foreground: oklch(1 0 0);
+  --brand-accent: rgba(233, 108, 32, 0.08); --brand-accent-strong: rgba(233, 108, 32, 0.10); --brand-text: oklch(0.52 0.15 48);
+  --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+  --success: oklch(0.55 0.17 145); --success-text: oklch(0.5 0.14 145);
+  --warning: oklch(0.75 0.18 80); --warning-text: oklch(0.52 0.12 65);
+  --info: oklch(0.55 0.15 250); --info-text: oklch(0.5 0.15 250);
+  --danger: oklch(0.577 0.245 27.325); --danger-text: oklch(0.52 0.21 27);
+  --chart-1: oklch(0.646 0.222 41.116); --chart-2: oklch(0.6 0.118 184.704); --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429); --chart-5: oklch(0.769 0.188 70.08);
+  --shadow-sheet: 0 24px 60px -24px rgba(20, 20, 40, 0.28);
+  --shadow-fab: 0 16px 36px -10px rgba(233, 108, 32, 0.75);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark; --tinte-estado: 13%;
+    --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+    --card: oklch(0.155 0.012 270); --secondary: oklch(0.22 0.012 270);
+    --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+    --accent: oklch(0.22 0.012 270); --border: oklch(0.26 0.012 270);
+    --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+    --surface-primary: #0E0E12;
+    --brand-accent: rgba(233, 108, 32, 0.12); --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+    --success: oklch(0.60 0.17 145); --success-text: oklch(0.76 0.15 145);
+    --warning: oklch(0.70 0.16 80); --warning-text: oklch(0.8 0.14 80);
+    --info: oklch(0.60 0.15 250); --info-text: oklch(0.74 0.12 250);
+    --danger: oklch(0.637 0.237 25.331); --danger-text: oklch(0.72 0.17 25);
+    --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+    --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+:root[data-tema="oscuro"] {
+  color-scheme: dark; --tinte-estado: 13%;
+  --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+  --card: oklch(0.155 0.012 270); --secondary: oklch(0.22 0.012 270);
+  --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+  --accent: oklch(0.22 0.012 270); --border: oklch(0.26 0.012 270);
+  --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+  --surface-primary: #0E0E12;
+  --brand-accent: rgba(233, 108, 32, 0.12); --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+  --success: oklch(0.60 0.17 145); --success-text: oklch(0.76 0.15 145);
+  --warning: oklch(0.70 0.16 80); --warning-text: oklch(0.8 0.14 80);
+  --info: oklch(0.60 0.15 250); --info-text: oklch(0.74 0.12 250);
+  --danger: oklch(0.637 0.237 25.331); --danger-text: oklch(0.72 0.17 25);
+  --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+  --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@keyframes slide-up-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--font-sans); background: var(--background); color: var(--foreground); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+button, a, select, label { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3 { text-wrap: balance; }
+[hidden] { display: none !important; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+svg.i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 100; padding: 10px 16px; border-radius: var(--radius-xl); background: var(--card); color: var(--foreground); border: 2px solid var(--brand-primary); font-size: 14px; font-weight: 600; text-decoration: none; }
+.skip:focus { left: 8px; }
+
+/* ── BotonSistema ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-xl); border: 2px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer; font-size: 16px; font-weight: 500; white-space: nowrap; text-decoration: none; transition: background-color var(--duration-fast) var(--ease-expo), transform var(--duration-fast) var(--ease-expo); }
+.btn:hover { background: var(--accent); }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--brand-strong); border-color: var(--brand-strong); color: var(--brand-primary-foreground); }
+.btn.primary:hover { background: var(--brand-strong-hover); border-color: var(--brand-strong-hover); }
+.btn.ghost { border-color: transparent; color: var(--muted-foreground); }
+.btn.ghost:hover { color: var(--foreground); }
+.btn.link { border-color: transparent; color: var(--brand-text); padding: 0 10px; }
+.btn.icon { width: 44px; padding: 0; }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
+.btn.lg { min-height: 48px; font-size: 16px; }
+.btn.full { width: 100%; }
+@media (pointer: coarse) { .btn.sm { min-height: 44px; } }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; }
+
+/* ── Phone chrome: nav bar (BarraNavegacionMovil), large title ── */
+.navbar { position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; min-height: 48px; padding: env(safe-area-inset-top, 0px) 8px 0; background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-bottom: 1px solid transparent; transition: border-color var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled { border-bottom-color: var(--border); }
+.navbar .ttl { grid-column: 2; margin: 0; max-width: 180px; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled .ttl { opacity: 1; }
+.navbar .actions { grid-column: 3; justify-self: end; display: flex; }
+.icono-marca { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); cursor: pointer; }
+.icono-marca:active { background: var(--accent); }
+.icono-marca .count { position: absolute; top: 4px; right: 2px; }
+.back { grid-column: 1; justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; max-width: 100%; padding: 0 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); font-size: 16px; text-decoration: none; cursor: pointer; }
+.back svg.i { width: 24px; height: 24px; margin-left: -4px; }
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-content: start; min-width: 0; padding: 4px 16px 24px; }
+.large { padding: 2px 4px 0; min-width: 0; }
+.large h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+.large p { margin: 4px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.large p strong { color: var(--foreground); font-weight: 600; }
+
+/* ── Service + Ingreso/Retiro ── */
+.controles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+.ctl { position: relative; min-width: 0; }
+.ctl select { width: 100%; height: 44px; padding: 0 40px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; font-weight: 500; appearance: none; cursor: pointer; text-overflow: ellipsis; }
+.ctl > svg.i { position: absolute; left: 12px; top: 13px; color: var(--muted-foreground); pointer-events: none; }
+.ctl > svg.ch { left: auto; right: 12px; top: 14px; width: 16px; height: 16px; }
+.ctl select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.seg { display: inline-flex; padding: 3px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.seg button[aria-pressed="true"] { background: var(--foreground); color: var(--background); }
+.seg.full { display: flex; } .seg.full button { flex: 1; }
+@media (pointer: coarse) { .seg button { min-height: 44px; } }
+
+/* ── Section headings ── */
+.sec { display: grid; gap: 8px; min-width: 0; }
+.sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px; min-width: 0; }
+.sec-h h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.sec-h .hint { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ── Salón occupancy chips (chip row: may scroll sideways on phone) ── */
+.salones { display: flex; gap: 8px; margin: 0 -16px; padding: 0 16px 4px; overflow-x: auto; scrollbar-width: none; list-style: none; }
+.salones li { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border-radius: 9999px; border: 1px solid var(--border); background: var(--card); font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.salones li b { font-weight: 600; color: var(--foreground); }
+.salones li.lleno { border-color: color-mix(in oklab, var(--danger) 40%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); color: var(--danger-text); }
+.salones li.lleno b { color: var(--danger-text); }
+.d { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 9999px; background: var(--c); box-shadow: 0 0 0 4px color-mix(in oklab, var(--c) 20%, transparent); }
+[data-t="success"] { --c: var(--success); } [data-t="warning"] { --c: var(--warning); } [data-t="danger"] { --c: var(--danger); } [data-t="info"] { --c: var(--info); }
+
+/* ── Badges (BadgeSistema on status tokens) ── */
+.tag { display: inline-flex; align-items: center; gap: 4px; min-height: 22px; padding: 0 8px; border-radius: 9999px; border: 1px solid var(--border); font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--muted-foreground); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.tag svg.i { width: 12px; height: 12px; stroke-width: 2.2; }
+.tag.info { color: var(--info-text); border-color: color-mix(in oklab, var(--info) 40%, transparent); background: color-mix(in oklab, var(--info) var(--tinte-estado), transparent); }
+.tag.warn { color: var(--warning-text); border-color: color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); }
+.tag.ok { color: var(--success-text); border-color: color-mix(in oklab, var(--success) 40%, transparent); background: color-mix(in oklab, var(--success) var(--tinte-estado), transparent); }
+.tag.danger { color: var(--danger-text); border-color: color-mix(in oklab, var(--danger) 40%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+
+/* ── Inset grouped list ── */
+.lista { list-style: none; margin: 0; padding: 0; min-width: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.lista > li { position: relative; min-width: 0; }
+.lista > li + li::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.avatar { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 9999px; font-size: 13px; font-weight: 600; color: var(--foreground); background: color-mix(in oklab, var(--c) 26%, var(--card)); border: 1px solid color-mix(in oklab, var(--c) 40%, transparent); }
+[data-h="1"] { --c: var(--chart-1); } [data-h="2"] { --c: var(--chart-2); } [data-h="3"] { --c: var(--chart-3); } [data-h="4"] { --c: var(--chart-4); } [data-h="5"] { --c: var(--chart-5); }
+.trunc { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fila { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 64px; padding: 10px 14px; }
+.fila .txt { flex: 1; min-width: 0; }
+.fila .t1 { display: block; font-size: 16px; font-weight: 600; }
+.fila .t2 { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+
+/* ── Llegando queue item ── */
+.cola-item { display: grid; gap: 10px; min-width: 0; padding: 12px 14px 14px; }
+.cola-top { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cola-top .txt { flex: 1; min-width: 0; }
+.cola-top .t1 { display: block; font-size: 16px; font-weight: 600; }
+.cola-top .t2 { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+.ninos-mini { list-style: none; margin: 0; padding: 0 0 0 52px; display: grid; gap: 8px; min-width: 0; }
+.ninos-mini li { display: grid; gap: 4px; min-width: 0; font-size: 14px; }
+.ninos-mini .nm { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ninos-mini .nm b { font-weight: 500; }
+.ninos-mini .nm svg.i { width: 16px; height: 16px; color: var(--success-text); stroke-width: 2.4; }
+.ninos-mini .sal { font-size: 13px; color: var(--muted-foreground); }
+
+/* ── Search (BarraHerramientas below md: filled, no border) ── */
+.search { min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid transparent; background: color-mix(in oklab, var(--foreground) 8%, transparent); color: var(--muted-foreground); transition: border-color var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo); }
+.search:focus-within { border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.search input { flex: 1; min-width: 0; height: 42px; border: 0; background: none; outline: none; font-size: 16px; color: var(--foreground); }
+.search input::placeholder { color: var(--muted-foreground); }
+.nota { margin: 0; padding: 0 4px; font-size: 13px; color: var(--muted-foreground); }
+
+/* ── Family card, children pre-checked (TarjetaSistema; phone p-4) ── */
+.familia { display: grid; gap: 14px; min-width: 0; padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); }
+.fam-h { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.fam-h .txt { flex: 1; min-width: 0; }
+.fam-h h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.fam-h p { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.hijos { list-style: none; margin: 0; padding: 0; border-radius: var(--radius-xl); border: 1px solid var(--border); min-width: 0; }
+.hijos > li { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px 8px; padding: 8px 12px 10px 4px; min-width: 0; }
+.hijos > li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.hijos > li.marcado { background: var(--brand-accent-strong); }
+.hijos > li:first-child { border-radius: var(--radius-xl) var(--radius-xl) 0 0; } .hijos > li:last-child { border-radius: 0 0 var(--radius-xl) var(--radius-xl); }
+.chk { grid-row: 1 / span 3; width: 44px; height: 44px; display: grid; place-items: center; cursor: pointer; }
+.chk input { width: 22px; height: 22px; margin: 0; accent-color: var(--brand-strong); cursor: pointer; }
+.h-nm { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 44px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.h-nm .edad { flex: none; font-size: 13px; font-weight: 400; color: var(--muted-foreground); }
+.h-sal { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; min-width: 0; font-size: 13px; color: var(--muted-foreground); }
+.h-sal .s { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.h-sal .btn.link { min-height: 36px; margin-left: auto; font-size: 14px; }
+@media (pointer: coarse) { .h-sal .btn.link { min-height: 44px; } }
+.hijos .tags { grid-column: 2; }
+.ret { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+.ret svg.i { width: 16px; height: 16px; margin-top: 1px; }
+.ret b { font-weight: 500; color: var(--foreground); }
+.err { margin: 0; font-size: 14px; color: var(--danger-text); }
+
+/* ── Notices: AvisoFormulario + warning callout ── */
+.callout { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); font-size: 14px; line-height: 1.4; min-width: 0; }
+.callout > svg.i { margin-top: 1px; color: var(--warning-text); }
+.callout b { font-weight: 600; }
+.callout p { margin: 2px 0 0; color: var(--muted-foreground); }
+.callout .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.aviso { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--info) 30%, transparent); background: color-mix(in oklab, var(--info) 5%, transparent); font-size: 14px; line-height: 1.4; min-width: 0; }
+.aviso > svg.i { margin-top: 1px; color: var(--info-text); }
+.aviso p { margin: 0; }
+
+/* ── Pickup code after check-in ── */
+.codigo { display: grid; gap: 14px; justify-items: stretch; text-align: center; min-width: 0; }
+.codigo .lbl { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.codigo .valor { margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 72px; font-weight: 700; line-height: 1; letter-spacing: .08em; color: var(--foreground); }
+.codigo .instr { margin: 0; font-size: 15px; color: var(--muted-foreground); }
+.codigo .instr b { color: var(--foreground); font-weight: 600; }
+.codigo .marco-codigo { display: grid; gap: 8px; padding: 18px 12px; border-radius: var(--radius-2xl); border: 2px solid var(--brand-primary); background: var(--brand-accent); }
+.lineas { list-style: none; margin: 0; padding: 0; text-align: left; border-radius: var(--radius-xl); border: 1px solid var(--border); min-width: 0; }
+.lineas li { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; font-size: 15px; min-width: 0; }
+.lineas li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.lineas li .txt { flex: 1; min-width: 0; }
+.lineas li .txt b { display: block; font-weight: 600; }
+.lineas li .txt small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.lineas svg.i { color: var(--success-text); stroke-width: 2.4; }
+
+/* ── Empty state (EstadoVacioSistema inside the list) ── */
+.vacio { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 20px; text-align: center; background: var(--card); border-radius: var(--radius-2xl); }
+.vacio svg.i { width: 36px; height: 36px; color: color-mix(in oklab, var(--muted-foreground) 40%, transparent); }
+.vacio p { margin: 0; max-width: 28rem; }
+.vacio .t { font-size: 16px; font-weight: 600; }
+.vacio .s { font-size: 14px; color: var(--muted-foreground); }
+
+/* ── Tab bar + FAB (MenuInferiorMovil, BotonFlotante) ── */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 6px max(8px, env(safe-area-inset-bottom, 0px)); background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-top: 1px solid var(--border); }
+.tabbar a { min-width: 0; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 4px; padding: 6px 0; border-radius: var(--radius-xl); color: var(--muted-foreground); text-decoration: none; font-size: 12px; font-weight: 500; }
+.tabbar span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabbar [aria-current="page"] { color: var(--brand-text); font-weight: 600; }
+.tabbar svg.i { width: 24px; height: 24px; }
+.fab { position: fixed; right: 16px; bottom: 88px; z-index: 45; width: 56px; height: 56px; display: grid; place-items: center; border: 0; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); box-shadow: var(--shadow-fab); cursor: pointer; transition: transform var(--duration-fast) var(--ease-expo), background-color var(--duration-fast) var(--ease-expo); }
+.fab:hover { background: var(--brand-strong-hover); }
+.fab:active { transform: scale(.97); }
+.fab svg.i { width: 24px; height: 24px; }
+
+/* ── Bottom sheet (HojaInferior) ── */
+.scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; z-index: 70; left: 0; right: 0; bottom: 0; max-height: 90vh; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: var(--shadow-sheet); transform: translateY(105%); visibility: hidden; transition: transform var(--duration-slow) var(--ease-out-quint), visibility 0s linear var(--duration-slow); }
+.sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
+.sheet:focus { outline: none; }
+.grab { display: block; flex: none; width: 38px; height: 5px; margin: 8px auto 0; border-radius: 9999px; background: var(--border); }
+.sh-head { position: relative; padding: 12px 18px 14px; border-bottom: 1px solid var(--border); }
+.sh-head h2 { margin: 0; padding-right: 48px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.sh-head .desc { margin: 4px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.sh-close { position: absolute; top: 4px; right: 8px; }
+.sh-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; gap: 16px; padding: 16px 18px; }
+.sh-foot { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: inherit; }
+
+/* ── Fields (InputSistema / SelectSistema in CamposSistema) ── */
+.campos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
+.campos.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.campo { display: grid; gap: 6px; min-width: 0; }
+.campo > label { font-size: 14px; font-weight: 500; }
+.campo .opc { font-weight: 400; color: var(--muted-foreground); }
+.campo input, .campo select { width: 100%; min-width: 0; height: 44px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; }
+.campo input::placeholder { color: var(--muted-foreground); }
+.campo input:focus, .campo select:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.sh-sec { margin: 4px 0 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+
+/* ── Salón picker rows (inside a sheet) ── */
+.op-salon { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border: 0; background: none; color: var(--foreground); text-align: left; font-size: 16px; cursor: pointer; }
+.op-salon:active { background: var(--accent); }
+.op-salon[aria-pressed="true"] { background: var(--brand-accent-strong); }
+.op-salon:focus-visible { outline-offset: -2px; }
+.op-salon .txt { flex: 1; min-width: 0; }
+.op-salon .txt b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-salon .txt small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.op-salon .cupo { flex: none; font-size: 15px; color: var(--muted-foreground); }
+.bar { height: 4px; border-radius: 9999px; background: var(--muted); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: var(--c); }
+
+/* ── Prototype only: state frames and options. Not part of the design. ── */
+.estados { display: grid; gap: 18px; margin: 8px 16px 0; padding-top: 18px; border-top: 1px dashed var(--border); min-width: 0; }
+.estados > h2 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.marco { display: grid; gap: 10px; min-width: 0; padding: 12px; border-radius: var(--radius-2xl); border: 1px dashed var(--border); background: var(--background); }
+.marco > .rotulo { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--muted-foreground); }
+.marco > .rotulo .tag { font-weight: 500; }
+.nuevo-dato { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: var(--radius-xl); border: 1px dashed color-mix(in oklab, var(--info) 60%, transparent); font-size: 13px; color: var(--info-text); }
+.opciones { margin: 18px 16px calc(170px + env(safe-area-inset-bottom, 0px)); font-size: 13px; }
+.opciones summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 9999px; border: 1px dashed var(--border); background: var(--card); color: var(--muted-foreground); cursor: pointer; }
+.opciones summary::-webkit-details-marker { display: none; }
+.opciones .panel { margin-top: 8px; display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px dashed var(--border); background: var(--card); }
+.opciones .panel p { margin: 0; font-size: 12px; color: var(--muted-foreground); }
+.opciones .seg { justify-self: start; }
+.toast { position: fixed; left: 16px; right: 16px; bottom: calc(160px + env(safe-area-inset-bottom, 0px)); z-index: 50; display: flex; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); color: var(--foreground); box-shadow: var(--shadow-sheet); font-size: 14px; animation: slide-up-fade 300ms var(--ease-out-quint) both; }
+.campo > .l { font-size: 14px; font-weight: 500; }
+.sh-sec .opc { font-weight: 400; text-transform: none; letter-spacing: 0; }
+.sh-body .familia { padding: 0; border: 0; border-radius: 0; }
+/* ═══ end of shared block ═══ */
+/* ═══ registro block ═══ (shared by the ninos-registro artboards; same tokens, canonical pieces only) */
+/* Public page /ninos/registro: no login, no tab bar; system bar with the brand line. */
+.pub-head { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; padding: env(safe-area-inset-top, 0px) 8px 0 16px; background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-bottom: 1px solid var(--border); }
+.marca { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; white-space: nowrap; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--brand-text); }
+.pub-head > .btn { flex: none; }
+.marca i { width: 20px; height: 20px; flex: none; border-radius: var(--radius-sm); background: var(--brand-primary); }
+.pub-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-content: start; min-width: 0; padding: 16px 16px 24px; }
+.intro h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+.intro p { margin: 6px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.intro p a, .enlace { color: var(--brand-text); font-weight: 500; }
+/* Step indicator (IndicadorPasos): segments + current label */
+.pasos { display: grid; gap: 8px; min-width: 0; }
+.pasos p { margin: 0; font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
+.pasos ol { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pasos li { height: 6px; border-radius: 9999px; background: var(--muted); }
+.pasos li.hecho, .pasos li[aria-current="step"] { background: var(--brand-primary); }
+/* Form section card (TarjetaSistema, phone p-4) with a completion state */
+.bloque { display: grid; gap: 14px; min-width: 0; padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); }
+.bloque-h { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 28px; }
+.bloque-h h2 { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.bloque-h .paso-n { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 9999px; background: var(--muted); font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.bloque.listo .bloque-h .paso-n { background: var(--success); color: var(--brand-primary-foreground); }
+.bloque .resumen { margin: -6px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.bloque.compacto { gap: 6px; }
+/* Child card inside a section */
+.nino { display: grid; gap: 12px; min-width: 0; padding: 14px; border-radius: var(--radius-xl); border: 1px solid var(--border); }
+.nino-h { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.nino-h .txt { flex: 1; min-width: 0; }
+.nino-h b { display: block; font-size: 16px; font-weight: 600; }
+.nino-h small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.salon-vivo { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0; padding: 10px 12px; border-radius: var(--radius-xl); background: var(--brand-accent-strong); font-size: 14px; }
+.salon-vivo b { font-weight: 600; }
+/* Big answer buttons (OpcionesGrandes): two columns, aria-pressed */
+.grandes { display: grid; gap: 8px; min-width: 0; }
+.grandes > .q { margin: 0; font-size: 14px; font-weight: 500; }
+.grandes .ops { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.grandes .ops.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.op { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 12px; border-radius: var(--radius-xl); border: 1.5px solid var(--border); background: var(--card); color: var(--foreground); font-size: 16px; font-weight: 500; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), border-color var(--duration-fast) var(--ease-expo), transform var(--duration-fast) var(--ease-expo); }
+.op:active { transform: scale(.97); }
+.op[aria-pressed="true"] { border-color: var(--brand-primary); background: var(--brand-accent-strong); font-weight: 600; }
+.op svg.i { width: 18px; height: 18px; stroke-width: 2.4; }
+.op:not([aria-pressed="true"]) svg.i { display: none; }
+/* Field states (InputSistema error, TextareaSistema) */
+.campo textarea { width: 100%; min-width: 0; min-height: 72px; padding: 10px 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font: inherit; font-size: 16px; resize: vertical; }
+.campo textarea:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.campo.error input, .campo.error textarea { border-color: var(--danger); }
+.campo .msg { margin: 0; font-size: 13px; color: var(--danger-text); }
+.campo .ayuda { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.campo.aviso-campo input { border-color: var(--warning); }
+.campo .msg-warn { margin: 0; font-size: 13px; color: var(--warning-text); }
+.error-resumen { display: grid; gap: 6px; padding: 12px 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--danger) 30%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); color: var(--danger-text); font-size: 14px; }
+.error-resumen b { font-weight: 600; }
+.error-resumen ul { margin: 0; padding-left: 18px; }
+.error-resumen a { color: var(--danger-text); }
+/* Who picks up: rows with a check */
+.retiran { list-style: none; margin: 0; padding: 0; border-radius: var(--radius-xl); border: 1px solid var(--border); min-width: 0; }
+.retiran li { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 12px; min-width: 0; font-size: 15px; }
+.retiran li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.retiran .txt { flex: 1; min-width: 0; }
+.retiran .txt b { display: block; font-weight: 600; }
+.retiran .txt small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.retiran svg.ok { color: var(--success-text); stroke-width: 2.4; }
+/* "Later" extras, collapsed */
+.despues { border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); min-width: 0; }
+.despues summary { list-style: none; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 16px; cursor: pointer; }
+.despues summary::-webkit-details-marker { display: none; }
+.despues summary .txt { flex: 1; min-width: 0; }
+.despues summary b { display: block; font-size: 15px; font-weight: 600; }
+.despues summary small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.despues[open] summary svg.ch { transform: rotate(180deg); }
+.despues .cuerpo { display: grid; gap: 14px; padding: 0 16px 16px; }
+/* Sticky send bar (same surface as the page; status + primary lg) */
+.enviar { position: sticky; bottom: 0; z-index: 20; display: grid; gap: 8px; margin: 0 -16px; padding: 12px 16px max(16px, env(safe-area-inset-bottom, 0px)); background: var(--background); border-top: 1px solid var(--border); }
+.enviar .falta { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+.enviar .falta b { color: var(--foreground); font-weight: 600; }
+.enviar .fila-btn { display: flex; gap: 10px; }
+.enviar .fila-btn .primary { flex: 1; }
+.privado { margin: 0; text-align: center; font-size: 13px; color: var(--muted-foreground); }
+/* API change marker (prototype annotation) */
+.api { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 10px 12px; border-radius: var(--radius-xl); border: 1px dashed color-mix(in oklab, var(--info) 60%, transparent); font-size: 13px; line-height: 1.4; color: var(--info-text); }
+.api svg.i { width: 16px; height: 16px; margin-top: 1px; }
+.api b { font-weight: 600; }
+.api span { min-width: 0; overflow-wrap: anywhere; }
+/* Single-column grids hold text: minmax(0, 1fr) so long content never widens them (mobile.md). */
+.marco, .bloque, .nino, .fin, .pregunta, .sec-panel, .fila-nino, .campo, .grandes, .codigo { grid-template-columns: minmax(0, 1fr); }
+/* End screens */
+.fin { display: grid; gap: 16px; justify-items: stretch; min-width: 0; }
+.fin .ok-grande { width: 64px; height: 64px; justify-self: center; display: grid; place-items: center; border-radius: 9999px; background: color-mix(in oklab, var(--success) var(--tinte-estado), transparent); color: var(--success-text); }
+.fin .ok-grande svg.i { width: 32px; height: 32px; stroke-width: 2.4; }
+.fin h2 { margin: 0; text-align: center; font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
+.fin > p { margin: 0; text-align: center; font-size: 15px; color: var(--muted-foreground); }
+.sigue { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 10px; }
+.sigue li { counter-increment: s; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 15px; }
+.sigue li::before { content: counter(s); width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9999px; background: var(--muted); font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
+.sigue li small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); }
+.estado-ok { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 500; color: var(--success-text); }
+.estado-ok svg.i { stroke-width: 2.4; }
+.pub-main ~ .estados, .pub-main + .estados { margin-top: 8px; }
+/* Birth date + gender side by side only when the child card is wide enough for a date input. */
+.nino { container-type: inline-size; }
+@container (max-width: 280px) { .campos.dos.fn { grid-template-columns: minmax(0, 1fr); } }
+/* ═══ end registro block ═══ */
+/* ── 01 Una sola pantalla ── */
+.fila-resumen { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.fila-resumen .txt { flex: 1; min-width: 0; font-size: 14px; color: var(--muted-foreground); }
+.fila-resumen .txt b { display: block; font-size: 15px; font-weight: 600; color: var(--foreground); }
+.salud { display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+</style>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+<!-- ═══ sprite ═══ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+  <symbol id="i-qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-add-user" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></symbol>
+  <symbol id="i-ninos" viewBox="0 0 24 24"><path d="M9 12h.01M15 12h.01M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/></symbol>
+  <symbol id="i-equipo" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+  <symbol id="i-gdv" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+  <symbol id="i-campus" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/></symbol>
+</svg>
+<!-- ═══ end sprite ═══ -->
+
+<header class="pub-head">
+  <p class="marca"><i aria-hidden="true"></i><span class="trunc">Waumba Land · Barquisimeto</span></p>
+  <a class="btn link sm" href="#">Iniciar sesión</a>
+</header>
+
+<main class="pub-main" id="contenido">
+  <div class="intro">
+    <h1>Registra a tu familia</h1>
+    <p>Una sola página, unos 2 minutos. Lo de hoy primero; lo demás lo completas después.</p>
+  </div>
+
+  <!-- Smart section: once complete it folds to one line with «Editar». -->
+  <section class="bloque compacto listo" aria-labelledby="h-tu">
+    <div class="bloque-h"><span class="paso-n" aria-hidden="true"><svg class="i" style="width:16px;height:16px"><use href="#i-check"/></svg></span><h2 id="h-tu">Tú</h2>
+      <button type="button" class="btn link sm" aria-label="Editar tus datos"><svg class="i" aria-hidden="true"><use href="#i-edit"/></svg>Editar</button></div>
+    <div class="fila-resumen"><span class="txt"><b class="trunc">María Gabriela Linárez · mamá</b><span class="num">0414 512 3388</span></span></div>
+  </section>
+
+  <section class="bloque" aria-labelledby="h-ninos">
+    <div class="bloque-h"><span class="paso-n num" aria-hidden="true">2</span><h2 id="h-ninos">Tus niños</h2></div>
+    <p class="resumen">Con la fecha de nacimiento sabemos a qué salón va cada uno.</p>
+
+    <div class="nino">
+      <div class="nino-h"><span class="avatar" data-h="1" aria-hidden="true">CL</span><span class="txt"><b class="trunc">Camila Linárez</b><small>Niña · <span class="num">4</span> años</small></span>
+        <button type="button" class="btn ghost sm" aria-label="Quitar a Camila Linárez"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="campos dos">
+        <label class="campo"><span class="l">Nombre</span><input value="Camila" autocomplete="off" /></label>
+        <label class="campo"><span class="l">Apellido</span><input value="Linárez" autocomplete="off" /></label>
+      </div>
+      <div class="campos dos fn">
+        <label class="campo"><span class="l">Fecha de nacimiento</span><input type="date" value="2022-02-09" /></label>
+        <div class="grandes"><p class="q" id="g1">Es</p><div class="ops" role="group" aria-labelledby="g1"><button type="button" class="op" aria-pressed="false">Niño</button><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Niña</button></div></div>
+      </div>
+      <p class="salon-vivo"><span class="d" data-t="info" aria-hidden="true"></span><span>Va a <b>Waumba · Preescolar</b> (4 y 5 años)</span></p>
+      <div class="salud">
+        <div class="grandes"><p class="q" id="a1">¿Camila tiene alergias?</p><div class="ops" role="group" aria-labelledby="a1"><button type="button" class="op" aria-pressed="false">No</button><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Sí</button></div></div>
+        <label class="campo"><span class="l">¿A qué?</span><input value="Maní y frutos secos" /></label>
+        <div class="grandes"><p class="q" id="n1">¿Alguna condición médica o necesidad especial?</p><div class="ops" role="group" aria-labelledby="n1"><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>No</button><button type="button" class="op" aria-pressed="false">Sí</button></div></div>
+      </div>
+    </div>
+
+    <div class="nino">
+      <div class="nino-h"><span class="avatar" data-h="2" aria-hidden="true">TL</span><span class="txt"><b class="trunc">Tomás Linárez</b><small>Niño · <span class="num">2</span> años</small></span>
+        <button type="button" class="btn ghost sm" aria-label="Quitar a Tomás Linárez"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="campos dos">
+        <label class="campo"><span class="l">Nombre</span><input value="Tomás" autocomplete="off" /></label>
+        <label class="campo"><span class="l">Apellido</span><input value="Linárez" autocomplete="off" /></label>
+      </div>
+      <div class="campos dos fn">
+        <label class="campo"><span class="l">Fecha de nacimiento</span><input type="date" value="2024-07-21" /></label>
+        <div class="grandes"><p class="q" id="g2">Es</p><div class="ops" role="group" aria-labelledby="g2"><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Niño</button><button type="button" class="op" aria-pressed="false">Niña</button></div></div>
+      </div>
+      <p class="salon-vivo"><span class="d" data-t="info" aria-hidden="true"></span><span>Va a <b>Waumba · Caminantes</b> (1 y 2 años)</span></p>
+      <div class="salud">
+        <div class="grandes"><p class="q" id="a2">¿Tomás tiene alergias?</p><div class="ops" role="group" aria-labelledby="a2"><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>No</button><button type="button" class="op" aria-pressed="false">Sí</button></div></div>
+        <div class="grandes"><p class="q" id="n2">¿Alguna condición médica o necesidad especial?</p><div class="ops" role="group" aria-labelledby="n2"><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>No</button><button type="button" class="op" aria-pressed="false">Sí</button></div></div>
+      </div>
+    </div>
+    <button type="button" class="btn full"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Agregar otro niño</button>
+  </section>
+
+  <section class="bloque" aria-labelledby="h-ret">
+    <div class="bloque-h"><span class="paso-n num" aria-hidden="true">3</span><h2 id="h-ret">¿Quién los retira?</h2></div>
+    <p class="resumen">Solo entregamos a los niños a estas personas, con el código de retiro.</p>
+    <ul class="retiran">
+      <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg><span class="txt"><b class="trunc">María Gabriela Linárez</b><small>Tú · siempre</small></span></li>
+      <li><svg class="i ok" aria-hidden="true"><use href="#i-check"/></svg><span class="txt"><b class="trunc">Carmen Rosa Escalona</b><small>Abuela · <span class="num">0424 530 1172</span></small></span>
+        <button type="button" class="btn ghost icon" aria-label="Quitar a Carmen Rosa Escalona"><svg class="i"><use href="#i-x"/></svg></button></li>
+    </ul>
+    <button type="button" class="btn full"><svg class="i" aria-hidden="true"><use href="#i-plus"/></svg>Agregar a alguien más</button>
+  </section>
+
+  <details class="despues">
+    <summary><span class="txt"><b>Para después <span class="opc" style="font-weight:400;color:var(--muted-foreground)">(opcional)</span></b><small>Correo para tu cuenta, cédula, grado, merienda, pañal, fotos</small></span><svg class="i ch" aria-hidden="true"><use href="#i-chev-d"/></svg></summary>
+    <div class="cuerpo">
+      <label class="campo"><span class="l">Tu correo <span class="opc">(opcional)</span></span><input type="email" inputmode="email" placeholder="maria.linarez@correo.com" /><span class="ayuda">Te enviamos el enlace para crear tu cuenta cuando confirmemos en la mesa.</span></label>
+      <label class="campo"><span class="l">Cédula <span class="opc">(opcional)</span></span><input inputmode="numeric" placeholder="V-17845210" /></label>
+      <div class="grandes"><p class="q" id="f1">¿Autorizas fotos de tus niños en las actividades?</p><div class="ops" role="group" aria-labelledby="f1"><button type="button" class="op" aria-pressed="false">No</button><button type="button" class="op" aria-pressed="false">Sí</button></div></div>
+      <p class="nota" style="padding:0">Grado, merienda y pañal también se completan en la mesa o desde tu cuenta.</p>
+    </div>
+  </details>
+
+  <div class="enviar">
+    <p class="falta"><svg class="i" style="color:var(--success-text)" aria-hidden="true"><use href="#i-check"/></svg><span>Todo listo: <b class="num">2</b> niños · <b class="num">2</b> personas retiran</span></p>
+    <button type="button" class="btn primary lg full" data-ir="fin"><svg class="i" aria-hidden="true"><use href="#i-send"/></svg>Enviar registro</button>
+  </div>
+  <p class="privado">Tus datos solo los ve el equipo de Niños de la iglesia.</p>
+</main>
+
+<section class="estados" aria-labelledby="h-est">
+  <h2 id="h-est">Estados de esta dirección (prototipo)</h2>
+
+  <div class="marco"><p class="rotulo">A · Sección «Tú» abierta (antes de plegarse)</p>
+    <div class="bloque">
+      <div class="campos dos">
+        <label class="campo"><span class="l">Tu nombre</span><input value="María Gabriela" autocomplete="given-name" /></label>
+        <label class="campo"><span class="l">Tu apellido</span><input value="Linárez" autocomplete="family-name" /></label>
+      </div>
+      <label class="campo"><span class="l">Teléfono</span><input type="tel" inputmode="tel" value="0414 512 3388" autocomplete="tel" /><span class="ayuda">Con este número te encontramos en la mesa.</span></label>
+      <div class="grandes"><p class="q" id="soy">Eres</p><div class="ops" role="group" aria-labelledby="soy"><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Mamá</button><button type="button" class="op" aria-pressed="false">Papá</button></div></div>
+      <p class="api"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span><b>Cambio de API (pequeño).</b> La mesa ya exige el género del representante (familia.ts:189), pero el QR lo descarta: parsePreregistro guarda <code>genero: null</code> (preregistro.ts:167). Para pedirlo aquí, el preregistro debe aceptarlo. Sin el cambio, la mesa lo marca al confirmar (1 toque).</span></p>
+    </div>
+  </div>
+
+  <div class="marco"><p class="rotulo">B · Error de validación al tocar «Enviar registro»</p>
+    <div class="error-resumen" role="alert"><b>Revisa 2 datos antes de enviar</b><ul><li><a href="#">Fecha de nacimiento de Tomás</a></li><li><a href="#">Alergias de Camila: ¿a qué?</a></li></ul></div>
+    <div class="nino">
+      <div class="campos dos fn">
+        <label class="campo error"><span class="l">Fecha de nacimiento</span><input type="date" aria-invalid="true" aria-describedby="e-fn" /><span class="msg" id="e-fn">Elige una fecha de nacimiento válida.</span></label>
+        <div class="grandes"><p class="q" id="g3">Es</p><div class="ops" role="group" aria-labelledby="g3"><button type="button" class="op" aria-pressed="true"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Niño</button><button type="button" class="op" aria-pressed="false">Niña</button></div></div>
+      </div>
+      <label class="campo error"><span class="l">¿A qué es alérgica Camila?</span><input aria-invalid="true" aria-describedby="e-al" /><span class="msg" id="e-al">Cuéntanos a qué.</span></label>
+    </div>
+    <div class="enviar" style="position:static;margin:0;border-radius:var(--radius-xl)"><p class="falta"><svg class="i" style="color:var(--danger-text)" aria-hidden="true"><use href="#i-alert"/></svg><span style="color:var(--danger-text)">Faltan <b class="num">2</b> datos</span></p></div>
+  </div>
+
+  <div class="marco"><p class="rotulo">C · Regla de menores de 13 años</p>
+    <div class="nino">
+      <label class="campo aviso-campo"><span class="l">Fecha de nacimiento</span><input type="date" value="2012-08-30" aria-describedby="e-13" /><span class="msg-warn" id="e-13">Con esa fecha Andrés tendría <span class="num">14</span> años. Niños recibe menores de <span class="num">13</span>: revisa la fecha o quita a Andrés de este registro.</span></label>
+      <button type="button" class="btn sm" style="justify-self:start"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg>Quitar a Andrés</button>
+    </div>
+    <p class="api"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span><b>Regla nueva en el registro.</b> Hoy el registro acepta hasta 18 años (ninos_registrar_familia, 20261011100000_ninos_familia_conyuge.sql:159) y validarFamilia no mira la edad (familia.ts:208). El aviso usa enRangoNinos (familia.ts:421) en el formulario; para que el servidor también lo rechace hay que cambiar el RPC.</span></p>
+  </div>
+
+  <!-- ═══ fin ═══ -->
+  <div class="marco"><p class="rotulo">D · Después de enviar: «¿Vienen hoy?» (solo si hay un servicio abierto hoy)</p>
+    <div class="fin">
+      <p class="estado-ok" role="status"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Recibimos tu registro.</p>
+      <h2 style="text-align:left">¿Vienen hoy?</h2>
+      <p style="text-align:left">Si vienen a un servicio de hoy, avisamos a la mesa para recibirlos más rápido.</p>
+      <div class="grandes"><div class="ops" style="grid-template-columns:minmax(0, 1fr)"><button type="button" class="btn primary lg" aria-label="Venimos a las 9:00"><span class="num">9:00</span></button><button type="button" class="btn primary lg" aria-label="Venimos a las 11:00"><span class="num">11:00</span></button><button type="button" class="btn primary lg" aria-label="Venimos a la 1:00 p. m."><span class="num">1:00</span>&nbsp;p.&nbsp;m.</button></div></div>
+      <button type="button" class="btn lg full">No, otro día</button>
+    </div>
+  </div>
+
+  <div class="marco"><p class="rotulo">E · Listo: pre-registro pendiente de confirmar en la mesa</p>
+    <div class="fin" role="status">
+      <span class="ok-grande" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+      <h2>¡Listo, gracias!</h2>
+      <p>Le avisamos a la mesa que vienen a las <b class="num">11:00</b>.</p>
+      <ol class="sigue">
+        <li><span>Acércate a la mesa de Niños con Camila y Tomás.<small>Di tu teléfono: tus datos ya están ahí.</small></span></li>
+        <li><span>Confirmamos y te damos el código de retiro.<small>Va en la etiqueta de cada niño y en la tuya.</small></span></li>
+        <li><span>Al terminar, retiras tú o Carmen Rosa con ese código.</span></li>
+      </ol>
+      <p class="nota" style="text-align:center">Si dejaste tu correo, te enviamos el enlace para crear tu cuenta cuando confirmemos.</p>
+    </div>
+  </div>
+  <!-- ═══ end fin ═══ -->
+</section>
+
+<details class="opciones">
+  <summary><svg class="i" style="width:16px;height:16px" aria-hidden="true"><use href="#i-gear"/></svg><span>Opciones del prototipo</span></summary>
+  <div class="panel">
+    <p>Controles para revisar el diseño. No forman parte de la pantalla.</p>
+    <div class="seg" role="group" aria-label="Tema">
+      <button type="button" data-tema="" aria-pressed="true">Sistema</button><button type="button" data-tema="claro" aria-pressed="false">Claro</button><button type="button" data-tema="oscuro" aria-pressed="false">Oscuro</button>
+    </div>
+  </div>
+</details>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<!-- ═══ script ═══ -->
+<script>
+// Prototype behavior only: big answers and segments toggle aria-pressed, theme switch, a toast for actions.
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+function aviso(texto) {
+  const t = $('#toast'); if (!t) return; t.textContent = texto; t.hidden = false;
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => { t.hidden = true; }, 2600);
+}
+document.addEventListener('click', (e) => {
+  const op = e.target.closest('.ops .op, .seg button');
+  if (op) {
+    $$('button', op.parentElement).forEach((b) => b.setAttribute('aria-pressed', String(b === op)));
+    if (op.dataset.tema !== undefined) {
+      if (op.dataset.tema) document.documentElement.dataset.tema = op.dataset.tema; else delete document.documentElement.dataset.tema;
+    }
+    return;
+  }
+  const ir = e.target.closest('[data-ir]');
+  if (ir) { aviso('Enviado. Mira los estados D y E abajo.'); $('#h-est')?.scrollIntoView({ behavior: 'smooth' }); }
+});
+</script>
+<!-- ═══ end script ═══ -->
+</body>
+</html>
