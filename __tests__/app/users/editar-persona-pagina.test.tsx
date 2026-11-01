@@ -33,6 +33,7 @@ jest.mock('@/components/users/editar/formulario-editar-persona', () => ({
 }))
 jest.mock('@/components/ui/desktop-header', () => ({ DesktopHeader: ({ breadcrumbs }: { breadcrumbs?: React.ReactNode }) => <header>{breadcrumbs}</header> }))
 jest.mock('@/components/perfil/mis-hijos', () => ({ MisHijos: () => <section aria-label="Mis hijos" /> }))
+jest.mock('@/components/users/familia/mi-familia', () => ({ MiFamilia: () => <section aria-label="Mi familia" /> }))
 
 import EditUserPage from '@/app/(auth)/users/[id]/edit/page'
 import PerfilPage from '@/app/(auth)/perfil/page'

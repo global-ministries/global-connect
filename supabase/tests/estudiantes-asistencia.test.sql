@@ -926,11 +926,14 @@ SELECT pg_temp.assert_eq('l: anon executes no estudiantes function',
 SELECT pg_temp.assert_eq('l: authenticated executes exactly the public RPCs',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$,
-  'estudiantes_buscar_personas,estudiantes_confirmar_miembro,estudiantes_en_vivo,estudiantes_escala_campus,'
-  || 'estudiantes_ficha_guardar,estudiantes_grupo_activar,estudiantes_grupo_crear,estudiantes_grupo_editar,'
-  || 'estudiantes_grupo_lideres_fijar,estudiantes_grupo_lista,estudiantes_grupo_miembro_agregar,'
-  || 'estudiantes_grupo_miembro_quitar,estudiantes_lideres_disponibles,estudiantes_marcar,estudiantes_mis_grupos,'
-  || 'estudiantes_reunion_guardar,estudiantes_visitante_agregar,estudiantes_visitante_crear');
+  'estudiantes_acceso,estudiantes_buscar_personas,estudiantes_confirmar_miembro,estudiantes_en_vivo,'
+  || 'estudiantes_escala_campus,estudiantes_ficha_guardar,estudiantes_grupo_activar,estudiantes_grupo_crear,'
+  || 'estudiantes_grupo_editar,estudiantes_grupo_historial,estudiantes_grupo_integrantes,'
+  || 'estudiantes_grupo_lideres_fijar,estudiantes_grupo_lideres_historial,estudiantes_grupo_lista,'
+  || 'estudiantes_grupo_miembro_agregar,estudiantes_grupo_miembro_mover,estudiantes_grupo_miembro_quitar,'
+  || 'estudiantes_grupo_sesiones,estudiantes_lideres_disponibles,estudiantes_marcar,estudiantes_mis_grupos,'
+  || 'estudiantes_reunion_guardar,estudiantes_sin_grupo,estudiantes_subareas_gestionables,'
+  || 'estudiantes_visitante_agregar,estudiantes_visitante_crear,estudiantes_vivo_opciones');
 SELECT pg_temp.assert_eq('l: every function is SECURITY DEFINER with an empty search_path, but the label helper',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_%'

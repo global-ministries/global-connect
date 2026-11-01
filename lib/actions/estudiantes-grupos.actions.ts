@@ -4,7 +4,7 @@
  * Estudiantes — server actions of /estudiantes/grupos (C2 of
  * odd/tasks/estudiantes-fase-b.md): create, edit, deactivate a group, set its
  * leaders, confirm, add, move and remove members, and the lookups of the
- * drawer (people search, "Sin grupo", available leaders).
+ * drawer (people search, "Sin grupo", available leaders, past leaders).
  *
  * Gate: an authenticated session only. Who may act is decided in the
  * database: every estudiantes_* function resolves the caller and checks the
@@ -22,6 +22,7 @@ import type { Database } from '@/lib/supabase/database.types'
 import { argumentosBusqueda } from '@/lib/platform/estudiantes/gestion-grupo'
 import { MENSAJES_ERROR_GRUPOS, mensajeErrorGrupos } from '@/lib/platform/estudiantes/errores'
 import type { PersonaRol } from '@/lib/platform/estudiantes/grupos-datos'
+import { leerHistorialLideres, type PeriodoLider } from '@/lib/platform/estudiantes/lideres-historial'
 
 export type ResultadoGrupos<T = null> = { readonly ok: true; readonly data: T } | { readonly ok: false; readonly message: string }
 
@@ -314,6 +315,18 @@ export async function lideresDisponibles(input: { readonly subareaId: string; re
         ok: true,
         data: (data ?? []).map((fila) => ({ servicioId: fila.servicio_id, personaId: fila.persona_id, nombre: nombreDe(fila), rol: fila.rol })),
       }
+    },
+  )
+}
+
+/** Every leadership period of a group, current ones first (estudiantes_grupo_lideres_historial; L29). */
+export async function historialLideres(input: { readonly grupoId: string }): Promise<ResultadoGrupos<PeriodoLider[]>> {
+  return ejecutar(
+    () => ({ grupo: uuid(input.grupoId) }),
+    async (cliente, e) => {
+      const { data, error } = await cliente.rpc('estudiantes_grupo_lideres_historial', { p_grupo_id: e.grupo })
+      if (error) return { ok: false, message: mensajeErrorGrupos(error, 'No se pudieron cargar los líderes anteriores.') }
+      return { ok: true, data: leerHistorialLideres(data) }
     },
   )
 }
