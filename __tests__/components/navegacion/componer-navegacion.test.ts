@@ -1,3 +1,4 @@
+import { buildEstudiantesMenuItem, getEstudiantesNavItems } from '@/components/estudiantes/estudiantes-menu-item'
 import { buildNinosMenuItem, getNinosNavItems } from '@/components/ninos/ninos-menu-item'
 import { componerNavegacion, paginasTalleres } from '@/components/navegacion/componer-navegacion'
 import { buildDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
@@ -5,6 +6,7 @@ import { resolvePlatformNavigationViewItems, type PlatformNavigationViewItem } f
 import { buildUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import { getDreamTeamNavItems } from '@/lib/platform/dream-team/navigation'
 import type { PlatformSession, PlatformSessionCapability } from '@/lib/platform/session/types'
+import { SIN_ACCESO_ESTUDIANTES, type AccesoEstudiantes } from '@/lib/platform/estudiantes/acceso'
 import { SIN_ACCESO_UNO_A_UNO } from '@/lib/uno-a-uno/acceso'
 
 /**
@@ -20,6 +22,7 @@ type Rol = {
   ninos?: { puedeOperar?: boolean; puedeVerSalon?: boolean; puedeConfigurar?: boolean; puedeMarcarVoluntarios?: boolean }
   unoAUno?: boolean
   puedeRegistrar?: boolean
+  estudiantes?: Partial<AccesoEstudiantes>
 }
 
 const cap = (key: string): PlatformSessionCapability => ({
@@ -40,12 +43,19 @@ const ROLES: Record<string, Rol> = {
   'operador Niños': { roles: ['miembro'], ninos: { puedeOperar: true, puedeVerSalon: true } },
 }
 
+// Estudiantes (C4b of odd/tasks/estudiantes-fase-b.md): server-fed like Niños.
+const ROLES_ESTUDIANTES: Record<string, Rol> = {
+  'admin con Estudiantes': { ...ROLES.admin, estudiantes: { grupos: 6, vivo: true, gestiona: true } },
+  'líder de grupo': { roles: ['miembro'], estudiantes: { grupos: 1, lidera: true } },
+  'líder de GdV con Estudiantes': { roles: ['lider'], unoAUno: true, estudiantes: { grupos: 1, lidera: true } },
+}
+
 function sesion(rol: Rol): PlatformSession {
   return { personaId: 'persona-1', subjectAuthId: 'auth-1', globalRoles: rol.roles, contexts: [], capabilities: rol.capabilities ?? [] }
 }
 
 async function navegacionDe(nombre: string, { plataforma = true } = {}) {
-  const rol = ROLES[nombre]
+  const rol = ROLES[nombre] ?? ROLES_ESTUDIANTES[nombre]
   const platformSession = sesion(rol)
   const items: PlatformNavigationViewItem[] = plataforma
     ? await resolvePlatformNavigationViewItems(platformSession, { enabled: true })
@@ -57,6 +67,7 @@ async function navegacionDe(nombre: string, { plataforma = true } = {}) {
       puedeOperar: false, puedeVerSalon: false, puedeConfigurar: false, puedeMarcarVoluntarios: false, ...rol.ninos,
     })),
     unoAUno: buildUnoAUnoMenuItem({ ...SIN_ACCESO_UNO_A_UNO, lidera: rol.unoAUno === true }),
+    estudiantes: buildEstudiantesMenuItem(getEstudiantesNavItems({ ...SIN_ACCESO_ESTUDIANTES, ...rol.estudiantes })),
     plataforma: items,
     talleres: paginasTalleres(platformSession.capabilities.map((capacidad) => capacidad.key)),
   })
@@ -169,5 +180,39 @@ describe('shell navigation per role', () => {
       ]
       expect(ofrecidas.filter((entrada) => !visibles.has(entrada.id))).toEqual([])
     }
+  })
+})
+
+describe('the Estudiantes section (C4b)', () => {
+  it('sits in Ministerios right after Niños, with its entries', async () => {
+    const { secciones, principales } = await navegacionDe('admin con Estudiantes')
+    const ministerios = secciones.find((grupo) => grupo.seccion === 'ministerios')!
+    expect(ids(ministerios.entradas)).toEqual(['grupos-vida', 'ninos', 'estudiantes', 'platform-talleres_participation-taller-global'])
+    expect(ids(principales).slice(4, 7)).toEqual(['dream-team', 'ninos', 'estudiantes'])
+    const estudiantes = ministerios.entradas.find((entrada) => entrada.id === 'estudiantes')!
+    expect(estudiantes).toMatchObject({ label: 'Estudiantes', href: '/estudiantes' })
+    expect((estudiantes.children ?? []).map((hija) => [hija.label, hija.href])).toEqual([
+      ['Mis grupos', '/estudiantes'],
+      ['En vivo', '/estudiantes/vivo'],
+      ['Grupos', '/estudiantes/grupos'],
+    ])
+  })
+
+  it('follows Grupos de Vida when the user has neither Dream Team nor Niños', async () => {
+    const { secciones } = await navegacionDe('líder de grupo')
+    const ministerios = secciones.find((grupo) => grupo.seccion === 'ministerios')!
+    expect(ids(ministerios.entradas).slice(0, 2)).toEqual(['grupos-vida', 'estudiantes'])
+  })
+
+  it('is absent without access', async () => {
+    const { secciones } = await navegacionDe('admin')
+    expect(secciones.flatMap((grupo) => ids(grupo.entradas))).not.toContain('estudiantes')
+  })
+
+  it('does not change the phone tabs: the section goes to "Más" as a block', async () => {
+    expect((await navegacionDe('admin con Estudiantes')).pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Niños', 'Equipo'])
+    const lider = await navegacionDe('líder de GdV con Estudiantes')
+    expect(lider.pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Talleres', 'Ayuda'])
+    expect(lider.mas.subpaginas.map((bloque) => [bloque.grupo.label, bloque.paginas.map((pagina) => pagina.href)])).toEqual([['Estudiantes', ['/estudiantes']]])
   })
 })
