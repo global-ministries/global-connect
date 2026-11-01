@@ -3,7 +3,8 @@
 /**
  * Estudiantes › Grupos — the main view of the group drawer (artboards 06 / 07,
  * `#grupo=…`): Editar, the "no leader" callout, the key figures, Líderes
- * (with "Asignar líder" and a "Quitar" per leader), the entrenador and
+ * (with "Asignar líder" and a "Quitar" per leader), Líderes anteriores
+ * (C6a, read only; hidden when there are none), the entrenador and
  * director de grupo of the sub-área (read only: they come from the Dream
  * Team node, Q3), Por confirmar, the other visitors, Integrantes (with
  * "Agregar integrante"; each row opens the member view) and Desactivar with
@@ -32,6 +33,7 @@ import {
 } from '@/lib/platform/estudiantes/grupos-vista'
 
 import { FilaAgregar, FilaInset, FilaNavegable, ListaInset, TituloSeccion } from '../filas-inset'
+import { LideresAnteriores } from './lideres-anteriores'
 import type { AccionGrupo } from './use-accion-grupo'
 
 export function DatoClave({ etiqueta, valor, mono = false }: { readonly etiqueta: string; readonly valor: string; readonly mono?: boolean }): ReactElement {
@@ -155,6 +157,9 @@ export function VistaGrupo({ grupo, subareas, accion, onIntegrante, onAgregar, o
           ))}
         </ListaInset>
       </section>
+
+      {/* Reloads after the leaders change: a removed leader becomes a past one. */}
+      <LideresAnteriores key={`${grupo.id}:${grupo.lideres.map((l) => l.servicioId).join(',')}`} grupoId={grupo.id} />
 
       <TarjetaSistema className="space-y-3 p-4">
         {responsables.length > 0 ? (

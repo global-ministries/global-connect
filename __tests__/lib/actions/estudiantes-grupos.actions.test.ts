@@ -16,6 +16,7 @@ import {
   buscarPersonas,
   crearGrupo,
   editarGrupo,
+  historialLideres,
   moverIntegrante,
 } from '@/lib/actions/estudiantes-grupos.actions'
 
@@ -142,5 +143,48 @@ describe('buscarPersonas', () => {
       data: [{ personaId: PERSONA, nombre: 'Lucía Fernández', grupoId: null, grupo: null, enEsteGrupo: false }],
     })
     expect(rpc).toHaveBeenCalledWith('estudiantes_buscar_personas', { p_grupo_id: GRUPO, p_nombre: 'Lucía Fernández' })
+  })
+})
+
+describe('historialLideres', () => {
+  it('reads every period of the group', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [
+        {
+          servicio_id: SERVICIO,
+          persona_id: PERSONA,
+          nombre: 'Ana',
+          apellido: 'Pérez',
+          rol: 'Líder',
+          desde: '2025-01-15T12:00:00+00:00',
+          hasta: '2025-06-20T12:00:00+00:00',
+          cerrado_por_nombre: 'Carla Ruiz',
+        },
+      ],
+      error: null,
+    })
+    expect(await historialLideres({ grupoId: GRUPO })).toEqual({
+      ok: true,
+      data: [
+        {
+          servicioId: SERVICIO,
+          personaId: PERSONA,
+          nombre: 'Ana Pérez',
+          rol: 'Líder',
+          desde: '2025-01-15T12:00:00+00:00',
+          hasta: '2025-06-20T12:00:00+00:00',
+          cerradoPor: 'Carla Ruiz',
+        },
+      ],
+    })
+    expect(rpc).toHaveBeenCalledWith('estudiantes_grupo_lideres_historial', { p_grupo_id: GRUPO })
+  })
+
+  it('turns a refusal into Spanish and checks the id before calling', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'sin_autoridad' } })
+    expect(await historialLideres({ grupoId: GRUPO })).toEqual({ ok: false, message: 'No tienes permiso para gestionar este grupo.' })
+    rpc.mockReset()
+    expect(await historialLideres({ grupoId: 'x' })).toEqual({ ok: false, message: 'Revisa los datos e inténtalo de nuevo.' })
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

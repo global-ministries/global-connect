@@ -3,13 +3,17 @@
  * decision 11 of odd/tasks/sistema-diseno-v2.md): the same sections and save
  * bar, no Usuarios breadcrumbs, saving stays here with a toast, Cancelar
  * discards in place. "Mis hijos" is unchanged (odd/tasks/ninos-roles-ui.md F3).
+ * "Mi familia" (S15) sits between them; the identity (photo, name, rol,
+ * campus, cuenta) is above the tabs, as in the ficha.
  */
 import { AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 
 import { MisHijos } from '@/components/perfil/mis-hijos'
 import { PerfilPestanas } from '@/components/perfil/perfil-pestanas'
+import { CabeceraEditar } from '@/components/users/editar/cabecera-editar'
 import { FormularioEditarPersona } from '@/components/users/editar/formulario-editar-persona'
+import { MiFamilia } from '@/components/users/familia/mi-familia'
 import { MigasPerfil } from '@/components/users/editar/migas-editar'
 import { BotonSistema, PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
@@ -18,6 +22,7 @@ import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
 import { parsePendientesMisHijos } from '@/lib/platform/ninos/mis-hijos-registrar'
 import { parseMisPrechecks } from '@/lib/platform/ninos/precheck'
 import { cargarCatalogosEdicion, cargarIdentidadEdicion, cargarUsuarioEditable } from '@/lib/platform/usuarios/editar-carga'
+import { parseMiFamilia } from '@/lib/platform/usuarios/familia-vista'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -66,7 +71,8 @@ export default async function PerfilPage() {
   // An account whose birth date says under 18 has no Mis hijos (G8; the SQL refuses it too).
   const conMisHijos = esMayorDeEdad(usuario.fecha_nacimiento, hoyEnCaracas())
   const sinDatos = Promise.resolve({ data: null })
-  const [{ ocupaciones, profesiones, catalogos }, identidad, { sugerencias }, { data: misHijosData }, { data: pendientesData }, { data: prechecksData }] =
+  // Mi familia (S15) is read with the session client too: the actor is auth.uid().
+  const [{ ocupaciones, profesiones, catalogos }, identidad, { sugerencias }, { data: misHijosData }, { data: pendientesData }, { data: prechecksData }, { data: familiaData }] =
     await Promise.all([
       cargarCatalogosEdicion(adminSupabase),
       cargarIdentidadEdicion(supabase, { usuarioId: usuario.id, authId: user.id }),
@@ -74,13 +80,25 @@ export default async function PerfilPage() {
       conMisHijos ? supabase.rpc('ninos_mis_hijos') : sinDatos,
       conMisHijos ? supabase.rpc('ninos_mis_hijos_pendientes') : sinDatos,
       conMisHijos ? supabase.rpc('ninos_mis_prechecks') : sinDatos,
+      supabase.rpc('familia_mis_solicitudes'),
     ])
+  const familia = parseMiFamilia(familiaData)
 
   return (
     <PaginaSistema breadcrumbs={<MigasPerfil />}>
-      {/* "Mis datos" and "Mis hijos" tabs (F3). Mis hijos is shown to every adult account:
-          a parent without children registers them there (M5). */}
+      <CabeceraEditar
+        usuarioId={usuario.id}
+        nombre={usuario.nombre}
+        apellido={usuario.apellido}
+        fotoUrl={usuario.foto_perfil_url ?? null}
+        identidad={identidad}
+        esPerfil
+      />
+      {/* "Mis datos", "Mi familia" and "Mis hijos" tabs (F3, S15). Mis hijos is shown to every adult
+          account: a parent without children registers them there (M5). */}
       <PerfilPestanas
+        familia={<MiFamilia familia={familia} campus={identidad?.campus ?? null} />}
+        cuentaFamilia={{ confirmados: familia?.familiares.length ?? 0, nuevas: familia?.recibidas.length ?? 0 }}
         datos={
           <FormularioEditarPersona
             usuario={usuario}

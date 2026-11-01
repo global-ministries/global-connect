@@ -2,9 +2,11 @@
 
 /**
  * The top of Editar persona (prototype `.ed-hero`, decision 2 of S14): the
- * ficha's avatar with a camera button, the eyebrow ("Editar persona", or
- * "Mis datos" on /perfil), the name, the ficha's identity line, and
- * "Cambiar foto" from md. The photo saves at once through DialogoFoto.
+ * ficha's avatar with a camera button, the "Editar persona" eyebrow, the
+ * name, the ficha's identity line, and "Cambiar foto" from md. The photo
+ * saves at once through DialogoFoto. On /perfil (`esPerfil`) it is the
+ * identity above the tabs (S15 decision 1): no eyebrow and no required-field
+ * note, which stays inside Mis datos (NotaObligatorios).
  */
 import { Camera } from 'lucide-react'
 import { useState, type ReactElement } from 'react'
@@ -35,6 +37,16 @@ export interface CabeceraEditarProps {
   readonly fotoUrl: string | null
   readonly identidad: IdentidadEditar | null
   readonly esPerfil: boolean
+}
+
+/** "Los campos con * son obligatorios…", above the Editar persona sections. */
+export function NotaObligatorios(): ReactElement {
+  return (
+    <p className="text-[13px] text-muted-foreground">
+      Los campos con <span aria-hidden="true">*</span>
+      <span className="sr-only">asterisco</span> son obligatorios. La foto se guarda al momento; lo demás, con «Guardar cambios».
+    </p>
+  )
 }
 
 export function CabeceraEditar({ usuarioId, nombre, apellido, fotoUrl: fotoInicial, identidad, esPerfil }: CabeceraEditarProps): ReactElement {
@@ -82,7 +94,7 @@ export function CabeceraEditar({ usuarioId, nombre, apellido, fotoUrl: fotoInici
           </button>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="mb-0.5 text-[13px] font-medium text-muted-foreground max-md:hidden">{esPerfil ? 'Mis datos' : 'Editar persona'}</p>
+          {!esPerfil && <p className="mb-0.5 text-[13px] font-medium text-muted-foreground max-md:hidden">Editar persona</p>}
           <h1 className={cn(claseNombre, 'max-md:hidden')}>{completo}</h1>
           <h2 className={cn(claseNombre, 'md:hidden')}>{completo}</h2>
           {identidad && (identidad.rol || identidad.campus || identidad.cuenta) && (
@@ -97,10 +109,7 @@ export function CabeceraEditar({ usuarioId, nombre, apellido, fotoUrl: fotoInici
           Cambiar foto
         </BotonSistema>
       </section>
-      <p className="text-[13px] text-muted-foreground">
-        Los campos con <span aria-hidden="true">*</span>
-        <span className="sr-only">asterisco</span> son obligatorios. La foto se guarda al momento; lo demás, con «Guardar cambios».
-      </p>
+      {!esPerfil && <NotaObligatorios />}
       <DialogoFoto
         abierto={abierto}
         onAbiertoChange={abrir}
