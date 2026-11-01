@@ -12,7 +12,7 @@ import { NinosAccesoProvider } from "@/hooks/useNinosAcceso"
 import { EstudiantesAccesoProvider } from "@/hooks/useEstudiantesAcceso"
 import { UnoAUnoAccesoProvider } from "@/hooks/useUnoAUnoAcceso"
 import { parsearAccesoUnoAUno, SIN_ACCESO_UNO_A_UNO, type AccesoUnoAUno } from "@/lib/uno-a-uno/acceso"
-import { parsearAccesoEstudiantes, SIN_ACCESO_ESTUDIANTES, type AccesoEstudiantes } from "@/lib/platform/estudiantes/acceso"
+import { conVoluntarios, parsearAccesoEstudiantes, SIN_ACCESO_ESTUDIANTES, type AccesoEstudiantes } from "@/lib/platform/estudiantes/acceso"
 import { isDreamTeamEnabled } from "@/lib/platform/dream-team/route-access"
 import { puedeRegistrarParaNavegacion } from "@/lib/platform/dream-team/ficha-persona"
 
@@ -61,12 +61,16 @@ async function resolveUnoAUnoAcceso(supabase: SupabaseServerClient | null): Prom
 }
 
 // Estudiantes menu section (odd/tasks/estudiantes-fase-b.md, C4): Mi grupo,
-// En vivo and Grupos from one estudiantes_acceso() call. Fails closed on any
-// error.
+// En vivo and Grupos from estudiantes_acceso(); Voluntarios (C5) from
+// estudiantes_puede_marcar_voluntarios(). Fails closed on any error.
 async function resolveEstudiantesAcceso(supabase: SupabaseServerClient | null): Promise<AccesoEstudiantes> {
   if (!supabase) return SIN_ACCESO_ESTUDIANTES
   try {
-    return parsearAccesoEstudiantes(await supabase.rpc("estudiantes_acceso"))
+    const [acceso, voluntarios] = await Promise.all([
+      supabase.rpc("estudiantes_acceso"),
+      supabase.rpc("estudiantes_puede_marcar_voluntarios"),
+    ])
+    return conVoluntarios(parsearAccesoEstudiantes(acceso), voluntarios)
   } catch {
     return SIN_ACCESO_ESTUDIANTES
   }

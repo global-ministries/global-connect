@@ -28,6 +28,17 @@ describe('buildEstudiantesMenuItem', () => {
   })
 })
 
+describe('the Voluntarios entry (C5)', () => {
+  it('has its own icon and comes last', () => {
+    const item = buildEstudiantesMenuItem(getEstudiantesNavItems({ grupos: 0, lidera: false, vivo: true, gestiona: false, voluntarios: true }))
+    expect(item?.children.map((hija) => [hija.id, hija.href])).toEqual([
+      ['estudiantes-vivo', '/estudiantes/vivo'],
+      ['estudiantes-voluntarios', '/estudiantes/voluntarios'],
+    ])
+    expect(item?.children[1].icon).toBeDefined()
+  })
+})
+
 describe('insertEstudiantesMenuItem', () => {
   const item = { id: 'estudiantes' }
   const ids = (lista: readonly { id: string }[]) => lista.map((x) => x.id)
