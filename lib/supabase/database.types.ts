@@ -5962,6 +5962,64 @@ export type Database = {
           },
         ]
       }
+      solicitudes_relacion_familiar: {
+        Row: {
+          creado_en: string
+          datos_sin_cuenta: Json | null
+          destino_id: string | null
+          estado: string
+          id: string
+          resuelto_en: string | null
+          resuelto_por: string | null
+          solicitante_id: string
+          tipo_relacion: Database["public"]["Enums"]["enum_tipo_relacion"]
+        }
+        Insert: {
+          creado_en?: string
+          datos_sin_cuenta?: Json | null
+          destino_id?: string | null
+          estado?: string
+          id?: string
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+          solicitante_id: string
+          tipo_relacion: Database["public"]["Enums"]["enum_tipo_relacion"]
+        }
+        Update: {
+          creado_en?: string
+          datos_sin_cuenta?: Json | null
+          destino_id?: string | null
+          estado?: string
+          id?: string
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+          solicitante_id?: string
+          tipo_relacion?: Database["public"]["Enums"]["enum_tipo_relacion"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_relacion_familiar_destino_id_fkey"
+            columns: ["destino_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_relacion_familiar_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_relacion_familiar_solicitante_id_fkey"
+            columns: ["solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_event_outbox: {
         Row: {
           attempts: number
@@ -8726,6 +8784,7 @@ export type Database = {
           auth_id: string | null
           bautizado: boolean | null
           cedula: string | null
+          creado_por: string | null
           direccion_id: string | null
           email: string | null
           estado_civil: Database["public"]["Enums"]["enum_estado_civil"]
@@ -8748,6 +8807,7 @@ export type Database = {
           auth_id?: string | null
           bautizado?: boolean | null
           cedula?: string | null
+          creado_por?: string | null
           direccion_id?: string | null
           email?: string | null
           estado_civil: Database["public"]["Enums"]["enum_estado_civil"]
@@ -8770,6 +8830,7 @@ export type Database = {
           auth_id?: string | null
           bautizado?: boolean | null
           cedula?: string | null
+          creado_por?: string | null
           direccion_id?: string | null
           email?: string | null
           estado_civil?: Database["public"]["Enums"]["enum_estado_civil"]
@@ -10355,6 +10416,42 @@ export type Database = {
         Returns: number
       }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
+      familia_buscar: { Args: { p_q: string }; Returns: Json }
+      familia_cancelar: { Args: { p_id: string }; Returns: Json }
+      familia_mis_solicitudes: { Args: never; Returns: Json }
+      familia_pendientes_listar: { Args: never; Returns: Json }
+      familia_quitar: { Args: { p_relacion_id: string }; Returns: Json }
+      familia_resolver: {
+        Args: { p_aprobar: boolean; p_id: string }
+        Returns: Json
+      }
+      familia_responder: {
+        Args: { p_aceptar: boolean; p_id: string }
+        Returns: Json
+      }
+      familia_solicitar: {
+        Args: {
+          p_candidato: string
+          p_tipo: Database["public"]["Enums"]["enum_tipo_relacion"]
+        }
+        Returns: Json
+      }
+      familia_solicitar_sin_cuenta: {
+        Args: {
+          p_datos: Json
+          p_tipo: Database["public"]["Enums"]["enum_tipo_relacion"]
+        }
+        Returns: Json
+      }
+      familia_verificar: {
+        Args: {
+          p_candidato: string
+          p_dia?: number
+          p_mes?: number
+          p_ultimos4?: string
+        }
+        Returns: Json
+      }
       ficha_tiene_invitacion_abierta: {
         Args: { p_usuario_id: string }
         Returns: boolean
