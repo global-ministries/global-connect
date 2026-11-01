@@ -211,6 +211,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
         salones={salones}
         salonesNivel={salonesNivel}
         fecha={servicio.fecha}
+        turnoId={servicio.turnoId}
+        onIngresado={() => {
+          void cargarOcupacion()
+          void recargarCola()
+        }}
         ocupacion={porSalon}
         salonDe={mesa.salonDe}
         onElegirSalon={mesa.elegirSalon}

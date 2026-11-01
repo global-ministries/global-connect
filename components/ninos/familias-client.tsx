@@ -16,7 +16,7 @@ import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
 import { PanelLateralNinos } from './panel-lateral'
 import { PreregistrosPendientes } from './preregistros-pendientes'
-import { RegistrarFamiliaForm } from './registrar-familia-form'
+import { RegistroMesa } from './registro-rapido/registro-mesa'
 import { SalonSugerido } from './salon-sugerido'
 import { useBuscarFamilias } from './use-buscar-familias'
 import { VincularHijoForm } from './vincular-hijo-form'
@@ -64,10 +64,10 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
           </BotonSistema>
           <EncabezadoNinos
             titulo={vista.tipo === 'registrar' ? 'Nueva familia' : 'Agregar niño'}
-            subtitulo={vista.tipo === 'registrar' ? 'Representante, niños y personas autorizadas para retirar.' : undefined}
+            subtitulo={vista.tipo === 'registrar' ? 'Lo de hoy primero; lo demás se completa después en la ficha.' : undefined}
           />
         </div>
-        <RegistrarFamiliaForm
+        <RegistroMesa
           salones={salonesNivel}
           padreExistente={vista.tipo === 'agregar' ? vista.padre : undefined}
           onCancelar={cancelar}

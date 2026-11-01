@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 import { SalonSugerido } from '@/components/ninos/salon-sugerido'
-import { RegistrarFamiliaForm } from '@/components/ninos/registrar-familia-form'
+import { RegistroMesa as RegistrarFamiliaForm } from '@/components/ninos/registro-rapido/registro-mesa'
 import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 const rpc = jest.fn()
@@ -34,7 +34,9 @@ describe('RegistrarFamiliaForm', () => {
   it('shows validation errors and does not call the RPC', async () => {
     render(<RegistrarFamiliaForm onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Registrar familia' }))
-    expect(await screen.findByText('El nombre del representante es obligatorio.')).toBeInTheDocument()
+    expect(await screen.findByText('Escribe el nombre.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Nombre del representante' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre del representante')).toHaveFocus()
     expect(rpc).not.toHaveBeenCalled()
   })
 
@@ -42,11 +44,11 @@ describe('RegistrarFamiliaForm', () => {
     fireEvent.change(screen.getByLabelText('Nombre del representante'), { target: { value: 'Ana' } })
     fireEvent.change(screen.getByLabelText('Apellido del representante'), { target: { value: 'Pérez' } })
     fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '04145551234' } })
-    fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
     fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
     fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Pérez' } })
     fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-    fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
   }
 
   async function registrarNueva(onRegistrada = jest.fn()) {
@@ -62,7 +64,7 @@ describe('RegistrarFamiliaForm', () => {
     return onRegistrada
   }
 
-  it('registers a new family at the table and then offers the account invitation', async () => {
+  it('registers a new family at the table and then offers the account invitation as an optional button', async () => {
     const onRegistrada = await registrarNueva()
     expect(rpc).toHaveBeenCalledWith('ninos_registrar_familia_mesa', {
       p: expect.objectContaining({
@@ -71,7 +73,8 @@ describe('RegistrarFamiliaForm', () => {
       }),
     })
     expect(onRegistrada).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Invitar por correo' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Correo del representante')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invitar a crear su cuenta' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Continuar' }))
     expect(onRegistrada).toHaveBeenCalledWith('p1', 'Luis Pérez')
   })
@@ -81,6 +84,7 @@ describe('RegistrarFamiliaForm', () => {
     global.fetch = fetchMock as unknown as typeof fetch
     const onRegistrada = await registrarNueva()
 
+    fireEvent.click(screen.getByRole('button', { name: 'Invitar a crear su cuenta' }))
     fireEvent.click(screen.getByRole('button', { name: 'Invitar por correo' }))
     expect(await screen.findByText('Escribe un correo válido.')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -102,6 +106,7 @@ describe('RegistrarFamiliaForm', () => {
       ok: false, status: 409, json: async () => ({ error: 'Ese correo ya pertenece a otra persona o a otra cuenta', codigo: 'email_en_uso' }),
     }) as unknown as typeof fetch
     await registrarNueva()
+    fireEvent.click(screen.getByRole('button', { name: 'Invitar a crear su cuenta' }))
     fireEvent.change(screen.getByLabelText('Correo del representante'), { target: { value: 'ana@example.test' } })
     fireEvent.click(screen.getByRole('button', { name: 'Invitar por correo' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Ese correo ya pertenece a otra persona o a otra cuenta')
@@ -117,7 +122,7 @@ describe('RegistrarFamiliaForm', () => {
     fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
     fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Pérez' } })
     fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-    fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
     fireEvent.click(screen.getByRole('button', { name: 'Agregar niño' }))
     await waitFor(() => expect(onRegistrada).toHaveBeenCalledWith('p1', 'Luis Pérez'))
     expect(rpc).toHaveBeenCalledWith('ninos_registrar_familia', expect.anything())
@@ -127,7 +132,7 @@ describe('RegistrarFamiliaForm', () => {
   it('adding a child to a known parent hides the parent fields', () => {
     render(<RegistrarFamiliaForm padreExistente={{ id: 'p1', nombre: 'Ana Pérez' }} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
     expect(screen.queryByLabelText('Nombre del representante')).not.toBeInTheDocument()
-    expect(screen.getByText(/Ana Pérez/)).toBeInTheDocument()
+    expect(screen.getByText(/Representante:/)).toHaveTextContent('Representante: Ana Pérez')
   })
 
   it('shows the RPC error in Spanish', async () => {
@@ -136,7 +141,7 @@ describe('RegistrarFamiliaForm', () => {
     fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
     fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Pérez' } })
     fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-    fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+    fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
     fireEvent.click(screen.getByRole('button', { name: 'Agregar niño' }))
     expect(await screen.findByText('No tienes permiso para registrar familias.')).toBeInTheDocument()
   })
