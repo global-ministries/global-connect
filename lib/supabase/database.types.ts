@@ -2799,6 +2799,71 @@ export type Database = {
           },
         ]
       }
+      estudiantes_voluntarios_roster_servicios: {
+        Row: {
+          ambito_id: string
+          equipo_id: string
+          fecha: string
+          servicio_id: string
+          turno_id: string
+        }
+        Insert: {
+          ambito_id: string
+          equipo_id: string
+          fecha: string
+          servicio_id: string
+          turno_id: string
+        }
+        Update: {
+          ambito_id?: string
+          equipo_id?: string
+          fecha?: string
+          servicio_id?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_voluntarios_roster_servicios_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_servicios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estudiantes_voluntarios_roster_servicios_turno_id_fecha_fkey"
+            columns: ["turno_id", "fecha"]
+            isOneToOne: false
+            referencedRelation: "estudiantes_voluntarios_rosters"
+            referencedColumns: ["turno_id", "fecha"]
+          },
+        ]
+      }
+      estudiantes_voluntarios_rosters: {
+        Row: {
+          congelado_at: string
+          fecha: string
+          turno_id: string
+        }
+        Insert: {
+          congelado_at?: string
+          fecha: string
+          turno_id: string
+        }
+        Update: {
+          congelado_at?: string
+          fecha?: string
+          turno_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estudiantes_voluntarios_rosters_turno_id_fkey"
+            columns: ["turno_id"]
+            isOneToOne: false
+            referencedRelation: "dream_team_turnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eventos_grupo: {
         Row: {
           conteo_visitantes: number | null
@@ -10263,6 +10328,16 @@ export type Database = {
         Args: { p_campus_id: string; p_persona_id: string }
         Returns: boolean
       }
+      estudiantes_puede_marcar_voluntarios: { Args: never; Returns: boolean }
+      estudiantes_reporte_voluntarios: {
+        Args: {
+          p_campus_id?: string
+          p_desde: string
+          p_hasta: string
+          p_turno_id?: string
+        }
+        Returns: Json
+      }
       estudiantes_reunion_guardar: {
         Args: {
           p_fecha: string
@@ -10353,6 +10428,85 @@ export type Database = {
       estudiantes_visitas: {
         Args: { p_grupo_id: string; p_hasta: string; p_persona_id: string }
         Returns: number
+      }
+      estudiantes_voluntarios_congelado_desde: { Args: never; Returns: string }
+      estudiantes_voluntarios_congelar: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: boolean
+      }
+      estudiantes_voluntarios_congelar_pendientes: {
+        Args: never
+        Returns: number
+      }
+      estudiantes_voluntarios_del_turno: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: {
+          ambito_id: string
+          equipo_id: string
+          esperado: boolean
+          servicio_id: string
+          sin_turno: boolean
+        }[]
+      }
+      estudiantes_voluntarios_del_turno_vivo: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: {
+          ambito_id: string
+          equipo_id: string
+          esperado: boolean
+          servicio_id: string
+          sin_turno: boolean
+        }[]
+      }
+      estudiantes_voluntarios_equipos: {
+        Args: never
+        Returns: {
+          ambito_id: string
+          equipo_id: string
+        }[]
+      }
+      estudiantes_voluntarios_marcables: {
+        Args: { p_campus_id: string }
+        Returns: {
+          ambito_id: string
+          campus_id: string
+          equipo_id: string
+        }[]
+      }
+      estudiantes_voluntarios_marcar: {
+        Args: {
+          p_estado: string
+          p_fecha: string
+          p_servicio_ids: string[]
+          p_solo_sin_marcar?: boolean
+          p_turno_id: string
+        }
+        Returns: Json
+      }
+      estudiantes_voluntarios_participa: {
+        Args: never
+        Returns: {
+          ambito_id: string
+          turno_id: string
+        }[]
+      }
+      estudiantes_voluntarios_planilla: {
+        Args: { p_fecha: string; p_turno_id: string }
+        Returns: Json
+      }
+      estudiantes_voluntarios_turnos: {
+        Args: never
+        Returns: {
+          campus: string
+          campus_id: string
+          dia_semana: number
+          fechas: string[]
+          hora: string
+          id: string
+          nombre: string
+          orden: number
+          tipo: string
+        }[]
       }
       expirar_solicitudes_vencidas: { Args: never; Returns: number }
       ficha_tiene_invitacion_abierta: {
