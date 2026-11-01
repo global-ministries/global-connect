@@ -38,6 +38,11 @@ describe('POST /api/ninos/preregistro', () => {
     expect(rpc.mock.calls[0][1].p_ip_hash).toMatch(/^[0-9a-f]{64}$/)
   })
 
+  it('stores the parent género when the form sends it', async () => {
+    await post(JSON.stringify({ ...valido, padre: { ...valido.padre, genero: 'Femenino' } }))
+    expect(rpc.mock.calls[0][1].p_payload.padre.genero).toBe('Femenino')
+  })
+
   it('413 for an oversized body before touching the database', async () => {
     const res = await post(JSON.stringify({ ...valido, relleno: 'x'.repeat(40_000) }))
     expect(res.status).toBe(413)

@@ -1,10 +1,10 @@
 /**
  * P4 (odd/tasks/ninos-precheck.md) — the optional "¿Vienen hoy?" step after
- * the public wizard sends the pre-registration.
+ * the public one-screen registration (N4b) sends the pre-registration.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
-import { RegistroFamilia } from '@/components/ninos/registro/registro-familia'
+import { RegistroPublico } from '@/components/ninos/registro-rapido/registro-publico'
 
 const fetchMock = jest.fn()
 beforeEach(() => {
@@ -27,16 +27,12 @@ function enviarRegistro() {
   escribir('Tu nombre', 'Ana')
   escribir('Tu apellido', 'Prueba')
   escribir('Teléfono', '04140000000')
-  pulsar('Continuar')
+  elegir('Eres mamá o papá', 'Mamá')
   escribir('Nombre del niño 1', 'Sol')
   escribir('Fecha de nacimiento del niño 1', '2021-03-04')
   elegir('Género del niño 1', 'Niña')
-  pulsar('Continuar')
   elegir('¿Sol tiene alergias?', 'No')
-  elegir('¿Sol tiene alguna necesidad especial?', 'No')
-  pulsar('Continuar')
-  pulsar('Saltar este paso')
-  pulsar('Continuar sin correo')
+  elegir('¿Sol tiene alguna condición médica o necesidad especial?', 'No')
   pulsar('Enviar registro')
 }
 
@@ -56,7 +52,7 @@ const conServicios = respuesta(200, {
 describe('¿Vienen hoy?', () => {
   it('offers today\'s services after sending and tells the table the chosen one', async () => {
     fetchMock.mockResolvedValueOnce(conServicios).mockResolvedValueOnce(respuesta(200, { ok: true }))
-    render(<RegistroFamilia campus={campus} />)
+    render(<RegistroPublico campus={campus} />)
     enviarRegistro()
 
     expect(await screen.findByRole('heading', { name: '¿Vienen hoy?' })).toBeInTheDocument()
@@ -64,8 +60,8 @@ describe('¿Vienen hoy?', () => {
     expect(screen.getByRole('button', { name: 'Venimos a las 11:00' })).toBeInTheDocument()
     pulsar('Venimos a las 11:00')
 
-    expect(await screen.findByText('Le avisamos a la mesa que vienen a las 11:00.')).toBeInTheDocument()
-    expect(screen.getByText(/Acércate a la mesa de check-in con tus niños/)).toBeInTheDocument()
+    expect(await screen.findByText(/Le avisamos a la mesa que vienen a las/)).toHaveTextContent('Le avisamos a la mesa que vienen a las 11:00.')
+    expect(screen.getByText(/Acércate a la mesa de Niños con Sol/)).toBeInTheDocument()
     const [url, init] = fetchMock.mock.calls[1]
     expect(url).toBe('/api/ninos/preregistro/aviso')
     expect(init.method).toBe('POST')
@@ -74,21 +70,21 @@ describe('¿Vienen hoy?', () => {
 
   it('can be skipped without telling the table anything', async () => {
     fetchMock.mockResolvedValueOnce(conServicios)
-    render(<RegistroFamilia campus={campus} />)
+    render(<RegistroPublico campus={campus} />)
     enviarRegistro()
     await screen.findByRole('heading', { name: '¿Vienen hoy?' })
     pulsar('No, otro día')
 
-    expect(await screen.findByText(/Acércate a la mesa de check-in con tus niños/)).toBeInTheDocument()
+    expect(await screen.findByText(/Acércate a la mesa de Niños con Sol/)).toBeInTheDocument()
     expect(screen.queryByText(/Le avisamos a la mesa/)).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('is not shown when no service of today is open', async () => {
     fetchMock.mockResolvedValueOnce(respuesta(200, { ok: true }))
-    render(<RegistroFamilia campus={campus} />)
+    render(<RegistroPublico campus={campus} />)
     enviarRegistro()
-    expect(await screen.findByText(/Acércate a la mesa de check-in con tus niños/)).toBeInTheDocument()
+    expect(await screen.findByText(/Acércate a la mesa de Niños con Sol/)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '¿Vienen hoy?' })).not.toBeInTheDocument()
   })
 
@@ -96,19 +92,19 @@ describe('¿Vienen hoy?', () => {
     fetchMock
       .mockResolvedValueOnce(conServicios)
       .mockResolvedValueOnce(respuesta(409, { errores: ['Este servicio ya no recibe avisos. Avísale a la mesa al llegar.'] }))
-    render(<RegistroFamilia campus={campus} />)
+    render(<RegistroPublico campus={campus} />)
     enviarRegistro()
     await screen.findByRole('heading', { name: '¿Vienen hoy?' })
     pulsar('Venimos a las 9:00')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Este servicio ya no recibe avisos. Avísale a la mesa al llegar.')
     pulsar('No, otro día')
-    await screen.findByText(/Acércate a la mesa de check-in con tus niños/)
+    await screen.findByText(/Acércate a la mesa de Niños con Sol/)
   })
 
   it('a network failure keeps the choice open', async () => {
     fetchMock.mockResolvedValueOnce(conServicios).mockRejectedValueOnce(new Error('offline'))
-    render(<RegistroFamilia campus={campus} />)
+    render(<RegistroPublico campus={campus} />)
     enviarRegistro()
     await screen.findByRole('heading', { name: '¿Vienen hoy?' })
     pulsar('Venimos a las 9:00')

@@ -90,6 +90,15 @@ describe('validarFamilia', () => {
     )
   })
 
+  it('refuses a child of 13 or older, same rule as ninos_en_rango_edad (S6)', () => {
+    const f = formValido()
+    f.hijos[0].fechaNacimiento = '2013-11-01'
+    const r = validarFamilia(f, '2026-11-01')
+    expect(r).toEqual({ ok: false, errores: ['Niño 1: solo se registran en Niños los menores de 13 años.'] })
+    f.hijos[0].fechaNacimiento = '2013-11-02'
+    expect(validarFamilia(f, '2026-11-01').ok).toBe(true)
+  })
+
   it('accepts PreK as grade 0 and drops blank pickup rows', () => {
     const f = formValido()
     f.hijos[0].grado = '0'
@@ -127,6 +136,9 @@ describe('mensajeDeErrorFamilia', () => {
     )
     expect(mensajeDeErrorFamilia({ code: '23505', message: 'hijo_ya_registrado' })).toBe(
       'Uno de los niños ya está registrado con este representante.',
+    )
+    expect(mensajeDeErrorFamilia({ code: '22023', message: 'fuera_de_rango' })).toBe(
+      'Solo se registran en Niños los menores de 13 años con fecha de nacimiento.',
     )
     expect(mensajeDeErrorFamilia({ code: 'XX', message: 'boom' })).toBe('No se pudo guardar. Intenta de nuevo.')
   })

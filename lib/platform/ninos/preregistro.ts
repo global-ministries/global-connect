@@ -9,6 +9,7 @@
  * route never echoes data back and never says whether a person exists.
  */
 import {
+  GENEROS,
   validarFamilia,
   type AutorizadoForm,
   type AutorizadoPayload,
@@ -33,7 +34,7 @@ export type PadrePreregistro = {
   telefono: string
   email: string | null
   cedula: string | null
-  /** Not asked on the public form; the anfitrión picks it when confirming. */
+  /** Optional on the public form (S6); when null the anfitrión picks it when confirming. */
   genero: Genero | null
 }
 
@@ -102,7 +103,14 @@ function algunTextoLargo(objetos: readonly Objeto[]): boolean {
   return objetos.some((o) => Object.values(o).some((v) => typeof v === 'string' && v.length > LIMITES_PREREGISTRO.texto))
 }
 
-export type CampoPadrePreregistro = 'nombre' | 'apellido' | 'telefono' | 'email'
+/** The parent's género: '' when not given, null when not a known value. */
+function generoPadre(padre: Objeto): Genero | '' | null {
+  const genero = cadena(padre, 'genero').trim()
+  if (!genero) return ''
+  return (GENEROS as readonly string[]).includes(genero) ? (genero as Genero) : null
+}
+
+export type CampoPadrePreregistro = 'nombre' | 'apellido' | 'telefono' | 'email' | 'genero'
 
 /**
  * The parent's field errors, keyed by field in form order. Shared by
@@ -115,6 +123,7 @@ export function erroresPadrePreregistro(padre: Objeto): Partial<Record<CampoPadr
   if (!cadena(padre, 'apellido').trim()) errores.apellido = 'Escribe tu apellido.'
   if (cadena(padre, 'telefono').trim().replace(/\D/g, '').length < 7) errores.telefono = 'Escribe un teléfono válido.'
   if (email && !esEmailValido(email)) errores.email = 'Escribe un correo válido o déjalo vacío.'
+  if (generoPadre(padre) === null) errores.genero = 'Elige un género válido o déjalo vacío.'
   return errores
 }
 
@@ -142,6 +151,7 @@ export function parsePreregistro(body: unknown, hoy: string): ResultadoPreregist
   const telefono = cadena(padre, 'telefono').trim()
   const email = cadena(padre, 'email').trim().toLowerCase()
   const cedula = cadena(padre, 'cedula').trim()
+  const genero = generoPadre(padre)
   errores.push(...Object.values(erroresPadrePreregistro(padre)))
 
   // Children and pickup people: the same rules as the table form. The parent
@@ -162,7 +172,7 @@ export function parsePreregistro(body: unknown, hoy: string): ResultadoPreregist
     honeypot,
     campusId,
     payload: {
-      padre: { nombre, apellido, telefono, email: email || null, cedula: cedula || null, genero: null },
+      padre: { nombre, apellido, telefono, email: email || null, cedula: cedula || null, genero: genero || null },
       hijos: familia.payload.hijos,
       autorizados: familia.payload.autorizados,
     },

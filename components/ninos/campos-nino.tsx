@@ -96,10 +96,15 @@ type CamposNinoProps = {
   modo?: ModoCamposNino
   /** False hides the name, birth date and gender (a child with an own account changes them there). */
   identidadEditable?: boolean
+  /**
+   * Only the level and the ficha extras (school, snack, diaper, photos, habits,
+   * notes): the one-screen registration asks identity and health on its own card.
+   */
+  soloFicha?: boolean
 }
 
 /** The child's personal data and ficha fields. */
-export function CamposNino({ indice, hijo, onChange, salones = [], publico = false, modo = 'equipo', identidadEditable = true }: CamposNinoProps) {
+export function CamposNino({ indice, hijo, onChange, salones = [], publico = false, modo = 'equipo', identidadEditable = true, soloFicha = false }: CamposNinoProps) {
   const n = indice + 1
   const esPadre = modo === 'padre'
   const set = <K extends keyof HijoForm>(k: K, v: HijoForm[K]) => onChange({ ...hijo, [k]: v })
@@ -134,7 +139,7 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
   return (
     <div className="@container">
       <div className="grid gap-4 @lg:grid-cols-2">
-        {identidadEditable ? (
+        {soloFicha ? null : identidadEditable ? (
           <>
             <InputSistema
               id={id('nombre')}
@@ -207,26 +212,30 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
         <SelectSiNo id={id('comer')} label="¿Puede comer merienda?" value={hijo.puedeComer} onChange={(v) => set('puedeComer', v)} />
         <SelectSiNo id={id('panal')} label="¿Necesita cambio de pañal?" value={hijo.cambioPanal} onChange={(v) => set('cambioPanal', v)} />
         <SelectSiNo id={id('imagen')} label="¿Autoriza fotos?" value={hijo.autorizaImagen} onChange={(v) => set('autorizaImagen', v)} />
-        <div className="@lg:col-span-2">
-          <TextareaSistema
-            id={id('alergias')}
-            label="Alergias"
-            filas={2}
-            maxLength={maxTexto}
-            value={hijo.alergias}
-            onChange={(e) => set('alergias', e.target.value)}
-          />
-        </div>
-        <div className="@lg:col-span-2">
-          <TextareaSistema
-            id={id('nee')}
-            label="Necesidades especiales"
-            filas={2}
-            maxLength={maxTexto}
-            value={hijo.necesidadesEspeciales}
-            onChange={(e) => set('necesidadesEspeciales', e.target.value)}
-          />
-        </div>
+        {!soloFicha && (
+          <>
+            <div className="@lg:col-span-2">
+              <TextareaSistema
+                id={id('alergias')}
+                label="Alergias"
+                filas={2}
+                maxLength={maxTexto}
+                value={hijo.alergias}
+                onChange={(e) => set('alergias', e.target.value)}
+              />
+            </div>
+            <div className="@lg:col-span-2">
+              <TextareaSistema
+                id={id('nee')}
+                label="Necesidades especiales"
+                filas={2}
+                maxLength={maxTexto}
+                value={hijo.necesidadesEspeciales}
+                onChange={(e) => set('necesidadesEspeciales', e.target.value)}
+              />
+            </div>
+          </>
+        )}
         <div className="@lg:col-span-2">
           <TextareaSistema
             id={id('habitos')}
