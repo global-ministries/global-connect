@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { GraduationCap, Radio, Settings2, UsersRound } from 'lucide-react'
+import { GraduationCap, Radio, Settings2, UserCheck, UsersRound } from 'lucide-react'
 
 import { useEstudiantesAcceso } from '@/hooks/useEstudiantesAcceso'
 import { entradasMenuEstudiantes, type AccesoEstudiantes, type EntradaMenuEstudiantes } from '@/lib/platform/estudiantes/acceso'
@@ -10,7 +10,7 @@ import { entradasMenuEstudiantes, type AccesoEstudiantes, type EntradaMenuEstudi
  * odd/tasks/estudiantes-fase-b.md, assumption A3 of
  * design/estudiantes-asistencia), built like Niños
  * (components/ninos/ninos-menu-item.ts): Mi grupo / Mis grupos · En vivo ·
- * Grupos, from the server-fed facts in hooks/useEstudiantesAcceso (the rule
+ * Grupos · Voluntarios (C5), from the server-fed facts in hooks/useEstudiantesAcceso (the rule
  * lives in lib/platform/estudiantes/acceso.ts). Not a phone tab: the tab bar
  * priorities (lib/navegacion/secciones.ts) are unchanged, so phones reach it
  * through "Más".
@@ -37,6 +37,7 @@ const ICONOS: Readonly<Record<EntradaMenuEstudiantes['id'], IconComponent>> = {
   'estudiantes-mi-grupo': UsersRound,
   'estudiantes-vivo': Radio,
   'estudiantes-grupos': Settings2,
+  'estudiantes-voluntarios': UserCheck,
 }
 
 export function getEstudiantesNavItems(acceso: AccesoEstudiantes): EstudiantesMenuChild[] {
