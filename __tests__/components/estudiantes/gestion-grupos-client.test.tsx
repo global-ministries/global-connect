@@ -391,3 +391,18 @@ describe('the leader list from the drawer (C3b)', () => {
     expect(within(panel()).queryByRole('button', { name: 'Registrar visitante' })).not.toBeInTheDocument()
   })
 })
+
+describe('Promover temporada', () => {
+  it('links to the promotion of the campus for whoever manages Transit or Inside Out', () => {
+    render(<GestionGruposClient {...props()} />)
+    const enlaces = screen.getAllByRole('link', { name: 'Promover temporada' })
+    expect(enlaces.length).toBeGreaterThan(0)
+    enlaces.forEach((enlace) => expect(enlace).toHaveAttribute('href', '/estudiantes/promocion'))
+  })
+
+  it('is not offered to whoever manages only The Living Room (it has no year)', () => {
+    const tlr = subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' })
+    render(<GestionGruposClient {...props({ subareas: [tlr], grupos: [] })} />)
+    expect(screen.queryByRole('link', { name: 'Promover temporada' })).not.toBeInTheDocument()
+  })
+})

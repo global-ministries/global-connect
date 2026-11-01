@@ -13,6 +13,9 @@
  * the next level (ámbitos or sub-áreas; hidden at the leaf), and the list.
  * A row opens the group drawer (detalle-grupo.tsx), which holds every action;
  * "Crear grupo" (FAB on phones) opens the form (formulario-grupo.tsx).
+ * Whoever manages a Transit / Inside Out sub-área also gets "Promover
+ * temporada" (header on desktop, end of the page on phones; C6b3, A18) for
+ * the app's campus; /estudiantes/promocion checks the authority of S15.
  *
  * On phones the app shell's header holds the page h1 and has no back slot, so
  * a content row carries "‹ parent" and Filtros, and the large title is an h2
@@ -21,8 +24,9 @@
  * and are mirrored into the URL with `router.replace` (search debounced).
  */
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Plus, UsersRound } from 'lucide-react'
+import { ArrowUpCircle, Plus, UsersRound } from 'lucide-react'
 
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
@@ -183,6 +187,12 @@ export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciale
   }
 
   const { atras, tarjetas } = vista
+  // Promotion is per campus and only for Transit / Inside Out (The Living Room has no year, S11).
+  const promueve = subareas.some((s) => s.experiencia === 'estudiantes')
+  const enlacePromocion =
+    campusId && subareas.some((s) => s.experiencia === 'estudiantes' && s.campusId === campusId)
+      ? `/estudiantes/promocion?campus=${encodeURIComponent(campusId)}`
+      : '/estudiantes/promocion'
   const grupoDetalle = detalle ? (grupos.find((g) => g.id === detalle.grupoId) ?? null) : null
   const hayFiltros = vista.filtros.metrica !== null || vista.filtros.anio !== null || vista.filtros.q.trim() !== ''
   const vacio = hayFiltros ? (
@@ -205,17 +215,30 @@ export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciale
     <PaginaSistema
       breadcrumbs={<MigasGrupos migas={vista.migas} onIr={(miga) => miga.parche && cambiar(miga.parche)} />}
       acciones={
-        // Small header action (36px, 44px on touch); the ::after widens the hit area to 48px (decisions 2026-10-28, 4).
-        <BotonSistema
-          type="button"
-          variante="primario"
-          tamaño="sm"
-          icono={Plus}
-          onClick={abrirCrear}
-          className="relative after:absolute after:-inset-x-0.5 after:-inset-y-1.5 after:content-['']"
-        >
-          Crear grupo
-        </BotonSistema>
+        // Small header actions (36px, 44px on touch); the ::after widens the hit area to 48px (decisions 2026-10-28, 4).
+        <div className="flex items-center gap-2">
+          {promueve && (
+            <BotonSistema
+              asChild
+              variante="outline"
+              tamaño="sm"
+              icono={ArrowUpCircle}
+              className="relative after:absolute after:-inset-x-0.5 after:-inset-y-1.5 after:content-['']"
+            >
+              <Link href={enlacePromocion}>Promover temporada</Link>
+            </BotonSistema>
+          )}
+          <BotonSistema
+            type="button"
+            variante="primario"
+            tamaño="sm"
+            icono={Plus}
+            onClick={abrirCrear}
+            className="relative after:absolute after:-inset-x-0.5 after:-inset-y-1.5 after:content-['']"
+          >
+            Crear grupo
+          </BotonSistema>
+        </div>
       }
       className="pb-28 md:pb-0"
     >
@@ -300,6 +323,14 @@ export function GestionGruposClient({ grupos, subareas, escalas, filtrosIniciale
           </div>
         )}
       </section>
+
+      {promueve && (
+        <div className="md:hidden">
+          <BotonSistema asChild variante="outline" icono={ArrowUpCircle} className="w-full">
+            <Link href={enlacePromocion}>Promover temporada</Link>
+          </BotonSistema>
+        </div>
+      )}
 
       <BotonFlotante icono={Plus} label="Crear grupo" onClick={abrirCrear} />
 
