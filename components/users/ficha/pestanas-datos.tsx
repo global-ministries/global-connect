@@ -78,7 +78,7 @@ export function PestanaDatos({
                 { etiqueta: 'Municipio', valor: d.municipio },
                 { etiqueta: 'Parroquia', valor: d.parroquia },
                 { etiqueta: 'Calle', valor: d.calle },
-                { etiqueta: 'Barrio', valor: d.barrio },
+                { etiqueta: 'Sector o urbanización', valor: d.barrio },
                 { etiqueta: 'Código postal', valor: d.codigoPostal, mono: true },
                 { etiqueta: 'Referencia', valor: d.referencia },
               ]}

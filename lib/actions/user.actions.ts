@@ -7,6 +7,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin"
 import { requireAuth } from "@/lib/auth/requireAuth"
 import type { Database } from "@/lib/supabase/database.types"
 import { prepararCedula } from "@/lib/utils/cedula"
+import { normalizarTelefono } from "@/lib/utils/telefono"
+import { estadoDireccion, MENSAJE_CALLE } from "@/lib/platform/usuarios/editar-validacion"
 
 const MENSAJE_CEDULA_DUPLICADA = 'Esta cédula ya pertenece a otra persona.'
 
@@ -57,7 +59,7 @@ type Usuario = Database["public"]["Tables"]["usuarios"]["Row"]
 type Direccion = Database["public"]["Tables"]["direcciones"]["Row"]
 type Familia = Database["public"]["Tables"]["familias"]["Row"]
 
-interface UpdateUserData {
+export interface UpdateUserData {
   // Informacion basica
   nombre: string
   apellido: string
@@ -94,7 +96,17 @@ interface UpdateUserData {
   }
 }
 
-export async function updateUser(userId: string, data: UpdateUserData, esPerfil: boolean = false) {
+/**
+ * What updateUser answers when it does not redirect: `ok`, or a rule the form
+ * shows on one field (S14 of odd/tasks/sistema-diseno-v2.md: the duplicated
+ * cédula, decision 4; calle missing from an address, decision 5). Other
+ * failures still throw.
+ */
+export type ResultadoActualizarUsuario =
+  | { ok: true }
+  | { ok: false; campo: 'cedula' | 'calle'; error: string }
+
+export async function updateUser(userId: string, data: UpdateUserData, esPerfil: boolean = false): Promise<ResultadoActualizarUsuario> {
   // Verificar autenticacion y permisos
   const { authId } = await requireAuth()
   const supabaseServer = await createSupabaseServerClient()
@@ -105,6 +117,11 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
   if (!permitido) {
     throw new Error('No tienes permisos para editar este usuario')
   }
+
+  // Decision 5: the address is optional as a whole. Checked before any write,
+  // so a refused address leaves the person unchanged.
+  const direccion = estadoDireccion(data.direccion)
+  if (direccion === 'sin-calle') return { ok: false, campo: 'calle', error: MENSAJE_CALLE }
 
   const supabase = createSupabaseAdminClient();
   try {
@@ -125,7 +142,8 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
       .eq('id', userId)
       .single();
     const cedula = prepararCedula(datosSaneados.cedula);
-    const telefono = datosSaneados.telefono || null;
+    // Compared and sent in the canonical form the trigger normalizar_telefono_ve stores.
+    const telefono = normalizarTelefono(datosSaneados.telefono?.trim() || null);
 
     const { data: usuarioActualizado, error: errorUsuario } = await supabase
       .from('usuarios')
@@ -134,7 +152,7 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
         apellido: datosSaneados.apellido,
         ...(!guardado || cedula !== prepararCedula(guardado.cedula) ? { cedula } : {}),
         email: datosSaneados.email || null,
-        ...(!guardado || telefono !== guardado.telefono ? { telefono } : {}),
+        ...(!guardado || telefono !== normalizarTelefono(guardado.telefono) ? { telefono } : {}),
         fecha_nacimiento: datosSaneados.fecha_nacimiento || null,
         estado_civil: datosSaneados.estado_civil,
         genero: datosSaneados.genero,
@@ -148,12 +166,12 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
 
 
     if (errorUsuario) {
-      if (esCedulaDuplicada(errorUsuario)) throw new Error(MENSAJE_CEDULA_DUPLICADA);
+      if (esCedulaDuplicada(errorUsuario)) return { ok: false, campo: 'cedula', error: MENSAJE_CEDULA_DUPLICADA };
       throw new Error(`Error al actualizar usuario: ${errorUsuario.message}`);
     }
 
-    // 3. Manejar dirección (estrategia upsert robusta)
-    if (data.direccion) {
+    // 3. Manejar dirección (estrategia upsert robusta). An empty address is never written.
+    if (data.direccion && direccion === 'completa') {
       // a. Obtener direccion_id actual
       const { data: usuarioActual, error: errorUsuarioActual } = await supabase
         .from('usuarios')
@@ -272,6 +290,7 @@ export async function updateUser(userId: string, data: UpdateUserData, esPerfil:
       redirect(`/users/${userId}`)
     }
     // Si es perfil, no redirigir - se maneja en el cliente
+    return { ok: true }
 
   } catch (error) {
     throw error;

@@ -12,9 +12,14 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
 }))
 jest.mock('@/lib/actions/user.actions', () => ({ createUser: jest.fn(), updateUser: jest.fn() }))
+jest.mock('@/lib/actions/photo.actions', () => ({ uploadUserProfilePhoto: jest.fn(), deleteUserProfilePhoto: jest.fn() }))
+jest.mock('@/lib/actions/location.actions', () => ({ geocodeAddress: jest.fn() }))
+jest.mock('@/components/maps/LocationPicker.client', () => () => null)
+jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ success: jest.fn(), error: jest.fn() }) }))
 
 import UserCreateForm from '@/components/forms/UserCreateForm'
-import { UserEditForm } from '@/components/forms/UserEditForm'
+import { FormularioEditarPersona } from '@/components/users/editar/formulario-editar-persona'
+import userEvent from '@testing-library/user-event'
 import { createUser } from '@/lib/actions/user.actions'
 
 function pieDeAcciones(container: HTMLElement) {
@@ -60,17 +65,26 @@ describe('UserCreateForm on the design system', () => {
   })
 })
 
-describe('UserEditForm on the design system', () => {
+// Editar persona v2 (S14) replaced UserEditForm; same intent: labelled sections, a
+// labelled phone, and actions ordered secondary first, primary last (now in the
+// save bar that appears with changes).
+describe('Editar persona on the design system', () => {
   function renderizar() {
     return render(
-      <UserEditForm ocupaciones={[]} profesiones={[]} paises={[]} estados={[]} municipios={[]} parroquias={[]} />,
+      <FormularioEditarPersona
+        usuario={{ id: 'u-1', nombre: 'Ana', apellido: 'Pérez', cedula: null, email: null, telefono: null, fecha_nacimiento: null, genero: 'Femenino', estado_civil: 'Soltero', ocupacion_id: null, profesion_id: null }}
+        identidad={null}
+        ocupaciones={[]}
+        profesiones={[]}
+        catalogos={{ paises: [], estados: [], municipios: [], parroquias: [] }}
+      />,
     )
   }
 
   it('groups the fields in labelled sections', () => {
     renderizar()
 
-    for (const titulo of ['Foto de Perfil', 'Información Básica', 'Información de Contacto', 'Información Profesional', 'Información de Ubicación']) {
+    for (const titulo of ['Información personal', 'Contacto', 'Ubicación']) {
       expect(screen.getByRole('region', { name: titulo })).toBeTruthy()
     }
   })
@@ -81,11 +95,11 @@ describe('UserEditForm on the design system', () => {
     expect(screen.getByLabelText('Teléfono')).toBeTruthy()
   })
 
-  it('orders the footer actions: cancel first, save last', () => {
-    const { container } = renderizar()
+  it('orders the save bar actions: cancel first, save last', async () => {
+    renderizar()
+    await userEvent.type(screen.getByLabelText(/^Nombre/), 'a')
 
-    const botones = within(pieDeAcciones(container)).getAllByRole('button')
-    expect(botones.map((b) => b.textContent)).toEqual(['Cancelar', 'Guardar Cambios'])
-    expect(botones[1].getAttribute('type')).toBe('submit')
+    const barra = screen.getByRole('region', { name: 'Cambios sin guardar' })
+    expect(within(barra).getAllByRole('button').map((b) => b.textContent)).toEqual(['Cancelar', 'Guardar cambiosGuardar'])
   })
 })

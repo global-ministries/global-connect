@@ -18,8 +18,8 @@ const migratedToDesignSystem = [
   'components/dream-team/estructura/**',
   'app/(auth)/estudiantes/**',
   'components/estudiantes/**',
-  // Usuarios: list (T8-2) and ficha (T8-3). The edit page still uses the legacy
-  // UserEditForm and joins when the forms migrate.
+  // Usuarios: list (T8-2), ficha (T8-3) and Editar persona (T10), which also
+  // renders Mi perfil "Mis datos".
   'app/(auth)/users/page.tsx',
   'app/(auth)/users/loading.tsx',
   'app/(auth)/users/create/**',
@@ -29,6 +29,9 @@ const migratedToDesignSystem = [
   'app/(auth)/users/[[]id]/loading.tsx',
   'app/(auth)/users/[[]id]/asistencia/**',
   'components/users/ficha/**',
+  'app/(auth)/users/[[]id]/edit/**',
+  'components/users/editar/**',
+  'app/(auth)/perfil/**',
   'components/ui/filtros-usuarios.tsx',
 ]
 

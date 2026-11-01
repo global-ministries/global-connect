@@ -1,14 +1,21 @@
-import { AlertTriangle, ArrowLeft } from "lucide-react"
-import Link from "next/link"
-import { redirect } from "next/navigation"
-import { createSupabaseAdminClient } from "@/lib/supabase/admin"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { getUserWithRoles } from "@/lib/getUserWithRoles"
-import { UserEditForm } from "@/components/forms/UserEditForm"
+/**
+ * /users/[id]/edit — Editar persona on design system v2 (S14 of
+ * odd/tasks/sistema-diseno-v2.md). Who may open it is unchanged:
+ * puede_editar_usuario (with the campus rule of #621), otherwise back to the
+ * ficha. "Asignar contraseña" no longer lives here; it is in the ficha's
+ * Cuenta tab (decision 10).
+ */
+import { AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
-import { PaginaSistema, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
-import { AdminAccionesAsignarContrasena } from '@/components/admin/AdminAccionesAsignarContrasena.client'
+import { FormularioEditarPersona } from '@/components/users/editar/formulario-editar-persona'
+import { MigasEditar } from '@/components/users/editar/migas-editar'
+import { BotonSistema, PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
+import { cargarCatalogosEdicion, cargarIdentidadEdicion, cargarUsuarioEditable } from '@/lib/platform/usuarios/editar-carga'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -33,31 +40,19 @@ export default async function EditUserPage({ params }: Props) {
 
   // Usar admin client para bypass RLS
   const supabase = createSupabaseAdminClient()
+  const { usuario, error } = await cargarUsuarioEditable(supabase, { columna: 'id', valor: id })
 
-  // Obtener datos del usuario básico
-  const { data: usuario, error: errorUsuario } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', id)
-    .maybeSingle() // Permite cero o un resultado, evita error si no existe
-
-  if (errorUsuario || !usuario) {
+  if (!usuario) {
     return (
       <PaginaSistema regreso={{ href: '/users', texto: 'Volver a Usuarios' }}>
-        <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex min-h-[50vh] items-center justify-center">
           <div className="text-center">
-            <AlertTriangle className="size-12 text-danger mx-auto mb-4" aria-hidden="true" />
+            <AlertTriangle className="mx-auto mb-4 size-12 text-danger" aria-hidden="true" />
             <TituloSistema nivel={2}>Usuario no encontrado</TituloSistema>
-            <p className="text-muted-foreground mb-4">
-              No se pudo cargar la información del usuario con ID: {id}
-            </p>
-            <p className="text-muted-foreground text-sm mb-4">
-              Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
-            </p>
+            <p className="mb-4 text-muted-foreground">No se pudo cargar la información del usuario con ID: {id}</p>
+            <p className="mb-4 text-sm text-muted-foreground">Error: {error || 'Usuario no encontrado en la base de datos'}</p>
             <BotonSistema asChild variante="primario">
-              <Link href="/users">
-                Volver a Usuarios
-              </Link>
+              <Link href="/users">Volver a Usuarios</Link>
             </BotonSistema>
           </div>
         </div>
@@ -65,143 +60,21 @@ export default async function EditUserPage({ params }: Props) {
     )
   }
 
-  // Obtener dirección si existe
-  let direccion = null
-  if (usuario.direccion_id) {
-    const { data: dirData } = await supabase
-      .from('direcciones')
-      .select(`
-        *,
-        parroquia: parroquias!direcciones_parroquia_id_fkey (
-          id,
-          nombre,
-          municipio: municipios!parroquias_municipio_id_fkey (
-            id,
-            nombre,
-            estado: estados!municipios_estado_id_fkey (
-              id,
-              nombre,
-              pais: paises!estados_pais_id_fkey (
-                id,
-                nombre
-              )
-            )
-          )
-        )
-      `)
-      .eq('id', usuario.direccion_id)
-      .maybeSingle()
-    if (dirData) {
-      direccion = dirData
-    }
-  }
-
-  // Obtener familia si existe
-  let familia = null
-  if (usuario.familia_id) {
-    const { data: famData } = await supabase
-      .from('familias')
-      .select('*')
-      .eq('id', usuario.familia_id)
-      .maybeSingle()
-    if (famData) {
-      familia = famData
-    }
-  }
-
-  // Obtener ocupación si existe
-  let ocupacion = null
-  if (usuario.ocupacion_id) {
-    const { data: ocData } = await supabase
-      .from('ocupaciones')
-      .select('*')
-      .eq('id', usuario.ocupacion_id)
-      .maybeSingle()
-    if (ocData) {
-      ocupacion = ocData
-    }
-  }
-
-  // Obtener profesión si existe
-  let profesion = null
-  if (usuario.profesion_id) {
-    const { data: profData } = await supabase
-      .from('profesiones')
-      .select('*')
-      .eq('id', usuario.profesion_id)
-      .maybeSingle()
-    if (profData) {
-      profesion = profData
-    }
-  }
-
-  // Construir el objeto completo del usuario
-  const usuarioCompleto = {
-    ...usuario,
-    direccion: direccion
-      ? {
-        ...direccion,
-        parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
-      }
-      : undefined,
-    familia: familia || undefined,
-    ocupacion: ocupacion || undefined,
-    profesion: profesion || undefined
-  }
-
-  // Verificar si el usuario actual es admin (para mostrar acciones de administrador)
-  const current = await getUserWithRoles(supabaseServer)
-  const esAdmin = (current?.roles || []).includes('admin')
-
-  // Obtener catálogos en paralelo
-  const [
-    { data: ocupaciones },
-    { data: profesiones },
-    { data: paises },
-    { data: estados },
-    { data: municipios },
-    { data: parroquias }
-  ] = await Promise.all([
-    supabase.from('ocupaciones').select('id, nombre').order('nombre'),
-    supabase.from('profesiones').select('id, nombre').order('nombre'),
-    supabase.from('paises').select('id, nombre').order('nombre'),
-    supabase.from('estados').select('id, nombre, pais_id').order('nombre'),
-    supabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
-    supabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
+  const [{ ocupaciones, profesiones, catalogos }, identidad, { sugerencias }] = await Promise.all([
+    cargarCatalogosEdicion(supabase),
+    cargarIdentidadEdicion(supabaseServer, { usuarioId: id, authId: authUser.id }),
+    obtenerSugerenciasDireccionFamiliar(id),
   ])
 
-  // Obtener sugerencias de dirección familiar
-  const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(id)
-
-  // Multi-column sections and the address map need the wide page width.
   return (
-    <PaginaSistema
-      titulo={`${usuario.nombre} ${usuario.apellido}`}
-      regreso={{ href: `/users/${id}`, texto: 'Volver al perfil' }}
-    >
-      {/* The desktop header carries the name and back link; mobile keeps its own. */}
-      <div className="space-y-1 md:hidden">
-        <Link
-          href={`/users/${id}`}
-          className="-ml-2 inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-5" aria-hidden="true" />
-          Volver al perfil
-        </Link>
-        <h2 className="text-2xl font-bold text-foreground">{usuario.nombre} {usuario.apellido}</h2>
-      </div>
-      {esAdmin && (
-        <AdminAccionesAsignarContrasena userAuthId={usuario.auth_id} />
-      )}
-      <UserEditForm
-        usuario={usuarioCompleto}
-        ocupaciones={ocupaciones || []}
-        profesiones={profesiones || []}
-        paises={paises || []}
-        estados={estados || []}
-        municipios={municipios || []}
-        parroquias={parroquias || []}
-        sugerenciasDireccion={sugerenciasDireccion}
+    <PaginaSistema breadcrumbs={<MigasEditar usuarioId={id} nombre={`${usuario.nombre} ${usuario.apellido}`.trim()} />}>
+      <FormularioEditarPersona
+        usuario={usuario}
+        identidad={identidad}
+        ocupaciones={ocupaciones}
+        profesiones={profesiones}
+        catalogos={catalogos}
+        sugerenciasDireccion={sugerencias}
       />
     </PaginaSistema>
   )
