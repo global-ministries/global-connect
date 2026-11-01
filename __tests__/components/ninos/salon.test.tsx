@@ -38,17 +38,29 @@ function renderSalon(puedeOperar: boolean) {
 }
 
 describe('SalonClient', () => {
-  it('lists the children present with age, code and alerts, allergies in red', async () => {
+  it('lists the children present with age, entry time and alerts, allergies in red', async () => {
     renderSalon(false)
     const fila = await screen.findByTestId('fila-n1')
     expect(within(fila).getByText('Luis Pérez')).toBeInTheDocument()
-    expect(within(fila).getByText(/18 meses/)).toBeInTheDocument()
-    expect(within(fila).getByText('4821')).toBeInTheDocument()
+    expect(within(fila).getByText(/18 meses · ingresó/)).toBeInTheDocument()
     expect(within(fila).getByText('Alergias: maní')).toHaveClass('text-destructive')
     expect(within(fila).getByText('Cambio de pañal')).toBeInTheDocument()
     expect(within(fila).getByText('No puede comer merienda')).toBeInTheDocument()
     expect(within(fila).getByText('Sin fotos')).toBeInTheDocument()
     expect(rpc).toHaveBeenCalledWith('ninos_lista_salon', { p_salon_id: 's1', p_fecha: '2026-10-11', p_turno_id: 't9' })
+  })
+
+  it('never shows the pickup code, so a child is released only with the parent label (S8)', async () => {
+    renderSalon(true)
+    await screen.findByTestId('fila-n1')
+    expect(screen.queryByText('4821')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^Código \d/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Código' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader').map((c) => c.textContent)).toEqual(['Niño', 'Edad · ingreso', 'Alertas'])
+    const filaTabla = screen.getByTestId('fila-tabla-n1')
+    expect(within(filaTabla).getByText('Luis Pérez')).toBeInTheDocument()
+    expect(within(filaTabla).getByText(/18 meses · ingresó/)).toBeInTheDocument()
+    expect(within(filaTabla).getByText('Alergias: maní')).toBeInTheDocument()
   })
 
   it('is read-only for a líder (no check-out)', async () => {

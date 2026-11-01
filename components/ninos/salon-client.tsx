@@ -132,18 +132,14 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                   return (
                     <li key={f.nino_id} data-testid={`fila-${f.nino_id}`}>
                       <TarjetaSistema className="space-y-3 p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="break-words text-base font-semibold text-foreground">
-                              {f.nombre} {f.apellido}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {[edadOGrado(f, servicio.fecha), `ingresó ${horaEnCaracas(f.entrada_at)}`].filter(Boolean).join(' · ')}
-                            </p>
-                          </div>
-                          <span className="font-mono text-2xl font-bold tracking-widest text-[var(--brand-primary)]" aria-label={`Código ${f.codigo}`}>
-                            {f.codigo}
-                          </span>
+                        {/* No pickup code here: the child leaves only against the parent's label (S8). */}
+                        <div className="min-w-0">
+                          <p className="break-words text-base font-semibold text-foreground">
+                            {f.nombre} {f.apellido}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {[edadOGrado(f, servicio.fecha), `ingresó ${horaEnCaracas(f.entrada_at)}`].filter(Boolean).join(' · ')}
+                          </p>
                         </div>
                         {(alertas.length > 0 || f.habitos) && (
                           <div className="flex flex-wrap gap-1.5">
@@ -164,7 +160,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                 <table aria-label="Niños presentes" className="w-full">
                   <thead>
                     <tr className="border-b border-border text-left">
-                      {['Niño', 'Edad · ingreso', 'Código', 'Alertas'].map((c) => (
+                      {['Niño', 'Edad · ingreso', 'Alertas'].map((c) => (
                         <th key={c} scope="col" className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                           {c}
                         </th>
@@ -182,7 +178,6 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
                             {[edadOGrado(f, servicio.fecha), `ingresó ${horaEnCaracas(f.entrada_at)}`].filter(Boolean).join(' · ')}
                           </td>
-                          <td className="px-4 py-3 font-mono text-xl font-bold tracking-widest text-[var(--brand-primary)]">{f.codigo}</td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1.5">
                               {alertas.map((a) => (
