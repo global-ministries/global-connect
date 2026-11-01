@@ -251,9 +251,11 @@ SELECT pg_temp.assert_raises('i: an unknown group',
 -- ── n. people without a group ────────────────────────────────────────
 
 SELECT pg_temp.as_persona(1);
-SELECT pg_temp.assert_eq('n: who left the sub-área and has no group in the ámbito, last removed first',
+-- Dani left G1 but is active in Inside Out (G4): an active Estudiantes group
+-- of the campus in any ámbito leaves a person out (L40).
+SELECT pg_temp.assert_eq('n: who left the sub-área and has no Estudiantes group of the campus, last removed first',
   $q$SELECT string_agg(nombre || ':' || ultimo_grupo, ',' ORDER BY retirado_at DESC) FROM public.estudiantes_sin_grupo(pg_temp.id('gr', 1))$q$,
-  'Zzeg Dani:ZZ Eg G1,Zzeg Carla:ZZ Eg G2');
+  'Zzeg Carla:ZZ Eg G2');
 SELECT pg_temp.as_persona(2);
 SELECT pg_temp.assert_raises('n: an entrenadora cannot list them',
   $q$SELECT count(*) FROM public.estudiantes_sin_grupo(pg_temp.id('gr', 1))$q$, '42501', 'sin_autoridad');
