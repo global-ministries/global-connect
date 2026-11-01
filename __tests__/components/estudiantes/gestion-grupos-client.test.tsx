@@ -13,9 +13,10 @@ import userEvent from '@testing-library/user-event'
 
 import { GestionGruposClient, type GestionGruposClientProps } from '@/components/estudiantes/grupos/gestion-grupos-client'
 import { FILTROS_INICIALES } from '@/lib/platform/estudiantes/grupos-vista'
-import { CHICOS, GRUPOS_TRANSIT, SUBAREAS_TRANSIT, CAMPUS, TLR, TLR_CHICAS, TRANSIT, persona, subarea } from '@/lib/platform/estudiantes/__fixtures__/grupos'
+import { CHICOS, GRUPOS_TRANSIT, SUBAREAS_TRANSIT, CAMPUS, TLR, TLR_CHICAS, TRANSIT, grupo, integrante, persona, subarea } from '@/lib/platform/estudiantes/__fixtures__/grupos'
 import * as acciones from '@/lib/actions/estudiantes-grupos.actions'
 import * as accionesLista from '@/lib/actions/estudiantes-lista.actions'
+import * as accionesFicha from '@/lib/actions/estudiantes-ficha.actions'
 
 jest.mock('@/lib/actions/estudiantes-grupos.actions', () => ({
   crearGrupo: jest.fn(),
@@ -38,6 +39,8 @@ jest.mock('@/lib/actions/estudiantes-lista.actions', () => ({
   agregarVisitante: jest.fn(),
   buscarCoincidencias: jest.fn(),
 }))
+
+jest.mock('@/lib/actions/estudiantes-ficha.actions', () => ({ leerFicha: jest.fn(), guardarFicha: jest.fn() }))
 
 const exito = jest.fn()
 const fallo = jest.fn()
@@ -68,6 +71,7 @@ jest.setTimeout(15_000)
 
 const mock = acciones as jest.Mocked<typeof acciones>
 const mockLista = accionesLista as jest.Mocked<typeof accionesLista>
+const mockFicha = accionesFicha as jest.Mocked<typeof accionesFicha>
 const OK = { ok: true as const, data: null }
 let user: ReturnType<typeof userEvent.setup>
 
@@ -80,6 +84,22 @@ beforeEach(() => {
     data: [persona('and', 'Andrea Molina'), persona('pao', 'Paola Ruiz'), persona('dia', 'Diana Peraza')],
   })
   mock.historialLideres.mockResolvedValue({ ok: true, data: [] })
+  mockFicha.leerFicha.mockResolvedValue({
+    ok: true,
+    data: {
+      personaId: 'i1',
+      campusId: CAMPUS,
+      anioActual: 1,
+      anioFinal: 6,
+      egresado: false,
+      puedeEditar: true,
+      escala: [
+        { numero: 1, etiqueta: '1er año', ambito: 'Transit' },
+        { numero: 2, etiqueta: '2do año', ambito: 'Transit' },
+        { numero: 6, etiqueta: '6to año', ambito: 'Inside Out' },
+      ],
+    },
+  })
 })
 
 function props(extra: Partial<GestionGruposClientProps> = {}): GestionGruposClientProps {
@@ -233,6 +253,41 @@ describe('members', () => {
     await user.click(within(panel()).getByRole('button', { name: 'Mover' }))
     expect(mock.moverIntegrante).toHaveBeenCalledWith({ grupoId: 'g2', personaId: 'i1' })
     expect(exito).toHaveBeenCalledWith('Alejandra Acosta pasó a 2do año · Chicas')
+  })
+
+  it('fixes the school year of a member from the member view', async () => {
+    mockFicha.guardarFicha.mockResolvedValue(OK)
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('1er año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Alejandra Acosta' }))
+    expect(await within(panel()).findByText('1er año · termina en 6to año')).toBeInTheDocument()
+    expect(mockFicha.leerFicha).toHaveBeenCalledWith('i1')
+    await user.click(within(panel()).getByRole('button', { name: 'Editar el año escolar de Alejandra Acosta' }))
+    await user.selectOptions(within(panel()).getByLabelText('Año actual'), '2')
+    await user.click(within(panel()).getByRole('button', { name: 'Guardar' }))
+    expect(mockFicha.guardarFicha).toHaveBeenCalledWith('i1', 2, 6)
+    expect(await within(panel()).findByText('2do año · termina en 6to año')).toBeInTheDocument()
+    expect(exito).toHaveBeenCalledWith('Año escolar de Alejandra Acosta guardado')
+  })
+
+  it('has no school year for a member of The Living Room', async () => {
+    const tlr = subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' })
+    const zona = grupo('g-tlr', 'Zona Este · Chicas', {
+      subareaId: TLR_CHICAS,
+      ambitoId: TLR,
+      ambito: 'The Living Room',
+      experiencia: 'the_living_room',
+      anio: null,
+      anioEtiqueta: null,
+      zona: 'Zona Este',
+      integrantes: [integrante('t1', 'Adrián Castillo')],
+    })
+    render(<GestionGruposClient {...props({ grupos: [zona], subareas: [tlr] })} />)
+    const dialogo = await abrirGrupo('Zona Este · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Adrián Castillo' }))
+    expect(within(panel()).getByRole('button', { name: 'Quitar del grupo' })).toBeInTheDocument()
+    expect(within(panel()).queryByText('Año escolar')).not.toBeInTheDocument()
+    expect(mockFicha.leerFicha).not.toHaveBeenCalled()
   })
 
   it('removes a member only after the inline confirmation', async () => {

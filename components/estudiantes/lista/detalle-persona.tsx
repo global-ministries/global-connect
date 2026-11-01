@@ -6,10 +6,9 @@
  * below). Identity (avatar, name, año or age, phone in mono), WhatsApp /
  * Llamar, the visitor callouts, "Hoy" (The Living Room: "Reunión") with
  * Presente / Ausente (a second tap clears), the Representante card (Transit /
- * Inside Out only, Q3) and the key data.
- *
- * Left out: editing the school years of the ficha (estudiantes_ficha_guardar
- * needs the current "año final", which the list does not return).
+ * Inside Out only, Q3), the "Año escolar" row with its editor (Transit /
+ * Inside Out only, S16; it reads the año final and the scale itself) and the
+ * key data.
  */
 import type { ReactElement } from 'react'
 import { MessageCircle, Phone, Star } from 'lucide-react'
@@ -25,6 +24,7 @@ import type { GrupoLista, Marca } from '@/lib/platform/estudiantes/lista-datos'
 import { horaDeInstante, type FilaVista, type PuntosHistorial } from '@/lib/platform/estudiantes/lista-vista'
 import { enlaceWhatsapp, formatearTelefono, normalizarTelefono } from '@/lib/utils/telefono'
 
+import { AnioEscolar } from './anio-escolar'
 import { TONO_ESTADO } from './estado-fila'
 
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'] as const
@@ -205,6 +205,8 @@ export function DetallePersona({
             <p className="text-[13px] text-muted-foreground">{`Solo los líderes del grupo, su entrenador y la dirección de ${grupo.ambito} ven este contacto.`}</p>
           </section>
         )}
+
+        {!tlr && <AnioEscolar personaId={persona.personaId} nombre={persona.nombre} />}
 
         <section aria-labelledby="persona-datos" className="space-y-2">
           <h3 id="persona-datos" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">

@@ -16,6 +16,7 @@ import type { GrupoLista, ListaGrupo, PersonaLista, Sesion } from '@/lib/platfor
 import type { DatosListaLider } from '@/lib/platform/estudiantes/lista-servidor'
 import * as acciones from '@/lib/actions/estudiantes-lista.actions'
 import * as accionesGrupos from '@/lib/actions/estudiantes-grupos.actions'
+import * as accionesFicha from '@/lib/actions/estudiantes-ficha.actions'
 
 jest.mock('@/lib/actions/estudiantes-lista.actions', () => ({
   marcarAsistencia: jest.fn(),
@@ -27,6 +28,7 @@ jest.mock('@/lib/actions/estudiantes-lista.actions', () => ({
   sesionReciente: jest.fn(),
 }))
 jest.mock('@/lib/actions/estudiantes-grupos.actions', () => ({ buscarPersonas: jest.fn() }))
+jest.mock('@/lib/actions/estudiantes-ficha.actions', () => ({ leerFicha: jest.fn(), guardarFicha: jest.fn() }))
 
 const exito = jest.fn()
 const fallo = jest.fn()
@@ -55,6 +57,7 @@ jest.setTimeout(15_000)
 
 const mock = acciones as jest.Mocked<typeof acciones>
 const mockGrupos = accionesGrupos as jest.Mocked<typeof accionesGrupos>
+const mockFicha = accionesFicha as jest.Mocked<typeof accionesFicha>
 let user: ReturnType<typeof userEvent.setup>
 
 const FECHA = '2026-10-25'
@@ -174,9 +177,25 @@ function datos({ lista = {}, ...extra }: Partial<Omit<DatosListaLider, 'lista'>>
 const marcas = (nombre: string) => within(screen.getAllByRole('group', { name: `Asistencia de ${nombre}` })[0])
 const resumen = () => screen.getAllByText((_, el) => el?.tagName === 'P' && el.getAttribute('aria-live') === 'polite')[0]
 
+const FICHA_P1 = {
+  personaId: 'p1',
+  campusId: 'c1',
+  anioActual: 2,
+  anioFinal: 6,
+  egresado: false,
+  puedeEditar: true,
+  escala: [
+    { numero: 1, etiqueta: '1er año', ambito: 'Transit' },
+    { numero: 2, etiqueta: '2do año', ambito: 'Transit' },
+    { numero: 3, etiqueta: '3er año', ambito: 'Transit' },
+    { numero: 6, etiqueta: '6to año', ambito: 'Inside Out' },
+  ],
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
   user = userEvent.setup({ delay: null })
+  mockFicha.leerFicha.mockResolvedValue({ ok: true, data: FICHA_P1 })
 })
 
 describe('the list', () => {
@@ -308,6 +327,23 @@ describe('the row detail', () => {
   })
 })
 
+describe('the school year', () => {
+  it('fixes the año actual and the año final from the row detail', async () => {
+    mockFicha.guardarFicha.mockResolvedValue({ ok: true, data: null })
+    render(<ListaLiderClient datos={datos()} />)
+    await user.click(screen.getAllByRole('button', { name: 'Abrir Camila Herrera' })[0])
+    const panel = screen.getByRole('dialog')
+    expect(await within(panel).findByText('2do año · termina en 6to año')).toBeInTheDocument()
+    expect(mockFicha.leerFicha).toHaveBeenCalledWith('p1')
+    await user.click(within(panel).getByRole('button', { name: 'Editar el año escolar de Camila Herrera' }))
+    await user.selectOptions(within(panel).getByLabelText('Año actual'), '3')
+    await user.click(within(panel).getByRole('button', { name: 'Guardar' }))
+    expect(mockFicha.guardarFicha).toHaveBeenCalledWith('p1', 3, 6)
+    await waitFor(() => expect(exito).toHaveBeenCalledWith('Año escolar de Camila Herrera guardado'))
+    expect(refresh).toHaveBeenCalled()
+  })
+})
+
 describe('entrenador mode', () => {
   it('shows the group selector of the sub-área and the notice', async () => {
     const d = datos()
@@ -371,6 +407,8 @@ describe('The Living Room', () => {
     expect(mock.marcarAsistencia).toHaveBeenCalledWith({ grupoId: 'g2', fecha: '2026-10-29', turnoId: null, personaId: 't1', estado: 'presente' })
     await user.click(screen.getAllByRole('button', { name: 'Abrir Adrián Castillo' })[0])
     expect(within(screen.getByRole('dialog')).queryByText('Representante')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).queryByText('Año escolar')).not.toBeInTheDocument()
+    expect(mockFicha.leerFicha).not.toHaveBeenCalled()
   })
 })
 
