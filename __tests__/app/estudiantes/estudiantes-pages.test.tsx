@@ -96,6 +96,18 @@ describe('/estudiantes', () => {
     expect(propsDe((await EstudiantesPage()) as React.ReactElement)).toMatchObject({ puedeGestionar: true })
   })
 
+  it('offers "En vivo" to whoever has the live view (C4b), and fails closed', async () => {
+    respuestas = {
+      estudiantes_mis_grupos: { data: [fila(G2, '2do año · Chicas'), fila(G3, '3er año · Chicas')], error: null },
+      estudiantes_subareas_gestionables: { data: [], error: null },
+      estudiantes_acceso: { data: { grupos: 2, lidera: false, vivo: true, gestiona: false }, error: null },
+    }
+    expect(propsDe((await EstudiantesPage()) as React.ReactElement)).toMatchObject({ puedeVerVivo: true })
+
+    respuestas = { ...respuestas, estudiantes_acceso: { data: null, error: { message: 'boom' } } }
+    expect(propsDe((await EstudiantesPage()) as React.ReactElement)).toMatchObject({ puedeVerVivo: false })
+  })
+
   it('sends a signed-out visitor to the login', async () => {
     usuario = null
     await expect(EstudiantesPage()).rejects.toThrow('NEXT_REDIRECT:/login')

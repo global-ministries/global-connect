@@ -159,7 +159,7 @@ export function ListaLiderClient({ datos, desde }: ListaLiderClientProps): React
   const [navegando, iniciarNavegacion] = useTransition()
 
   const { grupo: mio, lista, sesiones, sesion, historial, hoy } = datos
-  const atras = destinoAtras({ desde, grupoId: mio.grupoId, esRaiz: datos.esRaiz })
+  const atras = destinoAtras({ desde, grupoId: mio.grupoId, esRaiz: datos.esRaiz, sesion: datos.sesion })
   const entrenador = mio.puedeVerVivo && !mio.soyLider
   const tlr = mio.experiencia === 'the_living_room'
   const ahora = useMemo(() => new Date(), [])
