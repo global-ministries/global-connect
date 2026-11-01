@@ -7,6 +7,8 @@
  * lets the dirección see them), "Mover a otro grupo" (same ámbito and
  * campus, one step: estudiantes_grupo_miembro_mover) and "Quitar del grupo"
  * with an inline confirmation. Past attendance stays with the old group.
+ * Transit / Inside Out members also get the "Año escolar" row with its
+ * editor (S16).
  */
 import { useState, type ReactElement } from 'react'
 import { ArrowRightLeft, MessageCircle, Phone, UserMinus } from 'lucide-react'
@@ -22,6 +24,7 @@ import { lideresTexto } from '@/lib/platform/estudiantes/grupos-vista'
 import { enlaceWhatsapp } from '@/lib/utils/telefono'
 
 import { TituloSeccion } from '../filas-inset'
+import { AnioEscolar } from '../lista/anio-escolar'
 import type { AccionGrupo } from './use-accion-grupo'
 import { DatoClave, subtituloIntegrante } from './vista-grupo'
 
@@ -123,6 +126,8 @@ export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }:
         <DatoClave etiqueta="En el grupo desde" valor={formatearFecha(integrante.desde)} />
         <DatoClave etiqueta="Estado" valor={integrante.estado === 'miembro' ? 'Integrante' : 'Visitante'} />
       </dl>
+
+      {grupo.experiencia !== 'the_living_room' && <AnioEscolar personaId={integrante.personaId} nombre={integrante.nombre} />}
 
       {integrante.representantes.length > 0 && (
         <section aria-labelledby="integrante-representante" className="space-y-2">

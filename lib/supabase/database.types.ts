@@ -10274,6 +10274,7 @@ export type Database = {
           numero: number
         }[]
       }
+      estudiantes_ficha: { Args: { p_persona_id: string }; Returns: Json }
       estudiantes_ficha_asegurar: {
         Args: {
           p_actor: string
