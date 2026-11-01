@@ -10141,6 +10141,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      estudiantes_grupo_historial: {
+        Args: { p_grupo_id: string; p_reuniones?: number }
+        Returns: Json
+      }
       estudiantes_grupo_integrantes: {
         Args: { p_grupo_id: string }
         Returns: Json
@@ -10164,6 +10168,21 @@ export type Database = {
       estudiantes_grupo_miembro_quitar: {
         Args: { p_grupo_id: string; p_persona_id: string }
         Returns: boolean
+      }
+      estudiantes_grupo_sesiones: {
+        Args: { p_dias?: number; p_grupo_id: string }
+        Returns: {
+          ausentes: number
+          fecha: string
+          hora: string
+          lugar: string
+          marcados: number
+          presentes: number
+          reunion_id: string
+          turno: string
+          turno_id: string
+          visitantes: number
+        }[]
       }
       estudiantes_incorporar: {
         Args: {
