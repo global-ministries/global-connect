@@ -1,6 +1,6 @@
 /**
  * Estudiantes — Spanish (tuteo) messages for the errors of the group
- * management RPCs. Each function raises its code as the exception message
+ * management, leader list and visitor RPCs. Each function raises its code as the exception message
  * (`raise exception 'nombre_duplicado' using errcode = '23505'`), so the
  * message is the key; the SQLSTATE is the fallback for anything else.
  */
@@ -23,16 +23,33 @@ export const MENSAJES_ERROR_GRUPOS = {
   campus_invalido: 'Ese campus no está activo.',
   subarea_invalida: 'Esa sub-área ya no admite grupos.',
   datos_invalidos: 'Revisa los datos e inténtalo de nuevo.',
+  // Leader list and visitor registration (C3).
+  fecha_invalida: 'Esa fecha no tiene reunión para marcar. Elige otra.',
+  turno_invalido: 'Ese turno ya no sirve a este grupo. Recarga la página.',
+  genero_requerido: 'Elige el sexo (Femenino o Masculino).',
+  nombre_y_apellido_requeridos: 'Escribe el nombre y el apellido.',
+  representante_incompleto: 'Completa el nombre y el teléfono del representante.',
+  representante_no_aplica: 'The Living Room no lleva representante.',
+  representante_no_encontrado: 'Ese representante ya no existe. Escribe sus datos de nuevo.',
+  tipo_representante_invalido: 'Elige el parentesco del representante.',
+  cedula_existente: 'Ya hay alguien con esa cédula. Búscalo en el paso anterior y agrégalo desde ahí.',
+  posibles_duplicados: 'Encontramos personas parecidas. Revisa si es alguna de ellas.',
 } as const
 
 export type CodigoErrorGrupos = keyof typeof MENSAJES_ERROR_GRUPOS
 
 const esCodigo = (valor: string): valor is CodigoErrorGrupos => Object.prototype.hasOwnProperty.call(MENSAJES_ERROR_GRUPOS, valor)
 
+/** The code of an RPC error (`sin_autoridad` for SQLSTATE 42501); `null` when unknown. */
+export function codigoErrorGrupos(error: ErrorRpc): CodigoErrorGrupos | null {
+  const mensaje = error?.message?.trim() ?? ''
+  if (esCodigo(mensaje)) return mensaje
+  if (error?.code === '42501') return 'sin_autoridad'
+  return null
+}
+
 /** The message for an RPC error; `fallback` when the code is unknown. */
 export function mensajeErrorGrupos(error: ErrorRpc, fallback = 'No se pudo guardar. Inténtalo de nuevo.'): string {
-  const mensaje = error?.message?.trim() ?? ''
-  if (esCodigo(mensaje)) return MENSAJES_ERROR_GRUPOS[mensaje]
-  if (error?.code === '42501') return MENSAJES_ERROR_GRUPOS.sin_autoridad
-  return fallback
+  const codigo = codigoErrorGrupos(error)
+  return codigo ? MENSAJES_ERROR_GRUPOS[codigo] : fallback
 }
