@@ -236,6 +236,14 @@ describe('destinoAtras', () => {
     expect(destinoAtras({ desde: 'otro', grupoId: 'g2', esRaiz: false })).toEqual({ etiqueta: 'Estudiantes', href: '/estudiantes' })
   })
 
+  it('goes back to the same live meeting it came from (C4b)', () => {
+    expect(destinoAtras({ desde: 'vivo', grupoId: 'g2', esRaiz: false, sesion: { fecha: '2026-10-25', turnoId: 't1' } })).toEqual({
+      etiqueta: 'En vivo',
+      href: '/estudiantes/vivo?fecha=2026-10-25&turno=t1',
+    })
+    expect(destinoAtras({ desde: 'vivo', grupoId: 'g2', esRaiz: false, sesion: null })).toEqual({ etiqueta: 'En vivo', href: '/estudiantes/vivo' })
+  })
+
   it('a leader with a single group is at the root: no back control without an origin', () => {
     expect(destinoAtras({ desde: undefined, grupoId: 'g2', esRaiz: true })).toBeNull()
   })

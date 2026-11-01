@@ -232,13 +232,27 @@ export interface DestinoAtras {
 
 /**
  * The back control: "‹ Grupos" reopens that group's drawer (06 / 07), "‹ En
- * vivo" the live view (C4), "‹ Estudiantes" otherwise. A leader whose only
- * group is this one is at the root (/estudiantes sends them here), so there
- * is no back control without an origin.
+ * vivo" the live view at the same meeting (C4b: it finds the meeting by
+ * `?fecha&turno`), "‹ Estudiantes" otherwise. A leader whose only group is
+ * this one is at the root (/estudiantes sends them here), so there is no back
+ * control without an origin.
  */
-export function destinoAtras({ desde, grupoId, esRaiz }: { readonly desde: string | undefined; readonly grupoId: string; readonly esRaiz: boolean }): DestinoAtras | null {
+export function destinoAtras({
+  desde,
+  grupoId,
+  esRaiz,
+  sesion = null,
+}: {
+  readonly desde: string | undefined
+  readonly grupoId: string
+  readonly esRaiz: boolean
+  readonly sesion?: SesionElegida | null
+}): DestinoAtras | null {
   if (desde === 'grupos') return { etiqueta: 'Grupos', href: `/estudiantes/grupos?grupo=${encodeURIComponent(grupoId)}` }
-  if (desde === 'vivo') return { etiqueta: 'En vivo', href: '/estudiantes/vivo' }
+  if (desde === 'vivo') {
+    if (!sesion?.turnoId) return { etiqueta: 'En vivo', href: '/estudiantes/vivo' }
+    return { etiqueta: 'En vivo', href: `/estudiantes/vivo?${new URLSearchParams({ fecha: sesion.fecha, turno: sesion.turnoId }).toString()}` }
+  }
   return esRaiz ? null : { etiqueta: 'Estudiantes', href: '/estudiantes' }
 }
 
