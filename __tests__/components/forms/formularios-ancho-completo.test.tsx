@@ -22,12 +22,15 @@ jest.mock('@/lib/actions/season.actions', () => ({ createSeason: jest.fn(), upda
 jest.mock('@/lib/actions/group.actions', () => ({ createGroup: jest.fn(), updateGroup: jest.fn() }))
 jest.mock('@/lib/actions/user.actions', () => ({ createUser: jest.fn(), updateUser: jest.fn() }))
 jest.mock('@/components/modals/SelectLeaderModal', () => ({ __esModule: true, default: () => null }))
+jest.mock('@/lib/actions/photo.actions', () => ({ uploadUserProfilePhoto: jest.fn(), deleteUserProfilePhoto: jest.fn() }))
+jest.mock('@/lib/actions/location.actions', () => ({ geocodeAddress: jest.fn() }))
+jest.mock('@/components/maps/LocationPicker.client', () => () => null)
 
 import SeasonForm from '@/components/forms/SeasonForm'
 import GroupCreateForm from '@/components/forms/GroupCreateForm'
 import GroupEditForm from '@/components/forms/GroupEditForm'
 import UserCreateForm from '@/components/forms/UserCreateForm'
-import { UserEditForm } from '@/components/forms/UserEditForm'
+import { FormularioEditarPersona } from '@/components/users/editar/formulario-editar-persona'
 
 beforeAll(() => {
   // The Radix switch measures itself; jsdom has no ResizeObserver.
@@ -125,14 +128,25 @@ describe('full-width forms', () => {
     esperarPieFuera(container)
   })
 
-  it('UserEditForm makes each section a card and spans the location section', () => {
-    const { container } = render(
-      <UserEditForm ocupaciones={[]} profesiones={[]} paises={[]} estados={[]} municipios={[]} parroquias={[]} />,
+  // Editar persona v2 (S14) replaced UserEditForm: the ficha's section cards on the
+  // full width, Ubicación spanning the row; the save bar replaces the static footer.
+  it('Editar persona uses full-width section cards and spans the location section', () => {
+    render(
+      <FormularioEditarPersona
+        usuario={{ id: 'u-1', nombre: 'Ana', apellido: 'Pérez', cedula: null, email: null, telefono: null, fecha_nacimiento: null, genero: 'Femenino', estado_civil: 'Soltero', ocupacion_id: null, profesion_id: null }}
+        identidad={null}
+        ocupaciones={[]}
+        profesiones={[]}
+        catalogos={{ paises: [], estados: [], municipios: [], parroquias: [] }}
+      />,
     )
 
-    esperarSecciones(container, ['Foto de Perfil', 'Información Básica', 'Información de Contacto', 'Información Profesional', 'Información de Ubicación'])
-    esperarCampos(container, ['Nombre *', 'Apellido *', 'Cédula', 'Fecha de Nacimiento', 'Email', 'Teléfono', 'Calle *', 'Barrio', 'Código Postal', 'Referencia', 'Latitud', 'Longitud'])
-    expect(screen.getByRole('region', { name: 'Información de Ubicación' }).className).toContain('col-span-full')
-    esperarPieFuera(container)
+    for (const titulo of ['Información personal', 'Contacto', 'Ubicación']) {
+      expect(screen.getByRole('region', { name: titulo })).toBeTruthy()
+    }
+    for (const etiqueta of [/^Nombre/, /^Apellido/, 'Cédula', 'Fecha de nacimiento', 'Email', 'Teléfono', 'Calle', 'Barrio o urbanización', 'Código postal', 'Referencia']) {
+      expect(screen.getByLabelText(etiqueta)).toBeTruthy()
+    }
+    expect(screen.getByRole('region', { name: 'Ubicación' }).className).toContain('col-span-full')
   })
 })

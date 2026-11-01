@@ -1,232 +1,103 @@
+/**
+ * /perfil — Mi perfil. "Mis datos" is Editar persona in `esPerfil` mode (S14
+ * decision 11 of odd/tasks/sistema-diseno-v2.md): the same sections and save
+ * bar, no Usuarios breadcrumbs, saving stays here with a toast, Cancelar
+ * discards in place. "Mis hijos" is unchanged (odd/tasks/ninos-roles-ui.md F3).
+ */
+import { AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
 
-import Link from "next/link"
-import { createSupabaseServerClient } from "@/lib/supabase/server"
-import { createSupabaseAdminClient } from "@/lib/supabase/admin"
-import { UserEditForm } from "@/components/forms/UserEditForm"
-
-import { ContenedorDashboard, TituloSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { MisHijos } from '@/components/perfil/mis-hijos'
 import { PerfilPestanas } from '@/components/perfil/perfil-pestanas'
+import { FormularioEditarPersona } from '@/components/users/editar/formulario-editar-persona'
+import { MigasPerfil } from '@/components/users/editar/migas-editar'
+import { BotonSistema, PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { obtenerSugerenciasDireccionFamiliar } from '@/lib/actions/direccion-familiar.actions'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
 import { parsePendientesMisHijos } from '@/lib/platform/ninos/mis-hijos-registrar'
 import { parseMisPrechecks } from '@/lib/platform/ninos/precheck'
+import { cargarCatalogosEdicion, cargarIdentidadEdicion, cargarUsuarioEditable } from '@/lib/platform/usuarios/editar-carga'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+
+function ErrorPerfil({ titulo, texto, detalle, accion }: { titulo: string; texto: string; detalle?: string; accion: { href: string; texto: string } }) {
+  return (
+    <PaginaSistema breadcrumbs={<MigasPerfil />}>
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <div className="text-center">
+          <AlertTriangle className="mx-auto mb-4 size-12 text-danger" aria-hidden="true" />
+          <TituloSistema nivel={2}>{titulo}</TituloSistema>
+          <p className="mb-4 text-muted-foreground">{texto}</p>
+          {detalle && <p className="mb-4 text-sm text-muted-foreground">{detalle}</p>}
+          <BotonSistema asChild variante="primario">
+            <Link href={accion.href}>{accion.texto}</Link>
+          </BotonSistema>
+        </div>
+      </div>
+    </PaginaSistema>
+  )
+}
 
 export default async function PerfilPage() {
-  // Crear cliente Supabase correctamente
   const supabase = await createSupabaseServerClient()
-
-  // Obtener usuario actual autenticado
   const { data: { user }, error: authError } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    return (
-<ContenedorDashboard
-          titulo=""
-          descripcion=""
-          accionPrincipal={null}
-        >
-          <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
-              <TituloSistema nivel={2}>Error de autenticación</TituloSistema>
-              <p className="text-muted-foreground mb-4">
-                No se pudo verificar tu sesión
-              </p>
-              <Link href="/auth/login">
-                <BotonSistema variante="primario">
-                  Iniciar Sesión
-                </BotonSistema>
-              </Link>
-            </div>
-          </div>
-        </ContenedorDashboard>
-)
+    return <ErrorPerfil titulo="Error de autenticación" texto="No se pudo verificar tu sesión" accion={{ href: '/auth/login', texto: 'Iniciar sesión' }} />
   }
 
-  // Usar admin client para bypass RLS y obtener datos del usuario
+  // Admin client: the caller's own row by auth_id (bypasses RLS), as before.
   const adminSupabase = createSupabaseAdminClient()
+  const { usuario, error } = await cargarUsuarioEditable(adminSupabase, { columna: 'auth_id', valor: user.id })
 
-  // Buscar usuario por auth_id usando admin client (bypass RLS)
-  const { data: usuario, error: errorUsuario } = await adminSupabase
-    .from('usuarios')
-    .select('*')
-    .eq('auth_id', user.id)
-    .maybeSingle()
-
-  if (errorUsuario || !usuario) {
+  if (!usuario) {
     return (
-<ContenedorDashboard
-          titulo=""
-          descripcion=""
-          accionPrincipal={null}
-        >
-          <div className="flex items-center justify-center min-h-[50vh]">
-            <div className="text-center">
-              <div className="text-red-500 text-6xl mb-4">⚠️</div>
-              <TituloSistema nivel={2}>Perfil no encontrado</TituloSistema>
-              <p className="text-muted-foreground mb-4">
-                No se pudo cargar tu información de perfil
-              </p>
-              <p className="text-muted-foreground text-sm mb-4">
-                Error: {errorUsuario?.message || 'Usuario no encontrado en la base de datos'}
-              </p>
-              <p className="text-muted-foreground/70 text-xs mb-4">
-                Debug: Auth ID: {user.id} | Email: {user.email}
-              </p>
-              <Link href="/dashboard">
-                <BotonSistema variante="primario">
-                  Volver al Dashboard
-                </BotonSistema>
-              </Link>
-            </div>
-          </div>
-        </ContenedorDashboard>
-)
+      <ErrorPerfil
+        titulo="Perfil no encontrado"
+        texto="No se pudo cargar tu información de perfil"
+        detalle={`Error: ${error || 'Usuario no encontrado en la base de datos'}`}
+        accion={{ href: '/dashboard', texto: 'Volver al inicio' }}
+      />
+    )
   }
 
-  // Obtener dirección si existe usando admin client
-  let direccion = null
-  if (usuario.direccion_id) {
-    const { data: dirData } = await adminSupabase
-      .from('direcciones')
-      .select(`
-        *,
-        parroquia: parroquias!direcciones_parroquia_id_fkey (
-          id,
-          nombre,
-          municipio: municipios!parroquias_municipio_id_fkey (
-            id,
-            nombre,
-            estado: estados!municipios_estado_id_fkey (
-              id,
-              nombre,
-              pais: paises!estados_pais_id_fkey (
-                id,
-                nombre
-              )
-            )
-          )
-        )
-      `)
-      .eq('id', usuario.direccion_id)
-      .maybeSingle()
-    if (dirData) {
-      direccion = dirData
-    }
-  }
-
-  // Obtener familia si existe usando admin client
-  let familia = null
-  if (usuario.familia_id) {
-    const { data: famData } = await adminSupabase
-      .from('familias')
-      .select('*')
-      .eq('id', usuario.familia_id)
-      .maybeSingle()
-    if (famData) {
-      familia = famData
-    }
-  }
-
-  // Obtener ocupación si existe usando admin client
-  let ocupacion = null
-  if (usuario.ocupacion_id) {
-    const { data: ocData } = await adminSupabase
-      .from('ocupaciones')
-      .select('*')
-      .eq('id', usuario.ocupacion_id)
-      .maybeSingle()
-    if (ocData) {
-      ocupacion = ocData
-    }
-  }
-
-  // Obtener profesión si existe usando admin client
-  let profesion = null
-  if (usuario.profesion_id) {
-    const { data: profData } = await adminSupabase
-      .from('profesiones')
-      .select('*')
-      .eq('id', usuario.profesion_id)
-      .maybeSingle()
-    if (profData) {
-      profesion = profData
-    }
-  }
-
-  // Construir el objeto completo del usuario
-  const usuarioCompleto = {
-    ...usuario,
-    direccion: direccion
-      ? {
-        ...direccion,
-        parroquia: direccion.parroquia === null ? undefined : direccion.parroquia,
-      }
-      : undefined,
-    familia: familia || undefined,
-    ocupacion: ocupacion || undefined,
-    profesion: profesion || undefined
-  }
-
-  // Obtener catálogos en paralelo usando admin client.
   // "Mis hijos" (Niños) is read with the user's session client: the RPC finds the parent through auth.uid().
   // An account whose birth date says under 18 has no Mis hijos (G8; the SQL refuses it too).
   const conMisHijos = esMayorDeEdad(usuario.fecha_nacimiento, hoyEnCaracas())
   const sinDatos = Promise.resolve({ data: null })
-  const [
-    { data: ocupaciones },
-    { data: profesiones },
-    { data: paises },
-    { data: estados },
-    { data: municipios },
-    { data: parroquias },
-    { data: misHijosData },
-    { data: pendientesData },
-    { data: prechecksData },
-  ] = await Promise.all([
-    adminSupabase.from('ocupaciones').select('id, nombre').order('nombre'),
-    adminSupabase.from('profesiones').select('id, nombre').order('nombre'),
-    adminSupabase.from('paises').select('id, nombre').order('nombre'),
-    adminSupabase.from('estados').select('id, nombre, pais_id').order('nombre'),
-    adminSupabase.from('municipios').select('id, nombre, estado_id').order('nombre'),
-    adminSupabase.from('parroquias').select('id, nombre, municipio_id').order('nombre'),
-    conMisHijos ? supabase.rpc('ninos_mis_hijos') : sinDatos,
-    conMisHijos ? supabase.rpc('ninos_mis_hijos_pendientes') : sinDatos,
-    conMisHijos ? supabase.rpc('ninos_mis_prechecks') : sinDatos,
-  ])
-  const misHijos = parseMisHijos(misHijosData)
-  const misHijosPendientes = parsePendientesMisHijos(pendientesData)
-  const misPrechecks = parseMisPrechecks(prechecksData)
-
-  // Obtener sugerencias de dirección familiar
-  const { sugerencias: sugerenciasDireccion } = await obtenerSugerenciasDireccionFamiliar(usuario.id)
+  const [{ ocupaciones, profesiones, catalogos }, identidad, { sugerencias }, { data: misHijosData }, { data: pendientesData }, { data: prechecksData }] =
+    await Promise.all([
+      cargarCatalogosEdicion(adminSupabase),
+      cargarIdentidadEdicion(supabase, { usuarioId: usuario.id, authId: user.id }),
+      obtenerSugerenciasDireccionFamiliar(usuario.id),
+      conMisHijos ? supabase.rpc('ninos_mis_hijos') : sinDatos,
+      conMisHijos ? supabase.rpc('ninos_mis_hijos_pendientes') : sinDatos,
+      conMisHijos ? supabase.rpc('ninos_mis_prechecks') : sinDatos,
+    ])
 
   return (
-<ContenedorDashboard
-        titulo={`${usuario.nombre} ${usuario.apellido}`}
-        subtitulo="Gestiona tu información personal"
-        botonRegreso={{ href: '/dashboard', texto: 'Volver al Dashboard' }}
-      >
-        {/* "Mis datos" and "Mis hijos" tabs (F3). Mis hijos is shown to every adult account:
-            a parent without children registers them there (M5). */}
-        <PerfilPestanas
-          datos={
-            <UserEditForm
-              usuario={usuarioCompleto}
-              ocupaciones={ocupaciones || []}
-              profesiones={profesiones || []}
-              paises={paises || []}
-              estados={estados || []}
-              municipios={municipios || []}
-              parroquias={parroquias || []}
-              sugerenciasDireccion={sugerenciasDireccion}
-              esPerfil={true}
-            />
-          }
-          hijos={conMisHijos ? <MisHijos hijos={misHijos} pendientes={misHijosPendientes} prechecks={misPrechecks} /> : null}
-        />
-      </ContenedorDashboard>
-)
+    <PaginaSistema breadcrumbs={<MigasPerfil />}>
+      {/* "Mis datos" and "Mis hijos" tabs (F3). Mis hijos is shown to every adult account:
+          a parent without children registers them there (M5). */}
+      <PerfilPestanas
+        datos={
+          <FormularioEditarPersona
+            usuario={usuario}
+            identidad={identidad}
+            ocupaciones={ocupaciones}
+            profesiones={profesiones}
+            catalogos={catalogos}
+            sugerenciasDireccion={sugerencias}
+            esPerfil
+          />
+        }
+        hijos={
+          conMisHijos ? (
+            <MisHijos hijos={parseMisHijos(misHijosData)} pendientes={parsePendientesMisHijos(pendientesData)} prechecks={parseMisPrechecks(prechecksData)} />
+          ) : null
+        }
+      />
+    </PaginaSistema>
+  )
 }

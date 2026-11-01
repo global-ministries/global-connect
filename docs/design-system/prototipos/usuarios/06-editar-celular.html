@@ -1,0 +1,1576 @@
+<!doctype html>
+<html lang="es" data-visor="pastor">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<script>/* Theme from the review link before the first paint */ (function () { const t = /(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash); if (t) document.documentElement.dataset.tema = t[1]; })();</script>
+<title>Usuarios · editar · celular 390 — Global Connect</title>
+<style>
+/* Tokens: copied from design/system.md (source app/globals.css). Light in :root, dark from
+   prefers-color-scheme or data-tema="oscuro". No other color, font, radius or shadow is used. */
+:root {
+  color-scheme: light;
+  --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 4px); --radius-md: calc(var(--radius) - 2px); --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px); --radius-2xl: calc(var(--radius) + 8px); --radius-sheet: 26px;
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1); --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1); --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-instant: 100ms; --duration-fast: 150ms; --duration-normal: 250ms; --duration-slow: 400ms; --duration-slower: 600ms; --stagger-delay: 40ms;
+  --scrim: rgba(0, 0, 0, 0.5);
+  --tinte-estado: 10%;
+
+  --background: oklch(0.985 0.002 80); --foreground: oklch(0.178 0.014 285);
+  --card: oklch(1 0 0); --card-foreground: oklch(0.178 0.014 285);
+  --secondary: oklch(0.965 0.003 80); --secondary-foreground: oklch(0.205 0.012 285);
+  --muted: oklch(0.955 0.004 80); --muted-foreground: oklch(0.48 0.01 260);
+  --accent: oklch(0.965 0.003 80); --accent-foreground: oklch(0.205 0.012 285);
+  --border: oklch(0.905 0.006 80);
+  --sidebar: oklch(0.975 0.003 80); --sidebar-border: oklch(0.905 0.006 80);
+  --surface-primary: #FAFAF8;
+  --brand-primary: #E96C20; --brand-primary-foreground: oklch(1 0 0);
+  --brand-accent-strong: rgba(233, 108, 32, 0.10); --brand-text: oklch(0.52 0.15 48);
+  /* Decided 2026-10-28, pending in docs/design-system and app/globals.css: filled brand surfaces
+     that carry text or icons. White on #BE5413 = 4.70:1, on #B04E11 = 5.32:1. Same in both themes. */
+  --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+  --success: oklch(0.55 0.17 145); --success-foreground: oklch(0.98 0 0); --success-text: oklch(0.5 0.14 145);
+  --warning: oklch(0.75 0.18 80); --warning-foreground: oklch(0.22 0.02 60); --warning-text: oklch(0.52 0.12 65);
+  --info: oklch(0.55 0.15 250); --info-foreground: oklch(0.98 0 0); --info-text: oklch(0.5 0.15 250);
+  --danger: oklch(0.577 0.245 27.325); --danger-foreground: oklch(0.98 0 0); --danger-text: oklch(0.52 0.21 27);
+  --chart-1: oklch(0.646 0.222 41.116); --chart-2: oklch(0.6 0.118 184.704); --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429); --chart-5: oklch(0.769 0.188 70.08);
+  --shadow-sheet: 0 24px 60px -24px rgba(20, 20, 40, 0.28);
+  --shadow-fab: 0 16px 36px -10px rgba(233, 108, 32, 0.75);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) {
+    color-scheme: dark;
+    --tinte-estado: 13%;
+    --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+    --card: oklch(0.155 0.012 270); --card-foreground: oklch(0.96 0.003 80);
+    --secondary: oklch(0.22 0.012 270); --secondary-foreground: oklch(0.96 0.003 80);
+    --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+    --accent: oklch(0.22 0.012 270); --accent-foreground: oklch(0.96 0.003 80);
+    --border: oklch(0.26 0.012 270);
+    --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+    --surface-primary: #0E0E12;
+    --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+    --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+    --success: oklch(0.60 0.17 145); --success-foreground: oklch(0.15 0 0); --success-text: oklch(0.76 0.15 145);
+    --warning: oklch(0.70 0.16 80); --warning-foreground: oklch(0.15 0 0); --warning-text: oklch(0.8 0.14 80);
+    --info: oklch(0.60 0.15 250); --info-foreground: oklch(0.15 0 0); --info-text: oklch(0.74 0.12 250);
+    --danger: oklch(0.637 0.237 25.331); --danger-foreground: oklch(0.15 0 0); --danger-text: oklch(0.72 0.17 25);
+    --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+    --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+  }
+}
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+    --tinte-estado: 13%;
+    --background: oklch(0.112 0.01 270); --foreground: oklch(0.96 0.003 80);
+    --card: oklch(0.155 0.012 270); --card-foreground: oklch(0.96 0.003 80);
+    --secondary: oklch(0.22 0.012 270); --secondary-foreground: oklch(0.96 0.003 80);
+    --muted: oklch(0.22 0.012 270); --muted-foreground: oklch(0.62 0.01 260);
+    --accent: oklch(0.22 0.012 270); --accent-foreground: oklch(0.96 0.003 80);
+    --border: oklch(0.26 0.012 270);
+    --sidebar: oklch(0.14 0.012 270); --sidebar-border: oklch(0.26 0.012 270);
+    --surface-primary: #0E0E12;
+    --brand-accent-strong: rgba(233, 108, 32, 0.13); --brand-text: oklch(0.74 0.15 50);
+    --brand-strong: #BE5413; --brand-strong-hover: #B04E11;
+    --success: oklch(0.60 0.17 145); --success-foreground: oklch(0.15 0 0); --success-text: oklch(0.76 0.15 145);
+    --warning: oklch(0.70 0.16 80); --warning-foreground: oklch(0.15 0 0); --warning-text: oklch(0.8 0.14 80);
+    --info: oklch(0.60 0.15 250); --info-foreground: oklch(0.15 0 0); --info-text: oklch(0.74 0.12 250);
+    --danger: oklch(0.637 0.237 25.331); --danger-foreground: oklch(0.15 0 0); --danger-text: oklch(0.72 0.17 25);
+    --chart-1: oklch(0.488 0.243 264.376); --chart-2: oklch(0.696 0.17 162.48); --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9); --chart-5: oklch(0.645 0.246 16.439);
+    --shadow-sheet: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+@keyframes slide-up-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: var(--font-sans); background: var(--background); color: var(--foreground); -webkit-font-smoothing: antialiased; font-feature-settings: "rlig" 1, "calt" 1; }
+button, input, select { font: inherit; color: inherit; }
+button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3 { text-wrap: balance; }
+[hidden] { display: none !important; }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+svg.i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 100; padding: 10px 16px; border-radius: var(--radius-xl); background: var(--card); color: var(--foreground); border: 2px solid var(--brand-primary); font-size: 14px; font-weight: 600; text-decoration: none; }
+.skip:focus { left: 8px; }
+
+/* ── Buttons (BotonSistema) ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: var(--radius-xl); border: 2px solid var(--border); background: transparent; color: var(--foreground); cursor: pointer; font-size: 16px; font-weight: 500; white-space: nowrap; transition: background-color var(--duration-fast) var(--ease-expo), transform var(--duration-fast) var(--ease-expo); }
+.btn:hover { background: var(--accent); }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--brand-strong); border-color: var(--brand-strong); color: var(--brand-primary-foreground); }
+.btn.primary:hover { background: var(--brand-strong-hover); border-color: var(--brand-strong-hover); }
+.btn.ghost { border-color: transparent; color: var(--muted-foreground); }
+.btn.ghost:hover { color: var(--foreground); }
+.btn.icon { width: 44px; padding: 0; }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 14px; gap: 6px; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.btn[disabled]:active { transform: none; }
+@media (pointer: coarse) { .btn.sm { min-height: 44px; } }
+.count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; }
+
+/* ── Phone chrome (base = phone, < 768px) ── */
+.side, .header, .hero, .toolbar .desk { display: none; }
+.navbar { position: sticky; top: 0; z-index: 30; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; min-height: 48px; padding: env(safe-area-inset-top, 0px) 8px 0; background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-bottom: 1px solid transparent; transition: border-color var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled { border-bottom-color: var(--border); }
+.navbar .back { grid-column: 1; justify-self: start; display: inline-flex; align-items: center; gap: 2px; min-height: 44px; max-width: 120px; padding: 0 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); font-size: 16px; cursor: pointer; }
+.navbar .back span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navbar .ttl { grid-column: 2; margin: 0; max-width: 180px; font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.navbar.scrolled .ttl { opacity: 1; }
+.navbar .actions { grid-column: 3; justify-self: end; display: flex; }
+.navbar .actions button { position: relative; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); cursor: pointer; }
+.navbar .actions button:active { background: var(--accent); }
+.navbar .actions .count { position: absolute; top: 4px; right: 2px; }
+
+main { display: grid; gap: 22px; min-width: 0; padding: 4px 16px 24px; }
+.large { padding: 2px 4px 0; }
+.large h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+.large p, .hero p { margin: 4px 0 0; font-size: 15px; color: var(--muted-foreground); }
+.large p strong, .hero p strong { color: var(--foreground); font-weight: 600; }
+#sentinela { display: block; height: 1px; }
+
+/* Toolbar (BarraHerramientas) */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.search { flex: 1 1 100%; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid transparent; background: color-mix(in oklab, var(--foreground) 8%, transparent); color: var(--muted-foreground); transition: border-color var(--duration-fast) var(--ease-expo), box-shadow var(--duration-fast) var(--ease-expo); }
+.search:focus-within { border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.search input { flex: 1; min-width: 0; height: 38px; border: 0; background: none; outline: none; font-size: 16px; color: var(--foreground); }
+.search input::placeholder { color: var(--muted-foreground); }
+.search input::-webkit-search-cancel-button { cursor: pointer; }
+.search kbd { display: none !important; font-family: var(--font-mono); font-size: 11px; padding: 2px 6px; border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--muted-foreground); }
+.seg { display: inline-flex; padding: 3px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.seg button:hover { color: var(--foreground); }
+.seg button[aria-pressed="true"] { background: var(--foreground); color: var(--background); }
+@media (pointer: coarse) { .seg button { min-height: 44px; } }
+
+/* Section headings */
+.sec-h { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 8px; padding: 0 4px; }
+.sec-h h2 { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.sec-h .hint { display: none; font-size: 13px; color: var(--muted-foreground); }
+
+/* Attention metrics (MetricasAtencion) */
+.attention { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.metric { min-width: 0; display: grid; gap: 6px; padding: 12px; text-align: left; cursor: pointer; border-radius: var(--radius-2xl); border: 1px solid transparent; background: var(--card); transition: background-color var(--duration-fast) var(--ease-expo), border-color var(--duration-fast) var(--ease-expo); }
+.metric:hover { background: var(--accent); }
+.metric[aria-pressed="true"] { background: var(--brand-accent-strong); box-shadow: inset 0 0 0 1.5px var(--brand-primary); }
+.metric .v { font-size: 26px; font-weight: 600; line-height: 1; color: var(--foreground); }
+.metric .bar, .metric .s { display: none; }
+.bar { height: 4px; border-radius: 9999px; background: var(--muted); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: var(--c); transition: width 500ms var(--ease-out-quint); }
+.metric .s { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Status dot (PuntoEstado) */
+.estado { display: inline-flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; }
+.d { width: 8px; height: 8px; flex: none; display: inline-block; border-radius: 9999px; background: var(--c); box-shadow: 0 0 0 4px color-mix(in oklab, var(--c) 20%, transparent); }
+[data-t="success"] { --c: var(--success); } [data-t="warning"] { --c: var(--warning); } [data-t="info"] { --c: var(--info); }
+[data-t="danger"] { --c: var(--danger); } [data-t="muted"] { --c: var(--muted-foreground); }
+[data-t="faint"] { --c: color-mix(in oklab, var(--muted-foreground) 50%, transparent); }
+
+/* Tags (status badges on surfaces) */
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 9999px; border: 1px solid var(--border); font-size: 12px; font-weight: 500; white-space: nowrap; color: var(--muted-foreground); }
+.tag.warn { color: var(--warning-text); border-color: color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); }
+.tag.info { color: var(--info-text); border-color: color-mix(in oklab, var(--info) 40%, transparent); background: color-mix(in oklab, var(--info) var(--tinte-estado), transparent); }
+
+/* Scope (phone: inset grouped list) */
+.scope { list-style: none; margin: 0; padding: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.scope li { position: relative; }
+.scope li + li::before { content: ''; position: absolute; top: 0; left: 14px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.node { width: 100%; min-height: 64px; display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; align-items: center; gap: 4px 10px; padding: 12px 14px; border: 0; background: none; text-align: left; cursor: pointer; }
+.node:active { background: var(--accent); }
+.node:focus-visible { outline-offset: -2px; }
+.node .n-top { display: contents; }
+.n-txt { grid-column: 1; grid-row: 1; min-width: 0; }
+.n-name { display: block; font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n-who { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.n-go { grid-column: 3; grid-row: 1; color: var(--muted-foreground); display: grid; }
+.n-stats { grid-column: 2; grid-row: 1; justify-self: end; }
+.n-n { font-size: 17px; font-weight: 500; color: var(--muted-foreground); }
+.n-u { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.n-flags { grid-column: 1; grid-row: 2; display: flex; flex-wrap: wrap; gap: 6px; }
+.n-flags:empty { display: none; }
+.n-flags .tag.info { display: none; }
+.stack { display: none; height: 6px; border-radius: 9999px; overflow: hidden; background: var(--muted); }
+.stack i { display: block; height: 100%; }
+
+/* Chips (ChipsFiltrosActivos) */
+.chips { display: flex; align-items: center; gap: 8px; padding: 0 2px; overflow-x: auto; scrollbar-width: none; }
+.chips:empty { display: none; }
+.chip { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 4px 0 12px; border-radius: 9999px; border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); background: var(--brand-accent-strong); font-size: 13px; white-space: nowrap; }
+.chip button { position: relative; width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 9999px; background: none; color: var(--muted-foreground); cursor: pointer; }
+.chip button::after { content: ''; position: absolute; inset: -8px; }
+.chip button:hover { color: var(--foreground); }
+.link { flex: none; min-height: 44px; padding: 0 4px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+.link:hover { color: var(--foreground); }
+
+/* List (ListaResponsiva) */
+.lista { min-width: 0; background: var(--card); border-radius: var(--radius-2xl); overflow: hidden; }
+.cab { display: none; }
+.fila { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 64px; padding: 10px 14px; transition: background-color var(--duration-fast) var(--ease-expo); }
+.fila:active { background: var(--accent); }
+.fila + .fila::before { content: ''; position: absolute; top: 0; left: 66px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.fila:has(.abrir:focus-visible) { box-shadow: inset 0 0 0 2px var(--brand-primary); }
+.c-d { display: none; }
+.c-m { display: flex; flex: 1; align-items: center; gap: 12px; min-width: 0; }
+.c-m .txt { flex: 1; min-width: 0; }
+.c-m .t1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.c-m .nm { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.c-m .ins { flex: none; display: flex; gap: 4px; }
+.c-m .t2 { margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-m .estado .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.c-abrir { flex: none; display: flex; justify-content: flex-end; }
+.abrir { width: 28px; height: 28px; display: grid; place-items: center; border: 0; background: none; color: var(--muted-foreground); cursor: pointer; outline: none; }
+.abrir::after { content: ''; position: absolute; inset: 0; }
+.avatar { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 9999px; font-size: 13px; font-weight: 600; color: var(--foreground); background: color-mix(in oklab, var(--c) 26%, var(--card)); border: 1px solid color-mix(in oklab, var(--c) 40%, transparent); }
+[data-h="1"] { --c: var(--chart-1); } [data-h="2"] { --c: var(--chart-2); } [data-h="3"] { --c: var(--chart-3); } [data-h="4"] { --c: var(--chart-4); } [data-h="5"] { --c: var(--chart-5); }
+.who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.who .txt { min-width: 0; }
+.who .nm { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 3px; font-size: 13px; color: var(--muted-foreground); min-width: 0; }
+.svcs { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.svc { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; height: 30px; padding: 0 10px; border-radius: var(--radius-xl); background: var(--background); border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: 13px; }
+.svc .eq { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.svc .rol { color: var(--muted-foreground); white-space: nowrap; }
+.svc.mas { color: var(--muted-foreground); }
+.turno { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.turno.none { color: var(--danger-text); }
+.vacio { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 20px; text-align: center; }
+.vacio svg.i { width: 40px; height: 40px; color: color-mix(in oklab, var(--muted-foreground) 40%, transparent); }
+.vacio p { margin: 0; max-width: 28rem; }
+.vacio .t { font-size: 16px; font-weight: 600; }
+.vacio .s { margin-top: 6px; font-size: 14px; color: var(--muted-foreground); }
+.skel { display: flex; align-items: center; gap: 12px; height: 72px; padding: 0 16px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.skel:last-child { border-bottom: 0; }
+.skel span { display: block; background: var(--muted); border-radius: var(--radius-md); animation: pulse 2s cubic-bezier(.4, 0, .6, 1) infinite; }
+.skel .a { width: 40px; height: 40px; border-radius: 9999px; flex: none; }
+.skel .l { flex: 1; display: grid; gap: 8px; animation: none; background: none; }
+.skel .l span:first-child { width: 40%; height: 14px; } .skel .l span:last-child { width: 60%; height: 12px; }
+.foot { display: flex; justify-content: center; gap: 8px; padding: 0 4px; font-size: 13px; color: var(--muted-foreground); }
+.foot .orden { display: none; }
+.people { display: grid; gap: 10px; min-width: 0; }
+
+/* Tab bar + FAB (MenuInferiorMovil, BotonFlotante) */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 8px 6px max(8px, env(safe-area-inset-bottom, 0px)); background: color-mix(in oklab, var(--background) 72%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.5); backdrop-filter: blur(24px) saturate(1.5); border-top: 1px solid var(--border); }
+.tabbar a { min-width: 0; min-height: 56px; display: grid; justify-items: center; align-content: center; gap: 4px; padding: 6px 0; border-radius: var(--radius-xl); color: var(--muted-foreground); text-decoration: none; font-size: 12px; font-weight: 500; }
+.tabbar a span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabbar a[aria-current="page"] { color: var(--brand-text); font-weight: 600; }
+.tabbar svg.i { width: 24px; height: 24px; }
+.fab { position: fixed; right: 16px; bottom: 88px; z-index: 45; width: 56px; height: 56px; display: grid; place-items: center; border: 0; border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); box-shadow: var(--shadow-fab); cursor: pointer; transition: transform var(--duration-fast) var(--ease-expo), background-color var(--duration-fast) var(--ease-expo); }
+.fab:hover { background: var(--brand-strong-hover); }
+.fab:active { transform: scale(.97); }
+.fab svg.i { width: 24px; height: 24px; }
+
+/* Overlays (HojaInferior below md, PanelLateralSistema from md) */
+.scrim { position: fixed; inset: 0; z-index: 60; background: var(--scrim); opacity: 0; pointer-events: none; transition: opacity var(--duration-normal) var(--ease-out-quint); }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.sheet { position: fixed; z-index: 70; left: 0; right: 0; bottom: 0; max-height: 90vh; display: flex; flex-direction: column; background: var(--card); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; box-shadow: var(--shadow-sheet); transform: translateY(105%); visibility: hidden; transition: transform var(--duration-slow) var(--ease-out-quint), visibility 0s linear var(--duration-slow); }
+.sheet.on { transform: none; visibility: visible; transition-delay: 0s; }
+.sheet:focus { outline: none; }
+.grab { display: block; flex: none; width: 38px; height: 5px; margin: 8px auto 0; border-radius: 9999px; background: var(--border); }
+.sh-head { position: relative; display: grid; gap: 16px; padding: 12px 18px 16px; border-bottom: 1px solid var(--border); }
+.sh-head h2 { margin: 0; padding-right: 48px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.sh-close { position: absolute; top: 4px; right: 8px; }
+.sh-body { container-type: inline-size; flex: 1; min-height: 0; overflow: auto; display: grid; gap: 18px; align-content: start; padding: 16px 18px max(12px, env(safe-area-inset-bottom, 0px)); }
+.sh-foot { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); background: inherit; }
+.idrow { display: flex; gap: 14px; align-items: center; padding-right: 48px; }
+.idrow .avatar { width: 56px; height: 56px; border-radius: var(--radius-xl); font-size: 18px; }
+.idrow h2 { padding-right: 0; font-size: 20px; letter-spacing: -.02em; }
+.idrow .meta { margin-top: 4px; font-size: 14px; color: var(--muted-foreground); }
+.quick { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); gap: 8px; }
+.quick .btn { flex-direction: column; gap: 6px; min-height: 66px; padding: 0 8px; font-size: 13px; }
+.motivo { margin: -8px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.callout { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--warning) 40%, transparent); background: color-mix(in oklab, var(--warning) var(--tinte-estado), transparent); font-size: 14px; }
+.callout > svg.i { color: var(--warning-text); margin-top: 1px; }
+.callout b { font-weight: 600; }
+.callout p { margin: 2px 0 0; color: var(--muted-foreground); }
+.callout .btn { margin-top: 10px; }
+.nota { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.sh-sec { margin: 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.s-card { display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--background); }
+.s-card .t { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.s-card h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.s-card .ruta { margin-top: 2px; font-size: 12px; color: var(--muted-foreground); }
+.kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.kv div { display: grid; gap: 4px; min-width: 0; }
+.kv dt { font-size: 12px; color: var(--muted-foreground); }
+.kv dd { margin: 0; font-size: 13px; font-weight: 500; }
+.kv .none { color: var(--danger-text); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.acts .btn { font-size: 14px; padding: 0 14px; }
+.group { display: grid; gap: 10px; border: 0; margin: 0; padding: 0; min-width: 0; }
+.group legend, .group > .g-t { padding: 0; margin-bottom: 10px; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 9999px; border: 1.5px solid var(--border); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.pill:hover { background: var(--accent); color: var(--foreground); }
+.pill b { font-weight: 600; color: var(--foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.pill[aria-pressed="true"] { border-color: var(--brand-primary); background: var(--brand-accent-strong); color: var(--foreground); }
+.selects { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.campo { display: grid; gap: 8px; min-width: 0; }
+.campo label { font-size: 14px; font-weight: 500; }
+.campo .sel { position: relative; }
+.campo select { width: 100%; height: 44px; padding: 0 40px 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; appearance: none; cursor: pointer; }
+.campo select:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.campo select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.campo .sel svg { position: absolute; right: 12px; top: 13px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+.campo option { background: var(--card); color: var(--foreground); }
+
+/* Prototype options: not part of the design */
+/* Phone: the options sit after the list, in the page flow, so they never cover rows; the bottom
+   margin clears the tab bar and the FAB. From md up they float in the sidebar corner. */
+.opciones { position: relative; margin: 0 16px calc(160px + env(safe-area-inset-bottom, 0px)); padding-top: 16px; border-top: 1px dashed var(--border); font-size: 13px; }
+.opciones summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 9999px; border: 1px dashed var(--border); background: var(--card); color: var(--muted-foreground); cursor: pointer; }
+.opciones summary::-webkit-details-marker { display: none; }
+.opciones[open] summary { color: var(--foreground); }
+.opciones .panel { position: static; left: 0; bottom: 52px; margin-top: 8px; display: grid; gap: 12px; padding: 14px; border-radius: var(--radius-xl); border: 1px dashed var(--border); background: var(--card); }
+.opciones .panel p { margin: 0; font-size: 12px; color: var(--muted-foreground); }
+.opciones .fila-op { display: grid; gap: 6px; }
+.opciones .fila-op > span { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.opciones .seg { justify-self: start; }
+
+/* ── Tablet (768–1023) ── */
+@media (min-width: 768px) {
+  body { background: var(--surface-primary); }
+  .navbar, .large, .tabbar, .fab, .movil { display: none !important; }
+  .app { display: grid; grid-template-columns: 64px minmax(0, 1fr); min-height: 100vh; }
+  .content { min-width: 0; display: flex; flex-direction: column; }
+  .header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 0 24px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); background: color-mix(in oklab, var(--surface-primary) 85%, transparent); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  .crumbs { flex: 1; min-width: 0; overflow: hidden; }
+  .crumbs ol { display: flex; align-items: center; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+  .crumbs li { flex: 0 1 auto; display: flex; align-items: center; gap: 2px; min-width: 0; }
+  .crumbs li:last-child { flex-shrink: 0; max-width: 45%; }
+  .crumbs li + li::before { content: '/'; flex: none; padding: 0 4px; color: var(--muted-foreground); }
+  .crumbs button { min-width: 0; max-width: 100%; min-height: 44px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted-foreground); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs button:hover { background: var(--accent); color: var(--foreground); }
+  .crumbs [aria-current="page"] { min-width: 0; padding: 0 8px; color: var(--foreground); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn.assign { position: relative; min-height: 36px; padding: 0 14px; gap: 6px; font-size: 14px; }
+  .btn.assign svg.i { width: 16px; height: 16px; }
+  .btn.assign::after { content: ''; position: absolute; inset: -6px -2px; }
+  .me { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: 9999px; background: none; cursor: pointer; }
+  .me span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9999px; background: var(--brand-accent-strong); border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); font-size: 12px; font-weight: 600; color: var(--foreground); }
+  main { padding: 32px 24px 120px; gap: 28px; }
+  .hero { display: block; }
+  .hero h1 { margin: 0; font-size: 24px; font-weight: 650; line-height: 1.15; letter-spacing: -.02em; }
+  .hero p { margin-top: 6px; }
+  .toolbar .desk { display: inline-flex; }
+  .search { flex: 1 1 280px; min-height: 44px; padding: 0 14px; border-color: var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); }
+  .search input { height: 42px; }
+  .search kbd { display: inline-block !important; }
+  .sec-h { margin-bottom: 12px; padding: 0; }
+  .sec-h .hint { display: block; }
+  .attention { gap: 12px; }
+  .metric { padding: 16px; gap: 10px; border-color: var(--border); }
+  .metric[aria-pressed="true"] { border-color: var(--brand-primary); box-shadow: none; }
+  .metric .v { font-size: 30px; }
+  .metric .bar, .metric .s { display: block; }
+  .scope { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; background: none; border-radius: 0; overflow: visible; }
+  .scope li + li::before { display: none; }
+  .node { height: 100%; display: grid; grid-template-columns: none; align-content: start; gap: 14px; padding: 16px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); transition: background-color var(--duration-fast) var(--ease-expo), transform var(--duration-normal) var(--ease-out-quint); }
+  .node:hover { background: var(--accent); transform: translateY(-1px); }
+  .node:active { background: var(--accent); }
+  .node:focus-visible { outline-offset: 2px; }
+  .node .n-top { display: flex; justify-content: space-between; gap: 8px; }
+  .n-txt, .n-go, .n-stats, .n-flags { grid-column: auto; grid-row: auto; }
+  .n-name { font-size: 15px; font-weight: 600; white-space: normal; }
+  .n-who { margin-top: 4px; }
+  .n-stats { justify-self: start; display: flex; align-items: baseline; gap: 6px; }
+  .n-n { font-size: 26px; font-weight: 600; line-height: 1; color: var(--foreground); }
+  .n-u { position: static; width: auto; height: auto; overflow: visible; clip: auto; font-size: 13px; color: var(--muted-foreground); }
+  .n-flags { min-height: 22px; }
+  .n-flags:empty { display: flex; }
+  .n-flags .tag.info { display: inline-flex; }
+  .stack { display: flex; }
+  .chips { flex-wrap: wrap; overflow: visible; padding: 0; }
+  .lista { border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+  .tabla { --cols: minmax(200px, 1.1fr) minmax(0, 2fr) 130px 28px; }
+  .cab, .fila { display: grid; grid-template-columns: var(--cols); gap: 16px; align-items: center; padding: 0 18px; }
+  .cab { min-height: 44px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+  .cab [role="columnheader"] { display: flex; align-items: center; min-width: 0; }
+  .cab button { display: inline-flex; align-items: center; gap: 4px; min-height: 36px; margin: 0 -4px; padding: 0 4px; border: 0; border-radius: var(--radius-md); background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+  .cab button:hover, .cab [aria-sort] button { color: var(--foreground); }
+  .fila { min-height: 72px; padding-top: 12px; padding-bottom: 12px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+  .fila:last-child { border-bottom: 0; }
+  .fila + .fila::before { display: none; }
+  .fila:hover { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+  .fila:active { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+  .entrada .fila { animation: slide-up-fade 300ms var(--ease-expo) both; }
+  .c-d { display: flex; align-items: center; min-width: 0; }
+  .c-m { display: none; }
+  .c-turno { display: none !important; }
+  .avatar { border-radius: var(--radius-lg); }
+  .foot { justify-content: space-between; }
+  .foot .orden { display: inline; }
+  .opciones { position: fixed; left: 10px; bottom: 12px; z-index: 50; margin: 0; padding: 0; border: 0; }
+  .opciones summary { width: 44px; padding: 0; justify-content: center; }
+  .opciones summary .lbl-op { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .opciones .panel { position: absolute; width: 272px; margin: 0; box-shadow: var(--shadow-sheet); }
+  .sheet { top: 0; left: auto; width: min(480px, 100%); max-height: none; border-radius: 0; border-left: 1px solid var(--border); background: var(--background); transform: translateX(105%); }
+  .grab { display: none; }
+  .sh-head { padding: 16px 24px; }
+  .sh-close { top: 8px; right: 8px; }
+  .sh-body { padding: 20px 24px; }
+  .sh-foot { padding: 12px 24px; }
+  .s-card { background: var(--card); }
+  .kv { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@container (min-width: 560px) { .selects { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 768px) and (pointer: coarse) { .cab button { min-height: 44px; } }
+
+/* ── Desktop (≥ 1024) ── */
+@media (min-width: 1024px) {
+  .app { grid-template-columns: 256px minmax(0, 1fr); }
+  .header { padding: 0 48px; }
+  main { padding: 32px 48px 120px; }
+  .attention { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tabla { --cols: minmax(240px, 1.1fr) minmax(0, 2fr) 150px 130px 28px; }
+  .opciones summary { width: auto; padding: 0 14px; }
+  .opciones summary .lbl-op { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
+  .c-turno { display: flex !important; }
+}
+
+/* App shell (design/app-shell): sidebar by sections, Dream Team group, header icons */
+.sel { position: relative; }
+.sel select { width: 100%; height: 44px; padding: 0 36px 0 40px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 14px; font-weight: 500; appearance: none; cursor: pointer; }
+.sel select:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; border-color: var(--brand-primary); }
+.sel .ic { position: absolute; left: 12px; top: 13px; width: 18px; height: 18px; color: var(--muted-foreground); pointer-events: none; }
+.sel .ch { position: absolute; right: 12px; top: 14px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+.sel option { background: var(--card); color: var(--foreground); }
+.sel.plain select { padding-left: 12px; font-size: 16px; }
+.campana { position: relative; }
+.campana .count { position: absolute; top: 3px; right: 1px; box-shadow: 0 0 0 2px var(--background); }
+@media (min-width: 768px) {
+  .app.rail { grid-template-columns: 64px minmax(0, 1fr); }
+  .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; min-width: 0; padding: 18px 14px 12px; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); }
+  .rail .side { padding: 16px 10px 12px; }
+  .s-top { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+  .rail .s-top { flex-direction: column; align-items: stretch; gap: 4px; }
+  .logo { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 44px; padding: 0 8px; font-weight: 700; font-size: 15px; }
+  .rail .logo { justify-content: center; padding: 0; }
+  .logo i { width: 28px; height: 28px; flex: none; border-radius: var(--radius-sm); background: var(--brand-primary); }
+  .s-icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo); }
+  .s-icon:hover { background: var(--accent); color: var(--foreground); }
+  .s-icon[aria-expanded="true"] { background: var(--accent); color: var(--foreground); }
+  .s-campus { margin-bottom: 8px; }
+  .s-scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -14px; padding: 0 14px 8px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .rail .s-scroll { margin: 0 -10px; padding: 0 10px 8px; scrollbar-width: none; }
+  .s-sec + .s-sec { margin-top: 4px; }
+  .s-sec h2 { margin: 0; padding: 14px 10px 6px; font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted-foreground); }
+  .rail .s-sec h2 { height: 1px; margin: 10px 8px; padding: 0; overflow: hidden; background: var(--sidebar-border); color: transparent; }
+  .s-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+  .it { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; text-align: left; text-decoration: none; cursor: pointer; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+  .it:hover { background: var(--accent); color: var(--foreground); }
+  .it[aria-current="page"] { background: var(--brand-accent-strong); color: var(--foreground); font-weight: 600; }
+  .it.contiene { color: var(--foreground); font-weight: 500; }
+  .it .lbl { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it .ch { width: 16px; height: 16px; color: var(--muted-foreground); transition: transform var(--duration-fast) var(--ease-out-quint); }
+  .it[aria-expanded="true"] .ch, .s-icon.chev[aria-expanded="true"] .ch { transform: rotate(180deg); }
+  .padre { display: flex; align-items: center; gap: 2px; }
+  .padre .it { flex: 1; min-width: 0; }
+  .s-icon.chev { background: none; }
+  .s-icon.chev:hover { background: var(--accent); }
+  .s-icon.chev .ch { width: 16px; height: 16px; transition: transform var(--duration-fast) var(--ease-out-quint); }
+  .s-sub { list-style: none; margin: 2px 0 6px 20px; padding: 0 0 0 10px; display: grid; gap: 2px; border-left: 1px solid var(--sidebar-border); }
+  .s-sub .it { min-height: 36px; font-size: 14px; }
+  .s-sub { gap: 0; }
+  .rail .it { justify-content: center; padding: 0; }
+  .rail .it .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .rail .it.contiene { background: var(--brand-accent-strong); }
+  .rail .it[aria-expanded="true"] { background: var(--accent); }
+  .s-pie { margin: 0 -14px; padding: 8px 14px 0; border-top: 1px solid var(--sidebar-border); }
+  .rail .s-pie { margin: 0 -10px; padding: 8px 10px 0; }
+  .h-icon { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--muted-foreground); cursor: pointer; }
+  .h-icon:hover { background: var(--accent); color: var(--foreground); }
+  .me[aria-expanded="true"] span { border-color: var(--brand-primary); }
+}
+@media (min-width: 768px) and (pointer: coarse) { .s-sub .it { min-height: 44px; } }
+
+/* Mi equipo: only recombines the Servidores v3 + shell patterns above. */
+h1:focus { outline: none; } h1:focus-visible { outline: 2px solid var(--brand-primary); }
+
+/* Phone shell header (HeaderMovil): route title always visible, bell on the right, no back slot. */
+.navbar .ttl { opacity: 1; }
+.navbar .actions .campana .count { top: 3px; right: 1px; }
+
+/* Phone content row: "‹ parent" (BotonAtrasMovil) + Filtros (BotonFiltrosMovil), as Servidores in production. */
+.m-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: -4px -8px 0; min-height: 44px; }
+.m-cab .large { flex: 1; min-width: 0; padding-left: 12px; }
+.atras { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; max-width: 75%; padding: 0 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); font-size: 16px; cursor: pointer; }
+.atras span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-acc { position: relative; width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-xl); background: none; color: var(--brand-text); cursor: pointer; }
+.m-acc:active { background: var(--accent); }
+.m-acc .count { position: absolute; top: 4px; right: 2px; }
+.large h2 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.1; letter-spacing: -.03em; }
+.large h2:focus { outline: none; }
+
+/* Hero row on desktop: title block + dirección select (SelectSistema, only with several direcciones). */
+.hero-fila { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.hero-fila .hero { min-width: 0; }
+.dir-sel { width: 100%; }
+.dir-sel label { display: block; margin: 0 0 6px 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted-foreground); }
+.dir-sel .sel select { font-size: 16px; }
+
+/* Page sections (Personas | Calendario): TabsSistema with the ControlSegmentado look. */
+.tabs { display: flex; padding: 3px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); }
+.tabs button { flex: 1; min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--radius-md); background: none; color: var(--muted-foreground); font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: background-color var(--duration-fast) var(--ease-expo), color var(--duration-fast) var(--ease-expo); }
+.tabs button:hover { color: var(--foreground); }
+.tabs button[aria-selected="true"] { background: var(--foreground); color: var(--background); }
+.tabs .num { font-size: 12px; opacity: .8; }
+@media (pointer: coarse) { .tabs button { min-height: 44px; } }
+
+/* Calendar (CalendarioTurnos): one card per dated shift; date rows reuse the list rows. */
+.cal { display: grid; gap: 10px; min-width: 0; }
+.cal-h { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 0 4px; }
+.cal-h .txt { flex: 1; min-width: 0; }
+.cal-h h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+.cal-h p { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.fecha { position: relative; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 14px; }
+.fecha + .fecha::before { content: ''; position: absolute; top: 0; left: 70px; right: 0; height: 1px; background: color-mix(in oklab, var(--border) 60%, transparent); }
+.fecha:active { background: var(--accent); }
+.fecha:has(.abrir:focus-visible) { box-shadow: inset 0 0 0 2px var(--brand-primary); }
+.dia { width: 44px; height: 44px; flex: none; display: grid; place-content: center; text-align: center; border-radius: var(--radius-lg); background: var(--brand-accent-strong); border: 1px solid color-mix(in oklab, var(--brand-primary) 40%, transparent); }
+.dia b { display: block; font-size: 17px; font-weight: 600; line-height: 1; }
+.dia small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--brand-text); text-transform: uppercase; letter-spacing: .04em; }
+.pasada .dia { background: var(--muted); border-color: var(--border); }
+.pasada .dia small { color: var(--muted-foreground); }
+.fecha .txt { flex: 1; min-width: 0; }
+.fecha .t1 { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fecha .t2 { margin-top: 2px; font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sirven { flex: none; display: grid; justify-items: end; gap: 6px; font-size: 13px; color: var(--muted-foreground); }
+.sirven .bar { width: 72px; }
+.sirven .completo { color: var(--success-text); }
+.pasadas { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.pasadas summary { display: flex; align-items: center; min-height: 48px; padding: 0 14px; font-size: 14px; font-weight: 500; color: var(--muted-foreground); cursor: pointer; }
+.pasadas summary:focus-visible { outline-offset: -2px; }
+
+/* Who serves on a date: 44px checkbox rows (Checkbox + label). */
+.cuenta-sel { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cuenta-sel b { font-size: 15px; font-weight: 600; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.check { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 8px; border-radius: var(--radius-xl); cursor: pointer; }
+.check:hover { background: var(--accent); }
+.check input { width: 20px; height: 20px; flex: none; margin: 0; accent-color: var(--brand-strong); cursor: pointer; }
+.check input:disabled { cursor: not-allowed; }
+.check .txt { flex: 1; min-width: 0; }
+.check b { display: block; font-size: 15px; font-weight: 500; }
+.check small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.campo input { width: 100%; height: 44px; padding: 0 12px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: color-mix(in oklab, var(--card) 50%, transparent); color: var(--foreground); font-size: 16px; }
+.campo input:focus { outline: none; border-color: var(--brand-primary); box-shadow: 0 0 0 2px color-mix(in oklab, var(--brand-primary) 20%, transparent); }
+.campo .ayuda { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.btn.peligro { background: var(--danger); border-color: var(--danger); color: var(--danger-foreground); }
+.borde-arriba { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+.aviso { margin: 0; font-size: 14px; color: var(--muted-foreground); }
+.tag.gdv { color: var(--muted-foreground); }
+
+@media (min-width: 768px) {
+  .m-cab { display: none; }
+  .dir-sel { width: 280px; }
+  .tabs { display: inline-flex; justify-self: start; }
+  .tabs button { flex: none; }
+  .cal-h { padding: 0; }
+  .fecha { min-height: 72px; padding: 12px 18px; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+  .fecha:last-child { border-bottom: 0; }
+  .fecha + .fecha::before { display: none; }
+  .fecha:hover { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+  .pasadas summary { padding: 0 18px; }
+  /* Prototype options: in the sidebar corner (as Servidores v3), never over the list; the sidebar keeps
+     56px free under its footer for them. Prototype-only, not part of the shell. */
+  .opciones { left: 10px; right: auto; bottom: 10px; }
+  .opciones .panel { left: 0; right: auto; bottom: 52px; width: 300px; }
+  .side, .rail .side { padding-bottom: 60px; }
+}
+@media (min-width: 768px) { #sentinela { display: none; } }
+@media (max-width: 767.98px) { .hero-fila.en-nivel { display: none; } }
+.campo .sel select { padding: 0 40px 0 12px; font-size: 16px; }
+/* The sentinel only tells the phone bar when the large title scrolled away; it takes no grid row. */
+main { position: relative; }
+#sentinela { position: absolute; top: 96px; left: 0; width: 1px; }
+
+/* Usuarios: only recombines the Servidores v3 + Mi equipo + shell patterns above (tokens from design/system.md). */
+html[data-vista="lista"] .solo-ficha, html[data-vista="ficha"] .solo-lista { display: none; }
+.desk-only { display: none !important; }
+.enter { flex: none; font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+.sel.mini { position: relative; display: inline-block; }
+.sel.mini select { height: 36px; padding: 0 32px 0 12px; font-size: 14px; }
+.sel.mini svg { position: absolute; right: 10px; top: 10px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+@media (pointer: coarse) { .sel.mini select { height: 44px; } .sel.mini svg { top: 14px; } }
+
+/* Vínculos pendientes: one brand notice (AvisoFormulario marca) that opens the review panel. */
+.vinc { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--radius-2xl); border: 1px solid color-mix(in oklab, var(--brand-primary) 30%, transparent); background: var(--brand-accent-strong); }
+.vinc > svg.i { color: var(--brand-text); flex: none; }
+.vinc .txt { flex: 1; min-width: 0; }
+.vinc b { font-size: 15px; font-weight: 600; }
+.vinc p { margin: 2px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.vinc .btn { flex: none; background: var(--card); }
+#vinc:empty { display: none; }
+
+/* Rows: two-line cells, neutral role tag, selection */
+.contacto { display: grid; gap: 2px; min-width: 0; font-size: 13px; }
+.contacto > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contacto .em { color: var(--muted-foreground); }
+.contacto .gr { font-weight: 500; }
+.falta { color: var(--muted-foreground); font-style: normal; }
+.tag.rol { color: var(--foreground); background: var(--card); }
+.tag.marca { color: var(--foreground); border-color: color-mix(in oklab, var(--brand-primary) 40%, transparent); background: var(--brand-accent-strong); }
+.casilla { position: relative; z-index: 2; width: 44px; height: 44px; flex: none; display: grid; place-items: center; margin: -10px -6px -10px -10px; border-radius: var(--radius-xl); cursor: pointer; }
+.casilla input { width: 20px; height: 20px; margin: 0; accent-color: var(--brand-strong); cursor: pointer; }
+.fila.marcada { background: var(--brand-accent-strong); }
+.seleccionando .abrir { visibility: hidden; }
+
+/* Pagination (server side): range · page size · Anterior / Siguiente */
+.pager { display: grid; justify-items: center; gap: 10px; padding: 0 4px; font-size: 13px; color: var(--muted-foreground); }
+.pager:empty { display: none; }
+.por-pag, .pasos { display: inline-flex; align-items: center; gap: 8px; }
+.pasos .pg { min-width: 96px; text-align: center; }
+
+/* Selection bar (admin bulk role change) */
+.seleccion { position: fixed; z-index: 46; left: 12px; right: 12px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-sheet); font-size: 14px; }
+.seleccion b { font-weight: 600; margin-right: auto; }
+.seleccion .rol-n { flex: 1 1 140px; max-width: 240px; }
+@media (max-width: 767.98px) {
+  .seleccion [data-fin-sel] { order: 1; } .seleccion .rol-n { order: 2; max-width: none; } .seleccion [data-cambiar-rol] { order: 3; }
+}
+.btn[aria-pressed="true"] { border-color: var(--brand-primary); background: var(--brand-accent-strong); }
+.seleccion .rol-n select { width: 100%; }
+
+/* Ficha: identity block, callouts, tabs, panels */
+.ficha-hero { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 0 4px; }
+.ficha-hero .txt { flex: 1; min-width: 0; }
+.ficha-hero h1 { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; }
+.ficha-hero h1:focus { outline: none; } .ficha-hero h1:focus-visible { outline: 2px solid var(--brand-primary); }
+.linea { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 8px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.avatar.xl { width: 64px; height: 64px; border-radius: var(--radius-xl); font-size: 20px; }
+.hero-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick.movil-only .btn { min-height: 66px; }
+.avisos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 10px; }
+.callout .btn.sm { margin-top: 10px; }
+.callout.info { border-color: color-mix(in oklab, var(--info) 40%, transparent); background: color-mix(in oklab, var(--info) var(--tinte-estado), transparent); }
+.callout.info > svg.i { color: var(--info-text); }
+.ficha-tabs { overflow-x: auto; scrollbar-width: none; }
+.ficha-tabs button { flex: none; padding: 0 14px; white-space: nowrap; }
+.panel-ficha { display: grid; gap: 12px; min-width: 0; }
+.secciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr)); gap: 12px; min-width: 0; }
+.tarjeta { display: grid; gap: 14px; align-content: start; min-width: 0; padding: 16px; border-radius: var(--radius-2xl); background: var(--card); }
+.tarjeta.ancha { grid-column: 1 / -1; }
+.t-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; }
+.t-h h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.tarjeta .kv { gap: 14px 12px; }
+.tarjeta .kv dt { font-size: 13px; }
+.tarjeta .kv dd { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.tarjeta .vacio { padding: 28px 12px; }
+.tarjeta .ruta, .ruta { margin: -8px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.rompe { overflow-wrap: anywhere; }
+.fam { list-style: none; margin: 0; padding: 0; }
+.fam li { position: relative; display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 8px 0; }
+.fam li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.fam .txt { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.fam .rel { font-size: 13px; color: var(--muted-foreground); }
+.fam .nm { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fam .sub2 { font-size: 13px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fam.mini li { min-height: 56px; }
+.fam.mini .avatar { width: 36px; height: 36px; font-size: 12px; }
+.enlace { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; padding: 0; border: 0; background: none; color: var(--foreground); font-weight: 600; text-decoration: underline; text-decoration-color: color-mix(in oklab, var(--foreground) 30%, transparent); text-underline-offset: 3px; cursor: pointer; max-width: 100%; }
+.enlace:hover { text-decoration-color: currentColor; }
+.mapa { overflow: hidden; height: 180px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--muted); }
+.mapa svg { display: block; width: 100%; height: 100%; }
+.mapa path { fill: none; stroke: var(--border); stroke-width: 10; }
+.mapa .pin { fill: var(--brand-primary); } .mapa .pin-h { fill: var(--brand-accent-strong); stroke: var(--brand-primary); stroke-width: 1.5; }
+.rango-f { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.rango-f .campo { flex: 1 1 140px; }
+.rango-f .btn { min-height: 44px; }
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kpi { display: grid; gap: 6px; align-content: start; min-width: 0; padding: 12px; border-radius: var(--radius-2xl); background: var(--card); }
+.kpi .k { font-size: 12px; color: var(--muted-foreground); }
+.kpi .v { font-size: 26px; font-weight: 600; line-height: 1; }
+.kpi .v2 { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.barras { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; height: 150px; padding-bottom: 22px; }
+.barras .col { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 0; }
+.barras i { display: block; width: 100%; max-width: 40px; border-radius: 6px 6px 2px 2px; background: var(--c); }
+.barras i[data-t="muted"] { background: var(--muted); }
+.barras small { position: absolute; left: 50%; transform: translateX(-50%); bottom: -22px; font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; }
+[data-t="brand"] { --c: var(--brand-strong); }
+.tend { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--c); background: color-mix(in oklab, var(--c) 12%, transparent); white-space: nowrap; }
+.tend-s { font-weight: 400; color: var(--muted-foreground); }
+.curva { margin: 0; display: grid; gap: 12px; }
+.curva svg { display: block; width: 100%; height: auto; overflow: visible; }
+.curva .g0 { stop-color: var(--brand-strong); stop-opacity: .28; }
+.curva .g1 { stop-color: var(--brand-strong); stop-opacity: 0; }
+.curva .area { fill: url(#curva-g); }
+.curva .linea { fill: none; stroke: var(--brand-strong); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 0; animation: trazo 900ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes trazo { from { stroke-dashoffset: 1; } }
+.curva .guia { stroke: var(--border); stroke-dasharray: 3 5; }
+.curva .eje { fill: var(--muted-foreground); font-size: 12px; font-family: var(--font-sans); }
+.curva .pto { fill: var(--c); stroke: var(--card); stroke-width: 2.5; }
+.curva .pto[data-t="muted"] { fill: var(--muted); stroke: var(--muted-foreground); stroke-width: 1.5; }
+.curva .globo rect { fill: var(--foreground); }
+.curva .globo text { fill: var(--background); font-size: 12px; font-weight: 600; font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+.semanas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
+.semanas li { height: 8px; border-radius: 999px; background: var(--c); }
+.semanas li[data-t="muted"] { background: var(--muted); }
+.semanas li[data-t="none"] { background: transparent; border: 1px dashed var(--border); }
+.asis-nota { margin: 0; }
+.g-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.g-asis { display: grid; gap: 8px; align-content: start; text-align: left; min-height: 44px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-lg, 14px); background: var(--card); color: var(--foreground); font: inherit; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.g-asis:hover { border-color: color-mix(in oklab, var(--foreground) 25%, var(--border)); }
+.g-asis[aria-pressed="true"] { border-color: var(--brand-strong); background: var(--brand-tint, color-mix(in oklab, var(--brand-strong) 8%, var(--card))); }
+.g-asis:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.g-todos { align-content: center; }
+.g-n { font-weight: 600; }
+.g-m { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; }
+.g-v { display: flex; align-items: baseline; gap: 8px; }
+.g-v .num { font-size: 22px; font-weight: 600; }
+.g-s { font-size: 13px; color: var(--muted-foreground); }
+.g-asis .bar { display: block; height: 4px; border-radius: 999px; background: var(--muted); overflow: hidden; }
+.g-asis .bar i { display: block; height: 100%; border-radius: inherit; background: var(--c); }
+.lidera { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 16px; border-radius: var(--radius-lg, 14px); border: 1px solid var(--border); background: var(--card); color: var(--foreground); text-decoration: none; font-size: 14px; }
+.lidera svg { width: 18px; height: 18px; color: var(--brand-strong); flex: none; }
+.lidera span:first-of-type { flex: 1 1 260px; }
+.lidera .ir { font-weight: 600; color: var(--brand-text, var(--brand-strong)); }
+.hist .pasado { color: var(--muted-foreground); font-size: 13px; }
+.asis-tipos { justify-self: start; }
+.g-a { font-size: 12px; color: var(--muted-foreground); }
+.g-taller { cursor: default; }
+.g-taller:hover { border-color: var(--border); }
+@media (max-width: 767px) {
+  .g-lista { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(200px, 72%); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; }
+  .g-lista::-webkit-scrollbar { display: none; }
+  .g-asis { scroll-snap-align: start; }
+}
+@media (prefers-reduced-motion: reduce) { .curva .linea { animation: none; } .g-asis { transition: none; } }
+.hist { list-style: none; margin: 0; padding: 0; }
+.hist li { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+.hist li + li { border-top: 1px solid color-mix(in oklab, var(--border) 60%, transparent); }
+.hist .f { width: 64px; flex: none; font-size: 13px; color: var(--muted-foreground); }
+.hist .g { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rol-g { margin: 0; }
+.fila-rol { display: flex; flex-wrap: wrap; gap: 8px; }
+.fila-rol .sel { flex: 1 1 180px; position: relative; }
+
+/* Panels and dialogs */
+.navbar.detalle:not(.scrolled) .ttl { opacity: 0; }
+.sheet .kv, .kv.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pares { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+@container (min-width: 400px) { .pares { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.meta-h { margin: 4px 0 0; font-size: 14px; color: var(--muted-foreground); }
+.estado-msg { margin: 0; font-size: 14px; color: var(--success-text); } .estado-msg:empty { display: none; }
+.vlist { list-style: none; margin: 0; padding: 0; }
+.vlist li { display: grid; gap: 10px; padding: 14px 0; }
+.vlist li + li { border-top: 1px solid var(--border); }
+.vlist b { display: block; font-size: 15px; font-weight: 500; }
+.vlist small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.dlg { position: fixed; z-index: 80; left: 50%; top: 50%; width: min(420px, calc(100% - 32px)); display: grid; gap: 10px; padding: 22px; border-radius: var(--radius-2xl); border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-sheet); transform: translate(-50%, -46%); opacity: 0; visibility: hidden; transition: opacity var(--duration-normal) var(--ease-out-quint), transform var(--duration-normal) var(--ease-out-quint), visibility 0s linear var(--duration-normal); }
+.dlg.on { opacity: 1; visibility: visible; transform: translate(-50%, -50%); transition-delay: 0s; }
+.dlg:focus { outline: none; }
+.dlg h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.dlg p { margin: 0; font-size: 15px; color: var(--muted-foreground); }
+.dlg-acts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; margin-top: 8px; }
+
+@media (min-width: 768px) {
+  .desk-only { display: flex !important; }
+  .movil-only { display: none !important; }
+  .pager { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; padding: 0; }
+  .seleccion { left: 88px; right: 24px; bottom: 20px; padding: 10px 12px 10px 18px; }
+  .ficha-hero { gap: 18px; padding: 0; }
+  .ficha-hero h1 { font-size: 24px; font-weight: 650; }
+  .avatar.xl { width: 72px; height: 72px; font-size: 22px; }
+  .ficha-tabs { display: inline-flex; justify-self: start; max-width: 100%; }
+  .secciones { gap: 16px; }
+  .tarjeta { padding: 20px 24px; border: 1px solid var(--border); }
+  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .kpi { padding: 16px; border: 1px solid var(--border); }
+  .kpi .v { font-size: 30px; }
+  .rango-f .campo { flex: 0 1 200px; }
+  .barras small { display: block; }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) { .tabla.u { --cols: var(--cols-md); } .tabla.u .oculta-tab { display: none !important; } }
+@media (min-width: 1024px) { .seleccion { left: 304px; right: 48px; } .tabla.u { --cols: var(--cols-lg); } }
+
+/* Editar persona: only recombines the approved ficha CSS above (tokens from design/system.md). */
+.ed-hero { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 0 4px; }
+.ed-hero .txt { flex: 1; min-width: 0; }
+.ed-hero .ojo { margin: 0 0 2px; font-size: 13px; font-weight: 500; color: var(--muted-foreground); }
+.ed-hero h1 { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.15; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.ed-hero h1:focus { outline: none; } .ed-hero h1:focus-visible { outline: 2px solid var(--brand-primary); }
+.foto { position: relative; flex: none; }
+.foto .avatar.xl { overflow: hidden; }
+.foto .avatar.xl svg { width: 100%; height: 100%; display: block; }
+.foto-btn { position: absolute; right: -6px; bottom: -6px; width: 32px; height: 32px; display: grid; place-items: center; border: 2px solid var(--background); border-radius: 9999px; background: var(--brand-strong); color: var(--brand-primary-foreground); cursor: pointer; }
+.foto-btn::after { content: ''; position: absolute; inset: -6px; }
+.foto-btn svg.i { width: 16px; height: 16px; }
+.foto-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.req-nota { margin: -10px 4px 0; font-size: 13px; color: var(--muted-foreground); }
+
+/* Form sections: the ficha Datos tab, with fields instead of values */
+.ed-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.ed-col { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.campos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
+.campos .ancho { grid-column: 1 / -1; }
+.campos .campo { align-content: start; }
+#resumen:empty { display: none; }
+.barra-g .corto { display: none; }
+.campo label .req { color: var(--danger-text); margin-left: 2px; }
+.campo label .mod { display: inline-block; width: 6px; height: 6px; margin: 0 0 2px 6px; border-radius: 9999px; background: var(--brand-primary); vertical-align: middle; }
+.campo input:disabled, .campo select:disabled { opacity: .5; cursor: not-allowed; }
+.campo input::placeholder { color: var(--muted-foreground); }
+.campo input[aria-invalid="true"], .campo select[aria-invalid="true"] { border-color: var(--danger); }
+.campo input[aria-invalid="true"]:focus { box-shadow: 0 0 0 2px color-mix(in oklab, var(--danger) 20%, transparent); }
+.campo input.revisar { border-color: var(--warning); }
+.msg { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: 13px; line-height: 1.35; }
+.msg:empty { display: none; }
+.msg svg.i { width: 16px; height: 16px; margin-top: 1px; }
+.msg.error { color: var(--danger-text); }
+.msg.warn { color: var(--warning-text); }
+.msg.ok { color: var(--muted-foreground); }
+.msg b { font-weight: 600; }
+.sufijo { position: relative; }
+.sufijo input { padding-right: 76px; }
+.sufijo .edad { position: absolute; right: 12px; top: 0; height: 44px; display: flex; align-items: center; font-size: 13px; color: var(--muted-foreground); pointer-events: none; }
+
+/* Form-level notices (AvisoFormulario) */
+.aviso-f { display: grid; gap: 8px; padding: 14px 16px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--danger) 30%, transparent); background: color-mix(in oklab, var(--danger) var(--tinte-estado), transparent); font-size: 14px; }
+.aviso-f h2 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 600; color: var(--danger-text); }
+.aviso-f h2:focus { outline: none; } .aviso-f h2:focus-visible { outline: 2px solid var(--brand-primary); }
+.aviso-f ul { margin: 0; padding: 0 0 0 26px; display: grid; gap: 2px; }
+.aviso-f a { display: inline-flex; align-items: center; min-height: 32px; color: var(--foreground); text-underline-offset: 3px; }
+@media (pointer: coarse) { .aviso-f a { min-height: 44px; } }
+.sugerencia { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: var(--radius-xl); border: 1px solid color-mix(in oklab, var(--info) 30%, transparent); background: color-mix(in oklab, var(--info) 5%, transparent); font-size: 14px; }
+.sugerencia > svg.i { color: var(--info-text); margin-top: 2px; }
+.sugerencia .txt { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.sugerencia b { font-weight: 600; }
+.sugerencia p { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+.usar { display: grid; gap: 2px; justify-items: start; width: calc(100% + 16px); min-height: 44px; margin: 0 -8px; padding: 6px 8px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--foreground); font-size: 14px; text-align: left; cursor: pointer; }
+.usar:hover { background: var(--accent); }
+.usar small { display: flex; gap: 4px; align-items: center; font-size: 13px; color: var(--muted-foreground); }
+.usar small svg.i { width: 14px; height: 14px; }
+
+/* Map with a draggable pin (LocationPicker); coordinates read only */
+.mapa.editable { position: relative; height: 220px; cursor: crosshair; touch-action: none; }
+.mapa.editable:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.mapa.editable .pin-g { transition: transform var(--duration-normal) var(--ease-out-quint); }
+.mapa-pie { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; font-size: 13px; color: var(--muted-foreground); }
+.mapa-pie .num { color: var(--foreground); }
+.mapa-nota { margin: 0; font-size: 13px; color: var(--muted-foreground); }
+
+/* Save bar: the selection-bar surface; appears only with changes */
+.barra-g { justify-content: flex-end; }
+.barra-g .estado-g { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted-foreground); }
+.barra-g .estado-g b { margin: 0; color: var(--foreground); }
+.barra-g .estado-g .d { flex: none; }
+.barra-g .btn { flex: none; }
+.barra-g.con-error .estado-g { color: var(--danger-text); }
+.girando { width: 16px; height: 16px; border-radius: 9999px; border: 2px solid currentColor; border-right-color: transparent; animation: girar .8s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.guardando .ed-grid, .guardando .ed-hero .foto-acts { opacity: .6; }
+
+/* Toast (sonner via useNotificaciones) */
+.toasts { position: fixed; z-index: 90; left: 12px; right: 12px; bottom: calc(160px + env(safe-area-inset-bottom, 0px)); display: grid; justify-items: center; pointer-events: none; }
+.toast { display: flex; align-items: center; gap: 10px; max-width: 420px; padding: 12px 16px; border-radius: var(--radius-xl); border: 1px solid var(--border); background: var(--card); box-shadow: var(--shadow-sheet); font-size: 14px; animation: slide-up-fade 300ms var(--ease-expo) both; pointer-events: auto; }
+.toast svg.i { color: var(--success-text); }
+.toast small { display: block; color: var(--muted-foreground); font-size: 13px; }
+
+/* Photo and password dialogs */
+.opc-foto { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.opc-foto button { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 12px; border: 0; border-radius: var(--radius-xl); background: none; color: var(--foreground); font-size: 16px; text-align: left; cursor: pointer; }
+.opc-foto button:hover { background: var(--accent); }
+.opc-foto button.peligro { color: var(--danger-text); }
+.opc-foto small { display: block; font-size: 13px; color: var(--muted-foreground); }
+.dlg .campo { margin-top: 4px; }
+.sheet .sh-body > h2 { margin: 0; padding-right: 48px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
+.sheet .sh-body > .grab { margin: -8px auto 0; }
+.sheet .sh-body .nota { margin-top: -10px; }
+.dlg .nota, .dlg .msg { font-size: 13px; }
+.dlg .btn.ghost.gen { justify-self: start; margin-left: -12px; color: var(--brand-text); }
+.cuenta-fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+
+@media (min-width: 768px) {
+  .ed-hero { gap: 18px; padding: 0; }
+  .ed-hero h1 { font-size: 24px; font-weight: 650; }
+  .req-nota { margin: -14px 0 0; }
+  .ed-grid { gap: 16px; }
+  .ed-col { gap: 16px; }
+  .campos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 16px; }
+  .campos.cuatro { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .mapa.editable { height: 300px; }
+  .toasts { left: auto; right: 48px; bottom: 96px; justify-items: end; }
+  .barra-g { left: 88px; }
+}
+@media (min-width: 1024px) {
+  .ed-grid.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ed-grid.dos > .ancha { grid-column: 1 / -1; }
+  .barra-g { left: 304px; }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) { .campos.cuatro { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Phone: grouped sections without borders (as the ficha), room for the save bar above the tab bar */
+@media (max-width: 767.98px) {
+  main.editar { padding-bottom: 104px; }
+  .con-barra main.editar { padding-bottom: 176px; }
+  .navbar.editar .ttl { opacity: 1; }
+  .ed-hero .ojo { display: none; }
+  .foto-acts .btn { flex: 1 1 0; }
+  .barra-g { flex-wrap: nowrap; padding: 8px 8px 8px 14px; }
+  .barra-g .estado-g { font-size: 13px; }
+  .barra-g .largo { display: none; }
+  .barra-g .corto { display: inline; }
+  .barra-g .btn { padding: 0 14px; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#contenido">Saltar al contenido</a>
+
+<div class="app" id="app">
+  <nav class="side" id="side" aria-label="Menú principal"></nav>
+
+  <div class="content">
+    <header class="header">
+      <nav class="crumbs" aria-label="Ruta"><ol id="crumbs"></ol></nav>
+      <button type="button" class="h-icon campana" id="h-campana" aria-label="Notificaciones, 3 sin leer"><svg class="i" viewBox="0 0 24 24" style="width:20px;height:20px" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="count" aria-hidden="true">3</span></button>
+      <button type="button" class="me" id="me"><span aria-hidden="true" id="me-ini"></span><span class="sr" id="me-lbl"></span></button>
+    </header>
+
+    <nav class="navbar editar" id="navbar" aria-label="Barra de navegación">
+      <button type="button" class="back" id="nav-back" data-salir="ficha" aria-label="Volver a la ficha"><svg class="i" viewBox="0 0 24 24" style="width:24px;height:24px" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg><span aria-hidden="true">Ficha</span></button>
+      <p class="ttl" id="nav-title">Editar persona</p>
+      <span class="actions"></span>
+    </nav>
+
+    <main id="contenido" class="editar"></main>
+  </div>
+</div>
+
+<nav class="tabbar" id="tabbar" aria-label="Navegación inferior"></nav>
+
+<!-- Save bar: appears only while there are unsaved changes; above the tab bar on phones. -->
+<section class="seleccion barra-g" id="barra" aria-label="Cambios sin guardar" hidden></section>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<details class="opciones" id="opciones">
+  <summary><svg class="i" viewBox="0 0 24 24" style="width:16px;height:16px" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg><span class="lbl-op">Opciones del prototipo</span></summary>
+  <div class="panel">
+    <p>Controles para revisar el diseño; no forman parte de la pantalla. Todos los que pueden editar a la persona ven los mismos campos (puede_editar_usuario). Solo el administrador ve «Cuenta y acceso».</p>
+    <div class="fila-op"><label for="op-visor">Quién edita</label>
+      <div class="sel plain"><select id="op-visor">
+        <option value="admin">Administrador del sistema</option>
+        <option value="pastor">Pastor de campus · Barquisimeto</option>
+        <option value="lider">Líder · Familias Unidas</option>
+        <option value="self">La persona misma (Mi perfil)</option>
+      </select><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></div></div>
+    <div class="fila-op"><span id="op-est">Estado del formulario</span>
+      <div class="seg" role="group" aria-labelledby="op-est" style="flex-wrap:wrap">
+        <button type="button" data-estado="limpio" aria-pressed="true">Limpio</button><button type="button" data-estado="cambios" aria-pressed="false">Con cambios</button><button type="button" data-estado="errores" aria-pressed="false">Con errores</button><button type="button" data-estado="guardando" aria-pressed="false">Guardando</button>
+      </div></div>
+    <div class="fila-op"><span id="op-dir">Dirección</span>
+      <div class="seg" role="group" aria-labelledby="op-dir">
+        <button type="button" data-dir="guardada" aria-pressed="true">Guardada</button><button type="button" data-dir="sugerencia" aria-pressed="false">Sin dirección</button>
+      </div></div>
+    <div class="fila-op"><span id="op-tema">Tema</span>
+      <div class="seg" role="group" aria-labelledby="op-tema">
+        <button type="button" data-tema="" aria-pressed="true">Sistema</button><button type="button" data-tema="claro" aria-pressed="false">Claro</button><button type="button" data-tema="oscuro" aria-pressed="false">Oscuro</button>
+      </div></div>
+  </div>
+</details>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="hoja" role="dialog" aria-modal="true" aria-labelledby="hoja-t" tabindex="-1"></div>
+<div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-t" tabindex="-1"></div>
+
+<script>
+// ── Sample data: people of the Barquisimeto and Cabudare campuses (usuarios + usuario_campus + grupo_miembros). ──
+const HOY = '2026-10-29';
+const CAMPUS = { bqto: 'Barquisimeto', cab: 'Cabudare' };
+// System roles (roles_sistema), highest first. Role tags are neutral: a role is not a status.
+const ROLES_SIS = { admin: 'Administrador', pastor: 'Pastor', 'director-general': 'Director general', 'director-etapa': 'Director de etapa', lider: 'Líder', miembro: 'Miembro' };
+const CUENTA = { si: { l: 'Con cuenta', t: 'success' }, invitada: { l: 'Invitación enviada', t: 'info' }, no: { l: 'Sin cuenta', t: 'warning' } };
+const ETAPAS = { activo: { l: 'Activo', t: 'success' }, en_pausa: { l: 'En pausa', t: 'muted' }, en_orientacion: { l: 'En orientación', t: 'info' }, postulado: { l: 'Postulado', t: 'warning' } };
+const GRUPOS = {
+  g1: { nombre: 'Familias Unidas', lider: 'Fernando Ramos', campus: 'bqto', cuando: 'Martes 7:30 pm', segmento: 'Matrimonios', zona: 'Urb. El Obelisco' },
+  g2: { nombre: 'Hombres de Valor', lider: 'Fernando Ramos', campus: 'bqto', cuando: 'Jueves 7:00 pm', segmento: 'Hombres', zona: 'Av. Lara' },
+  g3: { nombre: 'Mujeres de Fe', lider: 'María Fernanda Colmenárez', campus: 'bqto', cuando: 'Miércoles 6:30 pm', segmento: 'Mujeres', zona: 'Santa Rosa' },
+  g4: { nombre: 'Renuevo', lider: 'Kelvin Mujica', campus: 'cab', cuando: 'Viernes 7:00 pm', segmento: 'Jóvenes', zona: 'Valle Hondo' },
+  g5: { nombre: 'Generación Fuego', lider: 'Daniela Crespo', campus: 'bqto', cuando: 'Sábado 5:00 pm', segmento: 'Jóvenes', zona: 'Patarata' },
+  g6: { nombre: 'Casa de Paz', lider: 'Gerardo Pernalete', campus: 'cab', cuando: 'Martes 7:00 pm', segmento: 'Familias', zona: 'La Piedad' },
+  g7: { nombre: 'Luz del Este', lider: 'Mariela Querales', campus: 'bqto', cuando: 'Lunes 7:00 pm', segmento: 'Familias', zona: 'Zona Este' },
+};
+
+// Hand-written people (full ficha) first; the rest is generated deterministically below.
+// [nombre, apellido, cédula, teléfono, email, rol, campus, grupos [[id, rol]], cuenta, registro, h]
+const BASE = [
+  ['María Fernanda', 'Colmenárez', '18456789', '0414 552 3108', 'mafe.colmenarez@gmail.com', 'lider', 'bqto', [['g3', 'Líder'], ['g1', 'Miembro']], 'si', '2021-03-14', 1],
+  ['Luis', 'Barrios', '27112430', '0424 831 126', null, 'miembro', 'bqto', [['g1', 'Miembro']], 'no', '2026-10-26', 4],
+  ['José Gregorio', 'Pérez', '16330981', '0412 507 4471', 'josegpz@hotmail.com', 'miembro', 'bqto', [['g1', 'Miembro']], 'si', '2021-03-14', 2],
+  ['Fernando', 'Ramos', '15998127', '0412 545 7346', 'fernando.ramos@gmail.com', 'lider', 'bqto', [['g1', 'Líder'], ['g2', 'Líder']], 'si', '2019-08-02', 3],
+  ['Yelitza', 'Torrealba', '13887562', '0416 650 2291', 'yelitza.t@gmail.com', 'director-etapa', 'bqto', [['g3', 'Miembro']], 'si', '2018-05-20', 5],
+  ['Kelvin', 'Mujica', '24661007', '0424 118 9033', 'kelvinmujica@gmail.com', 'lider', 'cab', [['g4', 'Líder']], 'si', '2022-01-09', 1],
+  ['Daniela', 'Crespo', '28401652', '0414 222 9087', 'dani.crespo@gmail.com', 'lider', 'bqto', [['g5', 'Líder']], 'invitada', '2024-02-11', 2],
+  ['Gerardo', 'Pernalete', '12554318', '0251 261 4420', null, 'lider', 'cab', [['g6', 'Líder']], 'si', '2017-11-30', 3],
+  ['Mariela', 'Querales', '14220876', '0426 300 1144', 'mquerales@gmail.com', 'lider', 'bqto', [['g7', 'Líder']], 'si', '2020-06-21', 4],
+  ['Ramón', 'Arrieche', '9876543', '0414 990 1122', 'pastor.ramon@globalconnect.org', 'pastor', 'bqto', [], 'si', '2016-01-10', 5],
+  ['Andreína', 'Linárez', '20117384', '0412 616 6161', 'andreina.linarez@gmail.com', 'director-general', 'bqto', [], 'si', '2018-09-15', 1],
+  ['Wilmer', 'Yépez', '19334520', null, null, 'miembro', 'bqto', [], 'no', '2026-10-27', 2],
+  ['Oriana', 'Camacaro', '30551209', '0424 909 1111', 'oriana.cama@gmail.com', 'miembro', 'bqto', [], 'invitada', '2026-10-24', 3],
+  ['Freddy', 'Sequera', '17220045', '0414 141 4141', null, 'miembro', 'cab', [['g6', 'Miembro']], 'no', '2023-04-02', 4],
+  ['Nathaly', 'Piña', '29880341', '0412 121 2121', 'nathy.pina@gmail.com', 'miembro', 'bqto', [['g1', 'Miembro']], 'si', '2025-11-03', 5],
+  ['Edgar', 'Riera', '11220398', '0251 254 8810', 'edgar.riera@gmail.com', 'miembro', 'bqto', [['g2', 'Miembro']], 'si', '2019-02-17', 1],
+  ['Lisbeth', 'Rodríguez', '23998102', null, 'lisbeth.rdz@gmail.com', 'miembro', 'bqto', [['g1', 'Miembro']], 'si', '2022-07-24', 2],
+  ['Jhonny', 'Alvarado', '25443871', '0424 610 2299', null, 'miembro', 'bqto', [['g2', 'Miembro']], 'no', '2026-10-23', 3],
+  ['Marcos', 'Rivas', '14556002', '0414 702 3388', 'marcos.rivas@gmail.com', 'admin', 'bqto', [], 'si', '2016-01-10', 4],
+];
+const NOMBRES = ['Yusneidy', 'Edwin', 'Rosmary', 'Jean Carlos', 'Mayerling', 'Wuilmer', 'Neida', 'Deivis', 'Carmen Elena', 'Albert', 'Iraida', 'Tomás', 'Hilda', 'Abraham', 'Johana', 'Carlos Eduardo', 'Yusmary', 'Rosangela', 'Jesús Alberto', 'Mariángel', 'Héctor', 'Génesis', 'Rafael', 'Dayana', 'Pedro Luis', 'Yorbelis', 'Alexander', 'Karla', 'Wilfredo', 'Anabel', 'Douglas', 'Maryori', 'Javier', 'Belkis', 'Ronald', 'Francys', 'Gustavo', 'Zuleima', 'Leonardo', 'Milagros', 'Ender', 'Yamileth', 'Néstor', 'Eliana', 'Orlando'];
+const APELLIDOS = ['Suárez', 'Escalona', 'Giménez', 'Mendoza', 'Yépez', 'Pernalete', 'Torres', 'Álvarez', 'Castillo', 'Sánchez', 'Mujica', 'Querales', 'Piña', 'Colmenárez', 'Linárez', 'Riera', 'Arrieche', 'Camacaro', 'Lucena', 'Gil', 'Peraza', 'Daza', 'Oviedo', 'Montes', 'Vargas', 'Freitez'];
+// Deterministic hash per person and field, so the sample is varied but identical on every load.
+const hsh = (i, k) => { let x = (i + 1) * 2654435761 ^ k * 40503; x = Math.imul(x ^ (x >>> 15), 2246822507); x = Math.imul(x ^ (x >>> 13), 3266489909); return ((x ^ (x >>> 16)) >>> 0) % 1000; };
+const GEN = Array.from({ length: 129 }, (_, i) => {
+  const n = NOMBRES[hsh(i, 1) % NOMBRES.length], a = APELLIDOS[hsh(i, 2) % APELLIDOS.length], a2 = APELLIDOS[hsh(i, 3) % APELLIDOS.length];
+  const campus = hsh(i, 4) < 340 ? 'cab' : 'bqto';
+  const gIds = Object.keys(GRUPOS).filter(g => GRUPOS[g].campus === campus);
+  const grupos = hsh(i, 5) < 580 ? [[gIds[hsh(i, 6) % gIds.length], 'Miembro']] : [];
+  const rol = hsh(i, 7) < 60 ? 'lider' : hsh(i, 7) < 75 ? 'director-etapa' : 'miembro';
+  const cuenta = hsh(i, 8) < 230 ? 'no' : hsh(i, 8) < 290 ? 'invitada' : 'si';
+  const tel = hsh(i, 9) < 140 ? null : `04${['14', '24', '12', '16', '26'][hsh(i, 10) % 5]} ${String(100 + hsh(i, 11) % 900)} ${String(1000 + hsh(i, 12) * 9 % 9000)}`;
+  const email = hsh(i, 13) < 200 ? null : `${n.split(' ')[0]}.${a}${i % 4 ? '' : i}@gmail.com`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const reg = i < 4 ? `2026-10-${String(28 - i * 2).padStart(2, '0')}` : `20${String(17 + (i % 9)).padStart(2, '0')}-${String(1 + (i % 12)).padStart(2, '0')}-${String(1 + (i * 3) % 27).padStart(2, '0')}`;
+  return [n, `${a} ${a2}`, String(10000000 + (i * 1234567) % 21000000), tel, email, rol, campus, grupos, cuenta, reg, (i % 5) + 1];
+});
+const PEOPLE = [...BASE, ...GEN].map(([nombre, apellido, ced, tel, email, rol, campus, grupos, cuenta, registro, h], i) => ({
+  id: 'u' + i, nombre, apellido, completo: `${nombre} ${apellido}`, cedula: 'V-' + Number(ced).toLocaleString('es-VE'), cedRaw: ced,
+  tel, email, rol, campus, grupos, cuenta, registro, h,
+  // Venezuelan numbers: 11 digits starting with 0, or international with +. Anything else needs review.
+  telInvalido: !!tel && !/^(\+\d{8,15}|0\d{10})$/.test(tel.replace(/[\s-]/g, '')),
+}));
+const P = id => PEOPLE.find(p => p.id === id);
+const porNombre = n => PEOPLE.find(p => p.completo === n);
+
+// Full ficha data for the hand-written people (obtener_detalle_usuario + relations + report + Dream Team).
+const FICHAS = {
+  u0: { genero: 'Femenino', civil: 'Casada', nac: '1988-04-17', ocupacion: 'Empleada', profesion: 'Contadora pública',
+    dir: { pais: 'Venezuela', estado: 'Lara', municipio: 'Iribarren', parroquia: 'Santa Rosa', calle: 'Calle 3 entre carreras 2 y 3', barrio: 'Urb. Santa Rosa', cp: '3001', ref: 'Frente a la plaza, casa de rejas blancas', mapa: true },
+    familia: [['u2', 'Esposo', true], ['x1', 'Hija', false], ['x2', 'Madre', false]],
+    servicios: [['Bienvenida', 'Dream Team · The Living Room', 'Anfitriona', 'activo', 'Domingo 9:00'], ['Waumba Land', 'Dream Team · Dirección de Niños', 'Voluntaria', 'en_pausa', 'Domingo 11:00']],
+    asistencia: { porGrupo: [
+      { g: 'g3', rol: 'Líder', actual: true, serie: [100, 100, 100, 100, 100, 0, 100, 100, 100, 100, 100, 100] },
+      { g: 'g1', rol: 'Miembro', actual: true, serie: [100, 100, 0, 100, 100, 100, 0, 100, 100, 100, 100, 100] },
+      { g: 'g5', rol: 'Miembro', actual: false, salio: '2026-08-18', serie: [100, 0, null, null, null, null, null, null, null, null, null, null] }],
+      talleres: [{ nombre: 'Escuela de Líderes · Nivel 2', grupo: 'Martes 7:00 pm', total: 8, completado: false, sesiones: [['2026-09-08', 1], ['2026-09-15', 1], ['2026-09-22', 0], ['2026-09-29', 1], ['2026-10-06', 1], ['2026-10-13', 1]] },
+        { nombre: 'Fundamentos', grupo: 'Sábado 9:00 am', total: 4, completado: true, sesiones: [['2026-08-01', 1], ['2026-08-08', 1], ['2026-08-15', 1], ['2026-08-22', 1]] }] },
+    desde: { g3: '2024-03-06', g1: '2022-01-18' } },
+  u1: { genero: 'Masculino', civil: 'Soltero', nac: '2001-09-02', ocupacion: 'Estudiante', profesion: null, dir: null, familia: [], servicios: [],
+    asistencia: { porGrupo: [
+      { g: 'g1', rol: 'Miembro', actual: true, serie: [null, null, null, null, null, null, null, null, null, null, 100, 0] },
+      { g: 'g2', rol: 'Miembro', actual: false, salio: '2026-10-06', serie: [100, 100, 0, 100, 100, 0, 100, 0, null, null, null, null] },
+      { tipo: 'est', g: 'e1', area: 'The Living Room · Grupos de Chicos', nombre: 'Universitarios Zona Este', rol: 'Miembro', actual: true, desde: '2026-09-04', visitas: [3, 4, 5], serie: [null, null, null, 100, 100, 0, 100, 100, 100, 0, 100, 100] }] }, desde: { g1: '2026-10-27' } },
+};
+const EXTERNOS = { x1: { completo: 'Valentina Pérez Colmenárez', tel: null, email: null, h: 3, edad: 12 }, x2: { completo: 'Carmen Colmenárez', tel: '0251 252 3390', email: null, h: 5, edad: 64 } };
+// Fichas without hand-written data get neutral defaults (the page never invents values: it says "No especificado").
+const fichaDe = p => FICHAS[p.id] || { genero: null, civil: null, nac: null, ocupacion: null, profesion: null, dir: null, familia: [], servicios: [],
+  asistencia: p.grupos.length ? { pct: 72, grupos: p.grupos.length, frecuente: GRUPOS[p.grupos[0][0]].nombre, ultima: '2026-10-20', serie: [100, 0, 100, 100, 0, 100, 100, 100, 100, 0, 100, 100] } : null, desde: {} };
+
+// Signups matched by cédula to a ficha with a service role (listarVinculosPendientes): masked by the server.
+const VINCULOS = [
+  { id: 'v1', nombre: 'Ma*** Co*******', cedula: '18.***.789', correo: 'mafe.colmenarez@gmail.com', cuando: 'hace 2 horas' },
+  { id: 'v2', nombre: 'Ke**** Mu****', cedula: '24.***.007', correo: 'k.mujica.cab@gmail.com', cuando: 'ayer' },
+];
+
+// Who is looking (Opciones del prototipo). The server decides; the screen only hides what they cannot do.
+// verTodo: admin sees every campus; the pastor de campus sees all of their campus; the líder sees the members of their groups.
+const VISORES = {
+  admin: { nombre: 'Marcos Rivas', ini: 'MR', h: 4, cargo: 'Administrador del sistema', campus: null, crear: true, editarTodo: true, llamar: true, cambiarRol: true, vinculos: true, contrasena: true },
+  pastor: { nombre: 'Ramón Arrieche', ini: 'RA', h: 5, cargo: 'Pastor de campus · Barquisimeto', campus: 'bqto', crear: true, editarTodo: true, llamar: true, cambiarRol: false, vinculos: true, contrasena: false },
+  lider: { nombre: 'Fernando Ramos', ini: 'FR', h: 3, cargo: 'Líder · Familias Unidas y Hombres de Valor', campus: 'bqto', grupos: ['g1', 'g2'], crear: false, editarTodo: false, llamar: false, cambiarRol: false, vinculos: false, contrasena: false },
+};
+
+// ── Helpers ──
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ini = n => n.split(' ').filter(Boolean).filter((w, i, a) => i === 0 || i === a.length - 1 || a.length < 3).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+const iniP = p => (p.nombre[0] + p.apellido[0]).toUpperCase();
+const norm = s => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const plural = (n, uno, varios) => `${n.toLocaleString('es-VE')} ${n === 1 ? uno : varios}`;
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+const fecha = iso => { if (!iso) return null; const [a, m, d] = iso.split('-'); return `${+d} ${MESES[+m - 1]} ${a}`; };
+const edad = iso => { const [a, m, d] = iso.split('-').map(Number), [ha, hm, hd] = HOY.split('-').map(Number); return ha - a - (hm < m || (hm === m && hd < d) ? 1 : 0); };
+const svg = (d, size = 18) => `<svg class="i" viewBox="0 0 24 24" style="width:${size}px;height:${size}px" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  chev: svg('<path d="m9 6 6 6-6 6"/>', 16), chevIzq: svg('<path d="m15 6-6 6 6 6"/>', 24), x: svg('<path d="M18 6 6 18M6 6l12 12"/>', 16),
+  filtros: svg('<path d="M3 5h18M6 12h12M10 19h4"/>', 22), mas: svg('<path d="M12 5v14M5 12h14"/>', 16),
+  wa: svg('<path d="M21 12a9 9 0 0 1-13.5 7.8L3 21l1.3-4.4A9 9 0 1 1 21 12Z"/>'),
+  phone: svg('<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2Z"/>'),
+  mail: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>'),
+  edit: svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+  agregar: svg('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>', 16),
+  link: svg('<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>'),
+  check: svg('<path d="M20 6 9 17l-5-5"/>', 16), trash: svg('<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>'),
+  grupo: svg('<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/>'),
+  lock: svg('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+  pin: svg('<path d="M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12Z"/><circle cx="12" cy="9" r="2.5"/>'),
+  chart: svg('<path d="M3 3v18h18"/><path d="M7 15v2M11 11v6M15 7v10M19 12v5"/>'),
+  vacio: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></svg>',
+  personas: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></svg>',
+  chevDown: '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+};
+const NAV = {
+  inicio: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/>',
+  unoauno: '<path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>',
+  gdv: '<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/>',
+  ninos: '<path d="M9 12h.01M15 12h.01M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5"/><path d="M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1"/>',
+  talleres: '<path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/>',
+  equipo: '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/>',
+  usuarios: '<circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 10.5-7.6"/><circle cx="18" cy="18" r="3"/><path d="M18 13.5V15M18 21v1.5M22.5 18H21M15 18h-1.5"/>',
+  config: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  soporte: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m5.6 5.6 3.6 3.6M14.8 14.8l3.6 3.6M14.8 9.2l3.6-3.6M5.6 18.4l3.6-3.6"/>',
+  novedades: '<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  ayuda: '<circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>',
+  campus: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01"/>',
+  chevAbajo: '<path d="m6 9 6 6 6-6"/>', mas: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>',
+};
+const nav = (k, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" aria-hidden="true">${NAV[k]}</svg>`;
+const punto = (t, l, extra = '') => `<span class="estado ${extra}"><span class="d" data-t="${t}" aria-hidden="true"></span><span class="lbl">${esc(l)}</span></span>`;
+const avatar = (p, cls = '') => `<span class="avatar ${cls}" data-h="${p.h}" aria-hidden="true">${p.nombre ? iniP(p) : ini(p.completo)}</span>`;
+
+// ── Editar persona (/users/[id]/edit). Data, helpers, ICON and NAV above come from the approved ficha (artboard 03). ──
+VISORES.self = { nombre: 'María Fernanda Colmenárez', ini: 'MC', h: 1, cargo: 'Líder · Mujeres de Fe', campus: 'bqto', grupos: ['g3'], crear: false, editarTodo: false, llamar: false, cambiarRol: false, vinculos: false, contrasena: false };
+VISORES.lider.cargo = 'Líder · Familias Unidas y Hombres de Valor';
+// The ficha section card (artboard 03 defines it after the part reused here).
+const tarjeta = (titulo, cuerpo, accion = '', cls = '') => `<section class="tarjeta ${cls}" aria-labelledby="t-${titulo.replace(/\W/g, '')}"><div class="t-h"><h2 id="t-${titulo.replace(/\W/g, '')}">${titulo}</h2>${accion}</div>${cuerpo}</section>`;
+Object.assign(ICON, {
+  camara: svg('<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="3"/>'),
+  subir: svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>'),
+  alerta: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>', 16),
+  idea: svg('<path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z"/>'),
+  ok: svg('<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>'),
+  llave: svg('<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>'),
+  centrar: svg('<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>', 16),
+});
+
+// Catalogs (ocupaciones, profesiones, paises → estados → municipios → parroquias), ordered by name as the page reads them.
+const OCUPACIONES = ['Ama de casa', 'Comerciante', 'Empleada', 'Estudiante', 'Independiente', 'Jubilado'];
+const PROFESIONES = ['Administración', 'Contadora pública', 'Docencia', 'Enfermería', 'Ingeniería', 'Medicina', 'Psicología'];
+const GEO = {
+  Venezuela: { Lara: { Iribarren: ['Aguedo Felipe Alvarado', 'Buena Vista', 'Catedral', 'Concepción', 'El Cují', 'Juan de Villegas', 'Juárez', 'Santa Rosa', 'Tamaca', 'Unión'],
+    Palavecino: ['Agua Viva', 'Cabudare', 'José Gregorio Bastidas'], Torres: ['Trinidad Samuel', 'Antonio Díaz', 'Camacaro'], Jiménez: ['Juan Bautista Rodríguez', 'Cuara'] },
+    Yaracuy: { 'San Felipe': ['San Felipe', 'Albarico', 'San Javier'] }, Portuguesa: { Guanare: ['Guanare', 'Córdoba'] } },
+  Colombia: { Norte: { 'Cúcuta': ['Centro'] } },
+};
+// Map centers used when the location changes (geocodeAddress; Iribarren has a fixed center in UserEditForm).
+const CENTROS = { Iribarren: [10.0787, -69.2849], Palavecino: [10.0294, -69.2213], 'Santa Rosa': [10.0612, -69.3121], Cabudare: [10.0294, -69.2635] };
+const ESTADO_CIVIL = ['Soltero', 'Casado', 'Divorciado', 'Viudo', 'No especificado'];
+const civilEtiqueta = (v, genero) => genero === 'Femenino' && v !== 'No especificado' ? v.replace(/o$/, 'a') : v;
+
+// Values as the page loads them (usuarios + direcciones). Cédula and phone are stored canonical.
+const ORIGINAL = {
+  nombre: 'María Fernanda', apellido: 'Colmenárez', cedula: '18456789', nac: '1988-04-17', genero: 'Femenino', civil: 'Casado',
+  ocupacion: 'Empleada', profesion: 'Contadora pública', telefono: '04145523108', email: 'mafe.colmenarez@gmail.com',
+  pais: 'Venezuela', estado: 'Lara', municipio: 'Iribarren', parroquia: 'Santa Rosa', calle: 'Calle 3 entre carreras 2 y 3', barrio: 'Urb. Santa Rosa',
+  cp: '3001', ref: 'Frente a la plaza, casa de rejas blancas', lat: 10.0612, lng: -69.3121,
+};
+const SIN_DIRECCION = { pais: '', estado: '', municipio: '', parroquia: '', calle: '', barrio: '', cp: '', ref: '', lat: null, lng: null };
+// Suggestion from a relative with an address (obtenerSugerenciasDireccionFamiliar): her husband, José Gregorio Pérez.
+const SUGERENCIA = { relacion: 'Cónyuge', nombre: 'José Gregorio Pérez', dir: { pais: 'Venezuela', estado: 'Lara', municipio: 'Iribarren', parroquia: 'Santa Rosa', calle: 'Calle 3 entre carreras 2 y 3', barrio: 'Urb. Santa Rosa', cp: '3001', ref: 'Frente a la plaza, casa de rejas blancas', lat: 10.0612, lng: -69.3121 } };
+
+const ed = { visor: 'pastor', base: { ...ORIGINAL }, v: { ...ORIGINAL }, errores: {}, servidor: {}, tocados: new Set(), guardando: false, intento: false, foto: false, dirModo: 'guardada', mapaNota: '' };
+const persona = () => P('u0');
+const esSelf = () => ed.visor === 'self';
+
+// ── Rules: the same Venezuelan phone and cédula rules as lib/utils/telefono.ts and lib/utils/cedula.ts ──
+const MOVIL = '(?:412|414|416|422|424|426)';
+const REGLAS_TEL = [
+  [new RegExp(`^0${MOVIL}\\d{7}$`), d => d], [new RegExp(`^${MOVIL}\\d{7}$`), d => `0${d}`], [new RegExp(`^58${MOVIL}\\d{7}$`), d => `0${d.slice(2)}`],
+  [new RegExp(`^580${MOVIL}\\d{7}$`), d => d.slice(2)], [new RegExp(`^0058${MOVIL}\\d{7}$`), d => `0${d.slice(4)}`], [/^02\d{2}\d{7}$/, d => d], [/^582\d{2}\d{7}$/, d => `0${d.slice(2)}`],
+];
+function normalizarTelefono(v) {
+  const l = String(v ?? '').trim(); if (!l || !/^\+?[0-9 \u00A0.()-]+$/.test(l)) return l;
+  const d = l.replace(/\D/g, ''); for (const [re, f] of REGLAS_TEL) if (re.test(d)) return f(d);
+  return l;
+}
+const esTelefonoReconocible = v => { const c = normalizarTelefono(v); return new RegExp(`^0${MOVIL}\\d{7}$`).test(c) || /^02\d{2}\d{7}$/.test(c); };
+const formatearTelefono = v => { if (!esTelefonoReconocible(v)) return v; const c = normalizarTelefono(v); return `${c.slice(0, 4)} ${c.slice(4, 7)} ${c.slice(7)}`; };
+function normalizarCedula(v) {
+  const l = String(v ?? '').trim(); if (!l) return l;
+  const k = l.replace(/[\s\u00A0.\-]/g, '').toUpperCase(), m = /^V?(\d{6,8})$/.exec(k);
+  return m ? m[1] : /^E\d{6,9}$/.test(k) ? k : l;
+}
+const esCedulaReconocible = v => /^(\d{6,8}|E\d{6,9})$/.test(normalizarCedula(v));
+const formatearCedula = v => { const c = normalizarCedula(v); return /^\d{6,8}$/.test(c) ? Number(c).toLocaleString('es-VE') : /^E\d+$/.test(c) ? `E-${c.slice(1)}` : v; };
+
+// Client checks (zod in UserEditForm + the decisions of this design). Warnings never block saving.
+function validar(v) {
+  const e = {}, w = {};
+  if (v.nombre.trim().length < 2) e.nombre = 'El nombre debe tener al menos 2 caracteres.';
+  if (v.apellido.trim().length < 2) e.apellido = 'El apellido debe tener al menos 2 caracteres.';
+  if (v.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.email.trim())) e.email = 'Escribe un email válido, como nombre@gmail.com.';
+  if (v.nac && v.nac > HOY) e.nac = 'La fecha de nacimiento no puede ser posterior a hoy.';
+  // The address is optional as a whole: the street is required only once any other address field is filled.
+  const conDireccion = ['estado', 'municipio', 'parroquia', 'barrio', 'cp', 'ref'].some(k => String(v[k] ?? '').trim());
+  if (conDireccion && !v.calle.trim()) e.calle = 'Escribe la calle para guardar la dirección.';
+  if (v.cedula.trim() && !esCedulaReconocible(v.cedula)) w.cedula = 'No parece una cédula venezolana (6 a 8 dígitos) ni extranjera (E y 6 a 9 dígitos). Se guardará tal cual.';
+  if (v.telefono.trim() && !esTelefonoReconocible(v.telefono)) w.telefono = `<b>Revisar teléfono:</b> «${esc(v.telefono.trim())}» no parece un número venezolano, así que WhatsApp no funcionará. Si es extranjero, puedes guardarlo así.`;
+  return { e: { ...e, ...ed.servidor }, w };
+}
+const CAMPOS = ['nombre', 'apellido', 'cedula', 'nac', 'genero', 'civil', 'ocupacion', 'profesion', 'telefono', 'email', 'pais', 'estado', 'municipio', 'parroquia', 'calle', 'barrio', 'cp', 'ref', 'lat'];
+const igual = (k, a, b) => k === 'telefono' ? normalizarTelefono(a) === normalizarTelefono(b) : k === 'cedula' ? normalizarCedula(a) === normalizarCedula(b) : String(a ?? '') === String(b ?? '');
+const cambios = () => CAMPOS.filter(k => !igual(k, ed.v[k], ed.base[k]));
+const ETIQUETAS = { nombre: 'Nombre', apellido: 'Apellido', cedula: 'Cédula', nac: 'Fecha de nacimiento', email: 'Email', telefono: 'Teléfono', calle: 'Calle' };
+
+// ── Shell (sidebar, header, tab bar): the ficha shell; Usuarios stays current, «Mi perfil» has no sidebar entry ──
+const mqTablet = matchMedia('(min-width: 768px) and (max-width: 1023.98px)');
+const esEscritorio = () => matchMedia('(min-width: 768px)').matches;
+function renderShell() {
+  const riel = mqTablet.matches, v = VISORES[ed.visor], corto = ed.visor === 'lider' || esSelf();
+  $('#app').classList.toggle('rail', riel);
+  const a = (k, l, cur = false) => `<li><a href="#" class="it" data-salir="nav"${cur ? ' aria-current="page"' : ''}>${nav(k)}<span class="lbl">${l}</span></a></li>`;
+  const campusSel = v.campus ? `<option>${CAMPUS[v.campus]}</option>` : `<option value="">Todos los campus</option>${Object.entries(CAMPUS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}`;
+  $('#side').innerHTML = `<div class="s-top"><div class="logo"><i aria-hidden="true"></i><span class="${riel ? 'sr' : ''}">Global Connect</span></div></div>
+    ${riel ? `<button type="button" class="s-icon s-campus" style="width:100%" aria-label="Campus: ${v.campus ? CAMPUS[v.campus] : 'Todos'}">${nav('campus')}</button>`
+      : `<div class="sel s-campus"><label class="sr" for="campus">Campus</label>${nav('campus', 'ic')}<select id="campus">${campusSel}</select>${nav('chevAbajo', 'ch')}</div>`}
+    <div class="s-scroll">
+      <div class="s-sec"><ul class="s-list">${a('inicio', 'Inicio')}${a('unoauno', 'Mis 1 a 1')}</ul></div>
+      <div class="s-sec" role="group" aria-labelledby="sec-min"><h2 id="sec-min">Ministerios</h2><ul class="s-list">${a('gdv', 'Grupos de Vida')}${corto ? '' : a('ninos', 'Niños')}${a('talleres', 'Talleres')}</ul></div>
+      ${corto ? '' : `<div class="s-sec"><ul class="s-list">${a('equipo', 'Dream Team')}</ul></div>`}
+      <div class="s-sec" role="group" aria-labelledby="sec-adm"><h2 id="sec-adm">Administración</h2><ul class="s-list">${a('usuarios', 'Usuarios', !esSelf())}${ed.visor === 'admin' ? a('config', 'Configuración') + a('soporte', 'Cola de soporte') : ''}</ul></div>
+    </div>
+    <div class="s-pie"><ul class="s-list">${a('novedades', 'Actualizaciones')}${a('ayuda', 'Ayuda')}</ul></div>`;
+  $('#me-ini').textContent = v.ini; $('#me-lbl').textContent = `Tu cuenta: ${v.nombre}`;
+  const tabs = corto ? [['inicio', 'Inicio'], ['gdv', 'Grupos'], ['talleres', 'Talleres'], ['ayuda', 'Ayuda']] : [['inicio', 'Inicio'], ['gdv', 'Grupos'], ['ninos', 'Niños'], ['equipo', 'Equipo']];
+  $('#tabbar').innerHTML = tabs.map(([k, l]) => `<a href="#" data-salir="nav">${nav(k)}<span>${l}</span></a>`).join('') + `<a href="#" data-salir="nav" aria-current="page">${nav('mas')}<span>Más</span></a>`;
+  const p = persona();
+  $('#crumbs').innerHTML = esSelf()
+    ? `<li><button type="button" data-salir="ficha">Mi perfil</button></li><li><span aria-current="page">Editar mis datos</span></li>`
+    : `<li><button type="button" data-salir="lista">Usuarios</button></li><li><button type="button" data-salir="ficha">${esc(p.completo)}</button></li><li><span aria-current="page">Editar</span></li>`;
+  const nb = $('#nav-back'); nb.querySelector('span').textContent = esSelf() ? 'Perfil' : 'Ficha';
+  nb.setAttribute('aria-label', esSelf() ? 'Volver a Mi perfil' : 'Volver a la ficha');
+  $('#nav-title').textContent = esSelf() ? 'Editar mis datos' : 'Editar persona';
+}
+
+// ── Fields: labelled inputs with one message line (error › warning › hint), ARIA wired ──
+const marca = k => `<span class="mod" data-mod="${k}" hidden></span><span class="sr" data-mod-sr="${k}" hidden> (modificado)</span>`;
+function input(k, label, o = {}) {
+  const ayuda = o.ayuda ? `<p class="msg ok" id="a-${k}">${o.ayuda}</p>` : '';
+  const ctl = `<input id="f-${k}" name="${k}" type="${o.type || 'text'}" value="${esc(o.valor ?? ed.v[k])}" ${o.auto ? `autocomplete="${o.auto}"` : ''} ${o.modo ? `inputmode="${o.modo}"` : ''} ${o.ph ? `placeholder="${o.ph}"` : ''} ${o.req ? 'aria-required="true"' : ''} ${o.max ? `maxlength="${o.max}"` : ''} ${o.extra || ''} aria-describedby="m-${k}${o.ayuda ? ` a-${k}` : ''}" />`;
+  return `<div class="campo ${o.cls || ''}" data-campo="${k}"><label for="f-${k}">${label}${o.req ? '<span class="req" aria-hidden="true">*</span>' : ''}${marca(k)}</label>
+    ${o.sufijo ? `<div class="sufijo">${ctl}<span class="edad" id="edad" aria-hidden="true"></span></div>` : ctl}<p class="msg" id="m-${k}" aria-live="polite"></p>${ayuda}</div>`;
+}
+function select(k, label, opciones, o = {}) {
+  const ops = opciones.map(([v, l]) => `<option value="${esc(v)}"${String(ed.v[k] ?? '') === String(v) ? ' selected' : ''}>${esc(l)}</option>`).join('');
+  return `<div class="campo ${o.cls || ''}" data-campo="${k}"><label for="f-${k}">${label}${marca(k)}</label>
+    <div class="sel"><select id="f-${k}" name="${k}" ${o.off ? 'disabled' : ''} aria-describedby="m-${k}">${ops}</select>${ICON.chevDown}</div><p class="msg" id="m-${k}"></p></div>`;
+}
+const opsGeo = () => {
+  const v = ed.v, est = v.pais ? Object.keys(GEO[v.pais] || {}) : [], mun = v.estado ? Object.keys(GEO[v.pais][v.estado] || {}) : [], par = v.municipio ? GEO[v.pais][v.estado][v.municipio] : [];
+  return { pais: [['', 'Selecciona el país'], ...Object.keys(GEO).map(x => [x, x])], estado: [['', v.pais ? 'Selecciona el estado' : 'Primero el país'], ...est.map(x => [x, x])],
+    municipio: [['', v.estado ? 'Selecciona el municipio' : 'Primero el estado'], ...mun.map(x => [x, x])], parroquia: [['', 'Sin parroquia'], ...par.map(x => [x, x])] };
+};
+function geoCampos() {
+  const g = opsGeo(), v = ed.v;
+  return `${select('pais', 'País', g.pais)}${select('estado', 'Estado', g.estado, { off: !v.pais })}${select('municipio', 'Municipio', g.municipio, { off: !v.estado })}${select('parroquia', 'Parroquia', g.parroquia, { off: !v.municipio })}`;
+}
+
+// ── Page ──
+function fotoAvatar() {
+  const p = persona();
+  return ed.foto ? `<span class="avatar xl" data-h="${p.h}" aria-hidden="true"><svg viewBox="0 0 72 72"><rect width="72" height="72" fill="var(--brand-accent-strong)"/><circle cx="36" cy="28" r="13" fill="var(--brand-primary)" opacity=".55"/><path d="M10 72a26 22 0 0 1 52 0Z" fill="var(--brand-primary)" opacity=".55"/></svg></span>` : avatar(p, 'xl');
+}
+function cuentaTarjeta() {
+  if (ed.visor !== 'admin') return '';
+  const p = persona();
+  return tarjeta('Cuenta y acceso', `<div class="cuenta-fila">${punto(CUENTA[p.cuenta].t, CUENTA[p.cuenta].l)}<button type="button" class="btn sm" data-contrasena>${ICON.llave}Asignar contraseña</button></div>
+    <p class="nota">La contraseña se guarda aparte, al confirmar en su ventana. El rol se cambia en la pestaña Cuenta de la ficha.</p>`);
+}
+function ubicacion() {
+  const sug = ed.dirModo === 'sugerencia' && !ed.base.calle ? `<div class="sugerencia">${ICON.idea}<div class="txt"><b>Sugerencia de dirección</b>
+      <button type="button" class="usar" data-usar-sug><span>Usar la dirección de su ${SUGERENCIA.relacion.toLowerCase()} (${esc(SUGERENCIA.nombre)})</span><small>${ICON.pin}${esc(SUGERENCIA.dir.calle)} · ${esc(SUGERENCIA.dir.parroquia)}</small></button>
+      <p>Si no vive en la misma dirección, ignora esta sugerencia.</p></div></div>` : '';
+  return tarjeta('Ubicación', `${sug}<div class="campos cuatro" id="geo">${geoCampos()}</div>
+    <div class="campos">${input('calle', 'Calle', { auto: 'address-line1', ph: 'Calle, avenida o carrera', cls: 'ancho-m', ayuda: 'Obligatoria solo si guardas una dirección.' })}${input('barrio', 'Barrio o urbanización', { auto: 'address-line2' })}
+      ${input('cp', 'Código postal', { auto: 'postal-code', modo: 'numeric', max: 8 })}${input('ref', 'Referencia', { auto: 'off', ph: 'Un punto conocido cerca de la casa' })}</div>
+    <div id="mapa-w"></div>`, '', 'ancha');
+}
+function montar() {
+  const p = persona();
+  $('#contenido').innerHTML = `<span id="sentinela" aria-hidden="true"></span>
+    <section class="ed-hero" aria-labelledby="title">
+      <div class="foto">${fotoAvatar()}<button type="button" class="foto-btn" data-foto aria-label="Cambiar foto de ${esc(p.completo)}">${ICON.camara}</button></div>
+      <div class="txt"><p class="ojo">${esSelf() ? 'Editar mis datos' : 'Editar persona'}</p><h1 id="title" tabindex="-1">${esc(p.completo)}</h1>
+        <p class="linea"><span class="tag rol">${ROLES_SIS[p.rol]}</span><span>${CAMPUS[p.campus]}</span>${punto(CUENTA[p.cuenta].t, CUENTA[p.cuenta].l)}</p></div>
+      <div class="foto-acts desk-only"><button type="button" class="btn sm" data-foto>${ICON.camara}Cambiar foto</button></div>
+    </section>
+    <p class="req-nota">Los campos con <span aria-hidden="true">*</span><span class="sr">asterisco</span> son obligatorios. La foto se guarda al momento; lo demás, con «Guardar cambios».</p>
+    <div id="resumen" tabindex="-1"></div>
+    <form id="form" novalidate aria-labelledby="title"><div class="ed-grid dos">
+      ${tarjeta('Información personal', `<div class="campos">
+        ${input('nombre', 'Nombre', { req: true, auto: 'given-name' })}${input('apellido', 'Apellido', { req: true, auto: 'family-name' })}
+        ${input('cedula', 'Cédula', { auto: 'off', ph: '18456789 o E81110494', extra: 'autocapitalize="characters" spellcheck="false"' })}
+        ${input('nac', 'Fecha de nacimiento', { type: 'date', auto: 'bday', sufijo: true, extra: `max="${HOY}"` })}
+        ${select('genero', 'Género', [['Femenino', 'Femenino'], ['Masculino', 'Masculino']])}
+        ${select('civil', 'Estado civil', ESTADO_CIVIL.map(x => [x, civilEtiqueta(x, ed.v.genero)]))}
+        ${select('ocupacion', 'Ocupación', [['', 'Sin ocupación'], ...OCUPACIONES.map(x => [x, x])])}
+        ${select('profesion', 'Profesión', [['', 'Sin profesión'], ...PROFESIONES.map(x => [x, x])])}</div>`)}
+      <div class="ed-col">
+        ${tarjeta('Contacto', `<div class="campos">
+          ${input('telefono', 'Teléfono', { type: 'tel', auto: 'tel', modo: 'tel', ph: '0414 552 3108', cls: 'ancho', valor: formatearTelefono(ed.v.telefono) })}
+          ${input('email', 'Email', { type: 'email', auto: 'email', modo: 'email', ph: 'nombre@gmail.com', cls: 'ancho', extra: 'autocapitalize="off" spellcheck="false"' })}</div>`)}
+        ${cuentaTarjeta()}
+      </div>
+      ${ubicacion()}
+    </div></form>`;
+  document.title = `Editar · ${p.completo} · Usuarios · Global Connect`;
+  renderMapa(); actualizar();
+}
+
+// ── Map: LocationPicker stand-in. Click or tap moves the pin; arrow keys move it while the map has focus. ──
+const ESCALA = 12000; // px per degree in this stand-in
+const centroMapa = () => CENTROS[ed.v.parroquia] || CENTROS[ed.v.municipio] || null;
+function renderMapa() {
+  const w = $('#mapa-w'); if (!w) return;
+  const c = centroMapa(), v = ed.v;
+  if (!c || v.lat == null) {
+    w.innerHTML = `<div class="mapa" role="img" aria-label="Mapa sin ubicar"><svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M0 70h600M0 150h600M150 0v220M340 0v220M480 0v220"/></svg></div>
+      <p class="mapa-nota">Elige estado y municipio: el mapa se centra solo y luego mueves el pin hasta la casa.</p>`;
+    return;
+  }
+  const x = 300 + (v.lng - c[1]) * ESCALA, y = 110 - (v.lat - c[0]) * ESCALA;
+  w.innerHTML = `<div class="mapa editable" id="mapa" tabindex="0" role="application" aria-roledescription="mapa" aria-label="Ubicación de la casa en el mapa. Toca el mapa o usa las flechas para mover el pin." aria-describedby="coords">
+      <svg viewBox="0 0 600 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M0 70h600M0 150h600M150 0v220M340 0v220M480 0v220M0 20l600 170"/>
+      <g class="pin-g" style="transform:translate(${x.toFixed(1)}px,${y.toFixed(1)}px)"><circle class="pin-h" r="18"/><circle class="pin" r="7"/></g></svg></div>
+    <div class="mapa-pie"><span id="coords">Pin en <span class="num">${v.lat.toFixed(4)}, ${v.lng.toFixed(4)}</span></span>
+      <button type="button" class="btn ghost sm" data-centrar>${ICON.centrar}Centrar en ${esc(v.parroquia || v.municipio)}</button></div>
+    ${ed.mapaNota ? `<p class="mapa-nota" role="status">${ed.mapaNota}</p>` : ''}`;
+}
+function moverPin(lat, lng, nota = '') { ed.v.lat = +lat.toFixed(6); ed.v.lng = +lng.toFixed(6); ed.mapaNota = nota; renderMapa(); actualizar(); }
+
+// ── Messages, change markers, error summary and save bar ──
+function actualizar() {
+  const { e, w } = validar(ed.v), ver = k => ed.intento || ed.tocados.has(k) || ed.servidor[k];
+  for (const k of CAMPOS) {
+    const m = $('#m-' + k), f = $('#f-' + k); if (!m || !f) continue;
+    const err = ver(k) && e[k], warn = !err && w[k];
+    let ok = '';
+    if (k === 'telefono' && !warn && !igual(k, ed.v.telefono, ed.base.telefono) && ed.v.telefono.trim() && esTelefonoReconocible(ed.v.telefono) && formatearTelefono(ed.v.telefono) !== ed.v.telefono.trim()) ok = `Se guardará como <span class="num">${formatearTelefono(ed.v.telefono)}</span>.`;
+    m.className = 'msg ' + (err ? 'error' : warn ? 'warn' : 'ok');
+    m.innerHTML = err ? `${ICON.alerta}<span>${e[k]}</span>` : warn ? `${ICON.alerta}<span>${w[k]}</span>` : ok;
+    f.setAttribute('aria-invalid', err ? 'true' : 'false'); f.classList.toggle('revisar', !!warn);
+  }
+  const ch = cambios();
+  document.querySelectorAll('[data-mod]').forEach(s => { const on = ch.includes(s.dataset.mod); s.hidden = !on; s.nextElementSibling.hidden = !on; });
+  $('#edad') && ($('#edad').textContent = ed.v.nac && ed.v.nac <= HOY ? `${edad(ed.v.nac)} años` : '');
+  const lista = Object.keys(e).filter(k => ed.intento || ed.servidor[k]);
+  $('#resumen').innerHTML = lista.length ? `<div class="aviso-f" role="alert"><h2>${ICON.alerta}${lista.length === 1 ? 'Revisa 1 campo antes de guardar' : `Revisa ${lista.length} campos antes de guardar`}</h2>
+    <ul>${lista.map(k => `<li><a href="#f-${k}" data-ir="${k}">${ETIQUETAS[k]}: ${e[k].replace(/\.$/, '')}</a></li>`).join('')}</ul></div>` : '';
+  barra(ch, lista.length);
+}
+function barra(ch = cambios(), nErr = 0) {
+  const b = $('#barra'), on = ch.length > 0 || ed.guardando;
+  b.hidden = !on; document.body.classList.toggle('con-barra', on);
+  document.body.classList.toggle('guardando', ed.guardando); $('#form').inert = ed.guardando;
+  if (!on) return;
+  b.classList.toggle('con-error', nErr > 0 && !ed.guardando);
+  const estado = ed.guardando ? `<span class="girando" aria-hidden="true"></span><span>Guardando cambios…</span>`
+    : nErr ? `${ICON.alerta}<span>${nErr === 1 ? 'Revisa 1 campo' : `Revisa ${nErr} campos`}</span>`
+      : `<span class="d" data-t="brand" aria-hidden="true"></span><span><b class="num">${ch.length}</b> ${ch.length === 1 ? 'cambio' : 'cambios'}<span class="largo"> sin guardar</span></span>`;
+  b.innerHTML = `<span class="estado-g" role="status">${estado}</span>
+    <button type="button" class="btn sm cancelar" data-salir="cancelar" ${ed.guardando ? 'disabled' : ''}>Cancelar</button>
+    <button type="button" class="btn primary sm" data-guardar ${ed.guardando ? 'disabled aria-disabled="true"' : ''}>${ed.guardando ? 'Guardando…' : '<span class="largo">Guardar cambios</span><span class="corto">Guardar</span>'}</button>`;
+}
+
+// ── Save: client checks first; the server answers the cédula duplicate (updateUser → «Esta cédula ya pertenece a otra persona.») ──
+function guardar() {
+  ed.intento = true; const { e } = validar(ed.v);
+  if (Object.keys(e).length) { actualizar(); return $('#resumen .aviso-f h2')?.setAttribute('tabindex', '-1'), $('#resumen .aviso-f h2')?.focus(); }
+  ed.guardando = true; actualizar();
+  setTimeout(() => {
+    ed.guardando = false;
+    const ced = normalizarCedula(ed.v.cedula), duena = PEOPLE.find(x => x.id !== 'u0' && x.cedRaw === ced);
+    if (ced && duena) { ed.servidor.cedula = 'Esta cédula ya pertenece a otra persona.'; actualizar(); $('#f-cedula').focus(); return; }
+    ed.v.telefono = normalizarTelefono(ed.v.telefono); ed.v.cedula = ced;
+    ed.base = { ...ed.v }; ed.intento = false; ed.tocados.clear(); montar();
+    aviso('Cambios guardados', esSelf() ? 'Tus datos están al día.' : `En la app vuelves a la ficha de ${persona().nombre}.`);
+  }, 1400);
+}
+function aviso(t, s = '') {
+  $('#toasts').innerHTML = `<div class="toast">${ICON.ok}<div><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</div></div>`;
+  clearTimeout(aviso.t); aviso.t = setTimeout(() => { $('#toasts').innerHTML = ''; }, 5000);
+}
+
+// ── Dialogs: bottom sheet on phones, centered dialog from md; focus trapped, Escape and scrim close, focus returns ──
+let disparador = null;
+const FONDO = ['#app', '#tabbar', '#barra', '#opciones', '#toasts'];
+const capa = () => document.querySelector('.sheet.on, .dlg.on');
+function abrir(html, { alerta = false, hoja = !esEscritorio() } = {}) {
+  if (!capa()) disparador = document.activeElement;
+  const el = hoja ? $('#hoja') : $('#dlg'), otro = hoja ? $('#dlg') : $('#hoja');
+  otro.classList.remove('on');
+  el.setAttribute('role', alerta ? 'alertdialog' : 'dialog'); el.setAttribute('aria-labelledby', hoja ? 'hoja-t' : 'dlg-t');
+  el.innerHTML = hoja ? html.replace('id="dlg-t"', 'id="hoja-t"').replace('<h2', '<span class="grab" aria-hidden="true"></span><h2') : html;
+  if (hoja) el.innerHTML = `<div class="sh-body">${el.innerHTML}</div>`;
+  el.classList.add('on'); $('#scrim').classList.add('on'); FONDO.forEach(s => $(s).inert = true); document.body.style.overflow = 'hidden';
+  (el.querySelector('[data-foco]') || el).focus({ preventScroll: true });
+}
+function cerrarCapa(devolver = true) {
+  if (!capa()) return;
+  document.querySelectorAll('.sheet.on, .dlg.on').forEach(s => s.classList.remove('on'));
+  $('#scrim').classList.remove('on'); FONDO.forEach(s => $(s).inert = false); document.body.style.overflow = '';
+  if (devolver && disparador?.isConnected) disparador.focus({ preventScroll: true });
+  disparador = null;
+}
+function trampa(e) {
+  const d = capa(); if (!d || e.key !== 'Tab') return;
+  const f = [...d.querySelectorAll('button:not([disabled]), input:not([disabled]), select, [href]')].filter(x => x.offsetParent !== null);
+  if (!f.length) return;
+  if (e.shiftKey && (document.activeElement === f[0] || document.activeElement === d)) { e.preventDefault(); f.at(-1).focus(); }
+  else if (!e.shiftKey && document.activeElement === f.at(-1)) { e.preventDefault(); f[0].focus(); }
+}
+const pieDlg = botones => `<div class="dlg-acts">${botones}</div>`;
+function abrirFoto() {
+  const desk = esEscritorio();
+  abrir(`<h2 id="dlg-t">Foto de perfil</h2><p class="nota">Se guarda al momento, aparte de los demás cambios. JPG, PNG o WebP de hasta 5 MB; se optimiza sola.</p>
+    <ul class="opc-foto">
+      <li><button type="button" data-foco data-foto-subir>${ICON.subir}<span>${desk ? 'Subir una foto' : 'Elegir de la galería'}<small>${desk ? 'O arrastra una imagen sobre la foto' : 'Fotos del teléfono'}</small></span></button></li>
+      <li><button type="button" data-foto-subir>${ICON.camara}<span>${desk ? 'Usar la cámara' : 'Tomar foto'}<small>${desk ? 'Cámara del computador' : 'Abre la cámara del teléfono'}</small></span></button></li>
+      ${ed.foto ? `<li><button type="button" class="peligro" data-foto-quitar>${ICON.trash}<span>Quitar foto<small>Vuelve a mostrar sus iniciales</small></span></button></li>` : ''}
+    </ul>${pieDlg('<button type="button" class="btn" data-cerrar>Cancelar</button>')}`);
+}
+function abrirContrasena(msg = {}) {
+  abrir(`<h2 id="dlg-t">Asignar contraseña</h2><p class="nota">Reemplaza la contraseña de ${esc(persona().nombre)}. Compártela por un canal seguro; no se puede deshacer.</p>
+    <div class="campo"><label for="pw1">Nueva contraseña</label><input id="pw1" type="password" autocomplete="new-password" data-foco aria-describedby="pw1-m" ${msg.v1 ? `value="${esc(msg.v1)}"` : ''} /><p class="msg ${msg.e1 ? 'error' : 'ok'}" id="pw1-m">${msg.e1 || 'Al menos 8 caracteres.'}</p></div>
+    <div class="campo"><label for="pw2">Confirmar contraseña</label><input id="pw2" type="password" autocomplete="new-password" aria-describedby="pw2-m" ${msg.v2 ? `value="${esc(msg.v2)}"` : ''} /><p class="msg error" id="pw2-m">${msg.e2 || ''}</p></div>
+    <button type="button" class="btn ghost sm gen" data-generar>${ICON.llave}Generar contraseña segura</button>
+    ${pieDlg('<button type="button" class="btn" data-cerrar>Cancelar</button><button type="button" class="btn primary" data-pw-guardar>Guardar contraseña</button>')}`);
+}
+function abrirDescartar(destino) {
+  const n = cambios().length;
+  ed.destino = destino;
+  abrir(`<h2 id="dlg-t">¿Descartar los cambios?</h2><p id="dlg-d">Tienes ${n === 1 ? '1 cambio' : `${n} cambios`} sin guardar. Si sales ahora, se pierden.</p>
+    ${pieDlg('<button type="button" class="btn" data-cerrar data-foco>Seguir editando</button><button type="button" class="btn peligro" data-descartar>Descartar</button>')}`, { alerta: true, hoja: false });
+  $('#dlg').setAttribute('aria-describedby', 'dlg-d');
+}
+const DESTINOS = { ficha: () => esSelf() ? 'Mi perfil' : 'la ficha', cancelar: () => esSelf() ? 'Mi perfil' : 'la ficha', lista: () => 'Usuarios', nav: () => 'esa sección' };
+function salir(destino) {
+  if (cambios().length) return abrirDescartar(destino);
+  aviso(`Vas a ${DESTINOS[destino]()}`, 'Sin cambios pendientes, sale sin preguntar.');
+}
+
+// ── Prototype states (Opciones del prototipo) ──
+function aplicarEstado(s) {
+  ed.base = ed.dirModo === 'sugerencia' ? { ...ORIGINAL, ...SIN_DIRECCION } : { ...ORIGINAL };
+  Object.assign(ed, { v: { ...ed.base }, servidor: {}, intento: false, guardando: false, mapaNota: '' }); ed.tocados.clear();
+  if (s === 'cambios' || s === 'guardando') Object.assign(ed.v, { telefono: '0424 552 3108', profesion: 'Administración' }, ed.dirModo === 'guardada' ? { ref: 'Frente a la plaza Santa Rosa, casa de rejas blancas' } : {});
+  if (s === 'guardando') ed.guardando = true;
+  if (s === 'errores') { Object.assign(ed.v, { apellido: 'C', email: 'mafe.colmenarez@gmail', telefono: '0414 552 310', cedula: '16330981' }); ed.servidor.cedula = 'Esta cédula ya pertenece a otra persona.'; ed.intento = true; }
+  document.querySelectorAll('[data-estado]').forEach(b => b.setAttribute('aria-pressed', b.dataset.estado === s));
+  montar();
+}
+function cambiarVisor(v) { ed.visor = v; $('#op-visor').value = v; renderShell(); montar(); }
+
+// ── Events ──
+const RESET_GEO = { pais: ['estado', 'municipio', 'parroquia'], estado: ['municipio', 'parroquia'], municipio: ['parroquia'] };
+document.addEventListener('input', e => {
+  const k = e.target.closest('#form') && e.target.name; if (!k) return;
+  ed.v[k] = e.target.value; if (k === 'cedula') delete ed.servidor.cedula;
+  actualizar();
+});
+document.addEventListener('focusout', e => {
+  const t = e.target, k = t.closest?.('#form') && t.name; if (!k || t.tagName !== 'INPUT') return;
+  ed.tocados.add(k);
+  if (k === 'cedula' && t.value.trim()) { ed.v.cedula = normalizarCedula(t.value); t.value = ed.v.cedula; }
+  if (k === 'telefono' && esTelefonoReconocible(t.value)) { t.value = formatearTelefono(t.value); ed.v.telefono = t.value; }
+  actualizar();
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'op-visor') return cambiarVisor(t.value);
+  const k = t.closest('#form') && t.tagName === 'SELECT' && t.name; if (!k) return;
+  ed.v[k] = t.value; ed.tocados.add(k);
+  if (k === 'genero') $('#f-civil').querySelectorAll('option').forEach(o => { o.textContent = civilEtiqueta(o.value, ed.v.genero); });
+  if (RESET_GEO[k]) {
+    RESET_GEO[k].forEach(x => { ed.v[x] = ''; });
+    $('#geo').innerHTML = geoCampos(); $('#f-' + k).focus();
+  }
+  if (['municipio', 'parroquia'].includes(k) && centroMapa()) { const c = centroMapa(); return moverPin(c[0], c[1], `El mapa se centró en ${esc(ed.v.parroquia || ed.v.municipio)}. Mueve el pin hasta la casa.`); }
+  if (k === 'municipio' || k === 'estado' || k === 'pais') renderMapa();
+  actualizar();
+});
+document.addEventListener('click', e => {
+  const mapa = e.target.closest('#mapa');
+  if (mapa) {
+    const r = mapa.getBoundingClientRect(), s = Math.max(r.width / 600, r.height / 220), ox = (r.width - 600 * s) / 2, oy = (r.height - 220 * s) / 2;
+    const x = (e.clientX - r.left - ox) / s, y = (e.clientY - r.top - oy) / s, c = centroMapa();
+    moverPin(c[0] - (y - 110) / ESCALA, c[1] + (x - 300) / ESCALA); return $('#mapa').focus();
+  }
+  const t = e.target.closest('button, a'); if (!t) return;
+  if (t.tagName === 'A' && t.getAttribute('href') === '#') e.preventDefault();
+  if (t.dataset.tema !== undefined) {
+    document.querySelectorAll('[data-tema]').forEach(b => b.setAttribute('aria-pressed', b === t));
+    if (t.dataset.tema) document.documentElement.dataset.tema = t.dataset.tema; else delete document.documentElement.dataset.tema;
+    return;
+  }
+  if (t.dataset.estado) return aplicarEstado(t.dataset.estado);
+  if (t.dataset.dir) { ed.dirModo = t.dataset.dir; document.querySelectorAll('[data-dir]').forEach(b => b.setAttribute('aria-pressed', b === t)); return aplicarEstado('limpio'); }
+  if (t.dataset.ir) { e.preventDefault(); return $('#f-' + t.dataset.ir).focus(); }
+  if (t.dataset.guardar !== undefined) return guardar();
+  if (t.dataset.salir) return salir(t.dataset.salir);
+  if (t.dataset.descartar !== undefined) { const d = ed.destino; cerrarCapa(false); aplicarEstado('limpio'); aviso('Cambios descartados', `En la app vas a ${DESTINOS[d]()}.`); return $('#title').focus(); }
+  if (t.dataset.centrar !== undefined) { const c = centroMapa(); moverPin(c[0], c[1]); return $('[data-centrar]').focus(); }
+  if (t.dataset.usarSug !== undefined) { Object.assign(ed.v, SUGERENCIA.dir); ed.mapaNota = ''; montar(); aviso('Dirección copiada', 'Revísala y guarda los cambios.'); return $('#f-calle').focus(); }
+  if (t.dataset.foto !== undefined) return abrirFoto();
+  if (t.dataset.fotoSubir !== undefined) { ed.foto = true; cerrarCapa(false); montar(); aviso('Foto actualizada'); return document.querySelector('.foto-btn').focus(); }
+  if (t.dataset.fotoQuitar !== undefined) {
+    return abrir(`<h2 id="dlg-t">¿Quitar la foto?</h2><p id="dlg-d">Se borra al momento y vuelven a verse sus iniciales.</p>${pieDlg('<button type="button" class="btn" data-cerrar data-foco>Cancelar</button><button type="button" class="btn peligro" data-foto-si>Quitar foto</button>')}`, { alerta: true, hoja: false });
+  }
+  if (t.dataset.fotoSi !== undefined) { ed.foto = false; cerrarCapa(false); montar(); aviso('Foto quitada'); return document.querySelector('.foto-btn').focus(); }
+  if (t.dataset.contrasena !== undefined) return abrirContrasena();
+  if (t.dataset.generar !== undefined) {
+    const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789', n = new Uint32Array(14); crypto.getRandomValues(n);
+    const pw = [...n].map(x => abc[x % abc.length]).join(''); ['#pw1', '#pw2'].forEach(s => { $(s).value = pw; $(s).type = 'text'; });
+    $('#pw1-m').className = 'msg ok'; $('#pw1-m').textContent = 'Generada. Cópiala antes de guardar.'; return $('#pw1').focus();
+  }
+  if (t.dataset.pwGuardar !== undefined) {
+    const a = $('#pw1').value, b = $('#pw2').value, e1 = a.length < 8 ? 'La contraseña debe tener al menos 8 caracteres.' : '', e2 = !e1 && a !== b ? 'Las contraseñas no coinciden.' : '';
+    if (e1 || e2) { const prev = disparador; abrirContrasena({ e1, e2, v1: a, v2: b }); disparador = prev; $('#pw1').setAttribute('aria-invalid', !!e1); $('#pw2').setAttribute('aria-invalid', !!e2); return (e1 ? $('#pw1') : $('#pw2')).focus(); }
+    cerrarCapa(); return aviso('Contraseña asignada correctamente');
+  }
+  if (t.dataset.cerrar !== undefined) return cerrarCapa();
+});
+$('#scrim').addEventListener('click', () => cerrarCapa());
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { if (capa()) { e.preventDefault(); cerrarCapa(); } else if ($('#opciones').open) { $('#opciones').open = false; $('#opciones summary').focus(); } return; }
+  trampa(e);
+  if (e.target.id === 'mapa' && e.key.startsWith('Arrow')) {
+    e.preventDefault(); const d = e.shiftKey ? 0.002 : 0.0005, v = ed.v;
+    moverPin(v.lat + (e.key === 'ArrowUp' ? d : e.key === 'ArrowDown' ? -d : 0), v.lng + (e.key === 'ArrowRight' ? d : e.key === 'ArrowLeft' ? -d : 0)); $('#mapa').focus();
+  }
+  // Enter in a text field saves, as a form submit would (the form has no submit button of its own).
+  if (e.key === 'Enter' && e.target.closest?.('#form') && e.target.tagName === 'INPUT' && cambios().length) { e.preventDefault(); guardar(); }
+});
+// The app adds a beforeunload guard while there are changes; the router links use the same dialog.
+mqTablet.addEventListener('change', renderShell);
+
+// ── Start: viewer per artboard, then review links ──
+// #oscuro, #claro, #visor=<admin|pastor|lider|self>, #estado=<limpio|cambios|errores|guardando>, #dir=sugerencia, #foto, #contrasena, #descartar, #opciones, #abajo
+const html = document.documentElement;
+ed.visor = html.dataset.visor || 'pastor'; $('#op-visor').value = ed.visor;
+renderShell(); aplicarEstado('limpio');
+for (const k of decodeURIComponent(location.hash.slice(1)).split(',').filter(Boolean)) {
+  const [c, v] = k.split('=');
+  if (c === 'oscuro' || c === 'claro') document.querySelector(`[data-tema="${c}"]`).click();
+  if (c === 'visor' && VISORES[v]) cambiarVisor(v);
+  if (c === 'dir') document.querySelector(`[data-dir="${v}"]`)?.click();
+  if (c === 'estado') aplicarEstado(v);
+  if (c === 'foto') abrirFoto();
+  if (c === 'contrasena') abrirContrasena();
+  if (c === 'descartar') abrirDescartar('ficha');
+  if (c === 'opciones') $('#opciones').open = true;
+  if (c === 'abajo') setTimeout(() => scrollTo(0, document.body.scrollHeight), 50);
+}
+</script>
+</body>
+</html>

@@ -151,10 +151,38 @@ Pages render them straight in `PaginaSistema`, never inside another card.
 - `AvisoFormulario`: inline notice; `error` uses the danger token and
   `role="alert"`, `info` the info token, `marca` the brand tint. Form-level
   notices go above or below the sections grid, not inside a field grid.
-- Actions go in `PieAccionesSistema fijo={false}` after the grid (the mobile
-  bottom bar would cover a sticky footer).
+- Create forms (no saved state to compare against): actions go in
+  `PieAccionesSistema fijo={false}` after the grid.
+- Edit forms with dirty state (Editar persona, prototype
+  [`prototipos/usuarios/05-editar-escritorio.html`](prototipos/usuarios/05-editar-escritorio.html)
+  and [`06-editar-celular.html`](prototipos/usuarios/06-editar-celular.html)):
+  a **sticky save bar** that exists only while there are unsaved changes or a
+  save runs. It is the selection bar's surface (`bg-card`, border,
+  `rounded-2xl`, `shadow-sheet`), the last child of the form and
+  `position: sticky` at the bottom, so it spans the content column. Phones:
+  `bottom: calc(84px + env(safe-area-inset-bottom))`, above the tab bar
+  (`MenuInferiorMovil`); from `md`: 24px from the bottom. Content: status
+  ("N cambios sin guardar", "Revisa N campos" in `danger-text` after a
+  failed attempt, "Guardando cambios…"), "Cancelar" (outline) and "Guardar
+  cambios" (primary; "Guardar" on phones), both `tamaño="sm"`. Changed
+  fields carry a 6px brand dot after the label (plus "(modificado)" for
+  screen readers); Enter in a text field saves. Leaving with changes (any
+  in-app link, the back button, Cancelar) asks "¿Descartar los cambios?"
+  ("Seguir editando" | "Descartar", `peligro`), and `beforeunload` guards
+  reloads. Code: `components/users/editar/` (`BarraGuardar`,
+  `DialogoDescartar`, `useGuardaSalida`).
+- Error summary: after a failed save attempt, an `AvisoFormulario`
+  `error` above the sections ("Revisa N campos antes de guardar") with one
+  link per field that moves the focus to it; the heading takes the focus.
+  A server rule that belongs to a field (a duplicated cédula) is shown on
+  that field and focuses it, not as a general error.
+- Notices that must not block saving ("Revisar teléfono", an unrecognized
+  cédula) sit under the field in `warning-text` with a `warning` border.
 - Inputs: labelled, errors through `error` (ARIA is automatic), validate
-  with react-hook-form + zod.
+  with react-hook-form + zod. Editar persona keeps its values in state with
+  a pure validator (`lib/platform/usuarios/editar-validacion.ts`) that the
+  server action (`updateUser`) shares, because it compares against the
+  loaded values for the dirty state.
 
 ## Reports and attendance
 

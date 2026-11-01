@@ -36,7 +36,7 @@ const RUTAS_INTERNAS: [RegExp | string, string][] = [
   ['/grupos-vida/solicitudes', 'Solicitudes'],
   ['/grupos-vida/configuracion', 'Configuración Grupos'],
   [/\/grupos-vida\/[^/]+/, 'Detalle del Grupo'],
-  [/\/users\/[^/]+\/edit/, 'Editar Usuario'],
+  [/\/users\/[^/]+\/edit/, 'Editar persona'],
   [/\/users\/create/, 'Agregar persona'],
   [/\/users\/[^/]+/, 'Ficha'],
   // Niños: the same titles as the desktop header (never the fallback "Global").

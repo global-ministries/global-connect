@@ -139,7 +139,8 @@ describe('updateUser: cedula', () => {
     expect(update.mock.calls[0][0]).not.toHaveProperty('telefono')
   })
 
-  it('maps a unique violation on the cedula to a clear message', async () => {
+  // Editar persona (S14, decision 4): the message comes back on the cédula field.
+  it('maps a unique violation on the cedula to a clear message on the cedula field', async () => {
     const { admin } = adminConUpdate({
       code: '23505',
       message: 'duplicate key value violates unique constraint "usuarios_cedula_key"',
@@ -147,7 +148,11 @@ describe('updateUser: cedula', () => {
     })
     createSupabaseAdminClient.mockReturnValue(admin)
 
-    await expect(updateUser('u-1', { ...datosBase, cedula: '22328215' })).rejects.toThrow(MENSAJE_DUPLICADA)
+    await expect(updateUser('u-1', { ...datosBase, cedula: '22328215' })).resolves.toEqual({
+      ok: false,
+      campo: 'cedula',
+      error: MENSAJE_DUPLICADA,
+    })
   })
 
   it('does not map other update errors', async () => {
