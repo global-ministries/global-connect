@@ -1,7 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 import { EditarNinoForm } from '@/components/ninos/editar-nino-form'
-import { RegistrarFamiliaForm } from '@/components/ninos/registrar-familia-form'
+import { RegistroMesa as RegistrarFamiliaForm } from '@/components/ninos/registro-rapido/registro-mesa'
 import type { HijoEncontrado } from '@/lib/platform/ninos/familias-vista'
 
 const rpc = jest.fn()
@@ -13,11 +13,11 @@ function llenarFamilia() {
   fireEvent.change(screen.getByLabelText('Nombre del representante'), { target: { value: 'Ana' } })
   fireEvent.change(screen.getByLabelText('Apellido del representante'), { target: { value: 'Pérez' } })
   fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '04145551234' } })
-  fireEvent.change(screen.getByLabelText('Género del representante'), { target: { value: 'Femenino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' }))
   fireEvent.change(screen.getByLabelText('Nombre del niño 1'), { target: { value: 'Luis' } })
   fireEvent.change(screen.getByLabelText('Apellido del niño 1'), { target: { value: 'Pérez' } })
   fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2022-03-10' } })
-  fireEvent.change(screen.getByLabelText('Género del niño 1'), { target: { value: 'Masculino' } })
+  fireEvent.click(within(screen.getByRole('group', { name: 'Género del niño 1' })).getByRole('button', { name: 'Niño' }))
 }
 
 const coincidencia = { id: 'p9', nombre: 'Ana', apellido: 'Pérez', telefono: '•••1234', cedula: null, coincide_por: 'telefono' }
