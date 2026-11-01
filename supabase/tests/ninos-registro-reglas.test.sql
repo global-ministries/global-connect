@@ -86,6 +86,11 @@ CREATE OR REPLACE FUNCTION pg_temp.as_nobody() RETURNS void LANGUAGE sql AS $$
          set_config('request.jwt.claim.role', '', true);
 $$;
 
+-- A valid ip_hash (64 hex, ninos_preregistros_ip_hash_check) for a fixture tag.
+CREATE OR REPLACE FUNCTION pg_temp.ip(p_tag text) RETURNS text LANGUAGE sql IMMUTABLE AS $$
+  SELECT encode(sha256(convert_to(p_tag, 'UTF8')), 'hex');
+$$;
+
 CREATE OR REPLACE FUNCTION pg_temp.ctx(p_k text) RETURNS text LANGUAGE sql STABLE AS $$
   SELECT v FROM t_rr_ctx WHERE k = p_k;
 $$;
@@ -154,7 +159,7 @@ SELECT 'pre_cuenta', r.id::text FROM public.ninos_preregistros r WHERE r.solicit
 GRANT INSERT, SELECT, UPDATE ON t_rr_failures, t_rr_ctx TO authenticated, anon, service_role;
 GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text, text),
   pg_temp.assert_raises(text, text, text, text), pg_temp.id(text, int), pg_temp.as_user(int), pg_temp.as_nobody(),
-  pg_temp.ctx(text), pg_temp.nac(int), pg_temp.manana(), pg_temp.hijo(text, date), pg_temp.fam(text, text, jsonb, jsonb)
+  pg_temp.ctx(text), pg_temp.ip(text), pg_temp.nac(int), pg_temp.manana(), pg_temp.hijo(text, date), pg_temp.fam(text, text, jsonb, jsonb)
   TO authenticated, anon, service_role;
 
 -- ── a. parent género of the pre-registration (service_role) ─────────
@@ -164,35 +169,38 @@ SELECT pg_temp.as_nobody();
 SELECT pg_temp.assert_eq('a: a pre-registration with género Masculino is stored',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Gm', '04120003101', '"Masculino"', jsonb_build_array(pg_temp.hijo('Gm hijo', pg_temp.nac(5)))),
-       'zz-rr-gm', NULL) ->> 'estado'$q$, 'ok');
+       pg_temp.ip('zz-rr-gm'), NULL) ->> 'estado'$q$, 'ok');
 SELECT pg_temp.assert_eq('a: a pre-registration with género null is stored (PRESERVE)',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Gn', '04120003102', 'null', jsonb_build_array(pg_temp.hijo('Gn hijo', pg_temp.nac(5)))),
-       'zz-rr-gn', NULL) ->> 'estado'$q$, 'ok');
+       pg_temp.ip('zz-rr-gn'), NULL) ->> 'estado'$q$, 'ok');
 SELECT pg_temp.assert_eq('a: a pre-registration without género is stored (PRESERVE)',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Gs', '04120003103', 'null', jsonb_build_array(pg_temp.hijo('Gs hijo', pg_temp.nac(5))))
          #- '{padre,genero}',
-       'zz-rr-gs', NULL) ->> 'estado'$q$, 'ok');
+       pg_temp.ip('zz-rr-gs'), NULL) ->> 'estado'$q$, 'ok');
 SELECT pg_temp.assert_raises('a: a género other than Masculino / Femenino is refused',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Go', '04120003104', '"Otro"', jsonb_build_array(pg_temp.hijo('Go hijo', pg_temp.nac(5)))),
-       'zz-rr-go', NULL)$q$, '22023', 'datos_invalidos');
+       pg_temp.ip('zz-rr-go'), NULL)$q$, '22023', 'datos_invalidos');
 SELECT pg_temp.assert_raises('a: a non-text género is refused',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Go', '04120003104', '5', jsonb_build_array(pg_temp.hijo('Go hijo', pg_temp.nac(5)))),
-       'zz-rr-g5', NULL)$q$, '22023', 'datos_invalidos');
+       pg_temp.ip('zz-rr-g5'), NULL)$q$, '22023', 'datos_invalidos');
 RESET ROLE;
 
 INSERT INTO t_rr_ctx (k, v)
-SELECT 'pre_' || substr(r.ip_hash, 7), r.id::text FROM public.ninos_preregistros r WHERE r.ip_hash IN ('zz-rr-gm', 'zz-rr-gn', 'zz-rr-gs');
+SELECT 'pre_' || t.tag, r.id::text FROM public.ninos_preregistros r
+  JOIN unnest(ARRAY['gm', 'gn', 'gs']) AS t(tag) ON r.ip_hash = pg_temp.ip('zz-rr-' || t.tag);
 INSERT INTO t_rr_ctx (k, v)
-SELECT 'payload_' || substr(r.ip_hash, 7), r.payload::text FROM public.ninos_preregistros r WHERE r.ip_hash IN ('zz-rr-gm', 'zz-rr-gn', 'zz-rr-gs');
+SELECT 'payload_' || t.tag, r.payload::text FROM public.ninos_preregistros r
+  JOIN unnest(ARRAY['gm', 'gn', 'gs']) AS t(tag) ON r.ip_hash = pg_temp.ip('zz-rr-' || t.tag);
 SELECT pg_temp.assert_eq('a: the stored payload keeps each parent género',
-  $q$SELECT string_agg(substr(r.ip_hash, 7) || '=' || coalesce(r.payload -> 'padre' ->> 'genero', '-'), ',' ORDER BY r.ip_hash)
-       FROM public.ninos_preregistros r WHERE r.ip_hash IN ('zz-rr-gm', 'zz-rr-gn', 'zz-rr-gs')$q$, 'gm=Masculino,gn=-,gs=-');
+  $q$SELECT string_agg(t.tag || '=' || coalesce(r.payload -> 'padre' ->> 'genero', '-'), ',' ORDER BY t.tag)
+       FROM public.ninos_preregistros r
+       JOIN unnest(ARRAY['gm', 'gn', 'gs']) AS t(tag) ON r.ip_hash = pg_temp.ip('zz-rr-' || t.tag)$q$, 'gm=Masculino,gn=-,gs=-');
 SELECT pg_temp.assert_eq('a: nothing stored for a refused género',
-  $q$SELECT count(*)::text FROM public.ninos_preregistros r WHERE r.ip_hash IN ('zz-rr-go', 'zz-rr-g5')$q$, '0');
+  $q$SELECT count(*)::text FROM public.ninos_preregistros r WHERE r.ip_hash IN (pg_temp.ip('zz-rr-go'), pg_temp.ip('zz-rr-g5'))$q$, '0');
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user(1);
@@ -217,38 +225,38 @@ SELECT pg_temp.as_nobody();
 SELECT pg_temp.assert_raises('b: a child of 13 years is refused',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('B13', '04120003106', '"Femenino"', jsonb_build_array(pg_temp.hijo('B13 hijo', pg_temp.nac(13)))),
-       'zz-rb-13', NULL)$q$, '22023', 'fuera_de_rango');
+       pg_temp.ip('zz-rb-13'), NULL)$q$, '22023', 'fuera_de_rango');
 SELECT pg_temp.assert_raises('b: a future birth date is refused',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Bfu', '04120003106', '"Femenino"', jsonb_build_array(pg_temp.hijo('Bfu hijo', pg_temp.manana()))),
-       'zz-rb-fu', NULL)$q$, '22023', 'fuera_de_rango');
+       pg_temp.ip('zz-rb-fu'), NULL)$q$, '22023', 'fuera_de_rango');
 SELECT pg_temp.assert_raises('b: one child out of range refuses the whole request',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Bmx', '04120003106', '"Femenino"', jsonb_build_array(pg_temp.hijo('Bmx uno', pg_temp.nac(5)),
                                                                         pg_temp.hijo('Bmx dos', pg_temp.nac(13)))),
-       'zz-rb-mx', NULL)$q$, '22023', 'fuera_de_rango');
+       pg_temp.ip('zz-rb-mx'), NULL)$q$, '22023', 'fuera_de_rango');
 SELECT pg_temp.assert_raises('b: the 3-argument form applies the same rule',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Bt3', '04120003106', '"Femenino"', jsonb_build_array(pg_temp.hijo('Bt3 hijo', pg_temp.nac(13)))),
-       'zz-rb-t3')$q$, '22023', 'fuera_de_rango');
+       pg_temp.ip('zz-rb-t3'))$q$, '22023', 'fuera_de_rango');
 SELECT pg_temp.assert_eq('b: a child of 12 years is accepted',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('B12', '04120003106', '"Femenino"', jsonb_build_array(pg_temp.hijo('B12 hijo', pg_temp.nac(12)))),
-       'zz-rb-12', NULL) ->> 'estado'$q$, 'ok');
+       pg_temp.ip('zz-rb-12'), NULL) ->> 'estado'$q$, 'ok');
 -- For d: a public request with a child in range.
 SELECT pg_temp.assert_eq('b: setup public request for d',
   $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid,
        pg_temp.fam('Pub', '04120003107', '"Femenino"', jsonb_build_array(pg_temp.hijo('Pub hijo', pg_temp.nac(6)))),
-       'zz-rd-pub', NULL) ->> 'estado'$q$, 'ok');
+       pg_temp.ip('zz-rd-pub'), NULL) ->> 'estado'$q$, 'ok');
 RESET ROLE;
 SELECT pg_temp.assert_eq('b: only the accepted request is stored',
-  $q$SELECT string_agg(substr(r.ip_hash, 7), ',' ORDER BY r.ip_hash) FROM public.ninos_preregistros r
-      WHERE r.ip_hash LIKE 'zz-rb-%'$q$, '12');
+  $q$SELECT string_agg(t.tag, ',' ORDER BY t.tag) FROM public.ninos_preregistros r
+       JOIN unnest(ARRAY['13', 'fu', 'mx', 't3', '12']) AS t(tag) ON r.ip_hash = pg_temp.ip('zz-rb-' || t.tag)$q$, '12');
 
 INSERT INTO t_rr_ctx (k, v)
-SELECT 'pre_pub', r.id::text FROM public.ninos_preregistros r WHERE r.ip_hash = 'zz-rd-pub';
+SELECT 'pre_pub', r.id::text FROM public.ninos_preregistros r WHERE r.ip_hash = pg_temp.ip('zz-rd-pub');
 INSERT INTO t_rr_ctx (k, v)
-SELECT 'payload_pub', r.payload::text FROM public.ninos_preregistros r WHERE r.ip_hash = 'zz-rd-pub';
+SELECT 'payload_pub', r.payload::text FROM public.ninos_preregistros r WHERE r.ip_hash = pg_temp.ip('zz-rd-pub');
 INSERT INTO t_rr_ctx (k, v)
 SELECT 'payload_cuenta', r.payload::text FROM public.ninos_preregistros r WHERE r.id = pg_temp.ctx('pre_cuenta')::uuid;
 
@@ -331,7 +339,7 @@ SELECT pg_temp.assert_eq('e: nothing stored for the refused children (PRESERVE)'
 SET LOCAL ROLE anon;
 SELECT pg_temp.as_nobody();
 SELECT pg_temp.assert_raises('f: anon cannot execute ninos_preregistro_crear (PRESERVE)',
-  $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid, pg_temp.ctx('payload_pub')::jsonb, 'zz-rf-a', NULL)$q$, '42501');
+  $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid, pg_temp.ctx('payload_pub')::jsonb, pg_temp.ip('zz-rf-a'), NULL)$q$, '42501');
 SELECT pg_temp.assert_raises('f: anon cannot execute ninos_registrar_familia_mesa (PRESERVE)',
   $q$SELECT public.ninos_registrar_familia_mesa(pg_temp.ctx('payload_pub')::jsonb)$q$, '42501');
 SELECT pg_temp.assert_raises('f: anon cannot execute ninos_registrar_familia (PRESERVE)',
@@ -345,7 +353,7 @@ RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user(3);
 SELECT pg_temp.assert_raises('f: authenticated cannot execute ninos_preregistro_crear (PRESERVE)',
-  $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid, pg_temp.ctx('payload_pub')::jsonb, 'zz-rf-b', NULL)$q$, '42501');
+  $q$SELECT public.ninos_preregistro_crear(pg_temp.ctx('campus')::uuid, pg_temp.ctx('payload_pub')::jsonb, pg_temp.ip('zz-rf-b'), NULL)$q$, '42501');
 SELECT pg_temp.assert_raises('f: a user who is not an anfitrión gets sin_autoridad from mesa (PRESERVE)',
   $q$SELECT public.ninos_registrar_familia_mesa(pg_temp.fam('Rnd', '04120003121', '"Femenino"',
        jsonb_build_array(pg_temp.hijo('Rnd hijo', pg_temp.nac(5)))))$q$, '42501', 'sin_autoridad');
@@ -362,11 +370,11 @@ RESET ROLE;
 
 SELECT pg_temp.assert_eq('f: grants of the redefined functions (PRESERVE)',
   $q$SELECT concat_ws(',',
-       has_function_privilege('anon', 'public.ninos_registrar_familia(jsonb)', 'EXECUTE'),
-       has_function_privilege('authenticated', 'public.ninos_registrar_familia(jsonb)', 'EXECUTE'),
-       has_function_privilege('anon', 'public.ninos_preregistro_crear(uuid, jsonb, text, text)', 'EXECUTE'),
-       has_function_privilege('authenticated', 'public.ninos_preregistro_crear(uuid, jsonb, text, text)', 'EXECUTE'),
-       has_function_privilege('service_role', 'public.ninos_preregistro_crear(uuid, jsonb, text, text)', 'EXECUTE'))$q$,
+       has_function_privilege('anon', 'public.ninos_registrar_familia(jsonb)', 'EXECUTE')::text,
+       has_function_privilege('authenticated', 'public.ninos_registrar_familia(jsonb)', 'EXECUTE')::text,
+       has_function_privilege('anon', 'public.ninos_preregistro_crear(uuid, jsonb, text, text)', 'EXECUTE')::text,
+       has_function_privilege('authenticated', 'public.ninos_preregistro_crear(uuid, jsonb, text, text)', 'EXECUTE')::text,
+       has_function_privilege('service_role', 'public.ninos_preregistro_crear(uuid, jsonb, text, text)', 'EXECUTE')::text)$q$,
   'false,true,false,false,true');
 SELECT pg_temp.assert_eq('f: both stay SECURITY DEFINER with an empty search_path (PRESERVE)',
   $q$SELECT string_agg(p.prosecdef::text || '|' || EXISTS (SELECT 1 FROM unnest(p.proconfig) c
