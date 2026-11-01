@@ -10041,6 +10041,7 @@ export type Database = {
       }
       es_lider_usuario: { Args: { target_user_id: string }; Returns: boolean }
       es_superadmin: { Args: { p_auth_uid: string }; Returns: boolean }
+      estudiantes_acceso: { Args: never; Returns: Json }
       estudiantes_buscar_personas: {
         Args: {
           p_apellido?: string
@@ -10317,6 +10318,19 @@ export type Database = {
       estudiantes_tiene_rol_sistema: {
         Args: { p_rol: string }
         Returns: boolean
+      }
+      estudiantes_vivo_opciones: {
+        Args: { p_dias?: number }
+        Returns: {
+          ambito: string
+          ambito_id: string
+          campus: string
+          campus_id: string
+          fecha: string
+          hora: string
+          turno: string
+          turno_id: string
+        }[]
       }
       estudiantes_visitante_agregar: {
         Args: {
