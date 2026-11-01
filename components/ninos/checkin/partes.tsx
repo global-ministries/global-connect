@@ -18,7 +18,7 @@ export const TEXTO_CUPO: Record<EstadoCupo, string> = { libre: '', casi: 'casi l
 
 export interface TituloSeccionProps {
   readonly id: string
-  readonly texto: string
+  readonly texto: ReactNode
   readonly cantidad?: number
   /** Accessible name of the count ("3 familias"). */
   readonly etiquetaCantidad?: string
@@ -109,6 +109,29 @@ export function PuedenRetirar({ personas, className }: { readonly personas: read
           </span>
         ))}
       </span>
+    </p>
+  )
+}
+
+/** A key hint ("/", "Enter", "Esc"), desktop only: callers add `hidden lg:inline-grid` or hide its row. */
+export function Tecla({ children, className }: { readonly children: ReactNode; readonly className?: string }): ReactElement {
+  return (
+    <kbd
+      className={cn(
+        'inline-grid h-[22px] min-w-[22px] place-items-center rounded-md border border-border bg-card px-1.5 font-mono text-[11px] font-medium text-muted-foreground',
+        className,
+      )}
+    >
+      {children}
+    </kbd>
+  )
+}
+
+/** "Enter registra a los niños marcados" under the main action, desktop only. */
+export function PistaTecla({ tecla, texto }: { readonly tecla: string; readonly texto: string }): ReactElement {
+  return (
+    <p aria-hidden="true" className="-mt-1.5 hidden items-center justify-center gap-1.5 text-xs text-muted-foreground lg:flex">
+      <Tecla>{tecla}</Tecla> {texto}
     </p>
   )
 }

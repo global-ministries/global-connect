@@ -130,3 +130,32 @@ export function edadCorta(fechaNacimiento: string | null, fechaServicio: string)
   const anos = Math.floor(meses / 12)
   return `${anos} ${anos === 1 ? 'año' : 'años'}`
 }
+
+/** Width of the occupancy bar, in percent of the capacity (100 when full or over). */
+export function porcentajeCupo(presentes: number, capacidad: number): number {
+  return Math.min(100, Math.round((presentes / capacidad) * 100))
+}
+
+const rango = (min: number, max: number, unidad: string): string => (min === max ? `${min} ${unidad}` : `${min} a ${max} ${unidad}`)
+
+/** Who a salón is for, in the "Cambiar salón" panel: "0 a 11 meses", "1 a 2 años", "1.º a 3.º grado". */
+export function rangoSalon(s: SalonFila): string | null {
+  if (s.es_necesidades_especiales) return 'Necesidades especiales'
+  if (s.grado_min !== null && s.grado_max !== null) {
+    return s.grado_min === s.grado_max ? `${s.grado_min}.º grado` : `${s.grado_min}.º a ${s.grado_max}.º grado`
+  }
+  if (s.edad_min_meses !== null && s.edad_max_meses !== null) {
+    if (s.edad_max_meses < 24) return rango(s.edad_min_meses, s.edad_max_meses, 'meses')
+    const desde = Math.floor(s.edad_min_meses / 12)
+    const hasta = Math.floor(s.edad_max_meses / 12)
+    return rango(desde, hasta, 'años')
+  }
+  return null
+}
+
+export type TeclaAtajo = { key: string; metaKey: boolean; ctrlKey: boolean; altKey: boolean }
+
+/** Desktop "/" shortcut: focus the family search unless the user is typing or a panel is open. */
+export function atajoBuscar(e: TeclaAtajo, contexto: { enCampo: boolean; panelAbierto: boolean }): boolean {
+  return e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !contexto.enCampo && !contexto.panelAbierto
+}

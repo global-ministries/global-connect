@@ -4,13 +4,13 @@
  * salón, the "Salón lleno" warnings (the check-in is already saved: warn,
  * never block), who may pick up, and "Siguiente familia".
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, Ref } from 'react'
 import { AlertTriangle, Check } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import type { PersonaRetiro } from '@/lib/platform/ninos/checkin-vista'
 
-import { PuedenRetirar } from './partes'
+import { PistaTecla, PuedenRetirar } from './partes'
 
 export type ResultadoIngreso = {
   codigo: string
@@ -19,12 +19,19 @@ export type ResultadoIngreso = {
   retiran: PersonaRetiro[]
 }
 
-export function CodigoRetiro({ resultado, onSiguiente }: { readonly resultado: ResultadoIngreso; readonly onSiguiente: () => void }): ReactElement {
+export interface CodigoRetiroProps {
+  readonly resultado: ResultadoIngreso
+  readonly onSiguiente: () => void
+  /** "Siguiente familia", focused when the code shows (desktop keyboard flow). */
+  readonly refSiguiente?: Ref<HTMLButtonElement>
+}
+
+export function CodigoRetiro({ resultado, onSiguiente, refSiguiente }: CodigoRetiroProps): ReactElement {
   return (
     <div role="region" aria-label="Ingreso registrado" aria-live="polite" className="grid min-w-0 gap-3.5 text-center">
       <div className="grid gap-2 rounded-2xl border-2 border-brand bg-[var(--brand-accent)] px-3 py-4.5">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Código de retiro</p>
-        <p className="break-all font-mono text-7xl font-bold leading-none tracking-[0.08em] tabular-nums text-foreground">{resultado.codigo}</p>
+        <p className="break-all font-mono text-7xl font-bold lg:text-[88px] leading-none tracking-[0.08em] tabular-nums text-foreground">{resultado.codigo}</p>
         <p className="text-[15px] text-muted-foreground">
           Escríbelo en las <b className="font-semibold text-foreground">dos etiquetas</b>: la del niño y la del representante.
         </p>
@@ -54,9 +61,10 @@ export function CodigoRetiro({ resultado, onSiguiente }: { readonly resultado: R
 
       <PuedenRetirar personas={resultado.retiran} />
 
-      <BotonSistema type="button" tamaño="lg" className="w-full" onClick={onSiguiente}>
+      <BotonSistema ref={refSiguiente} type="button" tamaño="lg" className="w-full" onClick={onSiguiente}>
         Siguiente familia
       </BotonSistema>
+      <PistaTecla tecla="Enter" texto="siguiente familia" />
     </div>
   )
 }

@@ -3,16 +3,17 @@
 /**
  * Niños › Check-in — MESA, "Otra familia": search by phone or name
  * (ninos_buscar_familias), the error, "no match" and the list when several
- * families match. Picking one opens it at the mesa.
+ * families match. Picking one opens it at the mesa. Desktop: "/" focuses the
+ * search (aria-keyshortcuts) and the key hints show under it (prototype 05).
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, Ref } from 'react'
 import { ChevronRight, Search, Users } from 'lucide-react'
 
 import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import type { FamiliaEncontrada } from '@/lib/platform/ninos/familias-vista'
 
-import { Avatar, CLASE_LINEA_INSET, ListaInset, TituloSeccion } from './partes'
+import { Avatar, CLASE_LINEA_INSET, ListaInset, Tecla, TituloSeccion } from './partes'
 
 export interface BuscadorFamiliaProps {
   readonly q: string
@@ -25,12 +26,22 @@ export interface BuscadorFamiliaProps {
   /** Show the pick list (several matches and none chosen). */
   readonly mostrarLista: boolean
   readonly onElegir: (f: FamiliaEncontrada) => void
+  readonly refBuscar?: Ref<HTMLInputElement>
 }
 
-export function BuscadorFamilia(p: BuscadorFamiliaProps): ReactElement {
+export function BuscadorFamilia({ refBuscar, ...p }: BuscadorFamiliaProps): ReactElement {
   return (
     <div className="grid min-w-0 gap-2">
-      <TituloSeccion id="checkin-mesa" texto="Otra familia" pista="Teléfono completo o nombre" />
+      <TituloSeccion
+        id="checkin-mesa"
+        texto={
+          <>
+            <span className="lg:hidden">Otra familia</span>
+            <span className="hidden lg:inline">Mesa</span>
+          </>
+        }
+        pista="Teléfono completo o nombre"
+      />
       <form
         role="search"
         className="flex min-w-0 items-start gap-2"
@@ -41,6 +52,9 @@ export function BuscadorFamilia(p: BuscadorFamiliaProps): ReactElement {
       >
         <div className="min-w-0 flex-1">
           <InputSistema
+            ref={refBuscar}
+            aria-keyshortcuts="/"
+            accesorio={<Tecla className="hidden lg:inline-grid">/</Tecla>}
             type="search"
             enterKeyHint="search"
             icono={Search}
@@ -52,7 +66,18 @@ export function BuscadorFamilia(p: BuscadorFamiliaProps): ReactElement {
         </div>
         <BotonSistema type="submit" soloIcono icono={Search} disabled={p.buscando} aria-label="Buscar" />
       </form>
-      <p className="px-1 text-[13px] text-muted-foreground">Teléfono completo o nombre del papá, la mamá o el niño.</p>
+      <p className="px-1 text-[13px] text-muted-foreground lg:hidden">Teléfono completo o nombre del papá, la mamá o el niño.</p>
+      <p aria-hidden="true" className="hidden flex-wrap gap-x-4 gap-y-1 px-1 text-xs text-muted-foreground lg:flex">
+        <span className="inline-flex items-center gap-1.5">
+          <Tecla>/</Tecla> buscar
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Tecla>Enter</Tecla> registrar familia marcada
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <Tecla>Esc</Tecla> cerrar panel
+        </span>
+      </p>
 
       {p.error && (
         <p role="alert" className="px-1 text-sm text-danger-text">

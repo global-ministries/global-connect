@@ -3,15 +3,15 @@
 /**
  * Niños › Check-in — one child of the family at the mesa (prototype 01
  * `.hijos > li`). A child that can go in comes already marked with its
- * salón ("Preescolar 16/18"); "Cambiar" is the exception and opens the salón
- * select (N2b turns it into a side panel). A full salón warns, never blocks.
+ * salón ("Preescolar 16/18"); "Cambiar" is the exception and opens the
+ * "Cambiar salón" panel. A full salón warns, never blocks.
  * A child without a ficha offers "Completar ficha"; one already in shows its
  * code.
  */
 import type { ReactElement } from 'react'
 import { AlertTriangle, ClipboardPlus } from 'lucide-react'
 
-import { BadgeSistema, BotonSistema, SelectSistema } from '@/components/ui/sistema-diseno'
+import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
 import { edadCorta, estadoCupo, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
@@ -29,10 +29,9 @@ export interface FilaHijoProps {
   /** Pickup code when the child already came in to this service. */
   readonly codigo?: string
   readonly marcado: boolean
-  readonly selectorAbierto: boolean
   readonly onMarcar: (marcado: boolean) => void
-  readonly onAbrirSelector: () => void
-  readonly onSalon: (salonId: string) => void
+  /** Opens the "Cambiar salón" panel for this child. */
+  readonly onCambiarSalon: () => void
   readonly onCompletar: () => void
 }
 
@@ -119,33 +118,32 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
               tamaño="sm"
               className="ml-auto pointer-coarse:min-h-11"
               aria-label={`Cambiar salón de ${nombre}`}
-              aria-expanded={p.selectorAbierto}
-              onClick={p.onAbrirSelector}
+              aria-haspopup="dialog"
+              onClick={p.onCambiarSalon}
             >
               Cambiar
             </BotonSistema>
           </>
         ) : (
-          <span id={idSalon} className="flex items-center gap-2 text-sm font-medium text-warning-text">
-            <AlertTriangle className="size-4 shrink-0" aria-hidden />
-            Sin salón sugerido: asígnalo manualmente
-          </span>
+          <>
+            <span id={idSalon} className="flex items-center gap-2 text-sm font-medium text-warning-text">
+              <AlertTriangle className="size-4 shrink-0" aria-hidden />
+              Sin salón sugerido: asígnalo manualmente
+            </span>
+            <BotonSistema
+              type="button"
+              variante="outline"
+              tamaño="sm"
+              className="ml-auto pointer-coarse:min-h-11"
+              aria-label={`Elegir salón de ${nombre}`}
+              aria-haspopup="dialog"
+              onClick={p.onCambiarSalon}
+            >
+              Elegir salón
+            </BotonSistema>
+          </>
         )}
       </div>
-
-      {marcable && (p.selectorAbierto || !salon.salonId) && (
-        <div className="col-start-2 pt-1">
-          <SelectSistema
-            aria-label={`Salón de ${h.nombre}`}
-            opciones={[{ valor: '', etiqueta: 'Elige un salón…' }, ...p.salones.map((s) => ({ valor: s.id, etiqueta: s.nombre }))]}
-            value={salon.salonId ?? ''}
-            onValueChange={p.onSalon}
-          />
-          {salon.origen === 'manual' && (
-            <p className="mt-1 px-1 text-[13px] text-muted-foreground">Si eliges otro, queda como su salón para el próximo domingo.</p>
-          )}
-        </div>
-      )}
 
       {(h.es_vip_desde || h.desde_casa || alertasDeHijo(h).length > 0) && (
         <div className="col-start-2 flex min-w-0 flex-wrap gap-1.5 pt-1">

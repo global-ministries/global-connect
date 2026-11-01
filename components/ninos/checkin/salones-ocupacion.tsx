@@ -2,7 +2,8 @@
  * Niños › Check-in — the salones of the service as chips with their
  * occupancy ("Caminantes 12/12"). Full in the danger tint, almost full with a
  * warning dot; the state is also in words. Phone: one chip row that scrolls
- * sideways (the only horizontal scroller allowed); md and up: it wraps.
+ * sideways (the only horizontal scroller allowed); md and up: it wraps. On
+ * the desktop desk (`columna`) the salones column replaces it from lg.
  */
 import type { ReactElement } from 'react'
 
@@ -12,9 +13,9 @@ import { cn } from '@/lib/utils'
 
 import { TEXTO_CUPO, TONO_CUPO, TituloSeccion } from './partes'
 
-export function SalonesOcupacion({ ocupacion }: { readonly ocupacion: readonly OcupacionSalon[] | null }): ReactElement {
+export function SalonesOcupacion({ ocupacion, columna = false }: { readonly ocupacion: readonly OcupacionSalon[] | null; readonly columna?: boolean }): ReactElement {
   return (
-    <section aria-labelledby="checkin-salones" className="grid min-w-0 gap-2">
+    <section aria-labelledby="checkin-salones" className={cn('grid min-w-0 gap-2', columna && 'lg:hidden')}>
       <TituloSeccion id="checkin-salones" texto="Salones" pista="Adentro / capacidad" />
       {ocupacion === null ? (
         <p className="px-1 text-sm text-muted-foreground">Cargando…</p>

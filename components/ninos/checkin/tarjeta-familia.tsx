@@ -6,14 +6,14 @@
  * and "Registrar ingreso · N niños". Nothing marked disables the button
  * ("Marca al menos un niño").
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, Ref } from 'react'
 
 import { BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaEncontrada, HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 import { FilaHijo } from './fila-hijo'
-import { Avatar, PuedenRetirar } from './partes'
+import { Avatar, PistaTecla, PuedenRetirar } from './partes'
 
 const palabra = (n: number, uno: string, varios: string): string => (n === 1 ? uno : varios)
 
@@ -24,7 +24,6 @@ export interface TarjetaFamiliaProps {
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
   readonly ingresados: Ingresados
   readonly marcados: ReadonlySet<string>
-  readonly selectores: ReadonlySet<string>
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
   readonly error: string | null
   readonly guardando: boolean
@@ -32,13 +31,14 @@ export interface TarjetaFamiliaProps {
   /** Shown when the search found several families. */
   readonly onOtraFamilia?: () => void
   readonly onMarcar: (hijoId: string, marcado: boolean) => void
-  readonly onAbrirSelector: (hijoId: string) => void
-  readonly onSalon: (hijoId: string, salonId: string) => void
+  readonly onCambiarSalon: (h: HijoEncontrado) => void
   readonly onCompletar: (h: HijoEncontrado) => void
   readonly onRegistrar: () => void
+  /** "Registrar ingreso", focused when the family opens (desktop keyboard flow). */
+  readonly refRegistrar?: Ref<HTMLButtonElement>
 }
 
-export function TarjetaFamilia(p: TarjetaFamiliaProps): ReactElement {
+export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): ReactElement {
   const { familia } = p
   const n = p.marcados.size
   const retiran = quienesRetiran(familia.padres, familia.hijos)
@@ -77,10 +77,8 @@ export function TarjetaFamilia(p: TarjetaFamiliaProps): ReactElement {
               ocupacion={p.ocupacion}
               codigo={p.ingresados[h.id]}
               marcado={p.marcados.has(h.id)}
-              selectorAbierto={p.selectores.has(h.id)}
               onMarcar={(v) => p.onMarcar(h.id, v)}
-              onAbrirSelector={() => p.onAbrirSelector(h.id)}
-              onSalon={(v) => p.onSalon(h.id, v)}
+              onCambiarSalon={() => p.onCambiarSalon(h)}
               onCompletar={() => p.onCompletar(h)}
             />
           ))}
@@ -97,6 +95,7 @@ export function TarjetaFamilia(p: TarjetaFamiliaProps): ReactElement {
 
       {familia.hijos.length > 0 && (
         <BotonSistema
+          ref={refRegistrar}
           type="button"
           tamaño="lg"
           className="w-full"
@@ -107,6 +106,7 @@ export function TarjetaFamilia(p: TarjetaFamiliaProps): ReactElement {
           {p.guardando ? 'Registrando…' : n === 0 ? 'Marca al menos un niño' : `Registrar ingreso · ${n} ${palabra(n, 'niño', 'niños')}`}
         </BotonSistema>
       )}
+      {familia.hijos.length > 0 && n > 0 && <PistaTecla tecla="Enter" texto="registra a los niños marcados" />}
     </TarjetaSistema>
   )
 }

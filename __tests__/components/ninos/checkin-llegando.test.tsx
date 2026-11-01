@@ -135,10 +135,10 @@ describe('Llegando (pre-check-in at the table)', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(screen.getByRole('checkbox', { name: 'Luis Pérez' })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Eva Pérez' })).toBeChecked()
-    expect(screen.getByLabelText('Salón de Eva')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Elegir salón de Eva Pérez' })).toBeInTheDocument()
   })
 
-  it('"Cambiar" on a child in a full salón opens the family at the mesa with its salón select', async () => {
+  it('"Cambiar" on a child in a full salón opens the family at the mesa and the salón panel', async () => {
     rpc.mockImplementation((nombre: string) => {
       if (nombre === 'ninos_prechecks_pendientes') return Promise.resolve({ data: llegando([nino('h1', 'Luis')]), error: null })
       if (nombre === 'ninos_ocupacion')
@@ -151,8 +151,13 @@ describe('Llegando (pre-check-in at the table)', () => {
     // Full warns, it does not block: "Llegaron" stays available.
     expect(within(fila).getByRole('button', { name: /^Llegaron/ })).toBeEnabled()
     fireEvent.click(within(fila).getByRole('button', { name: 'Cambiar salón de Luis Pérez' }))
-    expect(within(screen.getByTestId('nino-h1')).getByLabelText('Salón de Luis')).toHaveValue('s1')
-    expect(screen.getByRole('checkbox', { name: 'Luis Pérez' })).toBeChecked()
+    const panel = await screen.findByRole('dialog', { name: 'Cambiar salón' })
+    const maternal = within(panel).getByRole('button', { name: /Maternal/ })
+    expect(maternal).toHaveAttribute('aria-pressed', 'true')
+    // Still selectable while full: it warns, it does not block.
+    expect(maternal).toHaveTextContent('Lleno 12/12')
+    expect(maternal).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: 'Luis Pérez', hidden: true })).toBeChecked()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

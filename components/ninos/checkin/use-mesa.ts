@@ -6,6 +6,9 @@
  * children already marked with their salón (checkin-vista), the check-in
  * through /api/ninos/checkin, and the pickup code. "Llegaron" checks a family
  * in with one tap; a child without a salón opens the family here instead.
+ * `foco` asks the mesa to move the keyboard focus (desktop flow, prototype
+ * 05): the family opens → "Registrar ingreso", the code → "Siguiente
+ * familia", the next family → the search.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -18,6 +21,8 @@ import { createClient } from '@/lib/supabase/client'
 import { registrarIngresoApi, type FilaIngreso } from '../api-visita'
 import { useBuscarFamilias } from '../use-buscar-familias'
 import type { ResultadoIngreso } from './codigo-retiro'
+
+export type ObjetivoFoco = 'registrar' | 'siguiente' | 'buscar'
 
 const conAgregado = (s: ReadonlySet<string>, id: string, agregar: boolean): Set<string> => {
   const siguiente = new Set(s)
@@ -34,7 +39,8 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
   const [ingresados, setIngresados] = useState<Ingresados>({})
   const [desmarcados, setDesmarcados] = useState<ReadonlySet<string>>(new Set())
   const [salonManual, setSalonManual] = useState<Record<string, string>>({})
-  const [selectores, setSelectores] = useState<ReadonlySet<string>>(new Set())
+  const [foco, setFoco] = useState<{ objetivo: ObjetivoFoco; n: number } | null>(null)
+  const pedirFoco = useCallback((objetivo: ObjetivoFoco) => setFoco((x) => ({ objetivo, n: (x?.n ?? 0) + 1 })), [])
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [resultado, setResultado] = useState<ResultadoIngreso | null>(null)
@@ -60,11 +66,10 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
   )
 
   const elegirFamilia = useCallback(
-    (f: FamiliaEncontrada | null, selectorAbierto?: string) => {
+    (f: FamiliaEncontrada | null) => {
       setFamilia(f)
       setDesmarcados(new Set())
       setSalonManual({})
-      setSelectores(new Set(selectorAbierto ? [selectorAbierto] : []))
       setError(null)
       void cargarIngresados(f)
     },
@@ -72,15 +77,17 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
   )
 
   const buscarYElegir = useCallback(
-    async (texto: string, padreId?: string) => {
+    async (texto: string, padreId?: string): Promise<FamiliaEncontrada | null> => {
       const encontradas = await buscar(texto)
-      if (!encontradas) return
+      if (!encontradas) return null
       const f =
         encontradas.find((x) => x.id === padreId || x.padres.some((p) => p.id === padreId)) ??
         (encontradas.length === 1 ? encontradas[0] : null)
       elegirFamilia(f ?? null)
+      if (f && !f.sin_hijos) pedirFoco('registrar')
+      return f ?? null
     },
-    [buscar, elegirFamilia],
+    [buscar, elegirFamilia, pedirFoco],
   )
 
   useEffect(() => {
@@ -116,6 +123,7 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
       avisos: avisosDeCapacidad(data, nombres),
       retiran: quienesRetiran(padres, registrados),
     })
+    pedirFoco('siguiente')
     alIngresar()
   }
 
@@ -176,6 +184,7 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     setResultado(null)
     limpiar()
     elegirFamilia(null)
+    pedirFoco('buscar')
   }
 
   return {
@@ -183,19 +192,22 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     familia,
     ingresados,
     marcados,
-    selectores,
+    foco,
     error,
     guardando,
     resultado,
     salonDe,
-    elegirFamilia,
+    elegirFamilia: (f: FamiliaEncontrada | null) => {
+      elegirFamilia(f)
+      if (f && !f.sin_hijos) pedirFoco('registrar')
+    },
     buscarYElegir,
     registrarIngreso,
     llegaron,
     siguienteFamilia,
-    abrirLlegando: (f: FamiliaLlegando, hijoId: string) => elegirFamilia(llegandoAFamilia(f), hijoId),
+    /** Opens a family of "Llegando" at the mesa (to change a child's salón). */
+    abrirLlegando: (f: FamiliaLlegando) => elegirFamilia(llegandoAFamilia(f)),
     marcar: (id: string, v: boolean) => setDesmarcados((s) => conAgregado(s, id, !v)),
-    abrirSelector: (id: string) => setSelectores((s) => conAgregado(s, id, !s.has(id))),
     elegirSalon: (id: string, salonId: string) => setSalonManual((x) => ({ ...x, [id]: salonId })),
   }
 }

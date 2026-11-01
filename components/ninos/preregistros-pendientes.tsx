@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ClipboardList, Mail, RotateCw, Trash2, UserRound } from 'lucide-react'
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import {
@@ -205,89 +205,89 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
   )
 
   const hoja = (
-    <Sheet open={abierto !== null} onOpenChange={(v) => !v && setAbierto(null)}>
-      <SheetContent side="right" className="h-dvh w-full max-w-none gap-0 p-0 sm:w-[640px] sm:max-w-[640px]">
-        <SheetHeader className="border-b border-border pr-12">
-          <SheetTitle>Revisar pre-registro</SheetTitle>
-          <SheetDescription>Confirma los datos con la familia antes de registrarla.</SheetDescription>
-        </SheetHeader>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pt-4">
-          {abierto && (
-            <>
-              <InputSistema
-                id="pre-revision-email"
-                label="Correo del representante (opcional)"
-                aria-label="Correo del representante"
-                icono={Mail}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <TextoSistema variante="sutil" className="text-xs">
-                Con correo, le enviamos la bienvenida y, si no tiene cuenta, una invitación para crearla.
-              </TextoSistema>
-              {error && (
-                <p role="alert" className="text-sm text-danger-text">
-                  {error}
-                </p>
-              )}
-              {cuentaAbierta && cuentaAbierta.coincidencias.length > 0 && (
-                <CoincidenciasCuenta
-                  hijos={formAbierto?.hijos ?? []}
-                  coincidencias={cuentaAbierta.coincidencias}
-                  elegidos={elegidos}
-                  onElegir={(indice, id) =>
-                    setElegidos((e) => {
-                      const siguiente = { ...e }
-                      if (id) siguiente[indice] = id
-                      else delete siguiente[indice]
-                      return siguiente
-                    })
-                  }
-                />
-              )}
-              <RegistrarFamiliaForm
-                key={abierto.id}
-                inicial={inicialAbierto}
-                padreExistente={
-                  cuentaAbierta
-                    ? { id: cuentaAbierta.solicitante.id, nombre: nombreCompleto(cuentaAbierta.solicitante) }
-                    : undefined
+    <DetalleResponsivo
+      abierto={abierto !== null}
+      onCambioAbierto={(v) => !v && setAbierto(null)}
+      titulo="Revisar pre-registro"
+      descripcion="Confirma los datos con la familia antes de registrarla."
+      ancho="lg"
+    >
+      <div className="space-y-4">
+        {abierto && (
+          <>
+            <InputSistema
+              id="pre-revision-email"
+              label="Correo del representante (opcional)"
+              aria-label="Correo del representante"
+              icono={Mail}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <TextoSistema variante="sutil" className="text-xs">
+              Con correo, le enviamos la bienvenida y, si no tiene cuenta, una invitación para crearla.
+            </TextoSistema>
+            {error && (
+              <p role="alert" className="text-sm text-danger-text">
+                {error}
+              </p>
+            )}
+            {cuentaAbierta && cuentaAbierta.coincidencias.length > 0 && (
+              <CoincidenciasCuenta
+                hijos={formAbierto?.hijos ?? []}
+                coincidencias={cuentaAbierta.coincidencias}
+                elegidos={elegidos}
+                onElegir={(indice, id) =>
+                  setElegidos((e) => {
+                    const siguiente = { ...e }
+                    if (id) siguiente[indice] = id
+                    else delete siguiente[indice]
+                    return siguiente
+                  })
                 }
-                textoGuardar="Confirmar familia"
-                salones={salones}
-                onCancelar={() => setAbierto(null)}
-                guardar={async (datos) => {
-                  const payload = cuentaAbierta ? conExistentes(datos, elegidos) : datos
-                  const r = await resolver(abierto.id, { accion: 'confirmar', payload, email: email.trim() })
-                  if (!r.ok || typeof r.datos.padreId !== 'string') {
-                    return { error: typeof r.datos.error === 'string' ? r.datos.error : 'No se pudo confirmar.' }
-                  }
-                  setAviso(
-                    ['Familia registrada.', AVISO_CORREO[String(r.datos.correo)], AVISO_INVITACION[String(r.datos.invitacion)]]
-                      .filter(Boolean)
-                      .join(' '),
-                  )
-                  setReenvio(null)
-                  setFallida(r.datos.invitacion === 'fallo' && email.trim() ? { id: abierto.id, email: email.trim().toLowerCase() } : null)
-                  return { padreId: r.datos.padreId }
-                }}
-                onRegistrada={(padreId, consulta) => {
-                  setAbierto(null)
-                  void cargar()
-                  onConfirmado(padreId, consulta)
-                }}
               />
-              <div className="pb-6">
-                <BotonSistema type="button" variante="ghost" icono={Trash2} disabled={ocupado} onClick={() => void descartar()}>
-                  Descartar
-                </BotonSistema>
-              </div>
-            </>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
+            )}
+            <RegistrarFamiliaForm
+              key={abierto.id}
+              inicial={inicialAbierto}
+              padreExistente={
+                cuentaAbierta
+                  ? { id: cuentaAbierta.solicitante.id, nombre: nombreCompleto(cuentaAbierta.solicitante) }
+                  : undefined
+              }
+              textoGuardar="Confirmar familia"
+              salones={salones}
+              onCancelar={() => setAbierto(null)}
+              guardar={async (datos) => {
+                const payload = cuentaAbierta ? conExistentes(datos, elegidos) : datos
+                const r = await resolver(abierto.id, { accion: 'confirmar', payload, email: email.trim() })
+                if (!r.ok || typeof r.datos.padreId !== 'string') {
+                  return { error: typeof r.datos.error === 'string' ? r.datos.error : 'No se pudo confirmar.' }
+                }
+                setAviso(
+                  ['Familia registrada.', AVISO_CORREO[String(r.datos.correo)], AVISO_INVITACION[String(r.datos.invitacion)]]
+                    .filter(Boolean)
+                    .join(' '),
+                )
+                setReenvio(null)
+                setFallida(r.datos.invitacion === 'fallo' && email.trim() ? { id: abierto.id, email: email.trim().toLowerCase() } : null)
+                return { padreId: r.datos.padreId }
+              }}
+              onRegistrada={(padreId, consulta) => {
+                setAbierto(null)
+                void cargar()
+                onConfirmado(padreId, consulta)
+              }}
+            />
+            <div className="pb-6">
+              <BotonSistema type="button" variante="ghost" icono={Trash2} disabled={ocupado} onClick={() => void descartar()}>
+                Descartar
+              </BotonSistema>
+            </div>
+          </>
+        )}
+      </div>
+    </DetalleResponsivo>
   )
 
   if (variante === 'seccion') {

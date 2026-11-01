@@ -5,6 +5,9 @@
  */
 import {
   UMBRAL_CASI_LLENO,
+  atajoBuscar,
+  porcentajeCupo,
+  rangoSalon,
   edadCorta,
   estadoCupo,
   hijoMarcable,
@@ -172,5 +175,49 @@ describe('who may pick up', () => {
     expect(quienesRetiran([], [hijo({ id: 'h1', autorizados: [{ id: 'a1', nombre: 'Carla', telefono: null, relacion: null }] })])).toEqual([
       { nombre: 'Carla', relacion: null },
     ])
+  })
+})
+
+describe('salón range in the "Cambiar salón" panel', () => {
+  const base = { ...salones[0], edad_min_meses: null, edad_max_meses: null }
+
+  it('by months under two years, by years above', () => {
+    expect(rangoSalon({ ...base, edad_min_meses: 0, edad_max_meses: 11 })).toBe('0 a 11 meses')
+    expect(rangoSalon({ ...base, edad_min_meses: 12, edad_max_meses: 35 })).toBe('1 a 2 años')
+    expect(rangoSalon({ ...base, edad_min_meses: 36, edad_max_meses: 47 })).toBe('3 años')
+  })
+
+  it('by school grade', () => {
+    expect(rangoSalon({ ...base, grado_min: 1, grado_max: 3 })).toBe('1.º a 3.º grado')
+    expect(rangoSalon({ ...base, grado_min: 4, grado_max: 4 })).toBe('4.º grado')
+  })
+
+  it('special needs, or nothing to say', () => {
+    expect(rangoSalon({ ...base, es_necesidades_especiales: true })).toBe('Necesidades especiales')
+    expect(rangoSalon(base)).toBeNull()
+  })
+})
+
+describe('occupancy bar', () => {
+  it('is the share of the capacity, capped at 100', () => {
+    expect(porcentajeCupo(9, 12)).toBe(75)
+    expect(porcentajeCupo(13, 12)).toBe(100)
+    expect(porcentajeCupo(0, 20)).toBe(0)
+  })
+})
+
+describe('"/" focuses the search', () => {
+  const tecla = { key: '/', metaKey: false, ctrlKey: false, altKey: false }
+
+  it('from anywhere outside a field and without a panel open', () => {
+    expect(atajoBuscar(tecla, { enCampo: false, panelAbierto: false })).toBe(true)
+  })
+
+  it('never while typing, with a panel open, with a modifier or for another key', () => {
+    expect(atajoBuscar(tecla, { enCampo: true, panelAbierto: false })).toBe(false)
+    expect(atajoBuscar(tecla, { enCampo: false, panelAbierto: true })).toBe(false)
+    expect(atajoBuscar({ ...tecla, metaKey: true }, { enCampo: false, panelAbierto: false })).toBe(false)
+    expect(atajoBuscar({ ...tecla, ctrlKey: true }, { enCampo: false, panelAbierto: false })).toBe(false)
+    expect(atajoBuscar({ ...tecla, key: 'a' }, { enCampo: false, panelAbierto: false })).toBe(false)
   })
 })

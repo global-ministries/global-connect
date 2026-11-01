@@ -124,14 +124,19 @@ describe('CheckinClient', () => {
   it('shows the occupancy of the chosen service', async () => {
     responder()
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    expect(await screen.findByText('3/20')).toBeInTheDocument()
+    expect(await screen.findByText('3/20', { selector: 'b' })).toBeInTheDocument()
     expect(rpc).toHaveBeenCalledWith('ninos_ocupacion', { p_turno_id: 't9', p_fecha: '2026-10-11' })
+    // Desktop column: total inside, each salón with its count, and full warns without blocking.
+    const columna = screen.getByRole('complementary', { name: 'Salones' })
+    expect(within(columna).getByRole('list', { name: 'Ocupación por salón' })).toHaveTextContent('Maternal3/20')
+    expect(columna).toHaveTextContent('Adentro en este servicio3')
+    expect(columna).toHaveTextContent('Lleno avisa, no bloquea')
   })
 
   it('sums up the campus, the children inside, the full salones and the families on their way', async () => {
     responder()
     render(<CheckinClient salones={salones} turnos={turnos} campus="Barquisimeto" servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    await screen.findByText('3/20')
+    await screen.findByText('3/20', { selector: 'b' })
     expect(screen.getByTestId('resumen-checkin')).toHaveTextContent('Barquisimeto · 3 niños adentro · 0 salones llenos · 0 familias en camino')
   })
 
@@ -150,14 +155,17 @@ describe('CheckinClient', () => {
     const luis = screen.getByTestId('nino-h1')
     expect(within(luis).getByText(/Maternal/)).toBeInTheDocument()
     expect(within(luis).getByText('Alergias: maní')).toBeInTheDocument()
-    // The salón is changed only by exception: "Cambiar" opens the select on the suggested one.
-    expect(within(luis).queryByLabelText('Salón de Luis')).not.toBeInTheDocument()
+    // The salón is changed only by exception: "Cambiar" opens the panel on the suggested one.
     fireEvent.click(within(luis).getByRole('button', { name: 'Cambiar salón de Luis Pérez' }))
-    expect(within(luis).getByLabelText('Salón de Luis')).toHaveValue('s1')
+    const panel = await screen.findByRole('dialog', { name: 'Cambiar salón' })
+    expect(within(panel).getByRole('button', { name: /Maternal/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(panel).getByRole('button', { name: /Maternal/ })).toHaveTextContent('0 a 23 meses · sugerido')
+    fireEvent.keyDown(panel, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
     const eva = screen.getByTestId('nino-h2')
     expect(within(eva).getByText('Sin salón sugerido: asígnalo manualmente')).toBeInTheDocument()
-    expect(within(eva).getByLabelText('Salón de Eva')).toHaveValue('')
+    expect(within(eva).getByRole('button', { name: 'Elegir salón de Eva Pérez' })).toBeInTheDocument()
 
     const teo = screen.getByTestId('nino-h3')
     await waitFor(() => expect(teo).toHaveTextContent('Ya ingresó (código 1234)'))
@@ -201,7 +209,10 @@ describe('CheckinClient', () => {
     })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     await buscarFamilia()
-    fireEvent.change(screen.getByLabelText('Salón de Eva'), { target: { value: 's2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Elegir salón de Eva Pérez' }))
+    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Cambiar salón' })).getByRole('button', { name: /1º grado/ }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByTestId('nino-h2')).toHaveTextContent('1º grado')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso · 2 niños' }))
 
     const codigo = await screen.findByRole('region', { name: 'Ingreso registrado' })
@@ -248,12 +259,34 @@ describe('CheckinClient', () => {
     expect(llamadaRuta('ninos_checkin')).toEqual({ p_nino_ids: ['h1'], p_salon_ids: ['s1'], p_turno_id: 't9', p_fecha: '2026-10-11' })
   })
 
-  it('links to the family registration and back (header action and phone FAB)', () => {
-    responder()
-    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
-    const enlaces = screen.getAllByRole('link', { name: /Nueva familia/ })
-    expect(enlaces).toHaveLength(2)
-    for (const enlace of enlaces) expect(enlace).toHaveAttribute('href', '/ninos/familias?nueva=1&volver=checkin&turno=t9&fecha=2026-10-11')
+  it('"Nueva familia" registers in a panel without leaving and opens the family pre-checked', async () => {
+    responder({ ninos_registrar_familia_mesa: { data: { padre_id: 'p1', padre_nuevo: false }, error: null } })
+    // The form keeps a suggested level only when it is a real salón id (UUID), as in production.
+    const salonesUuid = salones.map((s, i) => ({ ...s, id: `00000000-0000-4000-8000-00000000000${i + 1}` }))
+    render(<CheckinClient salones={salonesUuid} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    // Header action and phone FAB: both buttons, no link to /ninos/familias.
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Nueva familia' })).toHaveLength(2))
+    expect(screen.queryByRole('link', { name: /Nueva familia/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Nueva familia' })[0])
+
+    const panel = await screen.findByRole('dialog', { name: 'Nueva familia' })
+    const campo = (etiqueta: string, valor: string) => fireEvent.change(within(panel).getByLabelText(etiqueta), { target: { value: valor } })
+    campo('Nombre del representante', 'Ana')
+    campo('Apellido del representante', 'Pérez')
+    campo('Teléfono', '04145551234')
+    campo('Género del representante', 'Femenino')
+    campo('Nombre del niño 1', 'Luis')
+    campo('Apellido del niño 1', 'Pérez')
+    campo('Fecha de nacimiento del niño 1', '2025-06-01')
+    campo('Género del niño 1', 'Masculino')
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar familia' }))
+
+    expect(await screen.findByRole('heading', { name: 'Ana Pérez' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(rpc).toHaveBeenCalledWith('ninos_registrar_familia_mesa', expect.anything())
+    expect(rpc).toHaveBeenCalledWith('ninos_buscar_familias', { p_q: 'Luis Pérez' })
+    expect(screen.getByRole('checkbox', { name: 'Luis Pérez' })).toBeChecked()
+    expect(replace).not.toHaveBeenCalled()
   })
 
   const filaAdentro = {
@@ -408,7 +441,9 @@ describe('CheckinClient — child without ficha (N10)', () => {
     expect(within(mia).queryByRole('checkbox')).not.toBeInTheDocument()
     expect(within(mia).queryByLabelText('Salón de Mia')).not.toBeInTheDocument()
     fireEvent.click(within(mia).getByRole('button', { name: 'Completar ficha de Mia Pérez' }))
-    expect(await screen.findByRole('button', { name: 'Crear ficha' })).toBeInTheDocument()
+    const panel = await screen.findByRole('dialog', { name: 'Completar ficha' })
+    expect(panel).toHaveTextContent('Datos de Mia Pérez.')
+    expect(within(panel).getByRole('button', { name: 'Crear ficha' })).toBeInTheDocument()
   })
 
   it('the add-child sheet names the representative only once', async () => {
