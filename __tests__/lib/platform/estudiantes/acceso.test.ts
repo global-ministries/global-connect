@@ -1,9 +1,10 @@
-import { SIN_ACCESO_ESTUDIANTES, entradasMenuEstudiantes, parsearAccesoEstudiantes, type AccesoEstudiantes } from '@/lib/platform/estudiantes/acceso'
+import { SIN_ACCESO_ESTUDIANTES, conVoluntarios, entradasMenuEstudiantes, parsearAccesoEstudiantes, type AccesoEstudiantes } from '@/lib/platform/estudiantes/acceso'
 
 /**
  * The Estudiantes menu facts (estudiantes_acceso(), C4 of
  * odd/tasks/estudiantes-fase-b.md) and the entries they open: Mi grupo /
- * Mis grupos, En vivo and Grupos.
+ * Mis grupos, En vivo and Grupos; and Voluntarios from
+ * estudiantes_puede_marcar_voluntarios() (C5).
  */
 
 const acceso = (parche: Partial<AccesoEstudiantes> = {}): AccesoEstudiantes => ({ ...SIN_ACCESO_ESTUDIANTES, ...parche })
@@ -69,5 +70,33 @@ describe('entradasMenuEstudiantes', () => {
       ['En vivo', '/estudiantes/vivo'],
       ['Grupos', '/estudiantes/grupos'],
     ])
+  })
+})
+
+describe('conVoluntarios (C5)', () => {
+  const base = acceso({ grupos: 2, vivo: true })
+
+  it('adds the Voluntarios fact only when the RPC says true', () => {
+    expect(conVoluntarios(base, { data: true, error: null })).toEqual({ ...base, voluntarios: true })
+  })
+
+  it('leaves the facts as they were otherwise (fails closed)', () => {
+    expect(conVoluntarios(base, { data: false, error: null })).toBe(base)
+    expect(conVoluntarios(base, { data: true, error: { message: 'boom' } })).toBe(base)
+    expect(conVoluntarios(base, { data: 'true', error: null })).toBe(base)
+    expect(conVoluntarios(base, null)).toBe(base)
+  })
+
+  it('adds "Voluntarios" after the other entries', () => {
+    expect(entradasMenuEstudiantes(acceso({ grupos: 8, vivo: true, gestiona: true, voluntarios: true })).map((e) => [e.id, e.label, e.href])).toEqual([
+      ['estudiantes-mi-grupo', 'Mis grupos', '/estudiantes'],
+      ['estudiantes-vivo', 'En vivo', '/estudiantes/vivo'],
+      ['estudiantes-grupos', 'Grupos', '/estudiantes/grupos'],
+      ['estudiantes-voluntarios', 'Voluntarios', '/estudiantes/voluntarios'],
+    ])
+  })
+
+  it('gives Voluntarios alone to someone who only marks volunteers', () => {
+    expect(entradasMenuEstudiantes(acceso({ voluntarios: true })).map((e) => [e.label, e.href])).toEqual([['Voluntarios', '/estudiantes/voluntarios']])
   })
 })
