@@ -1102,7 +1102,7 @@ BEGIN
              'solicitante', jsonb_build_object('id', so.id, 'nombre', so.nombre, 'apellido', so.apellido),
              'destino', CASE WHEN d.id IS NULL THEN NULL
                              ELSE jsonb_build_object('id', d.id, 'nombre', d.nombre, 'apellido', d.apellido,
-                                                     'cuenta', d.auth_id IS NOT NULL) END,
+                                                     'genero', d.genero, 'cuenta', d.auth_id IS NOT NULL) END,
              'sin_cuenta', s.datos_sin_cuenta - 'clave',
              'crea_ficha', s.destino_id IS NULL)
            ORDER BY s.creado_en, s.id), '[]'::jsonb)

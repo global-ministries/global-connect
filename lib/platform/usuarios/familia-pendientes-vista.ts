@@ -46,6 +46,7 @@ export interface PersonaPendiente {
 
 export interface DestinoPendiente extends PersonaPendiente {
   readonly cuenta: boolean
+  readonly genero: GeneroFamilia
 }
 
 /** The data typed for a relative without an account; already filtered by the RPC for this approver. */
@@ -93,7 +94,7 @@ function aSolicitud(f: Fila): SolicitudFamiliaPendiente | null {
   const solicitante = aPersona(f.solicitante)
   if (typeof f.id !== 'string' || !esTipo(f.tipo_relacion) || !solicitante) return null
   const persona = aPersona(f.destino)
-  const destino = persona && esObjeto(f.destino) ? { ...persona, cuenta: f.destino.cuenta === true } : null
+  const destino = persona && esObjeto(f.destino) ? { ...persona, cuenta: f.destino.cuenta === true, genero: opcional(f.destino.genero) } : null
   const sinCuenta = destino ? null : aSinCuenta(f.sin_cuenta)
   if (!destino && !sinCuenta) return null
   return { id: f.id, tipo: f.tipo_relacion, creadoEn: texto(f.creado_en), solicitante, destino, sinCuenta, creaFicha: f.crea_ficha === true }
@@ -117,11 +118,11 @@ export function nombreDestino(s: SolicitudFamiliaPendiente): string {
 
 /**
  * "María Colmenárez agregó a Rafael Colmenárez como su padre" (no ficha yet) or
- * "María Colmenárez dice que Luis Barrios es su hermano o hermana". Only the
- * typed data carries a gender, so an existing ficha gets the neutral label.
+ * "María Colmenárez dice que Luis Barrios es su hermano". The gender comes from
+ * the existing ficha or the typed data; without one the label is neutral.
  */
 export function textoSolicitudFamilia(s: SolicitudFamiliaPendiente): string {
-  const relacion = etiquetaRelacion(s.tipo, s.sinCuenta?.genero ?? null).toLowerCase()
+  const relacion = etiquetaRelacion(s.tipo, s.destino?.genero ?? s.sinCuenta?.genero ?? null).toLowerCase()
   const quien = nombreCompleto(s.solicitante)
   return s.sinCuenta
     ? `${quien} agregó a ${nombreDestino(s)} como su ${relacion}`

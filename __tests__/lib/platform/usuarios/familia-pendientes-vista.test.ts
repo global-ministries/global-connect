@@ -72,7 +72,7 @@ describe('familia_pendientes_listar', () => {
     expect(a).toEqual({
       id: 's1', tipo: 'hermano', creadoEn: '2026-10-30T10:00:00Z',
       solicitante: { id: 'u1', nombre: 'María Fernanda', apellido: 'Colmenárez' },
-      destino: { id: 'u2', nombre: 'Luis', apellido: 'Barrios', cuenta: true }, sinCuenta: null, creaFicha: false,
+      destino: { id: 'u2', nombre: 'Luis', apellido: 'Barrios', cuenta: true, genero: null }, sinCuenta: null, creaFicha: false,
     })
     expect(b.destino).toBeNull()
     expect(b.sinCuenta).toEqual({ nombre: 'Rafael', apellido: 'Colmenárez', fechaNacimiento: '1958-03-12', genero: 'Masculino', cedula: 'V-4123456', telefono: '0414-5550000' })
@@ -94,9 +94,16 @@ describe('the text of a request', () => {
     expect(textoSolicitudFamilia(f)).toBe('María Fernanda Colmenárez agregó a Rafael Colmenárez como su madre')
   })
 
-  it('with an account: "dice que … es su …", neutral label because the RPC sends no gender', () => {
+  it('with an account and no gender: "dice que … es su …" with the neutral label', () => {
     const [s] = parsear(conCuenta)
     expect(textoSolicitudFamilia(s)).toBe('María Fernanda Colmenárez dice que Luis Barrios es su hermano o hermana')
+  })
+
+  it('with an account: gendered by the destino ficha', () => {
+    const [s] = parsear({ ...conCuenta, destino: { ...conCuenta.destino, genero: 'Masculino' } })
+    expect(textoSolicitudFamilia(s)).toBe('María Fernanda Colmenárez dice que Luis Barrios es su hermano')
+    const [f] = parsear({ ...conCuenta, destino: { ...conCuenta.destino, genero: 'Femenino' } })
+    expect(textoSolicitudFamilia(f)).toBe('María Fernanda Colmenárez dice que Luis Barrios es su hermana')
   })
 
   it('the second line shows the typed data or whether the person has an account', () => {
