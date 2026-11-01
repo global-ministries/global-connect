@@ -29,6 +29,7 @@ jest.mock('@/lib/actions/estudiantes-grupos.actions', () => ({
   buscarPersonas: jest.fn(),
   sinGrupo: jest.fn(),
   lideresDisponibles: jest.fn(),
+  historialLideres: jest.fn(),
 }))
 
 jest.mock('@/lib/actions/estudiantes-lista.actions', () => ({
@@ -78,6 +79,7 @@ beforeEach(() => {
     ok: true,
     data: [persona('and', 'Andrea Molina'), persona('pao', 'Paola Ruiz'), persona('dia', 'Diana Peraza')],
   })
+  mock.historialLideres.mockResolvedValue({ ok: true, data: [] })
 })
 
 function props(extra: Partial<GestionGruposClientProps> = {}): GestionGruposClientProps {
@@ -165,6 +167,23 @@ describe('the group drawer', () => {
     const dialogo = await abrirGrupo('2do año · Chicas')
     await user.click(within(dialogo).getByRole('button', { name: 'Quitar a Paola Ruiz como líder' }))
     expect(mock.fijarLideres).toHaveBeenCalledWith({ grupoId: 'g2', servicioIds: ['sv-and'] })
+  })
+
+  it('shows who led the group before, under its leaders', async () => {
+    mock.historialLideres.mockResolvedValue({
+      ok: true,
+      data: [
+        { servicioId: 'sv-pao', personaId: 'pao', nombre: 'Paola Ruiz', rol: 'Líder', desde: '2025-01-15T12:00:00Z', hasta: null, cerradoPor: null },
+        { servicioId: 'sv-dia', personaId: 'dia', nombre: 'Diana Peraza', rol: 'Líder', desde: '2024-09-01T12:00:00Z', hasta: '2025-01-15T12:00:00Z', cerradoPor: null },
+      ],
+    })
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('2do año · Chicas')
+    const anteriores = await within(dialogo).findByRole('list', { name: 'Líderes anteriores' })
+    expect(within(anteriores).getByText('Diana Peraza')).toBeInTheDocument()
+    expect(within(anteriores).getByText('Líder · sep 2024 – ene 2025')).toBeInTheDocument()
+    expect(within(anteriores).queryByText('Paola Ruiz')).not.toBeInTheDocument()
+    expect(mock.historialLideres).toHaveBeenCalledWith({ grupoId: 'g2' })
   })
 
   it('sets the leaders from the multi-select', async () => {
