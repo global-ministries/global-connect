@@ -926,21 +926,27 @@ SELECT pg_temp.assert_eq('l: anon executes no estudiantes function',
 SELECT pg_temp.assert_eq('l: authenticated executes exactly the public RPCs',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$,
-  'estudiantes_buscar_personas,estudiantes_confirmar_miembro,estudiantes_en_vivo,estudiantes_escala_campus,'
-  || 'estudiantes_ficha_guardar,estudiantes_grupo_activar,estudiantes_grupo_crear,estudiantes_grupo_editar,'
-  || 'estudiantes_grupo_lideres_fijar,estudiantes_grupo_lista,estudiantes_grupo_miembro_agregar,'
-  || 'estudiantes_grupo_miembro_quitar,estudiantes_lideres_disponibles,estudiantes_marcar,estudiantes_mis_grupos,'
-  || 'estudiantes_reunion_guardar,estudiantes_visitante_agregar,estudiantes_visitante_crear');
-SELECT pg_temp.assert_eq('l: every function is SECURITY DEFINER with an empty search_path, but the label helper',
+  'estudiantes_acceso,estudiantes_buscar_personas,estudiantes_confirmar_miembro,estudiantes_en_vivo,'
+  || 'estudiantes_escala_campus,estudiantes_ficha_guardar,estudiantes_grupo_activar,estudiantes_grupo_crear,'
+  || 'estudiantes_grupo_editar,estudiantes_grupo_historial,estudiantes_grupo_integrantes,'
+  || 'estudiantes_grupo_lideres_fijar,estudiantes_grupo_lideres_historial,estudiantes_grupo_lista,'
+  || 'estudiantes_grupo_miembro_agregar,estudiantes_grupo_miembro_mover,estudiantes_grupo_miembro_quitar,'
+  || 'estudiantes_grupo_sesiones,estudiantes_lideres_disponibles,estudiantes_marcar,estudiantes_mis_grupos,'
+  || 'estudiantes_puede_marcar_voluntarios,estudiantes_reporte_voluntarios,'
+  || 'estudiantes_reunion_guardar,estudiantes_sin_grupo,estudiantes_subareas_gestionables,'
+  || 'estudiantes_visitante_agregar,estudiantes_visitante_crear,estudiantes_vivo_opciones,'
+  || 'estudiantes_voluntarios_marcar,estudiantes_voluntarios_planilla,estudiantes_voluntarios_turnos');
+SELECT pg_temp.assert_eq('l: every function is SECURITY DEFINER with an empty search_path, but the label helper and the freeze start',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_%'
-        AND NOT (p.prosecdef AND p.proconfig @> ARRAY['search_path=""'])$q$, 'estudiantes_es_subarea_grupos');
+        AND NOT (p.prosecdef AND p.proconfig @> ARRAY['search_path=""'])$q$,
+  'estudiantes_es_subarea_grupos,estudiantes_voluntarios_congelado_desde');
 SELECT pg_temp.assert_eq('l: RLS on every table and no privilege for anon or authenticated',
   $q$SELECT count(*) FILTER (WHERE c.relrowsecurity) || '|'
        || count(*) FILTER (WHERE has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
                               OR has_table_privilege('authenticated', c.oid, 'SELECT,INSERT,UPDATE,DELETE'))
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'estudiantes\_%'$q$, '7|0');
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'estudiantes\_%'$q$, '9|0');
 
 SELECT coalesce(string_agg(case_name, E'\n' ORDER BY case_name), 'ALL OK') AS result FROM t_ea_failures;
 

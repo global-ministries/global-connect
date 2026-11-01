@@ -7,7 +7,9 @@
  * ("Mis datos", `esPerfil`). The ficha's section cards with fields, a save
  * bar that appears with changes (decision 1), the leave guard (decision 9)
  * and updateUser, which answers field errors (cédula, calle) or redirects
- * to the ficha; on /perfil it stays with a toast (decision 11).
+ * to the ficha; on /perfil it stays with a toast (decision 11). On /perfil
+ * the page renders CabeceraEditar above its tabs (S15 decision 1), so the
+ * form starts with the required-field note only.
  */
 import { useRouter } from 'next/navigation'
 import { useRef, useState, type KeyboardEvent, type ReactElement } from 'react'
@@ -22,7 +24,7 @@ import { datosParaGuardar, valoresDesdeUsuario, type CatalogosGeografia, type Us
 import { SeccionesFicha } from '../ficha/partes-ficha'
 
 import { BarraGuardar, DialogoDescartar } from './barra-guardar'
-import { CabeceraEditar, type IdentidadEditar } from './cabecera-editar'
+import { CabeceraEditar, NotaObligatorios, type IdentidadEditar } from './cabecera-editar'
 import { idCampo, type EstadoCampo } from './campos-editar'
 import { ResumenErrores } from './resumen-errores'
 import { SeccionContacto, SeccionPersonal } from './secciones-datos'
@@ -95,14 +97,18 @@ export function FormularioEditarPersona({ usuario, identidad, ocupaciones, profe
 
   return (
     <div className="grid gap-5 md:gap-6">
-      <CabeceraEditar
-        usuarioId={usuario.id}
-        nombre={usuario.nombre}
-        apellido={usuario.apellido}
-        fotoUrl={usuario.foto_perfil_url ?? null}
-        identidad={identidad}
-        esPerfil={esPerfil}
-      />
+      {esPerfil ? (
+        <NotaObligatorios />
+      ) : (
+        <CabeceraEditar
+          usuarioId={usuario.id}
+          nombre={usuario.nombre}
+          apellido={usuario.apellido}
+          fotoUrl={usuario.foto_perfil_url ?? null}
+          identidad={identidad}
+          esPerfil={false}
+        />
+      )}
       <ResumenErrores ref={resumenRef} errores={f.resumen} />
       {errorGeneral && <AvisoFormulario tono="error">{errorGeneral}</AvisoFormulario>}
       <form
