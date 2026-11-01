@@ -4,14 +4,15 @@
  * Estudiantes — "Mi grupo" entry (/estudiantes, C3b of
  * odd/tasks/estudiantes-fase-b.md): the groups the caller sees
  * (estudiantes_mis_grupos) as a `ListaResponsiva`; a row opens that group's
- * leader list. Managers also get "Gestionar grupos" (/estudiantes/grupos) in
- * the header. A leader with a single group never lands here: the page sends
- * them straight to it.
+ * leader list. Managers also get "Gestionar grupos" (/estudiantes/grupos) and
+ * whoever has the live view "En vivo" (/estudiantes/vivo, C4b) in the header
+ * (below the title on phones). A leader with a single group never lands here:
+ * the page sends them straight to it.
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Settings2, UsersRound } from 'lucide-react'
+import { Radio, Settings2, UsersRound } from 'lucide-react'
 
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { TituloGrande } from '@/components/ui/barra-navegacion-movil'
@@ -31,9 +32,28 @@ const COLUMNAS: readonly ColumnaLista[] = [
 export interface MisGruposClientProps {
   readonly grupos: readonly GrupoMio[]
   readonly puedeGestionar: boolean
+  /** estudiantes_acceso().vivo: the "En vivo" link. */
+  readonly puedeVerVivo?: boolean
 }
 
-export function MisGruposClient({ grupos, puedeGestionar }: MisGruposClientProps): ReactElement {
+function Accesos({ puedeGestionar, puedeVerVivo }: { readonly puedeGestionar: boolean; readonly puedeVerVivo: boolean }): ReactElement {
+  return (
+    <>
+      {puedeVerVivo && (
+        <BotonSistema asChild variante="outline" tamaño="sm" icono={Radio}>
+          <Link href="/estudiantes/vivo">En vivo</Link>
+        </BotonSistema>
+      )}
+      {puedeGestionar && (
+        <BotonSistema asChild variante="outline" tamaño="sm" icono={Settings2}>
+          <Link href="/estudiantes/grupos">Gestionar grupos</Link>
+        </BotonSistema>
+      )}
+    </>
+  )
+}
+
+export function MisGruposClient({ grupos, puedeGestionar, puedeVerVivo = false }: MisGruposClientProps): ReactElement {
   const router = useRouter()
   const titulo = grupos.length === 1 ? 'Mi grupo' : 'Mis grupos'
   const resumen = (
@@ -52,19 +72,19 @@ export function MisGruposClient({ grupos, puedeGestionar }: MisGruposClientProps
         </nav>
       }
       acciones={
-        puedeGestionar && (
-          <BotonSistema asChild variante="outline" tamaño="sm" icono={Settings2}>
-            <Link href="/estudiantes/grupos">Gestionar grupos</Link>
-          </BotonSistema>
+        (puedeGestionar || puedeVerVivo) && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Accesos puedeGestionar={puedeGestionar} puedeVerVivo={puedeVerVivo} />
+          </div>
         )
       }
     >
       <div className="md:hidden">
         <TituloGrande titulo={titulo} nivel={2} resumen={grupos.length > 0 ? resumen : undefined} />
-        {puedeGestionar && (
-          <BotonSistema asChild variante="outline" tamaño="sm" icono={Settings2} className="mt-3">
-            <Link href="/estudiantes/grupos">Gestionar grupos</Link>
-          </BotonSistema>
+        {(puedeGestionar || puedeVerVivo) && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Accesos puedeGestionar={puedeGestionar} puedeVerVivo={puedeVerVivo} />
+          </div>
         )}
       </div>
       <div className="hidden md:block">
