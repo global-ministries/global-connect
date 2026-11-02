@@ -195,6 +195,7 @@ describe('the Estudiantes section (C4b)', () => {
       ['Mis grupos', '/estudiantes'],
       ['En vivo', '/estudiantes/vivo'],
       ['Grupos', '/estudiantes/grupos'],
+      ['Reportes', '/estudiantes/reportes'],
     ])
   })
 

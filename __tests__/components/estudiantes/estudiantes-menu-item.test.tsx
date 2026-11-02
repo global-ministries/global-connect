@@ -22,7 +22,7 @@ describe('buildEstudiantesMenuItem', () => {
   it('opens on its first entry and carries an icon per entry', () => {
     const item = buildEstudiantesMenuItem(getEstudiantesNavItems({ grupos: 0, lidera: false, vivo: true, gestiona: true }))
     expect(item).toMatchObject({ id: 'estudiantes', label: 'Estudiantes', href: '/estudiantes/vivo' })
-    expect(item?.children.map((hija) => hija.id)).toEqual(['estudiantes-vivo', 'estudiantes-grupos'])
+    expect(item?.children.map((hija) => hija.id)).toEqual(['estudiantes-vivo', 'estudiantes-grupos', 'estudiantes-reportes'])
     expect(item?.icon).toBeDefined()
     expect(item?.children.every((hija) => hija.icon !== undefined)).toBe(true)
   })
@@ -33,9 +33,22 @@ describe('the Voluntarios entry (C5)', () => {
     const item = buildEstudiantesMenuItem(getEstudiantesNavItems({ grupos: 0, lidera: false, vivo: true, gestiona: false, voluntarios: true }))
     expect(item?.children.map((hija) => [hija.id, hija.href])).toEqual([
       ['estudiantes-vivo', '/estudiantes/vivo'],
+      ['estudiantes-reportes', '/estudiantes/reportes'],
       ['estudiantes-voluntarios', '/estudiantes/voluntarios'],
     ])
+    expect(item?.children[2].icon).toBeDefined()
+  })
+})
+
+describe('the Reportes entry (C6d3)', () => {
+  it('has its own icon, after Grupos', () => {
+    const item = buildEstudiantesMenuItem(getEstudiantesNavItems({ grupos: 0, lidera: false, vivo: false, gestiona: true }))
+    expect(item?.children.map((hija) => [hija.id, hija.label, hija.href])).toEqual([
+      ['estudiantes-grupos', 'Grupos', '/estudiantes/grupos'],
+      ['estudiantes-reportes', 'Reportes', '/estudiantes/reportes'],
+    ])
     expect(item?.children[1].icon).toBeDefined()
+    expect(item?.children[1].icon).not.toBe(item?.children[0].icon)
   })
 })
 

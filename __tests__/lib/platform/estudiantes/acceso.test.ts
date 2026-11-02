@@ -54,6 +54,7 @@ describe('entradasMenuEstudiantes', () => {
     expect(entradas({ grupos: 6, vivo: true })).toEqual([
       ['Mis grupos', '/estudiantes'],
       ['En vivo', '/estudiantes/vivo'],
+      ['Reportes', '/estudiantes/reportes'],
     ])
   })
 
@@ -62,6 +63,7 @@ describe('entradasMenuEstudiantes', () => {
       { id: 'estudiantes-mi-grupo', label: 'Mis grupos', href: '/estudiantes' },
       { id: 'estudiantes-vivo', label: 'En vivo', href: '/estudiantes/vivo' },
       { id: 'estudiantes-grupos', label: 'Grupos', href: '/estudiantes/grupos' },
+      { id: 'estudiantes-reportes', label: 'Reportes', href: '/estudiantes/reportes' },
     ])
   })
 
@@ -69,7 +71,22 @@ describe('entradasMenuEstudiantes', () => {
     expect(entradas({ vivo: true, gestiona: true })).toEqual([
       ['En vivo', '/estudiantes/vivo'],
       ['Grupos', '/estudiantes/grupos'],
+      ['Reportes', '/estudiantes/reportes'],
     ])
+  })
+})
+
+describe('the Reportes entry (C6d3, S19)', () => {
+  const entradas = (parche: Partial<AccesoEstudiantes>) => entradasMenuEstudiantes(acceso(parche)).map((e) => e.id)
+
+  it('shows for level 2 on Transit / Inside Out (vivo) or level 3 anywhere (gestiona)', () => {
+    expect(entradas({ vivo: true })).toEqual(['estudiantes-vivo', 'estudiantes-reportes'])
+    expect(entradas({ gestiona: true })).toEqual(['estudiantes-grupos', 'estudiantes-reportes'])
+  })
+
+  it('stays hidden for a leader (level 1) or someone who only marks volunteers', () => {
+    expect(entradas({ grupos: 1, lidera: true })).toEqual(['estudiantes-mi-grupo'])
+    expect(entradas({ voluntarios: true })).toEqual(['estudiantes-voluntarios'])
   })
 })
 
@@ -92,6 +109,7 @@ describe('conVoluntarios (C5)', () => {
       ['estudiantes-mi-grupo', 'Mis grupos', '/estudiantes'],
       ['estudiantes-vivo', 'En vivo', '/estudiantes/vivo'],
       ['estudiantes-grupos', 'Grupos', '/estudiantes/grupos'],
+      ['estudiantes-reportes', 'Reportes', '/estudiantes/reportes'],
       ['estudiantes-voluntarios', 'Voluntarios', '/estudiantes/voluntarios'],
     ])
   })

@@ -9,6 +9,12 @@
  * - "En vivo" → /estudiantes/vivo: live view of some Transit / Inside Out
  *   ámbito (sub-área level >= 2).
  * - "Grupos" → /estudiantes/grupos: group management (level 3 somewhere).
+ * - "Reportes" → /estudiantes/reportes (C6d3, S19): level >= 2 on some
+ *   sub-área, read from the facts the layout already has — `vivo` (Transit /
+ *   Inside Out, level >= 2) or `gestiona` (level 3 anywhere). A The Living
+ *   Room entrenador with level 2 only there gets neither, so the entry is
+ *   hidden for them (the page still opens by URL); a `reportes` fact in
+ *   estudiantes_acceso() would close that gap.
  * - "Voluntarios" → /estudiantes/voluntarios (C5): the caller may mark some
  *   Transit, Inside Out or The Living Room volunteer
  *   (estudiantes_puede_marcar_voluntarios(), a second call of the layout,
@@ -55,7 +61,7 @@ export function conVoluntarios(
 }
 
 export interface EntradaMenuEstudiantes {
-  readonly id: 'estudiantes-mi-grupo' | 'estudiantes-vivo' | 'estudiantes-grupos' | 'estudiantes-voluntarios'
+  readonly id: 'estudiantes-mi-grupo' | 'estudiantes-vivo' | 'estudiantes-grupos' | 'estudiantes-reportes' | 'estudiantes-voluntarios'
   readonly label: string
   readonly href: string
 }
@@ -67,6 +73,7 @@ export function entradasMenuEstudiantes(acceso: AccesoEstudiantes): EntradaMenuE
   }
   if (acceso.vivo) entradas.push({ id: 'estudiantes-vivo', label: 'En vivo', href: '/estudiantes/vivo' })
   if (acceso.gestiona) entradas.push({ id: 'estudiantes-grupos', label: 'Grupos', href: '/estudiantes/grupos' })
+  if (acceso.vivo || acceso.gestiona) entradas.push({ id: 'estudiantes-reportes', label: 'Reportes', href: '/estudiantes/reportes' })
   if (acceso.voluntarios) entradas.push({ id: 'estudiantes-voluntarios', label: 'Voluntarios', href: '/estudiantes/voluntarios' })
   return entradas
 }
