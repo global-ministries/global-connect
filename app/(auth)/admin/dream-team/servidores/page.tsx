@@ -15,7 +15,7 @@
  * stage-advance API calls.
  *
  * The filters come from the URL (`?etapa=&direccion=&area=&equipo=&rol=&turno=&edad=&inicio=
- * &sin_cuenta=1&varios=1&por_activar=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
+ * &sin_cuenta=1&invitacion=&varios=1&por_activar=1&q=&agrupar=&orden=`), including the legacy `?equipo=`
  * and `?estado=` of the links from Talleres and Estructura.
  *
  * Linked from the desktop sidebar's Dream Team entry
@@ -44,6 +44,11 @@ import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, type Turno } from '@/lib/platform/dream-team/turnos'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { ServidoresClient } from '@/components/dream-team/servidores/servidores-client'
+import {
+  adjuntarInvitaciones,
+  fetchInvitacionesServidores,
+  rpcDeCliente,
+} from '@/lib/platform/dream-team/servidores-invitaciones'
 import {
   indexarArbol,
   leerFiltrosDeUrl,
@@ -177,7 +182,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
     return [[], new Map()]
   })
 
-  const filas: readonly FilaServidor[] = [
+  const filasBase: readonly FilaServidor[] = [
     ...servicios.map(
       (servicio): FilaServidor => ({
         clave: servicio.id,
@@ -218,6 +223,16 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
       }),
     ),
   ]
+
+  // Invitations to register (invitaciones pendientes): only those of the fichas
+  // the caller may invite, as the database decides. A convenience: if the lookup
+  // fails the page renders without the account-state pills.
+  const invitaciones = await fetchInvitacionesServidores(
+    rpcDeCliente(supabase),
+    filasBase.map((fila) => fila.personaId),
+    new Date(),
+  )
+  const filas = adjuntarInvitaciones(filasBase, invitaciones)
 
   const parametros: ParametrosDeUrl = (await searchParams) ?? {}
 

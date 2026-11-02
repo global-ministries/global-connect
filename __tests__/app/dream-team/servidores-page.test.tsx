@@ -329,6 +329,7 @@ describe('filters from the URL', () => {
       turno: 't-1',
       inicio: 'mes',
       sinCuenta: true,
+      invitacion: null,
       varios: true,
       porActivar: true,
       q: 'ana',

@@ -359,6 +359,7 @@ describe('URL codec', () => {
       edad: null,
       inicio: 'mes',
       sinCuenta: true,
+      invitacion: null,
       varios: true,
       porActivar: true,
       q: 'jose',
