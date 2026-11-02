@@ -61,6 +61,15 @@
 --   n. Argument checks.
 --   o. The name key: case, accents (composed or not), hyphens, apostrophes,
 --      no-break spaces and runs of spaces do not matter.
+--   q. The optional per-row estado (T2d of odd/tasks/dps-plan.md, migration
+--      20261103110000_dream_team_cargar_voluntarios_estado.sql): en_orientacion
+--      and postulado create the servicio in that estado with an X -> X history
+--      row and its pending verificaciones, and mint no grant; detalle says so.
+--      Any other value is an error row that writes nothing while the other
+--      rows load. Without estado, or with a JSON null, the servicio is activo
+--      with its grants and the same report as before. A row whose servicio
+--      already exists leaves it as it is and says what the row asked for. The
+--      dry run writes nothing and gives the apply's report.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK — nothing here is kept. REPEATABLE
 -- READ keeps the table fingerprints of j and k stable while other sessions
@@ -161,6 +170,8 @@ CREATE TEMP TABLE t_cv_carga8b (LIKE t_cv_simulacro) ON COMMIT DROP;
 CREATE TEMP TABLE t_cv_carga8c (LIKE t_cv_simulacro) ON COMMIT DROP;
 CREATE TEMP TABLE t_cv_carga9 (LIKE t_cv_simulacro) ON COMMIT DROP;
 CREATE TEMP TABLE t_cv_carga10 (LIKE t_cv_simulacro) ON COMMIT DROP;
+CREATE TEMP TABLE t_cv_carga11 (LIKE t_cv_simulacro) ON COMMIT DROP;
+CREATE TEMP TABLE t_cv_carga12 (LIKE t_cv_simulacro) ON COMMIT DROP;
 
 CREATE TEMP TABLE t_cv_payload (filas jsonb) ON COMMIT DROP;
 
@@ -1132,6 +1143,129 @@ SELECT pg_temp.assert_eq('p: rule 1 rows change no usuarios row and the revisar 
        (SELECT count(*) FROM public.dream_team_servicios s
          WHERE s.persona_id = 'ca000000-0000-4000-8000-000000000061'))$q$,
   '2 | 1 | -/-/- | 0 | 1');
+
+-- ── q. the optional estado ──────────────────────────────────────────
+
+-- New people by cedula in Sala or Montaje: 90 en_orientacion (voluntario, the
+-- rol with requisito 15), 91 postulado (coordinador, which would get three
+-- grants if activo), 92 and 93 an estado that is not accepted (a typo, and
+-- activo spelled out), 94 a JSON number, 95 no estado and 97 a JSON null
+-- (both activo, as before), and 96 en_orientacion for 27, whose activo
+-- servicio 31 in Sala is already there.
+UPDATE t_cv_payload SET filas = $json$[
+  {"fila": 90, "cedula": "E99900090", "nombre": "Zzorienta", "apellido": "Nueva", "genero": "Femenino",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1990-09-09", "estado": "en_orientacion",
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "voluntario"},
+  {"fila": 91, "cedula": "E99900091", "nombre": "Zzpostula", "apellido": "Nueva", "genero": "Masculino",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1991-09-09", "estado": "postulado",
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "coordinador"},
+  {"fila": 92, "cedula": "E99900092", "nombre": "Zzinvalida", "apellido": "Nueva", "genero": "Otro",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1992-09-09", "estado": "en orientación",
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "voluntario"},
+  {"fila": 93, "cedula": "E99900093", "nombre": "Zzexplicita", "apellido": "Nueva", "genero": "Otro",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1993-09-09", "estado": "activo",
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "voluntario"},
+  {"fila": 94, "cedula": "E99900094", "nombre": "Zznumero", "apellido": "Nueva", "genero": "Otro",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1994-09-09", "estado": 5,
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "voluntario"},
+  {"fila": 95, "cedula": "E99900095", "nombre": "Zzactiva", "apellido": "Nueva", "genero": "Femenino",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1995-09-09",
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "voluntario"},
+  {"fila": 96, "cedula": "E99900007", "nombre": "Zzseis", "apellido": "Dosroles", "genero": "Otro",
+   "estado_civil": "Soltero", "estado": "en_orientacion",
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Sala"], "rol": "voluntario"},
+  {"fila": 97, "cedula": "E99900097", "nombre": "Zznula", "apellido": "Nueva", "genero": "Masculino",
+   "estado_civil": "Soltero", "fecha_nacimiento": "1997-09-09", "estado": null,
+   "equipo_ruta": ["ZZ Carga Raíz", "ZZ Carga Niños", "ZZ Carga Montaje"], "rol": "voluntario"}
+]$json$::jsonb;
+
+SELECT pg_temp.huellas('antes11');
+SELECT pg_temp.cargar('t_cv_carga11', false);
+SELECT pg_temp.huellas('simulacro11');
+SELECT pg_temp.cargar('t_cv_carga12', true);
+
+SELECT pg_temp.assert_eq('q: a dry run with estado leaves every touched table unchanged',
+  $q$SELECT pg_temp.tablas_cambiadas('antes11', 'simulacro11')$q$, '');
+
+SELECT pg_temp.assert_eq('q: the dry run and the apply give the same report',
+  $q$SELECT count(*) FROM (
+       (SELECT fila, cedula, persona_accion, servicio_accion, detalle FROM t_cv_carga11
+        EXCEPT ALL
+        SELECT fila, cedula, persona_accion, servicio_accion, detalle FROM t_cv_carga12)
+       UNION ALL
+       (SELECT fila, cedula, persona_accion, servicio_accion, detalle FROM t_cv_carga12
+        EXCEPT ALL
+        SELECT fila, cedula, persona_accion, servicio_accion, detalle FROM t_cv_carga11)) x$q$,
+  '0');
+
+SELECT pg_temp.assert_eq('q: the report per row, with the estado in detalle',
+  $q$SELECT string_agg(concat_ws(' ', fila || ':' || persona_accion || '/' || servicio_accion,
+                                 coalesce(detalle, '-')), ' | ' ORDER BY fila)
+       FROM t_cv_carga12$q$,
+  '90:creada/creado servicio en en_orientacion, sin permisos hasta que se active'
+  || ' | 91:creada/creado servicio en postulado, sin permisos hasta que se active'
+  || ' | 92:error/error estado "en orientación" no válido: se acepta postulado o en_orientacion,'
+  || ' o ninguno para activo'
+  || ' | 93:error/error estado "activo" no válido: se acepta postulado o en_orientacion,'
+  || ' o ninguno para activo'
+  || ' | 94:error/error estado 5 no válido: se acepta postulado o en_orientacion,'
+  || ' o ninguno para activo'
+  || ' | 95:creada/creado -'
+  || ' | 96:existente/existente la fila pide en_orientacion; el servicio que ya existe sigue en activo'
+  || ' | 97:creada/creado -');
+
+SELECT pg_temp.assert_eq('q: the servicio takes the estado of the row, activo without one',
+  $q$SELECT string_agg(concat_ws('|', c.fila, s.estado, s.motivo_actual, s.version, coalesce(s.fecha_fin::text, '-')),
+                    ' ' ORDER BY c.fila)
+       FROM t_cv_carga12 c
+       JOIN public.dream_team_servicios s ON s.id = c.servicio_id$q$,
+  '90|en_orientacion|admin_asignacion|1|- 91|postulado|admin_asignacion|1|-'
+  || ' 95|activo|admin_asignacion|1|- 96|activo|admin_asignacion|1|- 97|activo|admin_asignacion|1|-');
+
+SELECT pg_temp.assert_eq('q: one history row X -> X per created servicio, signed by the actor; 96 none new',
+  $q$SELECT string_agg(concat_ws('|', c.fila, h.estado_anterior, h.estado_nuevo, h.motivo,
+                                 right(h.actor_persona_id::text, 2), h.detalle_motivo),
+                       ' ' ORDER BY c.fila, h.fecha)
+       FROM t_cv_carga12 c
+       JOIN public.dream_team_estados_historial h ON h.servicio_id = c.servicio_id$q$,
+  '90|en_orientacion|en_orientacion|admin_asignacion|20|Carga inicial: zz-carga-prueba'
+  || ' 91|postulado|postulado|admin_asignacion|20|Carga inicial: zz-carga-prueba'
+  || ' 95|activo|activo|admin_asignacion|20|Carga inicial: zz-carga-prueba'
+  || ' 97|activo|activo|admin_asignacion|20|Carga inicial: zz-carga-prueba');
+
+SELECT pg_temp.assert_eq('q: en_orientacion gets its pending verificaciones as an activo servicio does',
+  $q$SELECT string_agg(c.fila || '=' || right(v.requisito_id::text, 2) || '/' || v.estado, ' ' ORDER BY c.fila)
+       FROM t_cv_carga12 c
+       JOIN public.dream_team_requisitos_verificacion v ON v.servicio_id = c.servicio_id
+      WHERE c.servicio_accion = 'creado'$q$,
+  '90=15/pendiente 95=15/pendiente');
+
+SELECT pg_temp.assert_eq('q: postulado and en_orientacion mint no grant; no estado or null mint as before',
+  $q$SELECT string_agg(c.fila || '=' || coalesce(g.caps, '-'), ' ' ORDER BY c.fila)
+       FROM t_cv_carga12 c
+       LEFT JOIN LATERAL (
+         SELECT string_agg(concat_ws('/', g.capability_key, right(g.scope_id, 2), (g.revoked_at IS NULL)),
+                           ',' ORDER BY g.capability_key) AS caps
+           FROM public.dream_team_capability_grants g
+          WHERE g.persona_id = c.persona_id AND g.source = 'dream-team-servicio') g ON true
+      WHERE c.fila IN (90, 91, 95, 97)$q$,
+  '90=- 91=- 95=dream_team.serve/03/t,ninos.team.serve/03/t'
+  || ' 97=dream_team.serve/04/t,ninos.team.serve/04/t');
+
+SELECT pg_temp.assert_eq('q: a row with an estado that is not accepted creates nobody',
+  $q$SELECT count(*) FROM public.usuarios
+      WHERE cedula IN ('E99900092', 'E99900093', 'E99900094')
+         OR nombre IN ('Zzinvalida', 'Zzexplicita', 'Zznumero')$q$,
+  '0');
+
+SELECT pg_temp.assert_eq('q: the servicio that was already there keeps its estado and history',
+  $q$SELECT concat_ws('|', s.estado, s.version,
+                    (SELECT count(*) FROM public.dream_team_estados_historial h WHERE h.servicio_id = s.id),
+                    (SELECT count(*) FROM public.dream_team_servicios o
+                      WHERE o.persona_id = s.persona_id AND o.equipo_id = s.equipo_id AND o.rol_id = s.rol_id))
+       FROM public.dream_team_servicios s
+      WHERE s.id = 'ca000000-0000-4000-8000-000000000031'$q$,
+  'activo|1|0|1');
 
 -- ── l. an authenticated session cannot run the loader ───────────────
 
