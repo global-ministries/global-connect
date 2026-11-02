@@ -13,6 +13,10 @@
 --       servicio in A, and a director with a revoked grant are refused, and
 --       the state reads NULL; invitacion_cuenta_sin_cuenta lists only the
 --       two allowed fichas.
+--   S3 (grants). A miembro in A1 whose grant sits inside A (a line-2
+--       director) is allowed; one with dream_team.direct on B, a taller
+--       grant or a support capability is refused; a person retired in A but
+--       active in B is refused.
 --   S4 is covered by supabase/tests/invitaciones-cuenta.test.sql (run it too).
 --
 -- Run against STAGING: the whole script is one transaction that ends in a
@@ -67,7 +71,9 @@ SELECT gen_random_uuid() AS dir_auth, gen_random_uuid() AS dir_id,
        gen_random_uuid() AS t_sub, gen_random_uuid() AS t_area,
        gen_random_uuid() AS t_hermano, gen_random_uuid() AS t_padre,
        gen_random_uuid() AS t_retirado, gen_random_uuid() AS t_pastor,
-       gen_random_uuid() AS t_director;
+       gen_random_uuid() AS t_director, gen_random_uuid() AS t_linea2,
+       gen_random_uuid() AS t_otra_area, gen_random_uuid() AS t_taller,
+       gen_random_uuid() AS t_soporte, gen_random_uuid() AS t_mixto;
 GRANT SELECT ON t_da TO PUBLIC;
 
 INSERT INTO auth.users (id, instance_id, aud, role, email)
@@ -87,7 +93,12 @@ FROM t_da d, LATERAL (VALUES
   (d.t_padre,    NULL, 'T Padre',    'da-padre@example.test'),
   (d.t_retirado, NULL, 'T Retirado', 'da-retirado@example.test'),
   (d.t_pastor,   NULL, 'T Pastor',   'da-pastor@example.test'),
-  (d.t_director, NULL, 'T Director', 'da-director@example.test')
+  (d.t_director, NULL, 'T Director', 'da-director@example.test'),
+  (d.t_linea2,   NULL, 'T Linea2',   'da-linea2@example.test'),
+  (d.t_otra_area, NULL, 'T OtraArea', 'da-otra@example.test'),
+  (d.t_taller,   NULL, 'T Taller',   'da-taller@example.test'),
+  (d.t_soporte,  NULL, 'T Soporte',  'da-soporte@example.test'),
+  (d.t_mixto,    NULL, 'T Mixto',    'da-mixto@example.test')
 ) AS v(id, auth_id, apellido, email);
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
@@ -96,7 +107,8 @@ FROM t_da d, LATERAL (VALUES
   (d.dir_id, 'miembro'), (d.rev_id, 'miembro'),
   (d.t_sub, 'miembro'), (d.t_area, 'lider'), (d.t_hermano, 'miembro'),
   (d.t_padre, 'miembro'), (d.t_retirado, 'miembro'), (d.t_pastor, 'pastor'),
-  (d.t_director, 'director-etapa')
+  (d.t_director, 'director-etapa'), (d.t_linea2, 'miembro'), (d.t_otra_area, 'miembro'),
+  (d.t_taller, 'miembro'), (d.t_soporte, 'miembro'), (d.t_mixto, 'miembro')
 ) AS v(usuario_id, rol)
 JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
 
@@ -119,7 +131,9 @@ FROM t_da d, LATERAL (VALUES
   (d.t_sub, d.eq_a1, 'activo'), (d.t_area, d.eq_a, 'activo'),
   (d.t_hermano, d.eq_b, 'activo'), (d.t_padre, d.eq_r, 'activo'),
   (d.t_retirado, d.eq_a, 'retirado'), (d.t_pastor, d.eq_a1, 'activo'),
-  (d.t_director, d.eq_a1, 'activo')
+  (d.t_director, d.eq_a1, 'activo'), (d.t_linea2, d.eq_a1, 'activo'),
+  (d.t_otra_area, d.eq_a1, 'activo'), (d.t_taller, d.eq_a1, 'activo'),
+  (d.t_soporte, d.eq_a1, 'activo'), (d.t_mixto, d.eq_a, 'retirado'), (d.t_mixto, d.eq_b, 'activo')
 ) AS v(persona, equipo, estado)
 JOIN public.dream_team_roles r ON r.equipo_id = v.equipo;
 
@@ -128,6 +142,19 @@ INSERT INTO public.dream_team_capability_grants
 SELECT v.persona, 'dream_team.direct', 'dream_team', 'equipo', d.eq_a::text,
        'dream-team-servicio', v.revocado
 FROM t_da d, LATERAL (VALUES (d.dir_id, NULL::timestamptz), (d.rev_id, now())) AS v(persona, revocado);
+
+-- The targets' own grants: inside A (line 2), on the sibling B, on a taller.
+INSERT INTO public.dream_team_capability_grants
+  (persona_id, capability_key, experience, scope_type, scope_id, source)
+SELECT v.persona, v.clave, v.exp, v.tipo, v.scope, 'dream-team-servicio'
+FROM t_da d, LATERAL (VALUES
+  (d.t_linea2, 'dream_team.direct', 'dream_team', 'equipo', d.eq_a1::text),
+  (d.t_otra_area, 'dream_team.direct', 'dream_team', 'equipo', d.eq_b::text),
+  (d.t_taller, 'talleres_crecimiento.director.write', 'talleres_crecimiento', 'taller', gen_random_uuid()::text)
+) AS v(persona, clave, exp, tipo, scope);
+
+INSERT INTO public.support_user_capabilities (usuario_id, capability)
+SELECT t_soporte, 'support.view' FROM t_da;
 
 SET LOCAL ROLE authenticated;
 
@@ -167,6 +194,21 @@ SELECT pg_temp.ok('S3: sin_cuenta lists only the allowed fichas',
   ARRAY(SELECT x FROM public.invitacion_cuenta_sin_cuenta(
           ARRAY[t_sub, t_area, t_hermano, t_padre, t_retirado, t_pastor, t_director]) AS x ORDER BY x)
     = ARRAY(SELECT y FROM unnest(ARRAY[t_sub, t_area]) AS y ORDER BY y)) FROM t_da;
+
+SELECT pg_temp.pasa('S3: director invites a line-2 director of their subtree',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_linea2, 'da-linea2@example.test')) FROM t_da;
+SELECT pg_temp.falla('S3: refused when the target directs a sibling area',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_otra_area, 'da-otra@example.test'),
+  'sin_autoridad') FROM t_da;
+SELECT pg_temp.falla('S3: refused when the target holds a taller grant',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_taller, 'da-taller@example.test'),
+  'sin_autoridad') FROM t_da;
+SELECT pg_temp.falla('S3: refused when the target holds a support capability',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_soporte, 'da-soporte@example.test'),
+  'sin_autoridad') FROM t_da;
+SELECT pg_temp.falla('S3: refused when retired in the area and active in a sibling',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_mixto, 'da-mixto@example.test'),
+  'sin_autoridad') FROM t_da;
 
 SELECT pg_temp.como(rev_auth) FROM t_da;
 SELECT pg_temp.falla('S3: a revoked director grant is refused',

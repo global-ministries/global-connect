@@ -11,11 +11,16 @@
 -- (the four of 20261008130000 stay as they are):
 --   5. the target holds a non-retired servicio in an equipo where the actor
 --      has dream_team.direct in tree (auth_has_dream_team_capability_in_tree:
---      the grant scoped to that equipo or to one of its ancestors), and every
---      role of the target is within {miembro, lider} (no roles is fine).
--- The target-role cap is the same as the GdV directors' one: the invited
--- account takes over the ficha with all its roles, so a director must never
--- be able to invite their own email onto a pastor, director or admin ficha.
+--      the grant scoped to that equipo or to one of its ancestors), every
+--      role of the target is within {miembro, lider} (no roles is fine),
+--      every active capability grant of the target is equipo-scoped inside
+--      the actor's tree (no taller, experience or global grant, nothing in a
+--      sibling area), and the target has no active support capability.
+-- The caps exist because the invited account takes over the ficha with all
+-- its roles and grants: a director must never be able to invite their own
+-- email onto a ficha that carries authority beyond the director's own area.
+-- Authority inside the area is fine (a line-1 director invites the line-2
+-- directors under them; that is the point of the rule).
 --
 -- Every invitation function (invitacion_cuenta_crear, invitacion_cuenta_estado,
 -- invitacion_cuenta_sin_cuenta) calls this function, so only it changes, and
@@ -74,7 +79,21 @@ AS $function$
                              FROM public.usuario_roles ur
                              JOIN public.roles_sistema r ON r.id = ur.rol_id
                             WHERE ur.usuario_id = p_usuario_id
-                              AND r.nombre_interno NOT IN ('miembro', 'lider')))
+                              AND r.nombre_interno NOT IN ('miembro', 'lider'))
+           AND NOT EXISTS (SELECT 1
+                             FROM public.dream_team_capability_grants g
+                            WHERE g.persona_id = p_usuario_id
+                              AND g.revoked_at IS NULL
+                              AND CASE
+                                    WHEN g.scope_type = 'equipo'
+                                     AND g.scope_id ~ '^[0-9a-fA-F-]{36}$'
+                                      THEN NOT public.auth_has_dream_team_capability_in_tree('dream_team.direct', g.scope_id::uuid)
+                                    ELSE true
+                                  END)
+           AND NOT EXISTS (SELECT 1
+                             FROM public.support_user_capabilities c
+                            WHERE c.usuario_id = p_usuario_id
+                              AND c.revoked_at IS NULL))
      );
 $function$;
 
@@ -83,8 +102,8 @@ COMMENT ON FUNCTION public.invitacion_cuenta_puede_invitar(uuid) IS
   'whoever dream_team_puede_editar_ficha allows, a director (etapa or general) for a target whose '
   'roles are all miembro or lider, a Líder/Colíder of a group the target belongs to for a target '
   'whose roles are all miembro, or a Dream Team area director (dream_team.direct in tree) for a '
-  'target serving in their subtree whose roles are all miembro or lider. The target-role caps keep '
-  'an invitation from taking over a privileged ficha.';
+  'target serving in their subtree whose roles are all miembro or lider and whose grants all sit '
+  'inside that subtree. The caps keep an invitation from taking over a privileged ficha.';
 
 REVOKE ALL ON FUNCTION public.invitacion_cuenta_puede_invitar(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.invitacion_cuenta_puede_invitar(uuid) TO authenticated;
