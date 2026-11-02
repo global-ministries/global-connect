@@ -48,7 +48,7 @@ export function formatearFecha(valor: string | null): string {
 export interface AccionesServicioDetalle {
   readonly cambiarEtapa: boolean
   readonly turnos: boolean
-  /** "Cambiar de área": director authority over the servicio's equipo, not retired (puedeCambiarArea). */
+  /** "Cambiar de área": director or coordinator authority over the servicio's equipo, not retired (puedeCambiarArea). */
   readonly cambiarArea?: boolean
   /** "Editar ficha" (and "Corregir en la ficha") shows when any servicio allows it. */
   readonly editarFicha: boolean

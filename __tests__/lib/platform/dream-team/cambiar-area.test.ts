@@ -1,9 +1,9 @@
 /**
- * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2): the pure
+ * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2, T3): the pure
  * helpers of lib/platform/dream-team/cambiar-area.ts.
  */
 import {
-  fetchEquiposDirigidos,
+  fetchEquiposCambioArea,
   fetchSolicitudesCambioArea,
   mapDestinos,
   mapSolicitudes,
@@ -76,23 +76,23 @@ describe('puedeCambiarArea', () => {
   })
 })
 
-describe('fetchEquiposDirigidos', () => {
+describe('fetchEquiposCambioArea', () => {
   it('asks once per distinct equipo and keeps the true answers', async () => {
     const rpc = jest.fn(async (_fn: string, args: { p_equipo_id: string }) => ({ data: args.p_equipo_id === 'a', error: null }))
-    expect([...(await fetchEquiposDirigidos({ rpc }, ['a', 'b', 'a']))]).toEqual(['a'])
+    expect([...(await fetchEquiposCambioArea({ rpc }, ['a', 'b', 'a']))]).toEqual(['a'])
     expect(rpc).toHaveBeenCalledTimes(2)
-    expect(rpc).toHaveBeenCalledWith('dream_team_autoridad_director', { p_equipo_id: 'a' })
+    expect(rpc).toHaveBeenCalledWith('dream_team_puede_solicitar_cambio_area', { p_equipo_id: 'a' })
   })
   it('fails closed', async () => {
-    expect((await fetchEquiposDirigidos({}, ['a'])).size).toBe(0)
+    expect((await fetchEquiposCambioArea({}, ['a'])).size).toBe(0)
     const conError = jest.fn(async () => ({ data: true, error: { message: 'x' } }))
-    expect((await fetchEquiposDirigidos({ rpc: conError }, ['a'])).size).toBe(0)
+    expect((await fetchEquiposCambioArea({ rpc: conError }, ['a'])).size).toBe(0)
     const lanza = jest.fn(async () => {
       throw new Error('red')
     })
-    expect((await fetchEquiposDirigidos({ rpc: lanza }, ['a'])).size).toBe(0)
+    expect((await fetchEquiposCambioArea({ rpc: lanza }, ['a'])).size).toBe(0)
     const noBooleano = jest.fn(async () => ({ data: [{ equipo_id: 'a' }], error: null }))
-    expect((await fetchEquiposDirigidos({ rpc: noBooleano }, ['a'])).size).toBe(0)
+    expect((await fetchEquiposCambioArea({ rpc: noBooleano }, ['a'])).size).toBe(0)
   })
 })
 

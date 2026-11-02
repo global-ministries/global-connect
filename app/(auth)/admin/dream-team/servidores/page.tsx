@@ -36,7 +36,7 @@ import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
 import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
-import { fetchEquiposDirigidos } from '@/lib/platform/dream-team/cambiar-area'
+import { fetchEquiposCambioArea } from '@/lib/platform/dream-team/cambiar-area'
 import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
 import { fetchRangosEdad, type RangoEdad } from '@/lib/platform/dream-team/edad'
@@ -158,10 +158,10 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
   // personal data of (the volunteer coordinator of the area, org.manage, admin
   // or pastor). Fails closed to none; the RPC checks it again on save.
   const equiposFicha = await fetchEquiposRegistrables(supabase)
-  // "Cambiar de área": the equipos the viewer has director authority over
-  // (dream_team_autoridad_director; a coordinator has none). Fails closed; the
-  // RPCs check it again.
-  const equiposDirigidos = await fetchEquiposDirigidos(
+  // "Cambiar de área": the equipos the viewer directs or coordinates
+  // (dream_team_puede_solicitar_cambio_area; a coordinator only requests).
+  // Fails closed; the RPCs check it again.
+  const equiposCambioArea = await fetchEquiposCambioArea(
     supabase,
     servicios.filter((servicio) => servicio.estado !== 'retirado').map((servicio) => servicio.equipoId),
   )
@@ -203,7 +203,7 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         version: servicio.version,
         editable: puedeEditar,
         fichaEditable: servicio.estado !== 'retirado' && equiposFicha.has(servicio.equipoId),
-        areaCambiable: servicio.estado !== 'retirado' && equiposDirigidos.has(servicio.equipoId),
+        areaCambiable: servicio.estado !== 'retirado' && equiposCambioArea.has(servicio.equipoId),
         turnoIds: turnosPorServicio.get(servicio.id) ?? [],
         frecuencias: frecuenciasPorServicio.get(servicio.id),
         rangoEdad: rangoEdadPorId.get(servicio.personaId),

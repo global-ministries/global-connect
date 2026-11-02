@@ -1,8 +1,9 @@
 /**
  * Dream Team — POST /api/dream-team/solicitudes-cambio-area/[id]
- * (odd/tasks/dream-team-cambiar-area.md, T2, S5).
+ * (odd/tasks/dream-team-cambiar-area.md, T2, T3, S5, S7).
  *
- * { aprobar, respuesta? } → { id }: a director of both áreas approves (the
+ * { aprobar, respuesta? } → { id }: a director of both áreas or the Atención
+ * al Voluntario coordinator of the dirección (never the requester) approves (the
  * move happens; `id` is the new servicio) or rejects (`id` null) a pending
  * request, through dream_team_resolver_solicitud_cambio_area, which checks
  * the authority and that the servicio did not change (42501 → 403, 22023 →

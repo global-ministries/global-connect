@@ -59,8 +59,8 @@ export interface FilaServidor {
   readonly fichaEditable?: boolean
   /**
    * Whether the viewer may move the servicio to another área ("Cambiar de
-   * área"): director authority over its equipo, not retired. Checked again by
-   * the cambiar-área RPCs.
+   * área"): director or coordinator authority over its equipo, not retired.
+   * Checked again by the cambiar-área RPCs.
    */
   readonly areaCambiable?: boolean
   /** Campus service shifts of a Dream Team servicio; absent or empty = none assigned yet. */

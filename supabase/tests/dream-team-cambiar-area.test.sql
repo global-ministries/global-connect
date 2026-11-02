@@ -19,7 +19,8 @@
 --      aprobada with who, when, the answer and the new servicio; approving it
 --      again is refused.
 --   f. Rejecting changes only the request.
---   g. A coordinator without director authority can neither move nor request.
+--   g. A coordinator without director authority cannot move but requests, even
+--      inside their own área (T3, S7).
 --   h. Approving after the servicio was retired fails and changes nothing.
 --   i. An en_orientacion servicio moves in en_orientacion and mints nothing.
 --   j. A person with another active servicio in the origin keeps the grants
@@ -33,8 +34,16 @@
 --   o. The destinations of the dialog (dream_team_cambiar_area_destinos, T2):
 --      the Producción Técnica director over a Cámaras servicio gets every
 --      active área but Cámaras, Audio with dirige and Estacionamiento without,
---      each with its active roles; a coordinator and an unknown servicio are
---      refused; its privileges.
+--      each with its active roles; a coordinator gets them all without dirige
+--      (T3); an unknown servicio is refused; its privileges.
+--   p. Coordinators (T3, S7): the Cámaras coordinator cannot move Cámaras →
+--      Audio but requests it (destinations without dirige); the Atención al
+--      Voluntario coordinator of Producción Técnica sees and approves it (the
+--      move of (a), signed by them), cannot resolve a request whose
+--      destination is outside Producción Técnica, cannot request outside what
+--      they coordinate nor move directly, and cannot resolve their own
+--      request; dream_team_puede_solicitar_cambio_area for the button; the
+--      privileges of the two new functions.
 --
 -- Run against STAGING inside a transaction that is discarded. The last
 -- statement raises 'SUITE_RESULT: ALL OK' (or the failing cases), which also
@@ -47,6 +56,9 @@
 --   2 PT       dream_team.direct on Producción Técnica
 --   3 COORD    dream_team.coordinate on ZZ DPS (no director authority)
 --   4 ADMIN    system admin
+--   5 AV_COORD active Coordinador servicio in Atención al Voluntario (under
+--              Producción Técnica), created in p
+--   6 CAM_COORD dream_team.coordinate on Cámaras, created in p
 --   Volunteers (no account), servicios in Cámaras unless said otherwise:
 --   10 V1 activo (its induccion completado), 11 V2 activo, 12 V3 activo,
 --   13 V4 activo, 14 V5 activo, 15 V6 en_orientacion, 16 V7 activo Voluntario
@@ -397,7 +409,7 @@ SELECT pg_temp.assert_raises('c3: with authority over both áreas the request is
   'Tienes autoridad sobre ambas áreas; cambia el área directamente, sin solicitud.');
 SELECT pg_temp.assert_raises('c4: the requester cannot resolve their own request',
   $q$SELECT pg_temp.resolver('c', true, NULL)$q$, '42501',
-  'Solo un director con autoridad sobre ambas áreas puede resolver esta solicitud.');
+  'Solo un director con autoridad sobre ambas áreas o el coordinador de Atención al Voluntario de la dirección puede resolver esta solicitud.');
 RESET ROLE;
 SELECT pg_temp.assert_eq('c2–c4: the refused calls changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('c2.antes'));
 
@@ -496,11 +508,22 @@ SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_raises('g: a coordinator cannot move',
   $q$SELECT pg_temp.mover(17, 4, 4, 'correccion', NULL)$q$, '42501',
   'No tienes autoridad de director sobre el área actual de este servicio.');
-SELECT pg_temp.assert_raises('g: a coordinator cannot request',
-  $q$SELECT pg_temp.solicitar(17, 6, 6, 'correccion', NULL)$q$, '42501',
-  'No tienes autoridad de director sobre el área actual de este servicio.');
 RESET ROLE;
-SELECT pg_temp.assert_eq('g: nothing changed', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('g.antes'));
+SELECT pg_temp.assert_eq('g: the refused move changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('g.antes'));
+
+-- Inside the DPS they coordinate: still a request, never a move.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(3);
+SELECT pg_temp.guardar('g', $q$SELECT pg_temp.solicitar(17, 6, 6, 'correccion', 'Va a estacionamiento')$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('g: a coordinator requests; one pendiente request, signed by them',
+  $q$SELECT pg_temp.solicitudes(17)$q$, 'pendiente:COORD>EST:vol:correccion:Va a estacionamiento:-:-:-:-');
+SELECT pg_temp.assert_eq('g: the request returns its id',
+  $q$SELECT count(*)::text FROM public.dream_team_solicitudes_cambio_area
+      WHERE id = pg_temp.ctx('g')::uuid AND servicio_id = pg_temp.id('se', 17)$q$, '1');
+SELECT pg_temp.assert_eq('g: requesting does not move the servicio',
+  $q$SELECT pg_temp.servicios(17) || ' / ' || pg_temp.grants(17)$q$,
+  'CAM:vol:activo:admin_asignacion:1:- / dps.team.serve@CAM, dream_team.serve@CAM');
 
 -- ── h. approving after the servicio was retired ──────────────────────
 
@@ -683,8 +706,10 @@ SELECT pg_temp.assert_eq('o: the DPS director directs every DPS área',
   'AUD:true:dps:vol/Voluntario/voluntario, DPS:true:dps:-, EST:true:dps:vol/Voluntario/voluntario, '
   || 'NIN:false:ninos:-, OPS:true:dps:-, PT:true:dps:-, SALA:false:ninos:vol/Voluntario/voluntario');
 SELECT pg_temp.as_persona(3);
-SELECT pg_temp.assert_raises('o: a coordinator is refused',
-  $q$SELECT pg_temp.destinos(17)$q$, '42501', 'No tienes autoridad de director sobre el área actual de este servicio.');
+SELECT pg_temp.assert_eq('o: a coordinator gets every active área but Cámaras, none with dirige',
+  $q$SELECT pg_temp.destinos(17)$q$,
+  'AUD:false:dps:vol/Voluntario/voluntario, DPS:false:dps:-, EST:false:dps:vol/Voluntario/voluntario, '
+  || 'NIN:false:ninos:-, OPS:false:dps:-, PT:false:dps:-, SALA:false:ninos:vol/Voluntario/voluntario');
 SELECT pg_temp.as_persona(2);
 SELECT pg_temp.assert_raises('o: an unknown servicio is refused',
   $q$SELECT pg_temp.destinos(99)$q$, '22023', 'El servicio no existe.');
@@ -695,6 +720,190 @@ SELECT pg_temp.assert_eq('o: authenticated executes it, anon does not; SECURITY 
             || '|' || (p.prosecdef AND p.proconfig @> ARRAY['search_path=""'])
        FROM pg_proc p WHERE p.oid = 'public.dream_team_cambiar_area_destinos(uuid)'::regprocedure$q$,
   'true|false|false|true');
+
+-- ── p. coordinators request; the Atención al Voluntario coordinator approves ──
+
+-- Fixture of p: 5 AV_COORD (Coordinador in Atención al Voluntario, under
+-- Producción Técnica: their reach is Producción Técnica's subtree), 6
+-- CAM_COORD (dream_team.coordinate on Cámaras); volunteers 21 and 22 in
+-- Cámaras, 23 in Atención al Voluntario. Created after o, whose destinations
+-- list every fixture área.
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'ca-' || n || '@example.test', now(),
+       '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
+  FROM generate_series(5, 6) AS n;
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
+SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ca', 'U' || n, 'ca-' || n || '@example.test', 'Soltero', 'Femenino'
+  FROM generate_series(5, 6) AS n;
+INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero)
+SELECT pg_temp.id('us', n), 'ZZ Ca', 'V' || n, 'No especificado', 'Femenino'
+  FROM generate_series(21, 23) AS n;
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
+  (pg_temp.id('eq', 10), 'dps', pg_temp.id('eq', 2), 'Atención al Voluntario', true);
+INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo) VALUES
+  (pg_temp.id('ro', 10), pg_temp.id('eq', 10), 'Coordinador', 'coordinador', true),
+  (pg_temp.id('ro', 11), pg_temp.id('eq', 10), 'Voluntario',  'voluntario',  true);
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
+SELECT pg_temp.id('se', v.se), pg_temp.id('us', v.us), pg_temp.id('eq', v.eq), pg_temp.id('ro', v.ro),
+       'activo', now() - interval '30 days', 'admin_asignacion'
+  FROM (VALUES (50, 5, 10, 10), (21, 21, 3, 3), (22, 22, 3, 3), (23, 23, 10, 11)) AS v(se, us, eq, ro);
+INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id, source)
+SELECT DISTINCT s.persona_id, k.capability_key, k.experience, k.scope_type, k.scope_id, 'dream-team-servicio'
+  FROM public.dream_team_servicios s
+  JOIN public.dream_team_equipos e ON e.id = s.equipo_id
+  JOIN public.dream_team_roles r ON r.id = s.rol_id
+ CROSS JOIN LATERAL public.dream_team_grants_de_servicio(s.equipo_id, e.experiencia, s.rol_id, r.label) k
+ WHERE s.id IN (pg_temp.id('se', 50), pg_temp.id('se', 21), pg_temp.id('se', 22), pg_temp.id('se', 23));
+INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id, source) VALUES
+  (pg_temp.id('us', 6), 'dream_team.coordinate', 'dream_team', 'equipo', pg_temp.id('eq', 3)::text, 'zz-test');
+INSERT INTO t_ca_labels (id, label) VALUES
+  (pg_temp.id('eq', 10), 'AV'), (pg_temp.id('ro', 10), 'coord'), (pg_temp.id('ro', 11), 'vol'),
+  (pg_temp.id('us', 5), 'AV_COORD'), (pg_temp.id('us', 6), 'CAM_COORD');
+
+SELECT pg_temp.assert_eq('p: fixture: the AV coordinator coordinates their node, the Cámaras one Cámaras',
+  $q$SELECT pg_temp.grants(5) || ' / ' || (SELECT string_agg(g.capability_key || '@' || pg_temp.lbl(g.scope_id::uuid), ',')
+       FROM public.dream_team_capability_grants g WHERE g.persona_id = pg_temp.id('us', 6))$q$,
+  'dps.team.lead@AV, dream_team.coordinate@AV, dream_team.serve@AV / dream_team.coordinate@CAM');
+
+-- The button: dream_team_puede_solicitar_cambio_area (director authority or
+-- dream_team.coordinate on the equipo or an ancestor).
+CREATE OR REPLACE FUNCTION pg_temp.puede_solicitar(p_us int, p_eq int) RETURNS text LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM pg_temp.as_persona(p_us);
+  RETURN public.dream_team_puede_solicitar_cambio_area(pg_temp.id('eq', p_eq))::text;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION pg_temp.puede_solicitar(int, int) TO authenticated;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert_eq('p: puede_solicitar: CAM_COORD on Cámaras and Audio; PT_DIR, COORD, AV_COORD, ADMIN, nobody',
+  $q$SELECT concat_ws(',', pg_temp.puede_solicitar(6, 3), pg_temp.puede_solicitar(6, 4), pg_temp.puede_solicitar(2, 3),
+                     pg_temp.puede_solicitar(3, 6), pg_temp.puede_solicitar(5, 3), pg_temp.puede_solicitar(5, 10),
+                     pg_temp.puede_solicitar(4, 9), pg_temp.puede_solicitar(1, 9))$q$,
+  'true,false,true,true,false,true,true,false');
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT pg_temp.assert_eq('p: puede_solicitar without a session is false',
+  $q$SELECT public.dream_team_puede_solicitar_cambio_area(pg_temp.id('eq', 3))::text$q$, 'false');
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.assert_eq('p: puede_solicitar of an unknown equipo is false',
+  $q$SELECT public.dream_team_puede_solicitar_cambio_area(pg_temp.id('eq', 99))::text$q$, 'false');
+RESET ROLE;
+
+-- The Cámaras coordinator: no direct move, destinations without dirige, a request.
+INSERT INTO t_ca_ctx (k, v) VALUES ('p1.antes', pg_temp.huella());
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.assert_raises('p1: the Cámaras coordinator cannot move Cámaras → Audio',
+  $q$SELECT pg_temp.mover(21, 4, 4, 'traslado', NULL)$q$, '42501',
+  'No tienes autoridad de director sobre el área actual de este servicio.');
+SELECT pg_temp.assert_eq('p1: their destinations: none with dirige, Audio among them',
+  $q$SELECT count(*) FILTER (WHERE d.dirige) || '|' || count(*) FILTER (WHERE d.equipo_id = pg_temp.id('eq', 4))
+       FROM public.dream_team_cambiar_area_destinos(pg_temp.id('se', 21)) d$q$, '0|1');
+RESET ROLE;
+SELECT pg_temp.assert_eq('p1: the refused move changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('p1.antes'));
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.guardar('p', $q$SELECT pg_temp.solicitar(21, 4, 4, 'traslado', 'Pide pasar a audio')$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('p1: one pendiente request, signed by the Cámaras coordinator',
+  $q$SELECT pg_temp.solicitudes(21)$q$, 'pendiente:CAM_COORD>AUD:vol:traslado:Pide pasar a audio:-:-:-:-');
+SELECT pg_temp.assert_eq('p1: the request returns its id',
+  $q$SELECT count(*)::text FROM public.dream_team_solicitudes_cambio_area
+      WHERE id = pg_temp.ctx('p')::uuid AND servicio_id = pg_temp.id('se', 21)$q$, '1');
+SELECT pg_temp.assert_eq('p1: requesting does not move the servicio',
+  $q$SELECT pg_temp.servicios(21) || ' / ' || pg_temp.grants(21)$q$,
+  'CAM:vol:activo:admin_asignacion:1:- / dps.team.serve@CAM, dream_team.serve@CAM');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.assert_eq('p1: the requester reads their own request, without resolving it (RPC and RLS)',
+  $q$SELECT string_agg(l.persona_nombre || '|' || l.estado || '|' || l.puede_resolver || '|' || l.es_mia, ',')
+            || ' / ' || (SELECT count(*) FROM public.dream_team_solicitudes_cambio_area)
+       FROM public.dream_team_solicitudes_cambio_area() l$q$, 'ZZ Ca V21|pendiente|false|true / 1');
+RESET ROLE;
+
+-- The Atención al Voluntario coordinator of Producción Técnica.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_eq('p2: the AV coordinator reads only the pending request inside their reach, to resolve (RPC and RLS)',
+  $q$SELECT string_agg(l.persona_nombre || '|' || l.estado || '|' || l.puede_resolver || '|' || l.es_mia, ',')
+            || ' / ' || (SELECT count(*) FROM public.dream_team_solicitudes_cambio_area)
+       FROM public.dream_team_solicitudes_cambio_area() l$q$, 'ZZ Ca V21|pendiente|true|false / 1');
+RESET ROLE;
+
+INSERT INTO t_ca_ctx (k, v) VALUES ('p2.antes', pg_temp.huella());
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_raises('p2: the AV coordinator cannot approve a request whose destination is outside Producción Técnica',
+  $q$SELECT pg_temp.resolver('g', true, NULL)$q$, '42501',
+  'Solo un director con autoridad sobre ambas áreas o el coordinador de Atención al Voluntario de la dirección puede resolver esta solicitud.');
+SELECT pg_temp.assert_raises('p2: nor reject it',
+  $q$SELECT pg_temp.resolver('g', false, NULL)$q$, '42501',
+  'Solo un director con autoridad sobre ambas áreas o el coordinador de Atención al Voluntario de la dirección puede resolver esta solicitud.');
+SELECT pg_temp.assert_raises('p2: the AV coordinator cannot request for an área they do not coordinate',
+  $q$SELECT pg_temp.solicitar(22, 4, 4, 'traslado', NULL)$q$, '42501',
+  'No tienes autoridad de director ni de coordinador sobre el área actual de este servicio.');
+SELECT pg_temp.assert_raises('p2: nor list its destinations',
+  $q$SELECT pg_temp.destinos(22)$q$, '42501',
+  'No tienes autoridad de director ni de coordinador sobre el área actual de este servicio.');
+SELECT pg_temp.assert_raises('p2: the AV coordinator cannot move directly, even inside their node',
+  $q$SELECT pg_temp.mover(23, 4, 4, 'traslado', NULL)$q$, '42501',
+  'No tienes autoridad de director sobre el área actual de este servicio.');
+RESET ROLE;
+SELECT pg_temp.assert_eq('p2: the refused calls changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('p2.antes'));
+SELECT pg_temp.assert_eq('p2: the outside request is still pendiente',
+  $q$SELECT pg_temp.solicitudes(17)$q$, 'pendiente:COORD>EST:vol:correccion:Va a estacionamiento:-:-:-:-');
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.guardar('p.ok', $q$SELECT pg_temp.resolver('p', true, 'Aprobado por AV')$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('p2: approving returns the new servicio, in Audio',
+  $q$SELECT pg_temp.lbl(s.equipo_id) || ':' || s.estado FROM public.dream_team_servicios s WHERE s.id = pg_temp.ctx('p.ok')::uuid$q$, 'AUD:activo');
+SELECT pg_temp.assert_eq('p2: the request is aprobada by the AV coordinator, with the answer and the new servicio',
+  $q$SELECT pg_temp.solicitudes(21)$q$, 'aprobada:CAM_COORD>AUD:vol:traslado:Pide pasar a audio:AV_COORD:Aprobado por AV:at:nuevo');
+SELECT pg_temp.assert_eq('p2: origin retired, destination activo',
+  $q$SELECT pg_temp.servicios(21)$q$, 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin');
+SELECT pg_temp.assert_eq('p2: history signed by the AV coordinator, with the request nota',
+  $q$SELECT pg_temp.historial(21)$q$,
+  'AUD:activo>activo:reasignacion:AV_COORD:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pide pasar a audio'
+  || ' | CAM:activo>retirado:reasignacion:AV_COORD:Traslado · Hacia ZZ DPS › Producción Técnica › Audio (Voluntario) · Pide pasar a audio');
+SELECT pg_temp.assert_eq('p2: grants moved',
+  $q$SELECT pg_temp.grants(21)$q$, 'dps.team.serve@AUD, dps.team.serve@CAM~, dream_team.serve@AUD, dream_team.serve@CAM~');
+
+-- Nobody resolves their own request: the AV coordinator asks for a volunteer of their node.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.guardar('p.mia', $q$SELECT pg_temp.solicitar(23, 4, 4, 'correccion', NULL)$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('p3: the AV coordinator requests for their own node',
+  $q$SELECT pg_temp.solicitudes(23)$q$, 'pendiente:AV_COORD>AUD:vol:correccion:-:-:-:-:-');
+INSERT INTO t_ca_ctx (k, v) VALUES ('p3.antes', pg_temp.huella());
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_eq('p3: they read it as their own, without resolving it',
+  $q$SELECT string_agg(l.estado || '|' || l.puede_resolver || '|' || l.es_mia, ',')
+       FROM public.dream_team_solicitudes_cambio_area() l WHERE l.servicio_id = pg_temp.id('se', 23)$q$, 'pendiente|false|true');
+SELECT pg_temp.assert_raises('p3: they cannot approve their own request',
+  $q$SELECT pg_temp.resolver('p.mia', true, NULL)$q$, '42501', 'No puedes resolver una solicitud que enviaste tú.');
+SELECT pg_temp.assert_raises('p3: nor reject it',
+  $q$SELECT pg_temp.resolver('p.mia', false, NULL)$q$, '42501', 'No puedes resolver una solicitud que enviaste tú.');
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_eq('p3: the PT director can resolve it',
+  $q$SELECT string_agg(l.estado || '|' || l.puede_resolver || '|' || l.es_mia, ',')
+       FROM public.dream_team_solicitudes_cambio_area() l WHERE l.servicio_id = pg_temp.id('se', 23)$q$, 'pendiente|true|false');
+RESET ROLE;
+SELECT pg_temp.assert_eq('p3: the refused calls changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('p3.antes'));
+
+SELECT pg_temp.assert_eq('p4: the two new functions: authenticated executes them, anon and public do not; SECURITY DEFINER, empty search_path',
+  $q$SELECT string_agg(p.oid::regprocedure::text || '=' || has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                        || '|' || has_function_privilege('anon', p.oid, 'EXECUTE')
+                        || '|' || has_function_privilege('public', p.oid, 'EXECUTE')
+                        || '|' || (p.prosecdef AND p.proconfig @> ARRAY['search_path=""']), ', ' ORDER BY p.proname)
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname IN ('dream_team_puede_solicitar_cambio_area', 'dream_team_puede_resolver_cambio_area')$q$,
+  'dream_team_puede_resolver_cambio_area(uuid,uuid)=true|false|false|true, '
+  || 'dream_team_puede_solicitar_cambio_area(uuid)=true|false|false|true');
 
 DO $$
 BEGIN

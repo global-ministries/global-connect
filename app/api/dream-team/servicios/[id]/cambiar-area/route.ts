@@ -8,12 +8,12 @@
  *        so the dialog proposes the same nivel in the destination.
  * POST { modo, equipoId, rolId, motivo, nota? } → { modo, id }: `directo`
  *        moves it (dream_team_cambiar_area → the new servicio), `solicitud`
- *        asks a director of both áreas (dream_team_solicitar_cambio_area →
- *        the request).
+ *        asks a director of both áreas or the Atención al Voluntario
+ *        coordinator (dream_team_solicitar_cambio_area → the request).
  *
  * No capability gate here, as in the ficha route: the functions check
- * director authority over the current área (and the destination for a direct
- * move) and answer 42501 → 403 or 22023 → 422 with a Spanish message the
+ * director or coordinator authority over the current área (director over
+ * both for a direct move) and answer 42501 → 403 or 22023 → 422 with a Spanish message the
  * dialog shows as is.
  */
 import { NextRequest, NextResponse } from 'next/server'

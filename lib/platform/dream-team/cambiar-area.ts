@@ -1,9 +1,12 @@
 /**
  * Dream Team — "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2,
- * S3 and S5): a director moves a servicio to another área in one step, or
- * sends a request that a director of both áreas approves.
+ * T3, S3, S5 and S7): a director moves a servicio to another área in one step,
+ * or sends a request that a director of both áreas (or the Atención al
+ * Voluntario coordinator of the dirección) approves; a coordinator always
+ * sends a request.
  *
- * The database is the one authority (20261104100000, 20261104110000):
+ * The database is the one authority (20261104100000, 20261104110000,
+ * 20261104120000):
  * dream_team_cambiar_area_destinos lists the áreas with `dirige` (move
  * directly) or not (send a request), dream_team_cambiar_area and
  * dream_team_solicitar_cambio_area apply each, and
@@ -218,28 +221,29 @@ export async function fetchSolicitudesCambioArea(supabase: { rpc?: unknown }): P
   }
 }
 
-type RpcAutoridad = (fn: 'dream_team_autoridad_director', args: { p_equipo_id: string }) => PromiseLike<{
+type RpcPuedeSolicitar = (fn: 'dream_team_puede_solicitar_cambio_area', args: { p_equipo_id: string }) => PromiseLike<{
   data: unknown
   error: unknown
 }>
 
 /**
- * The equipos (of `equipoIds`) the caller has director authority over
- * (dream_team_autoridad_director, the gate of the cambiar-área RPCs): where
- * "Cambiar de área" shows. One call per distinct equipo, as the pages already
- * read roles per equipo. Fails closed: an error or a non-true answer is "no".
+ * The equipos (of `equipoIds`) whose servicios the caller may change the área
+ * of (dream_team_puede_solicitar_cambio_area: director authority, or
+ * dream_team.coordinate for a request): where "Cambiar de área" shows. One
+ * call per distinct equipo, as the pages already read roles per equipo. Fails
+ * closed: an error or a non-true answer is "no".
  */
-export async function fetchEquiposDirigidos(
+export async function fetchEquiposCambioArea(
   supabase: { rpc?: unknown },
   equipoIds: readonly string[],
 ): Promise<ReadonlySet<string>> {
   if (typeof supabase.rpc !== 'function') return new Set()
-  const rpc = (supabase.rpc as RpcAutoridad).bind(supabase)
+  const rpc = (supabase.rpc as RpcPuedeSolicitar).bind(supabase)
   const unicos = [...new Set(equipoIds)]
   const respuestas = await Promise.all(
     unicos.map(async (id) => {
       try {
-        const { data, error } = await rpc('dream_team_autoridad_director', { p_equipo_id: id })
+        const { data, error } = await rpc('dream_team_puede_solicitar_cambio_area', { p_equipo_id: id })
         return !error && data === true ? id : null
       } catch {
         return null

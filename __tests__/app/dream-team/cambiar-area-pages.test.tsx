@@ -1,9 +1,10 @@
 /**
- * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2): Servidores and
- * Mi equipo mark a servicio `areaCambiable` only where the viewer has director
- * authority over its equipo (dream_team_autoridad_director) and the servicio is
- * not retired. A coordinator, whom the RPC answers false, gets none. Mi equipo
- * also hands the requests (dream_team_solicitudes_cambio_area()) to its island.
+ * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2, T3): Servidores
+ * and Mi equipo mark a servicio `areaCambiable` only where the viewer directs
+ * or coordinates its equipo (dream_team_puede_solicitar_cambio_area: a
+ * coordinator requests, S7) and the servicio is not retired. Someone with
+ * neither, whom the RPC answers false, gets none. Mi equipo also hands the
+ * requests (dream_team_solicitudes_cambio_area()) to its island.
  */
 import React from 'react'
 
@@ -26,11 +27,11 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
   hasDreamTeamMiEquipoAccess: () => true,
 }))
 
-// The equipos the viewer directs; dream_team_autoridad_director answers from it.
-let mockDirigidos = new Set<string>()
+// The equipos the viewer directs or coordinates; dream_team_puede_solicitar_cambio_area answers from it.
+let mockCambiables = new Set<string>()
 let mockSolicitudes: unknown = []
 const rpc = jest.fn(async (fn: string, args?: { p_equipo_id?: string }) => {
-  if (fn === 'dream_team_autoridad_director') return { data: mockDirigidos.has(args?.p_equipo_id ?? ''), error: null }
+  if (fn === 'dream_team_puede_solicitar_cambio_area') return { data: mockCambiables.has(args?.p_equipo_id ?? ''), error: null }
   if (fn === 'dream_team_solicitudes_cambio_area') return { data: mockSolicitudes, error: null }
   return { data: [], error: null }
 })
@@ -95,39 +96,60 @@ async function personasMiEquipo(): Promise<Record<string, boolean | undefined>> 
 
 beforeEach(() => {
   rpc.mockClear()
-  mockDirigidos = new Set()
+  mockCambiables = new Set()
   mockSolicitudes = []
 })
 
 describe('Servidores — areaCambiable', () => {
-  it('marks the non-retired servicios of the equipos the viewer directs', async () => {
-    mockDirigidos = new Set(['eq-cam'])
+  it('marks the non-retired servicios of the equipos the viewer directs or coordinates', async () => {
+    mockCambiables = new Set(['eq-cam'])
     expect(await filasServidores()).toEqual({ s1: true, s2: false, s3: false })
   })
 
-  it('asks the authority once per equipo', async () => {
+  it('asks dream_team_puede_solicitar_cambio_area once per equipo, never the director-only check', async () => {
     await filasServidores()
-    const equipos = rpc.mock.calls.filter(([fn]) => fn === 'dream_team_autoridad_director').map(([, args]) => args?.p_equipo_id)
+    const equipos = rpc.mock.calls
+      .filter(([fn]) => fn === 'dream_team_puede_solicitar_cambio_area')
+      .map(([, args]) => args?.p_equipo_id)
     expect(equipos.sort()).toEqual(['eq-cam', 'eq-est'])
+    expect(rpc.mock.calls.some(([fn]) => fn === 'dream_team_autoridad_director')).toBe(false)
   })
 
-  it('a coordinator (no director authority) gets none', async () => {
+  it('a coordinator of Cámaras (the RPC answers true there) sees the button on Cámaras only', async () => {
+    mockCambiables = new Set(['eq-cam'])
+    expect(await filasServidores()).toEqual({ s1: true, s2: false, s3: false })
+  })
+
+  it('without director or coordinator authority gets none', async () => {
     expect(await filasServidores()).toEqual({ s1: false, s2: false, s3: false })
   })
 })
 
 describe('Mi equipo — areaCambiable', () => {
-  it('marks the non-retired servicios of the equipos the viewer directs', async () => {
-    mockDirigidos = new Set(['eq-cam', 'eq-est'])
+  it('marks the non-retired servicios of the equipos the viewer directs or coordinates', async () => {
+    mockCambiables = new Set(['eq-cam', 'eq-est'])
     expect(await personasMiEquipo()).toEqual({ s1: true, s2: false, s3: true })
   })
 
-  it('a coordinator gets none', async () => {
+  it('a coordinator of Cámaras sees the button on Cámaras only', async () => {
+    mockCambiables = new Set(['eq-cam'])
+    expect(await personasMiEquipo()).toEqual({ s1: true, s2: false, s3: false })
+  })
+
+  it('without director or coordinator authority gets none', async () => {
     expect(await personasMiEquipo()).toEqual({ s1: false, s2: false, s3: false })
   })
 })
 
 describe('Mi equipo — the cambio-de-área requests', () => {
+  it('hands a coordinator their own request (es_mia, not resolvable)', async () => {
+    mockSolicitudes = [{ id: 'sol-2', estado: 'pendiente', motivo: 'correccion', puede_resolver: false, es_mia: true, persona_nombre: 'Ana Cámaras' }]
+    const element = (await DreamTeamMiEquipoPage({ searchParams: Promise.resolve({}) })) as React.ReactElement<MiEquipoClientProps>
+    expect(element.props.solicitudesCambioArea).toEqual([
+      expect.objectContaining({ id: 'sol-2', estado: 'pendiente', puedeResolver: false, esMia: true }),
+    ])
+  })
+
   it('hands the requests of the read RPC to the island', async () => {
     mockSolicitudes = [{ id: 'sol-1', estado: 'pendiente', motivo: 'traslado', puede_resolver: true, es_mia: false, persona_nombre: 'Ana Cámaras' }]
     const element = (await DreamTeamMiEquipoPage({ searchParams: Promise.resolve({}) })) as React.ReactElement<MiEquipoClientProps>

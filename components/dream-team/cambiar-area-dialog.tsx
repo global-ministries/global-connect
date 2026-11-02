@@ -2,7 +2,7 @@
 
 /**
  * "Cambiar de área" of one servicio (odd/tasks/dream-team-cambiar-area.md, T2,
- * S3 and S5), opened from the servicio card of the person panel in Servidores
+ * T3, S3, S5 and S7), opened from the servicio card of the person panel in Servidores
  * and Mi equipo.
  *
  * Loads the destinations from GET /api/dream-team/servicios/[id]/cambiar-area
@@ -11,8 +11,10 @@
  * when the destination has it; the motivo (Corrección / Traslado) is required,
  * the nota optional. Where the viewer directs the destination (`dirige`) the
  * action is "Cambiar de área" and the move happens in one step; elsewhere it
- * is "Enviar solicitud" and a director of both áreas approves it. The
- * database decides; its Spanish message is shown in the dialog.
+ * is "Enviar solicitud" and a director of both áreas or the Atención al
+ * Voluntario coordinator approves it. A coordinator directs no destination, so
+ * they only send requests. The database decides; its Spanish message is shown
+ * in the dialog.
  */
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
@@ -130,7 +132,7 @@ export function CambiarAreaDialog({
       toast.success(
         destino.dirige
           ? `${nombre} pasó a ${destino.ruta[destino.ruta.length - 1] ?? 'la nueva área'}.`
-          : 'Solicitud enviada. Un director de ambas áreas la va a revisar.',
+          : 'Solicitud enviada. La revisará un director de ambas áreas o el coordinador de Atención al Voluntario.',
       )
       onGuardado()
       onAbiertoChange(false)
@@ -163,7 +165,8 @@ export function CambiarAreaDialog({
             <SelectorEquipo equipos={equipos} valor={equipoId} onCambio={elegirEquipo} />
             {destino && !destino.dirige && (
               <AvisoFormulario tono="info">
-                No diriges esta área: se enviará una solicitud para que la apruebe un director de ambas áreas.
+                No diriges esta área: se enviará una solicitud para que la apruebe un director de ambas áreas o el
+                coordinador de Atención al Voluntario.
               </AvisoFormulario>
             )}
             <SelectSistema

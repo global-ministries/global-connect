@@ -2,11 +2,12 @@
 
 /**
  * "Solicitudes de cambio de área" (odd/tasks/dream-team-cambiar-area.md, T2,
- * S5): a card on Mi equipo, the screen where Dream Team directors work, with
- * the requests of dream_team_solicitudes_cambio_area() the server page read —
- * the pending ones the viewer resolves as a director of both áreas ("Aprobar"
- * / "Rechazar", with an optional answer) and the viewer's own with their
- * estado and the answer. Renders nothing without requests.
+ * T3, S5, S7): a card on Mi equipo, the screen where Dream Team directors and
+ * coordinators work, with the requests of dream_team_solicitudes_cambio_area()
+ * the server page read — the pending ones the viewer resolves as a director of
+ * both áreas or the Atención al Voluntario coordinator ("Aprobar" /
+ * "Rechazar", with an optional answer) and the viewer's own with their estado
+ * and the answer. Renders nothing without requests.
  *
  * Resolving POSTs /api/dream-team/solicitudes-cambio-area/[id]; the database
  * checks the authority and that the servicio did not change, and its Spanish

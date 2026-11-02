@@ -3,7 +3,8 @@
  * S5): loads the destinations, moves directly where the viewer directs the
  * destination ("Cambiar de área") and sends a request elsewhere ("Enviar
  * solicitud"); motivo required, nota optional, the rol defaults to the current
- * nivel; the database's Spanish error is shown.
+ * nivel; the database's Spanish error is shown. A coordinator (T3, S7) directs
+ * no destination, so the dialog only sends requests.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -122,7 +123,28 @@ it('sends a request where the viewer does not direct the destination, with the n
     motivo: 'traslado',
     nota: 'Sirve en el estacionamiento',
   })
-  expect(toast.success).toHaveBeenCalledWith('Solicitud enviada. Un director de ambas áreas la va a revisar.')
+  expect(toast.success).toHaveBeenCalledWith('Solicitud enviada. La revisará un director de ambas áreas o el coordinador de Atención al Voluntario.')
+})
+
+it('a coordinator (no destination with dirige) only sends requests, even inside their own área', async () => {
+  const coordinador = { ...DESTINOS, destinos: DESTINOS.destinos.map((d) => ({ ...d, dirige: false })) }
+  fetchMock.mockReturnValueOnce(respuesta(200, coordinador)).mockReturnValueOnce(respuesta(200, { modo: 'solicitud', id: 'sol' }))
+  const { onGuardado } = abrir()
+  await user.click(await screen.findByRole('radio', { name: 'DPS › Producción Técnica › Audio' }))
+  expect(
+    screen.getByText(
+      'No diriges esta área: se enviará una solicitud para que la apruebe un director de ambas áreas o el coordinador de Atención al Voluntario.',
+    ),
+  ).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Cambiar de área' })).not.toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Rol' })).toHaveValue(R_AUD_LID)
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Motivo' }), 'correccion')
+  await user.click(screen.getByRole('button', { name: 'Enviar solicitud' }))
+  await waitFor(() => expect(onGuardado).toHaveBeenCalled())
+  expect(enviado()).toEqual({ modo: 'solicitud', equipoId: EQ_AUD, rolId: R_AUD_LID, motivo: 'correccion', nota: null })
+  expect(toast.success).toHaveBeenCalledWith(
+    'Solicitud enviada. La revisará un director de ambas áreas o el coordinador de Atención al Voluntario.',
+  )
 })
 
 it('shows the Spanish error of the database and stays open', async () => {

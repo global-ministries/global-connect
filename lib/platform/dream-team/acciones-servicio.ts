@@ -55,10 +55,10 @@ export function accionesDeServicio(fila: DatosAccionesServicio): AccionesServici
 }
 
 /**
- * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2): a Dream Team
- * servicio, not retired, whose equipo the viewer has director authority over
- * (`areaCambiable`, from dream_team_autoridad_director on the server). A
- * coordinator never has it. The RPCs check it again.
+ * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2, T3): a Dream
+ * Team servicio, not retired, whose equipo the viewer directs or coordinates
+ * (`areaCambiable`, from dream_team_puede_solicitar_cambio_area on the
+ * server; a coordinator only sends requests). The RPCs check it again.
  */
 export function puedeCambiarArea(fila: {
   readonly origen: 'dream_team' | 'grupos_vida'
