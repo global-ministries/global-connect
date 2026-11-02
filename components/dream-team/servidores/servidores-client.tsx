@@ -17,6 +17,12 @@
  * Filtros button, and under it the large title names the level (an h2; at the
  * root only the summary shows, the header already says "Servidores").
  *
+ * Under the "Sin cuenta" metric, with invitation data (invitaciones
+ * pendientes T4, S3): the account-state pills, the state line of each row,
+ * the "Invitación vencida" banner that resends them all, and the selection of
+ * expired invitations with its bar (Reenviar N, Cancelar invitaciones). The
+ * selection clears whenever the filters change.
+ *
  * Every rule lives in the pure view model
  * (lib/platform/dream-team/servidores-vista.ts); this island keeps the
  * filters in local state and mirrors them into the URL with
@@ -45,6 +51,7 @@ import type { NodoArbol } from '@/lib/platform/dream-team/arbol'
 import type { NodoEquipoArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import type { Turno } from '@/lib/platform/dream-team/turnos'
+import { accionesDeServicio } from '@/lib/platform/dream-team/acciones-servicio'
 import {
   LIMPIAR_FILTROS,
   calcularVistaServidores,
@@ -59,6 +66,18 @@ import {
 } from '@/lib/platform/dream-team/servidores-vista'
 
 import { DetalleServidor } from './detalle-servidor'
+import {
+  AvisoVencidas,
+  BarraSeleccionInvitaciones,
+  CasillaInvitacion,
+  DialogoCancelarInvitacion,
+  PastillasCuenta,
+  cancelarInvitacionesEnSerie,
+  mensajeCanceladas,
+  mensajeReenviadas,
+  reenviarInvitacionesEnLote,
+  type ResultadoLote,
+} from './invitaciones-servidores'
 import { HojaFiltrosServidores, OPCIONES_VISTA } from './filtros-servidores'
 import { ListaServidores } from './lista-servidores'
 import { TarjetasUbicacion, etiquetaNivel } from './tarjetas-ubicacion'
@@ -98,7 +117,7 @@ function aplanarArbol(nodos: readonly NodoArbol<NodoEquipoArbol>[]): NodoPlano[]
 const SIN_TURNOS: readonly Turno[] = []
 
 /** The four attention metrics of the prototype; "En varios equipos" lives in the sheet. */
-function metricasDe({ atencion }: VistaServidores): MetricaAtencion[] {
+function metricasDe({ atencion, filtros }: VistaServidores): MetricaAtencion[] {
   const porcentaje = atencion.total > 0 ? Math.round((atencion.sirviendo.personas / atencion.total) * 100) : 0
   const metrica = (id: MetricaAtencionId, etiqueta: string, tono: MetricaAtencion['tono'], pista: string): MetricaAtencion => ({
     id,
@@ -112,7 +131,8 @@ function metricasDe({ atencion }: VistaServidores): MetricaAtencion[] {
   return [
     metrica('sirviendo', 'Sirviendo', 'success', `${porcentaje}% del equipo`),
     metrica('porActivar', 'Por activar', 'info', 'postulados y en orientación'),
-    metrica('sinCuenta', 'Sin cuenta', 'warning', 'invitalos a la plataforma'),
+    // An account-state pill keeps "Sin cuenta" pressed: the pills live under it.
+    { ...metrica('sinCuenta', 'Sin cuenta', 'warning', 'invitalos a la plataforma'), activa: atencion.sinCuenta.activo || filtros.invitacion !== null },
     metrica('sinTurno', 'Sin turno', 'danger', 'no saben cuándo sirven'),
   ]
 }
@@ -177,6 +197,10 @@ export function ServidoresClient({
   // The person stays selected after the drawer closes, so the dialogs it opened stay mounted.
   const [detalle, setDetalle] = useState<{ readonly personaId: string; readonly abierto: boolean } | null>(null)
   const temporizadorUrl = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Person ids of the marked expired invitations.
+  const [marcadas, setMarcadas] = useState<ReadonlySet<string>>(new Set())
+  const [ocupado, setOcupado] = useState(false)
+  const [confirmarCancelar, setConfirmarCancelar] = useState(false)
 
   useEffect(
     () => () => {
@@ -214,6 +238,7 @@ export function ServidoresClient({
     // Start from the normalized filters so a dirección derived from an equipo is kept.
     const siguiente = { ...vista.filtros, ...parche }
     setFiltros(siguiente)
+    setMarcadas(new Set())
     const soloBusqueda = Object.keys(parche).length === 1 && 'q' in parche
     sincronizarUrl(siguiente, soloBusqueda)
   }
@@ -230,6 +255,54 @@ export function ServidoresClient({
 
   function refrescar(): void {
     router.refresh()
+  }
+
+  // ── Invitations to register ──
+  const cuenta = vista.pastillasCuenta !== null && (vista.filtros.sinCuenta || vista.filtros.invitacion !== null)
+  /** Visible people, in list order, whose expired invitation the viewer may resend. */
+  const vencidas = useMemo(() => {
+    if (!cuenta) return []
+    const ids = new Set(vista.items.map((item) => (item.tipo === 'fila' ? item.fila.personaId : item.clave)))
+    return [...ids].filter((id) => {
+      const persona = vista.fichas.get(id)
+      return persona?.estadoCuenta === 'vencida' && persona.filas.some((fila) => accionesDeServicio(fila).invitar)
+    })
+  }, [cuenta, vista.items, vista.fichas])
+  const seleccionables = useMemo(() => new Set(vencidas), [vencidas])
+  const seleccionadas = vencidas.filter((id) => marcadas.has(id))
+  const todasMarcadas = vencidas.length > 0 && seleccionadas.length === vencidas.length
+
+  function alternar(id: string, marcada: boolean): void {
+    setMarcadas((actual) => {
+      const siguiente = new Set(actual)
+      if (marcada) siguiente.add(id)
+      else siguiente.delete(id)
+      return siguiente
+    })
+  }
+
+  function informar(resultado: ResultadoLote, exito: (n: number) => string, fallo: string): void {
+    if (resultado.hechas > 0) toast.success(exito(resultado.hechas))
+    if (resultado.fallidas > 0) toast.error(`${fallo} ${resultado.fallidas}: ${resultado.error ?? ''}`.trim())
+    setMarcadas(new Set())
+    refrescar()
+  }
+
+  async function reenviarVarias(ids: readonly string[]): Promise<void> {
+    if (ocupado || ids.length === 0) return
+    setOcupado(true)
+    const resultado = await reenviarInvitacionesEnLote(ids)
+    setOcupado(false)
+    informar(resultado, mensajeReenviadas, 'No se pudieron reenviar')
+  }
+
+  async function cancelarSeleccionadas(): Promise<void> {
+    if (ocupado) return
+    setOcupado(true)
+    const resultado = await cancelarInvitacionesEnSerie(seleccionadas)
+    setOcupado(false)
+    setConfirmarCancelar(false)
+    informar(resultado, mensajeCanceladas, 'No se pudieron cancelar')
   }
 
   function cerrarAsignadorYRefrescar(): void {
@@ -338,7 +411,14 @@ export function ServidoresClient({
       <MetricasAtencion
         etiqueta="Necesitan atención"
         metricas={metricasDe(vista)}
-        onAlternar={(id) => cambiar(parcheAtencion(vista.filtros, id as MetricaAtencionId))}
+        onAlternar={(id) =>
+          // With an account-state pill on, the metric clears every account filter.
+          cambiar(
+            id === 'sinCuenta' && vista.filtros.invitacion !== null
+              ? { sinCuenta: false, invitacion: null }
+              : parcheAtencion(vista.filtros, id as MetricaAtencionId),
+          )
+        }
       />
 
       {tarjetas.items.length > 0 && vista.filtros.equipo === null && (
@@ -360,16 +440,35 @@ export function ServidoresClient({
       )}
 
       <section aria-labelledby="servidores-lista" className="space-y-3">
-        <h2 id="servidores-lista" className="px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:px-0">
-          {porPersona ? 'Personas' : 'Servicios'}
-        </h2>
+        <div className="flex items-baseline justify-between gap-3 px-1 md:px-0">
+          <h2 id="servidores-lista" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+            {cuenta ? 'Cuenta en la plataforma' : porPersona ? 'Personas' : 'Servicios'}
+          </h2>
+          {cuenta && <span className="hidden text-[13px] text-muted-foreground md:inline">Invitaciones para registrarse en Global Connect</span>}
+        </div>
+        {cuenta && vista.pastillasCuenta && <PastillasCuenta pastillas={vista.pastillasCuenta} onCambio={cambiar} />}
         <ChipsFiltrosActivos
           chips={vista.pastillas.map((p) => ({ id: p.clave, etiqueta: p.etiqueta }))}
           onQuitar={quitarChip}
           onLimpiarTodo={() => cambiar(LIMPIAR_FILTROS)}
         />
+        {cuenta && vista.filtros.invitacion === 'vencida' && vencidas.length > 0 && (
+          <AvisoVencidas cantidad={vencidas.length} ocupado={ocupado} onReenviar={() => reenviarVarias(vencidas)} />
+        )}
+        {vencidas.length > 0 && (
+          <div className="flex min-w-0 items-center gap-1 px-1 text-sm text-muted-foreground md:px-0">
+            <CasillaInvitacion
+              etiqueta="Seleccionar todas las invitaciones vencidas"
+              marcada={todasMarcadas}
+              onCambio={(marcada) => setMarcadas(marcada ? new Set(vencidas) : new Set())}
+            />
+            <span aria-hidden="true">Seleccionar todas las invitaciones vencidas</span>
+          </div>
+        )}
         <ListaServidores
           vista={vista}
+          cuenta={cuenta}
+          seleccion={{ seleccionables, marcadas, onAlternar: alternar }}
           onOrdenar={ordenar}
           onAbrir={(personaId) => setDetalle({ personaId, abierto: true })}
           vacio={vacio}
@@ -382,7 +481,27 @@ export function ServidoresClient({
         )}
       </section>
 
-      {puedeEditar && <BotonFlotante icono={UserPlus} label="Asignar servicio" onClick={abrirAsignador} />}
+      {puedeEditar && seleccionadas.length === 0 && <BotonFlotante icono={UserPlus} label="Asignar servicio" onClick={abrirAsignador} />}
+
+      {seleccionadas.length > 0 && (
+        <BarraSeleccionInvitaciones
+          cantidad={seleccionadas.length}
+          ocupado={ocupado}
+          onQuitar={() => setMarcadas(new Set())}
+          onCancelar={() => setConfirmarCancelar(true)}
+          onReenviar={() => reenviarVarias(seleccionadas)}
+        />
+      )}
+
+      <DialogoCancelarInvitacion
+        abierto={confirmarCancelar}
+        titulo={seleccionadas.length === 1 ? '¿Cancelar 1 invitación?' : `¿Cancelar ${seleccionadas.length} invitaciones?`}
+        descripcion="Los enlaces que recibieron dejan de funcionar. Puedes volver a invitarlas cuando quieras."
+        confirmar={seleccionadas.length === 1 ? 'Cancelar invitación' : 'Cancelar invitaciones'}
+        ocupado={ocupado}
+        onConfirmar={cancelarSeleccionadas}
+        onCerrar={() => setConfirmarCancelar(false)}
+      />
 
       <HojaFiltrosServidores
         vista={vista}
