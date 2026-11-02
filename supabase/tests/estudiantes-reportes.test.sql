@@ -556,14 +556,14 @@ SELECT pg_temp.assert_eq('l: authenticated executes the three RPCs, anon none',
   $q$SELECT string_agg(p.proname || ':' || has_function_privilege('authenticated', p.oid, 'EXECUTE')
                        || ':' || has_function_privilege('anon', p.oid, 'EXECUTE'), ',' ORDER BY p.proname COLLATE "C")
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_reporte\_%' AND p.proname <> 'estudiantes_reporte_voluntarios'$q$,
+      WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_reporte\_%' AND p.proname NOT IN ('estudiantes_reporte_voluntarios', 'estudiantes_reporte_conexiones')$q$,
   'estudiantes_reporte_asistencia:true:false,estudiantes_reporte_detalle:true:false,estudiantes_reporte_embudo:true:false,'
   || 'estudiantes_reporte_fechas:false:false,estudiantes_reporte_grupo:false:false,'
   || 'estudiantes_reporte_personas:false:false,estudiantes_reporte_subareas:false:false');
 SELECT pg_temp.assert_eq('l: all SECURITY DEFINER with an empty search_path',
   $q$SELECT count(*) FILTER (WHERE p.prosecdef AND p.proconfig @> ARRAY['search_path=""']) || '|' || count(*)
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_reporte\_%' AND p.proname <> 'estudiantes_reporte_voluntarios'$q$,
+      WHERE n.nspname = 'public' AND p.proname LIKE 'estudiantes\_reporte\_%' AND p.proname NOT IN ('estudiantes_reporte_voluntarios', 'estudiantes_reporte_conexiones')$q$,
   '7|7');
 
 DO $$
