@@ -5,6 +5,8 @@ export type PlatformScopeType = (typeof PLATFORM_SCOPE_TYPES)[number]
 export const PLATFORM_EXPERIENCE_CATALOG = {
   grupos_vida: { label: 'Grupos de Vida', scopeTypes: ['etapa', 'grupo'] },
   dps: { label: 'DPS', scopeTypes: ['equipo'] },
+  // Global Music: the band, out of DPS as a direction at its level (odd/tasks/dps-plan.md, S2).
+  global_music: { label: 'Global Music', scopeTypes: ['equipo'] },
   ninos: { label: 'Niños', scopeTypes: ['salon', 'equipo'] },
   estudiantes: { label: 'Estudiantes', scopeTypes: ['salon', 'equipo'] },
   the_living_room: { label: 'The Living Room', scopeTypes: ['experience'] },
@@ -66,6 +68,9 @@ export const PLATFORM_CAPABILITIES = {
   // Domain-specific team capabilities
   'dps.team.lead': { experience: 'dps', scopeType: 'equipo' },
   'dps.team.director': { experience: 'dps', scopeType: 'equipo' },
+  'global_music.team.serve': { experience: 'global_music', scopeType: 'equipo' },
+  'global_music.team.lead': { experience: 'global_music', scopeType: 'equipo' },
+  'global_music.team.director': { experience: 'global_music', scopeType: 'equipo' },
   'estudiantes.team.serve': { experience: 'estudiantes', scopeType: 'equipo' },
   'estudiantes.team.lead': { experience: 'estudiantes', scopeType: 'equipo' },
   'talleres_crecimiento.team.serve': { experience: 'talleres_crecimiento', scopeType: 'taller' },

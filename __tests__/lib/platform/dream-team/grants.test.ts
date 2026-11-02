@@ -561,6 +561,12 @@ describe('Grants derive from the rol nivel', () => {
   }
   const SPECIFIC_BY_EXPERIENCE: Record<string, Record<Nivel, string | undefined>> = {
     dps: { voluntario: 'dps.team.serve', lider: 'dps.team.lead', coordinador: 'dps.team.lead', director: 'dps.team.director' },
+    global_music: {
+      voluntario: 'global_music.team.serve',
+      lider: 'global_music.team.lead',
+      coordinador: 'global_music.team.lead',
+      director: 'global_music.team.director',
+    },
     estudiantes: {
       voluntario: 'estudiantes.team.serve',
       lider: 'estudiantes.team.lead',
@@ -702,7 +708,7 @@ describe('Grants derive from the rol nivel', () => {
 // T6, S6.7: a retire or a pause revokes everything any nivel could have minted for the
 // equipo and rol, so a nivel changed after activation cannot leave capabilities alive.
 describe('Revocable grants cover every nivel', () => {
-  const EXPERIENCIAS = ['dps', 'estudiantes', 'talleres_crecimiento', 'ninos', 'the_living_room', 'experiencia']
+  const EXPERIENCIAS = ['dps', 'global_music', 'estudiantes', 'talleres_crecimiento', 'ninos', 'the_living_room', 'experiencia']
   const cases = EXPERIENCIAS.flatMap((experiencia) => NIVELES_ROL.map(({ nivel }) => ({ experiencia, nivel })))
 
   it.each(cases)('a rol now at $nivel under $experiencia revokes what any nivel grants', ({ experiencia, nivel }) => {

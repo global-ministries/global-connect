@@ -187,6 +187,24 @@ describe('Dream Team S2 capabilities (hybrid model)', () => {
       expect(ninos.scopeTypes).toContain('salon')
     })
 
+    // T1 of odd/tasks/dps-plan.md (S2): Global Music leaves DPS as a direction of its own.
+    it('includes global_music with equipo scope and the dps tiers of team capabilities', () => {
+      const catalog = PLATFORM_EXPERIENCE_CATALOG as Record<string, { label: string; scopeTypes: readonly string[] }>
+      expect(catalog.global_music).toEqual({ label: 'Global Music', scopeTypes: ['equipo'] })
+      const capabilities = PLATFORM_CAPABILITIES as Record<string, { experience: string; scopeType: string }>
+      for (const key of ['global_music.team.serve', 'global_music.team.lead', 'global_music.team.director']) {
+        expect(capabilities[key]).toEqual({ experience: 'global_music', scopeType: 'equipo' })
+      }
+    })
+
+    it('resolves a global_music grant scoped to its equipo, and not to another one', () => {
+      const grant = { key: 'global_music.team.serve', scope: { experience: 'global_music', type: 'equipo', id: 'global-music' }, source: 'dream-team' }
+      const allowed = resolvePlatformCapability(makeInput('global_music.team.serve', { experience: 'global_music', type: 'equipo', id: 'global-music' }, [grant]))
+      const otherEquipo = resolvePlatformCapability(makeInput('global_music.team.serve', { experience: 'global_music', type: 'equipo', id: 'dps' }, [grant]))
+      expect(allowed.ok).toBe(true)
+      expect(otherEquipo.ok ? null : otherEquipo.reason).toBe('missing_required_capability')
+    })
+
     it('declares every capability with a scope type its experience allows', () => {
       const catalog = PLATFORM_EXPERIENCE_CATALOG as Record<string, { scopeTypes: readonly string[] }>
       const mismatches = Object.entries(PLATFORM_CAPABILITIES as Record<string, { experience: string; scopeType: string }>)
