@@ -933,7 +933,8 @@ SELECT pg_temp.assert_eq('l: authenticated executes exactly the public RPCs',
   || 'estudiantes_grupo_miembro_agregar,estudiantes_grupo_miembro_mover,estudiantes_grupo_miembro_quitar,'
   || 'estudiantes_grupo_sesiones,estudiantes_lideres_disponibles,estudiantes_marcar,estudiantes_mis_grupos,'
   || 'estudiantes_promocion_aplicar,estudiantes_promocion_vista,'
-  || 'estudiantes_puede_marcar_voluntarios,estudiantes_reporte_voluntarios,'
+  || 'estudiantes_puede_marcar_voluntarios,estudiantes_reporte_asistencia,estudiantes_reporte_detalle,'
+  || 'estudiantes_reporte_embudo,estudiantes_reporte_voluntarios,'
   || 'estudiantes_reunion_guardar,estudiantes_sin_grupo,estudiantes_subareas_gestionables,'
   || 'estudiantes_visitante_agregar,estudiantes_visitante_crear,estudiantes_vivo_opciones,'
   || 'estudiantes_voluntarios_marcar,estudiantes_voluntarios_planilla,estudiantes_voluntarios_turnos');

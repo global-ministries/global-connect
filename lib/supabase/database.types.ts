@@ -10462,6 +10462,34 @@ export type Database = {
         Returns: Json
       }
       estudiantes_puede_marcar_voluntarios: { Args: never; Returns: boolean }
+      estudiantes_reporte_asistencia: {
+        Args: {
+          p_ambito_id: string
+          p_campus_id: string
+          p_desde: string
+          p_hasta: string
+          p_subarea_id?: string
+        }
+        Returns: Json
+      }
+      estudiantes_reporte_detalle: {
+        Args: {
+          p_ambito_id?: string
+          p_desde: string
+          p_grupo_id?: string
+          p_hasta: string
+          p_persona_id?: string
+        }
+        Returns: Json
+      }
+      estudiantes_reporte_embudo: {
+        Args: {
+          p_ambito_id: string
+          p_campus_id: string
+          p_subarea_id?: string
+        }
+        Returns: Json
+      }
       estudiantes_reporte_voluntarios: {
         Args: {
           p_campus_id?: string
