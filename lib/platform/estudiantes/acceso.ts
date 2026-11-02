@@ -10,11 +10,9 @@
  *   ámbito (sub-área level >= 2).
  * - "Grupos" → /estudiantes/grupos: group management (level 3 somewhere).
  * - "Reportes" → /estudiantes/reportes (C6d3, S19): level >= 2 on some
- *   sub-área, read from the facts the layout already has — `vivo` (Transit /
- *   Inside Out, level >= 2) or `gestiona` (level 3 anywhere). A The Living
- *   Room entrenador with level 2 only there gets neither, so the entry is
- *   hidden for them (the page still opens by URL); a `reportes` fact in
- *   estudiantes_acceso() would close that gap.
+ *   sub-área of any ámbito, The Living Room included — the `reportes` fact
+ *   (20261102160500_estudiantes_acceso_reportes.sql). `vivo` and `gestiona`
+ *   also open it, as they did before that fact existed.
  * - "Voluntarios" → /estudiantes/voluntarios (C5): the caller may mark some
  *   Transit, Inside Out or The Living Room volunteer
  *   (estudiantes_puede_marcar_voluntarios(), a second call of the layout,
@@ -31,6 +29,8 @@ export interface AccesoEstudiantes {
   readonly lidera: boolean
   readonly vivo: boolean
   readonly gestiona: boolean
+  /** Level >= 2 on some sub-área of any ámbito; absent = no. */
+  readonly reportes?: boolean
   /** May mark volunteers (C5); absent = no. */
   readonly voluntarios?: boolean
 }
@@ -43,12 +43,13 @@ export function parsearAccesoEstudiantes(
   if (!resultado || resultado.error || !resultado.data || typeof resultado.data !== 'object' || Array.isArray(resultado.data)) {
     return SIN_ACCESO_ESTUDIANTES
   }
-  const { grupos, lidera, vivo, gestiona } = resultado.data as Record<string, unknown>
+  const { grupos, lidera, vivo, gestiona, reportes } = resultado.data as Record<string, unknown>
   return {
     grupos: typeof grupos === 'number' && Number.isInteger(grupos) && grupos > 0 ? grupos : 0,
     lidera: lidera === true,
     vivo: vivo === true,
     gestiona: gestiona === true,
+    ...(reportes === true ? { reportes: true } : {}),
   }
 }
 
@@ -73,7 +74,7 @@ export function entradasMenuEstudiantes(acceso: AccesoEstudiantes): EntradaMenuE
   }
   if (acceso.vivo) entradas.push({ id: 'estudiantes-vivo', label: 'En vivo', href: '/estudiantes/vivo' })
   if (acceso.gestiona) entradas.push({ id: 'estudiantes-grupos', label: 'Grupos', href: '/estudiantes/grupos' })
-  if (acceso.vivo || acceso.gestiona) entradas.push({ id: 'estudiantes-reportes', label: 'Reportes', href: '/estudiantes/reportes' })
+  if (acceso.reportes || acceso.vivo || acceso.gestiona) entradas.push({ id: 'estudiantes-reportes', label: 'Reportes', href: '/estudiantes/reportes' })
   if (acceso.voluntarios) entradas.push({ id: 'estudiantes-voluntarios', label: 'Voluntarios', href: '/estudiantes/voluntarios' })
   return entradas
 }
