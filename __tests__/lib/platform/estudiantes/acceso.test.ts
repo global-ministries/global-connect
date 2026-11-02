@@ -19,6 +19,18 @@ describe('parsearAccesoEstudiantes', () => {
     })
   })
 
+  it('reads the reportes fact only when it is true', () => {
+    expect(parsearAccesoEstudiantes({ data: { grupos: 1, lidera: false, vivo: false, gestiona: false, reportes: true }, error: null })).toEqual({
+      grupos: 1,
+      lidera: false,
+      vivo: false,
+      gestiona: false,
+      reportes: true,
+    })
+    expect(parsearAccesoEstudiantes({ data: { grupos: 1, reportes: false }, error: null })).not.toHaveProperty('reportes')
+    expect(parsearAccesoEstudiantes({ data: { grupos: 1, reportes: 'true' }, error: null })).not.toHaveProperty('reportes')
+  })
+
   it('fails closed on an error, no session (null) or a malformed payload', () => {
     expect(parsearAccesoEstudiantes({ data: { grupos: 3, vivo: true }, error: { message: 'boom' } })).toEqual(SIN_ACCESO_ESTUDIANTES)
     expect(parsearAccesoEstudiantes({ data: null, error: null })).toEqual(SIN_ACCESO_ESTUDIANTES)
@@ -82,6 +94,10 @@ describe('the Reportes entry (C6d3, S19)', () => {
   it('shows for level 2 on Transit / Inside Out (vivo) or level 3 anywhere (gestiona)', () => {
     expect(entradas({ vivo: true })).toEqual(['estudiantes-vivo', 'estudiantes-reportes'])
     expect(entradas({ gestiona: true })).toEqual(['estudiantes-grupos', 'estudiantes-reportes'])
+  })
+
+  it('shows for level 2 only in The Living Room (the reportes fact)', () => {
+    expect(entradas({ grupos: 1, reportes: true })).toEqual(['estudiantes-mi-grupo', 'estudiantes-reportes'])
   })
 
   it('stays hidden for a leader (level 1) or someone who only marks volunteers', () => {
