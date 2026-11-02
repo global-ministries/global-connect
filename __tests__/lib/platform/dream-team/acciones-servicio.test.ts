@@ -83,6 +83,44 @@ describe('accionesDeServicio (Servidores)', () => {
   })
 })
 
+describe('accionesDeServicio — invite by the database (S5 of odd/tasks/dream-team-directores-invitan.md)', () => {
+  const SIN_CUENTA = { ...FILA, tieneCuenta: false }
+
+  it('someone the database lets the viewer invite gets Invitar without the ficha', () => {
+    const fila = { ...SIN_CUENTA, editable: false, fichaEditable: false, invitable: true }
+    expect(tieneMenu(fila)).toBe(true)
+    expect(accionesDeServicio(fila)).toEqual({
+      alguna: true,
+      servicio: null,
+      cambiarEtapa: false,
+      turnosDe: undefined,
+      editarFicha: false,
+      invitar: true,
+    })
+  })
+
+  it('a director of the area (stage editor) also invites when the database allows it', () => {
+    expect(accionesDeServicio({ ...SIN_CUENTA, invitable: true })).toMatchObject({ cambiarEtapa: true, editarFicha: false, invitar: true })
+  })
+
+  it('outside the database set: no Invitar, even with the ficha; the ficha keeps its own rule', () => {
+    const acciones = accionesDeServicio({ ...SIN_CUENTA, editable: false, fichaEditable: true, invitable: false })
+    expect(acciones).toMatchObject({ alguna: true, editarFicha: true, invitar: false })
+    expect(tieneMenu({ ...SIN_CUENTA, editable: false, invitable: false })).toBe(false)
+  })
+
+  it('only someone known to have no account', () => {
+    expect(accionesDeServicio({ ...FILA, editable: false, invitable: true }).invitar).toBe(false)
+    expect(tieneMenu({ ...FILA, editable: false, invitable: true })).toBe(false)
+    expect(accionesDeServicio({ ...FILA, tieneCuenta: null, invitable: true }).invitar).toBe(false)
+  })
+
+  it('without the lookup (invitable absent) the ficha decides, as before', () => {
+    expect(accionesDeServicio({ ...SIN_CUENTA, editable: false, fichaEditable: true }).invitar).toBe(true)
+    expect(accionesDeServicio({ ...SIN_CUENTA, editable: true, fichaEditable: false }).invitar).toBe(false)
+  })
+})
+
 describe('permisosMiEquipo (S11 decision 10)', () => {
   it('director: everything', () => {
     expect(permisosMiEquipo('director')).toEqual({

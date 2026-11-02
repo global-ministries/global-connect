@@ -436,18 +436,21 @@ export function rolMiEquipo(permisos: { readonly puedeEditar: boolean; readonly 
 /**
  * The actions on one servicio: the role's grants (`accionesDeServicioMiEquipo`)
  * narrowed by what the server granted for that servicio — the ficha (and with
- * it the invite, and the coordinator's shifts) only where `fichaEditable`, as
- * the old per-servicio menu did. The server checks each action again.
+ * the coordinator's shifts) only where `fichaEditable`, as the old per-servicio
+ * menu did. The invite follows the database (`invitable`, S5 of
+ * odd/tasks/dream-team-directores-invitan.md), and without that answer the
+ * ficha, as before. The server checks each action again.
  */
 export function accionesPersonaMiEquipo(servicio: PersonaVista, rol: RolMiEquipo): AccionesServicio {
   const porRol = accionesDeServicioMiEquipo(servicio, rol)
   if (servicio.fichaEditable === true || !porRol.editarFicha) return porRol
+  const invitar = servicio.invitable === true && porRol.invitar
   return {
     ...porRol,
-    alguna: porRol.servicio !== null,
+    alguna: porRol.servicio !== null || invitar,
     turnosDe: servicio.estado === 'retirado' ? undefined : porRol.servicio?.id,
     editarFicha: false,
-    invitar: false,
+    invitar,
   }
 }
 

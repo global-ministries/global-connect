@@ -82,6 +82,30 @@ describe('accionesPersonaMiEquipo', () => {
     expect(retirado).toMatchObject({ cambiarEtapa: false, turnosDe: undefined, editarFicha: false })
   })
 
+  it('director: Invitar where the database lets them invite, even without the ficha (S5)', () => {
+    const acciones = accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: true }), 'director')
+    expect(acciones).toMatchObject({ alguna: true, cambiarEtapa: true, editarFicha: false, invitar: true })
+  })
+
+  it('coordinador outside the ficha equipos but invitable per the database: only Invitar (S5)', () => {
+    const acciones = accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: true }), 'coordinador')
+    expect(acciones).toEqual({
+      alguna: true,
+      servicio: null,
+      cambiarEtapa: false,
+      turnosDe: undefined,
+      editarFicha: false,
+      invitar: true,
+    })
+  })
+
+  it('outside the database set: no Invitar, even with the ficha (S5)', () => {
+    const acciones = accionesPersonaMiEquipo(servicio({ invitable: false }), 'coordinador')
+    expect(acciones).toMatchObject({ editarFicha: true, invitar: false })
+    expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: false }), 'director').invitar).toBe(false)
+    expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: true, tieneCuenta: true }), 'director').invitar).toBe(false)
+  })
+
   it('invites only someone known to have no account', () => {
     expect(accionesPersonaMiEquipo(servicio({ tieneCuenta: true }), 'coordinador').invitar).toBe(false)
     expect(accionesPersonaMiEquipo(servicio({ tieneCuenta: null }), 'coordinador').invitar).toBe(false)

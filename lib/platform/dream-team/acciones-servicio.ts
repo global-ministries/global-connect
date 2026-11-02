@@ -8,6 +8,10 @@
  * the director does everything; the coordinador registers people, edits
  * fichas and turnos and invites, but does not change the etapa; without
  * permissions there is no action.
+ *
+ * Invitar follows the database (S5 of odd/tasks/dream-team-directores-invitan.md):
+ * `invitable` (invitacion_cuenta_sin_cuenta) decides when the page could ask;
+ * without that answer the ficha decides, as before.
  */
 import type { FilaServidor } from './servidores-vista'
 import { TRANSICIONES_VALIDAS } from './state-machine'
@@ -28,15 +32,19 @@ export interface AccionesServicio {
 /** The facts of a servicio the rule reads. */
 export type DatosAccionesServicio = Pick<
   FilaServidor,
-  'editable' | 'servicioId' | 'version' | 'fichaEditable' | 'estado' | 'tieneCuenta'
+  'editable' | 'servicioId' | 'version' | 'fichaEditable' | 'estado' | 'tieneCuenta' | 'invitable'
 >
 
 function editaServicio(fila: DatosAccionesServicio): boolean {
   return fila.editable && fila.servicioId !== undefined && fila.version !== undefined
 }
 
+function invita(fila: DatosAccionesServicio): boolean {
+  return fila.tieneCuenta === false && (fila.invitable ?? fila.fichaEditable === true)
+}
+
 export function tieneMenu(fila: DatosAccionesServicio): boolean {
-  return editaServicio(fila) || fila.fichaEditable === true
+  return editaServicio(fila) || fila.fichaEditable === true || invita(fila)
 }
 
 export function accionesDeServicio(fila: DatosAccionesServicio): AccionesServicio {
@@ -49,8 +57,7 @@ export function accionesDeServicio(fila: DatosAccionesServicio): AccionesServici
     // A retired servicio no longer serves, so it has no shifts to change.
     turnosDe: fila.estado === 'retirado' ? undefined : (servicio?.id ?? (editarFicha ? fila.servicioId : undefined)),
     editarFicha,
-    // T12: the same people may invite someone without account to sign in.
-    invitar: editarFicha && fila.tieneCuenta === false,
+    invitar: invita(fila),
   }
 }
 
@@ -83,6 +90,8 @@ export interface ServicioMiEquipo {
   readonly servicioId?: string
   readonly version?: number
   readonly tieneCuenta: boolean | null
+  /** Whether the database lets the viewer invite the person; absent when the lookup did not answer. */
+  readonly invitable?: boolean
 }
 
 /**
@@ -101,5 +110,6 @@ export function accionesDeServicioMiEquipo(servicio: ServicioMiEquipo, rol: RolM
     version: servicio.version,
     estado: servicio.estado,
     tieneCuenta: servicio.tieneCuenta,
+    invitable: servicio.invitable,
   })
 }
