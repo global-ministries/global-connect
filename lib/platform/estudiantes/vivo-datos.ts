@@ -18,6 +18,7 @@
 import type { Database, Json } from '@/lib/supabase/database.types'
 
 import { esObjeto, lista, nombreCompleto, numero, texto, type Objeto } from './grupos-datos'
+import { ordenarPorAmbito } from './orden-ambitos'
 
 export type FilaOpcionVivo = Database['public']['Functions']['estudiantes_vivo_opciones']['Returns'][number]
 
@@ -34,8 +35,9 @@ export interface OpcionVivo {
   readonly hora: string | null
 }
 
+/** In the RPC order (campus, newest first), the ámbitos Transit → Inside Out → The Living Room (S20). */
 export function aOpcionesVivo(filas: readonly FilaOpcionVivo[]): OpcionVivo[] {
-  return filas.map((fila) => ({
+  return ordenarPorAmbito(filas, (fila) => fila).map((fila) => ({
     ambitoId: fila.ambito_id,
     ambito: fila.ambito,
     campusId: fila.campus_id,

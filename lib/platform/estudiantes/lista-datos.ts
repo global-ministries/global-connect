@@ -32,6 +32,7 @@ import {
   type Objeto,
   type Representante,
 } from './grupos-datos'
+import { ordenarPorAmbito } from './orden-ambitos'
 
 export type FilaSesion = Database['public']['Functions']['estudiantes_grupo_sesiones']['Returns'][number]
 
@@ -229,8 +230,9 @@ export interface GrupoMio {
   readonly lideres: readonly string[]
 }
 
+/** In the RPC order (sub-área, año, name), the ámbitos Transit → Inside Out → The Living Room (S20). */
 export function aGruposMios(filas: readonly FilaMisGrupos[]): GrupoMio[] {
-  return filas.map((fila) => ({
+  return ordenarPorAmbito(filas, (fila) => fila).map((fila) => ({
     grupoId: fila.grupo_id,
     nombre: fila.nombre,
     campusId: fila.campus_id,

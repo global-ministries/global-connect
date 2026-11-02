@@ -35,6 +35,7 @@ import {
 } from '@/lib/platform/ninos/voluntarios'
 
 import { fechaLarga } from './lista-vista'
+import { ordenarPorAmbito } from './orden-ambitos'
 
 export type TipoTurno = 'semanal' | 'fechas'
 
@@ -218,7 +219,8 @@ export function coincideMetrica(fila: FilaVoluntario, metrica: MetricaVoluntario
 }
 
 export function calcularVistaVoluntarios(planilla: Planilla, filtros: FiltrosVoluntarios): VistaVoluntarios {
-  const ambitos = planilla.areas
+  // The RPC sorts the areas by label; S20 wants Transit → Inside Out → The Living Room.
+  const ambitos = ordenarPorAmbito(planilla.areas, (a) => ({ ambito: a.nombre }))
   const ambitoId = ambitos.some((a) => a.id === filtros.ambito) ? filtros.ambito : (ambitos[0]?.id ?? null)
   const filasAmbito = planilla.voluntarios.filter((f) => f.area_id === ambitoId)
   const contadores = contarPlanilla(filasAmbito)

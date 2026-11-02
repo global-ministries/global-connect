@@ -166,4 +166,17 @@ describe('aGruposMios', () => {
       },
     ])
   })
+
+  it('lists Mis grupos Transit → Inside Out → The Living Room, keeping the RPC order inside each (S20)', () => {
+    // estudiantes_mis_grupos sorts by ámbito label, sub-área, año, name.
+    const fila = (grupo_id: string, ambito: string, experiencia = 'estudiantes') => ({ grupo_id, nombre: grupo_id, ambito, experiencia }) as unknown as FilaMisGrupos
+    const grupos = aGruposMios([
+      fila('io-4', 'Inside Out'),
+      fila('io-5', 'Inside Out'),
+      fila('tlr-este', 'The Living Room', 'the_living_room'),
+      fila('t-1', 'Transit'),
+      fila('t-2', 'Transit'),
+    ])
+    expect(grupos.map((g) => g.grupoId)).toEqual(['t-1', 't-2', 'io-4', 'io-5', 'tlr-este'])
+  })
 })

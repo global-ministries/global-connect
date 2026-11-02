@@ -93,10 +93,24 @@ describe('scope', () => {
     expect(v.titulo).toBe('Grupos de Estudiantes')
     expect(v.tarjetas.nivel).toBe('ambitos')
     expect(v.tarjetas.items.map((t) => [t.label, t.grupos, t.integrantes])).toEqual([
-      ['The Living Room', 1, 0],
       ['Transit', 5, 7],
+      ['The Living Room', 1, 0],
     ])
     expect(v.visibles).toHaveLength(6)
+  })
+
+  it('shows the ámbito cards and the list Transit → Inside Out → The Living Room, not A–Z (S20)', () => {
+    // The RPCs sort by label: Inside Out, The Living Room, Transit.
+    const io = { ambitoId: INSIDE, ambito: 'Inside Out', subareaId: 's-io-chicas', anio: 4, anioEtiqueta: '4to año' }
+    const tlr = { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' as const, subareaId: TLR_CHICAS }
+    const v = calcularVistaGrupos({
+      grupos: [grupo('io1', '4to año · Chicas', io), grupo('tl1', 'Zona Este · Chicas', { ...tlr, anio: null, anioEtiqueta: null }), grupo('t1', '1er año · Chicas', { anio: 1 })],
+      subareas: [subarea('s-io-chicas', io), subarea(TLR_CHICAS, tlr), ...SUBAREAS_TRANSIT],
+      filtros: FILTROS_INICIALES,
+      campusId: null,
+    })
+    expect(v.tarjetas.items.map((t) => t.label)).toEqual(['Transit', 'Inside Out', 'The Living Room'])
+    expect(v.visibles.map((g) => g.ambito)).toEqual(['Transit', 'Inside Out', 'The Living Room'])
   })
 
   it('ignores an unknown ámbito or sub-área from the URL', () => {

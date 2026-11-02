@@ -18,6 +18,7 @@
  * Every filter lives in the URL (`?ambito=&area=&metrica=&anio=&orden=&q=`).
  */
 import type { Experiencia, GrupoGestion, Integrante, SubareaGestionable } from './grupos-datos'
+import { compararAmbitos, ordenarPorAmbito } from './orden-ambitos'
 
 export type MetricaGrupos = 'confirmar' | 'sinLider' | 'desactivados'
 export type OrdenGrupos = 'anio' | 'nombre' | 'integrantes'
@@ -195,7 +196,7 @@ function coincide(grupo: GrupoGestion, consulta: string): boolean {
 
 const COMPARADORES: Readonly<Record<OrdenGrupos, (a: GrupoGestion, b: GrupoGestion) => number>> = {
   anio: (a, b) =>
-    a.ambito.localeCompare(b.ambito, 'es') ||
+    compararAmbitos(a, b) ||
     (a.anio ?? Number.MAX_SAFE_INTEGER) - (b.anio ?? Number.MAX_SAFE_INTEGER) ||
     a.subarea.localeCompare(b.subarea, 'es') ||
     a.nombre.localeCompare(b.nombre, 'es'),
@@ -233,10 +234,13 @@ export function calcularVistaGrupos({ grupos, subareas, filtros, campusId }: Ent
   const enCampus = campus === null ? grupos : grupos.filter((g) => g.campusId === campus)
   const subareasCampus = campus === null ? subareas : subareas.filter((s) => s.campusId === campus)
 
-  const ambitos = nodos([
-    ...subareasCampus.map((s) => ({ id: s.ambitoId, label: s.ambito, experiencia: s.experiencia })),
-    ...enCampus.map((g) => ({ id: g.ambitoId, label: g.ambito, experiencia: g.experiencia })),
-  ])
+  const ambitos = ordenarPorAmbito(
+    nodos([
+      ...subareasCampus.map((s) => ({ id: s.ambitoId, label: s.ambito, experiencia: s.experiencia })),
+      ...enCampus.map((g) => ({ id: g.ambitoId, label: g.ambito, experiencia: g.experiencia })),
+    ]),
+    (a) => ({ ambito: a.label, experiencia: a.experiencia }),
+  )
   const ambito =
     ambitos.length === 1 ? ambitos[0] : (ambitos.find((a) => a.id === filtros.ambito) ?? null)
 

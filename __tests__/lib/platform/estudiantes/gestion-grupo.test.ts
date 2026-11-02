@@ -18,6 +18,7 @@ import {
   CHICAS,
   CHICOS,
   GRUPOS_TRANSIT,
+  INSIDE,
   SUBAREAS_TRANSIT,
   TLR,
   TLR_CHICAS,
@@ -93,7 +94,6 @@ describe('opcionesDonde', () => {
     const tlr = subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room', subarea: 'Grupos de Chicas' })
     const opciones = opcionesDonde([...SUBAREAS_TRANSIT, subarea(CHICAS, { campusId: CAMPUS_OTRO, campus: 'Cabudare' }), tlr])
     expect(opciones.map((a) => [a.ambito, a.subareas.map((s) => [s.subareaId, s.campus.map((c) => c.campusId)])])).toEqual([
-      ['The Living Room', [[TLR_CHICAS, [CAMPUS]]]],
       [
         'Transit',
         [
@@ -101,7 +101,18 @@ describe('opcionesDonde', () => {
           [CHICOS, [CAMPUS]],
         ],
       ],
+      ['The Living Room', [[TLR_CHICAS, [CAMPUS]]]],
     ])
+  })
+
+  it('lists the ámbitos Transit → Inside Out → The Living Room, not A–Z (S20)', () => {
+    // estudiantes_subareas_gestionables sorts by label: Inside Out, The Living Room, Transit.
+    const opciones = opcionesDonde([
+      subarea('s-io-chicas', { ambitoId: INSIDE, ambito: 'Inside Out' }),
+      subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' }),
+      ...SUBAREAS_TRANSIT,
+    ])
+    expect(opciones.map((a) => a.ambito)).toEqual(['Transit', 'Inside Out', 'The Living Room'])
   })
 })
 
