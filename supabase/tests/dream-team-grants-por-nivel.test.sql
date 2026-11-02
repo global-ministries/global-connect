@@ -1,6 +1,8 @@
 -- T6 (odd/tasks/uno-a-uno.md, S6.1-S6.6) — Dream Team grants by the rol's
 -- nivel: public.dream_team_grants_de_servicio as redefined by migration
--- 20261025100000_dream_team_grants_por_nivel.sql.
+-- 20261025100000_dream_team_grants_por_nivel.sql, and by
+-- 20261103100100_dream_team_grants_global_music.sql, which adds the
+-- experiencia global_music with the tiers of dps (T1 of odd/tasks/dps-plan.md).
 --
 -- Covers:
 --   a. The SQL mirror matches the pinned nivel x experiencia table below
@@ -114,7 +116,8 @@ INSERT INTO public.dream_team_roles (id, equipo_id, label) VALUES
 -- label, capability_key, experience, scope_type, alcance). alcance says what
 -- scope_id holds: the equipo id, the rol id, or none (NULL). Every nivel is
 -- here under every experiencia with a capability of its own (dps,
--- estudiantes, talleres_crecimiento, ninos, the_living_room) and under one
+-- global_music, estudiantes, talleres_crecimiento, ninos, the_living_room)
+-- and under one
 -- without (experiencia), plus the "Líder de grupo" exception under each. The
 -- Jest test grants-sql-mirror.test.ts parses the lines between the markers and
 -- requires that coverage, so keep one tuple per line in exactly this format.
@@ -141,6 +144,21 @@ INSERT INTO t_gn_grants_tabla (experiencia, nivel, rol, capability_key, experien
   ('dps', 'lider', 'Líder de grupo', 'dream_team.lead', 'dream_team', 'equipo', 'equipo'),
   ('dps', 'lider', 'Líder de grupo', 'dream_team.gdv.lead', 'grupos_vida', 'grupo', 'rol'),
   ('dps', 'lider', 'Líder de grupo', 'dps.team.lead', 'dps', 'equipo', 'equipo'),
+  ('global_music', 'voluntario', 'Operador de cámara', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'voluntario', 'Operador de cámara', 'global_music.team.serve', 'global_music', 'equipo', 'equipo'),
+  ('global_music', 'lider', 'Guía', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'lider', 'Guía', 'dream_team.lead', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'lider', 'Guía', 'global_music.team.lead', 'global_music', 'equipo', 'equipo'),
+  ('global_music', 'coordinador', 'Encargado', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'coordinador', 'Encargado', 'dream_team.coordinate', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'coordinador', 'Encargado', 'global_music.team.lead', 'global_music', 'equipo', 'equipo'),
+  ('global_music', 'director', 'Responsable', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'director', 'Responsable', 'dream_team.direct', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'director', 'Responsable', 'global_music.team.director', 'global_music', 'equipo', 'equipo'),
+  ('global_music', 'lider', 'Líder de grupo', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'lider', 'Líder de grupo', 'dream_team.lead', 'dream_team', 'equipo', 'equipo'),
+  ('global_music', 'lider', 'Líder de grupo', 'dream_team.gdv.lead', 'grupos_vida', 'grupo', 'rol'),
+  ('global_music', 'lider', 'Líder de grupo', 'global_music.team.lead', 'global_music', 'equipo', 'equipo'),
   ('estudiantes', 'voluntario', 'Operador de cámara', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
   ('estudiantes', 'voluntario', 'Operador de cámara', 'estudiantes.team.serve', 'estudiantes', 'equipo', 'equipo'),
   ('estudiantes', 'lider', 'Guía', 'dream_team.serve', 'dream_team', 'equipo', 'equipo'),
@@ -303,7 +321,7 @@ SELECT pg_temp.assert_eq('c: the six labels mint today''s grants under ninos',
 SELECT pg_temp.assert_eq('c: the six labels mint by their rol what their label alone mints',
   $q$SELECT count(*)
        FROM public.dream_team_roles r
-      CROSS JOIN unnest(ARRAY['dps', 'estudiantes', 'talleres_crecimiento', 'ninos', 'the_living_room', 'experiencia']) AS e(experiencia)
+      CROSS JOIN unnest(ARRAY['dps', 'global_music', 'estudiantes', 'talleres_crecimiento', 'ninos', 'the_living_room', 'experiencia']) AS e(experiencia)
       WHERE r.id IN ('c6600000-0000-4000-8000-0000000000b1', 'c6600000-0000-4000-8000-0000000000b2',
                      'c6600000-0000-4000-8000-0000000000b3', 'c6600000-0000-4000-8000-0000000000b4',
                      'c6600000-0000-4000-8000-0000000000b5', 'c6600000-0000-4000-8000-0000000000b6')
