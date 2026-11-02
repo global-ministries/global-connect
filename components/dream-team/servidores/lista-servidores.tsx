@@ -9,6 +9,11 @@
  * inset grouped rows: avatar, name, "equipo · rol", status dot. Every row
  * opens the person's detail drawer (detalle-servidor.tsx); there are no row
  * menus.
+ *
+ * Under the "Sin cuenta" metric (`cuenta`, invitaciones pendientes T4) the
+ * Turno and Etapa columns give way to "Invitación a registrarse" (state,
+ * who and how long ago; the second line on phones), and an expired
+ * invitation the viewer may resend gets a 44px checkbox.
  */
 import type { ReactElement, ReactNode } from 'react'
 
@@ -27,6 +32,10 @@ import {
   type VistaServidores,
 } from '@/lib/platform/dream-team/servidores-vista'
 import { cn } from '@/lib/utils'
+import type { ResumenInvitacion } from '@/lib/platform/cuentas/invitaciones-pendientes'
+import type { EstadoCuenta } from '@/lib/platform/dream-team/servidores-vista'
+
+import { CasillaInvitacion, EstadoCuentaFila, lineaCuenta } from './invitaciones-servidores'
 
 /** The status dot of each etapa (prototype `ESTADOS`). */
 export const TONO_ESTADO: Readonly<Record<DreamTeamEstado, TonoEstado>> = {
@@ -46,6 +55,8 @@ interface FilaLista {
   readonly telefono: string | null
   readonly tieneCuenta: boolean | null
   readonly soloGruposVida: boolean
+  readonly estadoCuenta: EstadoCuenta | null
+  readonly invitacion: ResumenInvitacion | null
   readonly filas: readonly FilaVista[]
 }
 
@@ -61,6 +72,8 @@ function aFila(item: ItemLista): FilaLista {
     telefono: fila.telefono,
     tieneCuenta: fila.tieneCuenta,
     soloGruposVida: fila.origen === 'grupos_vida',
+    estadoCuenta: fila.estadoCuenta,
+    invitacion: fila.invitacion ?? null,
     filas: [fila],
   }
 }
@@ -90,8 +103,8 @@ export function AvatarServidor({ nombre, grande = false }: { readonly nombre: st
   )
 }
 
-/** "Revisar teléfono", "Sin cuenta", "Grupos de Vida". */
-function Marcas({ fila }: { readonly fila: FilaLista }): ReactElement {
+/** "Revisar teléfono", "Sin cuenta" (not under the account pills, where the state says it), "Grupos de Vida". */
+function Marcas({ fila, cuenta }: { readonly fila: FilaLista; readonly cuenta: boolean }): ReactElement {
   return (
     <>
       {telefonoARevisar(fila.telefono) && (
@@ -99,7 +112,7 @@ function Marcas({ fila }: { readonly fila: FilaLista }): ReactElement {
           Revisar teléfono
         </BadgeSistema>
       )}
-      {fila.tieneCuenta === false && (
+      {fila.tieneCuenta === false && !cuenta && (
         <BadgeSistema variante="warning" tamaño="sm">
           {SIN_CUENTA_LABEL}
         </BadgeSistema>
@@ -113,7 +126,7 @@ function Marcas({ fila }: { readonly fila: FilaLista }): ReactElement {
   )
 }
 
-function CeldaPersona({ fila }: { readonly fila: FilaLista }): ReactElement {
+function CeldaPersona({ fila, cuenta }: { readonly fila: FilaLista; readonly cuenta: boolean }): ReactElement {
   const telefono = telefonoVisible(fila.telefono)
   return (
     <div className="flex min-w-0 items-center gap-3">
@@ -122,7 +135,7 @@ function CeldaPersona({ fila }: { readonly fila: FilaLista }): ReactElement {
         <p className="truncate text-[15px] font-semibold text-foreground">{fila.nombre}</p>
         <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
           <span className={cn(telefono && 'font-mono tabular-nums')}>{telefono ?? 'Sin teléfono'}</span>
-          <Marcas fila={fila} />
+          <Marcas fila={fila} cuenta={cuenta} />
         </div>
       </div>
     </div>
@@ -177,8 +190,19 @@ function resumenServicios(fila: FilaLista): string {
   return `${primera.equipoNombre} · ${primera.rolLabel}${mas}`
 }
 
+/** The checkboxes of the expired invitations the viewer may resend. */
+export interface SeleccionInvitaciones {
+  /** Person ids that get a checkbox. */
+  readonly seleccionables: ReadonlySet<string>
+  readonly marcadas: ReadonlySet<string>
+  readonly onAlternar: (personaId: string, marcada: boolean) => void
+}
+
 export interface ListaServidoresProps {
   readonly vista: VistaServidores
+  /** Under the "Sin cuenta" metric: the invitation column and line. */
+  readonly cuenta?: boolean
+  readonly seleccion?: SeleccionInvitaciones
   readonly onOrdenar: (columna: ColumnaOrden) => void
   /** Opens the detail drawer of the person. */
   readonly onAbrir: (personaId: string) => void
@@ -186,15 +210,32 @@ export interface ListaServidoresProps {
   readonly vacio: ReactNode
 }
 
-export function ListaServidores({ vista, onOrdenar, onAbrir, vacio }: ListaServidoresProps): ReactElement {
+export function ListaServidores({ vista, cuenta = false, seleccion, onOrdenar, onAbrir, vacio }: ListaServidoresProps): ReactElement {
   const porPersona = vista.filtros.agrupar === 'persona'
+  const conCasillas = seleccion !== undefined && seleccion.seleccionables.size > 0
   const columnas: readonly ColumnaLista[] = [
+    // No visible title: each checkbox names its person.
+    ...(conCasillas ? [{ id: 'seleccion', titulo: '', ancho: '44px' }] : []),
     { id: 'persona', titulo: 'Persona', ordenable: true, ancho: 'minmax(0,1.15fr)' },
     { id: 'equipo', titulo: porPersona ? 'Sirve en' : 'Equipo · rol', ordenable: true, ancho: 'minmax(0,1.6fr)' },
-    { id: 'turno', titulo: 'Turno', ocultarEnTablet: true, ancho: 'minmax(0,0.8fr)' },
-    { id: 'etapa', titulo: 'Etapa', ordenable: true, ancho: 'minmax(0,0.6fr)' },
+    ...(cuenta
+      ? [{ id: 'invitacion', titulo: 'Invitación a registrarse', ancho: 'minmax(0,1.2fr)' }]
+      : [
+          { id: 'turno', titulo: 'Turno', ocultarEnTablet: true, ancho: 'minmax(0,0.8fr)' },
+          { id: 'etapa', titulo: 'Etapa', ordenable: true, ancho: 'minmax(0,0.6fr)' },
+        ]),
   ]
   const filas = vista.items.map(aFila)
+  const ahora = new Date()
+  const linea = (fila: FilaLista) => (cuenta && fila.estadoCuenta ? lineaCuenta(fila.estadoCuenta, fila.invitacion, ahora) : null)
+  const casilla = (fila: FilaLista) =>
+    seleccion?.seleccionables.has(fila.personaId) ? (
+      <CasillaInvitacion
+        etiqueta={`Seleccionar ${fila.nombre}`}
+        marcada={seleccion.marcadas.has(fila.personaId)}
+        onCambio={(marcada) => seleccion.onAlternar(fila.personaId, marcada)}
+      />
+    ) : null
 
   return (
     <ListaResponsiva
@@ -209,8 +250,14 @@ export function ListaServidores({ vista, onOrdenar, onAbrir, vacio }: ListaServi
       vacio={vacio}
       renderCelda={(fila, columna) => {
         switch (columna) {
+          case 'seleccion':
+            return casilla(fila)
+          case 'invitacion': {
+            const estado = linea(fila)
+            return estado ? <EstadoCuentaFila linea={estado} /> : null
+          }
           case 'persona':
-            return <CeldaPersona fila={fila} />
+            return <CeldaPersona fila={fila} cuenta={cuenta} />
           case 'equipo':
             return <CeldaServicios fila={fila} />
           case 'turno': {
@@ -225,18 +272,37 @@ export function ListaServidores({ vista, onOrdenar, onAbrir, vacio }: ListaServi
             return <Etapa fila={fila} />
         }
       }}
-      renderFilaMovil={(fila) => ({
-        avatar: <AvatarServidor nombre={fila.nombre} />,
-        titulo: fila.nombre,
-        subtitulo: resumenServicios(fila),
-        insignias:
-          fila.tieneCuenta === false ? (
-            <BadgeSistema variante="warning" tamaño="sm">
-              {SIN_CUENTA_LABEL}
-            </BadgeSistema>
-          ) : undefined,
-        meta: <Etapa fila={fila} ocultarEtiquetaEnMovil />,
-      })}
+      renderFilaMovil={(fila) => {
+        const estado = linea(fila)
+        if (cuenta) {
+          const marca = casilla(fila)
+          return {
+            avatar: marca ? (
+              <span className="-ml-2 flex items-center">
+                {marca}
+                <AvatarServidor nombre={fila.nombre} />
+              </span>
+            ) : (
+              <AvatarServidor nombre={fila.nombre} />
+            ),
+            titulo: fila.nombre,
+            subtitulo: estado ? estado.corta : resumenServicios(fila),
+            meta: estado ? <PuntoEstado tono={estado.tono} etiqueta={estado.etiqueta} ocultarEtiquetaEnMovil /> : undefined,
+          }
+        }
+        return {
+          avatar: <AvatarServidor nombre={fila.nombre} />,
+          titulo: fila.nombre,
+          subtitulo: resumenServicios(fila),
+          insignias:
+            fila.tieneCuenta === false ? (
+              <BadgeSistema variante="warning" tamaño="sm">
+                {SIN_CUENTA_LABEL}
+              </BadgeSistema>
+            ) : undefined,
+          meta: <Etapa fila={fila} ocultarEtiquetaEnMovil />,
+        }
+      }}
     />
   )
 }

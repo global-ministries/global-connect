@@ -10,6 +10,10 @@
  *
  * The action dialogs live outside the drawer: choosing one closes the drawer
  * and opens the dialog, so two modals never fight for focus.
+ *
+ * The invitation to register (invitaciones pendientes T4, S7): "Reenviar
+ * invitación" resends to the same email with the drawer open; "Cambiar
+ * correo" opens `InvitarCuentaPanel`; "Cancelar invitación" asks first.
  */
 import { useState, type ReactElement } from 'react'
 
@@ -21,12 +25,13 @@ import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { accionesDeServicio } from '@/lib/platform/dream-team/acciones-servicio'
 import type { FilaVista, PersonaLista } from '@/lib/platform/dream-team/servidores-vista'
 import { EditarFichaPanel } from './editar-ficha-panel'
+import { DialogoCancelarInvitacion, cancelarInvitacion, reenviarInvitacion } from './invitaciones-servidores'
 
 export { formatearFecha } from '@/components/dream-team/detalle-persona'
 
 type Accion =
   | { readonly tipo: 'etapa' | 'turnos'; readonly fila: FilaVista }
-  | { readonly tipo: 'ficha' | 'invitar' }
+  | { readonly tipo: 'ficha' | 'invitar' | 'cancelarInvitacion' }
   | null
 
 export interface DetalleServidorProps {
@@ -63,6 +68,7 @@ function aServicio(fila: FilaVista): ServicioDetalle {
 
 export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualizado }: DetalleServidorProps): ReactElement | null {
   const [accion, setAccion] = useState<Accion>(null)
+  const [ocupado, setOcupado] = useState(false)
   const toast = useNotificaciones()
   if (persona === null) return null
 
@@ -83,6 +89,33 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
     if (fila) setAccion({ tipo, fila })
   }
 
+  async function reenviar(): Promise<void> {
+    if (persona === null || !persona.invitacion || ocupado) return
+    setOcupado(true)
+    const resultado = await reenviarInvitacion(persona.clave, persona.invitacion.email)
+    setOcupado(false)
+    if (!resultado.ok) {
+      toast.error(resultado.error)
+      return
+    }
+    toast.success(`Invitación para registrarse reenviada a ${resultado.email}.`)
+    onActualizado()
+  }
+
+  async function cancelar(): Promise<void> {
+    if (persona === null || ocupado) return
+    setOcupado(true)
+    const error = await cancelarInvitacion(persona.clave)
+    setOcupado(false)
+    setAccion(null)
+    if (error !== null) {
+      toast.error(error)
+      return
+    }
+    toast.success('Invitación a la plataforma cancelada.')
+    onActualizado()
+  }
+
   const filaAccion = accion !== null && 'fila' in accion ? accion.fila : null
   const servicioAccion = filaAccion ? accionesDeServicio(filaAccion) : null
 
@@ -97,6 +130,9 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
         onTurnos={(clave) => elegirFila('turnos', clave)}
         onEditarFicha={() => setAccion({ tipo: 'ficha' })}
         onInvitar={() => setAccion({ tipo: 'invitar' })}
+        onReenviarInvitacion={reenviar}
+        onCancelarInvitacion={() => setAccion({ tipo: 'cancelarInvitacion' })}
+        reenviandoInvitacion={ocupado}
       />
 
       {filaAccion && servicioAccion?.servicio && accion?.tipo === 'etapa' && (
@@ -140,6 +176,18 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
           abierto={accion?.tipo === 'invitar'}
           onAbiertoChange={cerrarAccion}
           onInvitada={guardado}
+        />
+      )}
+
+      {invitar && (
+        <DialogoCancelarInvitacion
+          abierto={accion?.tipo === 'cancelarInvitacion'}
+          titulo={`¿Cancelar la invitación de ${persona.nombre}?`}
+          descripcion="El enlace que recibió deja de funcionar. Puedes volver a invitar a esta persona cuando quieras."
+          confirmar="Cancelar invitación"
+          ocupado={ocupado}
+          onConfirmar={cancelar}
+          onCerrar={() => setAccion(null)}
         />
       )}
     </>

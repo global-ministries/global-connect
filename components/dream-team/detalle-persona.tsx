@@ -9,9 +9,11 @@
  * Order: identity (avatar, how many servicios, phone in mono); quick actions
  * (WhatsApp and Llamar, disabled without a usable number; Editar ficha);
  * callouts with their fix ("Revisar teléfono" → "Corregir en la ficha", "No
- * tiene cuenta" → "Invitar a la plataforma"); then "Dónde sirve", one card per
- * servicio (Rol, Turno, Desde) with "Cambiar etapa", "Turnos" and "Ver su
- * equipo".
+ * tiene cuenta" → "Invitar a la plataforma"; with invitation data, the state
+ * of the invitation to register, its history and actions, see
+ * components/cuentas/aviso-invitacion-cuenta.tsx); then "Dónde sirve", one
+ * card per servicio (Rol, Turno, Desde) with "Cambiar etapa", "Turnos" and
+ * "Ver su equipo".
  *
  * Screen-agnostic: each screen maps its data and permissions to the neutral
  * props (lib/platform/dream-team/acciones-servicio.ts holds the rule) and owns
@@ -26,9 +28,12 @@ import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
+import { AvisoInvitacionCuenta, HistorialInvitacion } from '@/components/cuentas/aviso-invitacion-cuenta'
+import { fechaCancelada } from '@/components/cuentas/textos-invitacion'
 import { ESTADO_LABELS, ORIGEN_GRUPOS_VIDA_LABEL } from '@/components/dream-team/labels'
 import { AvatarServidor, TONO_ESTADO, telefonoARevisar, telefonoVisible } from '@/components/dream-team/servidores/lista-servidores'
 import type { DreamTeamEstado } from '@/lib/platform/dream-team/types'
+import type { ResumenInvitacion } from '@/lib/platform/cuentas/invitaciones-pendientes'
 import { enlaceWhatsapp } from '@/lib/utils/telefono'
 
 /** The quick actions are 66px stacked buttons, icon over label (docs/design-system/patterns.md#detail-drawer). */
@@ -86,6 +91,8 @@ export interface PersonaDetalle {
   readonly soloGruposVida: boolean
   /** The age range as shown ("26+"); absent hides it. */
   readonly edad?: string
+  /** The latest invitation to register the viewer may see; absent or `null` keeps the plain callout. */
+  readonly invitacion?: ResumenInvitacion | null
 }
 
 export interface DetallePersonaProps {
@@ -99,6 +106,20 @@ export interface DetallePersonaProps {
   readonly onInvitar: () => void
   /** "Ver su equipo" of a servicio with `irAEquipo`: the screen moves to that equipo. */
   readonly onVerEquipo?: (clave: string) => void
+  /** "Reenviar invitación" (the panel stays open). */
+  readonly onReenviarInvitacion?: () => void
+  /** "Cancelar invitación": the panel closes and the screen confirms. */
+  readonly onCancelarInvitacion?: () => void
+  readonly reenviandoInvitacion?: boolean
+}
+
+/** The invitation the drawer shows instead of the plain callout: an open one without account, or a registered one. */
+function invitacionVisible(persona: PersonaDetalle): ResumenInvitacion | null {
+  const invitacion = persona.invitacion ?? null
+  if (invitacion === null) return null
+  if (persona.tieneCuenta === false && (invitacion.estado === 'vencida' || invitacion.estado === 'enviada')) return invitacion
+  if (persona.tieneCuenta === true && invitacion.estado === 'registrada') return invitacion
+  return null
 }
 
 function DatoServicio({ etiqueta, valor }: { readonly etiqueta: string; readonly valor: string }): ReactElement {
@@ -179,6 +200,9 @@ export function DetallePersona({
   onEditarFicha,
   onInvitar,
   onVerEquipo,
+  onReenviarInvitacion,
+  onCancelarInvitacion,
+  reenviandoInvitacion = false,
 }: DetallePersonaProps): ReactElement {
   const editarFicha = servicios.some((s) => s.acciones.editarFicha)
   const invitar = servicios.some((s) => s.acciones.invitar)
@@ -187,6 +211,10 @@ export function DetallePersona({
   const llamar = telefono ? `tel:${(persona.telefono ?? '').replace(/[^\d+]/g, '')}` : null
   const gruposVida = servicios.some((s) => s.origen === 'grupos_vida')
   const cantidad = servicios.length
+  const invitacion = invitacionVisible(persona)
+  // A cancelled invitation keeps the plain callout, says when and lists the history.
+  const cancelada = persona.tieneCuenta === false ? fechaCancelada(persona.invitacion) : null
+  const accionesInvitacion = invitar && onReenviarInvitacion !== undefined && onCancelarInvitacion !== undefined
 
   function elegir(accion: () => void): void {
     onCambioAbierto(false)
@@ -248,9 +276,22 @@ export function DetallePersona({
           </AvisoFormulario>
         )}
 
-        {persona.tieneCuenta === false && (
+        {invitacion && (
+          <AvisoInvitacionCuenta
+            invitacion={invitacion}
+            telefono={persona.telefono}
+            puedeInvitar={accionesInvitacion}
+            reenviando={reenviandoInvitacion}
+            onReenviar={() => onReenviarInvitacion?.()}
+            onCambiarCorreo={() => elegir(onInvitar)}
+            onCancelar={() => elegir(() => onCancelarInvitacion?.())}
+          />
+        )}
+
+        {persona.tieneCuenta === false && invitacion === null && (
           <AvisoFormulario tono="marca" className="space-y-2">
             <p className="font-semibold text-foreground">No tiene cuenta en la plataforma</p>
+            {cancelada !== null && <p>{`Invitación cancelada el ${cancelada}`}</p>}
             <p>No ve sus turnos ni recibe recordatorios.</p>
             {invitar && (
               <BotonSistema type="button" tamaño="sm" onClick={() => elegir(onInvitar)}>
@@ -259,6 +300,8 @@ export function DetallePersona({
             )}
           </AvisoFormulario>
         )}
+
+        {cancelada !== null && persona.invitacion && <HistorialInvitacion invitacion={persona.invitacion} />}
 
         {gruposVida && (
           <p className="text-sm text-muted-foreground">Sus servicios de Grupos de Vida se gestionan desde Grupos de Vida.</p>
