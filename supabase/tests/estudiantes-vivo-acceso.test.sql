@@ -6,7 +6,8 @@
 --      vivo), a director de grupo of The Living Room (grupos, gestiona, no
 --      vivo: TLR has no live view), a pastor (everything of their campus), a
 --      director of another campus (only that campus), a person without role
---      (nothing).
+--      (nothing), an entrenadora of The Living Room only (reportes, nothing
+--      else). reportes = level >= 2 on some sub-área (C6d follow-up).
 --   o. estudiantes_vivo_opciones: the entrenadora gets her ámbito's turno on
 --      the last two Sundays; the pastor gets Transit (only its listed turno)
 --      and Inside Out (every turno, no restriction); the other campus gets its
@@ -20,7 +21,8 @@
 -- Identities (usuario n = auth n): 1 LIDER (Transit › Chicas, leads G1),
 -- 2 ENTRENADORA (Transit › Chicas), 3 DIRGRUPO_TLR (director de grupo in
 -- TLR › Chicas), 4 NADIE, 5 PASTOR (campus 1), 6 DIR_OTRO (dream_team.direct
--- on Transit, campus 2). 1–5 belong to campus 1.
+-- on Transit, campus 2), 7 ENTRENADORA_TLR (entrenador in TLR › Chicas).
+-- 1–5 and 7 belong to campus 1.
 -- Groups: G1, G2 Transit › Chicas, G4 Inside Out › Chicas, G5 TLR › Chicas in
 -- campus 1; G6 Transit › Chicas in campus 2.
 -- Turnos: 1 Domingo 9 and 2 Domingo 11 in campus 1 (Transit lists only 1),
@@ -70,12 +72,13 @@ CREATE OR REPLACE FUNCTION pg_temp.dom() RETURNS date LANGUAGE sql STABLE AS $$
   SELECT (SELECT v FROM t_ev_ctx WHERE k = 'dom')::date;
 $$;
 
--- 'grupos|lidera|vivo|gestiona' of the caller.
+-- 'grupos|lidera|vivo|gestiona|reportes' of the caller.
 CREATE OR REPLACE FUNCTION pg_temp.acceso() RETURNS text LANGUAGE plpgsql AS $$
 DECLARE
   v jsonb := public.estudiantes_acceso();
 BEGIN
-  RETURN (v ->> 'grupos') || '|' || (v ->> 'lidera') || '|' || (v ->> 'vivo') || '|' || (v ->> 'gestiona');
+  RETURN (v ->> 'grupos') || '|' || (v ->> 'lidera') || '|' || (v ->> 'vivo') || '|' || (v ->> 'gestiona')
+         || '|' || (v ->> 'reportes');
 END;
 $$;
 
@@ -97,17 +100,17 @@ INSERT INTO t_ev_ctx (k, v) VALUES
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'ev-' || n || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM generate_series(1, 6) AS n;
+  FROM generate_series(1, 7) AS n;
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ev', 'U' || n, 'ev-' || n || '@example.test', 'Soltero', 'Femenino'
-  FROM generate_series(1, 6) AS n;
+  FROM generate_series(1, 7) AS n;
 
 INSERT INTO public.campus (id, nombre, codigo) VALUES
   (pg_temp.id('ca', 1), 'ZZ Ev Campus 1', 'ZZEV1'),
   (pg_temp.id('ca', 2), 'ZZ Ev Campus 2', 'ZZEV2');
 INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
 SELECT pg_temp.id('us', n), pg_temp.id('ca', CASE WHEN n = 6 THEN 2 ELSE 1 END), true
-  FROM generate_series(1, 6) AS n
+  FROM generate_series(1, 7) AS n
 ON CONFLICT DO NOTHING;
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT pg_temp.id('us', 5), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'pastor';
@@ -122,11 +125,13 @@ SELECT pg_temp.id('eq', n), experiencia, CASE WHEN p > 0 THEN pg_temp.id('eq', p
 INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo) VALUES
   (pg_temp.id('ro', 1), pg_temp.id('eq', 6), 'lider', 'lider', true),
   (pg_temp.id('ro', 2), pg_temp.id('eq', 6), 'entrenador', 'lider', true),
-  (pg_temp.id('ro', 3), pg_temp.id('eq', 10), 'director de grupo', 'coordinador', true);
+  (pg_temp.id('ro', 3), pg_temp.id('eq', 10), 'director de grupo', 'coordinador', true),
+  (pg_temp.id('ro', 4), pg_temp.id('eq', 10), 'entrenador', 'lider', true);
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual) VALUES
   (pg_temp.id('se', 1), pg_temp.id('us', 1), pg_temp.id('eq', 6), pg_temp.id('ro', 1), 'activo', timestamptz '2020-01-01 12:00+00', 'admin_asignacion'),
   (pg_temp.id('se', 2), pg_temp.id('us', 2), pg_temp.id('eq', 6), pg_temp.id('ro', 2), 'activo', timestamptz '2020-01-01 12:00+00', 'admin_asignacion'),
-  (pg_temp.id('se', 3), pg_temp.id('us', 3), pg_temp.id('eq', 10), pg_temp.id('ro', 3), 'activo', timestamptz '2020-01-01 12:00+00', 'admin_asignacion');
+  (pg_temp.id('se', 3), pg_temp.id('us', 3), pg_temp.id('eq', 10), pg_temp.id('ro', 3), 'activo', timestamptz '2020-01-01 12:00+00', 'admin_asignacion'),
+  (pg_temp.id('se', 7), pg_temp.id('us', 7), pg_temp.id('eq', 10), pg_temp.id('ro', 4), 'activo', timestamptz '2020-01-01 12:00+00', 'admin_asignacion');
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
   (pg_temp.id('us', 6), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.id('eq', 3)::text);
 
@@ -158,19 +163,22 @@ SET LOCAL ROLE authenticated;
 
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('a: a leader sees and leads their group, no live view, no management',
-  $q$SELECT pg_temp.acceso()$q$, '1|true|false|false');
+  $q$SELECT pg_temp.acceso()$q$, '1|true|false|false|false');
 SELECT pg_temp.as_persona(2);
 SELECT pg_temp.assert_eq('a: an entrenadora sees the sub-área groups and the live view',
-  $q$SELECT pg_temp.acceso()$q$, '2|false|true|false');
+  $q$SELECT pg_temp.acceso()$q$, '2|false|true|false|true');
 SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_eq('a: a director de grupo of The Living Room manages, with no live view',
-  $q$SELECT pg_temp.acceso()$q$, '1|false|false|true');
+  $q$SELECT pg_temp.acceso()$q$, '1|false|false|true|true');
 SELECT pg_temp.as_persona(4);
-SELECT pg_temp.assert_eq('a: a person without role gets nothing', $q$SELECT pg_temp.acceso()$q$, '0|false|false|false');
+SELECT pg_temp.assert_eq('a: a person without role gets nothing', $q$SELECT pg_temp.acceso()$q$, '0|false|false|false|false');
 SELECT pg_temp.as_persona(5);
-SELECT pg_temp.assert_eq('a: a pastor gets everything of their campus', $q$SELECT pg_temp.acceso()$q$, '4|false|true|true');
+SELECT pg_temp.assert_eq('a: a pastor gets everything of their campus', $q$SELECT pg_temp.acceso()$q$, '4|false|true|true|true');
 SELECT pg_temp.as_persona(6);
-SELECT pg_temp.assert_eq('a: a director of another campus gets only that campus', $q$SELECT pg_temp.acceso()$q$, '1|false|true|true');
+SELECT pg_temp.assert_eq('a: a director of another campus gets only that campus', $q$SELECT pg_temp.acceso()$q$, '1|false|true|true|true');
+SELECT pg_temp.as_persona(7);
+SELECT pg_temp.assert_eq('a: an entrenadora of The Living Room only sees its groups and the reports',
+  $q$SELECT pg_temp.acceso()$q$, '1|false|false|false|true');
 
 -- ── o. live view options ─────────────────────────────────────────────
 
