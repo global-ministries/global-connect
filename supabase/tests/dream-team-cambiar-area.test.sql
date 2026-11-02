@@ -29,7 +29,12 @@
 --      existing servicio with that rol in the destination.
 --   l. An admin moves across experiencias; the DPS director cannot (42501).
 --   m. A direct move cancels (anulada) the pending request of that servicio.
---   n. Privileges.
+--   n. Privileges (with the destinations function of T2).
+--   o. The destinations of the dialog (dream_team_cambiar_area_destinos, T2):
+--      the Producción Técnica director over a Cámaras servicio gets every
+--      active área but Cámaras, Audio with dirige and Estacionamiento without,
+--      each with its active roles; a coordinator and an unknown servicio are
+--      refused; its privileges.
 --
 -- Run against STAGING inside a transaction that is discarded. The last
 -- statement raises 'SUITE_RESULT: ALL OK' (or the failing cases), which also
@@ -615,7 +620,7 @@ SELECT pg_temp.assert_eq('m: the servicio moved to Audio',
 
 -- ── n. privileges ────────────────────────────────────────────────────
 
-SELECT pg_temp.assert_eq('n: authenticated executes the four RPCs and the authority check, anon none',
+SELECT pg_temp.assert_eq('n: authenticated executes the five RPCs and the authority check, anon none',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FILTER (WHERE has_function_privilege('authenticated', p.oid, 'EXECUTE'))
             || '|' || count(*) FILTER (WHERE has_function_privilege('anon', p.oid, 'EXECUTE'))
             || '|' || count(*)
@@ -623,16 +628,18 @@ SELECT pg_temp.assert_eq('n: authenticated executes the four RPCs and the author
       WHERE n.nspname = 'public'
         AND p.proname IN ('dream_team_autoridad_director', 'dream_team_equipo_ruta', 'dream_team_cambiar_area_validar',
                           'dream_team_cambiar_area_mover', 'dream_team_cambiar_area', 'dream_team_solicitar_cambio_area',
-                          'dream_team_resolver_solicitud_cambio_area', 'dream_team_solicitudes_cambio_area')$q$,
-  'dream_team_autoridad_director,dream_team_cambiar_area,dream_team_resolver_solicitud_cambio_area,'
-  || 'dream_team_solicitar_cambio_area,dream_team_solicitudes_cambio_area|0|8');
+                          'dream_team_resolver_solicitud_cambio_area', 'dream_team_solicitudes_cambio_area',
+                          'dream_team_cambiar_area_destinos')$q$,
+  'dream_team_autoridad_director,dream_team_cambiar_area,dream_team_cambiar_area_destinos,'
+  || 'dream_team_resolver_solicitud_cambio_area,dream_team_solicitar_cambio_area,dream_team_solicitudes_cambio_area|0|9');
 SELECT pg_temp.assert_eq('n: every new function is SECURITY DEFINER with an empty search_path',
   $q$SELECT coalesce(string_agg(p.proname, ','), '')
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public'
         AND p.proname IN ('dream_team_autoridad_director', 'dream_team_equipo_ruta', 'dream_team_cambiar_area_validar',
                           'dream_team_cambiar_area_mover', 'dream_team_cambiar_area', 'dream_team_solicitar_cambio_area',
-                          'dream_team_resolver_solicitud_cambio_area', 'dream_team_solicitudes_cambio_area')
+                          'dream_team_resolver_solicitud_cambio_area', 'dream_team_solicitudes_cambio_area',
+                          'dream_team_cambiar_area_destinos')
         AND NOT (p.prosecdef AND p.proconfig @> ARRAY['search_path=""'])$q$, '');
 SELECT pg_temp.assert_eq('n: the table has RLS, anon nothing, authenticated only SELECT',
   $q$SELECT c.relrowsecurity || '|' || has_table_privilege('anon', c.oid, 'SELECT,INSERT,UPDATE,DELETE')
@@ -643,6 +650,51 @@ SELECT pg_temp.assert_eq('n: at most one pendiente per servicio (partial unique 
   $q$SELECT count(*)::text FROM pg_index i
       WHERE i.indrelid = 'public.dream_team_solicitudes_cambio_area'::regclass AND i.indisunique
         AND pg_get_expr(i.indpred, i.indrelid) LIKE '%pendiente%'$q$, '1');
+
+-- ── o. the destinations of the dialog ────────────────────────────────
+
+-- Fixture equipos only: staging has real ones too.
+CREATE OR REPLACE FUNCTION pg_temp.destinos(p_se int) RETURNS text LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN (
+  SELECT coalesce(string_agg(t, ', ' ORDER BY t COLLATE "C"), '')
+    FROM (SELECT pg_temp.lbl(d.equipo_id) || ':' || d.dirige || ':' || d.experiencia || ':'
+                 || (SELECT coalesce(string_agg(pg_temp.lbl((r ->> 'id')::uuid) || '/' || (r ->> 'label') || '/' || (r ->> 'nivel'),
+                                                ';' ORDER BY r ->> 'label'), '-')
+                       FROM jsonb_array_elements(d.roles) r) AS t
+            FROM public.dream_team_cambiar_area_destinos(pg_temp.id('se', p_se)) d
+           WHERE d.equipo_id::text LIKE 'ca7a0000-%') q);
+END;
+$$;
+GRANT EXECUTE ON FUNCTION pg_temp.destinos(int) TO authenticated;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_eq('o: the PT director gets every active área but Cámaras, dirige only inside PT',
+  $q$SELECT pg_temp.destinos(17)$q$,
+  'AUD:true:dps:vol/Voluntario/voluntario, DPS:false:dps:-, EST:false:dps:vol/Voluntario/voluntario, '
+  || 'NIN:false:ninos:-, OPS:false:dps:-, PT:true:dps:-, SALA:false:ninos:vol/Voluntario/voluntario');
+SELECT pg_temp.assert_eq('o: with the path of each área',
+  $q$SELECT d.ruta FROM public.dream_team_cambiar_area_destinos(pg_temp.id('se', 17)) d WHERE d.equipo_id = pg_temp.id('eq', 6)$q$,
+  'ZZ DPS › Operaciones › Estacionamiento');
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('o: the DPS director directs every DPS área',
+  $q$SELECT pg_temp.destinos(17)$q$,
+  'AUD:true:dps:vol/Voluntario/voluntario, DPS:true:dps:-, EST:true:dps:vol/Voluntario/voluntario, '
+  || 'NIN:false:ninos:-, OPS:true:dps:-, PT:true:dps:-, SALA:false:ninos:vol/Voluntario/voluntario');
+SELECT pg_temp.as_persona(3);
+SELECT pg_temp.assert_raises('o: a coordinator is refused',
+  $q$SELECT pg_temp.destinos(17)$q$, '42501', 'No tienes autoridad de director sobre el área actual de este servicio.');
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_raises('o: an unknown servicio is refused',
+  $q$SELECT pg_temp.destinos(99)$q$, '22023', 'El servicio no existe.');
+RESET ROLE;
+SELECT pg_temp.assert_eq('o: authenticated executes it, anon does not; SECURITY DEFINER with an empty search_path',
+  $q$SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE') || '|' || has_function_privilege('anon', p.oid, 'EXECUTE')
+            || '|' || has_function_privilege('public', p.oid, 'EXECUTE')
+            || '|' || (p.prosecdef AND p.proconfig @> ARRAY['search_path=""'])
+       FROM pg_proc p WHERE p.oid = 'public.dream_team_cambiar_area_destinos(uuid)'::regprocedure$q$,
+  'true|false|false|true');
 
 DO $$
 BEGIN

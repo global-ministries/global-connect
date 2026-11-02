@@ -31,6 +31,7 @@ import {
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
+import { fetchEquiposDirigidos, fetchSolicitudesCambioArea } from '@/lib/platform/dream-team/cambiar-area'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
@@ -160,6 +161,18 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
     return [[], new Map()]
   })
 
+  // "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2): the equipos
+  // the viewer has director authority over (dream_team_autoridad_director; a
+  // coordinator has none) and the requests they resolve or sent. Both fail
+  // closed; the RPCs check every action again.
+  const [equiposDirigidos, solicitudesCambioArea] = await Promise.all([
+    fetchEquiposDirigidos(
+      supabase,
+      servicios.filter((servicio) => servicio.estado !== 'retirado').map((servicio) => servicio.equipoId),
+    ),
+    fetchSolicitudesCambioArea(supabase),
+  ])
+
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
   const equipoIdsVisibles = new Set([...equipos.map((equipo) => equipo.id), ...nodosGdv.map((nodo) => nodo.nodoId)])
 
@@ -185,6 +198,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       turnoIds: turnosPorServicio.get(servicio.id) ?? [],
       frecuencias: frecuenciasPorServicio.get(servicio.id),
       fichaEditable: servicio.estado !== 'retirado' && equiposRegistrables.has(servicio.equipoId),
+      areaCambiable: servicio.estado !== 'retirado' && equiposDirigidos.has(servicio.equipoId),
       rangoEdad: rangoEdadPorId.get(servicio.personaId),
     })
   }
@@ -231,6 +245,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
         tipo: turno.tipo,
       }))}
       hayTurnosPorFechas={turnos.some((turno) => turno.activo && turno.tipo === 'fechas')}
+      solicitudesCambioArea={solicitudesCambioArea}
     />
   )
 }

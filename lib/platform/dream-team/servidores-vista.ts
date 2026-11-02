@@ -57,6 +57,12 @@ export interface FilaServidor {
    * servicio. The database checks it again (dream_team_editar_ficha).
    */
   readonly fichaEditable?: boolean
+  /**
+   * Whether the viewer may move the servicio to another área ("Cambiar de
+   * área"): director authority over its equipo, not retired. Checked again by
+   * the cambiar-área RPCs.
+   */
+  readonly areaCambiable?: boolean
   /** Campus service shifts of a Dream Team servicio; absent or empty = none assigned yet. */
   readonly turnoIds?: readonly string[]
   /** Biweekly shifts of the servicio (T10); a shift with no entry is weekly. */
