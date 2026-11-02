@@ -76,15 +76,20 @@ describe('elegirOpcion', () => {
 describe('the selection pickers', () => {
   it('lists each ámbito once, with the campus only when there is more than one', () => {
     expect(opcionesAmbito(OPCIONES)).toEqual([
-      { valor: 'a-io|c1', etiqueta: 'Inside Out' },
       { valor: 'a-t|c1', etiqueta: 'Transit' },
+      { valor: 'a-io|c1', etiqueta: 'Inside Out' },
     ])
     expect(opcionesAmbito([...OPCIONES, opcion({ campusId: 'c2', campus: 'Cabudare' })]).map((o) => o.etiqueta)).toEqual([
-      'Inside Out · Barquisimeto',
       'Transit · Barquisimeto',
       'Transit · Cabudare',
+      'Inside Out · Barquisimeto',
     ])
     expect(valorAmbito(OPCIONES[2])).toBe('a-t|c1')
+  })
+
+  it('offers the ámbitos Transit → Inside Out → The Living Room, not A–Z (S20)', () => {
+    const tlr = opcion({ ambitoId: 'a-tlr', ambito: 'The Living Room', fecha: '2026-10-22' })
+    expect(opcionesAmbito([OPCIONES[0], tlr, OPCIONES[2]]).map((o) => o.etiqueta)).toEqual(['Transit', 'Inside Out', 'The Living Room'])
   })
 
   it('lists the meetings of the chosen ámbito, newest first, with the turno only when a date has two', () => {

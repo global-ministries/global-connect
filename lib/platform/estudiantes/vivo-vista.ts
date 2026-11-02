@@ -18,6 +18,7 @@
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 
 import { fechaLarga, horaCorta } from './lista-vista'
+import { ordenarPorAmbito } from './orden-ambitos'
 import type { DatosVivo, GrupoVivo, OpcionVivo, VisitanteHoy } from './vivo-datos'
 
 type Tono = 'success' | 'warning' | 'info' | 'danger' | 'muted'
@@ -79,11 +80,14 @@ export interface OpcionSelector {
 export const valorAmbito = (o: Pick<OpcionVivo, 'ambitoId' | 'campusId'>): string => `${o.ambitoId}|${o.campusId}`
 export const valorReunion = (o: Pick<OpcionVivo, 'fecha' | 'turnoId'>): string => `${o.fecha}|${o.turnoId}`
 
-/** Each ámbito (and campus) once; the campus shows only when the user sees more than one. */
+/**
+ * Each ámbito (and campus) once, Transit → Inside Out → The Living Room (S20);
+ * the campus shows only when the user sees more than one.
+ */
 export function opcionesAmbito(opciones: readonly OpcionVivo[]): OpcionSelector[] {
   const variosCampus = new Set(opciones.map((o) => o.campusId)).size > 1
   const vistos = new Map<string, OpcionSelector>()
-  for (const o of opciones) {
+  for (const o of ordenarPorAmbito(opciones, (o) => o)) {
     const valor = valorAmbito(o)
     if (!vistos.has(valor)) vistos.set(valor, { valor, etiqueta: variosCampus ? `${o.ambito} · ${o.campus}` : o.ambito })
   }

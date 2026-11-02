@@ -163,6 +163,18 @@ describe('calcularVistaVoluntarios', () => {
     expect(vista({ ambito: 'zz' }).ambitoId).toBe('transit')
   })
 
+  it('offers the ámbitos Transit → Inside Out → The Living Room and opens Transit (S20)', () => {
+    // estudiantes_voluntarios_planilla sorts the areas by label.
+    const areas = [
+      { id: 'io', nombre: 'Inside Out' },
+      { id: 'tlr', nombre: 'The Living Room' },
+      { id: 'transit', nombre: 'Transit' },
+    ]
+    const v = calcularVistaVoluntarios({ ...PLANILLA, areas }, FILTROS_VOLUNTARIOS_INICIALES)
+    expect(v.ambitos.map((a) => a.nombre)).toEqual(['Transit', 'Inside Out', 'The Living Room'])
+    expect(v.ambitoId).toBe('transit')
+  })
+
   it('counts the ámbito: metrics over the expected volunteers, extras in the hint', () => {
     const v = vista()
     expect(v.metricas.map((m) => [m.id, m.valor, m.total, m.activa])).toEqual([

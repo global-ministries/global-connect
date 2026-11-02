@@ -14,6 +14,23 @@ describe('aOpcionesVivo', () => {
       ]),
     ).toEqual([{ ambitoId: 'a1', ambito: 'Transit', campusId: 'c1', campus: 'Barquisimeto', fecha: '2026-11-01', turnoId: 't1', turno: '1er servicio', hora: '09:00:00' }])
   })
+
+  it('puts the ámbitos Transit → Inside Out → The Living Room, keeping the RPC order inside each (S20)', () => {
+    // estudiantes_vivo_opciones sorts by ámbito label, campus, newest date.
+    const fila = (ambito_id: string, ambito: string, fecha: string) => ({ ambito_id, ambito, campus_id: 'c1', campus: 'Barquisimeto', fecha, turno_id: 't1', turno: '1er servicio', hora: '09:00:00' })
+    const opciones = aOpcionesVivo([
+      fila('a-io', 'Inside Out', '2026-11-01'),
+      fila('a-tlr', 'The Living Room', '2026-10-29'),
+      fila('a-t', 'Transit', '2026-11-01'),
+      fila('a-t', 'Transit', '2026-10-25'),
+    ])
+    expect(opciones.map((o) => [o.ambito, o.fecha])).toEqual([
+      ['Transit', '2026-11-01'],
+      ['Transit', '2026-10-25'],
+      ['Inside Out', '2026-11-01'],
+      ['The Living Room', '2026-10-29'],
+    ])
+  })
 })
 
 describe('aDatosVivo', () => {

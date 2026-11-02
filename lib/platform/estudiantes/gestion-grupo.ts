@@ -5,6 +5,7 @@
  * search box becomes estudiantes_buscar_personas arguments, and the hints.
  */
 import type { Experiencia, GradoEscala, GrupoGestion, PersonaRol, SubareaGestionable } from './grupos-datos'
+import { compararAmbitos } from './orden-ambitos'
 
 export interface OpcionLider extends PersonaRol {
   /** Other active groups the person leads (a hint, never a block: A13). */
@@ -134,7 +135,7 @@ export function opcionesDonde(subareas: readonly SubareaGestionable[]): OpcionAm
         .map(([subareaId, s]) => ({ subareaId, subarea: s.subarea, campus: [...s.campus].sort((x, y) => x.campus.localeCompare(y.campus, 'es')) }))
         .sort((x, y) => x.subarea.localeCompare(y.subarea, 'es')),
     }))
-    .sort((x, y) => x.ambito.localeCompare(y.ambito, 'es'))
+    .sort(compararAmbitos)
 }
 
 /** The hint under "Año escolar": the campus scale and the años of the ámbito (Q2). */

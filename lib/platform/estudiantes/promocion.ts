@@ -18,6 +18,7 @@
  * out, a missing number is 0.
  */
 import type { SubareaGestionable } from './grupos-datos'
+import { ordenarPorAmbito } from './orden-ambitos'
 
 // ── Input ────────────────────────────────────────────────────────────
 
@@ -327,7 +328,7 @@ export function leerVistaPromocion(data: unknown): VistaPromocion | null {
     campus: { id, nombre: texto(data.campus.nombre) ?? '' },
     bloqueado: data.bloqueado === true,
     ultima: aUltima(data.ultima),
-    ambitos: deLista(data.ambitos, aAmbito),
+    ambitos: ordenarPorAmbito(deLista(data.ambitos, aAmbito), (a) => ({ ambito: a.nombre })),
     theLivingRoom:
       esObjeto(data.the_living_room) && texto(data.the_living_room.ambito_id)
         ? { id: texto(data.the_living_room.ambito_id)!, nombre: texto(data.the_living_room.nombre) ?? 'The Living Room' }

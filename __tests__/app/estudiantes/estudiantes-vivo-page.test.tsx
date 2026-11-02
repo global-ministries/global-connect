@@ -100,6 +100,7 @@ describe('/estudiantes/vivo', () => {
     expect(elemento.key).toBe('a-t|c1|2026-10-18|t1')
   })
 
+  // Today has Inside Out and Transit: Transit opens, the first ámbito of S20 (the RPC sorts A–Z).
   it('opens today by default and keeps the page when the live data fails', async () => {
     respuestas = {
       estudiantes_vivo_opciones: { data: OPCIONES, error: null },
@@ -107,7 +108,7 @@ describe('/estudiantes/vivo', () => {
       estudiantes_en_vivo: { data: null, error: { code: '42501', message: 'sin_autoridad' } },
     }
     const props = propsDe((await EstudiantesVivoPage({})) as React.ReactElement)
-    expect(props.opcion).toMatchObject({ ambitoId: 'a-io', fecha: '2026-10-25' })
+    expect(props.opcion).toMatchObject({ ambitoId: 'a-t', fecha: '2026-10-25' })
     expect(props.datos).toBeNull()
     expect(props.error).toBe('No tienes acceso a la vista en vivo de este ámbito.')
   })

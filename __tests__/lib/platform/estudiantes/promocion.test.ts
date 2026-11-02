@@ -262,6 +262,14 @@ describe('leerVistaPromocion', () => {
     expect(v.totales).toMatchObject({ grupos: 5, suben: 37, pasanInsideOut: 25, egresan: 4, sinGrupo: 1, porDecidir: 2 })
   })
 
+  it('keeps the ámbitos Transit → Inside Out whatever order they arrive in (S20)', () => {
+    const v = vista((c) => {
+      ;(c.ambitos as unknown[]).reverse()
+    })
+    expect(v.ambitos.map((a) => a.nombre)).toEqual(['Transit', 'Inside Out'])
+    expect(calcularPromocion({ vista: v, decisiones: {}, filtros: FILTROS_PROMOCION }).bloques[0].titulo).toBe('Transit · Grupos de Chicas')
+  })
+
   it('returns null for anything that is not the preview', () => {
     expect(leerVistaPromocion(null)).toBeNull()
     expect(leerVistaPromocion([])).toBeNull()
