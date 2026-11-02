@@ -1,6 +1,7 @@
 -- odd/tasks/dream-team-directores-invitan.md, T1 — Dream Team area directors
--- invite the people of their area (migration
--- 20261102200000_invitacion_cuenta_directores_area.sql).
+-- invite the people of their area (migrations
+-- 20261102200000_invitacion_cuenta_directores_area.sql and
+-- 20261102210000_invitacion_cuenta_directores_area_talleres.sql).
 --
 -- Tree: R > A > A1, and B under R. The director holds dream_team.direct
 -- scoped to A; a second director holds the same grant, revoked.
@@ -14,8 +15,10 @@
 --       the state reads NULL; invitacion_cuenta_sin_cuenta lists only the
 --       two allowed fichas.
 --   S3 (grants). A miembro in A1 whose grant sits inside A (a line-2
---       director) is allowed; one with dream_team.direct on B, a taller
---       grant or a support capability is refused; a person retired in A but
+--       director) is allowed, also with a taller-scoped grant whose scope is
+--       an equipo inside A (a talleres coordinator); one with dream_team.direct
+--       on B, a taller grant outside the tree or a support capability is
+--       refused; a person retired in A but
 --       active in B is refused.
 --   S4 is covered by supabase/tests/invitaciones-cuenta.test.sql (run it too).
 --
@@ -73,7 +76,8 @@ SELECT gen_random_uuid() AS dir_auth, gen_random_uuid() AS dir_id,
        gen_random_uuid() AS t_retirado, gen_random_uuid() AS t_pastor,
        gen_random_uuid() AS t_director, gen_random_uuid() AS t_linea2,
        gen_random_uuid() AS t_otra_area, gen_random_uuid() AS t_taller,
-       gen_random_uuid() AS t_soporte, gen_random_uuid() AS t_mixto;
+       gen_random_uuid() AS t_soporte, gen_random_uuid() AS t_mixto,
+       gen_random_uuid() AS t_coord_taller;
 GRANT SELECT ON t_da TO PUBLIC;
 
 INSERT INTO auth.users (id, instance_id, aud, role, email)
@@ -98,7 +102,8 @@ FROM t_da d, LATERAL (VALUES
   (d.t_otra_area, NULL, 'T OtraArea', 'da-otra@example.test'),
   (d.t_taller,   NULL, 'T Taller',   'da-taller@example.test'),
   (d.t_soporte,  NULL, 'T Soporte',  'da-soporte@example.test'),
-  (d.t_mixto,    NULL, 'T Mixto',    'da-mixto@example.test')
+  (d.t_mixto,    NULL, 'T Mixto',    'da-mixto@example.test'),
+  (d.t_coord_taller, NULL, 'T CoordTaller', 'da-coord@example.test')
 ) AS v(id, auth_id, apellido, email);
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
@@ -108,7 +113,8 @@ FROM t_da d, LATERAL (VALUES
   (d.t_sub, 'miembro'), (d.t_area, 'lider'), (d.t_hermano, 'miembro'),
   (d.t_padre, 'miembro'), (d.t_retirado, 'miembro'), (d.t_pastor, 'pastor'),
   (d.t_director, 'director-etapa'), (d.t_linea2, 'miembro'), (d.t_otra_area, 'miembro'),
-  (d.t_taller, 'miembro'), (d.t_soporte, 'miembro'), (d.t_mixto, 'miembro')
+  (d.t_taller, 'miembro'), (d.t_soporte, 'miembro'), (d.t_mixto, 'miembro'),
+  (d.t_coord_taller, 'miembro')
 ) AS v(usuario_id, rol)
 JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
 
@@ -133,7 +139,8 @@ FROM t_da d, LATERAL (VALUES
   (d.t_retirado, d.eq_a, 'retirado'), (d.t_pastor, d.eq_a1, 'activo'),
   (d.t_director, d.eq_a1, 'activo'), (d.t_linea2, d.eq_a1, 'activo'),
   (d.t_otra_area, d.eq_a1, 'activo'), (d.t_taller, d.eq_a1, 'activo'),
-  (d.t_soporte, d.eq_a1, 'activo'), (d.t_mixto, d.eq_a, 'retirado'), (d.t_mixto, d.eq_b, 'activo')
+  (d.t_soporte, d.eq_a1, 'activo'), (d.t_mixto, d.eq_a, 'retirado'), (d.t_mixto, d.eq_b, 'activo'),
+  (d.t_coord_taller, d.eq_a1, 'activo')
 ) AS v(persona, equipo, estado)
 JOIN public.dream_team_roles r ON r.equipo_id = v.equipo;
 
@@ -150,7 +157,9 @@ SELECT v.persona, v.clave, v.exp, v.tipo, v.scope, 'dream-team-servicio'
 FROM t_da d, LATERAL (VALUES
   (d.t_linea2, 'dream_team.direct', 'dream_team', 'equipo', d.eq_a1::text),
   (d.t_otra_area, 'dream_team.direct', 'dream_team', 'equipo', d.eq_b::text),
-  (d.t_taller, 'talleres_crecimiento.director.write', 'talleres_crecimiento', 'taller', gen_random_uuid()::text)
+  (d.t_taller, 'talleres_crecimiento.director.write', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_coord_taller, 'dream_team.coordinate', 'dream_team', 'equipo', d.eq_a1::text),
+  (d.t_coord_taller, 'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', d.eq_a1::text)
 ) AS v(persona, clave, exp, tipo, scope);
 
 INSERT INTO public.support_user_capabilities (usuario_id, capability)
@@ -197,6 +206,8 @@ SELECT pg_temp.ok('S3: sin_cuenta lists only the allowed fichas',
 
 SELECT pg_temp.pasa('S3: director invites a line-2 director of their subtree',
   format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_linea2, 'da-linea2@example.test')) FROM t_da;
+SELECT pg_temp.pasa('S3: director invites a talleres coordinator of their subtree',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_coord_taller, 'da-coord@example.test')) FROM t_da;
 SELECT pg_temp.falla('S3: refused when the target directs a sibling area',
   format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_otra_area, 'da-otra@example.test'),
   'sin_autoridad') FROM t_da;
