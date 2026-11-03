@@ -14,7 +14,10 @@
  * the «Embudo de conexión» Sin grupo → En grupo → Sirviendo of today (GR1),
  * the Grupos / Personas tabs with their attention pills, the active chips,
  * the list and its footer. A row, a funnel step or a member opens the
- * read-only drawer (detalle-reporte.tsx).
+ * read-only drawer (detalle-reporte.tsx). The Living Room adds its 4
+ * connections (C7c, S21, artboards 13 / 14): the Personas columns and the
+ * «Sin 1:1 en 2 meses» pill when the page could load them, and the
+ * «Conexiones» cards in the person drawer.
  *
  * The ámbito, sub-área and range reload the page data (`router.replace`);
  * the tab, pill, sort, search and open drawer stay local and are mirrored
@@ -54,6 +57,8 @@ import {
   type TarjetaAmbitoReporte,
 } from '@/lib/platform/estudiantes/reportes'
 
+import { resumenesConexiones, type ReporteConexiones } from '@/lib/platform/estudiantes/conexiones'
+
 import { DetalleReporte, type PilaReporte } from './detalle-reporte'
 import { EmbudoConexion } from './embudo-conexion'
 import { HojaFiltrosReportes } from './filtros-reportes'
@@ -80,6 +85,10 @@ export interface ReportesClientProps {
   readonly errorEmbudo?: string | null
   readonly filtrosIniciales?: FiltrosReportes
   readonly detalleInicial?: DetalleUrl | null
+  /** The selected ámbito is The Living Room (S21). */
+  readonly livingRoom?: boolean
+  /** Its connections for the list; `null` when the call failed (fail soft) or elsewhere. */
+  readonly conexiones?: ReporteConexiones | null
 }
 
 const plural = (n: number, uno: string, varios: string): string => (n === 1 ? uno : varios)
@@ -103,6 +112,8 @@ export function ReportesClient({
   errorEmbudo = null,
   filtrosIniciales = FILTROS_REPORTES,
   detalleInicial = null,
+  livingRoom = false,
+  conexiones = null,
 }: ReportesClientProps): ReactElement {
   const router = useRouter()
   const [pendiente, empezar] = useTransition()
@@ -122,7 +133,9 @@ export function ReportesClient({
   const subareaFija = subareas.length === 1 ? subareas[0].label : (subareas.find((s) => s.subareaId === subareaId)?.label ?? null)
   const alcance = [nombreAmbito, subareaFija].filter(Boolean).join(' · ')
 
-  const vista = useMemo(() => (reporte ? calcularVistaReportes({ reporte, filtros }) : null), [reporte, filtros])
+  const resumenes = useMemo(() => (livingRoom && conexiones ? resumenesConexiones(conexiones) : null), [livingRoom, conexiones])
+  const conConexiones = resumenes !== null
+  const vista = useMemo(() => (reporte ? calcularVistaReportes({ reporte, filtros, conexiones: resumenes }) : null), [reporte, filtros, resumenes])
   const pasos = useMemo(() => (embudo ? pasosEmbudo(embudo) : []), [embudo])
 
   const consulta = { campusId: campus.length > 1 ? campusId : null, ambitoId, subareaId, rango }
@@ -346,7 +359,11 @@ export function ReportesClient({
                 </TabsTrigger>
               </TabsList>
               <span className="hidden text-xs text-muted-foreground md:inline">
-                {filtros.tab === 'grupos' ? 'Toca un grupo para ver sus reuniones e integrantes' : 'Solo lectura · toca a alguien para ver cada reunión'}
+                {filtros.tab === 'grupos'
+                  ? 'Toca un grupo para ver sus reuniones e integrantes'
+                  : livingRoom
+                    ? 'Solo lectura · toca a alguien para ver sus conexiones'
+                    : 'Solo lectura · toca a alguien para ver cada reunión'}
               </span>
             </div>
 
@@ -387,6 +404,7 @@ export function ReportesClient({
                     onOrdenar={(ordenPersonas) => cambiarFiltros({ ordenPersonas })}
                     onAbrir={(personaId) => abrir({ vista: { tipo: 'persona', personaId }, volver: null })}
                     vacio={vacioLista('personas')}
+                    conConexiones={conConexiones}
                   />
                 )}
                 {visibles > 0 && (
@@ -415,6 +433,7 @@ export function ReportesClient({
         filtros={filtros}
         onFiltros={cambiarFiltros}
         resultados={visibles}
+        conConexiones={conConexiones}
         onLimpiar={() => {
           const orden = { ordenGrupos: ORDENES_GRUPOS[0].id, ordenPersonas: ORDENES_PERSONAS[0].id }
           if (subareaId || rango.clave !== '8sem') navegar({ subareaId: null, rango: { clave: porDefecto.clave, desde: porDefecto.desde, hasta: porDefecto.hasta } }, orden)
@@ -435,6 +454,9 @@ export function ReportesClient({
         contexto={{ ambito: nombreAmbito, lideresDe, servicioDe }}
         nombreGrupo={nombreGrupo}
         nombrePersona={nombrePersona}
+        livingRoom={livingRoom}
+        campusId={campusId}
+        hoy={hoy}
       />
     </PaginaSistema>
   )

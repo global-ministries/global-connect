@@ -15,7 +15,10 @@
  * Data: estudiantes_reporte_asistencia for every ámbito of the campus (the
  * ámbito cards show each one's %), Transit → Inside Out → The Living Room
  * (S20); the ones that answer sin_autoridad are left out, and none left →
- * not found. Then estudiantes_reporte_embudo for the selected ámbito. The
+ * not found. Then estudiantes_reporte_embudo for the selected ámbito and,
+ * only when it is The Living Room, estudiantes_reporte_conexiones for the
+ * same range and sub-área (the 4 connections of S21, C7c); when that call
+ * fails the attendance report still renders, without the extra columns. The
  * client island (components/estudiantes/reportes/reportes-client.tsx) loads
  * the drawers through lib/actions/estudiantes-reportes.actions.ts.
  *
@@ -45,6 +48,7 @@ import {
   type ParametrosReportes,
   type TarjetaAmbitoReporte,
 } from '@/lib/platform/estudiantes/reportes'
+import { leerReporteConexiones, type ReporteConexiones } from '@/lib/platform/estudiantes/conexiones'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Reportes — Estudiantes' }
@@ -125,11 +129,23 @@ export default async function EstudiantesReportesPage({ searchParams }: Estudian
     return reporte ? tarjetaAmbito(ambito, reporte) : { id: ambito.id, nombre: ambito.nombre, grupos: 0, porcentaje: null, insignias: [] }
   })
 
-  const embudoRes = await supabase.rpc('estudiantes_reporte_embudo', {
-    p_ambito_id: actual.ambito.id,
-    p_campus_id: elegido.id,
-    ...(subareaId ? { p_subarea_id: subareaId } : {}),
-  })
+  const livingRoom = actual.ambito.experiencia === 'the_living_room'
+  const [embudoRes, conexionesRes] = await Promise.all([
+    supabase.rpc('estudiantes_reporte_embudo', {
+      p_ambito_id: actual.ambito.id,
+      p_campus_id: elegido.id,
+      ...(subareaId ? { p_subarea_id: subareaId } : {}),
+    }),
+    livingRoom && contenido.tipo === 'reporte'
+      ? supabase.rpc('estudiantes_reporte_conexiones', {
+          p_ambito_id: actual.ambito.id,
+          p_campus_id: elegido.id,
+          p_desde: rango.desde,
+          p_hasta: rango.hasta,
+          ...(subareaId ? { p_subarea_id: subareaId } : {}),
+        })
+      : null,
+  ])
   let embudo: Embudo | null = null
   let errorEmbudo: string | null = null
   if (embudoRes.error) {
@@ -139,6 +155,11 @@ export default async function EstudiantesReportesPage({ searchParams }: Estudian
     embudo = leerEmbudo(embudoRes.data)
     if (!embudo) errorEmbudo = SIN_CARGAR_REPORTE
   }
+
+  // Fail soft: without the connections the Personas tab is the one of Transit / Inside Out.
+  let conexiones: ReporteConexiones | null = null
+  if (conexionesRes?.error) console.error('[estudiantes/reportes] reporte_conexiones failed', actual.ambito.id, conexionesRes.error)
+  else if (conexionesRes) conexiones = leerReporteConexiones(conexionesRes.data)
 
   return (
     // Another campus starts a fresh island; the ámbito, sub-área and range keep the list filters.
@@ -154,6 +175,8 @@ export default async function EstudiantesReportesPage({ searchParams }: Estudian
       contenido={contenido}
       embudo={embudo}
       errorEmbudo={errorEmbudo}
+      livingRoom={livingRoom}
+      conexiones={conexiones}
       filtrosIniciales={leerFiltrosReportes(query)}
       detalleInicial={{ grupoId: uuid(query.grupo), personaId: uuid(query.persona) }}
     />

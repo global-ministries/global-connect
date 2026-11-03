@@ -12,11 +12,15 @@
  *   key figures, the note (a move of group, since when it counts, unmarked
  *   meetings, Dream Team service) and "Reunión por reunión" with the group of
  *   each meeting when the range spans more than one (L48); "Ver <grupo>"
- *   unless it was opened from that group. No contact actions (A33).
+ *   unless it was opened from that group. No contact actions (A33). For The
+ *   Living Room the panel opens at `lg` and the «Conexiones» cards sit
+ *   between the note and "Reunión por reunión" (S21, A41, A42).
  * - Etapa: the people of one funnel step; Sin grupo rows open nothing, En
  *   grupo / Sirviendo rows open the person (back "‹ <etapa>").
- * Group and person data load through lib/actions/estudiantes-reportes.actions.ts
- * when the view opens and stay cached while the range is the same.
+ * Group, person and connections data load through
+ * lib/actions/estudiantes-reportes.actions.ts when the view opens and stay
+ * cached while the range is the same; the connections load on their own, so
+ * a failure there never hides the attendance.
  */
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 
@@ -26,7 +30,8 @@ import { BotonAtrasMovil } from '@/components/ui/barra-navegacion-movil'
 import { EstadoVacioSistema, SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
-import { detalleGrupoReporte, detallePersonaReporte, type ResultadoReporte } from '@/lib/actions/estudiantes-reportes.actions'
+import { conexionesPersonaReporte, detalleGrupoReporte, detallePersonaReporte, type ResultadoReporte } from '@/lib/actions/estudiantes-reportes.actions'
+import type { ConexionesPersona } from '@/lib/platform/estudiantes/conexiones'
 import {
   vistaDetalleGrupo,
   vistaDetallePersona,
@@ -41,6 +46,7 @@ import {
 import { FilaInset, FilaNavegable, ListaInset, TituloSeccion } from '../filas-inset'
 import { AvisoPromocion } from '../promocion/partes-promocion'
 import { AvatarIniciales } from '../vivo/franja-visitantes'
+import { SeccionConexiones } from './conexiones-persona'
 import { DatosClave } from './partes-reportes'
 
 export type VistaReporte =
@@ -189,11 +195,14 @@ function ContenidoPersona({
   contexto,
   desdeGrupoId,
   onGrupo,
+  conexiones,
 }: {
   readonly detalle: DetallePersonaReporte
   readonly contexto: ContextoPersonaReporte
   readonly desdeGrupoId: string | null
   readonly onGrupo: (grupoId: string, nombre: string) => void
+  /** The Living Room «Conexiones» section (S21). */
+  readonly conexiones?: ReactNode
 }): ReactElement {
   const actual = detalle.membresias.find((m) => m.activo) ?? null
   const v = vistaDetallePersona(detalle, {
@@ -211,6 +220,7 @@ function ContenidoPersona({
       )}
       <DatosClave datos={v.datos} />
       {v.nota && <Nota>{v.nota}</Nota>}
+      {conexiones}
       <section aria-labelledby="reporte-detalle-marcas" className="space-y-2.5">
         <TituloSeccion id="reporte-detalle-marcas" texto="Reunión por reunión" cantidad={v.reuniones.length} />
         {v.reuniones.length ? (
@@ -294,6 +304,12 @@ export interface DetalleReporteProps {
   /** Names known from the lists, shown while a detail loads. */
   readonly nombreGrupo: (grupoId: string) => string | null
   readonly nombrePersona: (personaId: string) => string | null
+  /** The Living Room: the person view adds the «Conexiones» cards (S21). */
+  readonly livingRoom?: boolean
+  /** Campus of the report (the connections RPC asks for it). */
+  readonly campusId?: string
+  /** Today in Caracas, for "hace 1 semana". */
+  readonly hoy?: string
 }
 
 /** Focuses the inner view when it changes (G8: focus moves with the view). */
@@ -321,6 +337,9 @@ export function DetalleReporte({
   contexto,
   nombreGrupo,
   nombrePersona,
+  livingRoom = false,
+  campusId = '',
+  hoy = rango.hasta,
 }: DetalleReporteProps): ReactElement | null {
   const vista = pila?.vista ?? null
   const claveRango = `${rango.desde}|${rango.hasta}`
@@ -329,6 +348,9 @@ export function DetalleReporte({
   )
   const persona = useCarga<DetallePersonaReporte>(vista?.tipo === 'persona' ? `${vista.personaId}|${ambitoId}|${claveRango}` : null, () =>
     detallePersonaReporte({ personaId: vista?.tipo === 'persona' ? vista.personaId : '', ambitoId, desde: rango.desde, hasta: rango.hasta }),
+  )
+  const conexiones = useCarga<ConexionesPersona>(livingRoom && vista?.tipo === 'persona' ? `${vista.personaId}|${ambitoId}|${claveRango}` : null, () =>
+    conexionesPersonaReporte({ personaId: vista?.tipo === 'persona' ? vista.personaId : '', ambitoId, campusId, desde: rango.desde, hasta: rango.hasta }),
   )
   const clave = !vista ? '' : vista.tipo === 'grupo' ? `g:${vista.grupoId}` : vista.tipo === 'persona' ? `p:${vista.personaId}` : `e:${vista.etapa}`
   // The first view keeps the drawer's own focus; every later view (in or back) takes it (G8).
@@ -365,6 +387,19 @@ export function DetalleReporte({
           contexto={contexto}
           desdeGrupoId={desdeGrupoId}
           onGrupo={(grupoId) => onIr({ vista: { tipo: 'grupo', grupoId }, volver: { vista, etiqueta: carga.data.persona.nombre } })}
+          conexiones={
+            livingRoom ? (
+              <SeccionConexiones
+                persona={conexiones.carga.estado === 'listo' ? conexiones.carga.data : null}
+                cargando={conexiones.carga.estado === 'cargando'}
+                error={conexiones.carga.estado === 'error' ? conexiones.carga.mensaje : null}
+                onReintentar={conexiones.reintentar}
+                desde={rango.desde}
+                hasta={rango.hasta}
+                hoy={hoy}
+              />
+            ) : undefined
+          }
         />
       )
   } else if (embudo) {
@@ -379,7 +414,8 @@ export function DetalleReporte({
   }
 
   return (
-    <DetalleResponsivo abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={titulo} descripcion={descripcion}>
+    // The Living Room person view opens wider so the four cards sit 2 × 2 (A41).
+    <DetalleResponsivo abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={titulo} descripcion={descripcion} ancho={livingRoom && vista.tipo === 'persona' ? 'lg' : 'md'}>
       <VistaEnfocada clave={clave} enfocar={clave !== claveInicial}>
         {pila.volver && (
           <BotonAtrasMovil atras={{ etiqueta: pila.volver.etiqueta, onClick: () => onIr({ vista: pila.volver!.vista, volver: null }) }} className="-ml-2 max-w-full" />

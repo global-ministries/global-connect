@@ -25,15 +25,34 @@ const RELLENO: Readonly<Record<TonoPorcentaje, string>> = {
   danger: 'bg-danger',
 }
 
-export function CeldaPorcentaje({ porcentaje, vacio = 'Sin reuniones' }: { readonly porcentaje: number | null; readonly vacio?: string }): ReactElement {
+/** The GR4 proportion bar alone (decorative: the value is always written next to it). */
+export function BarraPorcentaje({ porcentaje, className }: { readonly porcentaje: number; readonly className?: string }): ReactElement {
+  const ancho = Math.min(100, Math.max(0, Math.round(porcentaje)))
+  return (
+    <span aria-hidden="true" className={cn('block h-1 overflow-hidden rounded-full bg-muted', className)}>
+      <span className={cn('block h-full rounded-full', RELLENO[tonoPorcentaje(porcentaje)])} style={{ width: `${ancho}%` }} />
+    </span>
+  )
+}
+
+export function CeldaPorcentaje({
+  porcentaje,
+  vacio = 'Sin reuniones',
+  detalle,
+}: {
+  readonly porcentaje: number | null
+  readonly vacio?: string
+  /** "7 de 8" next to the value (The Living Room, A37). */
+  readonly detalle?: string
+}): ReactElement {
   if (porcentaje === null) return <span className="text-[13px] text-muted-foreground">{vacio}</span>
   const ancho = Math.min(100, Math.max(0, Math.round(porcentaje)))
   return (
     <div className="grid w-full min-w-0 gap-1.5">
-      <span className="font-mono text-[15px] tabular-nums text-foreground">{ancho}%</span>
-      <span aria-hidden="true" className="block h-1 max-w-[140px] overflow-hidden rounded-full bg-muted">
-        <span className={cn('block h-full rounded-full', RELLENO[tonoPorcentaje(porcentaje)])} style={{ width: `${ancho}%` }} />
+      <span className="truncate font-mono text-[15px] tabular-nums text-foreground">
+        {ancho}%{detalle && <small className="ml-1 text-[13px] text-muted-foreground">{detalle}</small>}
       </span>
+      <BarraPorcentaje porcentaje={porcentaje} className="max-w-[140px]" />
     </div>
   )
 }
