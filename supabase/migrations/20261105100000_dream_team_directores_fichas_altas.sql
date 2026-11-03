@@ -35,7 +35,7 @@
 --   20261008100000_dream_team_editar_ficha.sql (puede_editar_ficha),
 --   20261006110100_dream_team_registrar_solo_coordinador_voluntario.sql
 --     (puede_registrar_persona), 20261006110200_dream_team_opciones_registro.sql,
--- then DROP FUNCTION public.dream_team_fichas_editables(uuid[]),
+-- then DROP FUNCTION IF EXISTS public.dream_team_fichas_editables(uuid[]),
 --   public.dream_team_director_alcanza_persona(uuid),
 --   public.dream_team_equipos_director().
 
@@ -141,6 +141,9 @@ AS $function$
      );
 $function$;
 
+REVOKE ALL ON FUNCTION public.invitacion_cuenta_puede_invitar(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.invitacion_cuenta_puede_invitar(uuid) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.dream_team_puede_editar_ficha(p_persona_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -167,6 +170,9 @@ COMMENT ON FUNCTION public.dream_team_puede_editar_ficha(uuid) IS
   'servicio in an equipo of dream_team_equipos_registrables() (volunteer coordinator, org.manage, '
   'admin, pastor), or an area director reaches them (dream_team_director_alcanza_persona).';
 
+REVOKE ALL ON FUNCTION public.dream_team_puede_editar_ficha(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.dream_team_puede_editar_ficha(uuid) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.dream_team_puede_registrar_persona(p_equipo_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -186,6 +192,9 @@ $function$;
 COMMENT ON FUNCTION public.dream_team_puede_registrar_persona(uuid) IS
   'Whether the actor may register a NEW person into the equipo (NULL: into any equipo): '
   'dream_team_equipos_registrables() plus the area director''s subtree (dream_team_equipos_director()).';
+
+REVOKE ALL ON FUNCTION public.dream_team_puede_registrar_persona(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.dream_team_puede_registrar_persona(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.dream_team_opciones_registro()
 RETURNS jsonb
@@ -215,6 +224,9 @@ $function$;
 COMMENT ON FUNCTION public.dream_team_opciones_registro() IS
   'The equipos (with their active roles) the actor may register a NEW person into, as jsonb '
   '[{id, etiqueta, roles: [{id, label}]}]. Same set as dream_team_puede_registrar_persona().';
+
+REVOKE ALL ON FUNCTION public.dream_team_opciones_registro() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.dream_team_opciones_registro() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.dream_team_fichas_editables(p_ids uuid[])
 RETURNS SETOF uuid
