@@ -13,7 +13,13 @@
  * and diffs the form against the loaded ficha so only the changed keys travel.
  *
  * Email is deliberately not editable here: it may be tied to the auth account.
+ *
+ * An area director may fix the fichas of the people of their area and register
+ * new people into it too (20261105100000, odd/tasks/dream-team-directores-fichas.md,
+ * S5): the UI asks the database who (fetchFichasEditables) and whether
+ * (puedeRegistrarPersonaNueva) on top of the registrable equipos.
  */
+import type { DependenciasInvitacion } from '@/lib/platform/cuentas/invitacion-cuenta'
 import { prepararCedula } from '@/lib/utils/cedula'
 
 import { ESTADOS_CIVILES, GENEROS, type EstadoCivil, type Genero } from './alta-persona'
@@ -213,15 +219,64 @@ export async function fetchEquiposRegistrables(supabase: {
   }
 }
 
+/** An untyped RPC (the functions are not in the generated types), as rpcDeCliente in servidores-invitaciones.ts. */
+type Rpc = DependenciasInvitacion['rpcUsuario']
+
+/** The most ids dream_team_fichas_editables takes per call. */
+export const MAX_IDS_FICHAS = 2000
+
 /**
- * The sidebar flag for the volunteer coordinator (hooks/useDreamTeamAcceso):
- * whether the user may register new people somewhere. Computed once by the
- * (auth) layout; false without a client or with Dream Team off (no lookup).
+ * The people among `ids` whose ficha the caller may edit, as the database
+ * decides (dream_team_fichas_editables: the registrable equipos' people plus,
+ * for an area director, the people they reach), in batches of MAX_IDS_FICHAS.
+ * Fails closed: any error is the empty set (an RPC error is logged with its
+ * code only; a client without rpc, as fetchEquiposRegistrables, silently).
+ */
+export async function fetchFichasEditables(rpc: Rpc, ids: readonly string[]): Promise<ReadonlySet<string>> {
+  const distintos = [...new Set(ids)]
+  const editables = new Set<string>()
+  try {
+    for (let i = 0; i < distintos.length; i += MAX_IDS_FICHAS) {
+      const { data, error } = await rpc('dream_team_fichas_editables', { p_ids: distintos.slice(i, i + MAX_IDS_FICHAS) })
+      if (error) {
+        console.error('[dream-team] fichas editables lookup failed', error.code)
+        return new Set()
+      }
+      if (Array.isArray(data)) for (const id of data) if (typeof id === 'string') editables.add(id)
+    }
+  } catch {
+    return new Set()
+  }
+  return editables
+}
+
+/**
+ * Whether the caller may register a NEW person somewhere: some registrable
+ * equipo (the volunteer coordinator, no extra lookup) or, otherwise,
+ * dream_team_puede_registrar_persona(NULL) (an area director's subtree).
+ * Fails closed: any error is false.
+ */
+export async function puedeRegistrarPersonaNueva(rpc: Rpc, registrables: ReadonlySet<string>): Promise<boolean> {
+  if (registrables.size > 0) return true
+  try {
+    const { data, error } = await rpc('dream_team_puede_registrar_persona', { p_equipo_id: null })
+    return !error && data === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * The sidebar flag for whoever may register new people (hooks/useDreamTeamAcceso):
+ * the volunteer coordinator or an area director (puedeRegistrarPersonaNueva).
+ * Computed once by the (auth) layout; false without a client or with Dream
+ * Team off (no lookup).
  */
 export async function puedeRegistrarParaNavegacion(
   supabase: Parameters<typeof fetchEquiposRegistrables>[0] | null,
   enabled: boolean,
 ): Promise<boolean> {
   if (!enabled || !supabase) return false
-  return (await fetchEquiposRegistrables(supabase)).size > 0
+  const rpc: Rpc = (nombre, args) => (supabase.rpc as unknown as Rpc).call(supabase, nombre, args)
+  return puedeRegistrarPersonaNueva(rpc, await fetchEquiposRegistrables(supabase))
 }

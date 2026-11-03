@@ -1,7 +1,9 @@
 import {
   cambiosDeFicha,
   fetchEquiposRegistrables,
+  fetchFichasEditables,
   puedeRegistrarParaNavegacion,
+  puedeRegistrarPersonaNueva,
   formularioDesdeFicha,
   mapFicha,
   mapFichaError,
@@ -127,3 +129,65 @@ describe('puedeRegistrarParaNavegacion (the sidebar flag, computed in the (auth)
   })
 })
 
+
+describe('fetchFichasEditables (S5 of dream-team-directores-fichas)', () => {
+  it('returns the ids the database lets the caller edit, asking once per batch of 2000 distinct ids', async () => {
+    const ids = Array.from({ length: 2001 }, (_, i) => `p${i}`)
+    const rpc = jest.fn(async (_nombre: string, args: Record<string, unknown>) => {
+      const lote = args.p_ids as string[]
+      return { data: lote.filter((id) => id === 'p1' || id === 'p2000'), error: null }
+    })
+    expect(await fetchFichasEditables(rpc, [...ids, 'p1'])).toEqual(new Set(['p1', 'p2000']))
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc.mock.calls.map(([nombre, args]) => [nombre, (args.p_ids as string[]).length])).toEqual([
+      ['dream_team_fichas_editables', 2000],
+      ['dream_team_fichas_editables', 1],
+    ])
+  })
+  it('asks nothing for no ids', async () => {
+    const rpc = jest.fn()
+    expect(await fetchFichasEditables(rpc, [])).toEqual(new Set())
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('fails closed: an error, a throw or a missing rpc is the empty set', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    expect(await fetchFichasEditables(jest.fn().mockResolvedValue({ data: null, error: { code: '22023' } }), ['p1'])).toEqual(new Set())
+    expect(await fetchFichasEditables(jest.fn().mockRejectedValue(new Error('down')), ['p1'])).toEqual(new Set())
+    expect(error).toHaveBeenCalledWith('[dream-team] fichas editables lookup failed', '22023')
+    error.mockRestore()
+  })
+})
+
+describe('puedeRegistrarPersonaNueva (registering entry: registrables or area director)', () => {
+  const respuesta = (data: unknown, error: unknown = null) => jest.fn().mockResolvedValue({ data, error })
+  it('is true by the registrables without asking the database again (the coordinator)', async () => {
+    const rpc = respuesta(false)
+    expect(await puedeRegistrarPersonaNueva(rpc, new Set(['e1']))).toBe(true)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('is true for an area director when dream_team_puede_registrar_persona(NULL) says so', async () => {
+    const rpc = respuesta(true)
+    expect(await puedeRegistrarPersonaNueva(rpc, new Set())).toBe(true)
+    expect(rpc).toHaveBeenCalledWith('dream_team_puede_registrar_persona', { p_equipo_id: null })
+  })
+  it('fails closed: false, an error, a non-boolean or a throw is false', async () => {
+    expect(await puedeRegistrarPersonaNueva(respuesta(false), new Set())).toBe(false)
+    expect(await puedeRegistrarPersonaNueva(respuesta(null, { code: 'XX000' }), new Set())).toBe(false)
+    expect(await puedeRegistrarPersonaNueva(respuesta([{ equipo_id: 'e1' }]), new Set())).toBe(false)
+    expect(await puedeRegistrarPersonaNueva(jest.fn().mockRejectedValue(new Error('down')), new Set())).toBe(false)
+  })
+})
+
+describe('puedeRegistrarParaNavegacion — the area director (S5)', () => {
+  const cliente = (puede: unknown, error: unknown = null) => ({
+    rpc: jest.fn(async (nombre: string) =>
+      nombre === 'dream_team_puede_registrar_persona' ? { data: puede, error } : { data: [], error: null },
+    ),
+  })
+  it('is true without registrables when the boolean RPC is true', async () => {
+    expect(await puedeRegistrarParaNavegacion(cliente(true), true)).toBe(true)
+  })
+  it('is false when the boolean RPC fails', async () => {
+    expect(await puedeRegistrarParaNavegacion(cliente(null, { code: 'XX000' }), true)).toBe(false)
+  })
+})

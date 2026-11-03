@@ -35,7 +35,7 @@ import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/rep
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol, responsablesDreamTeamPorEquipo } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
+import { fetchEquiposRegistrables, fetchFichasEditables } from '@/lib/platform/dream-team/ficha-persona'
 import { fetchEquiposCambioArea } from '@/lib/platform/dream-team/cambiar-area'
 import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
 import { fetchLideresGdv } from '@/lib/platform/dream-team/lideres-gdv'
@@ -161,8 +161,15 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
   const puedeEditar = hasDreamTeamWriteCapability(session)
   // "Editar ficha" (T11): the equipos whose people the viewer may fix the
   // personal data of (the volunteer coordinator of the area, org.manage, admin
-  // or pastor). Fails closed to none; the RPC checks it again on save.
+  // or pastor), plus the people the database lets the viewer edit (an area
+  // director's, dream_team_fichas_editables, S5 of
+  // odd/tasks/dream-team-directores-fichas.md). Each fails closed to none; the
+  // RPC checks it again on save.
   const equiposFicha = await fetchEquiposRegistrables(supabase)
+  const fichasEditables = await fetchFichasEditables(
+    rpcDeCliente(supabase),
+    servicios.map((servicio) => servicio.personaId),
+  )
   // "Cambiar de área": the equipos the viewer directs or coordinates
   // (dream_team_puede_solicitar_cambio_area; a coordinator only requests).
   // Fails closed; the RPCs check it again.
@@ -207,7 +214,9 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
         servicioId: servicio.id,
         version: servicio.version,
         editable: puedeEditar,
-        fichaEditable: servicio.estado !== 'retirado' && equiposFicha.has(servicio.equipoId),
+        fichaEditable:
+          servicio.estado !== 'retirado' &&
+          (equiposFicha.has(servicio.equipoId) || fichasEditables.has(servicio.personaId)),
         areaCambiable: servicio.estado !== 'retirado' && equiposCambioArea.has(servicio.equipoId),
         turnoIds: turnosPorServicio.get(servicio.id) ?? [],
         frecuencias: frecuenciasPorServicio.get(servicio.id),

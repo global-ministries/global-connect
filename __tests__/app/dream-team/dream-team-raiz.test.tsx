@@ -24,9 +24,17 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
   hasDreamTeamMiEquipoAccess: () => hasDreamTeamMiEquipoAccess(),
 }))
 
-// dream_team_equipos_registrables: `null` = the lookup fails (no rpc at all).
+// dream_team_equipos_registrables: `null` = the lookup fails (no rpc at all);
+// dream_team_puede_registrar_persona answers mockPuedeRegistrar (`null` = an error).
 let mockRegistrables: { equipo_id: string }[] | null = null
-const rpc = jest.fn(async () => ({ data: mockRegistrables, error: null }))
+let mockPuedeRegistrar: boolean | null = false
+const rpc = jest.fn(async (nombre: string) =>
+  nombre === 'dream_team_puede_registrar_persona'
+    ? mockPuedeRegistrar === null
+      ? { data: null, error: { code: 'XX000' } }
+      : { data: mockPuedeRegistrar, error: null }
+    : { data: mockRegistrables, error: null },
+)
 jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => (mockRegistrables === null ? {} : { rpc }),
 }))
@@ -53,6 +61,7 @@ beforeEach(() => {
   requireDreamTeamSession.mockResolvedValue(session)
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
   mockRegistrables = null
+  mockPuedeRegistrar = false
 })
 
 describe('/dream-team', () => {
@@ -82,7 +91,10 @@ describe('/dream-team', () => {
     hasDreamTeamMiEquipoAccess.mockReturnValue(false)
     mockRegistrables = []
     await expect(renderPagina()).rejects.toThrow('NEXT_NOT_FOUND')
-    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc.mock.calls.map(([nombre]) => nombre)).toEqual([
+      'dream_team_equipos_registrables',
+      'dream_team_puede_registrar_persona',
+    ])
   })
 
   it('is a 404 when the registrable lookup fails (fails closed)', async () => {
@@ -96,5 +108,20 @@ describe('/dream-team', () => {
     mockRegistrables = [{ equipo_id: 'musica' }]
     await renderPagina()
     expect(screen.getByTestId('accesos')).toHaveAttribute('data-seccion', 'dream-team')
+  })
+
+  it('opens for an area director whom dream_team_puede_registrar_persona(NULL) lets register (S5)', async () => {
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    mockRegistrables = []
+    mockPuedeRegistrar = true
+    await renderPagina()
+    expect(screen.getByTestId('accesos')).toHaveAttribute('data-seccion', 'dream-team')
+  })
+
+  it('is a 404 when that RPC fails (fails closed)', async () => {
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    mockRegistrables = []
+    mockPuedeRegistrar = null
+    await expect(renderPagina()).rejects.toThrow('NEXT_NOT_FOUND')
   })
 })

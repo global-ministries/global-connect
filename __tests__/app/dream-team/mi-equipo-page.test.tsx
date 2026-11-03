@@ -30,10 +30,23 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
 }))
 
 // dream_team_equipos_registrables: `null` = the lookup fails (no rpc at all).
+// dream_team_fichas_editables and dream_team_puede_registrar_persona answer
+// mockFichasEditables and mockPuedeRegistrar (`null` = an error).
 let mockRegistrables: { equipo_id: string }[] | null = null
+let mockFichasEditables: string[] | null = []
+let mockPuedeRegistrar: boolean | null = false
+const respuestaRpc = (data: unknown) => (data === null ? { data: null, error: { code: 'XX000' } } : { data, error: null })
 jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () =>
-    mockRegistrables === null ? {} : { rpc: async () => ({ data: mockRegistrables, error: null }) },
+    mockRegistrables === null
+      ? {}
+      : {
+          rpc: async (nombre: string) => {
+            if (nombre === 'dream_team_fichas_editables') return respuestaRpc(mockFichasEditables)
+            if (nombre === 'dream_team_puede_registrar_persona') return respuestaRpc(mockPuedeRegistrar)
+            return { data: mockRegistrables, error: null }
+          },
+        },
 }))
 jest.mock('@/lib/platform/dream-team/turnos', () => ({
   ...jest.requireActual('@/lib/platform/dream-team/turnos'),
@@ -122,6 +135,7 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
 
 import DreamTeamMiEquipoPage from '@/app/(auth)/dream-team/mi-equipo/page'
 import { MiEquipoClient, type MiEquipoClientProps } from '@/components/dream-team/mi-equipo/mi-equipo-client'
+import { accionesPersonaMiEquipo } from '@/lib/platform/dream-team/mi-equipo-filtros'
 
 async function renderizar(searchParams?: Record<string, string | string[]>): Promise<MiEquipoClientProps> {
   const element = (await DreamTeamMiEquipoPage({
@@ -149,6 +163,8 @@ beforeEach(() => {
   mockLideres = LIDERES_BASE
   mockNodosGdv = []
   mockRegistrables = null
+  mockFichasEditables = []
+  mockPuedeRegistrar = false
   isDreamTeamEnabled.mockReturnValue(true)
   requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
@@ -462,5 +478,48 @@ describe('mi-equipo page — RSC boundary', () => {
   it('hands the client island serializable data only', async () => {
     expect(esSerializable(await renderizar())).toBe(true)
     expect(esSerializable(await renderizar({ direccion: 'dir-b' }))).toBe(true)
+  })
+})
+
+describe('mi-equipo page — the area director from the database (S5 of dream-team-directores-fichas)', () => {
+  it('gives the director "Editar ficha" for a person in dream_team_fichas_editables and not for one outside', async () => {
+    mockRegistrables = []
+    mockFichasEditables = ['p3']
+    const props = await renderizar({ direccion: 'dir-a' })
+    expect(props.rol).toBe('director')
+    const personas = props.vista?.personas ?? []
+    const editarFicha = Object.fromEntries(
+      personas.map((p) => [p.nombre, p.fichaEditable === true && accionesPersonaMiEquipo(p, props.rol).editarFicha]),
+    )
+    expect(editarFicha).toEqual({
+      'Ana Directora': false,
+      'Bea Coordinadora': false,
+      'Carla Facilitadora': true,
+      'Lidia Lider': false,
+    })
+  })
+
+  it('keeps the registrables rule when the lookup fails', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockRegistrables = [{ equipo_id: 'eq-a1' }]
+    mockFichasEditables = null
+    const personas = (await renderizar({ direccion: 'dir-a' })).vista?.personas ?? []
+    const ficha = Object.fromEntries(personas.map((p) => [p.nombre, p.fichaEditable]))
+    expect(ficha).toMatchObject({ 'Bea Coordinadora': true, 'Carla Facilitadora': true, 'Ana Directora': false })
+    error.mockRestore()
+  })
+
+  it('opens for whoever dream_team_puede_registrar_persona(NULL) lets register, and a director stays director', async () => {
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    mockRegistrables = []
+    mockPuedeRegistrar = true
+    expect((await renderizar()).rol).toBe('director')
+  })
+
+  it('stays closed when the boolean RPC fails', async () => {
+    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
+    mockRegistrables = []
+    mockPuedeRegistrar = null
+    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
   })
 })

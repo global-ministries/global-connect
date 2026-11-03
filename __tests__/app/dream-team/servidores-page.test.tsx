@@ -31,7 +31,26 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
   hasDreamTeamWriteCapability: () => hasDreamTeamWriteCapability(),
 }))
 
-jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({}) }))
+// The page's RPCs: `null` (default) = a client without rpc, every lookup fails.
+// dream_team_equipos_registrables answers mockRegistrables; dream_team_fichas_editables
+// answers mockFichasEditables (`null` = an error); anything else answers nothing.
+let mockRpc: boolean = false
+let mockRegistrables: { equipo_id: string }[] = []
+let mockFichasEditables: string[] | null = []
+jest.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: async () =>
+    mockRpc
+      ? {
+          rpc: async (nombre: string) => {
+            if (nombre === 'dream_team_equipos_registrables') return { data: mockRegistrables, error: null }
+            if (nombre === 'dream_team_fichas_editables') {
+              return mockFichasEditables === null ? { data: null, error: { code: 'XX000' } } : { data: mockFichasEditables, error: null }
+            }
+            return { data: [], error: null }
+          },
+        }
+      : {},
+}))
 jest.mock('@/lib/platform/dream-team/turnos', () => ({
   ...jest.requireActual('@/lib/platform/dream-team/turnos'),
   fetchTurnos: async () => [],
@@ -138,6 +157,9 @@ beforeEach(() => {
   ]
   mockLideres = [{ personaId: personaId('g1'), equipoId: 'eq-a1', rol: 'lider', desde: '2026-03-01T00:00:00.000Z' }]
   mockNodosGdv = []
+  mockRpc = false
+  mockRegistrables = []
+  mockFichasEditables = []
 })
 
 describe('authorization', () => {
@@ -347,5 +369,35 @@ describe('filters from the URL', () => {
   it('accepts a page rendered without searchParams', async () => {
     const element = (await DreamTeamServidoresPage()) as React.ReactElement<ServidoresClientProps>
     expect(element.props.filtrosIniciales).toEqual(FILTROS_INICIALES)
+  })
+})
+
+describe('"Editar ficha" from the database (S5 of dream-team-directores-fichas)', () => {
+  const fichaPorNombre = (filas: ServidoresClientProps['filas']) =>
+    Object.fromEntries(filas.filter((f) => f.origen === 'dream_team').map((f) => [f.nombre, f.fichaEditable]))
+
+  it('marks editable the people dream_team_fichas_editables returns (an area director), and only them', async () => {
+    mockRpc = true
+    mockFichasEditables = ['p3']
+    const { filas } = await renderizar()
+    expect(fichaPorNombre(filas)).toEqual({ 'Ana Directora': false, 'Bea Coordinadora': false, 'Carla Facilitadora': true })
+  })
+
+  it('keeps the registrables rule when the lookup fails (fails closed for the rest)', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    mockRpc = true
+    mockRegistrables = [{ equipo_id: 'eq-a1' }]
+    mockFichasEditables = null
+    const { filas } = await renderizar()
+    expect(fichaPorNombre(filas)).toEqual({ 'Ana Directora': false, 'Bea Coordinadora': true, 'Carla Facilitadora': true })
+    error.mockRestore()
+  })
+
+  it('never marks a retired servicio', async () => {
+    mockRpc = true
+    mockFichasEditables = ['p3']
+    mockServicios = [servicio('s3', 'eq-a1', 'facilitador', 'p3', 'retirado')]
+    const { filas } = await renderizar()
+    expect(fichaPorNombre(filas)).toEqual({ 'Carla Facilitadora': false })
   })
 })
