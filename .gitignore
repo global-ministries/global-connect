@@ -76,3 +76,6 @@ Propuesta_Comercial_GlobalConnect.docx
 
 # CodeGraph local index (per-checkout, never shared)
 .codegraph/
+
+# Niños print agent: local config with the station token (never commit)
+/tools/agente-impresion/agente.config.json

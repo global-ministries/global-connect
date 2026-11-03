@@ -100,6 +100,14 @@ const eslintConfig = [
       'security/detect-non-literal-fs-filename': 'off',
     },
   },
+  // The Niños print agent is a plain CommonJS Node script with no build step
+  // (odd/tasks/ninos-v2.md S10, N6c).
+  {
+    files: ['tools/agente-impresion/**/*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+    },
+  },
   {
     files: migratedToDesignSystem,
     rules: {

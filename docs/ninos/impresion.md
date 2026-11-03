@@ -75,6 +75,7 @@ Responses carry `Cache-Control: no-store`.
       "created_at": "2026-11-08T13:05:00Z",
       "payload": {
         "codigo": "4821", "ninos": ["Mateo", "Sofía"], "areas": ["upstreet", "waumba"],
+        "qr": "(optional, N5c)",
         "fecha": "2026-11-08", "servicio": "Primer servicio", "hora": "09:00"
       }
     }
@@ -83,7 +84,8 @@ Responses carry `Cache-Control: no-store`.
 ```
 
 - `ancho_mm` / `alto_mm` are `null` while the roll is not measured. The agent
-  then uses its own default or refuses to print.
+  then prints nothing and reports each job as `error` /
+  `medidas_sin_configurar`.
 - `area` is `waumba` or `upstreet` (it selects the mascot). `alergias` is
   only a flag; the allergy text never leaves the database.
 - Claiming marks a job as taken for 2 minutes. If it is not reported in that
@@ -99,7 +101,9 @@ Responses carry `Cache-Control: no-store`.
 { "id": "uuid", "estado": "error", "error": "sin papel" }
 ```
 
-`error` is optional and capped at 300 characters. Response `200`:
+`error` is optional and capped at 300 characters. The agent sends fixed codes
+or the printer's own message, never label data: `medidas_sin_configurar`,
+`etiqueta_invalida`, `lp_no_disponible`, `lp_salida_<code>: <CUPS message>`. Response `200`:
 `{ "id": "uuid", "estado": "impresa" }`. A job that was already reported
 keeps its first result, so retrying a report is safe.
 
@@ -109,6 +113,31 @@ keeps its first result, so retrying a report is safe.
 | 401 | `{ "error": { "code": "401" } }` | Bad token. |
 | 422 | `{ "error": { "code": "22023", "message": "trabajo_no_encontrado" } }` | The job is not one of this station's claimed jobs. |
 | 500 | `{ "error": { "code": "500" } }` | Unexpected. |
+
+## Print agent
+
+`tools/agente-impresion/` (setup guide for the desk in its `README.md`). A
+dependency-free Node 18+ script for the computer that has the printer:
+
+- Polls the claim route every `intervaloMs` (2 s), at once again when it got a
+  full batch; on a network error it waits 2 s, doubling up to 30 s. A 401
+  stops it with a message.
+- Renders each job to TSPL (`tspl.js`, pure) with the station's
+  `ancho_mm` / `alto_mm` / `dpi`, following `design/ninos-etiquetas`: name
+  shrinks to 70 % and then only the first name prints; last name and salón
+  are cut with «…»; ALERGIA is a reversed (black) block only when
+  `alergias` is true; the parent label has the QR (`qr`, else the código), up
+  to 3 first names + «y N más», and a neutral header («NIÑOS · GLOBAL»)
+  when the children are in two areas. Text goes out as windows-1252 with
+  `CODEPAGE 1252`. Mascots: `logos/<area>.bmp` (1-bit BMP → `BITMAP`); with
+  no file only the area name prints.
+- Sends the bytes with `lp -d <queue> -o raw` (macOS/Linux; Windows later,
+  behind `crearEnvio()` in `impresora.js`) and reports `impresa` / `error`. A
+  job printed whose report was lost is not printed again when it is handed out
+  again.
+- `--prueba` prints sample labels with no server, `--guardar <file>` writes the
+  TSPL instead of printing, `--impresoras` lists the CUPS queues.
+- Logs carry job ids and counts only, never the token nor label data.
 
 ## Desk API
 
