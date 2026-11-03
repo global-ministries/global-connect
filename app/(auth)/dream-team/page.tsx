@@ -16,7 +16,7 @@ import {
   isDreamTeamEnabled,
   requireDreamTeamSession,
 } from '@/lib/platform/dream-team/route-access'
-import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
+import { puedeRegistrarParaNavegacion } from '@/lib/platform/dream-team/ficha-persona'
 import { AccesosSeccion } from '@/components/navegacion/accesos-seccion'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
@@ -29,11 +29,11 @@ export default async function DreamTeamPage() {
   const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 
-  // The volunteer coordinator opens Mi equipo by registering somewhere (fails closed).
+  // The volunteer coordinator (or an area director) opens Mi equipo by
+  // registering somewhere, the same flag as the sidebar (fails closed).
   if (!hasDreamTeamMiEquipoAccess(session)) {
     const supabase = await createSupabaseServerClient()
-    const puedeRegistrar = (await fetchEquiposRegistrables(supabase)).size > 0
-    if (!puedeRegistrar) notFound()
+    if (!(await puedeRegistrarParaNavegacion(supabase, true))) notFound()
   }
 
   return (

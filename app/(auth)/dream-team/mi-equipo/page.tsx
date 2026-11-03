@@ -30,7 +30,7 @@ import {
   hasDreamTeamWriteCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
-import { fetchEquiposRegistrables } from '@/lib/platform/dream-team/ficha-persona'
+import { fetchEquiposRegistrables, fetchFichasEditables, puedeRegistrarPersonaNueva } from '@/lib/platform/dream-team/ficha-persona'
 import { fetchEquiposCambioArea, fetchSolicitudesCambioArea } from '@/lib/platform/dream-team/cambiar-area'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
@@ -73,9 +73,11 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   // Registering NEW people and fixing their ficha is the volunteer coordinator's
   // (20261006110100, 20261008100000), whose servicio mints no read capability
   // (only dream_team.serve and dream_team.coordinate). Whoever may register
-  // somewhere opens Mi equipo too; what they see stays RLS-scoped. Fails closed.
+  // somewhere opens Mi equipo too; what they see stays RLS-scoped. So does an
+  // area director who may register into their subtree (S5 of
+  // odd/tasks/dream-team-directores-fichas.md). Fails closed.
   const equiposRegistrables = await fetchEquiposRegistrables(supabase)
-  const puedeRegistrar = equiposRegistrables.size > 0
+  const puedeRegistrar = await puedeRegistrarPersonaNueva(rpcDeCliente(supabase), equiposRegistrables)
   if (!hasDreamTeamMiEquipoAccess(session) && !puedeRegistrar) notFound()
 
   const repo = createSupabaseDreamTeamRepository(supabase)
@@ -150,6 +152,14 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   const invitaciones = await fetchInvitacionesServidores(rpcDeCliente(supabase), personaIds, new Date())
   const invitable = (id: PersonaId): boolean | undefined => invitaciones?.sinCuenta.has(id)
 
+  // "Editar ficha": the registrable equipos' people as before, plus whoever
+  // the database lets the viewer edit (an area director's people,
+  // dream_team_fichas_editables). If that lookup fails only the first applies.
+  const fichasEditables = await fetchFichasEditables(
+    rpcDeCliente(supabase),
+    servicios.map((servicio) => servicio.personaId),
+  )
+
   // Campus service shifts (D12): the filter's options and each servicio's
   // assignment. Like contacts, a convenience: on failure the page renders
   // without the filter and the failure is logged.
@@ -206,7 +216,9 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       tieneCuenta: contactoPorId.get(servicio.personaId)?.tieneCuenta ?? null,
       turnoIds: turnosPorServicio.get(servicio.id) ?? [],
       frecuencias: frecuenciasPorServicio.get(servicio.id),
-      fichaEditable: servicio.estado !== 'retirado' && equiposRegistrables.has(servicio.equipoId),
+      fichaEditable:
+        servicio.estado !== 'retirado' &&
+        (equiposRegistrables.has(servicio.equipoId) || fichasEditables.has(servicio.personaId)),
       invitable: invitable(servicio.personaId),
       areaCambiable: servicio.estado !== 'retirado' && equiposCambioArea.has(servicio.equipoId),
       rangoEdad: rangoEdadPorId.get(servicio.personaId),
