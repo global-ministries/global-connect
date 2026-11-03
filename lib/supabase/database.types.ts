@@ -10472,6 +10472,17 @@ export type Database = {
         }
         Returns: Json
       }
+      estudiantes_reporte_conexiones: {
+        Args: {
+          p_ambito_id: string
+          p_campus_id: string
+          p_desde: string
+          p_hasta: string
+          p_persona_id?: string
+          p_subarea_id?: string
+        }
+        Returns: Json
+      }
       estudiantes_reporte_detalle: {
         Args: {
           p_ambito_id?: string
