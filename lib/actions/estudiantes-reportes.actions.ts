@@ -5,15 +5,19 @@
  * C6d3 of odd/tasks/estudiantes-fase-b.md, S17–S19): the group and person
  * drawers load estudiantes_reporte_detalle when they open, with the session
  * client and named parameters (exactly one of p_grupo_id / p_persona_id).
+ * For The Living Room the person drawer also loads the 4 connections of one
+ * person (C7c, S21) from estudiantes_reporte_conexiones with p_persona_id.
  * Read only: nothing is revalidated.
  *
  * Gate: an authenticated session only. Who may read is decided in the
  * database (sub-área level >= 2, campus rule), which raises its code as the
- * message (supabase/migrations/20261102140000_estudiantes_reportes.sql);
+ * message (supabase/migrations/20261102140000_estudiantes_reportes.sql and
+ * 20261102170500_estudiantes_reporte_conexiones.sql);
  * lib/platform/estudiantes/reportes.ts turns it into Spanish.
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { leerConexionesPersona, type ConexionesPersona } from '@/lib/platform/estudiantes/conexiones'
 import {
   MENSAJES_ERROR_REPORTES,
   SIN_CARGAR_REPORTE,
@@ -52,14 +56,16 @@ function revisarRango(input: Partial<Rango> | null | undefined): ReturnType<type
   return null
 }
 
-async function leerDetalle<T>(args: Record<string, string>, leer: (data: unknown) => T | null): Promise<ResultadoReporte<T>> {
+type RpcReporte = 'estudiantes_reporte_detalle' | 'estudiantes_reporte_conexiones'
+
+async function leerDetalle<T>(args: Record<string, string>, leer: (data: unknown) => T | null, rpc: RpcReporte = 'estudiantes_reporte_detalle'): Promise<ResultadoReporte<T>> {
   const cliente = await createSupabaseServerClient()
   const {
     data: { user },
   } = await cliente.auth.getUser()
   if (!user) return { ok: false, message: SIN_SESION, codigo: null }
 
-  const { data, error } = await cliente.rpc('estudiantes_reporte_detalle', args as { p_desde: string; p_hasta: string })
+  const { data, error } = await cliente.rpc(rpc, args as { p_ambito_id: string; p_campus_id: string; p_desde: string; p_hasta: string })
   if (error) return { ok: false, message: mensajeErrorReportes(error), codigo: codigoErrorReportes(error) }
   const detalle = leer(data)
   if (!detalle) return { ok: false, message: SIN_CARGAR_REPORTE, codigo: null }
@@ -90,4 +96,23 @@ export async function detallePersonaReporte(input: DetallePersonaInput): Promise
   if (rango) return rango
   if (!esUuid(input.personaId) || !esUuid(input.ambitoId)) return invalido('parametros_invalidos')
   return leerDetalle({ p_desde: input.desde, p_hasta: input.hasta, p_persona_id: input.personaId, p_ambito_id: input.ambitoId }, leerDetallePersona)
+}
+
+export interface ConexionesPersonaInput extends Rango {
+  readonly personaId: string
+  /** The The Living Room ámbito of the report. */
+  readonly ambitoId: string
+  readonly campusId: string
+}
+
+/** The 4 connections of one young adult of The Living Room in the range (S21). */
+export async function conexionesPersonaReporte(input: ConexionesPersonaInput): Promise<ResultadoReporte<ConexionesPersona>> {
+  const rango = revisarRango(input)
+  if (rango) return rango
+  if (!esUuid(input.personaId) || !esUuid(input.ambitoId) || !esUuid(input.campusId)) return invalido('parametros_invalidos')
+  return leerDetalle(
+    { p_ambito_id: input.ambitoId, p_campus_id: input.campusId, p_desde: input.desde, p_hasta: input.hasta, p_persona_id: input.personaId },
+    (data) => leerConexionesPersona(data, input.personaId),
+    'estudiantes_reporte_conexiones',
+  )
 }
