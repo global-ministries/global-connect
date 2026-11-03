@@ -22,9 +22,13 @@
  *   the «Embudo de conexión» Sin grupo → En grupo → Sirviendo (L49; Foyer /
  *   Living Room / Kitchen are only the plan's internal names and never show)
  *   and the read-only group / person drawers.
+ * - The Living Room adds the connections of S21 (C7c) to the Personas tab:
+ *   the row figures come from lib/platform/estudiantes/conexiones.ts, and
+ *   without them (another ámbito, a failed call) the list is the one above.
  */
 import type { Json } from '@/lib/supabase/database.types'
 
+import type { ResumenConexion } from './conexiones'
 import { experienciaDe, type Experiencia, type FilaMisGrupos, type FilaSubarea, type Objeto } from './grupos-datos'
 import { fechaLarga, horaCorta } from './lista-vista'
 import { compararAmbitos } from '@/lib/platform/estudiantes/orden-ambitos'
@@ -623,9 +627,11 @@ export function resolverRango(parametros: { readonly rango?: string | readonly s
 
 export type TabReportes = 'grupos' | 'personas'
 export type MetricaGruposReporte = 'baja' | 'bajando' | 'sinmarcar'
-export type MetricaPersonasReporte = 'seguidas' | 'baja' | 'sinmarcar'
+/** `sin11`: The Living Room only (S21, L55). */
+export type MetricaPersonasReporte = 'sin11' | 'seguidas' | 'baja' | 'sinmarcar'
 export type OrdenGruposReporte = 'anio' | 'nombre' | 'miembros' | 'asistencia' | 'tendencia'
-export type OrdenPersonasReporte = 'nombre' | 'grupo' | 'asistencia' | 'seguidas' | 'ultima'
+/** `unos`, `servicio` and `talleres`: The Living Room only (S21, A39). */
+export type OrdenPersonasReporte = 'nombre' | 'grupo' | 'asistencia' | 'seguidas' | 'ultima' | 'unos' | 'servicio' | 'talleres'
 
 export interface FiltrosReportes {
   readonly tab: TabReportes
@@ -639,6 +645,8 @@ export const FILTROS_REPORTES: FiltrosReportes = { tab: 'grupos', metrica: null,
 
 export const METRICAS_GRUPOS: readonly MetricaGruposReporte[] = ['baja', 'bajando', 'sinmarcar']
 export const METRICAS_PERSONAS: readonly MetricaPersonasReporte[] = ['seguidas', 'baja', 'sinmarcar']
+/** The Living Room: «Sin 1:1 en 2 meses» first after Todas (A39). */
+export const METRICAS_CONEXIONES: readonly MetricaPersonasReporte[] = ['sin11']
 
 export const ORDENES_GRUPOS: readonly { readonly id: OrdenGruposReporte; readonly etiqueta: string; readonly pie: string }[] = [
   { id: 'anio', etiqueta: 'Año escolar', pie: 'Orden: año escolar' },
@@ -656,6 +664,13 @@ export const ORDENES_PERSONAS: readonly { readonly id: OrdenPersonasReporte; rea
   { id: 'ultima', etiqueta: 'Hace más tiempo', pie: 'Orden: hace más tiempo primero' },
 ]
 
+/** The Living Room adds these to "Ordenar personas por" (A39). */
+export const ORDENES_CONEXIONES: readonly { readonly id: OrdenPersonasReporte; readonly etiqueta: string; readonly pie: string }[] = [
+  { id: 'unos', etiqueta: 'Menos 1:1', pie: 'Orden: menos 1:1 primero' },
+  { id: 'servicio', etiqueta: 'Servicio más bajo', pie: 'Orden: servicio más bajo primero (sin servicio al final)' },
+  { id: 'talleres', etiqueta: 'Menos talleres', pie: 'Orden: menos talleres primero' },
+]
+
 export type ParametrosReportes = Readonly<Record<string, string | readonly string[] | undefined>>
 
 /** The list filters of `?tab&metrica&orden&q`; unknown values fall back to the default. */
@@ -663,12 +678,12 @@ export function leerFiltrosReportes(parametros: ParametrosReportes): FiltrosRepo
   const tab: TabReportes = primero(parametros.tab) === 'personas' ? 'personas' : 'grupos'
   const metrica = primero(parametros.metrica)
   const orden = primero(parametros.orden)
-  const metricas: readonly string[] = tab === 'grupos' ? METRICAS_GRUPOS : METRICAS_PERSONAS
+  const metricas: readonly string[] = tab === 'grupos' ? METRICAS_GRUPOS : [...METRICAS_CONEXIONES, ...METRICAS_PERSONAS]
   return {
     tab,
     metrica: metrica && metricas.includes(metrica) ? (metrica as FiltrosReportes['metrica']) : null,
     ordenGrupos: tab === 'grupos' ? (ORDENES_GRUPOS.find((o) => o.id === orden)?.id ?? 'anio') : 'anio',
-    ordenPersonas: tab === 'personas' ? (ORDENES_PERSONAS.find((o) => o.id === orden)?.id ?? 'nombre') : 'nombre',
+    ordenPersonas: tab === 'personas' ? ([...ORDENES_PERSONAS, ...ORDENES_CONEXIONES].find((o) => o.id === orden)?.id ?? 'nombre') : 'nombre',
     q: primero(parametros.q) ?? '',
   }
 }
@@ -784,6 +799,8 @@ export interface FilaPersonaReporte extends PersonaReporte {
   readonly lideres: readonly string[]
   readonly baja: boolean
   readonly seguidas: boolean
+  /** The Living Room connections of the row (S21); `null` elsewhere or when they did not load. */
+  readonly conexion: ResumenConexion | null
 }
 
 export interface VistaReportes {
@@ -802,6 +819,7 @@ const FILTRO_GRUPO: Readonly<Record<MetricaGruposReporte, (g: FilaGrupoReporte) 
 }
 
 const FILTRO_PERSONA: Readonly<Record<MetricaPersonasReporte, (p: FilaPersonaReporte) => boolean>> = {
+  sin11: (p) => p.conexion?.desconectado === true,
   seguidas: (p) => p.seguidas,
   baja: (p) => p.baja,
   sinmarcar: (p) => p.sinMarcar > 0,
@@ -814,6 +832,7 @@ const ETIQUETA_GRUPOS: Readonly<Record<MetricaGruposReporte, string>> = {
 }
 
 const ETIQUETA_PERSONAS: Readonly<Record<MetricaPersonasReporte, string>> = {
+  sin11: 'Sin 1:1 en 2 meses',
   seguidas: 'Faltan 3+ seguidas',
   baja: 'Asistencia baja (<50%)',
   sinmarcar: 'Sin marcar',
@@ -839,11 +858,30 @@ const ORDEN_PERSONAS: Readonly<Record<OrdenPersonasReporte, (a: FilaPersonaRepor
   seguidas: (a, b) => b.ausenciasSeguidas - a.ausenciasSeguidas,
   // Never came first, then the oldest last visit.
   ultima: (a, b) => (a.ultimaPresente ?? '').localeCompare(b.ultimaPresente ?? ''),
+  unos: (a, b) => menorPrimero(a.conexion?.unos ?? null, b.conexion?.unos ?? null) || porNombre(a.nombre, b.nombre),
+  servicio: (a, b) => rangoServicio(a) - rangoServicio(b) || porNombre(a.nombre, b.nombre),
+  talleres: (a, b) => menorPrimero(a.conexion?.talleres ?? null, b.conexion?.talleres ?? null) || porNombre(a.nombre, b.nombre),
+}
+
+/** Lowest service first, then serving without dates in the range, then not serving (A37). */
+function rangoServicio(p: FilaPersonaReporte): number {
+  const servicio = p.conexion?.servicio
+  if (!servicio) return 300
+  return servicio.porcentaje ?? 200
 }
 
 const coincide = (q: string, ...valores: readonly (string | null | undefined)[]): boolean => q === '' || valores.some((v) => v && normalizar(v).includes(q))
 
-export function calcularVistaReportes({ reporte, filtros }: { readonly reporte: ReporteAsistencia; readonly filtros: FiltrosReportes }): VistaReportes {
+export function calcularVistaReportes({
+  reporte,
+  filtros,
+  conexiones = null,
+}: {
+  readonly reporte: ReporteAsistencia
+  readonly filtros: FiltrosReportes
+  /** The Living Room row figures by persona id (S21); `null` keeps the list of Transit / Inside Out. */
+  readonly conexiones?: ReadonlyMap<string, ResumenConexion> | null
+}): VistaReportes {
   const q = normalizar(filtros.q)
   const lideresDe = new Map(reporte.grupos.map((g) => [g.grupoId, g.lideres]))
   const filasGrupos: FilaGrupoReporte[] = reporte.grupos.map((g) => ({ ...g, baja: asistenciaBaja(g.porcentaje), tendencia: tendencia(g.delta) }))
@@ -856,6 +894,7 @@ export function calcularVistaReportes({ reporte, filtros }: { readonly reporte: 
       lideres: (p.grupoId && lideresDe.get(p.grupoId)) || [],
       baja: asistenciaBaja(p.porcentaje),
       seguidas: faltanSeguidas(p.ausenciasSeguidas),
+      conexion: conexiones?.get(p.personaId) ?? null,
     }
   })
   const hayReuniones = reporte.grupos.some((g) => g.reuniones > 0)
@@ -882,18 +921,22 @@ export function calcularVistaReportes({ reporte, filtros }: { readonly reporte: 
     }
   }
 
+  const conConexiones = conexiones !== null
+  const metricasPersonas = conConexiones ? [...METRICAS_CONEXIONES, ...METRICAS_PERSONAS] : METRICAS_PERSONAS
+  const ordenesPersonas = conConexiones ? [...ORDENES_PERSONAS, ...ORDENES_CONEXIONES] : ORDENES_PERSONAS
+  const ordenPersonas = ordenesPersonas.find((o) => o.id === filtros.ordenPersonas) ?? ORDENES_PERSONAS[0]
   const base = filasPersonas.filter((p) => coincide(q, p.nombre, p.grupo, ...p.lideres))
-  const metrica = hayReuniones && METRICAS_PERSONAS.includes(filtros.metrica as MetricaPersonasReporte) ? (filtros.metrica as MetricaPersonasReporte) : null
+  const metrica = hayReuniones && metricasPersonas.includes(filtros.metrica as MetricaPersonasReporte) ? (filtros.metrica as MetricaPersonasReporte) : null
   const visibles = metrica ? base.filter(FILTRO_PERSONA[metrica]) : base
   return {
     hayReuniones,
     tabs,
-    pastillas: hayReuniones ? [{ id: null, etiqueta: 'Todas', cantidad: base.length }, ...METRICAS_PERSONAS.map((id) => ({ id, etiqueta: ETIQUETA_PERSONAS[id], cantidad: base.filter(FILTRO_PERSONA[id]).length }))] : [],
+    pastillas: hayReuniones ? [{ id: null, etiqueta: 'Todas', cantidad: base.length }, ...metricasPersonas.map((id) => ({ id, etiqueta: ETIQUETA_PERSONAS[id], cantidad: base.filter(FILTRO_PERSONA[id]).length }))] : [],
     grupos: [],
-    personas: [...visibles].sort(ORDEN_PERSONAS[filtros.ordenPersonas]),
+    personas: [...visibles].sort(ORDEN_PERSONAS[ordenPersonas.id]),
     pie: {
-      resumen: `${visibles.length} de ${plural(filasPersonas.length, 'persona', 'personas')} · el % cuenta desde que cada uno entró`,
-      orden: ORDENES_PERSONAS.find((o) => o.id === filtros.ordenPersonas)!.pie,
+      resumen: `${visibles.length} de ${plural(filasPersonas.length, 'persona', 'personas')} · ${conConexiones ? 'grupo, 1:1 y servicio cuentan en el rango; talleres, en total' : 'el % cuenta desde que cada uno entró'}`,
+      orden: ordenPersonas.pie,
     },
   }
 }

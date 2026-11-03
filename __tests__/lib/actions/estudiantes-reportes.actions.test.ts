@@ -14,11 +14,12 @@ jest.mock('@/lib/supabase/server', () => ({
 }))
 jest.mock('next/cache', () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }))
 
-import { detalleGrupoReporte, detallePersonaReporte } from '@/lib/actions/estudiantes-reportes.actions'
+import { conexionesPersonaReporte, detalleGrupoReporte, detallePersonaReporte } from '@/lib/actions/estudiantes-reportes.actions'
 
 const GRUPO = '11111111-1111-4111-8111-111111111111'
 const PERSONA = '22222222-2222-4222-8222-222222222222'
 const AMBITO = '33333333-3333-4333-8333-333333333333'
+const CAMPUS = '44444444-4444-4444-8444-444444444444'
 const RANGO = { desde: '2026-09-08', hasta: '2026-11-02' }
 
 const detalleGrupo = {
@@ -102,5 +103,66 @@ describe('detallePersonaReporte', () => {
       message: 'Esa persona ya no existe. Recarga la página.',
       codigo: 'persona_invalida',
     })
+  })
+})
+
+describe('conexionesPersonaReporte (S21)', () => {
+  const conexiones = {
+    ambito_id: AMBITO,
+    campus_id: CAMPUS,
+    persona_id: PERSONA,
+    desde: RANGO.desde,
+    hasta: RANGO.hasta,
+    semanas: 8,
+    desconectado_si_antes_de: '2026-09-03',
+    resumen: { personas: 1, desconectados: 0, sin_servicio: 0, con_talleres: 1 },
+    personas: [
+      {
+        persona_id: PERSONA,
+        nombre: 'Lucía',
+        apellido: 'Mendoza',
+        grupo_id: GRUPO,
+        grupo: 'Zona Este · Chicas',
+        lider: { realizados: 3, por_semana: 0.4, ultimo: '2026-10-21', ultimo_con: 'Carla Suárez', lideres: ['Carla Suárez'], desconectado: false },
+        otros: { grupo: { reuniones: 8, presentes: 7, ausentes: 1, sin_marcar: 0, porcentaje: 87.5 }, sirve: false, servicios: [] },
+        iglesia: { talleres: 0, lista: [] },
+        jesus: { registrado: false },
+      },
+    ],
+  }
+  const input = { personaId: PERSONA, ambitoId: AMBITO, campusId: CAMPUS, ...RANGO }
+
+  it('reads the connections of one person with p_persona_id, never revalidating', async () => {
+    rpc.mockResolvedValueOnce({ data: conexiones, error: null })
+    const r = await conexionesPersonaReporte(input)
+    expect(rpc).toHaveBeenCalledWith('estudiantes_reporte_conexiones', { p_ambito_id: AMBITO, p_campus_id: CAMPUS, p_desde: RANGO.desde, p_hasta: RANGO.hasta, p_persona_id: PERSONA })
+    expect(r).toMatchObject({ ok: true, data: { personaId: PERSONA, nombre: 'Lucía Mendoza', lider: { realizados: 3, desconectado: false } } })
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('rejects bad ids or dates before calling', async () => {
+    expect(await conexionesPersonaReporte({ ...input, campusId: 'x' })).toEqual({ ok: false, message: 'Revisa los datos e inténtalo de nuevo.', codigo: 'parametros_invalidos' })
+    expect(await conexionesPersonaReporte({ ...input, personaId: '' })).toMatchObject({ ok: false, codigo: 'parametros_invalidos' })
+    expect(await conexionesPersonaReporte({ ...input, ambitoId: 'tlr' })).toMatchObject({ ok: false, codigo: 'parametros_invalidos' })
+    expect(await conexionesPersonaReporte({ ...input, desde: RANGO.hasta, hasta: RANGO.desde })).toMatchObject({ ok: false, codigo: 'rango_invalido' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('maps the RPC errors, ambito_invalido included', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'sin_autoridad' } })
+    expect(await conexionesPersonaReporte(input)).toEqual({ ok: false, message: 'No tienes acceso a los reportes de este ámbito.', codigo: 'sin_autoridad' })
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'ambito_invalido' } })
+    expect(await conexionesPersonaReporte(input)).toMatchObject({ ok: false, codigo: 'ambito_invalido' })
+  })
+
+  it('treats an answer without that person as a failure', async () => {
+    rpc.mockResolvedValueOnce({ data: { ...conexiones, personas: [] }, error: null })
+    expect(await conexionesPersonaReporte(input)).toEqual({ ok: false, message: 'No se pudo cargar el reporte. Recarga la página.', codigo: null })
+  })
+
+  it('asks to sign in again without a session', async () => {
+    getUser.mockResolvedValueOnce({ data: { user: null } })
+    expect(await conexionesPersonaReporte(input)).toEqual({ ok: false, message: 'Tu sesión terminó. Vuelve a iniciar sesión.', codigo: null })
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

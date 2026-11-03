@@ -577,6 +577,51 @@ describe('calcularVistaReportes', () => {
   })
 })
 
+describe('calcularVistaReportes with the connections of The Living Room (S21, A37–A40)', () => {
+  const conexiones = new Map([
+    ['p1', { unos: 3, desconectado: false, servicio: { porcentaje: 75, presentes: 3, esperadas: 4 }, talleres: 2 }],
+    ['p2', { unos: 0, desconectado: true, servicio: null, talleres: 0 }],
+    ['p3', { unos: 1, desconectado: true, servicio: { porcentaje: null, presentes: 0, esperadas: 0 }, talleres: 1 }],
+    ['p4', { unos: 0, desconectado: false, servicio: { porcentaje: 40, presentes: 2, esperadas: 5 }, talleres: 0 }],
+  ])
+  const personas = (parche: Partial<FiltrosReportes> = {}) => calcularVistaReportes({ reporte: reporte(), filtros: filtros({ tab: 'personas', ...parche }), conexiones })
+
+  it('puts each person\'s figures on the row and «Sin 1:1 en 2 meses» first after Todas', () => {
+    const v = personas()
+    expect(v.personas.find((p) => p.personaId === 'p1')?.conexion).toEqual(conexiones.get('p1'))
+    expect(v.pastillas.map((p) => [p.id, p.etiqueta, p.cantidad])).toEqual([
+      [null, 'Todas', 4],
+      ['sin11', 'Sin 1:1 en 2 meses', 2],
+      ['seguidas', 'Faltan 3+ seguidas', 1],
+      ['baja', 'Asistencia baja (<50%)', 1],
+      ['sinmarcar', 'Sin marcar', 1],
+    ])
+    expect(v.pie.resumen).toBe('4 de 4 personas · grupo, 1:1 y servicio cuentan en el rango; talleres, en total')
+    expect(personas({ metrica: 'sin11' }).personas.map((p) => p.personaId)).toEqual(['p2', 'p3'])
+  })
+
+  it('sorts by fewest 1:1, lowest service (not serving last) and fewest talleres', () => {
+    expect(personas({ ordenPersonas: 'unos' }).personas.map((p) => p.personaId)).toEqual(['p4', 'p2', 'p3', 'p1'])
+    const servicio = personas({ ordenPersonas: 'servicio' })
+    expect(servicio.personas.map((p) => p.personaId)).toEqual(['p4', 'p1', 'p3', 'p2'])
+    expect(servicio.pie.orden).toBe('Orden: servicio más bajo primero (sin servicio al final)')
+    expect(personas({ ordenPersonas: 'talleres' }).personas.map((p) => p.personaId)).toEqual(['p4', 'p2', 'p3', 'p1'])
+  })
+
+  it('ignores the connection pill and sorts without the connections (Transit, Inside Out or a failed call)', () => {
+    const v = calcularVistaReportes({ reporte: reporte(), filtros: filtros({ tab: 'personas', metrica: 'sin11', ordenPersonas: 'unos' }) })
+    expect(v.pastillas.map((p) => p.id)).toEqual([null, 'seguidas', 'baja', 'sinmarcar'])
+    expect(v.personas).toHaveLength(4)
+    expect(v.personas.every((p) => p.conexion === null)).toBe(true)
+    expect(v.pie).toEqual({ resumen: '4 de 4 personas · el % cuenta desde que cada uno entró', orden: 'Orden: nombre A–Z' })
+  })
+
+  it('reads the connection pill and sorts from the URL', () => {
+    expect(leerFiltrosReportes({ tab: 'personas', metrica: 'sin11', orden: 'servicio' })).toMatchObject({ metrica: 'sin11', ordenPersonas: 'servicio' })
+    expect(leerFiltrosReportes({ tab: 'grupos', metrica: 'sin11', orden: 'talleres' })).toMatchObject({ metrica: null, ordenGrupos: 'anio' })
+  })
+})
+
 describe('resumenReporte', () => {
   const base = { campus: 'Barquisimeto', ambito: 'Transit', subarea: null, rango: { desde: '2026-09-08', hasta: HOY } }
 
