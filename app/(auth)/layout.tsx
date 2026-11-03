@@ -115,7 +115,9 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   // snapshot reuses this same client instead of creating a second one; see
   // resolveCurrentUserSnapshot's doc comment.
   // The Dream Team sidebar links Mi equipo for the volunteer coordinator, whose
-  // session carries no read capability: one registrables lookup, fails closed.
+  // session carries no read capability, and for an area director who may
+  // register people: the registrables lookup, then (if none) one boolean RPC;
+  // fails closed.
   const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, unoAUnoAcceso, estudiantesAcceso] = await Promise.all([
     supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
     resolveCurrentUserSnapshot(supabase ?? undefined),
