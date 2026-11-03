@@ -70,6 +70,12 @@ export interface FilaServidor {
    * not available (no account state is derived and the pills are hidden).
    */
   readonly invitacion?: ResumenInvitacion | null
+  /**
+   * Whether the database lets the viewer invite the person
+   * (invitacion_cuenta_sin_cuenta); absent when the lookup was not available,
+   * and then the ficha decides (accionesDeServicio).
+   */
+  readonly invitable?: boolean
 }
 
 /**

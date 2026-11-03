@@ -225,8 +225,10 @@ export default async function DreamTeamServidoresPage({ searchParams }: DreamTea
   ]
 
   // Invitations to register (invitaciones pendientes): only those of the fichas
-  // the caller may invite, as the database decides. A convenience: if the lookup
-  // fails the page renders without the account-state pills.
+  // the caller may invite, as the database decides; the same answer gates
+  // Invitar (`invitable`, S5 of odd/tasks/dream-team-directores-invitan.md). A
+  // convenience: if the lookup fails the page renders without the account-state
+  // pills and the ficha decides Invitar, as before.
   const invitaciones = await fetchInvitacionesServidores(
     rpcDeCliente(supabase),
     filasBase.map((fila) => fila.personaId),

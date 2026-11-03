@@ -120,6 +120,16 @@ describe('adjuntarInvitaciones', () => {
     expect('invitacion' in conCarla).toBe(false)
   })
 
+  it('marks each row invitable as the database decides (S5 of dream-team-directores-invitan)', async () => {
+    const rpc = rpcDe(
+      (ids) => ids.filter((id) => id === ana.personaId).map((id) => filaRpc(id)),
+      (ids) => ids.filter((id) => id === ana.personaId || id === beto.personaId),
+    )
+    const datos = await fetchInvitacionesServidores(rpc, [ana.personaId, beto.personaId, carla.personaId], AHORA)
+    const filas = adjuntarInvitaciones([ana, beto, carla], datos)
+    expect(filas.map((f) => f.invitable)).toEqual([true, true, false])
+  })
+
   it('without authority over anyone no row carries data, so the pills stay hidden', async () => {
     const datos = await fetchInvitacionesServidores(rpcDe(), [ana.personaId, beto.personaId], AHORA)
     const filas = adjuntarInvitaciones([{ ...ana, tieneCuenta: false }, { ...beto, tieneCuenta: false }], datos)
@@ -130,6 +140,6 @@ describe('adjuntarInvitaciones', () => {
   it('without data (failed lookup) the rows stay as they were', () => {
     const filas = [ana, beto]
     expect(adjuntarInvitaciones(filas, null)).toBe(filas)
-    expect(filas.every((f) => !('invitacion' in f))).toBe(true)
+    expect(filas.every((f) => !('invitacion' in f) && !('invitable' in f))).toBe(true)
   })
 })

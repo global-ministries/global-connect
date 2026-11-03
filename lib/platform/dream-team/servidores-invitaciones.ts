@@ -78,7 +78,8 @@ export async function fetchInvitacionesServidores(
 
 /**
  * Each row with its person's summary, `null` when the caller may invite them
- * but never did, untouched otherwise; without data the rows are returned as
+ * but never did, no summary otherwise; and whether the caller may invite them
+ * (`invitable`, which gates Invitar). Without data the rows are returned as
  * they were.
  */
 export function adjuntarInvitaciones(
@@ -87,8 +88,9 @@ export function adjuntarInvitaciones(
 ): readonly FilaServidor[] {
   if (invitaciones === null) return filas
   return filas.map((fila) => {
+    const invitable = invitaciones.sinCuenta.has(fila.personaId)
     const resumen = invitaciones.resumenes.get(fila.personaId)
-    if (resumen) return { ...fila, invitacion: resumen }
-    return invitaciones.sinCuenta.has(fila.personaId) ? { ...fila, invitacion: null } : fila
+    if (resumen) return { ...fila, invitacion: resumen, invitable }
+    return invitable ? { ...fila, invitacion: null, invitable } : { ...fila, invitable }
   })
 }
