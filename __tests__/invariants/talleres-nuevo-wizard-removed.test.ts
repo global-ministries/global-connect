@@ -31,6 +31,10 @@ const SCANNABLE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cj
 
 const TARGET = 'create_taller_with_initial_state'
 
+// The scan reads every source file of the repo, so its duration grows with
+// the codebase; on CI runners it regularly passed Jest's 5 s default.
+const SCAN_TIMEOUT_MS = 60_000
+
 async function* walk(dir: string): AsyncGenerator<string> {
   let entries: fs.Dirent[]
   try {
@@ -73,5 +77,5 @@ describe('T1 — old taller wizard removed', () => {
       console.error(`${TARGET} still referenced in: ${violations.join(', ')}`)
     }
     expect(violations).toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 })
