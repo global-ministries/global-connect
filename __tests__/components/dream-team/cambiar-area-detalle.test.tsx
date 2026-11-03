@@ -107,6 +107,7 @@ describe('Servidores — DetalleServidor', () => {
     areaCambiable: true,
     equiposDeLaPersona: 2,
     turnosTexto: '—',
+    estadoCuenta: null,
     ...over,
   })
   const persona = (filas: FilaVista[]): PersonaLista => ({
@@ -116,6 +117,8 @@ describe('Servidores — DetalleServidor', () => {
     telefono: null,
     tieneCuenta: true,
     soloGruposVida: false,
+    invitacion: null,
+    estadoCuenta: null,
     filas,
   })
 

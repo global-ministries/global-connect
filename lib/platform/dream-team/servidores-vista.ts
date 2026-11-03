@@ -7,6 +7,7 @@ import { isoLocal, nombreConFrecuencia } from './frecuencia-turno'
 import { SIN_TURNO, coincideTurno, ordenarTurnos, type FrecuenciasPorTurno, type Turno } from './turnos'
 import { ESTADOS_POR_ACTIVAR, MAX_EQUIPOS_EN_TARJETAS } from './mi-equipo-vista'
 import { RANGO_EDAD_LABELS, contarPorRangoEdad, esRangoEdad, type ContadoresEdad, type RangoEdad } from './edad'
+import type { ResumenInvitacion } from '@/lib/platform/cuentas/invitaciones-pendientes'
 
 /**
  * Pure view model behind /admin/dream-team/servidores (no I/O, no React).
@@ -69,6 +70,38 @@ export interface FilaServidor {
   readonly frecuencias?: FrecuenciasPorTurno
   /** Age range of the person (D10); absent when the caller cannot see it (never matches an age filter). */
   readonly rangoEdad?: RangoEdad
+  /**
+   * The person's latest invitation to register (invitaciones pendientes, S5):
+   * `null` when there is none the viewer may see; absent when the lookup was
+   * not available (no account state is derived and the pills are hidden).
+   */
+  readonly invitacion?: ResumenInvitacion | null
+  /**
+   * Whether the database lets the viewer invite the person
+   * (invitacion_cuenta_sin_cuenta); absent when the lookup was not available,
+   * and then the ficha decides (accionesDeServicio).
+   */
+  readonly invitable?: boolean
+}
+
+/**
+ * The account state the "Sin cuenta" pills sort people by: without an account,
+ * 'vencida' (sent over 24 h ago, S4), 'enviada' or 'sin_invitar'; with one,
+ * 'registrada' when they accepted in the last `DIAS_REGISTRADA` days.
+ */
+export type EstadoCuenta = 'vencida' | 'enviada' | 'sin_invitar' | 'registrada'
+
+export const ESTADOS_CUENTA: readonly EstadoCuenta[] = ['vencida', 'enviada', 'sin_invitar', 'registrada']
+
+/** "Se registraron (30 días)". */
+export const DIAS_REGISTRADA = 30
+
+/** The pill and chip labels of each state (S3). */
+export const ETIQUETA_FILTRO_INVITACION: Readonly<Record<EstadoCuenta, string>> = {
+  vencida: 'Invitación vencida',
+  enviada: 'Invitación enviada',
+  sin_invitar: 'Sin invitar',
+  registrada: 'Se registraron (30 días)',
 }
 
 export type Inicio = 'cualquiera' | 'mes' | 'trimestre'
@@ -94,6 +127,8 @@ export interface FiltrosServidores {
   readonly edad: RangoEdad | null
   readonly inicio: Inicio
   readonly sinCuenta: boolean
+  /** One account state (S3); the three without an account imply "sin cuenta". */
+  readonly invitacion: EstadoCuenta | null
   readonly varios: boolean
   /** Servicios in postulado or en orientación. */
   readonly porActivar: boolean
@@ -112,6 +147,7 @@ export const FILTROS_INICIALES: FiltrosServidores = {
   edad: null,
   inicio: 'cualquiera',
   sinCuenta: false,
+  invitacion: null,
   varios: false,
   porActivar: false,
   q: '',
@@ -136,6 +172,7 @@ export const LIMPIAR_HOJA: Partial<FiltrosServidores> = {
   turno: null,
   inicio: 'cualquiera',
   sinCuenta: false,
+  invitacion: null,
   varios: false,
   porActivar: false,
 }
@@ -193,6 +230,8 @@ export interface FilaVista extends FilaServidor {
   readonly turnosTexto: string
   /** The equipo name; a name repeated in the tree carries its parent ("Anfitriones · UpStreet"). */
   readonly equipoNombre: string
+  /** `null` when no state applies (an account not registered lately, or unknown data). */
+  readonly estadoCuenta: EstadoCuenta | null
 }
 
 /**
@@ -206,6 +245,8 @@ export interface PersonaLista {
   readonly nombre: string
   readonly telefono: string | null
   readonly tieneCuenta: boolean | null
+  readonly invitacion: ResumenInvitacion | null
+  readonly estadoCuenta: EstadoCuenta | null
   /** Every listed servicio comes from Grupos de Vida: the mark goes next to the name, once. */
   readonly soloGruposVida: boolean
   readonly filas: readonly FilaVista[]
@@ -283,6 +324,17 @@ export interface ContadorAtencion {
 
 export type MetricaAtencionId = 'sirviendo' | 'porActivar' | 'sinCuenta' | 'sinTurno' | 'varios'
 
+/** A pill under the "Sin cuenta" metric: everyone without an account, or one account state. */
+export interface PastillaCuenta {
+  readonly id: 'sin_cuenta' | EstadoCuenta
+  readonly etiqueta: string
+  /** Distinct people under every filter but the account ones. */
+  readonly personas: number
+  readonly activo: boolean
+  /** Selects this pill alone. */
+  readonly parche: Partial<FiltrosServidores>
+}
+
 /** One level of the tree the screen is in; applying `parche` goes back to it. */
 export interface Miga {
   readonly id: string
@@ -319,6 +371,8 @@ export interface VistaServidores {
   readonly contadoresEdad: ContadoresEdad | null
   /** The attention metrics; `total` (people in the scope) is the denominator of their bars. */
   readonly atencion: Readonly<Record<MetricaAtencionId, ContadorAtencion>> & { readonly total: number }
+  /** "Sin cuenta" and the account states; `null` when no invitation data is available. */
+  readonly pastillasCuenta: readonly PastillaCuenta[] | null
   readonly navegacion: NavegacionServidores
   readonly opciones: {
     readonly direcciones: readonly Opcion[]
@@ -335,7 +389,7 @@ export interface VistaServidores {
   readonly fichas: ReadonlyMap<string, PersonaLista>
   /** The active filters as removable chips; the scope (breadcrumbs) and the search (its box) are not chips. */
   readonly pastillas: readonly Pastilla[]
-  /** Active filters that live in the sheet: etapa, atención, rol, turno, inicio. */
+  /** Active filters that live in the sheet: etapa, atención (with the account state), rol, turno, inicio. */
   readonly filtrosEnHoja: number
   readonly pie: { readonly resumen: string; readonly orden: string }
 }
@@ -389,7 +443,31 @@ function coincideInicio(fila: FilaServidor, inicio: Inicio, hoy: Date): boolean 
   return hoy.getTime() - fecha.getTime() <= 90 * MS_DIA
 }
 
-/** The filter a counter ignores; 'equipo' and 'ubicacion' (dirección + área + equipo) serve the KPI cards. */
+/** Whether `fecha` is at most `DIAS_REGISTRADA` days before `ahora`. */
+function registradaHace(fecha: string | null, ahora: Date): boolean {
+  if (fecha === null) return false
+  const marca = Date.parse(fecha)
+  return !Number.isNaN(marca) && ahora.getTime() - marca <= DIAS_REGISTRADA * MS_DIA
+}
+
+/** The account state of a row at `ahora`; `null` without invitation data or when none applies. */
+export function estadoCuentaDe(fila: FilaServidor, ahora: Date): EstadoCuenta | null {
+  const { invitacion, tieneCuenta } = fila
+  if (invitacion === undefined) return null
+  if (tieneCuenta === true) {
+    return invitacion?.estado === 'registrada' && registradaHace(invitacion.aceptadaEl, ahora) ? 'registrada' : null
+  }
+  if (tieneCuenta === false) {
+    return invitacion?.estado === 'vencida' || invitacion?.estado === 'enviada' ? invitacion.estado : 'sin_invitar'
+  }
+  return null
+}
+
+/**
+ * The filter a counter ignores; 'equipo' and 'ubicacion' (dirección + área +
+ * equipo) serve the KPI cards, 'sinCuenta' ignores both account filters
+ * (sin cuenta and the account state) for the metric and its pills.
+ */
 type Salvo = 'etapa' | 'edad' | 'sinCuenta' | 'varios' | 'porActivar' | 'turno' | 'equipo' | 'ubicacion' | null
 
 interface Contexto {
@@ -422,6 +500,7 @@ function pasa(fila: FilaServidor, f: FiltrosServidores, contexto: Contexto, salv
   if (salvo !== 'turno' && f.turno !== null && !coincideTurnoDeFila(fila, f.turno)) return false
   if (!coincideInicio(fila, f.inicio, contexto.hoy)) return false
   if (salvo !== 'sinCuenta' && f.sinCuenta && fila.tieneCuenta !== false) return false
+  if (salvo !== 'sinCuenta' && f.invitacion !== null && estadoCuentaDe(fila, contexto.hoy) !== f.invitacion) return false
   if (salvo !== 'varios' && f.varios && (contexto.equiposPorPersona.get(fila.personaId) ?? 0) < 2) return false
   if (salvo !== 'porActivar' && f.porActivar && !ESTADOS_POR_ACTIVAR.includes(fila.estado)) return false
   if (salvo !== 'etapa' && f.etapa !== null && fila.estado !== f.etapa) return false
@@ -511,6 +590,8 @@ function porPersona(filas: readonly FilaVista[]): PersonaLista[] {
     nombre: propias[0].nombre,
     telefono: propias.find((fila) => fila.telefono !== null)?.telefono ?? null,
     tieneCuenta: propias.find((fila) => fila.tieneCuenta !== null)?.tieneCuenta ?? null,
+    invitacion: propias.find((fila) => fila.invitacion)?.invitacion ?? null,
+    estadoCuenta: propias.find((fila) => fila.estadoCuenta !== null)?.estadoCuenta ?? null,
     soloGruposVida: propias.every((fila) => fila.origen === 'grupos_vida'),
     filas: propias,
   }))
@@ -610,6 +691,7 @@ function construirPastillas(f: FiltrosServidores, turnoLabel: (id: string) => st
   if (f.inicio !== 'cualquiera') agregar('inicio', ETIQUETA_INICIO[f.inicio], { inicio: 'cualquiera' })
   if (f.porActivar) agregar('por_activar', 'Por activar', { porActivar: false })
   if (f.sinCuenta) agregar('sin_cuenta', 'Sin cuenta', { sinCuenta: false })
+  if (f.invitacion !== null) agregar('invitacion', ETIQUETA_FILTRO_INVITACION[f.invitacion], { invitacion: null })
   if (f.varios) agregar('varios', 'En varios equipos', { varios: false })
   return pastillas
 }
@@ -893,6 +975,7 @@ export function calcularVistaServidores({
     equiposDeLaPersona: equiposPorPersona.get(fila.personaId) ?? 0,
     turnosTexto: textoDeTurnos(fila.turnoIds, turnosOrdenados, fila.frecuencias, hoy),
     equipoNombre: nombres.get(fila.equipoId) ?? fila.equipoLabel,
+    estadoCuenta: estadoCuentaDe(fila, hoy),
   })
 
   // Counters: every filter except the one the counter belongs to.
@@ -927,6 +1010,24 @@ export function calcularVistaServidores({
       activo: filtros.varios,
     },
   }
+  const pastillasCuenta: PastillaCuenta[] | null = filas.some((fila) => fila.invitacion !== undefined)
+    ? [
+        {
+          id: 'sin_cuenta',
+          etiqueta: 'Sin cuenta',
+          personas: atencion.sinCuenta.personas,
+          activo: filtros.sinCuenta && filtros.invitacion === null,
+          parche: { sinCuenta: true, invitacion: null },
+        },
+        ...ESTADOS_CUENTA.map((estado) => ({
+          id: estado,
+          etiqueta: ETIQUETA_FILTRO_INVITACION[estado],
+          personas: personasQue(filas, filtros, contexto, 'sinCuenta', (fila) => estadoCuentaDe(fila, hoy) === estado),
+          activo: filtros.invitacion === estado,
+          parche: { sinCuenta: false, invitacion: estado },
+        })),
+      ]
+    : null
 
   // Options: dirección → equipo cascade, roles present.
   const direccionesConServicios = new Map<string, string>()
@@ -995,6 +1096,7 @@ export function calcularVistaServidores({
     contadoresEtapa: { todas: sinEtapa.length, porEtapa },
     contadoresEdad,
     atencion,
+    pastillasCuenta,
     navegacion,
     opciones: { direcciones, areas, equipos, roles, turnos: opcionesTurno },
     visibles,
@@ -1010,6 +1112,7 @@ export function calcularVistaServidores({
       filtros.inicio !== 'cualquiera',
       filtros.porActivar,
       filtros.sinCuenta,
+      filtros.invitacion !== null,
       filtros.varios,
     ].filter(Boolean).length,
     pie: {
@@ -1047,6 +1150,10 @@ function esEstado(valor: string | null): valor is DreamTeamEstado {
   return valor !== null && (DREAM_TEAM_ESTADOS as readonly string[]).includes(valor)
 }
 
+function esEstadoCuenta(valor: string | null): valor is EstadoCuenta {
+  return valor !== null && (ESTADOS_CUENTA as readonly string[]).includes(valor)
+}
+
 function esVerdadero(valor: string | null): boolean {
   return valor === '1' || valor === 'true'
 }
@@ -1070,6 +1177,7 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
   const inicio = leer(parametros, 'inicio')
   const agruparPor = leer(parametros, 'agrupar')
   const edad = leer(parametros, 'edad')
+  const invitacion = leer(parametros, 'invitacion')
   return {
     etapa: esEstado(etapa) ? etapa : null,
     direccion: textoOpcional(leer(parametros, 'direccion')),
@@ -1080,6 +1188,7 @@ export function leerFiltrosDeUrl(parametros: ParametrosDeUrl): FiltrosServidores
     edad: esRangoEdad(edad) ? edad : null,
     inicio: inicio === 'mes' || inicio === 'trimestre' ? inicio : 'cualquiera',
     sinCuenta: esVerdadero(leer(parametros, 'sin_cuenta')),
+    invitacion: esEstadoCuenta(invitacion) ? invitacion : null,
     varios: esVerdadero(leer(parametros, 'varios')),
     porActivar: esVerdadero(leer(parametros, 'por_activar')),
     q: leer(parametros, 'q')?.trim() ?? '',
@@ -1100,6 +1209,7 @@ export function escribirFiltrosEnUrl(filtros: FiltrosServidores): string {
   if (filtros.edad !== null) parametros.set('edad', filtros.edad)
   if (filtros.inicio !== 'cualquiera') parametros.set('inicio', filtros.inicio)
   if (filtros.sinCuenta) parametros.set('sin_cuenta', '1')
+  if (filtros.invitacion !== null) parametros.set('invitacion', filtros.invitacion)
   if (filtros.varios) parametros.set('varios', '1')
   if (filtros.porActivar) parametros.set('por_activar', '1')
   if (filtros.q.trim() !== '') parametros.set('q', filtros.q.trim())

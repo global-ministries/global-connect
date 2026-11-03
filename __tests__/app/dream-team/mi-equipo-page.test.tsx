@@ -99,6 +99,12 @@ jest.mock('@/lib/platform/dream-team/edad', () => ({
 }))
 jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
 jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
+// Invite authority (invitacion_cuenta_sin_cuenta via fetchInvitacionesServidores): `null` = the lookup failed.
+const fetchInvitacionesServidores = jest.fn()
+jest.mock('@/lib/platform/dream-team/servidores-invitaciones', () => ({
+  ...jest.requireActual('@/lib/platform/dream-team/servidores-invitaciones'),
+  fetchInvitacionesServidores: (...args: unknown[]) => fetchInvitacionesServidores(...args),
+}))
 const fetchContactosPersonas = jest.fn()
 jest.mock('@/lib/platform/dream-team/personas', () => ({
   fetchContactosPersonas: (...args: unknown[]) => fetchContactosPersonas(...args),
@@ -148,6 +154,7 @@ beforeEach(() => {
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
   hasDreamTeamWriteCapability.mockReturnValue(true)
   fetchContactosPersonas.mockReset().mockResolvedValue(new Map())
+  fetchInvitacionesServidores.mockReset().mockResolvedValue(null)
   notFound.mockClear()
   redirect.mockClear()
 })
@@ -188,6 +195,27 @@ describe('mi-equipo page — the volunteer coordinator (T7/T11)', () => {
     const personas = (await renderizar({ direccion: 'dir-a' })).vista?.personas ?? []
     const ficha = Object.fromEntries(personas.map((p) => [p.nombre, p.fichaEditable]))
     expect(ficha).toMatchObject({ 'Bea Coordinadora': true, 'Carla Facilitadora': true, 'Ana Directora': false, 'Lidia Lider': false })
+  })
+})
+
+describe('mi-equipo page — invite authority from the database (S5 of dream-team-directores-invitan)', () => {
+  it('marks invitable exactly the people the database lets the viewer invite', async () => {
+    fetchInvitacionesServidores.mockResolvedValue({ resumenes: new Map(), sinCuenta: new Set(['p3']) })
+    const personas = (await renderizar({ direccion: 'dir-a' })).vista?.personas ?? []
+    const invitable = Object.fromEntries(personas.map((p) => [p.nombre, p.invitable]))
+    expect(invitable).toEqual({
+      'Ana Directora': false,
+      'Bea Coordinadora': false,
+      'Carla Facilitadora': true,
+      'Lidia Lider': false,
+    })
+    const [, ids] = fetchInvitacionesServidores.mock.calls[0] as [unknown, string[]]
+    expect([...new Set(ids)].sort()).toEqual(['p1', 'p2', 'p3', 'p4', 'p9'])
+  })
+
+  it('without the lookup nobody is marked, so the ficha decides as before', async () => {
+    const personas = (await renderizar({ direccion: 'dir-a' })).vista?.personas ?? []
+    expect(personas.every((p) => p.invitable === undefined)).toBe(true)
   })
 })
 

@@ -73,6 +73,8 @@ export interface PersonaEntrada {
   readonly frecuencias?: FrecuenciasPorTurno
   /** Whether the viewer may fix the person's ficha (T11; checked again by dream_team_editar_ficha). */
   readonly fichaEditable?: boolean
+  /** Whether the database lets the viewer invite the person (invitacion_cuenta_sin_cuenta); absent without the lookup. */
+  readonly invitable?: boolean
   /** Whether the viewer may move the servicio to another área (director or coordinator authority, not retired; checked again by the RPCs). */
   readonly areaCambiable?: boolean
   /** Age range (D10); absent when the caller cannot see it. */
@@ -107,6 +109,8 @@ export interface PersonaVista {
   readonly frecuencias?: FrecuenciasPorTurno
   /** Whether the viewer may fix the person's ficha (T11; checked again by dream_team_editar_ficha). */
   readonly fichaEditable?: boolean
+  /** Whether the database lets the viewer invite the person; absent without the lookup (the ficha decides). */
+  readonly invitable?: boolean
   /** Whether the viewer may move the servicio to another área (director or coordinator authority, not retired; checked again by the RPCs). */
   readonly areaCambiable?: boolean
   /** Age range (D10); absent when the caller cannot see it (never matches an age filter). */
@@ -249,6 +253,7 @@ function aVista(entrada: PersonaEntrada, equipoId: string, equipoLabel: string, 
     turnoIds: entrada.turnoIds ?? [],
     frecuencias: entrada.frecuencias ?? {},
     fichaEditable: entrada.fichaEditable === true,
+    invitable: entrada.invitable,
     areaCambiable: entrada.areaCambiable === true,
     rangoEdad: entrada.rangoEdad,
   }

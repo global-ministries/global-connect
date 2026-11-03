@@ -48,6 +48,7 @@ import {
 import { leerFiltrosMiEquipo, rolMiEquipo } from '@/lib/platform/dream-team/mi-equipo-filtros'
 import type { DreamTeamRol, PersonaId } from '@/lib/platform/dream-team/types'
 import { fetchFrecuenciasDeServicios, fetchTurnos, fetchTurnosDeServicios, ordenarTurnos, type Turno } from '@/lib/platform/dream-team/turnos'
+import { fetchInvitacionesServidores, rpcDeCliente } from '@/lib/platform/dream-team/servidores-invitaciones'
 import { ROL_LIDER_GDV_LABELS, rolLabel } from '@/components/dream-team/labels'
 import { MiEquipoClient } from '@/components/dream-team/mi-equipo/mi-equipo-client'
 
@@ -142,6 +143,13 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
     },
   )
 
+  // Who the viewer may invite to register, as the database decides
+  // (invitacion_cuenta_sin_cuenta, S5 of odd/tasks/dream-team-directores-invitan.md):
+  // it gates Invitar. If the lookup fails nobody is marked and the ficha decides,
+  // as before.
+  const invitaciones = await fetchInvitacionesServidores(rpcDeCliente(supabase), personaIds, new Date())
+  const invitable = (id: PersonaId): boolean | undefined => invitaciones?.sinCuenta.has(id)
+
   // Campus service shifts (D12): the filter's options and each servicio's
   // assignment. Like contacts, a convenience: on failure the page renders
   // without the filter and the failure is logged.
@@ -199,6 +207,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       turnoIds: turnosPorServicio.get(servicio.id) ?? [],
       frecuencias: frecuenciasPorServicio.get(servicio.id),
       fichaEditable: servicio.estado !== 'retirado' && equiposRegistrables.has(servicio.equipoId),
+      invitable: invitable(servicio.personaId),
       areaCambiable: servicio.estado !== 'retirado' && equiposCambioArea.has(servicio.equipoId),
       rangoEdad: rangoEdadPorId.get(servicio.personaId),
     })
@@ -215,6 +224,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       origen: 'grupos_vida',
       telefono: contactoPorId.get(lider.personaId)?.telefono ?? null,
       tieneCuenta: contactoPorId.get(lider.personaId)?.tieneCuenta ?? null,
+      invitable: invitable(lider.personaId),
       rangoEdad: rangoEdadPorId.get(lider.personaId),
     })
   }
