@@ -12,6 +12,11 @@
  *   …") · Asistencia · Presentes ("5 de 8" + "N sin marcar") · Faltas seguidas
  *   (from lg) · Última vez (from lg). Sortable: Nombre, Grupo, Asistencia,
  *   Faltas seguidas, Última vez.
+ * - Personas of The Living Room (S21, A37–A40): Nombre (+ group) · Asistencia
+ *   (+ "7 de 8") · 1:1 (count in the range, «Sin 1:1» when disconnected, L55)
+ *   · Servicio (+ "3 de 4", "No sirve", "Sin fechas") · Talleres · Faltas
+ *   seguidas and Última vez (from lg). Phone rows add "3 · 1:1", "Sirve 75%"
+ *   and "2 talleres". Without the connections it is the list above.
  */
 import type { ReactElement, ReactNode } from 'react'
 
@@ -157,8 +162,48 @@ const COLUMNAS_PERSONAS: readonly ColumnaLista[] = [
   { id: 'ultima', titulo: 'Última vez', ordenable: true, ancho: 'minmax(104px,0.9fr)', ocultarEnTablet: true },
 ]
 
+const COLUMNAS_CONEXIONES: readonly ColumnaLista[] = [
+  { id: 'nombre', titulo: 'Nombre', ordenable: true, ancho: 'minmax(0,1.4fr)' },
+  { id: 'asistencia', titulo: 'Asistencia', ordenable: true, ancho: 'minmax(104px,0.9fr)' },
+  { id: 'unos', titulo: '1:1', ordenable: true, ancho: 'minmax(80px,0.6fr)' },
+  { id: 'servicio', titulo: 'Servicio', ordenable: true, ancho: 'minmax(104px,0.9fr)' },
+  { id: 'talleres', titulo: 'Talleres', ordenable: true, ancho: 'minmax(80px,0.6fr)' },
+  { id: 'seguidas', titulo: 'Faltas seguidas', ordenable: true, ancho: 'minmax(96px,0.8fr)', ocultarEnTablet: true },
+  { id: 'ultima', titulo: 'Última vez', ordenable: true, ancho: 'minmax(104px,0.9fr)', ocultarEnTablet: true },
+]
+
+function CeldaUnos({ fila }: { readonly fila: FilaPersonaReporte }): ReactElement {
+  const c = fila.conexion
+  if (!c) return <Nada />
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      {(c.unos > 0 || !c.desconectado) && <Cifra>{c.unos}</Cifra>}
+      {c.desconectado && (
+        <BadgeSistema variante="warning" tamaño="sm">
+          Sin 1:1
+        </BadgeSistema>
+      )}
+    </div>
+  )
+}
+
+function CeldaServicio({ fila }: { readonly fila: FilaPersonaReporte }): ReactElement {
+  const servicio = fila.conexion?.servicio
+  if (!fila.conexion) return <Nada />
+  if (!servicio) return <Nada texto="No sirve" />
+  return <CeldaPorcentaje porcentaje={servicio.porcentaje} vacio="Sin fechas" detalle={`${servicio.presentes} de ${servicio.esperadas}`} />
+}
+
 function InsigniasPersona({ fila }: { readonly fila: FilaPersonaReporte }): ReactElement | null {
   const insignias: { texto: string; variante: 'info' | 'warning' | 'default' }[] = []
+  // The Living Room (A40): the connections first, then the attention tags.
+  const c = fila.conexion
+  if (c) {
+    if (c.unos > 0) insignias.push({ texto: `${c.unos} · 1:1`, variante: 'default' })
+    if (c.desconectado) insignias.push({ texto: 'Sin 1:1', variante: 'warning' })
+    if (c.servicio) insignias.push({ texto: c.servicio.porcentaje === null ? 'Sirve' : `Sirve ${textoPorcentaje(c.servicio.porcentaje)}`, variante: 'default' })
+    if (c.talleres > 0) insignias.push({ texto: plural(c.talleres, 'taller', 'talleres'), variante: 'default' })
+  }
   if (fila.antesEn) insignias.push({ texto: `Antes en ${fila.antesEn}`, variante: 'info' })
   if (fila.seguidas) insignias.push({ texto: `Faltó ${fila.ausenciasSeguidas} seguidas`, variante: 'warning' })
   if (fila.baja) insignias.push({ texto: 'Asistencia baja', variante: 'warning' })
@@ -182,21 +227,40 @@ export interface ListaPersonasReporteProps {
   readonly onOrdenar: (orden: OrdenPersonasReporte) => void
   readonly onAbrir: (personaId: string) => void
   readonly vacio: ReactNode
+  /** The Living Room with its connections loaded (S21). */
+  readonly conConexiones?: boolean
 }
 
-export function ListaPersonasReporte({ filas, orden, hoy, onOrdenar, onAbrir, vacio }: ListaPersonasReporteProps): ReactElement {
+export function ListaPersonasReporte({ filas, orden, hoy, onOrdenar, onAbrir, vacio, conConexiones = false }: ListaPersonasReporteProps): ReactElement {
   return (
     <ListaResponsiva
       etiqueta="Asistencia por persona"
-      columnas={COLUMNAS_PERSONAS}
+      columnas={conConexiones ? COLUMNAS_CONEXIONES : COLUMNAS_PERSONAS}
       filas={filas}
       claveFila={(fila) => fila.personaId}
       orden={ordenLista(orden)}
       onOrdenar={(columna) => onOrdenar(columna as OrdenPersonasReporte)}
       onAbrirFila={(fila) => onAbrir(fila.personaId)}
-      etiquetaFila={(fila) => `Ver la asistencia de ${fila.nombre}`}
+      etiquetaFila={(fila) => `${conConexiones ? 'Ver las conexiones de' : 'Ver la asistencia de'} ${fila.nombre}`}
       vacio={vacio}
       renderCelda={(fila, columna) => {
+        if (conConexiones) {
+          switch (columna) {
+            case 'nombre': {
+              // The Grupo column moves under the name so the three new columns fit (A37).
+              const nota = fila.antesEn ? `antes en ${fila.antesEn}` : fila.entro ? fila.entro.replace(/^Entró/, 'entró') : null
+              return <Celda titulo={fila.nombre} detalle={[fila.grupo ?? 'Sin grupo', nota].filter(Boolean).join(' · ')} />
+            }
+            case 'asistencia':
+              return <CeldaPorcentaje porcentaje={fila.porcentaje} detalle={`${fila.presentes} de ${fila.reuniones}`} />
+            case 'unos':
+              return <CeldaUnos fila={fila} />
+            case 'servicio':
+              return <CeldaServicio fila={fila} />
+            case 'talleres':
+              return !fila.conexion ? <Nada /> : fila.conexion.talleres ? <Cifra>{fila.conexion.talleres}</Cifra> : <Nada texto="Ninguno" />
+          }
+        }
         switch (columna) {
           case 'nombre':
             return <Celda titulo={fila.nombre} detalle={fila.entro ?? fila.anioEtiqueta} />

@@ -32,12 +32,14 @@ let gestionables: Respuesta = { data: [], error: null }
 let misGrupos: Respuesta = { data: [], error: null }
 let asistencia: Record<string, Respuesta> = {}
 let embudo: Respuesta = { data: null, error: null }
+let conexiones: Respuesta = { data: null, error: null }
 let campusTabla: { id: string; nombre: string }[] = []
 const rpc = jest.fn(async (nombre: string, args?: { p_ambito_id?: string }) => {
   if (nombre === 'estudiantes_subareas_gestionables') return gestionables
   if (nombre === 'estudiantes_mis_grupos') return misGrupos
   if (nombre === 'estudiantes_reporte_asistencia') return asistencia[args?.p_ambito_id ?? ''] ?? { data: null, error: null }
   if (nombre === 'estudiantes_reporte_embudo') return embudo
+  if (nombre === 'estudiantes_reporte_conexiones') return conexiones
   return { data: null, error: null }
 })
 const enCampus = jest.fn((_columna: string, ids: string[]) => Promise.resolve({ data: campusTabla.filter((c) => ids.includes(c.id)), error: null }))
@@ -88,6 +90,28 @@ const embudoOk = {
   sirviendo: { cantidad: 0, personas: [] },
 }
 
+const conexionesOk = {
+  ambito_id: TLR,
+  campus_id: CAMPUS,
+  desde: '2026-09-08',
+  hasta: '2026-11-02',
+  semanas: 8,
+  desconectado_si_antes_de: '2026-09-03',
+  resumen: { personas: 1, desconectados: 1, sin_servicio: 1, con_talleres: 0 },
+  personas: [
+    {
+      persona_id: 'p0000000-0000-4000-8000-000000000001',
+      nombre: 'Gabriel',
+      apellido: 'Rojas',
+      grupo: 'Zona Este · Chicos',
+      lider: { realizados: 0, por_semana: 0, ultimo: null, ultimo_con: null, lideres: [], desconectado: true },
+      otros: { grupo: {}, sirve: false, servicios: [] },
+      iglesia: { talleres: 0, lista: [] },
+      jesus: { registrado: false },
+    },
+  ],
+}
+
 async function renderizar(searchParams: Record<string, string> = {}) {
   const elemento = (await EstudiantesReportesPage({ searchParams: Promise.resolve(searchParams) })) as React.ReactElement<Record<string, unknown>>
   return elemento.props as Record<string, unknown> & { ambitos: { id: string; nombre: string }[] }
@@ -117,6 +141,7 @@ beforeEach(() => {
     [TLR]: { data: reporte(), error: null },
   }
   embudo = { data: embudoOk, error: null }
+  conexiones = { data: conexionesOk, error: null }
   campusTabla = []
 })
 
@@ -213,5 +238,33 @@ describe('/estudiantes/reportes', () => {
       errorEmbudo: 'No se pudo cargar el reporte. Recarga la página.',
     })
     expect(props.ambitos[0]).toEqual({ id: TRANSIT, nombre: 'Transit', grupos: 0, porcentaje: null, insignias: [] })
+  })
+
+  describe('The Living Room connections (S21)', () => {
+    it('asks estudiantes_reporte_conexiones for the same range and sub-área and hands them to the island', async () => {
+      const props = await renderizar({ ambito: TLR, subarea: TLR_CHICOS })
+      expect(llamadas('estudiantes_reporte_conexiones')).toEqual([{ p_ambito_id: TLR, p_campus_id: CAMPUS, p_desde: '2026-09-08', p_hasta: '2026-11-02', p_subarea_id: TLR_CHICOS }])
+      expect(props).toMatchObject({
+        ambitoId: TLR,
+        livingRoom: true,
+        contenido: { tipo: 'reporte' },
+        conexiones: { desde: '2026-09-08', resumen: { desconectados: 1 }, personas: [{ nombre: 'Gabriel Rojas', lider: { desconectado: true } }] },
+      })
+    })
+
+    it('still renders the attendance report when the connections fail (fail soft)', async () => {
+      conexiones = { data: null, error: { code: 'XX000', message: 'boom' } }
+      const errores = jest.spyOn(console, 'error').mockImplementation(() => {})
+      const props = await renderizar({ ambito: TLR })
+      expect(errores).toHaveBeenCalled()
+      errores.mockRestore()
+      expect(props).toMatchObject({ ambitoId: TLR, livingRoom: true, conexiones: null, contenido: { tipo: 'reporte' } })
+    })
+
+    it('never asks for them in Transit or Inside Out', async () => {
+      const props = await renderizar({ ambito: IO })
+      expect(llamadas('estudiantes_reporte_conexiones')).toEqual([])
+      expect(props).toMatchObject({ ambitoId: IO, livingRoom: false, conexiones: null })
+    })
   })
 })

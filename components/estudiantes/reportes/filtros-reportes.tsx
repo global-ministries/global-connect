@@ -5,7 +5,8 @@
  * 12 `#filtros`): Rango de fechas (the quick ranges plus Desde / Hasta, gap
  * GR3 `FiltroRangoFechas` under "Planned components" in
  * docs/design-system/components.md), Sub-área (only when the caller sees
- * more than one) and Ordenar grupos / personas por. Filters apply live; "Ver
+ * more than one) and Ordenar grupos / personas por (The Living Room adds
+ * Menos 1:1 · Servicio más bajo · Menos talleres, A39). Filters apply live; "Ver
  * N" only closes. The range and the sub-área reload the page data; a custom
  * range applies once both dates are valid, otherwise the sheet says why.
  */
@@ -15,6 +16,7 @@ import { CamposSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import { GrupoFiltro, HojaFiltros } from '@/components/ui/hoja-filtros'
 import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import {
+  ORDENES_CONEXIONES,
   ORDENES_GRUPOS,
   ORDENES_PERSONAS,
   rangosReportes,
@@ -40,6 +42,8 @@ export interface HojaFiltrosReportesProps {
   readonly onFiltros: (parche: Partial<FiltrosReportes>) => void
   readonly resultados: number
   readonly onLimpiar: () => void
+  /** The Living Room with its connections loaded (S21). */
+  readonly conConexiones?: boolean
 }
 
 function FechasPropias({ hoy, rango, onRango }: Pick<HojaFiltrosReportesProps, 'hoy' | 'rango' | 'onRango'>): ReactElement {
@@ -90,6 +94,7 @@ export function HojaFiltrosReportes({
   onFiltros,
   resultados,
   onLimpiar,
+  conConexiones = false,
 }: HojaFiltrosReportesProps): ReactElement {
   const grupos = filtros.tab === 'grupos'
   const totalGrupos = subareas.reduce((suma, s) => suma + s.grupos, 0)
@@ -128,7 +133,7 @@ export function HojaFiltrosReportes({
             ? ORDENES_GRUPOS.map((o) => (
                 <PastillaFiltro key={o.id} etiqueta={o.etiqueta} activa={filtros.ordenGrupos === o.id} onClick={() => onFiltros({ ordenGrupos: o.id as OrdenGruposReporte })} />
               ))
-            : ORDENES_PERSONAS.map((o) => (
+            : [...ORDENES_PERSONAS, ...(conConexiones ? ORDENES_CONEXIONES : [])].map((o) => (
                 <PastillaFiltro key={o.id} etiqueta={o.etiqueta} activa={filtros.ordenPersonas === o.id} onClick={() => onFiltros({ ordenPersonas: o.id as OrdenPersonasReporte })} />
               ))}
         </GrupoPastillas>
