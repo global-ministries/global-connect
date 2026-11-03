@@ -8,7 +8,9 @@
  * action follows `accionesPersonaMiEquipo` (the viewer's role narrowed by
  * what the server granted per servicio), so the director changes the stage,
  * the coordinador fixes fichas, shifts and invites but never the stage, and a
- * Grupos de Vida servicio stays read-only. The server checks each action again.
+ * Grupos de Vida servicio stays read-only. "Cambiar de área" follows
+ * `puedeCambiarArea` (director authority over the servicio's equipo, from the
+ * page), so a coordinador never sees it. The server checks each action again.
  *
  * The dialogs are the ones the old menu opened (AvanceEtapaControl,
  * TurnosServicioDialog, EditarFichaPanel, InvitarCuentaPanel). They live
@@ -19,17 +21,21 @@ import { useState, type ReactElement } from 'react'
 
 import { DetallePersona, type ServicioDetalle } from '@/components/dream-team/detalle-persona'
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
+import { CambiarAreaDialog } from '@/components/dream-team/cambiar-area-dialog'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { EditarFichaPanel } from '@/components/dream-team/servidores/editar-ficha-panel'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import type { RolMiEquipo } from '@/lib/platform/dream-team/acciones-servicio'
+import { puedeCambiarArea, type RolMiEquipo } from '@/lib/platform/dream-team/acciones-servicio'
 import { RANGO_EDAD_LABELS } from '@/lib/platform/dream-team/edad'
 import { isoLocal } from '@/lib/platform/dream-team/frecuencia-turno'
 import { accionesPersonaMiEquipo, textoTurnosMiEquipo, type TurnoMiEquipo } from '@/lib/platform/dream-team/mi-equipo-filtros'
 import type { PersonaAgrupada, PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
 
-type Accion = { readonly tipo: 'etapa' | 'turnos'; readonly servicio: PersonaVista } | { readonly tipo: 'ficha' | 'invitar' } | null
+type Accion =
+  | { readonly tipo: 'etapa' | 'turnos' | 'area'; readonly servicio: PersonaVista }
+  | { readonly tipo: 'ficha' | 'invitar' }
+  | null
 
 export interface DetalleMiEquipoProps {
   /** The person with every servicio in the dirección; `null` keeps the panel closed. */
@@ -82,6 +88,7 @@ export function DetalleMiEquipo({
       acciones: {
         cambiarEtapa: permitido.cambiarEtapa,
         turnos: permitido.turnosDe !== undefined,
+        cambiarArea: puedeCambiarArea(servicio),
         editarFicha: permitido.editarFicha,
         invitar: permitido.invitar,
         irAEquipo: nivelDe(servicio) !== undefined,
@@ -96,7 +103,7 @@ export function DetalleMiEquipo({
     setAccion(null)
     onActualizado()
   }
-  function elegirServicio(tipo: 'etapa' | 'turnos', clave: string): void {
+  function elegirServicio(tipo: 'etapa' | 'turnos' | 'area', clave: string): void {
     const servicio = servicioDe(clave)
     if (servicio) setAccion({ tipo, servicio })
   }
@@ -121,6 +128,7 @@ export function DetalleMiEquipo({
         onEditarFicha={() => setAccion({ tipo: 'ficha' })}
         onInvitar={() => setAccion({ tipo: 'invitar' })}
         onVerEquipo={verEquipo}
+        onCambiarArea={(clave) => elegirServicio('area', clave)}
       />
 
       {servicioAccion && permitidoAccion?.servicio && accion?.tipo === 'etapa' && (
@@ -143,6 +151,18 @@ export function DetalleMiEquipo({
           abierto
           onAbiertoChange={cerrarAccion}
           onGuardado={guardado}
+        />
+      )}
+
+      {servicioAccion?.servicioId && accion?.tipo === 'area' && (
+        <CambiarAreaDialog
+          servicioId={servicioAccion.servicioId}
+          nombre={persona.nombre}
+          equipoActual={servicioAccion.equipoLabel}
+          abierto
+          onAbiertoChange={cerrarAccion}
+          onGuardado={guardado}
+          toast={toast}
         />
       )}
 

@@ -12,8 +12,9 @@
  * tiene cuenta" → "Invitar a la plataforma"; with invitation data, the state
  * of the invitation to register, its history and actions, see
  * components/cuentas/aviso-invitacion-cuenta.tsx); then "Dónde sirve", one
- * card per servicio (Rol, Turno, Desde) with "Cambiar etapa", "Turnos" and
- * "Ver su equipo".
+ * card per servicio (Rol, Turno, Desde) with "Cambiar etapa", "Turnos",
+ * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2) and "Ver su
+ * equipo".
  *
  * Screen-agnostic: each screen maps its data and permissions to the neutral
  * props (lib/platform/dream-team/acciones-servicio.ts holds the rule) and owns
@@ -22,7 +23,7 @@
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ArrowRightLeft, Clock, MessageCircle, Phone, UserPen } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, Clock, MessageCircle, Phone, Shuffle, UserPen } from 'lucide-react'
 
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
@@ -53,6 +54,8 @@ export function formatearFecha(valor: string | null): string {
 export interface AccionesServicioDetalle {
   readonly cambiarEtapa: boolean
   readonly turnos: boolean
+  /** "Cambiar de área": director or coordinator authority over the servicio's equipo, not retired (puedeCambiarArea). */
+  readonly cambiarArea?: boolean
   /** "Editar ficha" (and "Corregir en la ficha") shows when any servicio allows it. */
   readonly editarFicha: boolean
   /** "Invitar a la plataforma" shows when any servicio allows it and the person has no account. */
@@ -111,6 +114,8 @@ export interface DetallePersonaProps {
   /** "Cancelar invitación": the panel closes and the screen confirms. */
   readonly onCancelarInvitacion?: () => void
   readonly reenviandoInvitacion?: boolean
+  /** "Cambiar de área" of a servicio with `cambiarArea`; absent hides it. */
+  readonly onCambiarArea?: (clave: string) => void
 }
 
 /** The invitation the drawer shows instead of the plain callout: an open one without account, or a registered one. */
@@ -136,14 +141,17 @@ function TarjetaServicio({
   onCambiarEtapa,
   onTurnos,
   onVerEquipo,
+  onCambiarArea,
 }: {
   readonly servicio: ServicioDetalle
   readonly onCambiarEtapa: () => void
   readonly onTurnos: () => void
   readonly onVerEquipo?: () => void
+  readonly onCambiarArea?: () => void
 }): ReactElement {
   const { acciones } = servicio
   const irAEquipo = acciones.verEquipo === undefined && acciones.irAEquipo === true && onVerEquipo !== undefined
+  const cambiarArea = acciones.cambiarArea === true && onCambiarArea !== undefined
   return (
     <TarjetaSistema role="group" aria-label={servicio.equipoNombre ?? servicio.equipoLabel} className="space-y-3 p-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -162,7 +170,7 @@ function TarjetaServicio({
           <DatoServicio etiqueta="Desde" valor={formatearFecha(servicio.desde)} />
         )}
       </dl>
-      {(acciones.cambiarEtapa || acciones.turnos || acciones.verEquipo !== undefined || irAEquipo) && (
+      {(acciones.cambiarEtapa || acciones.turnos || cambiarArea || acciones.verEquipo !== undefined || irAEquipo) && (
         <div className="flex flex-wrap items-center gap-2">
           {acciones.cambiarEtapa && (
             <BotonSistema type="button" variante="outline" tamaño="sm" icono={ArrowRightLeft} onClick={onCambiarEtapa}>
@@ -172,6 +180,11 @@ function TarjetaServicio({
           {acciones.turnos && (
             <BotonSistema type="button" variante="outline" tamaño="sm" icono={Clock} onClick={onTurnos}>
               Turnos
+            </BotonSistema>
+          )}
+          {cambiarArea && (
+            <BotonSistema type="button" variante="outline" tamaño="sm" icono={Shuffle} onClick={onCambiarArea}>
+              Cambiar de área
             </BotonSistema>
           )}
           {acciones.verEquipo !== undefined && (
@@ -203,6 +216,7 @@ export function DetallePersona({
   onReenviarInvitacion,
   onCancelarInvitacion,
   reenviandoInvitacion = false,
+  onCambiarArea,
 }: DetallePersonaProps): ReactElement {
   const editarFicha = servicios.some((s) => s.acciones.editarFicha)
   const invitar = servicios.some((s) => s.acciones.invitar)
@@ -318,6 +332,7 @@ export function DetallePersona({
               onCambiarEtapa={() => elegir(() => onCambiarEtapa(servicio.clave))}
               onTurnos={() => elegir(() => onTurnos(servicio.clave))}
               onVerEquipo={onVerEquipo ? () => elegir(() => onVerEquipo(servicio.clave)) : undefined}
+              onCambiarArea={onCambiarArea ? () => elegir(() => onCambiarArea(servicio.clave)) : undefined}
             />
           ))}
         </section>

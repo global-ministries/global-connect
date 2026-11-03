@@ -6,7 +6,9 @@
  * with the person's `FilaVista` rows. Every action follows `accionesDeServicio`
  * (lib/platform/dream-team/acciones-servicio.ts), the same rule the menu
  * applied, so a Grupos de Vida row stays read-only and a retired servicio
- * offers no stage or shift change. The server checks each action again.
+ * offers no stage or shift change. "Cambiar de área" follows `puedeCambiarArea`
+ * (director authority over the servicio's equipo, from the page). The server
+ * checks each action again.
  *
  * The action dialogs live outside the drawer: choosing one closes the drawer
  * and opens the dialog, so two modals never fight for focus.
@@ -19,10 +21,11 @@ import { useState, type ReactElement } from 'react'
 
 import { DetallePersona, type ServicioDetalle } from '@/components/dream-team/detalle-persona'
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
+import { CambiarAreaDialog } from '@/components/dream-team/cambiar-area-dialog'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { accionesDeServicio } from '@/lib/platform/dream-team/acciones-servicio'
+import { accionesDeServicio, puedeCambiarArea } from '@/lib/platform/dream-team/acciones-servicio'
 import type { FilaVista, PersonaLista } from '@/lib/platform/dream-team/servidores-vista'
 import { EditarFichaPanel } from './editar-ficha-panel'
 import { DialogoCancelarInvitacion, cancelarInvitacion, reenviarInvitacion } from './invitaciones-servidores'
@@ -30,7 +33,7 @@ import { DialogoCancelarInvitacion, cancelarInvitacion, reenviarInvitacion } fro
 export { formatearFecha } from '@/components/dream-team/detalle-persona'
 
 type Accion =
-  | { readonly tipo: 'etapa' | 'turnos'; readonly fila: FilaVista }
+  | { readonly tipo: 'etapa' | 'turnos' | 'area'; readonly fila: FilaVista }
   | { readonly tipo: 'ficha' | 'invitar' | 'cancelarInvitacion' }
   | null
 
@@ -58,6 +61,7 @@ function aServicio(fila: FilaVista): ServicioDetalle {
     acciones: {
       cambiarEtapa: acciones.cambiarEtapa,
       turnos: acciones.turnosDe !== undefined,
+      cambiarArea: puedeCambiarArea(fila),
       editarFicha: acciones.editarFicha,
       invitar: acciones.invitar,
       // Without any action there is not even "Ver su equipo".
@@ -84,7 +88,7 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
     setAccion(null)
     onActualizado()
   }
-  function elegirFila(tipo: 'etapa' | 'turnos', clave: string): void {
+  function elegirFila(tipo: 'etapa' | 'turnos' | 'area', clave: string): void {
     const fila = filaDe(clave)
     if (fila) setAccion({ tipo, fila })
   }
@@ -133,6 +137,7 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
         onReenviarInvitacion={reenviar}
         onCancelarInvitacion={() => setAccion({ tipo: 'cancelarInvitacion' })}
         reenviandoInvitacion={ocupado}
+        onCambiarArea={(clave) => elegirFila('area', clave)}
       />
 
       {filaAccion && servicioAccion?.servicio && accion?.tipo === 'etapa' && (
@@ -155,6 +160,18 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
           abierto
           onAbiertoChange={cerrarAccion}
           onGuardado={guardado}
+        />
+      )}
+
+      {filaAccion?.servicioId && accion?.tipo === 'area' && (
+        <CambiarAreaDialog
+          servicioId={filaAccion.servicioId}
+          nombre={persona.nombre}
+          equipoActual={filaAccion.equipoLabel}
+          abierto
+          onAbiertoChange={cerrarAccion}
+          onGuardado={guardado}
+          toast={toast}
         />
       )}
 

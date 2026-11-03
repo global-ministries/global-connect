@@ -11,7 +11,9 @@
  * (Calendario only when the scope serves a dated shift), then the Personas tab
  * (personas-mi-equipo.tsx) or the Calendario (calendario-turnos.tsx). A row
  * opens the person panel (detalle-mi-equipo.tsx), which holds every action
- * the viewer's role allows.
+ * the viewer's role allows. Above the tabs, "Solicitudes de cambio de área"
+ * (solicitudes-cambio-area.tsx) when the viewer has requests to resolve or
+ * sent some (odd/tasks/dream-team-cambiar-area.md, T2).
  *
  * On phones the shell's header holds the page h1 ("Mi equipo"), so the
  * content carries "‹ padre" and the Filtros button, and under them the large
@@ -34,6 +36,8 @@ import { TabsContent, TabsList, TabsSistema, TabsTrigger } from '@/components/ui
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
+import { SolicitudesCambioArea } from '@/components/dream-team/solicitudes-cambio-area'
+import type { SolicitudCambioArea } from '@/lib/platform/dream-team/cambiar-area'
 import { permisosMiEquipo, type RolMiEquipo } from '@/lib/platform/dream-team/acciones-servicio'
 import { isoLocal } from '@/lib/platform/dream-team/frecuencia-turno'
 import {
@@ -81,9 +85,12 @@ export interface MiEquipoClientProps {
   }[]
   /** Some active campus shift is dated: the scope asks for its Calendario. */
   readonly hayTurnosPorFechas?: boolean
+  /** Cambio-de-área requests the viewer resolves or sent (dream_team_solicitudes_cambio_area()); defaults to none. */
+  readonly solicitudesCambioArea?: readonly SolicitudCambioArea[]
 }
 
 const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
+const SIN_SOLICITUDES: readonly SolicitudCambioArea[] = []
 const RETRASO_BUSQUEDA_MS = 300
 
 export function MiEquipoClient(props: MiEquipoClientProps): ReactElement {
@@ -112,6 +119,7 @@ function MiEquipoVistaDireccion({
   rolesPorEquipo,
   turnos = SIN_TURNOS,
   hayTurnosPorFechas = false,
+  solicitudesCambioArea = SIN_SOLICITUDES,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
   const router = useRouter()
   const pathname = usePathname() ?? ''
@@ -224,6 +232,8 @@ function MiEquipoVistaDireccion({
         onIr={(miga) => cambiar(miga.parche)}
         filtros={tab === 'personas' ? { activos: vista.filtrosActivos, onAbrir: () => setHojaAbierta(true) } : undefined}
       />
+
+      <SolicitudesCambioArea solicitudes={solicitudesCambioArea} onResuelta={() => router.refresh()} toast={toast} />
 
       {hayCalendario && calendario.turnos ? (
         <TabsSistema value={tab} onValueChange={(valor) => cambiar({ tab: valor as PestanaMiEquipo })}>
