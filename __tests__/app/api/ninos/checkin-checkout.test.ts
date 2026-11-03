@@ -104,6 +104,70 @@ describe('POST /api/ninos/checkin', () => {
   })
 })
 
+describe('POST /api/ninos/checkin — labels (N6b)', () => {
+  const E1 = '55555555-5555-4555-8555-555555555555'
+  const filas = [{ nino_id: N1, salon_id: S1, codigo: '4821', ocupacion: 3, capacidad: 20, sobre_capacidad: false }]
+
+  it('without estacionId: the same response and no label is queued (PRESERVE)', async () => {
+    setup({ ninos_checkin: { data: filas }, ninos_correos_visita: { data: [] } })
+    const res = await checkin(req('checkin', cuerpoCheckin))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ filas })
+    await despuesDeResponder()
+    expect(rpc).not.toHaveBeenCalledWith('ninos_impresion_encolar', expect.anything())
+  })
+
+  it('with estacionId: the same response, and the labels are queued after it as the user', async () => {
+    setup({ ninos_checkin: { data: filas }, ninos_correos_visita: { data: [] }, ninos_impresion_encolar: { data: { ninos: 1, representantes: 1 } } })
+    const res = await checkin(req('checkin', { ...cuerpoCheckin, estacionId: E1 }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ filas })
+    expect(rpc).toHaveBeenCalledWith('ninos_checkin', { p_nino_ids: [N1], p_salon_ids: [S1], p_turno_id: T1, p_fecha: '2026-10-11' })
+    // The response does not wait for the queue.
+    expect(rpc).not.toHaveBeenCalledWith('ninos_impresion_encolar', expect.anything())
+    await despuesDeResponder()
+    expect(rpc).toHaveBeenCalledWith('ninos_impresion_encolar', { p_estacion_id: E1, p_turno_id: T1, p_fecha: '2026-10-11', p_nino_ids: [N1] })
+  })
+
+  it('a failed enqueue never changes the response nor the emails', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    setup({
+      ninos_checkin: { data: filas },
+      ninos_correos_visita: { data: [fila] },
+      ninos_impresion_encolar: { error: { code: '22023', message: 'estacion_inactiva' } },
+    })
+    const res = await checkin(req('checkin', { ...cuerpoCheckin, estacionId: E1 }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ filas })
+    await expect(despuesDeResponder()).resolves.toBeUndefined()
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+    expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
+
+    rpc.mockImplementation((nombre: string) =>
+      nombre === 'ninos_impresion_encolar' ? Promise.reject(new Error('down')) : Promise.resolve({ data: filas, error: null }),
+    )
+    const otra = await checkin(req('checkin', { ...cuerpoCheckin, estacionId: E1 }))
+    expect(otra.status).toBe(200)
+    await expect(despuesDeResponder()).resolves.toBeUndefined()
+    log.mockRestore()
+  })
+
+  it('a malformed estacionId never fails the check-in: it just does not print', async () => {
+    setup({ ninos_checkin: { data: filas }, ninos_correos_visita: { data: [] } })
+    const res = await checkin(req('checkin', { ...cuerpoCheckin, estacionId: 'mesa-1' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ filas })
+    await despuesDeResponder()
+    expect(rpc).not.toHaveBeenCalledWith('ninos_impresion_encolar', expect.anything())
+  })
+
+  it('a refused check-in queues nothing', async () => {
+    setup({ ninos_checkin: { error: { code: '23505', message: 'a child is already checked in' } } })
+    expect((await checkin(req('checkin', { ...cuerpoCheckin, estacionId: E1 }))).status).toBe(409)
+    expect(tareasAfter).toHaveLength(0)
+  })
+})
+
 describe('POST /api/ninos/checkout', () => {
   it('calls ninos_checkout as the user and emails the parents', async () => {
     const filas = [{ nino_id: N1, salon_id: S1, salida_at: '2026-10-11T14:42:00Z' }]

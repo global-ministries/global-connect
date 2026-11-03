@@ -6,9 +6,15 @@
  * with an email get one email per family visit, sent after the response with
  * after() (best effort: a failure is logged without personal data and the
  * check-in still succeeds).
+ *
+ * An optional `estacionId` (the desk's print station, N6b) queues the labels
+ * after the response too, as the user (ninos_impresion_encolar). Best effort:
+ * a missing or malformed station, or a failed enqueue, never changes the
+ * response nor its status.
  */
 import { after, NextRequest, NextResponse } from 'next/server'
 
+import { encolarEtiquetas, estacionDeCheckin } from '@/lib/platform/ninos/impresion'
 import { enviarAvisos } from '@/lib/platform/ninos/notificaciones'
 import { parseCheckin, statusDeError } from '@/lib/platform/ninos/visita-api'
 
@@ -32,6 +38,10 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: { code: error.code } }, { status: statusDeError(error.code) })
 
     after(() => enviarAvisos(dependenciasAvisos(supabase), { ninoIds: e.ninoIds, turnoId: e.turnoId, fecha: e.fecha, evento: 'ingreso' }))
+    const estacionId = estacionDeCheckin(body)
+    if (estacionId) {
+      after(() => encolarEtiquetas(rpcSinTipos(supabase), { estacionId, turnoId: e.turnoId, fecha: e.fecha, ninoIds: e.ninoIds }))
+    }
     return NextResponse.json({ filas: data ?? [] })
   } catch {
     console.error('[ninos/checkin] error inesperado')
