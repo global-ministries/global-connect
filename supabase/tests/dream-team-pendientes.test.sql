@@ -183,6 +183,13 @@ UPDATE public.usuarios SET cedula = NULL WHERE id IN (pg_temp.id('us', 22), pg_t
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT pg_temp.id('us', 5), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'admin';
 
+-- Staging validates a servicio's turno against the person's principal campus.
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal)
+SELECT u.id, (SELECT c.id FROM public.campus c ORDER BY c.id LIMIT 1), true
+  FROM public.usuarios u
+ WHERE u.id::text LIKE 'a1e70000-%'
+   AND NOT EXISTS (SELECT 1 FROM public.usuario_campus x WHERE x.usuario_id = u.id AND x.es_campus_principal);
+
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1),  'dps',         NULL,                 'ZZ Pe DPS',              true),
   (pg_temp.id('eq', 2),  'dps',         pg_temp.id('eq', 1),  'Producción Técnica',     true),
@@ -233,7 +240,8 @@ INSERT INTO public.dream_team_estados_historial (servicio_id, estado_anterior, e
 
 -- Every servicio has a shift except V13's, V20's, V21's in Cámaras and the retired ones.
 INSERT INTO public.dream_team_turnos (id, campus_id, nombre, dia_semana, hora)
-SELECT pg_temp.id('tu', 1), c.id, 'ZZ Pe Domingo', 0, '09:00' FROM public.campus c LIMIT 1;
+SELECT pg_temp.id('tu', 1), uc.campus_id, 'ZZ Pe Domingo', 0, '09:00'
+  FROM public.usuario_campus uc WHERE uc.usuario_id = pg_temp.id('us', 10) AND uc.es_campus_principal;
 INSERT INTO public.dream_team_servicio_turnos (servicio_id, turno_id)
 SELECT pg_temp.id('se', n), pg_temp.id('tu', 1)
   FROM unnest(ARRAY[10, 11, 12, 14, 15, 16, 17, 18, 19, 21, 23, 24, 4]) AS n;
