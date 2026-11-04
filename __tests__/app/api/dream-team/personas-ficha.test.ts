@@ -1,12 +1,14 @@
 /**
  * @jest-environment node
  *
- * Dream Team — GET/PATCH /api/dream-team/personas/[id]/ficha (T11).
+ * Dream Team — GET/PATCH /api/dream-team/personas/[id]/ficha (T11; the login
+ * email sync: odd/tasks/dream-team-pendientes-director.md, S8).
  */
 import { NextRequest } from 'next/server'
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn() }))
 jest.mock('@/lib/auth/platformSessionReadOnly', () => ({ resolveReadOnlyPlatformSession: jest.fn() }))
+jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: jest.fn() }))
 
 import { GET, PATCH } from '@/app/api/dream-team/personas/[id]/ficha/route'
 
@@ -110,5 +112,137 @@ describe('PATCH /api/dream-team/personas/[id]/ficha', () => {
   it('403 out of scope', async () => {
     setup({ error: { code: '42501', message: 'sin_autoridad' } })
     expect((await patch({ genero: 'Femenino' })).status).toBe(403)
+  })
+})
+
+describe('PATCH email of a person with account: the login follows (S8)', () => {
+  const createAdmin = jest.requireMock('@/lib/supabase/admin').createSupabaseAdminClient as jest.Mock
+
+  const AUTH_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const ANTES = { ...FILA, email: 'ana@vieja.test', tiene_cuenta: true, puede_editar_email: true }
+  let updateUserById: jest.Mock
+  let restaurar: jest.Mock
+  let filtrosRestaurar: Array<[string, unknown]>
+
+  /** The session RPCs answer by name; the admin client reads auth_id, updates auth and restores. */
+  function setupCuenta(opts: {
+    antes?: Record<string, unknown>
+    editar?: { data?: unknown; error?: unknown }
+    auth?: { error: unknown }
+    restaurado?: { data: unknown; error: unknown }
+  } = {}) {
+    const antes = opts.antes ?? ANTES
+    rpc = jest.fn().mockImplementation((fn: string, args: { p_datos?: Record<string, unknown> }) => {
+      if (fn === 'dream_team_ficha_persona') return Promise.resolve({ data: antes, error: null })
+      if (opts.editar?.error) return Promise.resolve({ data: null, error: opts.editar.error })
+      return Promise.resolve({ data: opts.editar?.data ?? { ...antes, ...args.p_datos }, error: null })
+    })
+    createClient.mockResolvedValue({ auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null }) }, rpc })
+    resolveSession.mockResolvedValue({ personaId: 'p-1', subjectAuthId: 'auth-1', globalRoles: [], contexts: [], capabilities: [] })
+
+    updateUserById = jest.fn().mockResolvedValue({ data: { user: { id: AUTH_ID } }, error: opts.auth?.error ?? null })
+    filtrosRestaurar = []
+    restaurar = jest.fn()
+    const cadenaRestaurar = {
+      eq: (columna: string, valor: unknown) => { filtrosRestaurar.push([columna, valor]); return cadenaRestaurar },
+      select: () => Promise.resolve(opts.restaurado ?? { data: [{ id: ID }], error: null }),
+    }
+    const from = jest.fn().mockImplementation(() => ({
+      select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: { auth_id: AUTH_ID }, error: null }) }) }),
+      update: (valores: unknown) => { restaurar(valores); return cadenaRestaurar },
+    }))
+    createAdmin.mockReturnValue({ auth: { admin: { updateUserById } }, from })
+  }
+
+  it('a non-admin (the database refuses) gets 403 and the admin client is never created', async () => {
+    setupCuenta({
+      antes: { ...ANTES, puede_editar_email: false },
+      editar: { error: { code: '42501', message: 'email_solo_admin' } },
+    })
+    const res = await patch({ email: 'ana@nueva.test' })
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe('Solo un administrador puede cambiar el correo de quien ya tiene cuenta.')
+    expect(createAdmin).not.toHaveBeenCalled()
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('an admin: the RPC saves first, then the login email changes to the same address', async () => {
+    setupCuenta()
+    const res = await patch({ email: ' Ana@Nueva.TEST ' })
+    expect(res.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('dream_team_editar_ficha', { p_persona_id: ID, p_datos: { email: 'ana@nueva.test' } })
+    expect(updateUserById).toHaveBeenCalledTimes(1)
+    expect(updateUserById).toHaveBeenCalledWith(AUTH_ID, { email: 'ana@nueva.test', email_confirm: true })
+    expect(rpc.mock.invocationCallOrder.at(-1)!).toBeLessThan(updateUserById.mock.invocationCallOrder[0])
+    expect(restaurar).not.toHaveBeenCalled()
+    expect((await res.json()).ficha.email).toBe('ana@nueva.test')
+  })
+
+  it('the auth update fails: usuarios.email goes back to the previous one and the answer says so', async () => {
+    setupCuenta({ auth: { error: { message: 'Service unavailable', status: 503 } } })
+    const res = await patch({ email: 'ana@nueva.test' })
+    expect(res.status).toBe(502)
+    expect((await res.json()).error).toBe('No se pudo cambiar el correo de inicio de sesión; no se guardó ningún cambio de correo.')
+    expect(restaurar).toHaveBeenCalledWith({ email: 'ana@vieja.test' })
+    // Only if it still holds the new email (never overwrites a later change).
+    expect(filtrosRestaurar).toEqual([['id', ID], ['email', 'ana@nueva.test']])
+  })
+
+  it('an email auth already holds: restored and 409 with the uniqueness message', async () => {
+    setupCuenta({ auth: { error: { code: 'email_exists', message: 'A user with this email address has already been registered', status: 422 } } })
+    const res = await patch({ email: 'ana@nueva.test' })
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toBe('Ese correo ya lo usa otra persona.')
+    expect(restaurar).toHaveBeenCalledWith({ email: 'ana@vieja.test' })
+  })
+
+  it('the restore fails too: 500, never a 200', async () => {
+    setupCuenta({ auth: { error: { message: 'boom' } }, restaurado: { data: null, error: { message: 'down' } } })
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await patch({ email: 'ana@nueva.test' })
+    expect(res.status).toBe(500)
+    expect((await res.json()).error).toBe('No se pudo cambiar el correo de inicio de sesión ni restaurar el anterior. Avisa a soporte.')
+  })
+
+  it('other fields of the same PATCH stay saved when only the login sync fails', async () => {
+    setupCuenta({ auth: { error: { message: 'boom' } } })
+    const res = await patch({ telefono: '0414-1234567', email: 'ana@nueva.test' })
+    expect(res.status).toBe(502)
+    expect(rpc).toHaveBeenCalledWith('dream_team_editar_ficha', {
+      p_persona_id: ID,
+      p_datos: { telefono: '0414-1234567', email: 'ana@nueva.test' },
+    })
+    expect(restaurar).toHaveBeenCalledTimes(1)
+    expect(restaurar).toHaveBeenCalledWith({ email: 'ana@vieja.test' })
+  })
+
+  it('a person without account: the RPC only, auth never touched', async () => {
+    setupCuenta({ antes: { ...ANTES, tiene_cuenta: false } })
+    expect((await patch({ email: 'ana@nueva.test' })).status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('dream_team_editar_ficha', { p_persona_id: ID, p_datos: { email: 'ana@nueva.test' } })
+    expect(createAdmin).not.toHaveBeenCalled()
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('the same email in another case is not a change: auth never touched', async () => {
+    setupCuenta()
+    expect((await patch({ email: 'ANA@Vieja.test' })).status).toBe(200)
+    expect(createAdmin).not.toHaveBeenCalled()
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('a PATCH without email does not read the previous ficha nor touch auth', async () => {
+    setupCuenta()
+    expect((await patch({ telefono: '0414-1234567' })).status).toBe(200)
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('dream_team_editar_ficha', { p_persona_id: ID, p_datos: { telefono: '0414-1234567' } })
+    expect(createAdmin).not.toHaveBeenCalled()
+  })
+
+  it('the RPC refuses an email another person holds: 409, auth never touched', async () => {
+    setupCuenta({ editar: { error: { code: '23505', message: 'email_en_uso' } } })
+    const res = await patch({ email: 'ana@nueva.test' })
+    expect(res.status).toBe(409)
+    expect(updateUserById).not.toHaveBeenCalled()
   })
 })

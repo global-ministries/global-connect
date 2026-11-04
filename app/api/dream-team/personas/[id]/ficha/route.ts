@@ -6,7 +6,10 @@
  * PATCH { fechaNacimiento?, cedula?, genero?, estadoCivil?, telefono?, redesSociales?, email? }
  *       → { ficha }: partial update, only the keys present change. The email of
  *       a person with account only by an admin (20261106100000): otherwise 403
- *       with that reason; an email another person holds → 409.
+ *       with that reason; an email another person holds → 409. When an admin
+ *       changes it, the login email (auth.users) follows; if that fails the
+ *       ficha's email goes back and the answer is 502 (409 when auth already
+ *       holds the address), the other fields stay saved (ficha-correo-auth.ts, S8).
  *
  * There is no capability gate here, as in POST /api/dream-team/usuarios: the
  * volunteer coordinator's only grant is dream_team.coordinate, so the database
@@ -16,9 +19,11 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isDreamTeamEnabled, requireDreamTeamSession } from '@/lib/platform/dream-team/route-access'
 import { esUuid } from '@/lib/platform/dream-team/alta-persona'
+import { adminCorreoDesdeCliente, editarFichaConCorreo } from '@/lib/platform/dream-team/ficha-correo-auth'
 import { mapFicha, mapFichaError, parseEditarFicha } from '@/lib/platform/dream-team/ficha-persona'
 
 // The functions are not in the generated database types yet, so the call is
@@ -70,9 +75,16 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     const input = parseEditarFicha(body)
     if ('error' in input) return NextResponse.json({ error: input.error }, { status: 400 })
 
-    const { data, error } = await rpcSinTipos(await createSupabaseServerClient())('dream_team_editar_ficha', { p_persona_id: id, p_datos: input.datos })
-    if (error) return fallo(error, 'PATCH')
-    return NextResponse.json({ ficha: mapFicha(data) })
+    const r = await editarFichaConCorreo(
+      { rpcUsuario: rpcSinTipos(await createSupabaseServerClient()), admin: () => adminCorreoDesdeCliente(createSupabaseAdminClient()) },
+      id,
+      input.datos,
+    )
+    if (!r.ok) {
+      if (r.causa !== undefined) console.error('[dream-team/personas/[id]/ficha PATCH] error:', id, r.causa)
+      return NextResponse.json({ error: r.error }, { status: r.status })
+    }
+    return NextResponse.json({ ficha: mapFicha(r.data) })
   } catch (error) {
     console.error('[dream-team/personas/[id]/ficha PATCH] error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

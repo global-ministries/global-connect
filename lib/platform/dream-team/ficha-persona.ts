@@ -16,7 +16,7 @@
  * is editable for a person without account; with an account it is their
  * login, so only an admin may change it. The database answers whether the
  * caller may (puedeEditarEmail) and refuses otherwise (email_solo_admin);
- * the auth account's own email is never touched here.
+ * the login email (auth.users) follows in ficha-correo-auth.ts (S8).
  *
  * An area director may fix the fichas of the people of their area and register
  * new people into it too (20261105100000, odd/tasks/dream-team-directores-fichas.md,
