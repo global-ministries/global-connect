@@ -83,6 +83,30 @@ describe('PATCH /api/dream-team/personas/[id]/ficha', () => {
     expect(res.status).toBe(409)
     expect((await res.json()).error).toBe('Esa cédula ya pertenece a otra persona')
   })
+  it('sends the email in the RPC name, trimmed and lowercased (S3)', async () => {
+    setup({ data: FILA })
+    expect((await patch({ email: ' Ana@Example.TEST ' })).status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('dream_team_editar_ficha', { p_persona_id: ID, p_datos: { email: 'ana@example.test' } })
+  })
+  it('400 for a bad email, without calling the RPC', async () => {
+    setup()
+    const res = await patch({ email: 'sin-arroba' })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('Escribe un correo válido')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+  it('403 with the S3 message when only an admin may change the email', async () => {
+    setup({ error: { code: '42501', message: 'email_solo_admin' } })
+    const res = await patch({ email: 'otra@example.test' })
+    expect(res.status).toBe(403)
+    expect((await res.json()).error).toBe('Solo un administrador puede cambiar el correo de quien ya tiene cuenta.')
+  })
+  it('409 for an email another person holds', async () => {
+    setup({ error: { code: '23505', message: 'email_en_uso' } })
+    const res = await patch({ email: 'otra@example.test' })
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toBe('Ese correo ya lo usa otra persona.')
+  })
   it('403 out of scope', async () => {
     setup({ error: { code: '42501', message: 'sin_autoridad' } })
     expect((await patch({ genero: 'Femenino' })).status).toBe(403)

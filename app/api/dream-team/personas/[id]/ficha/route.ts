@@ -3,8 +3,10 @@
  * odd/tasks/ninos-voluntarios-waumba.md).
  *
  * GET   → { ficha }: the editable fields, to prefill the "Editar ficha" panel.
- * PATCH { fechaNacimiento?, cedula?, genero?, estadoCivil?, telefono?, redesSociales? }
- *       → { ficha }: partial update, only the keys present change.
+ * PATCH { fechaNacimiento?, cedula?, genero?, estadoCivil?, telefono?, redesSociales?, email? }
+ *       → { ficha }: partial update, only the keys present change. The email of
+ *       a person with account only by an admin (20261106100000): otherwise 403
+ *       with that reason; an email another person holds → 409.
  *
  * There is no capability gate here, as in POST /api/dream-team/usuarios: the
  * volunteer coordinator's only grant is dream_team.coordinate, so the database

@@ -7,7 +7,9 @@ const ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const FICHA = {
   id: ID, nombre: 'Ana', apellido: 'Pérez', fechaNacimiento: null, cedula: null,
   genero: 'Femenino', estadoCivil: 'No especificado', telefono: '04141234567', redesSociales: null,
+  email: 'ana@example.test', tieneCuenta: false, puedeEditarEmail: true,
 }
+const BLOQUEO = 'Solo un administrador puede cambiar el correo de quien ya tiene cuenta.'
 
 function respuesta(status: number, cuerpo: unknown) {
   return Promise.resolve({ ok: status < 400, status, json: () => Promise.resolve(cuerpo) } as Response)
@@ -90,6 +92,57 @@ describe('EditarFichaPanel', () => {
     fetchMock.mockReturnValueOnce(respuesta(403, { error: 'Permiso denegado' }))
     abrir()
     expect(await screen.findByRole('alert')).toHaveTextContent('Permiso denegado')
+  })
+})
+
+describe('EditarFichaPanel — Correo (S3 of odd/tasks/dream-team-pendientes-director.md)', () => {
+  it('without account the email is editable and travels when it changes', async () => {
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: FICHA }))
+    const { onGuardado } = abrir()
+    const correo = await screen.findByLabelText('Correo')
+    expect(correo).toHaveValue('ana@example.test')
+    expect(correo).toBeEnabled()
+    expect(screen.queryByText(BLOQUEO)).not.toBeInTheDocument()
+    expect(screen.getByText('Todavía no tiene cuenta, así que puedes corregir su correo.')).toBeInTheDocument()
+    await userEvent.clear(correo)
+    await userEvent.type(correo, 'Ana.Perez@Example.test')
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: { ...FICHA, email: 'ana.perez@example.test' } }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(onGuardado).toHaveBeenCalled())
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ email: 'Ana.Perez@Example.test' })
+  })
+
+  it('with account and without admin the email is locked, explained, and never sent', async () => {
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: { ...FICHA, tieneCuenta: true, puedeEditarEmail: false } }))
+    const { onGuardado } = abrir()
+    const correo = await screen.findByLabelText('Correo')
+    expect(correo).toHaveValue('ana@example.test')
+    expect(correo).toBeDisabled()
+    expect(correo).toHaveAccessibleDescription(BLOQUEO)
+    await userEvent.clear(screen.getByLabelText('Teléfono'))
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: { ...FICHA, telefono: null } }))
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(onGuardado).toHaveBeenCalled())
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ telefono: '' })
+  })
+
+  it('with account an admin may change it (the database says so)', async () => {
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: { ...FICHA, tieneCuenta: true, puedeEditarEmail: true } }))
+    abrir()
+    const correo = await screen.findByLabelText('Correo')
+    expect(correo).toBeEnabled()
+    expect(screen.queryByText(BLOQUEO)).not.toBeInTheDocument()
+  })
+
+  it('validates the email format before calling the API', async () => {
+    fetchMock.mockReturnValueOnce(respuesta(200, { ficha: FICHA }))
+    abrir()
+    const correo = await screen.findByLabelText('Correo')
+    await userEvent.clear(correo)
+    await userEvent.type(correo, 'ana@example')
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Escribe un correo válido')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 
