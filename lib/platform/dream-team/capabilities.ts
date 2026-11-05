@@ -87,6 +87,13 @@ export const hasDreamTeamMiEquipoAccess = (session: PlatformSession) =>
   isGdvDirectorSession(session) ||
   hasScopedCapabilityAnywhere(session, 'dream_team.coordinate')
 
+// "Pendientes" (odd/tasks/dream-team-pendientes-director.md, T4): the Mi equipo authorities whose
+// scope dream_team_pendientes() reads — a reader (director, org.manage, metrics) or an area
+// coordinator — but not a Grupos de Vida director by system role alone, who has no Dream Team
+// servicios to fix. Whoever registers people also opens it (puedeRegistrar, server-side).
+export const hasDreamTeamPendientesAccess = (session: PlatformSession) =>
+  hasDreamTeamReadCapability(session) || hasScopedCapabilityAnywhere(session, 'dream_team.coordinate')
+
 export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
   hasCapability(session, 'dream_team.metrics.read')
 

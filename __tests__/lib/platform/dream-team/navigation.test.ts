@@ -44,8 +44,11 @@ const orgManageCap: PlatformSessionCapability = {
   source: 'manual',
 }
 
+// Pendientes (odd/tasks/dream-team-pendientes-director.md, T4) right after Mi
+// equipo, which stays first: it is where the Dream Team group itself links.
 const EXPECTED_HREFS = [
   '/dream-team/mi-equipo',
+  '/dream-team/pendientes',
   '/admin/dream-team/servidores',
   '/admin/dream-team/estructura',
 ]
@@ -68,17 +71,17 @@ describe('getDreamTeamNavItems', () => {
     expect(getDreamTeamNavItems(makeSession([serveCap]), true)).toEqual([])
   })
 
-  it('returns the three items for a session holding dream_team.direct scoped to an equipo', () => {
+  it('returns the four items for a session holding dream_team.direct scoped to an equipo', () => {
     const items = getDreamTeamNavItems(makeSession([directCap]), true)
     expect(items.map((item) => item.href).sort()).toEqual([...EXPECTED_HREFS].sort())
   })
 
-  it('returns the three items for a session holding the global dream_team.org.manage', () => {
+  it('returns the four items for a session holding the global dream_team.org.manage', () => {
     const items = getDreamTeamNavItems(makeSession([orgManageCap]), true)
     expect(items.map((item) => item.href).sort()).toEqual([...EXPECTED_HREFS].sort())
   })
 
-  it('DREAM_TEAM_NAV_ITEMS carries exactly the three expected screens', () => {
+  it('DREAM_TEAM_NAV_ITEMS carries exactly the four expected screens', () => {
     expect(DREAM_TEAM_NAV_ITEMS.map((item) => item.href)).toEqual(EXPECTED_HREFS)
   })
 })
@@ -106,17 +109,34 @@ describe('isDreamTeamEnabledClient parity with isDreamTeamEnabled', () => {
 })
 
 describe('getDreamTeamNavItems — the volunteer coordinator (T11)', () => {
-  it('gives Mi equipo alone to someone who may register people (flag computed server-side)', () => {
+  it('gives Mi equipo and Pendientes to someone who may register people (flag computed server-side)', () => {
     expect(getDreamTeamNavItems(makeSession([serveCap]), true, { puedeRegistrar: true }).map((i) => i.href)).toEqual([
       '/dream-team/mi-equipo',
+      '/dream-team/pendientes',
     ])
   })
   it('gives nothing without the flag, and nothing with the Dream Team flag off', () => {
     expect(getDreamTeamNavItems(makeSession([serveCap]), true, { puedeRegistrar: false })).toEqual([])
     expect(getDreamTeamNavItems(makeSession([serveCap]), false, { puedeRegistrar: true })).toEqual([])
   })
-  it('keeps the three screens for a read capability', () => {
+  it('keeps the four screens for a read capability', () => {
     expect(getDreamTeamNavItems(makeSession([orgManageCap]), true, { puedeRegistrar: true })).toEqual(DREAM_TEAM_NAV_ITEMS)
   })
 })
 
+
+describe('getDreamTeamNavItems — Pendientes (odd/tasks/dream-team-pendientes-director.md, T4)', () => {
+  const coordinateCap: PlatformSessionCapability = { ...directCap, key: 'dream_team.coordinate' }
+
+  it('gives an area coordinator Mi equipo and Pendientes', () => {
+    expect(getDreamTeamNavItems(makeSession([coordinateCap]), true).map((i) => i.href)).toEqual([
+      '/dream-team/mi-equipo',
+      '/dream-team/pendientes',
+    ])
+  })
+
+  it('gives a Grupos de Vida director by role alone Mi equipo only: they have no Dream Team pendientes', () => {
+    const director = { ...makeSession([]), globalRoles: ['director-etapa'] }
+    expect(getDreamTeamNavItems(director, true).map((i) => i.href)).toEqual(['/dream-team/mi-equipo'])
+  })
+})

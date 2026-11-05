@@ -13,7 +13,9 @@
  * opens the person panel (detalle-mi-equipo.tsx), which holds every action
  * the viewer's role allows. Above the tabs, "Solicitudes de cambio de área"
  * (solicitudes-cambio-area.tsx) when the viewer has requests to resolve or
- * sent some (odd/tasks/dream-team-cambiar-area.md, T2).
+ * sent some (odd/tasks/dream-team-cambiar-area.md, T2). Above both, on every
+ * tab, the Pendientes strip ("% en orden" and urgentes, linking to
+ * /dream-team/pendientes; odd/tasks/dream-team-pendientes-director.md, T4).
  *
  * On phones the shell's header holds the page h1 ("Mi equipo"), so the
  * content carries "‹ padre" and the Filtros button, and under them the large
@@ -35,9 +37,12 @@ import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { TabsContent, TabsList, TabsSistema, TabsTrigger } from '@/components/ui/TabsSistema'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { useCampus } from '@/hooks/useCampus'
+import { useFijarUrgentesPendientes } from '@/hooks/useDreamTeamAcceso'
 import { AsignadorServicioDialog } from '@/components/dream-team/asignador-servicio-dialog'
+import { FranjaPendientes } from '@/components/dream-team/pendientes/franja-pendientes'
 import { SolicitudesCambioArea } from '@/components/dream-team/solicitudes-cambio-area'
 import type { SolicitudCambioArea } from '@/lib/platform/dream-team/cambiar-area'
+import type { ResumenPendientes } from '@/lib/platform/dream-team/pendientes'
 import { permisosMiEquipo, type RolMiEquipo } from '@/lib/platform/dream-team/acciones-servicio'
 import { isoLocal } from '@/lib/platform/dream-team/frecuencia-turno'
 import {
@@ -87,6 +92,8 @@ export interface MiEquipoClientProps {
   readonly hayTurnosPorFechas?: boolean
   /** Cambio-de-área requests the viewer resolves or sent (dream_team_solicitudes_cambio_area()); defaults to none. */
   readonly solicitudesCambioArea?: readonly SolicitudCambioArea[]
+  /** dream_team_pendientes_resumen() for the strip; none when absent or unread. */
+  readonly resumenPendientes?: ResumenPendientes | null
 }
 
 const SIN_TURNOS: NonNullable<MiEquipoClientProps['turnos']> = []
@@ -120,8 +127,10 @@ function MiEquipoVistaDireccion({
   turnos = SIN_TURNOS,
   hayTurnosPorFechas = false,
   solicitudesCambioArea = SIN_SOLICITUDES,
+  resumenPendientes = null,
 }: MiEquipoClientProps & { readonly vista: VistaDireccion }): ReactElement {
   const router = useRouter()
+  useFijarUrgentesPendientes(resumenPendientes?.urgentes ?? null)
   const pathname = usePathname() ?? ''
   const toast = useNotificaciones()
   // The campus selected in the app header (read only); `null` = every campus.
@@ -232,6 +241,8 @@ function MiEquipoVistaDireccion({
         onIr={(miga) => cambiar(miga.parche)}
         filtros={tab === 'personas' ? { activos: vista.filtrosActivos, onAbrir: () => setHojaAbierta(true) } : undefined}
       />
+
+      <FranjaPendientes resumen={resumenPendientes} />
 
       <SolicitudesCambioArea solicitudes={solicitudesCambioArea} onResuelta={() => router.refresh()} toast={toast} />
 

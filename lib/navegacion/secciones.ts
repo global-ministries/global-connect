@@ -49,7 +49,9 @@ export function agruparPorSeccion<T extends { seccion: SeccionNavegacion }>(entr
 export const MAX_PESTANAS = 4
 
 // Tab priority (S9.7): Inicio, Grupos, Niños (if allowed), Equipo (Dream Team
-// if allowed), then filled with Talleres and Ayuda. `labelMovil` is the tab
+// if allowed), Pendientes (the Dream Team page with the urgentes count, for
+// whoever has team authority: odd/tasks/dream-team-pendientes-director.md, T4),
+// then filled with Talleres and Ayuda. `labelMovil` is the tab
 // text when the entry has none (a scoped Talleres item is labelled
 // "Talleres — <scope>").
 const PRIORIDAD_PESTANAS: readonly { es: (entrada: { id: string }) => boolean; labelMovil?: string }[] = [
@@ -57,6 +59,7 @@ const PRIORIDAD_PESTANAS: readonly { es: (entrada: { id: string }) => boolean; l
   { es: (entrada) => entrada.id === 'grupos-vida' },
   { es: (entrada) => entrada.id === 'ninos' },
   { es: (entrada) => entrada.id === 'dream-team' },
+  { es: (entrada) => entrada.id === 'dt-pendientes' },
   { es: (entrada) => entrada.id.startsWith('platform-talleres_participation-'), labelMovil: 'Talleres' },
   { es: (entrada) => entrada.id === 'ayuda' },
 ]

@@ -49,27 +49,27 @@ function accesos() {
 }
 
 describe('AccesosSeccion for Dream Team', () => {
-  it('lists Mi equipo, Servidores and Estructura for a reader, each with a description', () => {
+  it('lists Mi equipo, Pendientes, Servidores and Estructura for a reader, each with a description', () => {
     currentPlatformSession = lector
     render(<AccesosSeccion seccion="dream-team" />)
 
     const enlaces = accesos().getAllByRole('link')
     expect(enlaces.map((enlace) => enlace.getAttribute('href'))).toEqual([
-      '/dream-team/mi-equipo', '/admin/dream-team/servidores', '/admin/dream-team/estructura',
+      '/dream-team/mi-equipo', '/dream-team/pendientes', '/admin/dream-team/servidores', '/admin/dream-team/estructura',
     ])
     const servidores = accesos().getByRole('link', { name: /Servidores/ })
     expect(servidores.querySelector('[data-slot="descripcion"]')?.textContent).toBeTruthy()
     expect(servidores).toHaveClass('min-h-16')
   })
 
-  it('lists only Mi equipo for an area coordinator', () => {
+  it('lists only Mi equipo and Pendientes for an area coordinator', () => {
     currentPlatformSession = coordinador
     render(<AccesosSeccion seccion="dream-team" />)
 
-    expect(accesos().getAllByRole('link').map((enlace) => enlace.getAttribute('href'))).toEqual(['/dream-team/mi-equipo'])
+    expect(accesos().getAllByRole('link').map((enlace) => enlace.getAttribute('href'))).toEqual(['/dream-team/mi-equipo', '/dream-team/pendientes'])
   })
 
-  it('lists only Mi equipo for whoever may register people', () => {
+  it('lists only Mi equipo and Pendientes for whoever may register people', () => {
     currentPlatformSession = base
     render(
       <DreamTeamAccesoProvider puedeRegistrar>
@@ -77,7 +77,7 @@ describe('AccesosSeccion for Dream Team', () => {
       </DreamTeamAccesoProvider>,
     )
 
-    expect(accesos().getAllByRole('link').map((enlace) => enlace.getAttribute('href'))).toEqual(['/dream-team/mi-equipo'])
+    expect(accesos().getAllByRole('link').map((enlace) => enlace.getAttribute('href'))).toEqual(['/dream-team/mi-equipo', '/dream-team/pendientes'])
   })
 
   it('shows the empty state when the user can open no Dream Team page', () => {

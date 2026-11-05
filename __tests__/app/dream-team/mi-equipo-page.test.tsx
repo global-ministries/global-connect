@@ -27,6 +27,8 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
   requireDreamTeamSession: () => requireDreamTeamSession(),
   hasDreamTeamMiEquipoAccess: () => hasDreamTeamMiEquipoAccess(),
   hasDreamTeamWriteCapability: () => hasDreamTeamWriteCapability(),
+  // The Pendientes strip (odd/tasks/dream-team-pendientes-director.md, T4) asks the same gate as its page.
+  hasDreamTeamPendientesAccess: () => hasDreamTeamWriteCapability(),
 }))
 
 // dream_team_equipos_registrables: `null` = the lookup fails (no rpc at all).

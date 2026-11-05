@@ -1,4 +1,4 @@
-import { hasDreamTeamMiEquipoAccess, hasDreamTeamReadCapability } from './capabilities'
+import { hasDreamTeamMiEquipoAccess, hasDreamTeamPendientesAccess, hasDreamTeamReadCapability } from './capabilities'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 /**
@@ -16,15 +16,18 @@ export type DreamTeamNavItem = {
   href: string
 }
 
-// The three Dream Team screens, in the order they should appear under the
-// sidebar's "Dream Team" parent. All three gate on hasDreamTeamReadCapability
-// (see app/(auth)/dream-team/mi-equipo/page.tsx and the two page.tsx files
-// under app/(auth)/admin/dream-team/) — mirrored below — except that Mi equipo
-// also opens for a Grupos de Vida director by system role and for an area or
-// sub-area coordinator, read-only (hasDreamTeamMiEquipoAccess), who then see
-// that one item only.
+// The Dream Team screens, in the order they should appear under the sidebar's
+// "Dream Team" parent. All gate on hasDreamTeamReadCapability (see
+// app/(auth)/dream-team/mi-equipo/page.tsx, app/(auth)/dream-team/pendientes/page.tsx
+// and the two page.tsx files under app/(auth)/admin/dream-team/) — mirrored
+// below — except that Mi equipo also opens for a Grupos de Vida director by
+// system role and for an area or sub-area coordinator, read-only
+// (hasDreamTeamMiEquipoAccess), and Pendientes for that coordinator
+// (hasDreamTeamPendientesAccess), who then see those items only. Mi equipo
+// stays first: the group itself links there.
 export const DREAM_TEAM_NAV_ITEMS: readonly DreamTeamNavItem[] = [
   { id: 'dt-mi-equipo', label: 'Mi equipo', href: '/dream-team/mi-equipo' },
+  { id: 'dt-pendientes', label: 'Pendientes', href: '/dream-team/pendientes' },
   { id: 'dt-servidores', label: 'Servidores', href: '/admin/dream-team/servidores' },
   { id: 'dt-estructura', label: 'Estructura', href: '/admin/dream-team/estructura' },
 ]
@@ -52,19 +55,21 @@ export function isDreamTeamEnabledClient(): boolean {
   return value === 'true' || value === 'on'
 }
 
-// What a Grupos de Vida director (system role) or an area coordinator
-// (dream_team.coordinate) gets without a read capability: Mi equipo alone. Same id, label and href as the first of the three items above.
+// What a Grupos de Vida director (system role) gets without a read capability:
+// Mi equipo alone; an area coordinator (dream_team.coordinate) or whoever
+// registers people, Mi equipo and Pendientes. The same items as above.
 const DREAM_TEAM_MI_EQUIPO_ONLY: readonly DreamTeamNavItem[] = DREAM_TEAM_NAV_ITEMS.slice(0, 1)
+const DREAM_TEAM_MI_EQUIPO_Y_PENDIENTES: readonly DreamTeamNavItem[] = DREAM_TEAM_NAV_ITEMS.slice(0, 2)
 
 /**
  * Resolves the Dream Team sidebar items for a session — [] when the flag is
  * off, there is no session, or the session can open none of the screens.
- * A session that passes hasDreamTeamReadCapability gets the three items in
- * DREAM_TEAM_NAV_ITEMS order; a Grupos de Vida director or an area coordinator
- * without a read capability gets Mi equipo alone (Servidores and Estructura
- * still need one).
- * So does whoever may register new people (`acceso.puedeRegistrar`, the
- * volunteer coordinator of an area, T11): a fact the session does not carry,
+ * A session that passes hasDreamTeamReadCapability gets every item in
+ * DREAM_TEAM_NAV_ITEMS order; an area coordinator without a read capability
+ * gets Mi equipo and Pendientes, a Grupos de Vida director Mi equipo alone
+ * (Servidores and Estructura still need one).
+ * Whoever may register new people (`acceso.puedeRegistrar`, the volunteer
+ * coordinator of an area, T11) gets Mi equipo and Pendientes too: a fact the session does not carry,
  * computed server-side by the (auth) layout and handed down.
  */
 export function getDreamTeamNavItems(
@@ -74,6 +79,7 @@ export function getDreamTeamNavItems(
 ): readonly DreamTeamNavItem[] {
   if (!enabled || !session) return []
   if (hasDreamTeamReadCapability(session)) return DREAM_TEAM_NAV_ITEMS
-  if (hasDreamTeamMiEquipoAccess(session) || acceso.puedeRegistrar === true) return DREAM_TEAM_MI_EQUIPO_ONLY
+  if (hasDreamTeamPendientesAccess(session) || acceso.puedeRegistrar === true) return DREAM_TEAM_MI_EQUIPO_Y_PENDIENTES
+  if (hasDreamTeamMiEquipoAccess(session)) return DREAM_TEAM_MI_EQUIPO_ONLY
   return []
 }

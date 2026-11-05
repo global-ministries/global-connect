@@ -39,7 +39,9 @@ const directCap: PlatformSessionCapability = {
 }
 
 const MI_EQUIPO = '/dream-team/mi-equipo'
-const TRES_PANTALLAS = [MI_EQUIPO, '/admin/dream-team/servidores', '/admin/dream-team/estructura']
+// Pendientes (odd/tasks/dream-team-pendientes-director.md, T4) joined right after Mi equipo.
+const PENDIENTES = '/dream-team/pendientes'
+const PANTALLAS = [MI_EQUIPO, PENDIENTES, '/admin/dream-team/servidores', '/admin/dream-team/estructura']
 
 describe('isGdvDirectorSession', () => {
   it.each([['director-general'], ['director-etapa']])('is true for the system role %s', (rol) => {
@@ -111,10 +113,10 @@ describe('getDreamTeamNavItems for directors', () => {
     ])
   })
 
-  it('a capability holder sees the three screens, even with a director role', () => {
-    expect(getDreamTeamNavItems(makeSession([], [orgManageCap]), true).map((i) => i.href)).toEqual(TRES_PANTALLAS)
+  it('a capability holder sees every screen, even with a director role', () => {
+    expect(getDreamTeamNavItems(makeSession([], [orgManageCap]), true).map((i) => i.href)).toEqual(PANTALLAS)
     expect(getDreamTeamNavItems(makeSession(['director-etapa'], [directCap]), true).map((i) => i.href)).toEqual(
-      TRES_PANTALLAS,
+      PANTALLAS,
     )
   })
 
@@ -158,8 +160,8 @@ describe('area and sub-area coordinators', () => {
     expect(hasDreamTeamOrgManageCapability(coordinador)).toBe(false)
   })
 
-  it('shows a coordinator only Mi equipo in the menu', () => {
-    expect(getDreamTeamNavItems(coordinador, true).map((i) => i.href)).toEqual([MI_EQUIPO])
+  it('shows a coordinator only Mi equipo and Pendientes in the menu', () => {
+    expect(getDreamTeamNavItems(coordinador, true).map((i) => i.href)).toEqual([MI_EQUIPO, PENDIENTES])
   })
 
   it('does not open Mi equipo for someone who only serves', () => {

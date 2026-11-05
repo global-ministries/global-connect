@@ -1,6 +1,6 @@
 import { insertEstudiantesMenuItem, type EstudiantesMenuItem } from '@/components/estudiantes/estudiantes-menu-item'
 import { insertNinosMenuItem, type NinosMenuItem } from '@/components/ninos/ninos-menu-item'
-import { insertDreamTeamMenuItem, type DreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
+import { ID_PENDIENTES, insertDreamTeamMenuItem, type DreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import {
   seccionDePlatformNavigationViewItem,
   type PlatformNavigationViewItem,
@@ -59,6 +59,17 @@ function esTalleres(entrada: { id: string }): boolean {
 }
 
 /**
+ * "Pendientes" as a phone tab of its own (odd/tasks/dream-team-pendientes-director.md,
+ * T4, artboard 02): a candidate for the tab bar only, from the Dream Team
+ * child the user already sees — the sidebar keeps it under Dream Team.
+ */
+function pestanaPendientes(dreamTeam: DreamTeamMenuItem | null): EntradaMenu[] {
+  const hija = dreamTeam?.children.find((h) => h.id === ID_PENDIENTES)
+  if (!dreamTeam || !hija) return []
+  return [{ id: hija.id, label: hija.label, href: hija.href, icon: hija.icon ?? dreamTeam.icon, seccion: 'dream-team' }]
+}
+
+/**
  * Everything the shell renders, from the user's sources (pure; the hook is
  * components/navegacion/use-entradas-navegacion.ts):
  * - principales: the main list in its current order — "Mis 1 a 1" right after
@@ -66,8 +77,9 @@ function esTalleres(entrada: { id: string }): boolean {
  *   the platform items — each filtered by the registry role rule;
  * - pie and cuenta: the footer and account links;
  * - secciones: every visible entry grouped by section (lib/navegacion/secciones.ts);
- * - pestanas and mas: the phone tab bar and the "Más" sheet (where a Talleres
- *   item carries its `talleres` pages, so it gets a block when not a tab).
+ * - pestanas and mas: the phone tab bar (where Pendientes may take a tab of
+ *   its own) and the "Más" sheet (where a Talleres item carries its
+ *   `talleres` pages, so it gets a block when not a tab).
  */
 export function componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes = null, unoAUno, plataforma, talleres = [] }: FuentesNavegacion) {
   const principales = filtrarVisibles<EntradaMenu>(
@@ -89,7 +101,7 @@ export function componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes
   const pie = filtrarVisibles<EntradaMenu>(entradasDeSecciones('pie'), credenciales)
   const cuenta = filtrarVisibles<EntradaMenu>(entradasDeSecciones('cuenta'), credenciales)
   const todas = [...principales, ...pie, ...cuenta]
-  const pestanas = pestanasBarraInferior(todas)
+  const pestanas = pestanasBarraInferior([...todas, ...pestanaPendientes(dreamTeam)])
 
   return {
     principales,

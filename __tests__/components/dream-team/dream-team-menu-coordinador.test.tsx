@@ -23,14 +23,14 @@ beforeEach(() => {
 })
 
 describe('useDreamTeamMenuItem — the volunteer coordinator', () => {
-  it('shows Mi equipo when the layout says they may register people', () => {
+  it('shows Mi equipo and Pendientes when the layout says they may register people', () => {
     const { result } = renderHook(() => useDreamTeamMenuItem(SESION), { wrapper: conAcceso(true) })
-    expect(result.current?.children.map((c) => c.href)).toEqual(['/dream-team/mi-equipo'])
+    expect(result.current?.children.map((c) => c.href)).toEqual(['/dream-team/mi-equipo', '/dream-team/pendientes'])
   })
-  it('another coordinator (flag false) or one outside the provider still gets Mi equipo, read-only (odd/tasks/ninos-roles-ui.md D1)', () => {
+  it('another coordinator (flag false) or one outside the provider still gets Mi equipo (read-only, odd/tasks/ninos-roles-ui.md D1) and Pendientes', () => {
     for (const opciones of [{ wrapper: conAcceso(false) }, {}]) {
       const { result } = renderHook(() => useDreamTeamMenuItem(SESION), opciones)
-      expect(result.current?.children.map((c) => c.href)).toEqual(['/dream-team/mi-equipo'])
+      expect(result.current?.children.map((c) => c.href)).toEqual(['/dream-team/mi-equipo', '/dream-team/pendientes'])
     }
   })
 

@@ -25,6 +25,8 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
   hasDreamTeamReadCapability: () => true,
   hasDreamTeamWriteCapability: () => true,
   hasDreamTeamMiEquipoAccess: () => true,
+  // The Pendientes strip gate (odd/tasks/dream-team-pendientes-director.md, T4).
+  hasDreamTeamPendientesAccess: () => true,
 }))
 
 // The equipos the viewer directs or coordinates; dream_team_puede_solicitar_cambio_area answers from it.
