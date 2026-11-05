@@ -8,6 +8,8 @@
  * director de etapa. Column width follows the lane width (container query):
  * 2, 3, 4 or 5 columns. In a segment the actor edits (T5b) the lane header
  * carries "Terminé mi segmento" (S14) and the lane ends with "Nuevo grupo".
+ * A segment without groups (T5c) is a lane too: a short hint and "Nuevo
+ * grupo", without "Terminé mi segmento" (publishing ignores it).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { ChevronLeft, ChevronRight, Plus, UsersRound } from 'lucide-react'
@@ -76,7 +78,7 @@ function CarrilSegmento({
   const vacio = carril.bloques.length === 0
   const pasos = usePasos()
   const editable = pasos !== null && pasos.editable(segmento.id)
-  const publicacion = editable ? pasos.segmento(segmento.id) : null
+  const publicacion = editable && carril.grupos > 0 ? pasos.segmento(segmento.id) : null
   const nuevo = editable && (
     <BotonSistema
       type="button"

@@ -228,6 +228,8 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
         <PanelNuevoGrupo
           segmento={control.nuevoGrupo}
           grupos={grupos}
+          segmentos={capacidades.segmentos}
+          fichas={control.fichas}
           localidades={localidades}
           onCerrar={control.cerrarNuevoGrupo}
           onCrear={control.crear}

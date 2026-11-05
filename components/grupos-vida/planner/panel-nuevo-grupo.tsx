@@ -5,8 +5,9 @@
  * panel with the free name and "Usar sugerencia" (sugerirNombre: "<Localidad>
  * <Segmento> - N" from the localidad chosen), the computed label, the
  * segment fixed to the lane, the localidad (a group without one blocks
- * publishing), day, hour, capacity and the directores de etapa. One step on
- * the server; a refusal stays in the form with the server's words.
+ * publishing), day, hour, capacity and the directores de etapa: every eligible
+ * one of the segment, a couple as one option (directoresElegibles). One step
+ * on the server; a refusal stays in the form with the server's words.
  */
 import { useId, useState, type FormEvent, type ReactElement } from 'react'
 
@@ -14,7 +15,15 @@ import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
-import { etiquetaGrupo, sugerirNombre, type GrupoTablero, type Localidad, type SegmentoPlanner } from '@/lib/platform/grupos-vida/planner'
+import {
+  etiquetaGrupo,
+  sugerirNombre,
+  type GrupoTablero,
+  type Localidad,
+  type PersonaBanco,
+  type SegmentoConDirectores,
+  type SegmentoPlanner,
+} from '@/lib/platform/grupos-vida/planner'
 import { DIAS_REUNION, MAXIMO_DIRECTORES, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
 
 import { directoresElegibles } from './modelo'
@@ -22,6 +31,10 @@ import { directoresElegibles } from './modelo'
 export interface PanelNuevoGrupoProps {
   readonly segmento: SegmentoPlanner | null
   readonly grupos: readonly GrupoTablero[]
+  /** planner_temporadas.segmentos: each with its eligible directores de etapa. */
+  readonly segmentos: readonly SegmentoConDirectores[]
+  /** The bank by usuario_id, for the spouses. */
+  readonly fichas: ReadonlyMap<string, PersonaBanco>
   readonly localidades: readonly Localidad[]
   readonly onCerrar: () => void
   readonly onCrear: (segmento: SegmentoPlanner, datos: DatosGrupo) => Promise<ResultadoAccion<unknown>>
@@ -32,6 +45,8 @@ const CAPACIDAD_INICIAL = '12'
 function Formulario({
   segmento,
   grupos,
+  segmentos,
+  fichas,
   localidades,
   onCerrar,
   onCrear,
@@ -54,10 +69,20 @@ function Formulario({
   const nombresDelSegmento = grupos.filter((g) => g.segmento_id === segmento.id).map((g) => g.nombre)
   const sugerido = sugerirNombre(localidad?.nombre ?? null, segmento.nombre, nombresDelSegmento)
   const etiqueta = etiquetaGrupo({ segmento_nombre: segmento.nombre, localidad_nombre: localidad?.nombre ?? null })
-  const elegibles = directoresElegibles(grupos, segmento.id)
+  const elegibles = directoresElegibles(
+    segmentos.find((s) => s.id === segmento.id),
+    fichas,
+  )
 
-  const alternar = (usuarioId: string) =>
-    setDirectores((d) => (d.includes(usuarioId) ? d.filter((x) => x !== usuarioId) : d.length < MAXIMO_DIRECTORES ? [...d, usuarioId] : d))
+  // A couple goes in or out together, and only when both fit in MAXIMO_DIRECTORES.
+  const alternar = (usuarioIds: readonly string[]) =>
+    setDirectores((d) =>
+      usuarioIds.every((id) => d.includes(id))
+        ? d.filter((x) => !usuarioIds.includes(x))
+        : d.length + usuarioIds.filter((id) => !d.includes(id)).length <= MAXIMO_DIRECTORES
+          ? [...d, ...usuarioIds.filter((id) => !d.includes(id))]
+          : d,
+    )
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault()
@@ -120,13 +145,16 @@ function Formulario({
         {elegibles.length > 0 ? (
           <div role="group" aria-label="Directores de etapa" className="flex flex-wrap gap-2">
             {elegibles.map((d) => (
-              <PastillaFiltro key={d.usuarioId} etiqueta={d.nombre} activa={directores.includes(d.usuarioId)} onClick={() => alternar(d.usuarioId)} />
+              <PastillaFiltro
+                key={d.clave}
+                etiqueta={d.nombre}
+                activa={d.usuarioIds.every((id) => directores.includes(id))}
+                onClick={() => alternar(d.usuarioIds)}
+              />
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            Ningún grupo de {segmento.nombre} tiene director de etapa todavía; puedes asignarlo después.
-          </p>
+          <p className="text-xs text-muted-foreground">{segmento.nombre} no tiene directores de etapa todavía; puedes asignarlo después.</p>
         )}
         {directores.length === 0 && <p className="text-xs text-danger-text">Un grupo sin director de etapa no deja publicar la temporada.</p>}
       </div>

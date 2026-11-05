@@ -17,6 +17,10 @@
 --   6. Banco (S11, S5, S2): sin límite de segmento para el director de etapa; persona nueva sin
 --      grupo ni segmento; cónyuge determinista; edad, municipio y "sin dirección"; grupo actual,
 --      grupo y líderes de origen, grupos en otras temporadas activas; nunca correo ni teléfono.
+--   7. Directores elegibles por segmento (T5c, S3, S6, S10): cada segmento de planner_temporadas
+--      trae sus directores de etapa (filas director_etapa de segmento_lideres, como
+--      planner_paso_validar_grupo), aunque no dirijan ningún grupo; nunca los de otro segmento ni
+--      otro tipo de líder; el director de etapa solo ve los de sus segmentos.
 --
 -- Se ejecuta dentro de BEGIN…ROLLBACK (staging o el arnés local): nada se conserva; los datos
 -- viven en el espacio e6100000-... con nombre 'ZZ Pl' y fechas en 2089–2092. El último statement
@@ -316,7 +320,8 @@ SELECT pg_temp.assert_eq('capacidades: director de etapa no publica ni crea temp
   $q$SELECT (j->>'puede_publicar') || (j->>'puede_crear_temporada') || (j->>'ve_todos_los_segmentos')
        FROM (SELECT public.planner_temporadas() j) x$q$, 'falsefalsefalse');
 SELECT pg_temp.assert_eq('capacidades: director de etapa edita y ve solo su segmento',
-  $q$SELECT (j->'segmentos_editables')::text || '|' || (j->'segmentos')::text
+  $q$SELECT (j->'segmentos_editables')::text || '|'
+            || (SELECT jsonb_agg(s - 'directores' ORDER BY o) FROM jsonb_array_elements(j->'segmentos') WITH ORDINALITY e(s, o))::text
        FROM (SELECT public.planner_temporadas() j) x$q$,
   '["e6100000-0000-4000-8000-0000000000a1"]|[{"id": "e6100000-0000-4000-8000-0000000000a1", "nombre": "ZZ Pl S1"}]');
 
@@ -464,6 +469,43 @@ SELECT pg_temp.assert_eq('tablero: director de etapa no ve S2 en otra temporada'
   $q$SELECT count(*)::text FROM public.planner_tablero('e6100000-0000-4000-8000-0000000000c2')$q$, '0');
 SELECT pg_temp.assert_eq('tablero: una fila director_general en segmento_lideres no amplía el alcance',
   $q$SELECT string_agg(nombre, ',' ORDER BY nombre) FROM public.planner_tablero('e6100000-0000-4000-8000-0000000000c3')$q$, 'ZZ Pl N1');
+
+-- 7. Directores elegibles por segmento. L2 es también director de etapa de S1 (sin grupo); S3 no
+-- tiene directores; DE sigue con su fila director_general en S2 (§9), que no cuenta.
+INSERT INTO public.segmentos (id, nombre) VALUES ('e6100000-0000-4000-8000-0000000000a3', 'ZZ Pl S3');
+INSERT INTO public.segmento_lideres (id, segmento_id, usuario_id, tipo_lider) VALUES
+  ('e6100000-0000-4000-8000-0000000000b4', 'e6100000-0000-4000-8000-0000000000a1', 'e6100000-0000-4000-8000-000000000012', 'director_etapa');
+
+CREATE OR REPLACE FUNCTION pg_temp.directores_de(p_segmento uuid)
+RETURNS text LANGUAGE sql AS $$
+  SELECT coalesce(string_agg(concat_ws(' ', d->>'segmento_lider_id', d->>'usuario_id', d->>'nombre', d->>'apellido'), ',' ORDER BY o), '')
+    FROM jsonb_array_elements((public.planner_temporadas())->'segmentos') s,
+         jsonb_array_elements(s->'directores') WITH ORDINALITY e(d, o)
+   WHERE (s->>'id')::uuid = p_segmento;
+$$;
+
+SELECT pg_temp.as_user(pg_temp.a('DG'));
+SELECT pg_temp.assert_eq('directores: S1 trae a todos sus directores de etapa, con o sin grupo, por apellido',
+  $q$SELECT pg_temp.directores_de('e6100000-0000-4000-8000-0000000000a1')$q$,
+  'e6100000-0000-4000-8000-0000000000b1 e6100000-0000-4000-8000-000000000004 ZZ Pl DE,'
+  || 'e6100000-0000-4000-8000-0000000000b4 e6100000-0000-4000-8000-000000000012 ZZ Pl L2');
+SELECT pg_temp.assert_eq('directores: S2 no trae al director de otro segmento ni una fila director_general',
+  $q$SELECT pg_temp.directores_de('e6100000-0000-4000-8000-0000000000a2')$q$,
+  'e6100000-0000-4000-8000-0000000000b3 e6100000-0000-4000-8000-000000000006 ZZ Pl DIR2');
+SELECT pg_temp.assert_eq('directores: un segmento sin directores trae una lista vacía',
+  $q$SELECT s->'directores' FROM jsonb_array_elements((public.planner_temporadas())->'segmentos') s
+      WHERE s->>'id' = 'e6100000-0000-4000-8000-0000000000a3'$q$, '[]');
+SELECT pg_temp.assert_eq('directores: cada director trae solo segmento_lider_id, usuario_id, nombre y apellido',
+  $q$SELECT string_agg(DISTINCT k, ',' ORDER BY k)
+       FROM jsonb_array_elements((public.planner_temporadas())->'segmentos') s,
+            jsonb_array_elements(s->'directores') d, jsonb_object_keys(d) k$q$,
+  'apellido,nombre,segmento_lider_id,usuario_id');
+SELECT pg_temp.as_user(pg_temp.a('DE'));
+SELECT pg_temp.assert_eq('directores: el director de etapa solo ve los directores de sus segmentos',
+  $q$SELECT string_agg((s->>'nombre') || ':' || (SELECT string_agg(d->>'apellido', ',' ORDER BY o)
+                                                FROM jsonb_array_elements(s->'directores') WITH ORDINALITY e(d, o)), ';')
+       FROM jsonb_array_elements((public.planner_temporadas())->'segmentos') s$q$,
+  'ZZ Pl S1:DE,L2');
 
 SELECT count(*) AS aserciones FROM t_pl_asserts;
 SELECT case_name AS fallidos FROM t_pl_failures ORDER BY case_name;

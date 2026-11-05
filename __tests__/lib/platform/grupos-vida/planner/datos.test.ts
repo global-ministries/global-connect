@@ -33,7 +33,7 @@ const TEMPORADAS = {
   puede_publicar: true,
   puede_crear_temporada: true,
   segmentos_editables: ['seg-mat'],
-  segmentos: [{ id: 'seg-mat', nombre: 'Matrimonios' }],
+  segmentos: [{ id: 'seg-mat', nombre: 'Matrimonios', directores: [] }],
   // planner_temporadas orders by fecha_inicio DESC.
   temporadas: [
     temporada(T_PLAN, '2026-II', 'planificacion', '2026-10-12'),

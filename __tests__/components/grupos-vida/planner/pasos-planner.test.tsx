@@ -7,8 +7,10 @@
  * couple, elsewhere only the person and the note of who stays. The move shows
  * at once and rolls back on error, with the server's message. The header's
  * save state and "Deshacer" (the actor's latest step, or why not). "Nuevo
- * grupo" with the name suggestion, "Usar <localidad>", deleting only groups
- * that have not started, and "Terminé mi segmento" disabled until 0 blockers.
+ * grupo" with the name suggestion and every eligible director of the segment
+ * (a couple as one option), an empty lane for every segment the actor edits
+ * (T5c), "Usar <localidad>", deleting only groups that have not started, and
+ * "Terminé mi segmento" disabled until 0 blockers.
  */
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -61,6 +63,7 @@ const TEMPORADA = {
 }
 
 const HECTOR = { segmento_lider_id: 'sl-hector', usuario_id: 'u-hector', nombre: 'Héctor', apellido: 'Linárez' }
+const MARTA = { segmento_lider_id: 'sl-marta', usuario_id: 'u-marta', nombre: 'Marta', apellido: 'Rojas' }
 
 const TORREALBA: GrupoTablero = grupo({
   grupo_id: 'g-torrealba',
@@ -107,11 +110,13 @@ const DIRECTOR_GENERAL: TemporadasPlanner = {
   puede_crear_temporada: true,
   segmentos_editables: ['seg-mat', 'seg-muj'],
   segmentos: [
-    { id: 'seg-mat', nombre: 'Matrimonios' },
-    { id: 'seg-muj', nombre: 'Mujeres +36' },
+    { id: 'seg-mat', nombre: 'Matrimonios', directores: [HECTOR] },
+    { id: 'seg-muj', nombre: 'Mujeres +36', directores: [MARTA] },
   ],
   temporadas: [TEMPORADA],
 }
+
+const JOVENES = { id: 'seg-jov', nombre: 'Jóvenes', directores: [] }
 
 const DIRECTOR_ETAPA: TemporadasPlanner = {
   ...DIRECTOR_GENERAL,
@@ -120,7 +125,7 @@ const DIRECTOR_ETAPA: TemporadasPlanner = {
   puede_publicar: false,
   puede_crear_temporada: false,
   segmentos_editables: ['seg-muj'],
-  segmentos: [{ id: 'seg-muj', nombre: 'Mujeres +36' }],
+  segmentos: [{ id: 'seg-muj', nombre: 'Mujeres +36', directores: [MARTA] }],
 }
 
 const segmento = (parcial: Partial<SegmentoPublicacion> & { id: string; nombre: string }): SegmentoPublicacion => ({
@@ -373,6 +378,59 @@ describe('groups (S3, S4, S22)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo grupo de Matrimonios' })).not.toBeInTheDocument())
   })
 
+  it('offers every eligible director of the lane segment, a couple as one option', async () => {
+    const luisa = { segmento_lider_id: 'sl-luisa', usuario_id: 'u-luisa', nombre: 'Luisa', apellido: 'Pérez' }
+    const orlando = { segmento_lider_id: 'sl-orlando', usuario_id: 'u-orlando', nombre: 'Orlando', apellido: 'Pérez' }
+    const ramon = { segmento_lider_id: 'sl-ramon', usuario_id: 'u-ramon', nombre: 'Ramón', apellido: 'Silva' }
+    const capacidades = {
+      ...DIRECTOR_GENERAL,
+      segmentos: [{ id: 'seg-mat', nombre: 'Matrimonios', directores: [HECTOR, luisa, orlando, ramon] }, DIRECTOR_GENERAL.segmentos[1]],
+    }
+    const conyuges = [
+      persona({ usuario_id: 'u-luisa', nombre: 'Luisa', apellido: 'Pérez', conyuge_id: 'u-orlando', ...sinGrupo }),
+      persona({ usuario_id: 'u-orlando', nombre: 'Orlando', apellido: 'Pérez', conyuge_id: 'u-luisa', ...sinGrupo }),
+    ]
+    acciones.crearGrupoAction.mockResolvedValue({ ok: true, datos: { ...PASO_OK.datos, grupoId: 'g-nuevo' } })
+    render(<PlannerClient datos={datos({ capacidades, banco: [...datos().banco, ...conyuges] })} pasos={[]} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Matrimonios' }))
+    const panel = screen.getByRole('dialog', { name: 'Nuevo grupo de Matrimonios' })
+    const opciones = within(within(panel).getByRole('group', { name: 'Directores de etapa' })).getAllByRole('button')
+    expect(opciones.map((o) => o.textContent)).toEqual(['Héctor Linárez', 'Luisa y Orlando Pérez', 'Ramón Silva'])
+    expect(within(panel).queryByRole('button', { name: 'Marta Rojas' })).not.toBeInTheDocument()
+
+    await userEvent.click(within(panel).getByRole('button', { name: 'Luisa y Orlando Pérez' }))
+    await userEvent.click(within(panel).getByRole('button', { name: 'Ramón Silva' }))
+    expect(within(panel).getByRole('button', { name: 'Luisa y Orlando Pérez' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.type(within(panel).getByLabelText('Nombre'), 'Rosas')
+    await userEvent.click(within(panel).getByRole('button', { name: 'Crear grupo' }))
+
+    expect(acciones.crearGrupoAction).toHaveBeenCalledWith({
+      temporadaId: 't-2026-ii',
+      datos: expect.objectContaining({ segmento_id: 'seg-mat', director_etapa_ids: ['u-luisa', 'u-orlando', 'u-ramon'] }),
+    })
+  })
+
+  it('lists spouses individually when only one of them is eligible', async () => {
+    const luisa = { segmento_lider_id: 'sl-luisa', usuario_id: 'u-luisa', nombre: 'Luisa', apellido: 'Pérez' }
+    const capacidades = { ...DIRECTOR_GENERAL, segmentos: [{ id: 'seg-mat', nombre: 'Matrimonios', directores: [luisa] }, DIRECTOR_GENERAL.segmentos[1]] }
+    const banco = [...datos().banco, persona({ usuario_id: 'u-luisa', nombre: 'Luisa', apellido: 'Pérez', conyuge_id: 'u-orlando', ...sinGrupo })]
+    render(<PlannerClient datos={datos({ capacidades, banco })} pasos={[]} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Matrimonios' }))
+    const panel = screen.getByRole('dialog', { name: 'Nuevo grupo de Matrimonios' })
+    expect(within(within(panel).getByRole('group', { name: 'Directores de etapa' })).getAllByRole('button').map((o) => o.textContent)).toEqual(['Luisa Pérez'])
+  })
+
+  it('says the segment has no directores de etapa yet', async () => {
+    render(<PlannerClient datos={datos({ capacidades: { ...DIRECTOR_GENERAL, segmentos: [{ ...DIRECTOR_GENERAL.segmentos[0], directores: [] }, DIRECTOR_GENERAL.segmentos[1]] } })} pasos={[]} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Matrimonios' }))
+    const panel = screen.getByRole('dialog', { name: 'Nuevo grupo de Matrimonios' })
+    expect(within(panel).queryByRole('group', { name: 'Directores de etapa' })).not.toBeInTheDocument()
+    expect(within(panel).getByText('Matrimonios no tiene directores de etapa todavía; puedes asignarlo después.')).toBeInTheDocument()
+  })
+
   it('keeps the form open with the server message when creating fails', async () => {
     acciones.crearGrupoAction.mockResolvedValue({ ok: false, codigo: '22023', mensaje: 'Ya existe un grupo llamado «Rosas» en Matrimonios en esta temporada.' })
     render(<PlannerClient datos={datos()} pasos={[]} />)
@@ -413,6 +471,42 @@ describe('groups (S3, S4, S22)', () => {
 
     await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: /integrantes/ }))
     expect(within(tarjeta('Grupo #9 Familia Torrealba')).queryByRole('button', { name: 'Eliminar grupo' })).not.toBeInTheDocument()
+  })
+})
+
+describe('empty lanes (T5c)', () => {
+  it('draws a lane for a segment without groups so the director general can create its first group', async () => {
+    const capacidades = { ...DIRECTOR_GENERAL, segmentos_editables: [...DIRECTOR_GENERAL.segmentos_editables, 'seg-jov'], segmentos: [...DIRECTOR_GENERAL.segmentos, JOVENES] }
+    const conJovenes = estado([segmento({ id: 'seg-mat', nombre: 'Matrimonios' }), segmento({ id: 'seg-muj', nombre: 'Mujeres +36' }), segmento({ id: 'seg-jov', nombre: 'Jóvenes', grupos: 0 })])
+    render(<PlannerClient datos={datos({ capacidades, estado: conJovenes })} pasos={[]} />)
+
+    const jovenes = screen.getByRole('region', { name: 'Jóvenes' })
+    expect(within(jovenes).getByText('Todavía no hay grupos de Jóvenes en esta temporada.')).toBeInTheDocument()
+    expect(within(jovenes).queryByRole('article')).not.toBeInTheDocument()
+    expect(within(jovenes).queryByRole('button', { name: 'Terminé mi segmento' })).not.toBeInTheDocument()
+    // "faltan" is the server's count (planner_estado_publicacion ignores segments without groups).
+    expect(screen.getByRole('link', { name: 'Publicar · faltan 2 segmentos' })).toBeInTheDocument()
+    await userEvent.click(within(jovenes).getByRole('button', { name: 'Nuevo grupo en Jóvenes' }))
+
+    expect(screen.getByRole('dialog', { name: 'Nuevo grupo de Jóvenes' })).toBeInTheDocument()
+  })
+
+  it('draws the director de etapa own empty segment, never one of another director', () => {
+    const capacidades = { ...DIRECTOR_ETAPA, segmentos_editables: ['seg-muj', 'seg-jov'], segmentos: [...DIRECTOR_ETAPA.segmentos, JOVENES] }
+    render(<PlannerClient datos={datos({ capacidades, grupos: [VALIENTES] })} pasos={[]} />)
+
+    expect(within(screen.getByRole('region', { name: 'Jóvenes' })).getByRole('button', { name: 'Nuevo grupo en Jóvenes' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Matrimonios' })).not.toBeInTheDocument()
+  })
+
+  it('hides empty lanes while searching', async () => {
+    const capacidades = { ...DIRECTOR_GENERAL, segmentos_editables: [...DIRECTOR_GENERAL.segmentos_editables, 'seg-jov'], segmentos: [...DIRECTOR_GENERAL.segmentos, JOVENES] }
+    render(<PlannerClient datos={datos({ capacidades })} pasos={[]} />)
+
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar grupo, líder o persona' }), 'Valientes')
+
+    expect(screen.queryByRole('region', { name: 'Jóvenes' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Mujeres +36' })).toBeInTheDocument()
   })
 })
 

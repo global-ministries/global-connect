@@ -44,13 +44,18 @@ export interface TemporadaPlanner {
   readonly origen_nombre: string | null
 }
 
+/** A segment the actor sees, with every eligible director de etapa (by surname, even one without a group). */
+export interface SegmentoConDirectores extends SegmentoPlanner {
+  readonly directores: readonly DirectorGrupo[]
+}
+
 export interface TemporadasPlanner {
   readonly usuario_id: string
   readonly ve_todos_los_segmentos: boolean
   readonly puede_publicar: boolean
   readonly puede_crear_temporada: boolean
   readonly segmentos_editables: readonly string[]
-  readonly segmentos: readonly SegmentoPlanner[]
+  readonly segmentos: readonly SegmentoConDirectores[]
   readonly temporadas: readonly TemporadaPlanner[]
 }
 
@@ -243,6 +248,11 @@ const leerDirector = (valor: unknown): DirectorGrupo | null => {
   return { segmento_lider_id: segmentoLiderId, usuario_id: usuarioId, nombre: textoOVacio(valor.nombre), apellido: textoOVacio(valor.apellido) }
 }
 
+const leerSegmentoConDirectores = (valor: unknown, descartes: Descartes): SegmentoConDirectores | null => {
+  const segmento = leerSegmento(valor)
+  return segmento && esObjeto(valor) ? { ...segmento, directores: lista(valor.directores, leerDirector, descartes) } : null
+}
+
 function leerGrupo(fila: Objeto, descartes: Descartes): GrupoTablero | null {
   const grupoId = id(fila.grupo_id)
   const segmentoId = id(fila.segmento_id)
@@ -355,7 +365,7 @@ export function leerTemporadas(datos: unknown): TemporadasPlanner | null {
     puede_publicar: puedePublicar,
     puede_crear_temporada: puedeCrear,
     segmentos_editables: ids(datos.segmentos_editables),
-    segmentos: lista(datos.segmentos, leerSegmento, descartes),
+    segmentos: lista(datos.segmentos, (valor) => leerSegmentoConDirectores(valor, descartes), descartes),
     temporadas: lista(datos.temporadas, leerTemporada, descartes),
   }
 }

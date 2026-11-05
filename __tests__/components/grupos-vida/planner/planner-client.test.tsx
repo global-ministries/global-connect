@@ -108,8 +108,8 @@ const DIRECTOR_GENERAL: TemporadasPlanner = {
   puede_crear_temporada: true,
   segmentos_editables: ['seg-mat', 'seg-muj'],
   segmentos: [
-    { id: 'seg-mat', nombre: 'Matrimonios' },
-    { id: 'seg-muj', nombre: 'Mujeres +36' },
+    { id: 'seg-mat', nombre: 'Matrimonios', directores: [] },
+    { id: 'seg-muj', nombre: 'Mujeres +36', directores: [] },
   ],
   temporadas: [TEMPORADA, { ...TEMPORADA, id: 't-2026-i', nombre: '2026-I', estado: 'activa', activa: true }],
 }
@@ -121,7 +121,7 @@ const DIRECTOR_ETAPA: TemporadasPlanner = {
   puede_publicar: false,
   puede_crear_temporada: false,
   segmentos_editables: ['seg-muj'],
-  segmentos: [{ id: 'seg-muj', nombre: 'Mujeres +36' }],
+  segmentos: [{ id: 'seg-muj', nombre: 'Mujeres +36', directores: [] }],
 }
 
 const datos = (parcial: Partial<DatosPlanner> = {}): DatosPlanner => ({

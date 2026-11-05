@@ -34,7 +34,9 @@
 --      ayudantes internos (no los ejecuta authenticated).
 --   3. planner_temporadas() → jsonb: temporadas con cohorte y origen, capacidades del actor
 --      (puede_publicar S12 y puede_crear_temporada S20: admin, pastor, director general),
---      segmentos que ve y edita.
+--      segmentos que ve y edita, cada uno con sus directores de etapa elegibles (las filas
+--      segmento_lideres con tipo_lider = 'director_etapa' del segmento, una por persona con el id
+--      menor, como planner_paso_validar_grupo), aunque todavía no dirijan ningún grupo.
 --   4. planner_tablero(p_temporada_id) → una fila por grupo visible de la temporada, con
 --      segmento, localidad y su municipio, directores de etapa y personas por rol, cada una con
 --      sus líderes de origen.
@@ -195,8 +197,21 @@ BEGIN
     'puede_crear_temporada', v_dirige_temporada,
     'segmentos_editables', to_jsonb(v_actor.segmentos),
     'segmentos', (
-      SELECT coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre) ORDER BY s.nombre, s.id), '[]'::jsonb)
+      SELECT coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'nombre', s.nombre,
+                                                   'directores', coalesce(d.lista, '[]'::jsonb))
+                                ORDER BY s.nombre, s.id), '[]'::jsonb)
         FROM public.segmentos s
+        -- Directores de etapa elegibles del segmento: los mismos que acepta planner_paso_validar_grupo.
+        LEFT JOIN LATERAL (
+          SELECT jsonb_agg(jsonb_build_object('segmento_lider_id', e.id, 'usuario_id', e.usuario_id,
+                                              'nombre', e.nombre, 'apellido', e.apellido)
+                           ORDER BY e.apellido, e.nombre, e.usuario_id) AS lista
+            FROM (SELECT DISTINCT ON (sl.usuario_id) sl.id, sl.usuario_id, u.nombre, u.apellido
+                    FROM public.segmento_lideres sl
+                    JOIN public.usuarios u ON u.id = sl.usuario_id
+                   WHERE sl.segmento_id = s.id AND sl.tipo_lider = 'director_etapa'
+                   ORDER BY sl.usuario_id, sl.id) e
+        ) d ON true
        WHERE s.id = ANY (v_actor.segmentos)
     ),
     'temporadas', (
@@ -221,7 +236,8 @@ $function$;
 
 COMMENT ON FUNCTION public.planner_temporadas() IS
   'Planificador de GDV: temporadas (cohorte y temporada de origen, S19), capacidades del actor (puede_publicar S12, puede_crear_temporada S20) '
-  'y segmentos que ve y edita (S10). Roles admin, pastor, director-general, director-etapa; 42501 otro rol, 28000 sin sesión.';
+  'y segmentos que ve y edita (S10), cada uno con sus directores de etapa elegibles (segmento_lider_id, usuario_id, nombre, apellido). '
+  'Roles admin, pastor, director-general, director-etapa; 42501 otro rol, 28000 sin sesión.';
 
 REVOKE ALL ON FUNCTION public.planner_temporadas() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.planner_temporadas() TO authenticated, service_role;

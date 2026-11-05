@@ -124,7 +124,17 @@ describe('leerTemporadas', () => {
     puede_publicar: true,
     puede_crear_temporada: true,
     segmentos_editables: ['seg-mat'],
-    segmentos: [{ id: 'seg-mat', nombre: 'Matrimonios' }],
+    segmentos: [
+      {
+        id: 'seg-mat',
+        nombre: 'Matrimonios',
+        directores: [
+          { segmento_lider_id: 'sl-1', usuario_id: 'u-hector', nombre: 'Héctor', apellido: 'Linárez' },
+          { segmento_lider_id: 'sl-2', usuario_id: 'u-ramon', nombre: 'Ramón', apellido: 'Silva' },
+        ],
+      },
+      { id: 'seg-jov', nombre: 'Jóvenes', directores: [] },
+    ],
     temporadas: [
       {
         id: 't2',
@@ -148,6 +158,18 @@ describe('leerTemporadas', () => {
   it('reads an unknown cohort as null and drops a season without id', () => {
     const leido = leerTemporadas({ ...temporadas, temporadas: [{ ...temporadas.temporadas[0], cohorte: 'III' }, { nombre: 'x' }] })
     expect(leido?.temporadas).toEqual([{ ...temporadas.temporadas[0], cohorte: null }])
+  })
+
+  it('reads each segment directores, a missing list as empty, and drops a malformed director', () => {
+    const [matrimonios, jovenes] = temporadas.segmentos
+    const leido = leerTemporadas({
+      ...temporadas,
+      segmentos: [
+        { ...matrimonios, directores: [...matrimonios.directores, { usuario_id: 'u-x', nombre: 'Sin', apellido: 'Fila' }, 'no'] },
+        { id: jovenes.id, nombre: jovenes.nombre },
+      ],
+    })
+    expect(leido?.segmentos).toEqual([matrimonios, { ...jovenes, directores: [] }])
   })
 
   it('rejects an object without the actor or its capabilities', () => {

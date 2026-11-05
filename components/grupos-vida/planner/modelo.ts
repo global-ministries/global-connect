@@ -12,6 +12,7 @@ import {
   contar,
   enLista,
   esMatrimonios,
+  nombrePareja,
   mensajeConyugeQueSeQueda,
   personasAMover,
   nombreCompleto,
@@ -24,6 +25,7 @@ import {
   type GrupoTablero,
   type PersonaBanco,
   type PersonaGrupo,
+  type SegmentoConDirectores,
   type SegmentoPlanner,
   type TemporadaPlanner,
   type TemporadasPlanner,
@@ -136,9 +138,10 @@ function bloques(grupos: readonly GrupoTablero[], agrupar: Agrupar): BloqueCarri
 }
 
 /**
- * One lane per segment: whoever sees every segment gets the segments that have
- * groups; a director de etapa gets each of their segments, even an empty one.
- * The search keeps the groups whose name, label or people match.
+ * One lane per segment the actor sees (planner_temporadas.segmentos: every
+ * segment for whoever sees them all, their own for a director de etapa), even
+ * an empty one, so its first group can be created. The search keeps the
+ * groups whose name, label or people match, and drops lanes left empty.
  */
 export function carriles(
   grupos: readonly GrupoTablero[],
@@ -148,7 +151,7 @@ export function carriles(
 ): Carril[] {
   const consulta = normalizar(busqueda)
   const segmentos = new Map<string, SegmentoPlanner>()
-  if (!capacidades.ve_todos_los_segmentos) capacidades.segmentos.forEach((s) => segmentos.set(s.id, s))
+  capacidades.segmentos.forEach((s) => segmentos.set(s.id, { id: s.id, nombre: s.nombre }))
   grupos.forEach((g) => {
     if (!segmentos.has(g.segmento_id)) segmentos.set(g.segmento_id, { id: g.segmento_id, nombre: g.segmento_nombre })
   })
@@ -629,22 +632,38 @@ export function rolEnGrupo(grupo: GrupoTablero, usuarioId: string): RolDestino |
 export const puedeEliminarGrupo = (grupo: Pick<GrupoTablero, 'activo' | 'estado_ciclo'>): boolean =>
   !grupo.activo && grupo.estado_ciclo !== 'activo'
 
+/** One option of the directores de etapa: a person, or a couple when both spouses are eligible. */
 export interface DirectorElegible {
-  readonly usuarioId: string
+  readonly clave: string
+  readonly usuarioIds: readonly string[]
   readonly nombre: string
 }
 
 /**
- * The directores de etapa offered for a new group of a segment: those already
- * directing a group of that segment in the season (no planner RPC lists the
- * segment's director_etapa yet), each person once, by name.
+ * The directores de etapa offered for a new group of a segment: every eligible
+ * one of the segment (planner_temporadas, the same rule the server checks),
+ * a couple of the bank as one option ("Luisa y Orlando Pérez"), by name.
  */
-export function directoresElegibles(grupos: readonly GrupoTablero[], segmentoId: string): DirectorElegible[] {
-  const vistos = new Map<string, DirectorElegible>()
-  grupos
-    .filter((g) => g.segmento_id === segmentoId)
-    .forEach((g) => g.directores.forEach((d) => !vistos.has(d.usuario_id) && vistos.set(d.usuario_id, { usuarioId: d.usuario_id, nombre: nombrePersona(d) })))
-  return [...vistos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+export function directoresElegibles(
+  segmento: Pick<SegmentoConDirectores, 'directores'> | undefined,
+  fichas: ReadonlyMap<string, Pick<PersonaBanco, 'conyuge_id'>>,
+): DirectorElegible[] {
+  const directores = segmento?.directores ?? []
+  const presentes = new Map(directores.map((d) => [d.usuario_id, d]))
+  const usados = new Set<string>()
+  return directores
+    .flatMap((d): DirectorElegible[] => {
+      if (usados.has(d.usuario_id)) return []
+      usados.add(d.usuario_id)
+      const conyugeId = fichas.get(d.usuario_id)?.conyuge_id
+      const conyuge = conyugeId && conyugeId !== d.usuario_id ? presentes.get(conyugeId) : undefined
+      if (conyuge && !usados.has(conyuge.usuario_id)) {
+        usados.add(conyuge.usuario_id)
+        return [{ clave: `${d.usuario_id}|${conyuge.usuario_id}`, usuarioIds: [d.usuario_id, conyuge.usuario_id], nombre: nombrePareja(d, conyuge) }]
+      }
+      return [{ clave: d.usuario_id, usuarioIds: [d.usuario_id], nombre: nombrePersona(d) }]
+    })
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
 }
 
 /** "Guardado · hace 5 s", "hace 3 min", "hace 2 h"; null without a time or a clock. */
