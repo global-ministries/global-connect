@@ -16,6 +16,7 @@ export {
   hasDreamTeamMetricsCapability,
   hasDreamTeamOrgManageCapability,
   hasDreamTeamMiEquipoAccess,
+  hasDreamTeamPendientesAccess,
   isGdvDirectorSession,
 } from './capabilities'
 

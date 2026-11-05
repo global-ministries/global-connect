@@ -113,7 +113,7 @@ const MENU_PRINCIPAL: Record<string, string[]> = {
   'director-general-soporte': ['/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/configuracion', '/configuracion/soporte', '/ayuda/admin', ...PIE],
   'admin-dream-team-ninos': [
     '/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
-    '/dream-team/mi-equipo', '/dream-team/mi-equipo', '/admin/dream-team/servidores', '/admin/dream-team/estructura',
+    '/dream-team/mi-equipo', '/dream-team/mi-equipo', '/dream-team/pendientes', '/admin/dream-team/servidores', '/admin/dream-team/estructura',
     '/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/salon', '/ninos/cartel', '/ninos/reportes',
     '/configuracion', '/configuracion', ...PIE,
   ],
@@ -143,7 +143,8 @@ const SIDEBAR_ANTES: Record<string, string[]> = {
  */
 const PIE_SIDEBAR = ['/actualizaciones', '/ayuda']
 const NINOS = ['/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/salon', '/ninos/cartel', '/ninos/reportes']
-const DREAM_TEAM = ['/dream-team/mi-equipo', '/dream-team/mi-equipo', '/admin/dream-team/servidores', '/admin/dream-team/estructura']
+// Pendientes (odd/tasks/dream-team-pendientes-director.md, T4) joins after Mi equipo.
+const DREAM_TEAM = ['/dream-team/mi-equipo', '/dream-team/mi-equipo', '/dream-team/pendientes', '/admin/dream-team/servidores', '/admin/dream-team/estructura']
 const SIDEBAR: Record<string, string[]> = {
   miembro: ['/dashboard', '/grupos-vida', ...PIE_SIDEBAR],
   lider: ['/dashboard', '/grupos-vida', '/users', ...PIE_SIDEBAR],

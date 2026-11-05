@@ -7,9 +7,15 @@
  * /api/dream-team/personas/[id]/ficha and saves only the changed fields with
  * PATCH; the database decides who may do it and validates again
  * (lib/platform/dream-team/ficha-persona.ts).
+ *
+ * Opened from an alert of /dream-team/pendientes with a `serie`
+ * (odd/tasks/dream-team-pendientes-director.md, T4; artboard 07), it says
+ * where it came from and "1 de N", and "Guardar y siguiente" saves and moves
+ * to the next person instead of closing ("Siguiente" skips without changes).
  */
 import { useEffect, useId, useState, type FormEvent, type ReactElement } from 'react'
 
+import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import type { useNotificaciones } from '@/hooks/use-notificaciones'
@@ -24,6 +30,17 @@ import {
   type FormularioFicha,
 } from '@/lib/platform/dream-team/ficha-persona'
 
+/** A list of fichas to fix one after another; the caller owns the list and the position. */
+export interface SerieFicha {
+  /** The alert the list comes from ("Sin cédula"). */
+  readonly origen: string
+  /** 1-based. */
+  readonly posicion: number
+  readonly total: number
+  /** Opens the next person; absent on the last one. */
+  readonly onSiguiente?: () => void
+}
+
 export interface EditarFichaPanelProps {
   readonly personaId: string
   readonly nombre: string
@@ -31,6 +48,7 @@ export interface EditarFichaPanelProps {
   readonly onAbiertoChange: (abierto: boolean) => void
   readonly onGuardado: () => void
   readonly toast: ReturnType<typeof useNotificaciones>
+  readonly serie?: SerieFicha
 }
 
 const opciones = (valores: readonly string[]) => valores.map((v) => ({ valor: v, etiqueta: v }))
@@ -51,6 +69,7 @@ export function EditarFichaPanel({
   onAbiertoChange,
   onGuardado,
   toast,
+  serie,
 }: EditarFichaPanelProps): ReactElement {
   const [ficha, setFicha] = useState<FichaPersona | null>(null)
   const [form, setForm] = useState<FormularioFicha | null>(null)
@@ -85,6 +104,7 @@ export function EditarFichaPanel({
 
   const cambios = ficha && form ? cambiosDeFicha(ficha, form) : {}
   const hayCambios = Object.keys(cambios).length > 0
+  const siguiente = serie?.onSiguiente
 
   const cambiar = (campo: keyof FormularioFicha, valor: string) => {
     setError(null)
@@ -112,7 +132,8 @@ export function EditarFichaPanel({
       }
       toast.success('Ficha actualizada.')
       onGuardado()
-      onAbiertoChange(false)
+      if (siguiente) siguiente()
+      else onAbiertoChange(false)
     } catch {
       setError('No se pudo guardar la ficha.')
     } finally {
@@ -131,13 +152,34 @@ export function EditarFichaPanel({
           <BotonSistema type="button" variante="outline" onClick={() => onAbiertoChange(false)}>
             Cancelar
           </BotonSistema>
-          <BotonSistema type="submit" form={formId} disabled={!hayCambios || guardando} cargando={guardando}>
-            Guardar
-          </BotonSistema>
+          {siguiente && !hayCambios ? (
+            <BotonSistema type="button" onClick={siguiente}>
+              Siguiente
+            </BotonSistema>
+          ) : (
+            <BotonSistema type="submit" form={formId} disabled={!hayCambios || guardando} cargando={guardando}>
+              {siguiente ? 'Guardar y siguiente' : 'Guardar'}
+            </BotonSistema>
+          )}
         </>
       }
     >
       <form id={formId} onSubmit={guardar} noValidate className="grid content-start gap-4">
+        {serie && (
+          <AvisoFormulario tono="marca">
+            <p className="font-semibold">
+              Abriste esta ficha desde «{serie.origen}» ·{' '}
+              <span className="font-mono tabular-nums">
+                {serie.posicion} de {serie.total}
+              </span>
+            </p>
+            <p className="mt-1">
+              {siguiente
+                ? 'Completa lo que falta. Al guardar, se abre la siguiente persona de la lista.'
+                : 'Completa lo que falta. Es la última persona de la lista.'}
+            </p>
+          </AvisoFormulario>
+        )}
         {form === null && error === null && <TextoSistema variante="sutil">Cargando…</TextoSistema>}
         {form !== null && (
           <>

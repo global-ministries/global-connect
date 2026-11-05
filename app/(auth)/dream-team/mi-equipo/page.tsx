@@ -27,11 +27,13 @@ import {
   isDreamTeamEnabled,
   requireDreamTeamSession,
   hasDreamTeamMiEquipoAccess,
+  hasDreamTeamPendientesAccess,
   hasDreamTeamWriteCapability,
 } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import { fetchEquiposRegistrables, fetchFichasEditables, puedeRegistrarPersonaNueva } from '@/lib/platform/dream-team/ficha-persona'
 import { fetchEquiposCambioArea, fetchSolicitudesCambioArea } from '@/lib/platform/dream-team/cambiar-area'
+import { fetchResumenPendientes } from '@/lib/platform/dream-team/pendientes'
 import { construirArbol } from '@/lib/platform/dream-team/arbol'
 import { construirNodosArbol } from '@/lib/platform/dream-team/estructura-arbol'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
@@ -184,12 +186,16 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
   // (dream_team_puede_solicitar_cambio_area; a coordinator only requests) and
   // the requests they resolve or sent. Both fail closed; the RPCs check every
   // action again.
-  const [equiposCambioArea, solicitudesCambioArea] = await Promise.all([
+  // The Pendientes strip (odd/tasks/dream-team-pendientes-director.md, T4):
+  // the caller's whole scope, as /dream-team/pendientes, for whoever opens that
+  // page (not a Grupos de Vida director by role alone); fails closed (no strip).
+  const [equiposCambioArea, solicitudesCambioArea, resumenPendientes] = await Promise.all([
     fetchEquiposCambioArea(
       supabase,
       servicios.filter((servicio) => servicio.estado !== 'retirado').map((servicio) => servicio.equipoId),
     ),
     fetchSolicitudesCambioArea(supabase),
+    hasDreamTeamPendientesAccess(session) || puedeRegistrar ? fetchResumenPendientes(supabase) : null,
   ])
 
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv))
@@ -269,6 +275,7 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       }))}
       hayTurnosPorFechas={turnos.some((turno) => turno.activo && turno.tipo === 'fechas')}
       solicitudesCambioArea={solicitudesCambioArea}
+      resumenPendientes={resumenPendientes}
     />
   )
 }

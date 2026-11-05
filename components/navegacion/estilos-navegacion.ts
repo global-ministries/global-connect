@@ -82,3 +82,16 @@ export const CLASE_BOTON_ICONO_SHELL = cn(
 
 /** Floating layers of the shell (rail flyout, account and notifications popovers). */
 export const CLASE_CAPA_FLOTANTE = 'rounded-2xl border border-border bg-card text-foreground shadow-sheet'
+
+/**
+ * The urgentes count on a menu entry ("Pendientes", odd/tasks/dream-team-pendientes-director.md
+ * T4): the notifications bell's badge look. Shown only above 0, once loaded.
+ */
+export const CLASE_CONTADOR_MENU =
+  'inline-grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-brand-strong px-1.5 font-mono text-xs font-semibold tabular-nums text-white'
+
+/** "Pendientes, 9 urgentes": the count joins the accessible name only when it shows. */
+export function etiquetaUrgentes(label: string, urgentes: number | null): string {
+  if (!urgentes) return label
+  return `${label}, ${urgentes} ${urgentes === 1 ? 'urgente' : 'urgentes'}`
+}

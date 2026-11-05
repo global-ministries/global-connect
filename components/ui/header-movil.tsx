@@ -49,6 +49,7 @@ const RUTAS_INTERNAS: [RegExp | string, string][] = [
   // The Equipo tab's root page (components/navegacion/accesos-seccion.tsx).
   ['/dream-team', 'Dream Team'],
   [/^\/dream-team\/mi-equipo/, 'Mi equipo'],
+  [/^\/dream-team\/pendientes/, 'Pendientes'],
   [/^\/admin\/dream-team\/servidores/, 'Servidores'],
   [/^\/admin\/dream-team\/estructura/, 'Estructura'],
   ['/configuracion', 'Configuración'],

@@ -7,6 +7,9 @@ import { Ellipsis } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HojaMas } from '@/components/navegacion/hoja-mas'
 import { useEntradasNavegacion } from '@/components/navegacion/use-entradas-navegacion'
+import { CLASE_CONTADOR_MENU, etiquetaUrgentes } from '@/components/navegacion/estilos-navegacion'
+import { ID_PENDIENTES } from '@/components/ui/dream-team-menu-item'
+import { useUrgentesPendientes } from '@/hooks/useDreamTeamAcceso'
 import { esRutaActiva } from '@/lib/navegacion/registro'
 import { esPestanaActiva, filasDeMas } from '@/lib/navegacion/secciones'
 
@@ -50,7 +53,13 @@ export function MenuInferiorMovil() {
     setMasAbierta(false)
   }, [pathname])
 
-  const activas = pestanas.map((pestana) => pestanaActiva(pathname, pestana))
+  // Pendientes is a Dream Team page with a tab of its own: on it, only that tab is current.
+  const tienePendientes = pestanas.some((pestana) => pestana.id === ID_PENDIENTES)
+  const urgentes = useUrgentesPendientes(tienePendientes)
+  const enPendientes = pestanas.some((pestana) => pestana.id === ID_PENDIENTES && esRutaActiva(pathname, pestana.href))
+  const activas = pestanas.map((pestana) =>
+    enPendientes ? pestana.id === ID_PENDIENTES : pestanaActiva(pathname, pestana),
+  )
   const masActiva = !activas.some(Boolean) && filasDeMas(mas).some((fila) => esRutaActiva(pathname, fila.href))
 
   return (
@@ -63,18 +72,24 @@ export function MenuInferiorMovil() {
         {pestanas.map((pestana, indice) => {
           const Icono = pestana.icon
           const activa = activas[indice]
+          const contador = pestana.id === ID_PENDIENTES && urgentes ? urgentes : null
 
           return (
             <li key={pestana.id} className="flex min-w-0 flex-1 basis-0">
               <Link
                 href={pestana.hrefRaiz ?? pestana.href}
                 prefetch={false}
-                aria-label={`Navegar a ${pestana.label}`}
+                aria-label={`Navegar a ${etiquetaUrgentes(pestana.label, contador)}`}
                 aria-current={activa ? 'page' : undefined}
-                className={cn(CLASE_PESTANA, activa ? 'font-semibold text-brand-text' : 'font-medium text-muted-foreground')}
+                className={cn(CLASE_PESTANA, 'relative', activa ? 'font-semibold text-brand-text' : 'font-medium text-muted-foreground')}
               >
                 <Icono aria-hidden="true" className="size-6 shrink-0" />
                 <span className="max-w-full truncate">{pestana.labelMovil}</span>
+                {contador !== null && (
+                  <span aria-hidden="true" data-slot="contador-pendientes" className={cn(CLASE_CONTADOR_MENU, 'absolute top-0.5 left-1/2 ml-1.5')}>
+                    {contador > 99 ? '99+' : contador}
+                  </span>
+                )}
               </Link>
             </li>
           )

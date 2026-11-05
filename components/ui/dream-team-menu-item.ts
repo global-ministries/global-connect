@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { HeartHandshake, Network, UserCheck, Users } from 'lucide-react'
+import { HeartHandshake, ListChecks, Network, UserCheck, Users } from 'lucide-react'
 
 import {
   getDreamTeamNavItems,
@@ -47,16 +47,21 @@ export interface DreamTeamMenuItem {
 /** The Dream Team root page: the Equipo tab, listing every Dream Team page the user can open. */
 export const RAIZ_DREAM_TEAM = '/dream-team'
 
+/** The "Pendientes" page (odd/tasks/dream-team-pendientes-director.md, T4): its menu entry carries the urgentes count. */
+export const ID_PENDIENTES = 'dt-pendientes'
+
 // Icons and descriptions for the Dream Team children (see lib/platform/dream-team/navigation.ts
 // for the id/label/href list itself).
 const DREAM_TEAM_CHILD_ICONS: Record<string, IconComponent> = {
   'dt-mi-equipo': Users,
+  'dt-pendientes': ListChecks,
   'dt-servidores': UserCheck,
   'dt-estructura': Network,
 }
 
 const DREAM_TEAM_CHILD_DESCRIPTIONS: Record<string, string> = {
   'dt-mi-equipo': 'Las personas de tu equipo y sus turnos',
+  'dt-pendientes': 'Lo que falta en tu equipo, con su acción',
   'dt-servidores': 'Quién sirve, en qué etapa y dónde',
   'dt-estructura': 'Direcciones, áreas y equipos',
 }

@@ -78,8 +78,10 @@ const ids = (entradas: readonly { id: string }[]) => entradas.map((entrada) => e
 describe('shell navigation per role', () => {
   it.each([
     ['admin', ['Inicio', 'Grupos', 'Niños', 'Equipo']],
-    ['director DT', ['Inicio', 'Grupos', 'Equipo', 'Talleres']],
-    ['coordinador', ['Inicio', 'Grupos', 'Equipo', 'Talleres']],
+    // Pendientes takes the fourth tab of whoever has team authority (odd/tasks/dream-team-pendientes-director.md,
+    // T4, artboard 02); Talleres moves to "Más".
+    ['director DT', ['Inicio', 'Grupos', 'Equipo', 'Pendientes']],
+    ['coordinador', ['Inicio', 'Grupos', 'Equipo', 'Pendientes']],
     ['lider', ['Inicio', 'Grupos', 'Talleres', 'Ayuda']],
     ['operador Niños', ['Inicio', 'Grupos', 'Niños', 'Talleres']],
   ])('gives the %s the tabs %j', async (nombre, esperadas) => {
@@ -102,13 +104,13 @@ describe('shell navigation per role', () => {
     const dreamTeam = secciones.find((grupo) => grupo.seccion === 'dream-team')!
     expect(ids(dreamTeam.entradas)).toEqual(['dream-team'])
     expect(dreamTeam.entradas[0]).toMatchObject({ label: 'Dream Team', labelMovil: 'Equipo', href: '/dream-team/mi-equipo' })
-    expect(ids(dreamTeam.entradas[0].children ?? [])).toEqual(['dt-mi-equipo', 'dt-servidores', 'dt-estructura'])
+    expect(ids(dreamTeam.entradas[0].children ?? [])).toEqual(['dt-mi-equipo', 'dt-pendientes', 'dt-servidores', 'dt-estructura'])
   })
 
-  it('gives a coordinator the Dream Team group with Mi equipo only', async () => {
+  it('gives a coordinator the Dream Team group with Mi equipo and Pendientes only', async () => {
     const { secciones } = await navegacionDe('coordinador')
     const dreamTeam = secciones.find((grupo) => grupo.seccion === 'dream-team')!
-    expect(ids(dreamTeam.entradas[0].children ?? [])).toEqual(['dt-mi-equipo'])
+    expect(ids(dreamTeam.entradas[0].children ?? [])).toEqual(['dt-mi-equipo', 'dt-pendientes'])
   })
 
   it('has no Dream Team section for whoever opens no Dream Team page', async () => {
@@ -173,7 +175,10 @@ describe('shell navigation per role', () => {
   it('only offers tabs and "Más" rows the sidebar already shows', async () => {
     for (const nombre of Object.keys(ROLES)) {
       const { principales, pie, cuenta, pestanas, mas } = await navegacionDe(nombre)
-      const visibles = new Set([...principales, ...pie, ...cuenta].map((entrada) => entrada.id))
+      // A Dream Team child counts: the Pendientes tab is the sidebar's Dream Team › Pendientes.
+      const visibles = new Set(
+        [...principales, ...pie, ...cuenta].flatMap((entrada) => [entrada.id, ...(entrada.children ?? []).map((hija) => hija.id)]),
+      )
       const ofrecidas = [
         ...pestanas, ...mas.cuenta, ...mas.secciones.flatMap((grupo) => grupo.entradas),
         ...mas.subpaginas.map((bloque) => bloque.grupo), ...mas.pie,

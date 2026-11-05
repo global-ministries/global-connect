@@ -14,9 +14,13 @@ import { esEntradaTalleres, useEntradasNavegacion, type EntradaMenu } from '@/co
 import { PanelFlotanteRiel } from '@/components/navegacion/panel-flotante-riel'
 import {
   CLASE_BOTON_ICONO_SHELL,
+  CLASE_CONTADOR_MENU,
   claseEntradaSidebar,
   claseSubEntradaSidebar,
+  etiquetaUrgentes,
 } from '@/components/navegacion/estilos-navegacion'
+import { ID_PENDIENTES } from '@/components/ui/dream-team-menu-item'
+import { useUrgentesPendientes } from '@/hooks/useDreamTeamAcceso'
 import { esEntradaActiva, esRutaActiva } from '@/lib/navegacion/registro'
 import { SECCIONES_PRINCIPALES, type SeccionNavegacion } from '@/lib/navegacion/secciones'
 
@@ -135,6 +139,8 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
   const pie = useMemo(() => secciones.find((grupo) => grupo.seccion === 'pie')?.entradas ?? [], [secciones])
   const grupos = useMemo(() => cuerpo.flatMap((grupo) => grupo.entradas).filter(esGrupo), [cuerpo])
   const idGrupoActual = grupos.find((entrada) => grupoContiene(pathname, entrada))?.id ?? null
+  // The urgentes of "Pendientes" (Dream Team), read once after mount when the entry shows.
+  const urgentes = useUrgentesPendientes(grupos.some((entrada) => (entrada.children ?? []).some((hija) => hija.id === ID_PENDIENTES)))
 
   // On every navigation the group of the current page opens (closing the
   // others) and any rail flyout closes. Adjusted during render, not in an
@@ -238,15 +244,22 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
       <ul className={cn('grid', riel ? 'gap-0.5' : 'mt-0.5 mb-1.5 ml-5 border-l border-sidebar-border pl-2.5')}>
         {(entrada.children ?? []).map((hija) => {
           const activa = esRutaActiva(pathname, hija.href)
+          const contador = hija.id === ID_PENDIENTES && urgentes ? urgentes : null
           return (
             <li key={hija.id}>
               <Link
                 href={hija.href}
                 prefetch={false}
                 aria-current={activa ? 'page' : undefined}
+                aria-label={contador !== null ? etiquetaUrgentes(hija.label, contador) : undefined}
                 className={claseSubEntradaSidebar(activa)}
               >
-                <span className="min-w-0 truncate">{hija.label}</span>
+                <span className="min-w-0 flex-1 truncate">{hija.label}</span>
+                {contador !== null && (
+                  <span aria-hidden="true" data-slot="contador-pendientes" className={CLASE_CONTADOR_MENU}>
+                    {contador > 99 ? '99+' : contador}
+                  </span>
+                )}
               </Link>
             </li>
           )
