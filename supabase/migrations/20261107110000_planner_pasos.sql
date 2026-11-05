@@ -50,8 +50,10 @@
 --   * Deshacer (S15): el autor dentro de 24 horas; director general, admin y pastor cualquier paso
 --     de la temporada. Se rechaza, con el motivo, si el paso ya se deshizo, si es un deshacer, si la
 --     temporada ya no está en planificación, si un paso posterior no deshecho tocó alguno de sus
---     grupos o personas (40001, nombra a quien y qué) o si el estado cambió fuera del planificador
---     (40001). Restaura la foto de antes (deshacer un alta da de baja el grupo), es un paso propio
+--     grupos o personas (40001, nombra a quien y qué), si el estado cambió fuera del planificador
+--     (40001), si alguien que volvería a un grupo está ahora en otro grupo vigente de la temporada
+--     (40001, nombra a la persona y el grupo) o si un grupo que el paso creó tiene ahora personas
+--     (40001). Nunca deja a nadie en dos grupos de la temporada. Restaura la foto de antes (deshacer un alta da de baja el grupo), es un paso propio
 --     ('deshacer') y aplica S17.
 --   * Errores: 28000 sin sesión, 42501 permiso, 22023 validación, 40001 y 55000 conflictos.
 --
@@ -106,6 +108,9 @@ CREATE INDEX IF NOT EXISTS planner_pasos_deshecho_idx ON public.planner_pasos (d
 ALTER TABLE public.planner_pasos ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.planner_pasos FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.planner_pasos TO service_role;
+-- La secuencia de identidad de numero tampoco la usa authenticated (solo las RPC).
+REVOKE ALL ON SEQUENCE public.planner_pasos_numero_seq FROM PUBLIC, anon, authenticated;
+GRANT USAGE, SELECT ON SEQUENCE public.planner_pasos_numero_seq TO service_role;
 
 CREATE TABLE IF NOT EXISTS public.planner_segmentos_terminados (
   temporada_id uuid NOT NULL REFERENCES public.temporadas(id) ON DELETE CASCADE,
@@ -559,6 +564,7 @@ DECLARE
   v_paso public.planner_pasos;
   v_estado text;
   v_posterior record;
+  v_otro record;
   v_foto jsonb;
 BEGIN
   SELECT p.* INTO v_paso FROM public.planner_pasos p WHERE p.id = p_paso_id;
@@ -617,6 +623,53 @@ BEGIN
            FROM jsonb_array_elements(coalesce(v_paso.despues->'miembros', '[]'::jsonb)) WITH ORDINALITY x(m, o))
   THEN
     codigo := '40001'; motivo := 'No se puede deshacer: el grupo o sus personas cambiaron fuera del planificador'; RETURN;
+  END IF;
+
+  -- Una persona en un solo grupo de la temporada: quien vuelve a un grupo al deshacer no puede estar
+  -- ahora en otro grupo vigente de la temporada fuera de la foto (p. ej. la app lo agregó después).
+  SELECT u.nombre || ' ' || u.apellido AS persona, g.nombre AS grupo INTO v_otro
+    FROM jsonb_array_elements(coalesce(v_paso.antes->'miembros', '[]'::jsonb)) a
+    JOIN public.grupo_miembros gm ON gm.usuario_id = (a->>'usuario_id')::uuid
+    JOIN public.grupos g ON g.id = gm.grupo_id
+    JOIN public.usuarios u ON u.id = gm.usuario_id
+   WHERE (a->>'vigente')::boolean
+     AND g.temporada_id = v_paso.temporada_id
+     AND NOT g.eliminado
+     AND gm.fecha_salida IS NULL
+     AND coalesce(lower(btrim(gm.estado)), '') NOT IN ('inactivo', 'eliminado')
+     AND NOT EXISTS (
+       SELECT 1 FROM jsonb_array_elements(v_paso.antes->'miembros') f
+        WHERE (f->>'grupo_id')::uuid = gm.grupo_id AND (f->>'usuario_id')::uuid = gm.usuario_id)
+   ORDER BY u.apellido, u.nombre, g.nombre
+   LIMIT 1;
+  IF FOUND THEN
+    codigo := '40001';
+    motivo := format('No se puede deshacer: %s ahora está en %s; primero quita a esa persona de ese grupo', v_otro.persona, v_otro.grupo);
+    RETURN;
+  END IF;
+
+  -- Deshacer un alta da de baja el grupo: no debe tener personas vigentes (las agregó la app).
+  SELECT g.nombre AS grupo,
+         public.planner_paso_lista(ARRAY(
+           SELECT u.nombre || ' ' || u.apellido
+             FROM public.grupo_miembros gm JOIN public.usuarios u ON u.id = gm.usuario_id
+            WHERE gm.grupo_id = g.id AND gm.fecha_salida IS NULL
+              AND coalesce(lower(btrim(gm.estado)), '') NOT IN ('inactivo', 'eliminado')
+            ORDER BY u.apellido, u.nombre LIMIT 3)) AS personas
+    INTO v_otro
+    FROM jsonb_array_elements(coalesce(v_paso.antes->'grupos', '[]'::jsonb)) a
+    JOIN public.grupos g ON g.id = (a->>'id')::uuid
+   WHERE NOT (a->>'existia')::boolean
+     AND NOT g.eliminado
+     AND EXISTS (SELECT 1 FROM public.grupo_miembros gm
+                  WHERE gm.grupo_id = g.id AND gm.fecha_salida IS NULL
+                    AND coalesce(lower(btrim(gm.estado)), '') NOT IN ('inactivo', 'eliminado'))
+   ORDER BY g.nombre
+   LIMIT 1;
+  IF FOUND THEN
+    codigo := '40001';
+    motivo := format('No se puede deshacer: %s ya tiene personas (%s); quítalas primero', v_otro.grupo, v_otro.personas);
+    RETURN;
   END IF;
 END;
 $function$;

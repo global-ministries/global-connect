@@ -21,7 +21,8 @@
 --   8. Deshacer (S15): el autor dentro de 24 horas; director general sobre pasos ajenos y viejos; ya
 --      deshecho 55000; conflicto con un paso posterior 40001 que nombra a quien lo hizo; cambio fuera
 --      del planificador 40001; deshacer una baja o una salida reinserta la fila idéntica (mismo id y
---      columnas); deshacer es un paso.
+--      columnas); deshacer nunca deja a una persona en dos grupos de la temporada ni personas en un
+--      grupo dado de baja (40001 si la app las agregó después); deshacer es un paso.
 --   9. Historial por rol con puede_deshacer y motivo; paginación.
 --
 -- Se ejecuta dentro de BEGIN…ROLLBACK (staging o el arnés local): nada se conserva; los datos viven
@@ -421,6 +422,10 @@ SELECT pg_temp.assert_eq('rls: ' || t || ' con RLS y sin políticas',
               FROM pg_class c WHERE c.oid = %L::regclass$q$, t),
   'true|0')
   FROM unnest(ARRAY['public.planner_pasos', 'public.planner_segmentos_terminados']) t;
+SELECT pg_temp.assert_eq('privilegios: authenticated y anon no usan la secuencia de planner_pasos.numero',
+  $q$SELECT (has_sequence_privilege('authenticated', pg_get_serial_sequence('public.planner_pasos', 'numero'), 'USAGE,SELECT,UPDATE')
+             OR has_sequence_privilege('anon', pg_get_serial_sequence('public.planner_pasos', 'numero'), 'USAGE,SELECT,UPDATE'))::text$q$,
+  'false');
 SELECT pg_temp.assert_eq('tablas: índice de historial por temporada y fecha',
   $q$SELECT count(*)::text FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'planner_pasos'
         AND indexdef ILIKE '%(temporada_id, creado_en DESC%'$q$, '1');
@@ -892,6 +897,58 @@ SELECT pg_temp.assert_eq('salida: deshacer', $q$SELECT pg_temp.deshacer(pg_temp.
   'deshizo el paso de ZZ Pp DG: devolvió a ZZ Pp P12 al banco desde ZZ Pp G3');
 SELECT pg_temp.assert_eq('salida: deshacer reinserta la fila idéntica (mismo id y columnas)',
   $q$SELECT pg_temp.fila_igual('P12 en G3', 'P12', 'G3')$q$, 'true');
+
+-- 19. Deshacer nunca deja a nadie en dos grupos de la temporada (alta hecha fuera del planificador).
+SELECT pg_temp.as_user(pg_temp.a('DG'));
+SELECT pg_temp.assert_eq('dos grupos: P2 a G2', $q$SELECT pg_temp.mover('P2', 'G2', 'miembro')$q$, 'movió a ZZ Pp P2 a ZZ Pp G2');
+SELECT pg_temp.assert_eq('dos grupos: P2 al banco', $q$SELECT pg_temp.mover('P2', NULL, NULL)$q$,
+  'devolvió a ZZ Pp P2 al banco desde ZZ Pp G2');
+SELECT pg_temp.marcar('banco P2');
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol)
+VALUES ('e6200000-0000-4000-8000-0000000000d3', 'e6200000-0000-4000-8000-000000000022', 'Miembro');
+SELECT pg_temp.assert_eq('dos grupos: el historial no ofrece deshacer y dice por qué',
+  $q$SELECT pg_temp.hist(pg_temp.p('banco P2'))$q$,
+  'false|No se puede deshacer: ZZ Pp P2 ahora está en ZZ Pp G3; primero quita a esa persona de ese grupo');
+SELECT pg_temp.assert_eq('dos grupos: deshacer se rechaza con 40001',
+  $q$SELECT pg_temp.error($s$SELECT pg_temp.deshacer(pg_temp.p('banco P2'))$s$)$q$,
+  'ERR:40001 No se puede deshacer: ZZ Pp P2 ahora está en ZZ Pp G3; primero quita a esa persona de ese grupo');
+SELECT pg_temp.assert_eq('dos grupos: P2 sigue solo en G3', $q$SELECT pg_temp.vig('P2')$q$, 'G3:Miembro');
+
+-- Variante: deshacer la baja de un grupo cuyas personas la app puso en otro grupo.
+SELECT pg_temp.assert_eq('dos grupos: crear Borrable',
+  $q$SELECT pg_temp.crear('Borrable', '{"nombre": "ZZ Pp Borrable", "segmento_id": "e6200000-0000-4000-8000-0000000000a1"}')$q$,
+  'creó el grupo ZZ Pp Borrable');
+SELECT pg_temp.assert_eq('dos grupos: P4 a Borrable', $q$SELECT pg_temp.mover('P4', 'Borrable', 'miembro')$q$,
+  'movió a ZZ Pp P4 a ZZ Pp Borrable');
+SELECT pg_temp.assert_eq('dos grupos: eliminar Borrable', $q$SELECT pg_temp.eliminar('Borrable')$q$,
+  'eliminó el grupo ZZ Pp Borrable y devolvió a ZZ Pp P4 al banco');
+SELECT pg_temp.marcar('eliminar Borrable');
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol)
+VALUES ('e6200000-0000-4000-8000-0000000000d1', 'e6200000-0000-4000-8000-000000000024', 'Miembro');
+SELECT pg_temp.assert_eq('dos grupos: el historial no ofrece deshacer la baja',
+  $q$SELECT pg_temp.hist(pg_temp.p('eliminar Borrable'))$q$,
+  'false|No se puede deshacer: ZZ Pp P4 ahora está en ZZ Pp G1 Cabudare; primero quita a esa persona de ese grupo');
+SELECT pg_temp.assert_eq('dos grupos: deshacer la baja se rechaza con 40001',
+  $q$SELECT pg_temp.outcome($s$SELECT pg_temp.deshacer(pg_temp.p('eliminar Borrable'))$s$)$q$, 'ERR:40001');
+SELECT pg_temp.assert_eq('dos grupos: P4 solo en G1 y Borrable sigue eliminado',
+  $q$SELECT pg_temp.vig('P4') || '|' || (SELECT g.eliminado::text FROM public.grupos g WHERE g.id = pg_temp.g('Borrable'))$q$,
+  'G1:Miembro|true');
+
+-- 20. Deshacer un alta no deja personas en un grupo dado de baja (la app las agregó después).
+SELECT pg_temp.assert_eq('alta: crear Vacio',
+  $q$SELECT pg_temp.crear('Vacio', '{"nombre": "ZZ Pp Vacio", "segmento_id": "e6200000-0000-4000-8000-0000000000a1"}')$q$,
+  'creó el grupo ZZ Pp Vacio');
+SELECT pg_temp.marcar('crear Vacio');
+INSERT INTO public.grupo_miembros (grupo_id, usuario_id, rol)
+SELECT pg_temp.g('Vacio'), 'e6200000-0000-4000-8000-000000000030', 'Miembro';
+SELECT pg_temp.assert_eq('alta: el historial no ofrece deshacer el alta',
+  $q$SELECT pg_temp.hist(pg_temp.p('crear Vacio'))$q$,
+  'false|No se puede deshacer: ZZ Pp Vacio ya tiene personas (ZZ Pp P10); quítalas primero');
+SELECT pg_temp.assert_eq('alta: deshacer se rechaza con 40001',
+  $q$SELECT pg_temp.outcome($s$SELECT pg_temp.deshacer(pg_temp.p('crear Vacio'))$s$)$q$, 'ERR:40001');
+SELECT pg_temp.assert_eq('alta: el grupo sigue vigente con su persona',
+  $q$SELECT (SELECT g.eliminado::text FROM public.grupos g WHERE g.id = pg_temp.g('Vacio')) || '|' || pg_temp.vig('P10')$q$,
+  'false|Vacio:Miembro');
 
 SELECT count(*) AS aserciones FROM t_pp_asserts;
 SELECT case_name AS fallidos FROM t_pp_failures ORDER BY case_name;
