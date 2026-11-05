@@ -556,6 +556,35 @@ SELECT pg_temp.pt_eq('estado: temporada inexistente',
   $q$SELECT pg_temp.pt_err($s$SELECT public.planner_estado_publicacion('e6300000-0000-4000-8000-0000000000ee')::text$s$)$q$,
   'ERR:22023 La temporada no existe');
 
+-- B1 (S19, S8): crear no puede robar el origen de una temporada existente. El nombre se compara
+-- sin signos ni espacios y sin distinguir mayúsculas; una temporada nueva empieza después de la
+-- última de su cohorte.
+SELECT pg_temp.pt_as('DG');
+INSERT INTO t_pt_foto(tag, foto) SELECT 'temporadas B1', count(*)::text FROM public.temporadas WHERE nombre ILIKE 'ZZ Pt%';
+SELECT pg_temp.pt_eq('crear B1: rechazo ' || v.n, format('SELECT pg_temp.pt_err(%L)', v.q), v.e)
+  FROM (VALUES
+    ('variante sin guion de un nombre existente',
+     $s$SELECT pg_temp.pt_crear('ZZ Pt 2094 II', DATE '2094-09-01', DATE '2095-08-30')$s$,
+     'ERR:22023 Ya existe una temporada llamada «ZZ Pt 2094 - II»'),
+    ('variante con guion pegado y minúsculas',
+     $s$SELECT pg_temp.pt_crear('zz pt 2094-ii', DATE '2097-10-01', DATE '2098-09-30')$s$,
+     'ERR:22023 Ya existe una temporada llamada «ZZ Pt 2094 - II»'),
+    ('otro nombre que empieza antes de la última de su cohorte',
+     $s$SELECT pg_temp.pt_crear('ZZ Pt Jovenes 2094 - II', DATE '2094-09-01', DATE '2095-08-30')$s$,
+     'ERR:22023 La temporada debe empezar después del 2095-10-01, inicio de «ZZ Pt 2095 - II», la última de la cohorte II'),
+    ('otro nombre que empieza el mismo día que la última de su cohorte',
+     $s$SELECT pg_temp.pt_crear('ZZ Pt Otra 2095 - II', DATE '2095-10-01', DATE '2096-09-30')$s$,
+     'ERR:22023 La temporada debe empezar después del 2095-10-01, inicio de «ZZ Pt 2095 - II», la última de la cohorte II')
+  ) v(n, q, e);
+SELECT pg_temp.pt_eq('crear B1: los rechazos no guardaron temporadas',
+  $q$SELECT (count(*)::text = (SELECT foto FROM t_pt_foto WHERE tag = 'temporadas B1'))::text FROM public.temporadas WHERE nombre ILIKE 'ZZ Pt%'$q$,
+  'true');
+SELECT pg_temp.pt_eq('crear B1: el origen del destino sigue siendo la "-II" anterior',
+  $q$SELECT pg_temp.pt_estado()->'origen'->>'nombre'$q$, 'ZZ Pt 2093 - II');
+SELECT pg_temp.pt_as('DE');
+SELECT pg_temp.pt_eq('estado: el director de etapa no recibe nombres de grupos',
+  $q$SELECT (pg_temp.pt_estado()::text NOT LIKE '%ZZ Pt DG%')::text$q$, 'true');
+
 -- 7. Publicar: rechazos sin escribir nada.
 SELECT pg_temp.pt_as('DG');
 INSERT INTO t_pt_foto(tag, foto) SELECT 'antes de publicar', pg_temp.pt_todo();

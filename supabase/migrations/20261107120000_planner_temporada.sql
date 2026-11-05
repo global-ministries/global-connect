@@ -9,9 +9,11 @@
 --
 -- Qué crea:
 --   1. planner_crear_temporada(nombre, inicio, fin) → jsonb (S18, S20): admin, pastor y director
---      general. Nombre sin espacios repetidos, único sin distinguir mayúsculas ni espacios
---      ("2026-II" = "2026 - II"), con cohorte I o II (planner_cohorte, S19); fin posterior al
---      inicio. Nace 'planificacion' e inactiva. Devuelve su cohorte y su origen.
+--      general. Nombre sin espacios repetidos, único sin distinguir mayúsculas, tildes, espacios ni
+--      signos ("2026-II" = "2026 II" = "2026 - ii"), con cohorte I o II (planner_cohorte, S19); fin
+--      posterior al inicio; inicio posterior al de la última temporada de su cohorte (si no, se
+--      volvería el origen de una existente y publicar cerraría la equivocada). Nace 'planificacion'
+--      e inactiva. Devuelve su cohorte y su origen.
 --   2. planner_bloqueos_temporada(temporada) → bloqueos de todos los segmentos. Interna.
 --   3. planner_bloqueos(temporada) → los mismos bloqueos, limitados a los segmentos del actor
 --      (director de etapa: los suyos, S10). Tipos (S6):
@@ -86,6 +88,7 @@ DECLARE
   v_actor record;
   v_nombre text;
   v_choque text;
+  v_ultima record;
   v_id uuid := gen_random_uuid();
   v_origen record;
 BEGIN
@@ -112,15 +115,30 @@ BEGIN
     RAISE EXCEPTION 'La fecha de fin debe ser posterior a la de inicio' USING ERRCODE = '22023';
   END IF;
 
-  -- Serializa altas concurrentes para que la comprobación de nombre único sea firme.
+  -- Serializa altas concurrentes para que las comprobaciones de nombre y fecha sean firmes.
   PERFORM pg_advisory_xact_lock(hashtext('planner_crear_temporada'));
+  -- Nombre único sin signos, espacios, mayúsculas ni tildes: "2026 II", "2026-II" y "2026 - ii" son
+  -- la misma temporada (B1: una variante robaría el origen de la existente, S19).
   SELECT t.nombre INTO v_choque
     FROM public.temporadas t
-   WHERE lower(regexp_replace(t.nombre, '\s+', '', 'g')) = lower(regexp_replace(v_nombre, '\s+', '', 'g'))
+   WHERE translate(lower(regexp_replace(t.nombre, '[^[:alnum:]]+', '', 'g')), 'áéíóúüñ', 'aeiouun')
+       = translate(lower(regexp_replace(v_nombre, '[^[:alnum:]]+', '', 'g')), 'áéíóúüñ', 'aeiouun')
    ORDER BY t.fecha_inicio, t.id
    LIMIT 1;
   IF FOUND THEN
     RAISE EXCEPTION 'Ya existe una temporada llamada «%»', v_choque USING ERRCODE = '22023';
+  END IF;
+  -- Una temporada nueva empieza después de la última de su cohorte: si no, sería el origen de una
+  -- existente y publicar esa existente cerraría la nueva en vez de la anterior (S8, S19).
+  SELECT t.nombre, t.fecha_inicio::date AS inicio INTO v_ultima
+    FROM public.temporadas t
+   WHERE public.planner_cohorte(t.nombre) = public.planner_cohorte(v_nombre)
+   ORDER BY t.fecha_inicio DESC, t.id
+   LIMIT 1;
+  IF FOUND AND p_fecha_inicio <= v_ultima.inicio THEN
+    RAISE EXCEPTION 'La temporada debe empezar después del %, inicio de «%», la última de la cohorte %',
+      to_char(v_ultima.inicio, 'YYYY-MM-DD'), v_ultima.nombre, public.planner_cohorte(v_nombre)
+      USING ERRCODE = '22023';
   END IF;
 
   INSERT INTO public.temporadas (id, nombre, fecha_inicio, fecha_fin, activa, estado)
@@ -143,7 +161,8 @@ $function$;
 
 COMMENT ON FUNCTION public.planner_crear_temporada(text, date, date) IS
   'Planificador de GDV (S18, S20): crea una temporada en planificación e inactiva. Admin, pastor y director general (42501 el resto). '
-  'Nombre único sin distinguir mayúsculas ni espacios y con cohorte I o II (S19); fin posterior al inicio (22023). Devuelve cohorte y origen.';
+  'Nombre único sin distinguir mayúsculas, tildes, espacios ni signos y con cohorte I o II (S19); fin posterior al inicio; inicio posterior '
+  'al de la última temporada de su cohorte (22023). Devuelve cohorte y origen.';
 
 REVOKE ALL ON FUNCTION public.planner_crear_temporada(text, date, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.planner_crear_temporada(text, date, date) TO authenticated, service_role;
