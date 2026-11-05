@@ -30,7 +30,11 @@ describe('parseEditarFicha', () => {
   it.each([
     [{}, 'No hay cambios para guardar'],
     [null, 'Body inválido'],
-    [{ email: 'x@example.test' }, 'Campo no editable: email'],
+    [{ nombre: 'Otra' }, 'Campo no editable: nombre'],
+    [{ email: 'sin-arroba' }, 'Escribe un correo válido'],
+    [{ email: 'a b@example.test' }, 'Escribe un correo válido'],
+    [{ email: `${'a'.repeat(250)}@x.io` }, 'Escribe un correo válido'],
+    [{ email: 5 }, 'Escribe un correo válido'],
     [{ fechaNacimiento: '2026-10-08' }, 'La fecha de nacimiento no puede ser futura'],
     [{ fechaNacimiento: '1899-12-31' }, 'Fecha de nacimiento inválida'],
     [{ fechaNacimiento: '2001-02-30' }, 'Fecha de nacimiento inválida'],
@@ -41,6 +45,11 @@ describe('parseEditarFicha', () => {
     [{ telefono: 5 }, 'Teléfono inválido'],
   ])('refuses %j', (body, error) => {
     expect(parseEditarFicha(body, HOY)).toEqual({ error })
+  })
+  it('trims and lowercases the email; a blank one clears it (S3)', () => {
+    expect(parseEditarFicha({ email: '  Ana.Perez@Example.TEST ' }, HOY)).toEqual({ datos: { email: 'ana.perez@example.test' } })
+    expect(parseEditarFicha({ email: '' }, HOY)).toEqual({ datos: { email: null } })
+    expect(parseEditarFicha({ email: null }, HOY)).toEqual({ datos: { email: null } })
   })
   it('accepts today as a birth date and No especificado as estado civil', () => {
     expect(parseEditarFicha({ fechaNacimiento: '2026-10-07', estadoCivil: 'No especificado' }, HOY)).toEqual({
@@ -59,6 +68,9 @@ const FICHA: FichaPersona = {
   estadoCivil: 'No especificado',
   telefono: '04141234567',
   redesSociales: null,
+  email: 'ana@example.test',
+  tieneCuenta: false,
+  puedeEditarEmail: true,
 }
 
 describe('mapFicha', () => {
@@ -67,8 +79,17 @@ describe('mapFicha', () => {
       mapFicha({
         id: 'p-1', nombre: 'Ana', apellido: 'Pérez', fecha_nacimiento: null, cedula: null,
         genero: 'Femenino', estado_civil: 'No especificado', telefono: '04141234567', redes_sociales: null,
+        email: 'ana@example.test', tiene_cuenta: false, puede_editar_email: true,
       }),
     ).toEqual(FICHA)
+  })
+  it('fails closed on the email flags: missing ones read as an account the caller may not change', () => {
+    expect(mapFicha({ id: 'p-1', genero: 'Femenino', estado_civil: 'Casado' })).toMatchObject({
+      email: null, tieneCuenta: true, puedeEditarEmail: false,
+    })
+    expect(mapFicha({ id: 'p-1', tiene_cuenta: true, puede_editar_email: 'true' })).toMatchObject({
+      tieneCuenta: true, puedeEditarEmail: false,
+    })
   })
   it('throws on an empty answer', () => {
     expect(() => mapFicha(null)).toThrow()
@@ -81,6 +102,9 @@ describe('mapFichaError', () => {
     [{ code: '23505', message: 'cedula_duplicada' }, 409, 'Esa cédula ya pertenece a otra persona'],
     [{ code: '22023', message: 'fecha_nacimiento_invalida' }, 422, 'Fecha de nacimiento inválida'],
     [{ code: '22023', message: 'algo' }, 422, 'Datos inválidos'],
+    [{ code: '42501', message: 'email_solo_admin' }, 403, 'Solo un administrador puede cambiar el correo de quien ya tiene cuenta.'],
+    [{ code: '23505', message: 'email_en_uso' }, 409, 'Ese correo ya lo usa otra persona.'],
+    [{ code: '22023', message: 'email_invalido' }, 422, 'Escribe un correo válido'],
     [{ code: 'XX000', message: 'boom' }, 500, 'Error interno'],
   ])('%j -> %i', (error, status, mensaje) => {
     expect(mapFichaError(error)).toEqual({ status, error: mensaje })
@@ -91,8 +115,9 @@ describe('formularioDesdeFicha / cambiosDeFicha', () => {
   it('prefills with empty strings for the gaps', () => {
     expect(formularioDesdeFicha(FICHA)).toEqual({
       fechaNacimiento: '', cedula: '', genero: 'Femenino', estadoCivil: 'No especificado',
-      telefono: '04141234567', redesSociales: '',
+      telefono: '04141234567', redesSociales: '', email: 'ana@example.test',
     })
+    expect(formularioDesdeFicha({ ...FICHA, email: null }).email).toBe('')
   })
   it('sends only what changed', () => {
     const form = { ...formularioDesdeFicha(FICHA), fechaNacimiento: '1990-05-17', telefono: '04141234567 ' }
@@ -100,6 +125,14 @@ describe('formularioDesdeFicha / cambiosDeFicha', () => {
   })
   it('sends a cleared field as an empty string', () => {
     expect(cambiosDeFicha(FICHA, { ...formularioDesdeFicha(FICHA), telefono: '' })).toEqual({ telefono: '' })
+  })
+  it('sends a changed email, but not a change of case only (S3)', () => {
+    expect(cambiosDeFicha(FICHA, { ...formularioDesdeFicha(FICHA), email: ' nueva@example.test ' })).toEqual({ email: 'nueva@example.test' })
+    expect(cambiosDeFicha(FICHA, { ...formularioDesdeFicha(FICHA), email: 'ANA@example.test' })).toEqual({})
+  })
+  it('never sends the email when the caller may not change it', () => {
+    const bloqueada: FichaPersona = { ...FICHA, tieneCuenta: true, puedeEditarEmail: false }
+    expect(cambiosDeFicha(bloqueada, { ...formularioDesdeFicha(bloqueada), email: 'otra@example.test', telefono: '' })).toEqual({ telefono: '' })
   })
 })
 

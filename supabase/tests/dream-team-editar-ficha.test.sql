@@ -14,6 +14,14 @@
 --   f. Validation (22023): a future birth date, one before 1900, an unknown
 --      genero, a key that is not editable (email).
 --   g. dream_team_ficha_persona answers the same people, refuses the rest.
+--   h. The email (20261106100000, odd/tasks/dream-team-pendientes-director.md,
+--      S3): whoever may edit the ficha changes the email of a person WITHOUT
+--      an account; for a person WITH an account only an admin (role admin;
+--      pastor is not enough): anyone else gets 42501 email_solo_admin and
+--      nothing changes. A bad format (22023 email_invalido) and an email of
+--      another ficha or another auth account (23505 email_en_uso) are refused
+--      and change nothing. dream_team_ficha_persona answers email,
+--      tiene_cuenta and puede_editar_email.
 --
 -- Run against STAGING inside BEGIN…ROLLBACK. The last statement is a SELECT
 -- of the failing cases ('ALL OK' when none).
@@ -22,7 +30,9 @@
 -- 2 VOL (plain voluntario serving in S, dream_team.serve on S); 3 TARGET
 -- (postulado in S, gaps in the ficha); 4 OUTSIDER (activo in E); 5 ADMIN;
 -- 6 HOLDER of cedula 12345678; 7 RETIRED (retirado in S); 8 DIR
--- (dream_team.direct on N).
+-- (dream_team.direct on N); 9 SIN CUENTA (usuario without auth account,
+-- activo in S); 10 PASTOR; auth 11 is an account without ficha.
+-- The area director reaches 3 and 9 (20261105100000).
 -- Tree: R → N → S; N → AV ("Atención al Voluntario"); R → E.
 
 BEGIN;
@@ -81,16 +91,22 @@ $$;
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'ef-' || n || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM generate_series(1, 8) AS n;
+  FROM generate_series(1, 11) AS n
+ WHERE n <> 9;
 
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ef', 'U' || n, 'ef-' || n || '@example.test', 'No especificado', 'Otro'
-  FROM generate_series(1, 8) AS n;
+  FROM generate_series(1, 10) AS n
+ WHERE n <> 9;
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
+VALUES (pg_temp.id('us', 9), NULL, 'ZZ Ef', 'U9', 'ef-9@example.test', 'No especificado', 'Otro');
 UPDATE public.usuarios SET cedula = '12345678' WHERE id = pg_temp.id('us', 6);
 UPDATE public.usuarios SET telefono = '04141234567', redes_sociales = '@zz_ef_3' WHERE id = pg_temp.id('us', 3);
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT pg_temp.id('us', 5), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'admin';
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT pg_temp.id('us', 10), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'pastor';
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'experiencia', NULL, 'ZZ Ef R', true),
@@ -108,7 +124,8 @@ INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, 
   (pg_temp.id('us', 1), pg_temp.id('eq', 5), pg_temp.id('ro', 3), 'activo', now(), 'admin_asignacion'),
   (pg_temp.id('us', 2), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo', now(), 'admin_asignacion'),
   (pg_temp.id('us', 3), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'postulado', now(), 'admin_asignacion'),
-  (pg_temp.id('us', 4), pg_temp.id('eq', 4), pg_temp.id('ro', 2), 'activo', now(), 'admin_asignacion');
+  (pg_temp.id('us', 4), pg_temp.id('eq', 4), pg_temp.id('ro', 2), 'activo', now(), 'admin_asignacion'),
+  (pg_temp.id('us', 9), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'activo', now(), 'admin_asignacion');
 INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, fecha_inicio, fecha_fin, motivo_actual) VALUES
   (pg_temp.id('us', 7), pg_temp.id('eq', 3), pg_temp.id('ro', 1), 'retirado', now() - interval '1 day', now(), 'admin_asignacion');
 
@@ -153,8 +170,10 @@ SELECT pg_temp.as_persona(2);
 SELECT pg_temp.assert_raises('c: a plain volunteer is refused',
   $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"genero":"Masculino"}')$q$, '42501');
 SELECT pg_temp.as_persona(8);
-SELECT pg_temp.assert_raises('c: the area director is refused (same rule as registering)',
-  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"genero":"Masculino"}')$q$, '42501');
+-- Since 20261105100000 the area director reaches the people of their subtree.
+SELECT pg_temp.assert_eq('c: the area director edits a person they reach (20261105100000)',
+  $q$SELECT f->>'telefono' FROM public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"telefono":"04141234567"}') f$q$,
+  '04141234567');
 
 -- ── d. admin ─────────────────────────────────────────────────────────
 
@@ -185,11 +204,91 @@ SELECT pg_temp.assert_raises('f: an impossible date is refused',
   '22023', 'fecha_nacimiento_invalida');
 SELECT pg_temp.assert_raises('f: an unknown genero is refused',
   $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"genero":"X"}')$q$, '22023', 'genero_invalido');
-SELECT pg_temp.assert_raises('f: email is not editable',
-  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"email":"x@example.test"}')$q$,
+SELECT pg_temp.assert_raises('f: a key that is not editable is refused',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"nombre":"Otro"}')$q$,
   '22023', 'campo_no_editable');
 
+-- ── h. email (S3) ────────────────────────────────────────────────────
+
+SELECT pg_temp.as_persona(8);
+SELECT pg_temp.assert_eq('h: the director reads email, no account, may edit it',
+  $q$SELECT concat_ws('|', f->>'email', f->>'tiene_cuenta', f->>'puede_editar_email')
+       FROM public.dream_team_ficha_persona(pg_temp.id('us', 9)) f$q$,
+  'ef-9@example.test|false|true');
+SELECT pg_temp.assert_eq('h: the director reads that a person with account has a locked email',
+  $q$SELECT concat_ws('|', f->>'email', f->>'tiene_cuenta', f->>'puede_editar_email')
+       FROM public.dream_team_ficha_persona(pg_temp.id('us', 3)) f$q$,
+  'ef-3@example.test|true|false');
+SELECT pg_temp.assert_eq('h: the director edits the email of a person without account (trimmed, lowercase)',
+  $q$SELECT concat_ws('|', f->>'email', f->>'telefono', f->>'genero')
+       FROM public.dream_team_editar_ficha(pg_temp.id('us', 9),
+         '{"email":"  Nueva.9@Example.TEST ","telefono":"04140000009"}') f$q$,
+  'nueva.9@example.test|04140000009|Otro');
+SELECT pg_temp.assert_raises('h: the director cannot change the email of a person with account',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"email":"otro-3@example.test","telefono":"04249999999"}')$q$,
+  '42501', 'email_solo_admin');
+SELECT pg_temp.assert_eq('h: the same email (other case) of a person with account is not a change',
+  $q$SELECT f->>'email' FROM public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"email":"EF-3@example.test"}') f$q$,
+  'ef-3@example.test');
+SELECT pg_temp.assert_raises('h: a bad email format is refused',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 9), '{"email":"sin-arroba","telefono":"04241111111"}')$q$,
+  '22023', 'email_invalido');
+SELECT pg_temp.assert_raises('h: an email with spaces inside is refused',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 9), '{"email":"a b@example.test"}')$q$,
+  '22023', 'email_invalido');
+SELECT pg_temp.assert_raises('h: an email over 254 characters is refused',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 9),
+       jsonb_build_object('email', repeat('a', 250) || '@x.io'))$q$,
+  '22023', 'email_invalido');
+SELECT pg_temp.assert_raises('h: the email of another ficha is refused (any case)',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 9), '{"email":"EF-6@example.test"}')$q$,
+  '23505', 'email_en_uso');
+SELECT pg_temp.assert_raises('h: the email of an auth account without this ficha is refused',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 9), '{"email":"ef-11@example.test"}')$q$,
+  '23505', 'email_en_uso');
+
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('h: the volunteer coordinator cannot change the email of a person with account',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 3), '{"email":"otro-3@example.test"}')$q$,
+  '42501', 'email_solo_admin');
+
+SELECT pg_temp.as_persona(10);
+SELECT pg_temp.assert_eq('h: a pastor reads the email of a person with account as locked',
+  $q$SELECT f->>'puede_editar_email' FROM public.dream_team_ficha_persona(pg_temp.id('us', 4)) f$q$, 'false');
+SELECT pg_temp.assert_raises('h: a pastor cannot change the email of a person with account',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 4), '{"email":"otro-4@example.test"}')$q$,
+  '42501', 'email_solo_admin');
+
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_eq('h: an admin may edit the email of a person with account',
+  $q$SELECT f->>'puede_editar_email' FROM public.dream_team_ficha_persona(pg_temp.id('us', 4)) f$q$, 'true');
+SELECT pg_temp.assert_eq('h: an admin changes the email of a person with account',
+  $q$SELECT f->>'email' FROM public.dream_team_editar_ficha(pg_temp.id('us', 4), '{"email":"Nuevo-4@example.test"}') f$q$,
+  'nuevo-4@example.test');
+SELECT pg_temp.assert_raises('h: an admin cannot leave a person with account without email',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 4), '{"email":"  "}')$q$,
+  '22023', 'email_invalido');
+SELECT pg_temp.assert_raises('h: an admin cannot take the email of another ficha either',
+  $q$SELECT public.dream_team_editar_ficha(pg_temp.id('us', 4), '{"email":"ef-6@example.test"}')$q$,
+  '23505', 'email_en_uso');
+
+SELECT pg_temp.as_persona(8);
+SELECT pg_temp.assert_eq('h: the director clears the email of a person without account',
+  $q$SELECT coalesce(f->>'email', 'null') FROM public.dream_team_editar_ficha(pg_temp.id('us', 9), '{"email":null}') f$q$,
+  'null');
+
 RESET ROLE;
+
+SELECT pg_temp.assert_eq('h: the refused email changes left every field as it was',
+  $q$SELECT concat_ws('|', u3.email, u3.telefono, coalesce(u9.email, 'null'), u9.telefono, u4.email, u6.email)
+       FROM public.usuarios u3, public.usuarios u9, public.usuarios u4, public.usuarios u6
+      WHERE u3.id = pg_temp.id('us', 3) AND u9.id = pg_temp.id('us', 9)
+        AND u4.id = pg_temp.id('us', 4) AND u6.id = pg_temp.id('us', 6)$q$,
+  'ef-3@example.test|04141234567|null|04140000009|nuevo-4@example.test|ef-6@example.test');
+SELECT pg_temp.assert_eq('h: no auth account email changed',
+  $q$SELECT string_agg(email, ',' ORDER BY email) FROM auth.users
+      WHERE id IN (pg_temp.id('au', 3), pg_temp.id('au', 4))$q$,
+  'ef-3@example.test,ef-4@example.test');
 
 SELECT pg_temp.assert_eq('b: the stored row matches (no other field touched)',
   $q$SELECT concat_ws('|', nombre, email, telefono, coalesce(fecha_nacimiento::text, 'null'))
@@ -204,6 +303,11 @@ SELECT pg_temp.assert_eq('c: anon cannot execute the functions',
        has_function_privilege('anon', 'public.dream_team_ficha_persona(uuid)', 'EXECUTE'),
        has_function_privilege('anon', 'public.dream_team_puede_editar_ficha(uuid)', 'EXECUTE'))$q$,
   'f|f|f');
+SELECT pg_temp.assert_eq('h: the admin helper is internal (no EXECUTE for anon or authenticated)',
+  $q$SELECT concat_ws('|',
+       has_function_privilege('anon', 'public.dream_team_ficha_actor_es_admin()', 'EXECUTE'),
+       has_function_privilege('authenticated', 'public.dream_team_ficha_actor_es_admin()', 'EXECUTE'))$q$,
+  'f|f');
 
 SELECT coalesce(string_agg(case_name, ' ## '), 'ALL OK') AS result FROM t_ef_failures;
 
