@@ -212,7 +212,8 @@ BEGIN
                'origen_nombre', o.nombre
              ) ORDER BY t.fecha_inicio DESC, t.id), '[]'::jsonb)
         FROM public.temporadas t
-        LEFT JOIN public.temporadas o ON o.id = public.planner_temporada_origen(t.id)
+        LEFT JOIN LATERAL (SELECT public.planner_temporada_origen(t.id) AS id) oi ON true
+        LEFT JOIN public.temporadas o ON o.id = oi.id
     )
   );
 END;

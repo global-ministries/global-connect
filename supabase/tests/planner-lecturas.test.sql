@@ -454,6 +454,17 @@ SELECT pg_temp.assert_eq('banco: director general ve el mismo banco',
   $q$SELECT count(*)::text FROM public.planner_banco('e6100000-0000-4000-8000-0000000000c3') b
        JOIN public.usuarios u ON u.id = b.usuario_id WHERE u.nombre = 'ZZ Pl'$q$, '21');
 
+-- §9 Casos adicionales de la verificación independiente.
+SELECT pg_temp.assert_eq('cohorte: "2025 - II" es II', $q$SELECT public.planner_cohorte('2025 - II')$q$, 'II');
+SELECT pg_temp.assert_eq('cohorte: "2026-III" sin cohorte', $q$SELECT coalesce(public.planner_cohorte('2026-III'),'-')$q$, '-');
+INSERT INTO public.segmento_lideres (segmento_id, usuario_id, tipo_lider) VALUES
+  ('e6100000-0000-4000-8000-0000000000a2', 'e6100000-0000-4000-8000-000000000004', 'director_general');
+SELECT pg_temp.as_user(pg_temp.a('DE'));
+SELECT pg_temp.assert_eq('tablero: director de etapa no ve S2 en otra temporada',
+  $q$SELECT count(*)::text FROM public.planner_tablero('e6100000-0000-4000-8000-0000000000c2')$q$, '0');
+SELECT pg_temp.assert_eq('tablero: una fila director_general en segmento_lideres no amplía el alcance',
+  $q$SELECT string_agg(nombre, ',' ORDER BY nombre) FROM public.planner_tablero('e6100000-0000-4000-8000-0000000000c3')$q$, 'ZZ Pl N1');
+
 SELECT count(*) AS aserciones FROM t_pl_asserts;
 SELECT case_name AS fallidos FROM t_pl_failures ORDER BY case_name;
 
