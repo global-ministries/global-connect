@@ -1,6 +1,6 @@
 -- planner_mover_personas, planner_crear_grupo, planner_editar_grupo, planner_eliminar_grupo,
 -- planner_deshacer_paso y planner_historial — pasos del planificador de GDV
--- (T2 de odd/tasks/planner-gdv.md: S3, S4, S10, S13, S15, S17; contexto S2, S6, S8, S11, S12).
+-- (T2 de odd/tasks/planner-gdv.md: S3, S4, S10, S13, S15, S17, S22; contexto S2, S6, S8, S11, S12).
 --
 -- Cubre:
 --   1. Privilegios: anon sin EXECUTE, authenticated con EXECUTE, SECURITY DEFINER con search_path
@@ -24,6 +24,8 @@
 --      columnas); deshacer nunca deja a una persona en dos grupos de la temporada ni personas en un
 --      grupo dado de baja (40001 si la app las agregó después); deshacer es un paso.
 --   9. Historial por rol con puede_deshacer y motivo; paginación.
+--  10. S22: un grupo que ya arrancó (activo, estado_ciclo 'activo' o con eventos_grupo) no se elimina
+--      (22023 que lo nombra, sin escribir nada; 42501 primero si es de otro segmento).
 --
 -- Se ejecuta dentro de BEGIN…ROLLBACK (staging o el arnés local): nada se conserva; los datos viven
 -- en el espacio e6200000-... con nombre 'ZZ Pp' y fechas en 2090–2092. El último statement es un
@@ -949,6 +951,59 @@ SELECT pg_temp.assert_eq('alta: deshacer se rechaza con 40001',
 SELECT pg_temp.assert_eq('alta: el grupo sigue vigente con su persona',
   $q$SELECT (SELECT g.eliminado::text FROM public.grupos g WHERE g.id = pg_temp.g('Vacio')) || '|' || pg_temp.vig('P10')$q$,
   'false|Vacio:Miembro');
+
+-- 21. S22: un grupo que ya arrancó no se elimina (activo, estado_ciclo 'activo' o con reuniones
+-- registradas); el rechazo no escribe nada. Los grupos nuevos sin arrancar sí (casos 10 y 19).
+CREATE OR REPLACE FUNCTION pg_temp.estado_grupo(p_tag text)
+RETURNS jsonb LANGUAGE sql AS $$
+  SELECT jsonb_build_object(
+           'grupo', (SELECT to_jsonb(g) FROM public.grupos g WHERE g.id = pg_temp.g(p_tag)),
+           'miembros', (SELECT coalesce(jsonb_agg(to_jsonb(gm) ORDER BY gm.id), '[]'::jsonb)
+                          FROM public.grupo_miembros gm WHERE gm.grupo_id = pg_temp.g(p_tag)),
+           'directores', (SELECT count(*) FROM public.director_etapa_grupos d WHERE d.grupo_id = pg_temp.g(p_tag)),
+           'pasos', (SELECT count(*) FROM public.planner_pasos p WHERE p.temporada_id = 'e6200000-0000-4000-8000-0000000000c1'),
+           'terminados', pg_temp.terminados());
+$$;
+
+SELECT pg_temp.as_user(pg_temp.a('DG'));
+INSERT INTO t_fila(tag, fila) SELECT 'S22 G1', pg_temp.estado_grupo('G1');
+SELECT pg_temp.assert_eq('S22: preparación, G1 sigue vivo y con personas',
+  $q$SELECT g.activo::text || '|' || g.estado_ciclo || '|' || (SELECT count(*) FROM public.grupo_miembros gm WHERE gm.grupo_id = g.id)::text
+       FROM public.grupos g WHERE g.id = pg_temp.g('G1')$q$, 'true|activo|4');
+SELECT pg_temp.assert_eq('S22: no se elimina un grupo que ya se reúne (22023 con mensaje)',
+  $q$SELECT pg_temp.error($s$SELECT pg_temp.eliminar('G1')$s$)$q$,
+  'ERR:22023 No puedes eliminar ZZ Pp G1 Cabudare: ya se reúne. Solo se pueden eliminar grupos nuevos que todavía no arrancaron; '
+  || 'mueve a sus personas si hace falta.');
+SELECT pg_temp.assert_eq('S22: el rechazo no cambia el grupo, sus personas, sus directores, los pasos ni las marcas',
+  $q$SELECT (pg_temp.estado_grupo('G1') = f.fila)::text FROM t_fila f WHERE f.tag = 'S22 G1'$q$, 'true');
+-- El alcance va primero: un director de etapa de otro segmento recibe 42501, no 22023.
+SELECT pg_temp.as_user(pg_temp.a('DE2'));
+SELECT pg_temp.assert_eq('S22: el alcance se comprueba antes (42501 en otro segmento)',
+  $q$SELECT pg_temp.outcome($s$SELECT pg_temp.eliminar('G1')$s$)$q$, 'ERR:42501');
+-- El director de etapa del segmento tampoco lo elimina.
+SELECT pg_temp.as_user(pg_temp.a('DE'));
+SELECT pg_temp.assert_eq('S22: el director de etapa del segmento tampoco elimina un grupo vivo',
+  $q$SELECT pg_temp.outcome($s$SELECT pg_temp.eliminar('G1')$s$)$q$, 'ERR:22023');
+
+-- Cada señal por separado: con reuniones registradas, solo activo, solo estado_ciclo 'activo'.
+SELECT pg_temp.as_user(pg_temp.a('DG'));
+SELECT pg_temp.assert_eq('S22: crear ' || v.tag,
+  format('SELECT pg_temp.crear(%L, %L)', v.tag, jsonb_build_object('nombre', 'ZZ Pp ' || v.tag, 'segmento_id', 'e6200000-0000-4000-8000-0000000000a1')),
+  'creó el grupo ZZ Pp ' || v.tag)
+  FROM (VALUES ('Reunido'), ('Encendido'), ('EnCiclo')) v(tag);
+INSERT INTO public.eventos_grupo (id, grupo_id, fecha)
+VALUES ('e6200000-0000-4000-8000-0000000000e9', pg_temp.g('Reunido'), DATE '2091-10-08');
+UPDATE public.grupos SET activo = true WHERE id = pg_temp.g('Encendido');
+UPDATE public.grupos SET estado_ciclo = 'activo' WHERE id = pg_temp.g('EnCiclo');
+INSERT INTO t_fila(tag, fila) SELECT 'S22 ' || v.tag, pg_temp.estado_grupo(v.tag) FROM (VALUES ('Reunido'), ('Encendido'), ('EnCiclo')) v(tag);
+SELECT pg_temp.assert_eq('S22: no se elimina ' || v.tag || ' (' || v.senal || ')',
+  format('SELECT pg_temp.error(%L)', format('SELECT pg_temp.eliminar(%L)', v.tag)),
+  'ERR:22023 No puedes eliminar ZZ Pp ' || v.tag || ': ya se reúne. Solo se pueden eliminar grupos nuevos que todavía no arrancaron; '
+  || 'mueve a sus personas si hace falta.')
+  FROM (VALUES ('Reunido', 'una reunión registrada'), ('Encendido', 'activo'), ('EnCiclo', 'estado_ciclo activo')) v(tag, senal);
+SELECT pg_temp.assert_eq('S22: ' || v.tag || ' queda igual tras el rechazo',
+  format($q$SELECT (pg_temp.estado_grupo(%L) = f.fila)::text FROM t_fila f WHERE f.tag = %L$q$, v.tag, 'S22 ' || v.tag), 'true')
+  FROM (VALUES ('Reunido'), ('Encendido'), ('EnCiclo')) v(tag);
 
 SELECT count(*) AS aserciones FROM t_pp_asserts;
 SELECT case_name AS fallidos FROM t_pp_failures ORDER BY case_name;

@@ -1,6 +1,6 @@
 -- noqa: insert-into
 -- Planificador de GDV: cada cambio es un paso guardado, con historial y deshacer
--- (T2 de odd/tasks/planner-gdv.md; S3, S4, S10, S13, S15, S17).
+-- (T2 de odd/tasks/planner-gdv.md; S3, S4, S10, S13, S15, S17, S22).
 --
 -- Por qué: el planificador viejo guardaba todo el tablero de una vez (planner_guardar_planificacion)
 -- y su deshacer vivía en memoria. Ahora cada movimiento, alta, edición o baja de grupo es un paso
@@ -46,7 +46,9 @@
 --     solo al publicar, S6). Un grupo nuevo nace 'proximo', inactivo y 'pendiente'. Editar cambia
 --     solo las claves enviadas y nunca activo ni estado_ciclo (los grupos de 2026-II ya se reúnen).
 --     Eliminar es baja lógica: eliminado, inactivo y renombrado para liberar el nombre (como
---     planner_guardar_planificacion); sus personas vuelven al banco.
+--     planner_guardar_planificacion); sus personas vuelven al banco. Solo se eliminan grupos nuevos
+--     que todavía no arrancaron (S22): uno activo, con estado_ciclo 'activo' o con alguna fila en
+--     eventos_grupo da 22023 sin escribir nada (el alcance, 42501, se comprueba antes).
 --   * Deshacer (S15): el autor dentro de 24 horas; director general, admin y pastor cualquier paso
 --     de la temporada. Se rechaza, con el motivo, si el paso ya se deshizo, si es un deshacer, si la
 --     temporada ya no está en planificación, si un paso posterior no deshecho tocó alguno de sus
@@ -1102,6 +1104,14 @@ BEGIN
   IF NOT (v_actor.ve_todo OR v_grupo.segmento_id = ANY (v_actor.segmentos)) THEN
     RAISE EXCEPTION 'No puedes cambiar %: es de otro segmento (%)', v_grupo.nombre, v_segmento_nombre USING ERRCODE = '42501';
   END IF;
+  -- S22: solo se eliminan grupos nuevos que todavía no arrancaron (ni activos, ni en ciclo activo,
+  -- ni con reuniones registradas).
+  IF v_grupo.activo
+     OR lower(btrim(coalesce(v_grupo.estado_ciclo, ''))) = 'activo'
+     OR EXISTS (SELECT 1 FROM public.eventos_grupo e WHERE e.grupo_id = p_grupo_id) THEN
+    RAISE EXCEPTION 'No puedes eliminar %: ya se reúne. Solo se pueden eliminar grupos nuevos que todavía no arrancaron; mueve a sus personas si hace falta.',
+      v_grupo.nombre USING ERRCODE = '22023';
+  END IF;
 
   -- Personas vigentes del grupo, que vuelven al banco.
   SELECT coalesce(array_agg(gm.usuario_id ORDER BY u.apellido, u.nombre, u.id), '{}') INTO v_usuarios
@@ -1141,7 +1151,8 @@ $function$;
 
 COMMENT ON FUNCTION public.planner_eliminar_grupo(uuid) IS
   'Planificador de GDV: baja lógica de un grupo de la temporada (eliminado, inactivo, renombrado para liberar el nombre); sus personas vuelven '
-  'al banco (se borran sus filas; el paso las guarda completas). Director de etapa: solo en sus segmentos (S10). Registra un paso y aplica S17.';
+  'al banco (se borran sus filas; el paso las guarda completas). Solo grupos que no arrancaron: activo, estado_ciclo activo o con eventos_grupo '
+  'da 22023 sin escribir nada (S22). Director de etapa: solo en sus segmentos (S10, 42501 antes que S22). Registra un paso y aplica S17.';
 
 REVOKE ALL ON FUNCTION public.planner_eliminar_grupo(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.planner_eliminar_grupo(uuid) TO authenticated, service_role;
