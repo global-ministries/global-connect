@@ -9,7 +9,9 @@
  *       with that reason; an email another person holds → 409. When an admin
  *       changes it, the login email (auth.users) follows; if that fails the
  *       ficha's email goes back and the answer is 502 (409 when auth already
- *       holds the address), the other fields stay saved (ficha-correo-auth.ts, S8).
+ *       holds the address; 502 "could not confirm" when auth cannot be re-read),
+ *       the other fields stay saved (ficha-correo-auth.ts, S8). Logs carry ids
+ *       and error codes only.
  *
  * There is no capability gate here, as in POST /api/dream-team/usuarios: the
  * volunteer coordinator's only grant is dream_team.coordinate, so the database
@@ -40,7 +42,7 @@ const resolveId = async (ctx: Ctx) => ('then' in ctx.params ? await ctx.params :
 
 function fallo(error: { code?: string; message?: string }, metodo: string) {
   const f = mapFichaError(error)
-  if (f.status === 500) console.error(`[dream-team/personas/[id]/ficha ${metodo}] error:`, error)
+  if (f.status === 500) console.error(`[dream-team/personas/[id]/ficha ${metodo}] unexpected RPC error:`, error.code ?? 'sin_codigo')
   return NextResponse.json({ error: f.error }, { status: f.status })
 }
 

@@ -4,6 +4,8 @@
  * Dream Team — GET/PATCH /api/dream-team/personas/[id]/ficha (T11; the login
  * email sync: odd/tasks/dream-team-pendientes-director.md, S8).
  */
+import { inspect } from 'node:util'
+
 import { NextRequest } from 'next/server'
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn() }))
@@ -121,6 +123,7 @@ describe('PATCH email of a person with account: the login follows (S8)', () => {
   const AUTH_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
   const ANTES = { ...FILA, email: 'ana@vieja.test', tiene_cuenta: true, puede_editar_email: true }
   let updateUserById: jest.Mock
+  let getUserById: jest.Mock
   let restaurar: jest.Mock
   let filtrosRestaurar: Array<[string, unknown]>
 
@@ -129,6 +132,9 @@ describe('PATCH email of a person with account: the login follows (S8)', () => {
     antes?: Record<string, unknown>
     editar?: { data?: unknown; error?: unknown }
     auth?: { error: unknown }
+    authLanza?: boolean
+    /** What auth.users holds when it is read again after a failure (default: the old email). */
+    releer?: { data: unknown; error: unknown }
     restaurado?: { data: unknown; error: unknown }
   } = {}) {
     const antes = opts.antes ?? ANTES
@@ -140,7 +146,10 @@ describe('PATCH email of a person with account: the login follows (S8)', () => {
     createClient.mockResolvedValue({ auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null }) }, rpc })
     resolveSession.mockResolvedValue({ personaId: 'p-1', subjectAuthId: 'auth-1', globalRoles: [], contexts: [], capabilities: [] })
 
-    updateUserById = jest.fn().mockResolvedValue({ data: { user: { id: AUTH_ID } }, error: opts.auth?.error ?? null })
+    updateUserById = opts.authLanza
+      ? jest.fn().mockRejectedValue(new Error('fetch failed for nueva.secreta@ejemplo.test'))
+      : jest.fn().mockResolvedValue({ data: { user: { id: AUTH_ID } }, error: opts.auth?.error ?? null })
+    getUserById = jest.fn().mockResolvedValue(opts.releer ?? { data: { user: { id: AUTH_ID, email: 'ana@vieja.test' } }, error: null })
     filtrosRestaurar = []
     restaurar = jest.fn()
     const cadenaRestaurar = {
@@ -151,7 +160,7 @@ describe('PATCH email of a person with account: the login follows (S8)', () => {
       select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: { auth_id: AUTH_ID }, error: null }) }) }),
       update: (valores: unknown) => { restaurar(valores); return cadenaRestaurar },
     }))
-    createAdmin.mockReturnValue({ auth: { admin: { updateUserById } }, from })
+    createAdmin.mockReturnValue({ auth: { admin: { updateUserById, getUserById } }, from })
   }
 
   it('a non-admin (the database refuses) gets 403 and the admin client is never created', async () => {
@@ -244,5 +253,42 @@ describe('PATCH email of a person with account: the login follows (S8)', () => {
     const res = await patch({ email: 'ana@nueva.test' })
     expect(res.status).toBe(409)
     expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  describe('the logs never carry an email', () => {
+    const SECRETO = /nueva\.secreta|ana@vieja/i
+    const espias = () => (['error', 'warn', 'log'] as const).map((m) => jest.spyOn(console, m).mockImplementation(() => {}))
+    const registrado = (s: jest.SpyInstance[]) => s.flatMap((x) => x.mock.calls.flat()).map((a) => inspect(a, { depth: 5 })).join('\n')
+
+    afterEach(() => jest.restoreAllMocks())
+
+    it.each([
+      ['a service error', { auth: { error: { message: 'Service unavailable for nueva.secreta@ejemplo.test', status: 503 } } }, 502],
+      ['the restore fails too', { auth: { error: { message: 'boom nueva.secreta@ejemplo.test' } }, restaurado: { data: null, error: { message: 'ana@vieja.test' } } }, 500],
+      ['email_exists', { auth: { error: { code: 'email_exists', message: 'nueva.secreta@ejemplo.test already registered', status: 422 } } }, 409],
+      ['a thrown error', { authLanza: true }, 502],
+    ])('auth fails with %s', async (_caso, opts, status) => {
+      setupCuenta(opts)
+      const s = espias()
+      const res = await patch({ email: 'Nueva.Secreta@ejemplo.test' })
+      expect(res.status).toBe(status)
+      expect(getUserById).toHaveBeenCalledWith(AUTH_ID)
+      expect(registrado(s)).not.toMatch(SECRETO)
+    })
+  })
+
+  it('auth threw but already holds the new email: 200, nothing restored', async () => {
+    setupCuenta({ authLanza: true, releer: { data: { user: { id: AUTH_ID, email: 'ana@nueva.test' } }, error: null } })
+    expect((await patch({ email: 'ana@nueva.test' })).status).toBe(200)
+    expect(restaurar).not.toHaveBeenCalled()
+  })
+
+  it('auth cannot be re-read: 502 without claiming a restore', async () => {
+    setupCuenta({ authLanza: true, releer: { data: { user: null }, error: { message: 'down' } } })
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    const res = await patch({ email: 'ana@nueva.test' })
+    expect(res.status).toBe(502)
+    expect((await res.json()).error).toBe('No se pudo confirmar el cambio del correo de inicio de sesión. Revisa la ficha y vuelve a intentarlo.')
+    expect(restaurar).not.toHaveBeenCalled()
   })
 })
