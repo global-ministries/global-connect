@@ -27,6 +27,7 @@ import {
   type PersonaGrupo,
   type SegmentoConDirectores,
   type SegmentoPlanner,
+  type SugerenciaLocalidad,
   type TemporadaPlanner,
   type TemporadasPlanner,
   type TipoAviso,
@@ -446,6 +447,15 @@ export interface ItemAlerta {
   readonly titulo: string
   readonly detalle: string
   readonly grupoId: string | null
+  /** The people it concerns; a bank-only item (grupoId null) offers "Ubicar" for them. */
+  readonly personaIds: readonly string[]
+  /** Their names, for "Ubicar a …"; null without people. */
+  readonly personas: string | null
+  /**
+   * Only for "sin localidad": the suggestion (null when the people do not
+   * point to one); undefined when there is nothing to suggest.
+   */
+  readonly sugerencia?: SugerenciaLocalidad | null
 }
 
 export interface SeccionAlerta {
@@ -470,8 +480,22 @@ const VACIO_BLOQUEO: Readonly<Record<TipoBloqueo, string>> = {
   persona_en_dos_grupos: 'Todo en orden. Nadie está en dos grupos.',
 }
 
-/** The four blockers, always (a 0 says "Todo en orden"), with one item per group or person and group. */
-export function seccionesBloqueos(bloqueos: readonly Bloqueo[], grupos: readonly GrupoTablero[], temporada: string): SeccionAlerta[] {
+const textoSugerencia = (sugerencia: SugerenciaLocalidad | null | undefined): string | null => {
+  if (sugerencia === undefined) return null
+  return sugerencia ? `Sugerida: ${sugerencia.nombre} · ${sugerencia.motivo}` : 'Sin sugerencia: elige la localidad a mano'
+}
+
+/**
+ * The four blockers, always (a 0 says "Todo en orden"), with one item per
+ * group or person and group. `sugerencias` (sugerirLocalidad per group
+ * without localidad) gives each "sin localidad" item its suggestion.
+ */
+export function seccionesBloqueos(
+  bloqueos: readonly Bloqueo[],
+  grupos: readonly GrupoTablero[],
+  temporada: string,
+  sugerencias?: ReadonlyMap<string, SugerenciaLocalidad | null>,
+): SeccionAlerta[] {
   const segmentoDe = new Map(grupos.map((g) => [g.grupo_id, g.segmento_nombre]))
   const conteo = {
     total: bloqueos.length,
@@ -489,12 +513,18 @@ export function seccionesBloqueos(bloqueos: readonly Bloqueo[], grupos: readonly
       titulo: TITULO_BLOQUEO[tipo](cantidad, temporada),
       cantidad,
       vacio: cantidad === 0 ? VACIO_BLOQUEO[tipo] : null,
-      items: filas.map((b, i) => ({
-        clave: `${b.tipo}:${b.grupo_id}:${b.usuario_id ?? i}`,
-        titulo: b.grupo_nombre || 'Grupo sin nombre',
-        detalle: [segmentoDe.get(b.grupo_id), b.detalle].filter(Boolean).join(' · '),
-        grupoId: b.grupo_id,
-      })),
+      items: filas.map((b, i): ItemAlerta => {
+        const sugerencia = tipo === 'sin_localidad' && sugerencias?.has(b.grupo_id) ? sugerencias.get(b.grupo_id) : undefined
+        return {
+          clave: `${b.tipo}:${b.grupo_id}:${b.usuario_id ?? i}`,
+          titulo: b.grupo_nombre || 'Grupo sin nombre',
+          detalle: [segmentoDe.get(b.grupo_id), b.detalle, textoSugerencia(sugerencia)].filter(Boolean).join(' · '),
+          grupoId: b.grupo_id,
+          personaIds: b.usuario_id ? [b.usuario_id] : [],
+          personas: null,
+          ...(sugerencia === undefined ? {} : { sugerencia }),
+        }
+      }),
     }
   })
 }
@@ -524,9 +554,21 @@ const ORDEN_AVISOS: readonly TipoAviso[] = [
   'conyuge_separado',
 ]
 
-/** The warnings grouped by kind; kinds without warnings are left out. */
-export function seccionesAvisos(avisos: readonly Aviso[], grupos: readonly GrupoTablero[], origen: string | null): SeccionAlerta[] {
+/** The warnings grouped by kind; kinds without warnings are left out. `fichas` names the people ("Ubicar a …"). */
+export function seccionesAvisos(
+  avisos: readonly Aviso[],
+  grupos: readonly GrupoTablero[],
+  origen: string | null,
+  fichas?: ReadonlyMap<string, Pick<PersonaBanco, 'nombre' | 'apellido'>>,
+): SeccionAlerta[] {
   const nombreGrupo = new Map(grupos.map((g) => [g.grupo_id, g.nombre]))
+  const personas = (ids: readonly string[]): string | null => {
+    const nombres = ids.flatMap((id) => {
+      const ficha = fichas?.get(id)
+      return ficha ? [nombrePersona(ficha)] : []
+    })
+    return nombres.length > 0 ? enLista(nombres) : null
+  }
   return ORDEN_AVISOS.flatMap((tipo) => {
     const delTipo = avisos.filter((a) => a.tipo === tipo)
     if (delTipo.length === 0) return []
@@ -543,6 +585,8 @@ export function seccionesAvisos(avisos: readonly Aviso[], grupos: readonly Grupo
             titulo: a.mensaje,
             detalle: grupoId ? (nombreGrupo.get(grupoId) ?? '') : 'En el banco',
             grupoId,
+            personaIds: a.personaIds,
+            personas: personas(a.personaIds),
           }
         }),
       },
@@ -664,6 +708,47 @@ export function directoresElegibles(
       return [{ clave: d.usuario_id, usuarioIds: [d.usuario_id], nombre: nombrePersona(d) }]
     })
     .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+// ─── Group panel (T6, artboard 02) ───
+
+export interface LugarIntegrantes {
+  readonly clave: string
+  /** The municipio, "Palavecino". */
+  readonly etiqueta: string
+  readonly cantidad: number
+  /** Some Líder lives there. */
+  readonly conLideres: boolean
+}
+
+/**
+ * Where the people of a group live (S3, S5): one row per municipio, most
+ * people first, then "Sin dirección". Someone without a bank row is left out.
+ */
+export function dondeViven(grupo: GrupoTablero, fichas: ReadonlyMap<string, Pick<PersonaBanco, 'municipio_id' | 'municipio_nombre'>>): LugarIntegrantes[] {
+  const lideres = new Set(grupo.lideres.map((l) => l.usuario_id))
+  const lugares = new Map<string, { etiqueta: string; cantidad: number; conLideres: boolean }>()
+  let sinDireccion = 0
+  personasDelGrupo(grupo).forEach((p) => {
+    const ficha = fichas.get(p.usuario_id)
+    if (!ficha) return
+    if (!ficha.municipio_id) {
+      sinDireccion += 1
+      return
+    }
+    const lugar = lugares.get(ficha.municipio_id) ?? { etiqueta: ficha.municipio_nombre ?? 'Otro municipio', cantidad: 0, conLideres: false }
+    lugares.set(ficha.municipio_id, { ...lugar, cantidad: lugar.cantidad + 1, conLideres: lugar.conLideres || lideres.has(p.usuario_id) })
+  })
+  const filas = [...lugares]
+    .map(([clave, l]): LugarIntegrantes => ({ clave, ...l }))
+    .sort((a, b) => b.cantidad - a.cantidad || a.etiqueta.localeCompare(b.etiqueta, 'es'))
+  return sinDireccion > 0 ? [...filas, { clave: SIN_DIRECCION, etiqueta: 'Sin dirección', cantidad: sinDireccion, conLideres: false }] : filas
+}
+
+/** 'HH:MM' of an RPC time ('19:30:00'), '' without one. */
+export function horaCorta(hora: string | null): string {
+  const partes = /^(\d{1,2}):(\d{2})/.exec(hora ?? '')
+  return partes ? `${partes[1].padStart(2, '0')}:${partes[2]}` : ''
 }
 
 /** "Guardado · hace 5 s", "hace 3 min", "hace 2 h"; null without a time or a clock. */

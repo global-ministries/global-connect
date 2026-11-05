@@ -13,7 +13,9 @@
  * people, Agrupar por localidad | director, Ocultar / Mostrar banco), then the
  * Tablero lanes (tablero-planner.tsx) next to the people bank
  * (banco-personas.tsx). The alerts live only in the header button, which
- * opens the side panel (panel-alertas.tsx). Warnings come from calcularAvisos
+ * opens the side panel (panel-alertas.tsx). A group opens as its own side
+ * panel (panel-grupo.tsx, T6) from its card, the alerts or the bank; the
+ * alerts fix what they can from there. Warnings come from calcularAvisos
  * (T4) kept to the actor's scope (S10); blockers from planner_bloqueos, which
  * the database already scopes. The bank toggle is remembered per user in
  * localStorage.
@@ -25,7 +27,7 @@ import { BotonSistema, InputSistema, PaginaSistema, SelectSistema } from '@/comp
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { botonPublicar, calcularAvisos, type PasoHistorial } from '@/lib/platform/grupos-vida/planner'
+import { botonPublicar, calcularAvisos, sugerirLocalidad, type PasoHistorial, type SugerenciaLocalidad } from '@/lib/platform/grupos-vida/planner'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 import { cn } from '@/lib/utils'
 
@@ -37,6 +39,7 @@ import { EstadoGuardado } from './estado-guardado'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
 import { PanelAlertas } from './panel-alertas'
+import { PanelGrupo } from './panel-grupo'
 import { PanelNuevoGrupo } from './panel-nuevo-grupo'
 import { PasosPlannerProvider, usePasosPlanner } from './pasos-planner'
 import { TableroPlanner } from './tablero-planner'
@@ -117,8 +120,16 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
   )
   const lanes = useMemo(() => carriles(grupos, capacidades, agrupar, busqueda), [grupos, capacidades, agrupar, busqueda])
   const sinUbicar = useMemo(() => modeloBanco(banco, FILTROS_BANCO_INICIALES, temporada).conteos.sinUbicar, [banco, temporada])
-  const seccionesB = useMemo(() => seccionesBloqueos(bloqueos, grupos, temporada.nombre), [bloqueos, grupos, temporada.nombre])
-  const seccionesA = useMemo(() => seccionesAvisos(avisos, grupos, temporada.origen_nombre), [avisos, grupos, temporada.origen_nombre])
+  // The localidad suggestion of each group without one, for "Usar sugerida" in the alerts (S3).
+  const sugerencias = useMemo(() => {
+    const mapa = new Map<string, SugerenciaLocalidad | null>()
+    if (localidades.length > 0) grupos.forEach((g) => !g.localidad_id && mapa.set(g.grupo_id, sugerirLocalidad(g, banco, localidades)))
+    return mapa
+  }, [grupos, banco, localidades])
+  const seccionesB = useMemo(() => seccionesBloqueos(bloqueos, grupos, temporada.nombre, sugerencias), [bloqueos, grupos, temporada.nombre, sugerencias])
+  const seccionesA = useMemo(() => seccionesAvisos(avisos, grupos, temporada.origen_nombre, control.fichas), [avisos, grupos, temporada.origen_nombre, control.fichas])
+  const grupoDe = (grupoId: string) => grupos.find((g) => g.grupo_id === grupoId) ?? null
+  const grupoAbierto = control.grupoAbierto
 
   const publicar = capacidades.puede_publicar ? (estado ? botonPublicar(estado) : { texto: 'Publicar', listo: false }) : null
 
@@ -216,6 +227,40 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
           avisos={seccionesA}
           totalBloqueos={bloqueos.length}
           totalAvisos={avisos.length}
+          onIrAlGrupo={(grupoId) => {
+            // After the panel closes, so the card is in view behind the group panel.
+            window.setTimeout(() => document.getElementById(`grupo-${grupoId}`)?.scrollIntoView?.({ block: 'center', inline: 'center' }), 0)
+            control.abrirGrupo(grupoId)
+          }}
+          puedeEditar={(grupoId) => {
+            const grupo = grupoDe(grupoId)
+            return grupo !== null && control.contexto.editable(grupo.segmento_id)
+          }}
+          onUsarSugerida={(grupoId, sugerencia) => {
+            const grupo = grupoDe(grupoId)
+            return grupo ? control.usarLocalidad(grupo, sugerencia) : Promise.resolve({ ok: false, codigo: null, mensaje: 'El grupo ya no está en el tablero.' })
+          }}
+          onUbicar={(item) => item.personas && control.contexto.pedirUbicar({ ids: item.personaIds, nombre: item.personas, desdeGrupo: false })}
+        />
+
+        <PanelGrupo
+          grupo={grupoAbierto}
+          editable={grupoAbierto !== null && control.contexto.editable(grupoAbierto.segmento_id)}
+          grupos={grupos}
+          bloqueos={bloqueos}
+          avisos={avisos}
+          banco={banco}
+          fichas={control.fichas}
+          localidades={localidades}
+          segmentos={capacidades.segmentos}
+          onCerrar={control.cerrarGrupo}
+          onEditar={control.editar}
+          onMover={control.moverDesdePanel}
+          onPedirUbicar={(carga, inicial) => control.contexto.pedirUbicar(carga, inicial)}
+          onEliminar={(grupo) => {
+            control.cerrarGrupo()
+            control.contexto.pedirEliminar(grupo)
+          }}
         />
 
         <DialogoUbicar

@@ -13,7 +13,8 @@
  * edits: the card takes dropped people as Miembro and each role section of
  * the expanded card in its role; members can be dragged or moved with
  * "Mover"; "Usar <localidad>" saves the suggestion; "Eliminar grupo" shows
- * only while the group has not started (S22).
+ * only while the group has not started (S22). The name and "Abrir" open the
+ * group panel (T6, panel-grupo.tsx), read-only outside the actor's segments.
  */
 import { useId, useState, type ReactElement } from 'react'
 import { ChevronRight, GripVertical } from 'lucide-react'
@@ -198,7 +199,17 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
     >
       <div className="min-w-0">
         <h3 id={idTitulo} title={grupo.nombre} className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">
-          {grupo.nombre.trim() || etiqueta}
+          {pasos ? (
+            <button
+              type="button"
+              onClick={() => pasos.abrirGrupo(grupo.grupo_id)}
+              className="focus-ring rounded-md text-left transition-colors hover:text-brand-text"
+            >
+              {grupo.nombre.trim() || etiqueta}
+            </button>
+          ) : (
+            grupo.nombre.trim() || etiqueta
+          )}
         </h3>
         <p title={etiqueta} className={cn('truncate text-xs', grupo.localidad_id ? 'text-muted-foreground' : 'text-danger-text')}>
           {etiqueta}
@@ -220,16 +231,29 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        aria-expanded={abierta}
-        aria-controls={idMiembros}
-        onClick={() => setAbierta((a) => !a)}
-        className="focus-ring -mx-1 inline-flex min-h-11 items-center gap-1 self-start rounded-xl px-1 text-sm font-medium text-brand-text transition-colors hover:bg-accent"
-      >
-        {cantidad} {cantidad === 1 ? 'integrante' : 'integrantes'}
-        <ChevronRight aria-hidden="true" className={cn('size-4 transition-transform', abierta && 'rotate-90')} />
-      </button>
+      <div className="flex items-center justify-between gap-1">
+        <button
+          type="button"
+          aria-expanded={abierta}
+          aria-controls={idMiembros}
+          onClick={() => setAbierta((a) => !a)}
+          className="focus-ring -mx-1 inline-flex min-h-11 items-center gap-1 rounded-xl px-1 text-sm font-medium text-brand-text transition-colors hover:bg-accent"
+        >
+          {cantidad} {cantidad === 1 ? 'integrante' : 'integrantes'}
+          <ChevronRight aria-hidden="true" className={cn('size-4 transition-transform', abierta && 'rotate-90')} />
+        </button>
+        {pasos && (
+          <BotonSistema
+            type="button"
+            variante="ghost"
+            tamaño="sm"
+            aria-label={`Abrir ${grupo.nombre.trim() || etiqueta}`}
+            onClick={() => pasos.abrirGrupo(grupo.grupo_id)}
+          >
+            Abrir
+          </BotonSistema>
+        )}
+      </div>
       <div id={idMiembros} hidden={!abierta} className="space-y-3 border-t border-border pt-2.5">
         {rolesGrupo(grupo).map((rol) => (
           <SeccionRol key={rol.id} grupo={grupo} rol={rol} bloqueos={bloqueos} avisos={avisos} fichas={fichas} />

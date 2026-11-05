@@ -9,8 +9,8 @@
  * and bank) and falls back to the server data when the step is refused; on
  * success the route refreshes and the new data replaces the optimistic one.
  * It also keeps the save state ("Guardando…", "Guardado", "No se guardó"),
- * the live-region text, the dialog requests (Ubicar, Nuevo grupo, Eliminar)
- * and the drag in progress.
+ * the live-region text, the dialog requests (Ubicar, Nuevo grupo, Eliminar),
+ * the open group panel (T6) and the drag in progress.
  *
  * The board components read the actions from contexto-pasos.tsx.
  */
@@ -34,7 +34,14 @@ import {
   marcarSegmentoAction,
   moverPersonasAction,
 } from '@/app/(auth)/grupos-vida/planificar/actions'
-import { enLista, nombrePersona, type GrupoTablero, type PasoHistorial, type SegmentoPlanner } from '@/lib/platform/grupos-vida/planner'
+import {
+  enLista,
+  nombrePersona,
+  type GrupoTablero,
+  type PasoHistorial,
+  type SegmentoPlanner,
+  type SugerenciaLocalidad,
+} from '@/lib/platform/grupos-vida/planner'
 import { pasoADeshacer, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 
@@ -75,6 +82,7 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
   const [ubicar, setUbicar] = useState<PeticionUbicar | null>(null)
   const [nuevoGrupo, setNuevoGrupo] = useState<SegmentoPlanner | null>(null)
   const [eliminar, setEliminar] = useState<GrupoTablero | null>(null)
+  const [grupoAbiertoId, setGrupoAbiertoId] = useState<string | null>(null)
   const [deshechos, setDeshechos] = useState<ReadonlySet<string>>(() => new Set())
   const [arrastrando, setArrastrando] = useState(false)
   const carga = useRef<Carga | null>(null)
@@ -190,6 +198,29 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
   }, [])
 
   const segmentos = useMemo(() => new Map((estado?.segmentos ?? []).map((s) => [s.id, s])), [estado])
+  const visibles = useMemo(() => new Set(tablero.grupos.map((g) => g.grupo_id)), [tablero.grupos])
+
+  /** One planner_editar_grupo step with only the changed keys (S3, S4); `que` names the field in the announcement. */
+  const editar = useCallback(
+    (grupo: GrupoTablero, cambios: Partial<DatosGrupo>, que: string) =>
+      ejecutar(() => editarGrupoAction({ grupoId: grupo.grupo_id, cambios }), { exito: () => `Guardaste ${que} de ${grupo.nombre}` }),
+    [ejecutar],
+  )
+
+  const abrirGrupo = useCallback(
+    (grupoId: string) => {
+      if (visibles.has(grupoId)) setGrupoAbiertoId(grupoId)
+    },
+    [visibles],
+  )
+
+  const usarLocalidad = useCallback(
+    (grupo: GrupoTablero, sugerencia: SugerenciaLocalidad) =>
+      ejecutar(() => editarGrupoAction({ grupoId: grupo.grupo_id, cambios: { localidad_id: sugerencia.localidadId } }), {
+        exito: () => `${grupo.nombre} ahora es de ${sugerencia.nombre}`,
+      }),
+    [ejecutar],
+  )
 
   const contexto = useMemo<PasosPlanner>(
     () => ({
@@ -210,10 +241,9 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
       },
       arrastrando,
       soltar,
-      usarLocalidad: (grupo, sugerencia) =>
-        void ejecutar(() => editarGrupoAction({ grupoId: grupo.grupo_id, cambios: { localidad_id: sugerencia.localidadId } }), {
-          exito: () => `${grupo.nombre} ahora es de ${sugerencia.nombre}`,
-        }),
+      usarLocalidad: (grupo, sugerencia) => void usarLocalidad(grupo, sugerencia),
+      abrirGrupo,
+      grupoVisible: (grupoId) => visibles.has(grupoId),
       pedirEliminar: setEliminar,
       pedirNuevoGrupo: setNuevoGrupo,
       segmento: (id) => segmentos.get(id) ?? null,
@@ -222,13 +252,16 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
           exito: () => (terminado ? `Marcaste ${s.nombre} como terminado` : `${s.nombre} vuelve a estar sin terminar`),
         }),
     }),
-    [arrastrando, editable, ejecutar, segmentos, soltar, temporada.id],
+    [abrirGrupo, arrastrando, editable, ejecutar, segmentos, soltar, temporada.id, usarLocalidad, visibles],
   )
 
   const confirmarUbicar = (usuarioIds: readonly string[], grupoId: string | null, rol: RolDestino, aviso: string | null) => {
     setUbicar(null)
     mover(usuarioIds, tablero.grupos.find((g) => g.grupo_id === grupoId) ?? null, rol, aviso, false)
   }
+
+  /** From the group panel: a new role in the same group, or back to the bank (null). */
+  const moverDesdePanel = (usuarioIds: readonly string[], grupo: GrupoTablero | null, rol: RolDestino) => mover(usuarioIds, grupo, rol, null, false)
 
   const crear = (segmento: SegmentoPlanner, grupo: DatosGrupo) =>
     ejecutar(() => crearGrupoAction({ temporadaId: temporada.id, datos: grupo }), { exito: () => `Creaste ${grupo.nombre} en ${segmento.nombre}` })
@@ -254,5 +287,12 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     eliminar,
     cerrarEliminar: () => setEliminar(null),
     confirmarEliminar,
+    /** The open group panel; null when closed or when the group left the board (deleted, undone). */
+    grupoAbierto: tablero.grupos.find((g) => g.grupo_id === grupoAbiertoId) ?? null,
+    abrirGrupo,
+    cerrarGrupo: () => setGrupoAbiertoId(null),
+    editar,
+    usarLocalidad,
+    moverDesdePanel,
   }
 }

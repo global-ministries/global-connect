@@ -41,6 +41,9 @@ export interface PasosPlanner {
   /** Drop the dragged people on a group (in that role) or, with null, on the bank. */
   readonly soltar: (grupo: GrupoTablero | null, rol: RolDestino) => void
   readonly usarLocalidad: (grupo: GrupoTablero, sugerencia: SugerenciaLocalidad) => void
+  /** Opens the group panel (02); only for a group on the board (S10: read-only when the actor does not edit it). */
+  readonly abrirGrupo: (grupoId: string) => void
+  readonly grupoVisible: (grupoId: string) => boolean
   readonly pedirEliminar: (grupo: GrupoTablero) => void
   readonly pedirNuevoGrupo: (segmento: SegmentoPlanner) => void
   /** The publish state of a segment (S14); null when it has no groups or the state could not be read. */

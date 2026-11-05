@@ -12,7 +12,9 @@
  *
  * With the board's steps (T5b, pasos-planner.tsx): "Ubicar" opens the
  * group and role dialog and a row can be dragged onto a card; the bank
- * itself takes members dragged out of a group. Alone it is read-only.
+ * itself takes members dragged out of a group; "Ver grupo" opens the group
+ * panel of a person's current group (T6) when it is on the board. Alone it is
+ * read-only.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { GripVertical, Search } from 'lucide-react'
@@ -71,6 +73,7 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
   const pasos = usePasos()
   const nombre = nombreFila(fila)
   const carga = { ids: fila.personas.map((p) => p.usuario_id), nombre, desdeGrupo: false }
+  const grupoActual = una.grupo_actual_id && pasos?.grupoVisible(una.grupo_actual_id) ? una.grupo_actual_id : null
   return (
     <li
       draggable={pasos !== null}
@@ -103,16 +106,29 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
           ))}
         </div>
       </div>
-      <BotonSistema
-        type="button"
-        variante="ghost"
-        tamaño="sm"
-        disabled={!pasos}
-        aria-label={`Ubicar a ${nombre}`}
-        onClick={() => pasos?.pedirUbicar(carga)}
-      >
-        Ubicar
-      </BotonSistema>
+      <div className="flex shrink-0 flex-col items-end">
+        <BotonSistema
+          type="button"
+          variante="ghost"
+          tamaño="sm"
+          disabled={!pasos}
+          aria-label={`Ubicar a ${nombre}`}
+          onClick={() => pasos?.pedirUbicar(carga)}
+        >
+          Ubicar
+        </BotonSistema>
+        {grupoActual && (
+          <BotonSistema
+            type="button"
+            variante="ghost"
+            tamaño="sm"
+            aria-label={`Abrir el grupo de ${nombrePersona(una)}`}
+            onClick={() => pasos?.abrirGrupo(grupoActual)}
+          >
+            Ver grupo
+          </BotonSistema>
+        )}
+      </div>
     </li>
   )
 }
