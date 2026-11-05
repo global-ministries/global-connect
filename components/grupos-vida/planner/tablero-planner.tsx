@@ -6,17 +6,20 @@
  * "‹ ›" (one page per press), so no column is cut against the bank. Inside a
  * lane the groups are clustered by localidad ("Sin localidad" first) or by
  * director de etapa. Column width follows the lane width (container query):
- * 2, 3, 4 or 5 columns.
+ * 2, 3, 4 or 5 columns. In a segment the actor edits (T5b) the lane header
+ * carries "Terminé mi segmento" (S14) and the lane ends with "Nuevo grupo".
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
-import { ChevronLeft, ChevronRight, UsersRound } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, UsersRound } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { sugerirLocalidad, type Aviso, type Bloqueo, type GrupoTablero, type Localidad, type PersonaBanco } from '@/lib/platform/grupos-vida/planner'
 import { cn } from '@/lib/utils'
 
+import { MarcaSegmento } from './marca-segmento'
 import { formatearCantidad, type Carril } from './modelo'
+import { usePasos } from './contexto-pasos'
 import { TarjetaGrupo } from './tarjeta-grupo'
 
 /** Every column of a lane has the same width: the visible lane width split in 2–5 (gap 0.75rem). */
@@ -71,6 +74,21 @@ function CarrilSegmento({
   }
 
   const vacio = carril.bloques.length === 0
+  const pasos = usePasos()
+  const editable = pasos !== null && pasos.editable(segmento.id)
+  const publicacion = editable ? pasos.segmento(segmento.id) : null
+  const nuevo = editable && (
+    <BotonSistema
+      type="button"
+      variante="outline"
+      tamaño="sm"
+      icono={Plus}
+      aria-label={`Nuevo grupo en ${segmento.nombre}`}
+      onClick={() => pasos.pedirNuevoGrupo(segmento)}
+    >
+      Nuevo grupo
+    </BotonSistema>
+  )
 
   return (
     <section aria-labelledby={idTitulo} className="min-w-0 space-y-3">
@@ -82,6 +100,7 @@ function CarrilSegmento({
           <span className="font-mono tabular-nums">{formatearCantidad(carril.grupos)}</span> {carril.grupos === 1 ? 'grupo' : 'grupos'} ·{' '}
           <span className="font-mono tabular-nums">{formatearCantidad(carril.personas)}</span> {carril.personas === 1 ? 'persona' : 'personas'}
         </span>
+        {publicacion && <MarcaSegmento segmento={publicacion} />}
         {!vacio && (
           <div role="group" aria-label={`Desplazar los grupos de ${segmento.nombre}`} className="ml-auto flex gap-1">
             <BotonSistema
@@ -108,9 +127,10 @@ function CarrilSegmento({
         )}
       </div>
       {vacio ? (
-        <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-          Todavía no hay grupos de {segmento.nombre} en esta temporada.
-        </p>
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-border p-4">
+          <p className="text-sm text-muted-foreground">Todavía no hay grupos de {segmento.nombre} en esta temporada.</p>
+          {nuevo}
+        </div>
       ) : (
         <div className="@container min-w-0">
           <div ref={area} onScroll={medir} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
@@ -139,6 +159,7 @@ function CarrilSegmento({
                 </div>
               </div>
             ))}
+            {nuevo && <div className={cn('flex shrink-0 snap-start flex-col justify-start pt-6', ANCHO_COLUMNA)}>{nuevo}</div>}
           </div>
         </div>
       )}

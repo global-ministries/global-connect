@@ -27,6 +27,17 @@ jest.mock('@/components/ui/desktop-header', () => ({
 const toast = { success: jest.fn(), error: jest.fn(), info: jest.fn() }
 jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => toast }))
 
+// The steps (T5b) are covered in pasos-planner.test.tsx; here the board only renders.
+jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn(), replace: jest.fn() }) }))
+jest.mock('@/app/(auth)/grupos-vida/planificar/actions', () => ({
+  moverPersonasAction: jest.fn(),
+  crearGrupoAction: jest.fn(),
+  editarGrupoAction: jest.fn(),
+  eliminarGrupoAction: jest.fn(),
+  deshacerPasoAction: jest.fn(),
+  marcarSegmentoAction: jest.fn(),
+}))
+
 const TEMPORADA = {
   id: 't-2026-ii',
   nombre: '2026-II',
@@ -208,7 +219,7 @@ describe('board', () => {
     expect(within(tarjeta).getByText('Matrimonios · Sin localidad')).toHaveClass('text-danger-text')
     expect(within(tarjeta).getByText('José y Mariela Torrealba')).toBeInTheDocument()
     expect(within(tarjeta).getByText('Sugerida · los líderes y 4 de 4 viven en Palavecino')).toBeInTheDocument()
-    expect(within(tarjeta).getByRole('button', { name: 'Usar Cabudare como localidad de Grupo #9 Familia Torrealba' })).toBeDisabled()
+    expect(within(tarjeta).getByRole('button', { name: 'Usar Cabudare como localidad de Grupo #9 Familia Torrealba' })).toBeEnabled()
     expect(within(tarjeta).getByText('Sin localidad')).toBeInTheDocument()
   })
 

@@ -11,6 +11,9 @@ import {
   SIN_LOCALIDAD,
   contar,
   enLista,
+  esMatrimonios,
+  mensajeConyugeQueSeQueda,
+  personasAMover,
   nombreCompleto,
   nombrePersona,
   normalizar,
@@ -544,3 +547,162 @@ export function seccionesAvisos(avisos: readonly Aviso[], grupos: readonly Grupo
   })
 }
 
+
+// ─── Steps (T5b) ───
+
+export type RolDestino = 'lider' | 'aprendiz' | 'miembro'
+
+const LISTA_DE_ROL: Readonly<Record<RolDestino, 'lideres' | 'aprendices' | 'miembros'>> = {
+  lider: 'lideres',
+  aprendiz: 'aprendices',
+  miembro: 'miembros',
+}
+
+/** The grupo_miembros.rol of each role (planner_mover_personas). */
+const ROL_EN_GRUPO: Readonly<Record<RolDestino, string>> = { lider: 'Líder', aprendiz: 'Colíder', miembro: 'Miembro' }
+
+export const ETIQUETA_ROL: Readonly<Record<RolDestino, string>> = { lider: 'Líder', aprendiz: 'Aprendiz', miembro: 'Miembro' }
+
+export interface Movimiento {
+  readonly usuarioIds: readonly string[]
+  /** null = back to the bank. */
+  readonly grupoId: string | null
+  readonly rol: RolDestino | null
+}
+
+export interface EstadoTablero {
+  readonly grupos: readonly GrupoTablero[]
+  readonly banco: readonly PersonaBanco[]
+}
+
+/**
+ * The board right after a move, before the server answers (optimistic UI):
+ * the people leave every group of the season and enter the destination in
+ * that role; their bank rows say where they are now.
+ */
+export function aplicarMovimiento(estado: EstadoTablero, movimiento: Movimiento): EstadoTablero {
+  const mueven = new Set(movimiento.usuarioIds)
+  const fichas = new Map(estado.banco.map((p) => [p.usuario_id, p]))
+  const enGrupos = new Map(estado.grupos.flatMap((g) => personasDelGrupo(g).map((p) => [p.usuario_id, p] as const)))
+  const destino = estado.grupos.find((g) => g.grupo_id === movimiento.grupoId) ?? null
+  const rol = movimiento.rol ?? 'miembro'
+  const llegan: PersonaGrupo[] = movimiento.usuarioIds.flatMap((id) => {
+    const persona = enGrupos.get(id) ?? fichas.get(id)
+    return persona ? [{ usuario_id: id, nombre: persona.nombre, apellido: persona.apellido, lideres_origen: enGrupos.get(id)?.lideres_origen ?? [] }] : []
+  })
+  const sinEllos = (lista: readonly PersonaGrupo[]) => lista.filter((p) => !mueven.has(p.usuario_id))
+
+  const grupos = estado.grupos.map((g) => {
+    const limpio = { ...g, lideres: sinEllos(g.lideres), aprendices: sinEllos(g.aprendices), miembros: sinEllos(g.miembros) }
+    if (!destino || g.grupo_id !== destino.grupo_id) return limpio
+    const lista = LISTA_DE_ROL[rol]
+    return { ...limpio, [lista]: [...limpio[lista], ...llegan] }
+  })
+  const banco = estado.banco.map((p) =>
+    mueven.has(p.usuario_id)
+      ? {
+          ...p,
+          grupo_actual_id: destino?.grupo_id ?? null,
+          grupo_actual_nombre: destino?.nombre ?? null,
+          grupo_actual_rol: destino ? ROL_EN_GRUPO[rol] : null,
+          grupo_actual_segmento_id: destino?.segmento_id ?? null,
+          grupos_en_temporada: destino ? 1 : 0,
+        }
+      : p,
+  )
+  return { grupos, banco }
+}
+
+/** The role a person has in a group, or null when they are not in it. */
+export function rolEnGrupo(grupo: GrupoTablero, usuarioId: string): RolDestino | null {
+  if (grupo.lideres.some((p) => p.usuario_id === usuarioId)) return 'lider'
+  if (grupo.aprendices.some((p) => p.usuario_id === usuarioId)) return 'aprendiz'
+  if (grupo.miembros.some((p) => p.usuario_id === usuarioId)) return 'miembro'
+  return null
+}
+
+/**
+ * S22: only a group that has not started can be deleted. The board knows
+ * activo and estado_ciclo; whether it already has meetings (eventos_grupo)
+ * only the server knows, and it refuses then.
+ */
+export const puedeEliminarGrupo = (grupo: Pick<GrupoTablero, 'activo' | 'estado_ciclo'>): boolean =>
+  !grupo.activo && grupo.estado_ciclo !== 'activo'
+
+export interface DirectorElegible {
+  readonly usuarioId: string
+  readonly nombre: string
+}
+
+/**
+ * The directores de etapa offered for a new group of a segment: those already
+ * directing a group of that segment in the season (no planner RPC lists the
+ * segment's director_etapa yet), each person once, by name.
+ */
+export function directoresElegibles(grupos: readonly GrupoTablero[], segmentoId: string): DirectorElegible[] {
+  const vistos = new Map<string, DirectorElegible>()
+  grupos
+    .filter((g) => g.segmento_id === segmentoId)
+    .forEach((g) => g.directores.forEach((d) => !vistos.has(d.usuario_id) && vistos.set(d.usuario_id, { usuarioId: d.usuario_id, nombre: nombrePersona(d) })))
+  return [...vistos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
+/** "Guardado · hace 5 s", "hace 3 min", "hace 2 h"; null without a time or a clock. */
+export function haceCuanto(desde: number | null, ahora: number | null): string | null {
+  if (desde === null || ahora === null) return null
+  const segundos = Math.max(0, Math.round((ahora - desde) / 1000))
+  if (segundos < 5) return 'ahora'
+  if (segundos < 60) return `hace ${segundos} s`
+  const minutos = Math.floor(segundos / 60)
+  if (minutos < 60) return `hace ${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  return horas < 24 ? `hace ${horas} h` : `hace ${Math.floor(horas / 24)} d`
+}
+
+export const NOTA_MATRIMONIOS = 'Van los dos: es un grupo de Matrimonios'
+
+export type PlanMovimiento =
+  | {
+      readonly tipo: 'mover'
+      readonly usuarioIds: readonly string[]
+      /** mensajeConyugeQueSeQueda: who does not come along (S2). */
+      readonly aviso: string | null
+      /** The couple goes together into Matrimonios. */
+      readonly nota: string | null
+    }
+  /** A couple row into a non-Matrimonios group: someone must choose who goes. */
+  | { readonly tipo: 'elegir' }
+
+/**
+ * S2 for a move: `ids` is one person, or the two of a couple row of the bank;
+ * `quien` the one chosen when a couple goes to a non-Matrimonios group. Into
+ * Matrimonios the couple goes together (personasAMover); elsewhere only the
+ * person, with the note of where the spouse stays.
+ */
+export function planearMovimiento(
+  ids: readonly string[],
+  destino: Pick<GrupoTablero, 'grupo_id' | 'segmento_nombre'> | null,
+  fichas: ReadonlyMap<string, PersonaBanco>,
+  quien: string | null,
+): PlanMovimiento {
+  if (!destino) return { tipo: 'mover', usuarioIds: quien ? [quien] : [...ids], aviso: null, nota: null }
+  const matrimonios = esMatrimonios(destino.segmento_nombre)
+  if (ids.length > 1 && matrimonios) return { tipo: 'mover', usuarioIds: [...ids], aviso: null, nota: NOTA_MATRIMONIOS }
+  if (ids.length > 1 && !quien) return { tipo: 'elegir' }
+  const persona = quien ?? ids[0]
+  const conyugeId = fichas.get(persona)?.conyuge_id ?? null
+  const usuarioIds = personasAMover(persona, conyugeId, destino.segmento_nombre)
+  if (usuarioIds.length > 1) return { tipo: 'mover', usuarioIds, aviso: null, nota: NOTA_MATRIMONIOS }
+  const conyuge = conyugeId ? (fichas.get(conyugeId) ?? null) : null
+  const aviso = mensajeConyugeQueSeQueda({ conyuge, segmentoDestinoNombre: destino.segmento_nombre, grupoDestinoId: destino.grupo_id })
+  return { tipo: 'mover', usuarioIds, aviso, nota: null }
+}
+
+/** Whether the move changes anything: someone not already there in that role. */
+export function cambiaAlgo(estado: EstadoTablero, movimiento: Movimiento): boolean {
+  const destino = estado.grupos.find((g) => g.grupo_id === movimiento.grupoId) ?? null
+  return movimiento.usuarioIds.some((id) => {
+    if (!destino) return estado.grupos.some((g) => rolEnGrupo(g, id) !== null)
+    return rolEnGrupo(destino, id) !== (movimiento.rol ?? 'miembro')
+  })
+}

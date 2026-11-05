@@ -8,9 +8,15 @@
  * (S3; "Usar <localidad>" applies it from T5b), blocker (red) and warning
  * (amber) badges, and "N integrantes" that expands the people by role in
  * place with each person's warnings.
+ *
+ * With the board's steps (T5b, pasos-planner.tsx) and a segment the actor
+ * edits: the card takes dropped people as Miembro and each role section of
+ * the expanded card in its role; members can be dragged or moved with
+ * "Mover"; "Usar <localidad>" saves the suggestion; "Eliminar grupo" shows
+ * only while the group has not started (S22).
  */
 import { useId, useState, type ReactElement } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, GripVertical } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import {
@@ -27,7 +33,13 @@ import {
 import { cn } from '@/lib/utils'
 
 import { EtiquetaPlanner } from './etiqueta'
-import { insigniasGrupo, insigniasPersona, rolesGrupo, textoLideres } from './modelo'
+import { insigniasGrupo, insigniasPersona, puedeEliminarGrupo, rolesGrupo, textoLideres, type RolDestino, type RolGrupo } from './modelo'
+import { usePasos, useZonaSoltar } from './contexto-pasos'
+
+const ROL_DE_SECCION: Readonly<Record<RolGrupo['id'], RolDestino>> = { lideres: 'lider', aprendices: 'aprendiz', miembros: 'miembro' }
+
+/** Drop highlight of a card or role zone while someone is dragged over it. */
+const SOBRE = 'ring-2 ring-brand ring-offset-2 ring-offset-background'
 
 export interface TarjetaGrupoProps {
   readonly grupo: GrupoTablero
@@ -65,6 +77,8 @@ function Cupo({ grupo }: { readonly grupo: GrupoTablero }): ReactElement {
 }
 
 function Sugerencia({ grupo, sugerencia }: { readonly grupo: GrupoTablero; readonly sugerencia: SugerenciaLocalidad | null }): ReactElement {
+  const pasos = usePasos()
+  const puedeUsar = pasos !== null && pasos.editable(grupo.segmento_id)
   if (!sugerencia) {
     return <p className="text-xs text-muted-foreground">Sin sugerencia: elige la localidad a mano</p>
   }
@@ -73,19 +87,94 @@ function Sugerencia({ grupo, sugerencia }: { readonly grupo: GrupoTablero; reado
       <p className="text-xs text-muted-foreground" title={`Sugerida: ${sugerencia.nombre}, ${sugerencia.motivo}`}>
         Sugerida · {sugerencia.motivo}
       </p>
-      {/* Applying it is a saved step (T5b); until then the suggestion is read-only. */}
       <BotonSistema
         type="button"
         variante="outline"
         tamaño="sm"
-        disabled
-        title="Disponible pronto"
+        disabled={!puedeUsar}
         aria-label={`Usar ${sugerencia.nombre} como localidad de ${grupo.nombre}`}
+        onClick={() => pasos?.usarLocalidad(grupo, sugerencia)}
         className="w-full"
       >
         Usar {sugerencia.nombre}
       </BotonSistema>
     </div>
+  )
+}
+
+function SeccionRol({
+  grupo,
+  rol,
+  bloqueos,
+  avisos,
+  fichas,
+}: Pick<TarjetaGrupoProps, 'grupo' | 'bloqueos' | 'avisos' | 'fichas'> & { readonly rol: RolGrupo }): ReactElement {
+  const pasos = usePasos()
+  const editable = pasos !== null && pasos.editable(grupo.segmento_id)
+  const zona = useZonaSoltar(grupo, ROL_DE_SECCION[rol.id])
+  return (
+    <section aria-label={rol.titulo} {...zona.props} className={cn('-mx-1 rounded-xl px-1 pb-1', zona.sobre && SOBRE)}>
+      <h4
+        className={cn(
+          'mb-1 text-xs font-medium uppercase tracking-[0.08em]',
+          rol.id === 'lideres' && rol.personas.length === 0 ? 'text-danger-text' : 'text-muted-foreground',
+        )}
+      >
+        {rol.titulo} <span className="font-mono tabular-nums">{rol.personas.length}</span>
+      </h4>
+      {rol.personas.length === 0 ? (
+        <p className={cn('text-xs', rol.id === 'lideres' ? 'text-danger-text' : 'text-muted-foreground')}>
+          {rol.id === 'lideres' ? 'Falta el Líder' : 'Nadie todavía'}
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {rol.personas.map((persona) => {
+            const ficha = fichas.get(persona.usuario_id)
+            const datos = [ficha?.edad !== null && ficha?.edad !== undefined ? String(ficha.edad) : null, ficha?.municipio_nombre].filter(Boolean)
+            const marcas = insigniasPersona(persona.usuario_id, grupo.grupo_id, bloqueos, avisos)
+            const nombre = nombrePersona(persona)
+            const carga = { ids: [persona.usuario_id], nombre, desdeGrupo: true }
+            return (
+              <li
+                key={persona.usuario_id}
+                draggable={editable}
+                onDragStart={editable ? (e) => pasos?.arrastrar(carga, e) : undefined}
+                onDragEnd={editable ? () => pasos?.terminarArrastre() : undefined}
+                className={cn('flex min-w-0 items-start gap-1', editable && 'cursor-grab')}
+              >
+                {editable && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-foreground" title={nombre}>
+                    {nombre}
+                  </p>
+                  {datos.length > 0 && <p className="truncate text-xs text-muted-foreground">{datos.join(' · ')}</p>}
+                  {marcas.length > 0 && (
+                    <div className="mt-0.5 flex flex-wrap gap-1">
+                      {marcas.map((m) => (
+                        <EtiquetaPlanner key={m.etiqueta} tono={m.tono}>
+                          {m.etiqueta}
+                        </EtiquetaPlanner>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {editable && (
+                  <BotonSistema
+                    type="button"
+                    variante="ghost"
+                    tamaño="sm"
+                    aria-label={`Mover a ${nombre}`}
+                    onClick={() => pasos?.pedirUbicar(carga, { grupoId: grupo.grupo_id, rol: ROL_DE_SECCION[rol.id] })}
+                  >
+                    Mover
+                  </BotonSistema>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </section>
   )
 }
 
@@ -96,12 +185,16 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
   const lideres = textoLideres(grupo)
   const etiqueta = etiquetaGrupo(grupo)
   const cantidad = personasDelGrupo(grupo).length
+  const pasos = usePasos()
+  const editable = pasos !== null && pasos.editable(grupo.segmento_id)
+  const zona = useZonaSoltar(grupo, 'miembro')
 
   return (
     <article
       id={`grupo-${grupo.grupo_id}`}
       aria-labelledby={idTitulo}
-      className={cn('flex scroll-mt-24 flex-col gap-2.5 rounded-2xl border border-border bg-card p-3', className)}
+      {...zona.props}
+      className={cn('flex scroll-mt-24 flex-col gap-2.5 rounded-2xl border border-border bg-card p-3', zona.sobre && SOBRE, className)}
     >
       <div className="min-w-0">
         <h3 id={idTitulo} title={grupo.nombre} className="line-clamp-2 text-[15px] font-semibold leading-snug text-foreground">
@@ -139,47 +232,13 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
       </button>
       <div id={idMiembros} hidden={!abierta} className="space-y-3 border-t border-border pt-2.5">
         {rolesGrupo(grupo).map((rol) => (
-          <section key={rol.id} aria-label={rol.titulo}>
-            <h4
-              className={cn(
-                'mb-1 text-xs font-medium uppercase tracking-[0.08em]',
-                rol.id === 'lideres' && rol.personas.length === 0 ? 'text-danger-text' : 'text-muted-foreground',
-              )}
-            >
-              {rol.titulo} <span className="font-mono tabular-nums">{rol.personas.length}</span>
-            </h4>
-            {rol.personas.length === 0 ? (
-              <p className={cn('text-xs', rol.id === 'lideres' ? 'text-danger-text' : 'text-muted-foreground')}>
-                {rol.id === 'lideres' ? 'Falta el Líder' : 'Nadie todavía'}
-              </p>
-            ) : (
-              <ul className="space-y-1.5">
-                {rol.personas.map((persona) => {
-                  const ficha = fichas.get(persona.usuario_id)
-                  const datos = [ficha?.edad !== null && ficha?.edad !== undefined ? String(ficha.edad) : null, ficha?.municipio_nombre].filter(Boolean)
-                  const marcas = insigniasPersona(persona.usuario_id, grupo.grupo_id, bloqueos, avisos)
-                  return (
-                    <li key={persona.usuario_id} className="min-w-0">
-                      <p className="truncate text-[13px] font-medium text-foreground" title={nombrePersona(persona)}>
-                        {nombrePersona(persona)}
-                      </p>
-                      {datos.length > 0 && <p className="truncate text-xs text-muted-foreground">{datos.join(' · ')}</p>}
-                      {marcas.length > 0 && (
-                        <div className="mt-0.5 flex flex-wrap gap-1">
-                          {marcas.map((m) => (
-                            <EtiquetaPlanner key={m.etiqueta} tono={m.tono}>
-                              {m.etiqueta}
-                            </EtiquetaPlanner>
-                          ))}
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </section>
+          <SeccionRol key={rol.id} grupo={grupo} rol={rol} bloqueos={bloqueos} avisos={avisos} fichas={fichas} />
         ))}
+        {editable && puedeEliminarGrupo(grupo) && (
+          <BotonSistema type="button" variante="peligro" tamaño="sm" onClick={() => pasos?.pedirEliminar(grupo)} className="w-full">
+            Eliminar grupo
+          </BotonSistema>
+        )}
       </div>
     </article>
   )

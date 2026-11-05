@@ -9,10 +9,13 @@
  * names and ages; rows are grouped under "De <origen>, sin ubicar" and
  * "Nuevos, sin segmento" (then the rest with "Sin ubicar" off). The list
  * shows 100 rows at a time ("Ver 100 más") so 1.4k people stay fast.
- * "Ubicar" (and dragging) places people from T5b.
+ *
+ * With the board's steps (T5b, pasos-planner.tsx): "Ubicar" opens the
+ * group and role dialog and a row can be dragged onto a card; the bank
+ * itself takes members dragged out of a group. Alone it is read-only.
  */
 import { useMemo, useState, type ReactElement } from 'react'
-import { Search } from 'lucide-react'
+import { GripVertical, Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
@@ -32,6 +35,7 @@ import {
   type FiltroEdad,
   type FiltrosBanco,
 } from './modelo'
+import { usePasos, useZonaSoltar } from './contexto-pasos'
 
 export const TAMANO_PAGINA_BANCO = 100
 
@@ -64,8 +68,17 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
   const nuevo = !segmento && !una.grupo_actual_id && !una.origen_grupo_id
   const linea = [segmento, nuevo && registro ? `${otra ? 'Se registraron' : 'Se registró'} el ${registro}` : null, donde].filter(Boolean).join(' · ')
   const marcas = marcasFila(fila)
+  const pasos = usePasos()
+  const nombre = nombreFila(fila)
+  const carga = { ids: fila.personas.map((p) => p.usuario_id), nombre, desdeGrupo: false }
   return (
-    <li className="flex min-w-0 items-start gap-2 border-b border-border px-1 py-2.5 last:border-b-0">
+    <li
+      draggable={pasos !== null}
+      onDragStart={pasos ? (e) => pasos.arrastrar(carga, e) : undefined}
+      onDragEnd={pasos ? () => pasos.terminarArrastre() : undefined}
+      className={cn('flex min-w-0 items-start gap-2 border-b border-border px-1 py-2.5 last:border-b-0', pasos && 'cursor-grab')}
+    >
+      {pasos && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold leading-snug text-foreground">
           <NombreConEdad persona={una} />
@@ -90,8 +103,14 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
           ))}
         </div>
       </div>
-      {/* Placing people is a saved step (T5b). */}
-      <BotonSistema type="button" variante="ghost" tamaño="sm" disabled title="Disponible pronto" aria-label={`Ubicar a ${nombreFila(fila)}`}>
+      <BotonSistema
+        type="button"
+        variante="ghost"
+        tamaño="sm"
+        disabled={!pasos}
+        aria-label={`Ubicar a ${nombre}`}
+        onClick={() => pasos?.pedirUbicar(carga)}
+      >
         Ubicar
       </BotonSistema>
     </li>
@@ -114,11 +133,17 @@ export function BancoPersonas({ id, banco, temporada, className }: BancoPersonas
     setLimite(TAMANO_PAGINA_BANCO)
   }
 
+  const zona = useZonaSoltar(null, 'miembro')
   const visibles = cortarSecciones(modelo.secciones, limite)
   const faltan = modelo.filas - Math.min(limite, modelo.filas)
 
   return (
-    <aside id={id} aria-labelledby={`${id}-titulo`} className={cn('flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-card p-4', className)}>
+    <aside
+      id={id}
+      aria-labelledby={`${id}-titulo`}
+      {...zona.props}
+      className={cn('flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-card p-4', zona.sobre && 'ring-2 ring-brand', className)}
+    >
       <div className="space-y-0.5">
         <h2 id={`${id}-titulo`} className="text-base font-semibold text-foreground">
           Banco de personas

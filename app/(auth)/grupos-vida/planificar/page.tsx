@@ -7,8 +7,9 @@
  * here with the session client (lib/platform/grupos-vida/planner/datos.ts):
  * the planner RPCs check the role again and scope the groups by segment (S10);
  * the bank is everyone (S11). The client island
- * (components/grupos-vida/planner/planner-client.tsx) renders the read-only
- * board; changing it comes with the steps (T5b).
+ * (components/grupos-vida/planner/planner-client.tsx) renders the board;
+ * each change is a server action of ./actions.ts (T5b). The latest steps of
+ * planner_historial come along for Deshacer.
  *
  * `?temporada=<id>` opens that season; without it, the most recent season in
  * planning. With none in planning: an empty state that sends the director
@@ -19,6 +20,7 @@ import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { cargarPlanner, comoClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
+import { ultimosPasos } from '@/lib/platform/grupos-vida/planner/acciones'
 import { PlannerClient } from '@/components/grupos-vida/planner/planner-client'
 import { PlannerError, PlannerSinTemporada } from '@/components/grupos-vida/planner/estado-planner'
 
@@ -44,10 +46,13 @@ export default async function PlanificarPage({ searchParams }: PlanificarPagePro
   if (!userData.roles.some((rol) => ROLES_PLANIFICADOR.includes(rol))) redirect('/dashboard')
 
   const parametros = (await searchParams) ?? {}
-  const resultado = await cargarPlanner(comoClientePlanner(supabase), primero(parametros.temporada))
+  const cliente = comoClientePlanner(supabase)
+  const resultado = await cargarPlanner(cliente, primero(parametros.temporada))
 
   if (resultado.tipo === 'sin_acceso') redirect('/dashboard')
   if (resultado.tipo === 'error') return <PlannerError mensaje={resultado.mensaje} />
   if (resultado.tipo === 'sin_temporada') return <PlannerSinTemporada puedeCrearTemporada={resultado.capacidades.puede_crear_temporada} />
-  return <PlannerClient datos={resultado.datos} />
+  // Without the history the board still opens; Deshacer then says it could not read it.
+  const pasos = await ultimosPasos(cliente, { temporadaId: resultado.datos.temporada.id })
+  return <PlannerClient datos={resultado.datos} pasos={pasos.ok ? pasos.datos : null} />
 }

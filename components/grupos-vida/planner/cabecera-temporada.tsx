@@ -8,10 +8,11 @@
  * button "N bloqueos · M avisos" that opens the alerts panel and, for admin,
  * pastor and director general only, the publish button whose label carries
  * the season state (S16): ghost until everything is ready. A director de
- * etapa gets the note of what they see instead (S10). Save state, Deshacer
- * and Historial come with the steps (T5b, T8).
+ * etapa gets the note of what they see instead (S10). The save state and
+ * Deshacer (T5b, estado-guardado.tsx) come first on the right; Historial
+ * comes with T8.
  */
-import { useEffect, useId, useRef, useState, type ReactElement } from 'react'
+import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
 
@@ -41,6 +42,8 @@ export interface CabeceraTemporadaProps {
   /** The publish button (S16); null hides it (director de etapa, S12). */
   readonly publicar: BotonPublicar | null
   readonly puedeCrearTemporada: boolean
+  /** Save state and Deshacer (estado-guardado.tsx). */
+  readonly guardado?: ReactNode
 }
 
 function SelectorTemporada({
@@ -146,6 +149,7 @@ export function CabeceraTemporada({
   alertasAbiertas,
   publicar,
   puedeCrearTemporada,
+  guardado,
 }: CabeceraTemporadaProps): ReactElement {
   const estado = estadoTemporada(temporada)
   const nombresAlcance = enLista(segmentosAlcance.map((s) => s.nombre))
@@ -168,6 +172,7 @@ export function CabeceraTemporada({
           </p>
         </div>
         <div role="group" aria-label="Acciones de la temporada" className="flex flex-wrap items-center gap-2">
+          {guardado}
           <BotonSistema
             type="button"
             variante="outline"

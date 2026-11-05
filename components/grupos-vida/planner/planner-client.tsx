@@ -3,8 +3,10 @@
 /**
  * Planner — client island of /grupos-vida/planificar (T5a of
  * odd/tasks/planner-gdv.md; artboards 01, 03 and 08 of design/planner-gdv;
- * S1, S4, S5, S7, S9–S11, S16, S17, S21). Read-only board: moving people,
- * creating groups and applying suggestions are saved steps (T5b).
+ * S1, S4, S5, S7, S9–S11, S16, S17, S21). Moving people, creating and
+ * deleting groups, applying a localidad suggestion, undoing and "Terminé mi
+ * segmento" are saved steps (T5b, pasos-planner.tsx): the board shows a move
+ * at once and the header shows the save state and Deshacer.
  *
  * Top to bottom: the one-line season header (cabecera-temporada.tsx), one
  * toolbar row (view switch Tablero · Lado a lado, search over groups and
@@ -23,15 +25,20 @@ import { BotonSistema, InputSistema, PaginaSistema, SelectSistema } from '@/comp
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { botonPublicar, calcularAvisos } from '@/lib/platform/grupos-vida/planner'
+import { botonPublicar, calcularAvisos, type PasoHistorial } from '@/lib/platform/grupos-vida/planner'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 import { cn } from '@/lib/utils'
 
 import { BancoPersonas } from './banco-personas'
 import { CabeceraTemporada } from './cabecera-temporada'
+import { DialogoEliminarGrupo } from './dialogo-eliminar-grupo'
+import { DialogoUbicar } from './dialogo-ubicar'
+import { EstadoGuardado } from './estado-guardado'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
 import { PanelAlertas } from './panel-alertas'
+import { PanelNuevoGrupo } from './panel-nuevo-grupo'
+import { PasosPlannerProvider, usePasosPlanner } from './pasos-planner'
 import { TableroPlanner } from './tablero-planner'
 
 type Vista = 'tablero' | 'lado'
@@ -42,6 +49,8 @@ export const claveBanco = (usuarioId: string): string => `planner-gdv:banco-ocul
 
 export interface PlannerClientProps {
   readonly datos: DatosPlanner
+  /** planner_historial (latest steps) for Deshacer; null when it could not be read. */
+  readonly pasos?: readonly PasoHistorial[] | null
 }
 
 const EVENTO_BANCO = 'planner-gdv:banco'
@@ -85,8 +94,17 @@ function useBancoVisible(usuarioId: string): [boolean, (visible: boolean) => voi
   return [!oculto, cambiar]
 }
 
-export function PlannerClient({ datos }: PlannerClientProps): ReactElement {
-  const { capacidades, temporada, grupos, banco, bloqueos, estado, localidades, faltantes } = datos
+export function PlannerClient({ datos, pasos = null }: PlannerClientProps): ReactElement {
+  const { capacidades, temporada, bloqueos, estado, localidades, faltantes } = datos
+  const control = usePasosPlanner(datos, pasos)
+  const { grupos, banco } = control.tablero
+  // The groups "Ubicar" offers: those of the actor's segments (S10), by segment and name.
+  const editables = useMemo(() => {
+    const segmentos = new Set(capacidades.segmentos_editables)
+    return grupos
+      .filter((g) => segmentos.has(g.segmento_id))
+      .sort((a, b) => a.segmento_nombre.localeCompare(b.segmento_nombre, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
+  }, [grupos, capacidades.segmentos_editables])
   const notificar = useNotificaciones()
   const [alertasAbiertas, setAlertasAbiertas] = useState(false)
   const [busqueda, setBusqueda] = useState('')
@@ -109,94 +127,116 @@ export function PlannerClient({ datos }: PlannerClientProps): ReactElement {
   }
 
   return (
-    // No `titulo`: the season switcher is the page h1.
-    <PaginaSistema breadcrumbs={<MigasPlanner actual={temporada.nombre} />}>
-      <CabeceraTemporada
-        temporada={temporada}
-        temporadas={capacidades.temporadas}
-        segmentosAlcance={segmentosDelAlcance(capacidades)}
-        grupos={grupos.length}
-        personas={contarPersonas(grupos)}
-        bloqueos={bloqueos.length}
-        avisos={avisos.length}
-        onAbrirAlertas={() => setAlertasAbiertas(true)}
-        alertasAbiertas={alertasAbiertas}
-        publicar={publicar}
-        puedeCrearTemporada={capacidades.puede_crear_temporada}
-      />
-
-      {faltantes.includes('localidades') && (
-        <AvisoFormulario tono="info" role="note" className="py-3">
-          No se pudieron leer las localidades: por ahora los grupos sin localidad no muestran sugerencia.
-        </AvisoFormulario>
-      )}
-
-      <section aria-label="Vista, buscar y agrupar" className="flex flex-wrap items-center gap-2">
-        <ControlSegmentado<Vista>
-          etiqueta="Vista"
-          opciones={[
-            { valor: 'tablero', etiqueta: 'Tablero' },
-            { valor: 'lado', etiqueta: 'Lado a lado · pronto' },
-          ]}
-          valor="tablero"
-          onCambio={cambiarVista}
+    <PasosPlannerProvider value={control.contexto}>
+      {/* No `titulo`: the season switcher is the page h1. */}
+      <PaginaSistema breadcrumbs={<MigasPlanner actual={temporada.nombre} />}>
+        <CabeceraTemporada
+          temporada={temporada}
+          temporadas={capacidades.temporadas}
+          segmentosAlcance={segmentosDelAlcance(capacidades)}
+          grupos={grupos.length}
+          personas={contarPersonas(grupos)}
+          bloqueos={bloqueos.length}
+          avisos={avisos.length}
+          onAbrirAlertas={() => setAlertasAbiertas(true)}
+          alertasAbiertas={alertasAbiertas}
+          publicar={publicar}
+          puedeCrearTemporada={capacidades.puede_crear_temporada}
+          guardado={<EstadoGuardado estado={control.guardado} deshacer={control.deshacer} />}
         />
-        <div className="min-w-[14rem] flex-1">
-          <InputSistema
-            type="search"
-            icono={Search}
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar grupo o persona"
-            aria-label="Buscar grupo, líder o persona"
-            autoComplete="off"
-          />
-        </div>
-        <div className="w-52">
-          <SelectSistema
-            aria-label="Agrupar por"
+
+        {faltantes.includes('localidades') && (
+          <AvisoFormulario tono="info" role="note" className="py-3">
+            No se pudieron leer las localidades: por ahora los grupos sin localidad no muestran sugerencia.
+          </AvisoFormulario>
+        )}
+
+        <section aria-label="Vista, buscar y agrupar" className="flex flex-wrap items-center gap-2">
+          <ControlSegmentado<Vista>
+            etiqueta="Vista"
             opciones={[
-              { valor: 'localidad', etiqueta: 'Agrupar: localidad' },
-              { valor: 'director', etiqueta: 'Agrupar: director' },
+              { valor: 'tablero', etiqueta: 'Tablero' },
+              { valor: 'lado', etiqueta: 'Lado a lado · pronto' },
             ]}
-            value={agrupar}
-            onValueChange={(valor) => setAgrupar(valor === 'director' ? 'director' : 'localidad')}
+            valor="tablero"
+            onCambio={cambiarVista}
           />
-        </div>
-        <BotonSistema
-          type="button"
-          variante="outline"
-          tamaño="sm"
-          aria-expanded={bancoVisible}
-          aria-controls={ID_BANCO}
-          onClick={() => setBancoVisible(!bancoVisible)}
-        >
-          {bancoVisible ? (
-            'Ocultar banco'
-          ) : (
-            <>
-              Mostrar banco · <span className="font-mono tabular-nums">{sinUbicar}</span> sin ubicar
-            </>
-          )}
-        </BotonSistema>
-      </section>
+          <div className="min-w-[14rem] flex-1">
+            <InputSistema
+              type="search"
+              icono={Search}
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar grupo o persona"
+              aria-label="Buscar grupo, líder o persona"
+              autoComplete="off"
+            />
+          </div>
+          <div className="w-52">
+            <SelectSistema
+              aria-label="Agrupar por"
+              opciones={[
+                { valor: 'localidad', etiqueta: 'Agrupar: localidad' },
+                { valor: 'director', etiqueta: 'Agrupar: director' },
+              ]}
+              value={agrupar}
+              onValueChange={(valor) => setAgrupar(valor === 'director' ? 'director' : 'localidad')}
+            />
+          </div>
+          <BotonSistema
+            type="button"
+            variante="outline"
+            tamaño="sm"
+            aria-expanded={bancoVisible}
+            aria-controls={ID_BANCO}
+            onClick={() => setBancoVisible(!bancoVisible)}
+          >
+            {bancoVisible ? (
+              'Ocultar banco'
+            ) : (
+              <>
+                Mostrar banco · <span className="font-mono tabular-nums">{sinUbicar}</span> sin ubicar
+              </>
+            )}
+          </BotonSistema>
+        </section>
 
-      <div className={cn('grid items-start gap-6', bancoVisible && 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
-        <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
-        <div hidden={!bancoVisible} className="min-w-0 lg:sticky lg:top-24">
-          <BancoPersonas id={ID_BANCO} banco={banco} temporada={temporada} className="lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto" />
+        <div className={cn('grid items-start gap-6', bancoVisible && 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
+          <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
+          <div hidden={!bancoVisible} className="min-w-0 lg:sticky lg:top-24">
+            <BancoPersonas id={ID_BANCO} banco={banco} temporada={temporada} className="lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto" />
+          </div>
         </div>
-      </div>
 
-      <PanelAlertas
-        abierto={alertasAbiertas}
-        onAbiertoChange={setAlertasAbiertas}
-        temporada={temporada.nombre}
-        bloqueos={seccionesB}
-        avisos={seccionesA}
-        totalBloqueos={bloqueos.length}
-        totalAvisos={avisos.length}
-      />
-    </PaginaSistema>
+        <PanelAlertas
+          abierto={alertasAbiertas}
+          onAbiertoChange={setAlertasAbiertas}
+          temporada={temporada.nombre}
+          bloqueos={seccionesB}
+          avisos={seccionesA}
+          totalBloqueos={bloqueos.length}
+          totalAvisos={avisos.length}
+        />
+
+        <DialogoUbicar
+          peticion={control.ubicar}
+          grupos={editables}
+          fichas={control.fichas}
+          onCerrar={control.cerrarUbicar}
+          onConfirmar={control.confirmarUbicar}
+        />
+        <PanelNuevoGrupo
+          segmento={control.nuevoGrupo}
+          grupos={grupos}
+          localidades={localidades}
+          onCerrar={control.cerrarNuevoGrupo}
+          onCrear={control.crear}
+        />
+        <DialogoEliminarGrupo grupo={control.eliminar} onCerrar={control.cerrarEliminar} onConfirmar={control.confirmarEliminar} />
+        <p role="status" aria-live="polite" aria-label="Cambios del planificador" className="sr-only">
+          {control.anuncio}
+        </p>
+      </PaginaSistema>
+    </PasosPlannerProvider>
   )
 }
