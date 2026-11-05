@@ -12,14 +12,18 @@
  * rules (a clear message before a round trip), maps the RPC answer and errors,
  * and diffs the form against the loaded ficha so only the changed keys travel.
  *
- * Email is deliberately not editable here: it may be tied to the auth account.
+ * The email (20261106100000, odd/tasks/dream-team-pendientes-director.md, S3)
+ * is editable for a person without account; with an account it is their
+ * login, so only an admin may change it. The database answers whether the
+ * caller may (puedeEditarEmail) and refuses otherwise (email_solo_admin);
+ * the login email (auth.users) follows in ficha-correo-auth.ts (S8).
  *
  * An area director may fix the fichas of the people of their area and register
  * new people into it too (20261105100000, odd/tasks/dream-team-directores-fichas.md,
  * S5): the UI asks the database who (fetchFichasEditables) and whether
  * (puedeRegistrarPersonaNueva) on top of the registrable equipos.
  */
-import type { DependenciasInvitacion } from '@/lib/platform/cuentas/invitacion-cuenta'
+import { parseInvitacion, type DependenciasInvitacion } from '@/lib/platform/cuentas/invitacion-cuenta'
 import { prepararCedula } from '@/lib/utils/cedula'
 
 import { ESTADOS_CIVILES, GENEROS, type EstadoCivil, type Genero } from './alta-persona'
@@ -34,6 +38,11 @@ export interface FichaPersona {
   readonly estadoCivil: EstadoCivil
   readonly telefono: string | null
   readonly redesSociales: string | null
+  readonly email: string | null
+  /** The person has an auth account (their email is their login). */
+  readonly tieneCuenta: boolean
+  /** The caller may change the email: no account, or the caller is admin. */
+  readonly puedeEditarEmail: boolean
 }
 
 /** The editable fields as the form holds them ('' = empty). */
@@ -44,6 +53,7 @@ export interface FormularioFicha {
   readonly estadoCivil: string
   readonly telefono: string
   readonly redesSociales: string
+  readonly email: string
 }
 
 type CampoFicha = keyof FormularioFicha
@@ -56,6 +66,7 @@ const COLUMNAS: Readonly<Record<CampoFicha, string>> = {
   estadoCivil: 'estado_civil',
   telefono: 'telefono',
   redesSociales: 'redes_sociales',
+  email: 'email',
 }
 const CAMPOS = Object.keys(COLUMNAS) as CampoFicha[]
 
@@ -89,6 +100,7 @@ function validarCampo(campo: CampoFicha, v: unknown, hoy: Date): { valor: string
       estadoCivil: 'Estado civil inválido',
       telefono: 'Teléfono inválido',
       redesSociales: 'Redes sociales inválidas',
+      email: 'Escribe un correo válido',
     }
     return { error: nombres[campo] }
   }
@@ -112,6 +124,12 @@ function validarCampo(campo: CampoFicha, v: unknown, hoy: Date): { valor: string
         return { error: `Redes sociales: máximo ${REDES_SOCIALES_MAX} caracteres` }
       }
       return { valor: texto }
+    case 'email': {
+      if (texto === null) return { valor: null }
+      // The same rules as an account invitation (trimmed, lowercase, at most 254).
+      const r = parseInvitacion({ email: texto })
+      return 'error' in r ? { error: r.error } : { valor: r.email }
+    }
   }
 }
 
@@ -149,6 +167,10 @@ export function mapFicha(data: unknown): FichaPersona {
     estadoCivil: d.estado_civil as EstadoCivil,
     telefono: texto(d.telefono),
     redesSociales: texto(d.redes_sociales),
+    email: texto(d.email),
+    // Fail closed: a missing flag reads as an account the caller may not change.
+    tieneCuenta: d.tiene_cuenta !== false,
+    puedeEditarEmail: d.puede_editar_email === true,
   }
 }
 
@@ -160,15 +182,25 @@ const MENSAJES: Readonly<Record<string, string>> = {
   genero_invalido: 'Género inválido',
   estado_civil_invalido: 'Estado civil inválido',
   redes_sociales_largo: `Redes sociales: máximo ${REDES_SOCIALES_MAX} caracteres`,
+  email_invalido: 'Escribe un correo válido',
 }
+
+export const MENSAJE_EMAIL_SOLO_ADMIN = 'Solo un administrador puede cambiar el correo de quien ya tiene cuenta.'
 
 export type FichaFallo =
   | { readonly status: 403 | 409 | 422 | 500; readonly error: string }
 
 /** Maps an RPC error to an HTTP answer. Never leaks the SQLSTATE or the detail on a 500. */
 export function mapFichaError(error: { code?: string; message?: string }): FichaFallo {
-  if (error.code === '42501') return { status: 403, error: 'Permiso denegado' }
-  if (error.code === '23505') return { status: 409, error: 'Esa cédula ya pertenece a otra persona' }
+  if (error.code === '42501') {
+    return { status: 403, error: error.message === 'email_solo_admin' ? MENSAJE_EMAIL_SOLO_ADMIN : 'Permiso denegado' }
+  }
+  if (error.code === '23505') {
+    return {
+      status: 409,
+      error: error.message === 'email_en_uso' ? 'Ese correo ya lo usa otra persona.' : 'Esa cédula ya pertenece a otra persona',
+    }
+  }
   if (error.code === '22023' || error.code === '22007' || error.code === '22008' || error.code === '23514') {
     return { status: 422, error: MENSAJES[error.message ?? ''] ?? 'Datos inválidos' }
   }
@@ -184,15 +216,22 @@ export function formularioDesdeFicha(ficha: FichaPersona): FormularioFicha {
     estadoCivil: ficha.estadoCivil,
     telefono: ficha.telefono ?? '',
     redesSociales: ficha.redesSociales ?? '',
+    email: ficha.email ?? '',
   }
 }
 
-/** The PATCH body: only the fields whose trimmed value changed. */
+/**
+ * The PATCH body: only the fields whose trimmed value changed. The email
+ * compares without case (the database stores it lowercase) and never travels
+ * when the caller may not change it.
+ */
 export function cambiosDeFicha(ficha: FichaPersona, form: FormularioFicha): Partial<FormularioFicha> {
   const inicial = formularioDesdeFicha(ficha)
   const cambios: Partial<Record<CampoFicha, string>> = {}
+  const comparable = (campo: CampoFicha, v: string) => (campo === 'email' ? v.trim().toLowerCase() : v.trim())
   for (const campo of CAMPOS) {
-    if (form[campo].trim() !== inicial[campo].trim()) cambios[campo] = form[campo].trim()
+    if (campo === 'email' && !ficha.puedeEditarEmail) continue
+    if (comparable(campo, form[campo]) !== comparable(campo, inicial[campo])) cambios[campo] = form[campo].trim()
   }
   return cambios
 }

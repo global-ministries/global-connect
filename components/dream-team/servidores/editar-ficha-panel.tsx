@@ -7,8 +7,13 @@
  * /api/dream-team/personas/[id]/ficha and saves only the changed fields with
  * PATCH; the database decides who may do it and validates again
  * (lib/platform/dream-team/ficha-persona.ts).
+ *
+ * Correo (S3 of odd/tasks/dream-team-pendientes-director.md): editable when
+ * the database says so (no account, or an admin); otherwise disabled with the
+ * lock and the reason, as in design/pendientes-director/07.
  */
 import { useEffect, useId, useState, type FormEvent, type ReactElement } from 'react'
+import { Lock } from 'lucide-react'
 
 import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema } from '@/components/ui/sistema-diseno'
@@ -18,6 +23,7 @@ import {
   cambiosDeFicha,
   formularioDesdeFicha,
   hoyIso,
+  MENSAJE_EMAIL_SOLO_ADMIN,
   parseEditarFicha,
   REDES_SOCIALES_MAX,
   type FichaPersona,
@@ -57,6 +63,7 @@ export function EditarFichaPanel({
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const formId = useId()
+  const ayudaCorreoId = useId()
 
   const url = `/api/dream-team/personas/${encodeURIComponent(personaId)}/ficha`
 
@@ -184,6 +191,33 @@ export function EditarFichaPanel({
               value={form.telefono}
               onChange={(e) => cambiar('telefono', e.target.value)}
             />
+            {ficha !== null && (
+              <div className="grid gap-1">
+                <InputSistema
+                  label="Correo"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={254}
+                  icono={ficha.puedeEditarEmail ? undefined : Lock}
+                  disabled={!ficha.puedeEditarEmail}
+                  aria-describedby={ficha.puedeEditarEmail && ficha.tieneCuenta ? undefined : ayudaCorreoId}
+                  value={form.email}
+                  onChange={(e) => cambiar('email', e.target.value)}
+                />
+                {!ficha.puedeEditarEmail && (
+                  <TextoSistema id={ayudaCorreoId} variante="sutil">
+                    {MENSAJE_EMAIL_SOLO_ADMIN}
+                  </TextoSistema>
+                )}
+                {ficha.puedeEditarEmail && !ficha.tieneCuenta && (
+                  <TextoSistema id={ayudaCorreoId} variante="sutil">
+                    Todavía no tiene cuenta, así que puedes corregir su correo.
+                  </TextoSistema>
+                )}
+              </div>
+            )}
             <InputSistema
               label="Redes sociales"
               maxLength={REDES_SOCIALES_MAX}
