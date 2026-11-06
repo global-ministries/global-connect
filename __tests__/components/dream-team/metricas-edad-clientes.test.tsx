@@ -113,11 +113,14 @@ describe('Servidores — age metrics', () => {
 
   it('counts per range and filters the list, mirrored into the URL', async () => {
     renderizar(filas)
+    const urlFiltros = jest.spyOn(window.history, 'replaceState').mockImplementation(() => undefined)
     expect(pastilla(/^12–17/)).toHaveTextContent('12–171')
     expect(pastilla(/^18–25/)).toHaveTextContent('18–250')
 
     await userEvent.click(pastilla(/^26\+/))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?edad=26_mas&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(null, '', '/admin/dream-team/servidores?edad=26_mas&agrupar=ninguno')
+    expect(replace).not.toHaveBeenCalled()
+    urlFiltros.mockRestore()
     const tabla = screen.getByRole('table', { name: 'Servicios' })
     expect(within(tabla).getByRole('button', { name: 'Abrir Beto en Coro' })).toBeInTheDocument()
     expect(within(tabla).queryByText('Ana')).not.toBeInTheDocument()

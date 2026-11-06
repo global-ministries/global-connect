@@ -151,15 +151,18 @@ describe('Servidores — account-state pills (S3)', () => {
 
   it('a pill applies its filter through the URL and stays pressed; the metric stays pressed too', async () => {
     render(<ServidoresClient {...props({ sinCuenta: true })} />)
+    const urlFiltros = jest.spyOn(window.history, 'replaceState').mockImplementation(() => undefined)
     await user.click(pastillas().getByRole('button', { name: 'Invitación vencida 3' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?invitacion=vencida', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(null, '', '/admin/dream-team/servidores?invitacion=vencida')
+    expect(replace).not.toHaveBeenCalled()
     expect(pastillas().getByRole('button', { name: 'Invitación vencida 3' })).toHaveAttribute('aria-pressed', 'true')
     expect(metrica('Sin cuenta')).toHaveAttribute('aria-pressed', 'true')
 
     // The metric clears every account filter.
     await user.click(metrica('Sin cuenta'))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(null, '', '/admin/dream-team/servidores')
     expect(screen.queryByRole('group', { name: 'Estado de la invitación a registrarse' })).not.toBeInTheDocument()
+    urlFiltros.mockRestore()
   })
 
   it('stay hidden without invitation data', () => {
