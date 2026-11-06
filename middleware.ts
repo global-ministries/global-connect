@@ -223,8 +223,11 @@ export async function middleware(request: NextRequest) {
   return supabaseResponse
 }
 
+// Files the browser fetches without the session cookie stay out: the PWA
+// manifest, its icons and the iOS home-screen icon (redirecting them to the
+// login broke installing the app on a phone).
 export const config = {
   matcher: [
-    '/((?!api|_next|static|email/|monitoring|favicon.ico|robots.txt|sitemap.xml).*)',
+    '/((?!api|_next|static|email/|monitoring|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|icons/|apple-touch-icon).*)',
   ],
 }

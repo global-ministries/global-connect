@@ -1,26 +1,30 @@
 import type { MetadataRoute } from 'next'
 
+/**
+ * The PWA manifest (/manifest.webmanifest). Installable on Android/Chrome:
+ * standalone display, local PNG icons 192/512 for "any" and "maskable" (the
+ * maskable ones keep the logo inside the safe zone on an opaque background).
+ * iOS reads app/layout.tsx (apple-touch-icon, appleWebApp) instead.
+ * The middleware lets this file and /icons/ through without a session.
+ */
 export default function manifest(): MetadataRoute.Manifest {
-  const name = 'Global Barquisimeto'
-  const short_name = 'Global'
-  const description = 'Sistema para los miembros de Global Barquisimeto.'
-  const iconUrl = 'https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/favicon%20global.webp'
-
   return {
-    name,
-    short_name,
-    description,
+    id: '/',
+    name: 'Global Connect',
+    short_name: 'Global',
+    description: 'Sistema para los miembros de Global Barquisimeto.',
+    lang: 'es',
     start_url: '/',
+    scope: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#ffffff',
+    orientation: 'portrait',
+    background_color: '#FAFAF8',
+    theme_color: '#FAFAF8',
     icons: [
-      {
-        src: iconUrl,
-        sizes: '512x512',
-        type: 'image/webp',
-  purpose: 'maskable',
-      },
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+      { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }
 }
