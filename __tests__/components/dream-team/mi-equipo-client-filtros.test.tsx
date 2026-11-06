@@ -18,6 +18,9 @@ import { listarDirecciones, vistaDeDireccion, type PersonasPorEquipo } from '@/l
 import { ID_CONEXION, ID_DHAH, ID_PDP, arbolConexion, personasPorEquipoConexion } from '@/tests/helpers/mi-equipo-conexion'
 
 const replace = jest.fn()
+// The filters are mirrored into the address with history.replaceState (no
+// server round trip); this records the URL of each write.
+const urlFiltros = jest.fn()
 let campusActivoId: string | null = null
 jest.mock('@/hooks/useCampus', () => ({ useCampus: () => ({ campusId: campusActivoId }) }))
 jest.mock('next/navigation', () => ({
@@ -32,6 +35,12 @@ beforeEach(() => {
   campusActivoId = null
   replace.mockClear()
   user = userEvent.setup({ delay: null })
+  urlFiltros.mockClear()
+  jest.spyOn(window.history, 'replaceState').mockImplementation((_estado, _titulo, url) => urlFiltros(url))
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 const T9 = '00000000-0000-4000-8000-000000000009'
@@ -97,24 +106,24 @@ describe('MiEquipoClient — attention metrics are the filters (S11 decisions 2 
     await user.click(metrica('Por activar'))
     expect(metrica('Por activar')).toHaveAttribute('aria-pressed', 'true')
     expect(nombres().sort()).toEqual(['Luis Barrios', 'Wilennys García'])
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?por_activar=1', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?por_activar=1')
     await user.click(metrica('Por activar'))
     expect(filas()).toHaveLength(38)
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo')
   })
 
   it('Sirviendo is the Activo etapa, Sin cuenta and Sin turno their own filter', async () => {
     render(<MiEquipoClient {...props()} />)
     await user.click(metrica('Sirviendo'))
     expect(filas()).toHaveLength(35)
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?etapa=activo', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?etapa=activo')
     await user.click(metrica('Sirviendo'))
     await user.click(metrica('Sin cuenta'))
     expect(nombres().sort()).toEqual(['Karol Valero', 'Luis Barrios'])
     await user.click(metrica('Sin cuenta'))
     await user.click(metrica('Sin turno'))
     expect(nombres()).toEqual(['Edmir Muñoz'])
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?sin_turno=1', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?sin_turno=1')
   })
 
   it('the numbers follow the scope', async () => {
@@ -161,7 +170,7 @@ describe('MiEquipoClient — the Filtros sheet (S11 decision 5)', () => {
     hoja = await abrirFiltros()
     await user.selectOptions(hoja.getByLabelText('Turno'), 'sin_turno')
     expect(nombres()).toEqual(['Edmir Muñoz'])
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?turno=sin_turno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?turno=sin_turno')
   })
 
   it('has no Turno select when the campus has no shifts', async () => {
@@ -211,7 +220,7 @@ describe('MiEquipoClient — Por persona / Por servicio (S11 decision 7)', () =>
     expect(filas()).toHaveLength(39)
     expect(screen.getByRole('button', { name: 'Abrir Edmir Muñoz en Punto de Partida', hidden: true })).toBeInTheDocument()
     expect(screen.getByText('39 servicios · 38 personas')).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?vista=servicio', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?vista=servicio')
   })
 
   it('names each servicio with its shifts, a dash when none', () => {

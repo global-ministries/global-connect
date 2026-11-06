@@ -26,6 +26,9 @@ import { personaId } from '@/lib/platform/dream-team/types'
 import { ID_CONEXION, ID_MDH, arbolConexion, personasPorEquipoConexion } from '@/tests/helpers/mi-equipo-conexion'
 
 const replace = jest.fn()
+// The filters are mirrored into the address with history.replaceState (no
+// server round trip); this records the URL of each write.
+const urlFiltros = jest.fn()
 jest.mock('@/hooks/useCampus', () => ({ useCampus: () => ({ campusId: null }) }))
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace, refresh: jest.fn(), push: jest.fn() }),
@@ -47,6 +50,12 @@ let user: ReturnType<typeof userEvent.setup>
 beforeEach(() => {
   replace.mockClear()
   user = userEvent.setup({ delay: null })
+  urlFiltros.mockClear()
+  jest.spyOn(window.history, 'replaceState').mockImplementation((_estado, _titulo, url) => urlFiltros(url))
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 function propsConexion(overrides: Partial<MiEquipoClientProps> = {}): MiEquipoClientProps {
@@ -136,7 +145,7 @@ describe('MiEquipoClient — scope cards one level at a time (criteria 1 and 3, 
     expect(screen.queryByRole('group', { name: 'Equipos' })).not.toBeInTheDocument()
     expect(migas()).toEqual(['Dream Team', 'Mi equipo', 'Dirección de Conexión', 'Parejas'])
     expect(resumen()).toBe('Coordina Ludovic Gómez · 8 personas')
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?nivel=eq-parejas', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?nivel=eq-parejas')
 
     await user.click(within(screen.getByRole('navigation', { name: 'Ubicación' })).getByRole('button', { name: 'Dirección de Conexión' }))
     expect(nombres()).toHaveLength(38)
@@ -247,17 +256,30 @@ describe('MiEquipoClient — search by name or phone (criterion 4, S11 decision 
     [ID_MDH]: personasPorEquipoConexion[ID_MDH].map((p) => (p.nombre === 'Edith Pérez' ? { ...p, telefono: '0414-555-1234' } : p)),
   }
 
+  it('changing filters never asks the server again (no router.replace): a dropped connection cannot break the page', async () => {
+    jest.useFakeTimers()
+    render(<MiEquipoClient {...propsConexion()} />)
+    await user.click(tarjeta('Parejas'))
+    await user.type(buscar(), 'perez')
+    act(() => {
+      jest.advanceTimersByTime(400)
+    })
+    expect(urlFiltros).toHaveBeenCalled()
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?nivel=eq-parejas&q=perez')
+    expect(replace).not.toHaveBeenCalled()
+  })
+
   it('matches names without accents or case; the URL follows after a short debounce', async () => {
     jest.useFakeTimers()
     render(<MiEquipoClient {...propsConexion()} />)
     await user.type(buscar(), 'PEREZ')
     expect(nombres()).toEqual(['Edith Pérez'])
-    expect(replace).not.toHaveBeenCalled()
+    expect(urlFiltros).not.toHaveBeenCalled()
     act(() => {
       jest.advanceTimersByTime(400)
     })
-    expect(replace).toHaveBeenCalledTimes(1)
-    expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?q=PEREZ', { scroll: false })
+    expect(urlFiltros).toHaveBeenCalledTimes(1)
+    expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?q=PEREZ')
   })
 
   it('finds a person by phone however it is typed, and never by a stray digit in a name query', async () => {

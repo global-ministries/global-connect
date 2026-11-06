@@ -70,6 +70,7 @@ describe('Mi equipo — age metrics', () => {
   const cerrarFiltros = () => userEvent.click(screen.getByRole('button', { name: /^Ver \d/ }))
 
   it('counts the whole dirección, then the selected sub-area, and filters the list (and the URL)', async () => {
+    const urlFiltros = jest.spyOn(window.history, 'replaceState').mockImplementation(() => undefined)
     renderizar(personas)
     await abrirFiltros()
     expect(pastilla(/^12–17/)).toHaveTextContent('12–172')
@@ -82,7 +83,9 @@ describe('Mi equipo — age metrics', () => {
 
     await userEvent.click(pastilla(/^12–17/))
     expect(pastilla(/^12–17/)).toHaveAttribute('aria-pressed', 'true')
-    expect(replace).toHaveBeenLastCalledWith(expect.stringMatching(/\?nivel=eq-parejas&edad=12_17$/), { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(null, '', expect.stringMatching(/\?nivel=eq-parejas&edad=12_17$/))
+    expect(replace).not.toHaveBeenCalled()
+    urlFiltros.mockRestore()
     expect(nombres()).toEqual(['Abrir Ana Uno'])
   })
 

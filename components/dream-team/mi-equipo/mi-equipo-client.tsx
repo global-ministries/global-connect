@@ -24,8 +24,12 @@
  * Every rule lives in the pure view model (calcularVistaMiEquipo in
  * lib/platform/dream-team/mi-equipo-filtros.ts). The filters start from the
  * URL the server page parsed and are mirrored back with
- * `router.replace(..., { scroll: false })`, the search debounced. Switching
- * the dirección navigates (the server sends the new dirección).
+ * `history.replaceState`, the search debounced. The page already has every
+ * person of the dirección, so a filter never asks the server again: a
+ * `router.replace` ran the whole server page per change, and a dropped
+ * connection on a phone (ERR_HTTP2_PING_FAILED) turned into "Application
+ * error". Switching the dirección navigates with `router.replace` (the server
+ * sends the new dirección).
  */
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
@@ -168,7 +172,7 @@ function MiEquipoVistaDireccion({
     const aplicar = (): void => {
       temporizadorUrl.current = null
       const consulta = escribirFiltrosMiEquipo(siguiente)
-      router.replace(consulta ? `${pathname}?${consulta}` : pathname, { scroll: false })
+      window.history.replaceState(window.history.state, '', consulta ? `${pathname}?${consulta}` : pathname)
     }
     const soloBusqueda = Object.keys(parche).length === 1 && 'q' in parche
     if (soloBusqueda) temporizadorUrl.current = setTimeout(aplicar, RETRASO_BUSQUEDA_MS)
