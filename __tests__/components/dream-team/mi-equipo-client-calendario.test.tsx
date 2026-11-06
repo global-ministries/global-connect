@@ -16,6 +16,9 @@ import { listarDirecciones, vistaDeDireccion } from '@/lib/platform/dream-team/m
 import { ID_CONEXION, ID_PAREJAS, arbolConexion, personasPorEquipoConexion } from '@/tests/helpers/mi-equipo-conexion'
 
 const replace = jest.fn()
+// The filters are mirrored into the address with history.replaceState (no
+// server round trip); this records the URL of each write.
+const urlFiltros = jest.fn()
 jest.mock('@/hooks/useCampus', () => ({ useCampus: () => ({ campusId: null }) }))
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace, refresh: jest.fn(), push: jest.fn() }),
@@ -50,6 +53,12 @@ beforeEach(() => {
   fetchMock.mockResolvedValue(respuesta({ turnos: [] }))
   global.fetch = fetchMock as unknown as typeof fetch
   user = userEvent.setup({ delay: null })
+  urlFiltros.mockClear()
+  jest.spyOn(window.history, 'replaceState').mockImplementation((_estado, _titulo, url) => urlFiltros(url))
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 function props(overrides: Partial<MiEquipoClientProps> = {}): MiEquipoClientProps {
@@ -90,7 +99,7 @@ it('"Personas | Calendario": the count of upcoming dates, the URL, and Agregar p
 
   await user.click(calendario)
   expect(calendario).toHaveAttribute('aria-selected', 'true')
-  expect(replace).toHaveBeenLastCalledWith('/dream-team/mi-equipo?tab=calendario', { scroll: false })
+  expect(urlFiltros).toHaveBeenLastCalledWith('/dream-team/mi-equipo?tab=calendario')
   expect(screen.getByRole('region', { name: 'Calendario · The Living Room' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Agregar fecha' })).toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: 'Agregar persona' }).length).toBeGreaterThan(0)

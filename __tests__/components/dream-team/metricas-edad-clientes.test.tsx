@@ -70,6 +70,7 @@ describe('Mi equipo — age metrics', () => {
   const cerrarFiltros = () => userEvent.click(screen.getByRole('button', { name: /^Ver \d/ }))
 
   it('counts the whole dirección, then the selected sub-area, and filters the list (and the URL)', async () => {
+    const urlFiltros = jest.spyOn(window.history, 'replaceState').mockImplementation(() => undefined)
     renderizar(personas)
     await abrirFiltros()
     expect(pastilla(/^12–17/)).toHaveTextContent('12–172')
@@ -82,7 +83,9 @@ describe('Mi equipo — age metrics', () => {
 
     await userEvent.click(pastilla(/^12–17/))
     expect(pastilla(/^12–17/)).toHaveAttribute('aria-pressed', 'true')
-    expect(replace).toHaveBeenLastCalledWith(expect.stringMatching(/\?nivel=eq-parejas&edad=12_17$/), { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(null, '', expect.stringMatching(/\?nivel=eq-parejas&edad=12_17$/))
+    expect(replace).not.toHaveBeenCalled()
+    urlFiltros.mockRestore()
     expect(nombres()).toEqual(['Abrir Ana Uno'])
   })
 
@@ -113,11 +116,14 @@ describe('Servidores — age metrics', () => {
 
   it('counts per range and filters the list, mirrored into the URL', async () => {
     renderizar(filas)
+    const urlFiltros = jest.spyOn(window.history, 'replaceState').mockImplementation(() => undefined)
     expect(pastilla(/^12–17/)).toHaveTextContent('12–171')
     expect(pastilla(/^18–25/)).toHaveTextContent('18–250')
 
     await userEvent.click(pastilla(/^26\+/))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?edad=26_mas&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(null, '', '/admin/dream-team/servidores?edad=26_mas&agrupar=ninguno')
+    expect(replace).not.toHaveBeenCalled()
+    urlFiltros.mockRestore()
     const tabla = screen.getByRole('table', { name: 'Servicios' })
     expect(within(tabla).getByRole('button', { name: 'Abrir Beto en Coro' })).toBeInTheDocument()
     expect(within(tabla).queryByText('Ana')).not.toBeInTheDocument()

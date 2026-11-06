@@ -41,6 +41,9 @@ import {
 } from '@/tests/helpers/servidores-conexion'
 
 const replace = jest.fn()
+// The filters are mirrored into the address with history.replaceState (no
+// server round trip); this records the URL of each write.
+const urlFiltros = jest.fn()
 let campusActivoId: string | null = null
 
 jest.mock('@/hooks/useCampus', () => ({
@@ -84,7 +87,13 @@ beforeEach(() => {
   campusActivoId = null
   replace.mockClear()
   refresh.mockClear()
+  urlFiltros.mockClear()
+  jest.spyOn(window.history, 'replaceState').mockImplementation((_estado, _titulo, url) => urlFiltros(url))
   user = userEvent.setup({ delay: null })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 function props(overrides: Partial<ServidoresClientProps> = {}): ServidoresClientProps {
@@ -143,23 +152,36 @@ describe('ServidoresClient — attention metrics as filters (S6)', () => {
     }
   })
 
+  it('changing filters never asks the server again (no router.replace): a dropped connection cannot break the page', async () => {
+    jest.useFakeTimers()
+    render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
+    await user.click(metrica('Por activar'))
+    await user.type(screen.getByRole('searchbox', { name: 'Buscar servidores' }), 'perez')
+    act(() => {
+      jest.advanceTimersByTime(400)
+    })
+    expect(urlFiltros).toHaveBeenCalled()
+    expect(replace).not.toHaveBeenCalled()
+    jest.useRealTimers()
+  })
+
   it('pressing a metric filters the list and the URL; pressing it again clears it', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion, filtrosIniciales: PLANO })} />)
     await user.click(metrica('Por activar'))
     expect(metrica('Por activar')).toHaveAttribute('aria-pressed', 'true')
     expect(nombresEnLista().map((n) => n.replace(/ en .*$/, '')).sort()).toEqual(['Luis Barrios', 'Wilennys García'])
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?por_activar=1&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?por_activar=1&agrupar=ninguno')
 
     await user.click(metrica('Por activar'))
     expect(cantidadDeFilas()).toBe(38)
 
     await user.click(metrica('Sirviendo'))
     expect(cantidadDeFilas()).toBe(35)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?etapa=activo&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?etapa=activo&agrupar=ninguno')
 
     await user.click(metrica('Sirviendo'))
     await user.click(metrica('Sin turno'))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?turno=sin_turno&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?turno=sin_turno&agrupar=ninguno')
   })
 
   it('the numbers follow the scope', async () => {
@@ -196,12 +218,12 @@ describe('ServidoresClient — etapa pills in the filters sheet (criterion 1)', 
     await user.click(activo)
     expect(activo).toHaveAttribute('aria-pressed', 'true')
     expect(cantidadDeFilas()).toBe(35)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?etapa=activo&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?etapa=activo&agrupar=ninguno')
 
     await user.click(activo)
     expect(activo).toHaveAttribute('aria-pressed', 'false')
     expect(cantidadDeFilas()).toBe(38)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno')
   })
 })
 
@@ -222,7 +244,7 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
 
     await user.click(tarjeta('Dirección de Conexión'))
     expect(cantidadDeFilas()).toBe(38)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion&agrupar=ninguno')
     expect(within(migas()).getByRole('button', { name: 'Todas las direcciones' })).toBeInTheDocument()
     expect(within(migas()).getByText('Dirección de Conexión')).toHaveAttribute('aria-current', 'page')
     // The hero (desktop) and the large title (phone) carry the same summary.
@@ -280,7 +302,7 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     await user.click(tarjeta('Coro'))
     expect(screen.queryByRole('group', { name: /^(Direcciones|Áreas|Equipos)$/ })).not.toBeInTheDocument()
     expect(nombresEnLista().sort()).toEqual(['Sara Ponce', 'Tomás Rey'])
-    expect(replace).toHaveBeenLastCalledWith(`/admin/dream-team/servidores?direccion=dir-alabanza&equipo=${ID_CORO}`, { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith(`/admin/dream-team/servidores?direccion=dir-alabanza&equipo=${ID_CORO}`)
     expect(within(migas()).getAllByRole('listitem').map((li) => li.textContent?.replace('/', ''))).toEqual([
       'Todas las direcciones',
       'Dirección de Alabanza',
@@ -288,14 +310,14 @@ describe('ServidoresClient — tree navigation: cards, breadcrumbs, back (criter
     ])
 
     await user.click(screen.getByRole('button', { name: 'Volver a Dirección de Alabanza' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza')
 
     await user.click(tarjeta('Coro'))
     await user.click(within(migas()).getByRole('button', { name: 'Dirección de Alabanza' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza')
 
     await user.click(within(migas()).getByRole('button', { name: 'Todas las direcciones' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores')
     expect(cantidadDeFilas()).toBe(38)
   })
 
@@ -327,7 +349,7 @@ describe('ServidoresClient — atención filters in the sheet (criterion 3)', ()
     await user.click(sinCuenta)
     expect(cantidadDeFilas()).toBe(31)
     expect(pie()).toHaveTextContent('31 servicios · 31 personas')
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?sin_cuenta=1&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?sin_cuenta=1&agrupar=ninguno')
     expect(metrica('Sin cuenta')).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -400,7 +422,7 @@ describe('ServidoresClient — one row per person (default "Por persona")', () =
     const vista = screen.getByRole('group', { name: 'Vista' })
 
     await user.click(within(vista).getByRole('button', { name: 'Por servicio' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno')
     expect(screen.getByRole('table', { name: 'Servicios' })).toBeInTheDocument()
     expect(cantidadDeFilas()).toBe(38)
     expect(pie()).toHaveTextContent('38 servicios · 36 personas')
@@ -410,7 +432,7 @@ describe('ServidoresClient — one row per person (default "Por persona")', () =
     ])
 
     await user.click(within(vista).getByRole('button', { name: 'Por persona' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores')
     expect(nombresEnLista().filter((n) => n.startsWith('Jose Jimenez'))).toEqual(['Jose Jimenez'])
   })
 
@@ -446,7 +468,7 @@ describe('ServidoresClient — sorting (criterion 5)', () => {
     expect(columna()).toHaveAttribute('aria-sort', 'descending')
     expect(screen.getByText('Orden: equipo, descendente')).toBeInTheDocument()
     expect(nombresEnLista()[0]).toMatch(/ en Punto de Partida$/)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno&orden=equipo%3Adesc', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?agrupar=ninguno&orden=equipo%3Adesc')
   })
 
   it('the sheet sorts by every column (rol and inicio included), a second tap flips the direction', async () => {
@@ -456,10 +478,10 @@ describe('ServidoresClient — sorting (criterion 5)', () => {
     expect(within(orden).getAllByRole('button').map((b) => b.textContent)).toEqual(['Persona ↑', 'Equipo', 'Rol', 'Etapa', 'Inicio'])
 
     await user.click(within(orden).getByRole('button', { name: 'Rol' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?orden=rol', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?orden=rol')
     expect(nombresEnLista()[0]).toBe('Antholy Ludovic Gómez')
     await user.click(within(orden).getByRole('button', { name: 'Rol ↑' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?orden=rol%3Adesc', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?orden=rol%3Adesc')
 
     await user.click(within(orden).getByRole('button', { name: 'Inicio' }))
     expect(screen.getByText('Orden: inicio, ascendente')).toBeInTheDocument()
@@ -479,12 +501,12 @@ describe('ServidoresClient — search, chips and the URL (criteria 7 and 8)', ()
 
     await user.type(buscar(), 'perez')
     expect(nombresEnLista()).toEqual(['Edith Pérez'])
-    expect(replace).not.toHaveBeenCalled()
+    expect(urlFiltros).not.toHaveBeenCalled()
     act(() => {
       jest.advanceTimersByTime(400)
     })
-    expect(replace).toHaveBeenCalledTimes(1)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?q=perez', { scroll: false })
+    expect(urlFiltros).toHaveBeenCalledTimes(1)
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?q=perez')
 
     await user.clear(buscar())
     await user.type(buscar(), '5070815')
@@ -512,7 +534,7 @@ describe('ServidoresClient — search, chips and the URL (criteria 7 and 8)', ()
     await user.click(within(screen.getByRole('group', { name: 'Filtros activos' })).getByRole('button', { name: 'Limpiar todo' }))
     expect(screen.queryByRole('group', { name: 'Filtros activos' })).not.toBeInTheDocument()
     expect(cantidadDeFilas()).toBe(38)
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion&agrupar=ninguno', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-conexion&agrupar=ninguno')
   })
 
   it('opens with the filters of a shared URL, legacy ?equipo= and ?estado= included', () => {
@@ -798,9 +820,9 @@ describe('ServidoresClient — phone, inside the app shell (S9: the shell header
     expect(grande).toHaveClass('text-[28px]')
     await user.click(tarjeta('Coro'))
     await user.click(within(cabecera).getByRole('button', { name: 'Volver a Dirección de Alabanza' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores?direccion=dir-alabanza')
     await user.click(within(cabecera).getByRole('button', { name: 'Volver a Servidores' }))
-    expect(replace).toHaveBeenLastCalledWith('/admin/dream-team/servidores', { scroll: false })
+    expect(urlFiltros).toHaveBeenLastCalledWith('/admin/dream-team/servidores')
   })
 
   it('the sheet filters live; "Ver N personas" counts and closes; "Limpiar" empties the sheet filters but keeps the scope', async () => {
@@ -811,9 +833,8 @@ describe('ServidoresClient — phone, inside the app shell (S9: the shell header
 
     await user.click(within(hoja).getByRole('button', { name: /^Sin cuenta/ }))
     expect(within(hoja).getByRole('button', { name: 'Ver 13 personas' })).toBeInTheDocument()
-    expect(replace).toHaveBeenLastCalledWith(
+    expect(urlFiltros).toHaveBeenLastCalledWith(
       `/admin/dream-team/servidores?direccion=${ID_CONEXION}&equipo=${ID_PDP}&sin_cuenta=1`,
-      { scroll: false },
     )
 
     await user.click(within(hoja).getByRole('button', { name: 'Limpiar' }))

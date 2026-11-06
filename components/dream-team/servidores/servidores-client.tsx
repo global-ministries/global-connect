@@ -26,7 +26,10 @@
  * Every rule lives in the pure view model
  * (lib/platform/dream-team/servidores-vista.ts); this island keeps the
  * filters in local state and mirrors them into the URL with
- * `router.replace(..., { scroll: false })` (the text search is debounced). The
+ * `history.replaceState` (the text search is debounced). The page already has
+ * every row, so a filter never asks the server again: a `router.replace` ran
+ * the whole server page per change, and a dropped connection on a phone
+ * (ERR_HTTP2_PING_FAILED) turned into "Application error". The
  * filters start from the URL the server page parsed (`filtrosIniciales`), so
  * a shared link opens the same view, and the legacy `?equipo=` / `?estado=`
  * of the links from Talleres and Estructura keep working.
@@ -228,7 +231,7 @@ export function ServidoresClient({
     const aplicar = (): void => {
       temporizadorUrl.current = null
       const consulta = escribirFiltrosEnUrl(siguiente)
-      router.replace(consulta ? `${pathname}?${consulta}` : pathname, { scroll: false })
+      window.history.replaceState(window.history.state, '', consulta ? `${pathname}?${consulta}` : pathname)
     }
     if (diferir) temporizadorUrl.current = setTimeout(aplicar, RETRASO_BUSQUEDA_MS)
     else aplicar()
