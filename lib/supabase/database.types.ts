@@ -11774,6 +11774,17 @@ export type Database = {
         }
         Returns: Json
       }
+      proximo_paso_ediciones_abiertas: {
+        Args: never
+        Returns: {
+          clases: Json
+          cupo_restante: number | null
+          edicion_id: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          nombre: string
+        }[]
+      }
       puede_aprobar_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id: string }
         Returns: boolean
