@@ -10,7 +10,7 @@
  * outside Matrimonios nobody is (S2).
  */
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { PlannerClient } from '@/components/grupos-vida/planner/planner-client'
@@ -28,21 +28,23 @@ jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => toast 
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn(), replace: jest.fn() }) }))
 
 const acciones = {
-  moverPersonasAction: jest.fn(),
-  crearGrupoAction: jest.fn(),
-  editarGrupoAction: jest.fn(),
-  eliminarGrupoAction: jest.fn(),
+  guardarCambiosAction: jest.fn(),
   deshacerPasoAction: jest.fn(),
   marcarSegmentoAction: jest.fn(),
 }
 jest.mock('@/app/(auth)/grupos-vida/planificar/actions', () => ({
-  moverPersonasAction: (...a: unknown[]) => acciones.moverPersonasAction(...a),
-  crearGrupoAction: (...a: unknown[]) => acciones.crearGrupoAction(...a),
-  editarGrupoAction: (...a: unknown[]) => acciones.editarGrupoAction(...a),
-  eliminarGrupoAction: (...a: unknown[]) => acciones.eliminarGrupoAction(...a),
+  guardarCambiosAction: (...a: unknown[]) => acciones.guardarCambiosAction(...a),
   deshacerPasoAction: (...a: unknown[]) => acciones.deshacerPasoAction(...a),
   marcarSegmentoAction: (...a: unknown[]) => acciones.marcarSegmentoAction(...a),
 }))
+
+/** Closes the open panels, clicks the header "Guardar" and returns the changes it sent (S24). */
+async function pendientes() {
+  while (screen.queryAllByRole('dialog').length > 0) await userEvent.keyboard('{Escape}')
+  await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+  await waitFor(() => expect(acciones.guardarCambiosAction).toHaveBeenCalled())
+  return (acciones.guardarCambiosAction.mock.calls.at(-1) as [{ cambios: unknown[] }])[0].cambios
+}
 
 const PASO_OK = { ok: true, datos: { pasoId: 'p-nuevo', descripcion: 'movió', segmentosReabiertos: [] } }
 
@@ -202,7 +204,7 @@ describe('couples together in the expanded card (S23)', () => {
     await userEvent.selectOptions(within(dialogo).getByLabelText('Grupo'), 'g-rosas')
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Mover' }))
 
-    expect(acciones.moverPersonasAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['juan', 'erica'], grupoId: 'g-rosas', rol: 'lider' })
+    expect(await pendientes()).toEqual([{ tipo: 'mover', usuarios: ['juan', 'erica'], grupo: 'g-rosas', rol: 'lider' }])
   })
 
   it('hints the spouse in another role of the same group', async () => {
@@ -249,7 +251,7 @@ describe('couples in the group panel (S23)', () => {
 
     expect(within(filas[0]).getByLabelText('Rol de Juan Castejón')).toHaveValue('lider')
     await userEvent.click(within(filas[0]).getByRole('button', { name: `Devolver a ${PAREJA} al banco` }))
-    expect(acciones.moverPersonasAction).toHaveBeenLastCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['juan', 'erica'], grupoId: null, rol: null })
+    expect(await pendientes()).toEqual([{ tipo: 'mover', usuarios: ['juan', 'erica'], grupo: null, rol: null }])
   })
 
   it('changes the role of one spouse only', async () => {
@@ -258,7 +260,7 @@ describe('couples in the group panel (S23)', () => {
     const integrantes = await abrirPanel('Grupo Castejón')
     await userEvent.selectOptions(within(integrantes).getByLabelText('Rol de Érica de Castejón'), 'aprendiz')
 
-    expect(acciones.moverPersonasAction).toHaveBeenLastCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['erica'], grupoId: 'g-castejon', rol: 'aprendiz' })
+    expect(await pendientes()).toEqual([{ tipo: 'mover', usuarios: ['erica'], grupo: 'g-castejon', rol: 'aprendiz' }])
   })
 
   it('opens Mover for the couple and shows the missing-spouse markers', async () => {

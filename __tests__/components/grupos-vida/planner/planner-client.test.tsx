@@ -27,13 +27,10 @@ jest.mock('@/components/ui/desktop-header', () => ({
 const toast = { success: jest.fn(), error: jest.fn(), info: jest.fn() }
 jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => toast }))
 
-// The steps (T5b) are covered in pasos-planner.test.tsx; here the board only renders.
+// The draft and its save (T5b, S24) are covered in pasos-planner.test.tsx; here the board only renders.
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh: jest.fn(), push: jest.fn(), replace: jest.fn() }) }))
 jest.mock('@/app/(auth)/grupos-vida/planificar/actions', () => ({
-  moverPersonasAction: jest.fn(),
-  crearGrupoAction: jest.fn(),
-  editarGrupoAction: jest.fn(),
-  eliminarGrupoAction: jest.fn(),
+  guardarCambiosAction: jest.fn(),
   deshacerPasoAction: jest.fn(),
   marcarSegmentoAction: jest.fn(),
 }))

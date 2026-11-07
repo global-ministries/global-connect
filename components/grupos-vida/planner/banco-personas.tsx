@@ -13,8 +13,8 @@
  * With the board's steps (T5b, pasos-planner.tsx): "Ubicar" opens the
  * group and role dialog and a row can be dragged onto a card; the bank
  * itself takes members dragged out of a group; "Ver grupo" opens the group
- * panel of a person's current group (T6) when it is on the board. Alone it is
- * read-only.
+ * panel of a person's current group (T6) when it is on the board. A person
+ * the session draft moved shows "Sin guardar" (S24). Alone it is read-only.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { GripVertical, Search } from 'lucide-react'
@@ -24,7 +24,7 @@ import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { nombrePersona, type PersonaBanco, type TemporadaPlanner } from '@/lib/platform/grupos-vida/planner'
 import { cn } from '@/lib/utils'
 
-import { EtiquetaPlanner } from './etiqueta'
+import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
 import {
   FILTROS_BANCO_INICIALES,
   cortarSecciones,
@@ -74,6 +74,7 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
   const nombre = nombreFila(fila)
   const carga = { ids: fila.personas.map((p) => p.usuario_id), nombre, desdeGrupo: false }
   const grupoActual = una.grupo_actual_id && pasos?.grupoVisible(una.grupo_actual_id) ? una.grupo_actual_id : null
+  const sinGuardar = pasos !== null && fila.personas.some((p) => pasos.pendiente.persona(p.usuario_id))
   return (
     <li
       draggable={pasos !== null}
@@ -97,6 +98,7 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
             {linea}
           </p>
         )}
+        {sinGuardar && <MarcaSinGuardar />}
         <div className="mt-1 flex flex-wrap gap-1">
           {nuevo && <EtiquetaPlanner tono="info">Nuevo · sin segmento</EtiquetaPlanner>}
           {marcas.map((m) => (

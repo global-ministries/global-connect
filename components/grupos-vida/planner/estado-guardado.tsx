@@ -1,49 +1,53 @@
 'use client'
 
 /**
- * Planner — the save state and "Deshacer" of the season header (S13, S15;
- * README "Save step by step and undo"). There is no "Guardar": every change
- * is a step. The state reads "Guardando…" while a step is sent, "Guardado ·
- * hace 5 s" after it (from the latest step of the season when the page
- * opens) and "No se guardó" when the server refused it (the toast says why).
- * "Deshacer" undoes the actor's latest step; when it cannot, the button says
- * why (description and toast) instead of failing silently.
+ * Planner — the save bar of the season header (S24, S15; replaces "Guardado ·
+ * hace N s" of S13). Changes stay in the browser until "Guardar":
+ * "N cambios sin guardar" opens the pending list (panel-cambios.tsx),
+ * "Descartar" asks before throwing them away, "Guardar" (primary, disabled
+ * with nothing pending) saves them all in one transaction. With no pending
+ * changes the bar says "Todo guardado".
+ *
+ * "Deshacer" removes the last pending change; with none it reads "Deshacer
+ * último guardado" and undoes the actor's latest saved step. When it cannot,
+ * the button says why (description and toast) instead of failing silently.
  */
-import { useId, useSyncExternalStore, type ReactElement } from 'react'
+import { useId, type ReactElement } from 'react'
 import { Undo2 } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { PuntoEstado } from '@/components/ui/punto-estado'
+import { contar } from '@/lib/platform/grupos-vida/planner'
 
-import { haceCuanto } from './modelo'
-import type { Deshacer, EstadoGuardado as Estado } from './pasos-planner'
+import type { Deshacer } from './pasos-planner'
 
-function suscribirReloj(aviso: () => void): () => void {
-  const id = window.setInterval(aviso, 1000)
-  return () => window.clearInterval(id)
+export interface BarraGuardadoProps {
+  readonly cambios: number
+  readonly guardando: boolean
+  /** The last save failed: the counter turns red until the draft changes. */
+  readonly conError: boolean
+  readonly deshacer: Deshacer
+  readonly onAbrirLista: () => void
+  readonly onDescartar: () => void
+  readonly onGuardar: () => void
 }
 
-/** The current second; null while rendering on the server (no relative time there). */
-const useAhora = (): number | null =>
-  useSyncExternalStore(suscribirReloj, () => Math.floor(Date.now() / 1000) * 1000, () => null)
+export const textoSinGuardar = (n: number): string => `${contar(n, 'cambio', 'cambios')} sin guardar`
 
-function TextoGuardado({ estado }: { readonly estado: Estado }): ReactElement {
-  const ahora = useAhora()
-  if (estado.tipo === 'guardando') return <PuntoEstado tono="info" etiqueta="Guardando…" />
-  if (estado.tipo === 'error') return <PuntoEstado tono="danger" etiqueta="No se guardó" />
-  const hace = haceCuanto(estado.en, ahora)
-  if (estado.en === null) return <PuntoEstado tono="success" etiqueta="Todo guardado" />
-  return <PuntoEstado tono="success" etiqueta={hace ? `Guardado · ${hace}` : 'Guardado'} />
-}
-
-export function EstadoGuardado({ estado, deshacer }: { readonly estado: Estado; readonly deshacer: Deshacer }): ReactElement {
+export function BarraGuardado({ cambios, guardando, conError, deshacer, onAbrirLista, onDescartar, onGuardar }: BarraGuardadoProps): ReactElement {
   const idDescripcion = useId()
-  const descripcion = deshacer.motivo ?? (deshacer.paso ? `Deshace: ${deshacer.paso.descripcion}` : '')
+  const descripcion = deshacer.motivo ?? (deshacer.pendiente ? `Quita: ${deshacer.pendiente.descripcion}` : deshacer.paso ? `Deshace: ${deshacer.paso.descripcion}` : '')
   return (
     <>
-      <span role="status" className="inline-flex min-h-9 items-center">
-        <TextoGuardado estado={estado} />
-      </span>
+      {cambios > 0 ? (
+        <BotonSistema type="button" variante="ghost" tamaño="sm" aria-haspopup="dialog" onClick={onAbrirLista}>
+          <PuntoEstado tono={conError ? 'danger' : 'warning'} etiqueta={textoSinGuardar(cambios)} className="text-sm text-foreground" />
+        </BotonSistema>
+      ) : (
+        <span role="status" className="inline-flex min-h-9 items-center">
+          <PuntoEstado tono="success" etiqueta="Todo guardado" />
+        </span>
+      )}
       <BotonSistema
         type="button"
         variante="ghost"
@@ -54,11 +58,19 @@ export function EstadoGuardado({ estado, deshacer }: { readonly estado: Estado; 
         title={descripcion}
         onClick={deshacer.ejecutar}
       >
-        Deshacer
+        {deshacer.pendiente ? 'Deshacer' : 'Deshacer último guardado'}
       </BotonSistema>
       <span id={idDescripcion} hidden>
         {descripcion}
       </span>
+      {cambios > 0 && (
+        <BotonSistema type="button" variante="ghost" tamaño="sm" disabled={guardando} onClick={onDescartar}>
+          Descartar
+        </BotonSistema>
+      )}
+      <BotonSistema type="button" variante="primario" tamaño="sm" disabled={cambios === 0} cargando={guardando} onClick={onGuardar}>
+        Guardar
+      </BotonSistema>
     </>
   )
 }

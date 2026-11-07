@@ -8,8 +8,9 @@
  * the planner RPCs check the role again and scope the groups by segment (S10);
  * the bank is everyone (S11). The client island
  * (components/grupos-vida/planner/planner-client.tsx) renders the board;
- * each change is a server action of ./actions.ts (T5b). The latest steps of
- * planner_historial come along for Deshacer.
+ * changes stay in the browser until "Guardar", which saves them all with a
+ * server action of ./actions.ts (S24). The latest steps of planner_historial
+ * come along for "Deshacer último guardado".
  *
  * `?temporada=<id>` opens that season; without it, the most recent season in
  * planning. With none in planning: an empty state that sends the director

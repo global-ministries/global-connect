@@ -19,6 +19,9 @@
  * S23: names are never cut (they wrap); within a role the two spouses are one
  * row with both names and ages, moved together; under a name, where the
  * spouse is, and in Matrimonios the card counts "N sin su pareja".
+ *
+ * S24: a card the session draft changed (created, edited, people in or out)
+ * and each moved person show "Sin guardar" until the draft is saved.
  */
 import { Fragment, useId, useState, type ReactElement } from 'react'
 import { ArrowRightLeft, ChevronRight, GripVertical } from 'lucide-react'
@@ -37,7 +40,7 @@ import {
 } from '@/lib/platform/grupos-vida/planner'
 import { cn } from '@/lib/utils'
 
-import { EtiquetaPlanner } from './etiqueta'
+import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
 import {
   filasDelRol,
   insigniasGrupo,
@@ -157,6 +160,7 @@ function FilaMiembro({
   const marcas = unicas(fila.personas.flatMap((p) => insigniasPersona(p.usuario_id, grupo.grupo_id, bloqueos, avisos)))
   const nota = pareja ? null : notaPareja(ids[0], grupo, fichas)
   const carga = { ids, nombre, desdeGrupo: true }
+  const sinGuardar = pasos !== null && ids.some((id) => pasos.pendiente.persona(id))
   return (
     <li
       aria-label={nombre}
@@ -182,6 +186,7 @@ function FilaMiembro({
         </p>
         {datos.length > 0 && <p className="break-words text-xs text-muted-foreground">{datos.join(' · ')}</p>}
         {nota && <p className={cn('break-words text-xs', nota.falta ? 'font-medium text-warning-text' : 'text-muted-foreground')}>{nota.texto}</p>}
+        {sinGuardar && <MarcaSinGuardar />}
         {marcas.length > 0 && (
           <div className="mt-0.5 flex flex-wrap gap-1">
             {marcas.map((m) => (
@@ -279,6 +284,7 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
         <p title={etiqueta} className={cn('truncate text-xs', grupo.localidad_id ? 'text-muted-foreground' : 'text-danger-text')}>
           {etiqueta}
         </p>
+        {pasos?.pendiente.grupo(grupo.grupo_id) && <MarcaSinGuardar />}
       </div>
       {lideres ? (
         <p className="break-words text-[13px] text-foreground">

@@ -1,20 +1,24 @@
 /**
- * Planner — the step wrappers of /grupos-vida/planificar (T5b of
- * odd/tasks/planner-gdv.md; S3, S4, S10, S13–S15, S22).
+ * Planner — the server wrappers of /grupos-vida/planificar (T5b and S24 of
+ * odd/tasks/planner-gdv.md; S3, S4, S10, S13–S15, S22, S24).
  *
- * One thin function per step RPC of
- * supabase/migrations/20261107110000_planner_pasos.sql (planner_mover_personas,
- * planner_crear_grupo, planner_editar_grupo, planner_eliminar_grupo,
- * planner_deshacer_paso, planner_historial) and planner_marcar_segmento of
- * 20261107120000_planner_temporada.sql. Each one checks the input shape
- * first (uuids, role, group fields) so a bad call never reaches the database,
- * then calls the RPC with the caller's session client: the database checks
- * the role, the segment scope and the rules again. Errors come back as
- * Spanish messages; for 22023, 42501, 40001 and 55000 the RPC's own message
- * is kept, because it already names the group, the person or the reason.
+ * The board keeps every change in the browser (borrador.ts) until "Guardar":
+ * guardarCambios sends the whole list to planner_guardar_cambios
+ * (supabase/migrations/20261107130000_planner_guardar_cambios.sql), which
+ * applies it in order in ONE transaction through the step RPCs of
+ * 20261107110000_planner_pasos.sql, one step per change. Undo
+ * (planner_deshacer_paso), the history (planner_historial) and "Terminé mi
+ * segmento" (planner_marcar_segmento of 20261107120000_planner_temporada.sql)
+ * still run on their own. Each wrapper checks the input shape first (uuids,
+ * roles, group fields, "tmp:" keys) so a bad call never reaches the
+ * database, then calls the RPC with the caller's session client: the
+ * database checks the role, the segment scope and the rules again. Errors
+ * come back as Spanish messages; for 22023, 42501, 40001 and 55000 the RPC's
+ * own message is kept, because it already names the change, the group, the
+ * person or the reason.
  *
  * The server actions (app/(auth)/grupos-vida/planificar/actions.ts) pass the
- * session client and revalidate RUTA_PLANNER after a saved step.
+ * session client and revalidate RUTA_PLANNER after a saved call.
  */
 import { esObjeto, id, ids, textoOVacio } from './campos'
 import { leerHistorial, type PasoHistorial } from './tipos'
@@ -24,7 +28,12 @@ export const RUTA_PLANNER = '/grupos-vida/planificar'
 
 /** What the wrappers need from the Supabase session client. */
 export interface ClienteAcciones {
-  rpc(nombre: string, args?: Record<string, unknown>): PromiseLike<{ readonly data: unknown; readonly error: ErrorPlanner | null }>
+  rpc(nombre: string, args?: Record<string, unknown>): PromiseLike<{ readonly data: unknown; readonly error: ErrorAccion | null }>
+}
+
+/** A PostgREST error; `details` carries planner_guardar_cambios' DETAIL {"indice": i}. */
+export interface ErrorAccion extends ErrorPlanner {
+  readonly details?: string | null
 }
 
 export const ROLES_PLANNER = ['lider', 'aprendiz', 'miembro'] as const
@@ -90,43 +99,7 @@ const leerPaso = (data: unknown): PasoGuardado => {
   return { pasoId: id(fila.paso_id), descripcion: textoOVacio(fila.descripcion), segmentosReabiertos: ids(fila.segmentos_reabiertos) }
 }
 
-// ─── Move people ───
-
-export interface EntradaMover {
-  readonly temporadaId: string
-  readonly usuarioIds: readonly string[]
-  /** null = back to the bank. */
-  readonly grupoId: string | null
-  /** Required with a group; ignored for the bank. */
-  readonly rol: RolPlanner | null
-}
-
-/** S2, S13: one step; the caller already applied the spouse rule (personasAMover). */
-export function moverPersonas(cliente: ClienteAcciones, entrada: EntradaMover): Promise<ResultadoAccion<PasoGuardado>> {
-  if (!esUuid(entrada.temporadaId)) return Promise.resolve(invalido('La temporada no es válida.'))
-  if (entrada.usuarioIds.length === 0) return Promise.resolve(invalido('Indica al menos una persona.'))
-  if (!entrada.usuarioIds.every(esUuid)) return Promise.resolve(invalido('Alguna de las personas no es válida.'))
-  if (entrada.usuarioIds.length > MAXIMO_PERSONAS_POR_PASO) {
-    return Promise.resolve(invalido(`Puedes mover hasta ${MAXIMO_PERSONAS_POR_PASO} personas por paso.`))
-  }
-  if (entrada.grupoId !== null && !esUuid(entrada.grupoId)) return Promise.resolve(invalido('El grupo no es válido.'))
-  if (entrada.grupoId !== null && !ROLES_PLANNER.includes(entrada.rol as RolPlanner)) {
-    return Promise.resolve(invalido('El rol debe ser Líder, Aprendiz o Miembro.'))
-  }
-  return llamar(
-    cliente,
-    'planner_mover_personas',
-    {
-      p_temporada_id: entrada.temporadaId,
-      p_usuarios: [...entrada.usuarioIds],
-      p_grupo_destino: entrada.grupoId,
-      p_rol: entrada.grupoId === null ? null : entrada.rol,
-    },
-    leerPaso,
-  )
-}
-
-// ─── Groups ───
+// ─── Group fields ───
 
 /** The fields planner_paso_validar_grupo accepts; director_etapa_ids are usuarios ids. */
 export interface DatosGrupo {
@@ -139,9 +112,19 @@ export interface DatosGrupo {
   readonly director_etapa_ids: readonly string[]
 }
 
-/** The shape of each field the RPC would refuse, with the same words; the normalized value or an error. */
-function validarCampos(datos: Partial<DatosGrupo>): { valores: Record<string, unknown> } | { error: string } {
-  const valores: Record<string, unknown> = {}
+/**
+ * The shape of each given field the RPC would refuse, with the same words:
+ * the normalized values (trimmed name) or the first error. The board runs it
+ * on what the director typed before adding a change to the draft
+ * (`comprobarIds: false`: the ids come from the loaded data);
+ * guardarCambios runs all of it again.
+ */
+export function validarDatosGrupo(
+  datos: Partial<DatosGrupo>,
+  { comprobarIds = true }: { readonly comprobarIds?: boolean } = {},
+): { readonly valores: Partial<DatosGrupo> } | { readonly error: string } {
+  const esId = (valor: unknown): valor is string => (comprobarIds ? esUuid(valor) : typeof valor === 'string' && valor !== '')
+  const valores: { -readonly [K in keyof DatosGrupo]?: DatosGrupo[K] } = {}
   if ('nombre' in datos) {
     const nombre = (datos.nombre ?? '').replace(/\s+/g, ' ').trim()
     if (!nombre) return { error: 'El grupo debe tener nombre.' }
@@ -149,11 +132,11 @@ function validarCampos(datos: Partial<DatosGrupo>): { valores: Record<string, un
     valores.nombre = nombre
   }
   if ('segmento_id' in datos) {
-    if (!esUuid(datos.segmento_id)) return { error: 'El segmento no es válido.' }
+    if (!esId(datos.segmento_id)) return { error: 'El segmento no es válido.' }
     valores.segmento_id = datos.segmento_id
   }
   if ('localidad_id' in datos) {
-    if (datos.localidad_id !== null && !esUuid(datos.localidad_id)) return { error: 'La localidad no es válida.' }
+    if (datos.localidad_id !== null && !esId(datos.localidad_id)) return { error: 'La localidad no es válida.' }
     valores.localidad_id = datos.localidad_id ?? null
   }
   if ('dia_reunion' in datos) {
@@ -175,47 +158,163 @@ function validarCampos(datos: Partial<DatosGrupo>): { valores: Record<string, un
   }
   if ('director_etapa_ids' in datos) {
     const directores = datos.director_etapa_ids ?? []
-    if (!directores.every(esUuid)) return { error: 'Alguno de los directores de etapa no es válido.' }
+    if (!directores.every(esId)) return { error: 'Alguno de los directores de etapa no es válido.' }
     if (new Set(directores).size > MAXIMO_DIRECTORES) return { error: `Un grupo puede tener hasta ${MAXIMO_DIRECTORES} directores de etapa.` }
     valores.director_etapa_ids = [...directores]
   }
   return { valores }
 }
 
-export interface EntradaCrearGrupo {
+// ─── Save the session's changes (S24) ───
+
+/** "tmp:<clave>": a group created earlier in the same list (planner_guardar_cambios). */
+export const CLAVE_TEMPORAL = /^tmp:[A-Za-z0-9_.:-]{1,64}$/
+
+export const esClaveTemporal = (valor: unknown): valor is string => typeof valor === 'string' && CLAVE_TEMPORAL.test(valor)
+
+/** The most changes one save carries (planner_guardar_cambios). */
+export const MAXIMO_CAMBIOS = 200
+
+/** One change of planner_guardar_cambios, in its exact shape. */
+export type CambioPlanner =
+  | {
+      readonly tipo: 'mover'
+      readonly usuarios: readonly string[]
+      /** A group id, "tmp:<clave>" or null (back to the bank). */
+      readonly grupo: string | null
+      /** Required with a group; null for the bank. */
+      readonly rol: RolPlanner | null
+    }
+  | { readonly tipo: 'crear'; readonly clave: string; readonly datos: DatosGrupo }
+  | { readonly tipo: 'editar'; readonly grupo: string; readonly cambios: Partial<DatosGrupo> }
+  | { readonly tipo: 'eliminar'; readonly grupo: string }
+
+export interface CambiosGuardados {
+  readonly guardados: number
+  readonly pasos: readonly string[]
+  /** "tmp:<clave>" → the id of the group it created. */
+  readonly gruposCreados: Readonly<Record<string, string>>
+}
+
+export type ResultadoGuardar =
+  | { readonly ok: true; readonly datos: CambiosGuardados }
+  | {
+      readonly ok: false
+      readonly mensaje: string
+      readonly codigo: string | null
+      /** The change that failed (0-based, the server's DETAIL {"indice"}); null when it is not one change. */
+      readonly indice: number | null
+    }
+
+export const FALTA_GUARDAR_CAMBIOS = 'Falta aplicar la actualización del planificador en la base de datos'
+const GENERICO_GUARDAR = 'No se pudieron guardar los cambios. Inténtalo de nuevo.'
+
+/** The shape problem of one change, with the normalized change; `claves` are the "tmp:" keys created before it. */
+function validarCambio(cambio: CambioPlanner, claves: ReadonlySet<string>): { readonly cambio: CambioPlanner } | { readonly error: string } {
+  const destino = (grupo: unknown, conTemporal: boolean): string | null => {
+    if (esUuid(grupo)) return null
+    if (conTemporal && esClaveTemporal(grupo)) return claves.has(grupo) ? null : 'El grupo nuevo no se creó antes en estos cambios.'
+    return 'El grupo no es válido.'
+  }
+  switch (cambio.tipo) {
+    case 'mover': {
+      if (cambio.usuarios.length === 0) return { error: 'Indica al menos una persona.' }
+      if (!cambio.usuarios.every(esUuid)) return { error: 'Alguna de las personas no es válida.' }
+      if (cambio.usuarios.length > MAXIMO_PERSONAS_POR_PASO) return { error: `Puedes mover hasta ${MAXIMO_PERSONAS_POR_PASO} personas por paso.` }
+      if (cambio.grupo === null) return { cambio: { tipo: 'mover', usuarios: [...cambio.usuarios], grupo: null, rol: null } }
+      const problema = destino(cambio.grupo, true)
+      if (problema) return { error: problema }
+      if (!ROLES_PLANNER.includes(cambio.rol as RolPlanner)) return { error: 'El rol debe ser Líder, Aprendiz o Miembro.' }
+      return { cambio: { tipo: 'mover', usuarios: [...cambio.usuarios], grupo: cambio.grupo, rol: cambio.rol } }
+    }
+    case 'crear': {
+      if (!esClaveTemporal(cambio.clave)) return { error: 'La clave del grupo nuevo no es válida.' }
+      if (claves.has(cambio.clave)) return { error: 'La clave del grupo nuevo ya se usó.' }
+      const validados = validarDatosGrupo(cambio.datos)
+      if ('error' in validados) return { error: validados.error }
+      if (!validados.valores.nombre) return { error: 'El grupo debe tener nombre.' }
+      if (!validados.valores.segmento_id) return { error: 'El segmento no es válido.' }
+      return { cambio: { tipo: 'crear', clave: cambio.clave, datos: validados.valores as DatosGrupo } }
+    }
+    case 'editar': {
+      const problema = destino(cambio.grupo, true)
+      if (problema) return { error: problema }
+      if (Object.keys(cambio.cambios).length === 0) return { error: 'No hay cambios para guardar.' }
+      const validados = validarDatosGrupo(cambio.cambios)
+      if ('error' in validados) return { error: validados.error }
+      return { cambio: { tipo: 'editar', grupo: cambio.grupo, cambios: validados.valores } }
+    }
+    case 'eliminar': {
+      const problema = destino(cambio.grupo, false)
+      return problema ? { error: problema } : { cambio: { tipo: 'eliminar', grupo: cambio.grupo } }
+    }
+    default:
+      return { error: 'El tipo de cambio no es válido.' }
+  }
+}
+
+/** DETAIL {"indice": i} of a planner_guardar_cambios error, when it is a valid position. */
+function leerIndice(detalle: string | null | undefined, total: number): number | null {
+  if (!detalle) return null
+  try {
+    const valor: unknown = JSON.parse(detalle)
+    const indice = esObjeto(valor) ? valor.indice : null
+    return typeof indice === 'number' && Number.isInteger(indice) && indice >= 0 && indice < total ? indice : null
+  } catch {
+    return null
+  }
+}
+
+function leerGuardados(data: unknown): CambiosGuardados {
+  const fila = esObjeto(data) ? data : {}
+  const creados = esObjeto(fila.grupos_creados) ? fila.grupos_creados : {}
+  const gruposCreados: Record<string, string> = {}
+  Object.entries(creados).forEach(([clave, grupo]) => {
+    const grupoId = id(grupo)
+    if (esClaveTemporal(clave) && grupoId) gruposCreados[clave] = grupoId
+  })
+  return { guardados: typeof fila.guardados === 'number' ? fila.guardados : 0, pasos: ids(fila.pasos), gruposCreados }
+}
+
+export interface EntradaGuardarCambios {
   readonly temporadaId: string
-  readonly datos: DatosGrupo
+  readonly cambios: readonly CambioPlanner[]
 }
 
-/** S3, S4: a new group of the season (starts proximo, inactive). */
-export function crearGrupo(cliente: ClienteAcciones, entrada: EntradaCrearGrupo): Promise<ResultadoAccion<PasoGuardado & { readonly grupoId: string | null }>> {
-  if (!esUuid(entrada.temporadaId)) return Promise.resolve(invalido('La temporada no es válida.'))
-  const validados = validarCampos(entrada.datos)
-  if ('error' in validados) return Promise.resolve(invalido(validados.error))
-  return llamar(cliente, 'planner_crear_grupo', { p_temporada_id: entrada.temporadaId, p_datos: validados.valores }, (data) => ({
-    ...leerPaso(data),
-    grupoId: esObjeto(data) ? id(data.grupo_id) : null,
-  }))
-}
+/**
+ * S24: every pending change in one planner_guardar_cambios call, all or
+ * nothing. A shape problem is refused before the RPC with the same
+ * "Cambio N de M: " prefix the RPC uses; the RPC's errors keep its message
+ * and the position of the change (DETAIL {"indice"}). Without the RPC
+ * (PGRST202, 42883) it says the database is missing the update.
+ */
+export async function guardarCambios(cliente: ClienteAcciones, entrada: EntradaGuardarCambios): Promise<ResultadoGuardar> {
+  const total = entrada.cambios.length
+  const rechazo = (mensaje: string, indice: number | null = null): ResultadoGuardar => ({ ok: false, codigo: 'validacion', mensaje, indice })
+  if (!esUuid(entrada.temporadaId)) return rechazo('La temporada no es válida.')
+  if (total === 0) return rechazo('No hay cambios para guardar.')
+  if (total > MAXIMO_CAMBIOS) return rechazo(`Puedes guardar hasta ${MAXIMO_CAMBIOS} cambios a la vez.`)
 
-export interface EntradaEditarGrupo {
-  readonly grupoId: string
-  readonly cambios: Partial<DatosGrupo>
-}
+  const claves = new Set<string>()
+  const cambios: CambioPlanner[] = []
+  for (const [i, cambio] of entrada.cambios.entries()) {
+    const validado = validarCambio(cambio, claves)
+    if ('error' in validado) return rechazo(`Cambio ${i + 1} de ${total}: ${validado.error}`, i)
+    if (validado.cambio.tipo === 'crear') claves.add(validado.cambio.clave)
+    cambios.push(validado.cambio)
+  }
 
-/** Only the given fields (e.g. "Usar Cabudare" sends localidad_id). */
-export function editarGrupo(cliente: ClienteAcciones, entrada: EntradaEditarGrupo): Promise<ResultadoAccion<PasoGuardado>> {
-  if (!esUuid(entrada.grupoId)) return Promise.resolve(invalido('El grupo no es válido.'))
-  if (Object.keys(entrada.cambios).length === 0) return Promise.resolve(invalido('No hay cambios para guardar.'))
-  const validados = validarCampos(entrada.cambios)
-  if ('error' in validados) return Promise.resolve(invalido(validados.error))
-  return llamar(cliente, 'planner_editar_grupo', { p_grupo_id: entrada.grupoId, p_cambios: validados.valores }, leerPaso)
-}
-
-/** S22: the database refuses a group that already started. */
-export function eliminarGrupo(cliente: ClienteAcciones, entrada: { readonly grupoId: string }): Promise<ResultadoAccion<PasoGuardado>> {
-  if (!esUuid(entrada.grupoId)) return Promise.resolve(invalido('El grupo no es válido.'))
-  return llamar(cliente, 'planner_eliminar_grupo', { p_grupo_id: entrada.grupoId }, leerPaso)
+  const { data, error } = await cliente.rpc('planner_guardar_cambios', { p_temporada_id: entrada.temporadaId, p_cambios: cambios })
+  if (!error) return { ok: true, datos: leerGuardados(data) }
+  const indice = leerIndice(error.details, total)
+  if (error.code === 'PGRST202' || error.code === '42883') {
+    console.error('[grupos-vida/planificar] planner_guardar_cambios is missing', error)
+    return { ok: false, codigo: error.code, mensaje: FALTA_GUARDAR_CAMBIOS, indice: null }
+  }
+  if (!error.code || !CODIGOS_CON_MENSAJE.has(error.code)) console.error('[grupos-vida/planificar] planner_guardar_cambios failed', error)
+  const conMensaje = error.code === '28000' || (error.code !== undefined && CODIGOS_CON_MENSAJE.has(error.code))
+  const mensaje = conMensaje ? mensajeErrorAccion(error) : GENERICO_GUARDAR
+  return { ok: false, codigo: error.code ?? null, mensaje, indice }
 }
 
 // ─── Undo and history ───

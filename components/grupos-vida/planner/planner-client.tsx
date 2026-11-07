@@ -3,10 +3,13 @@
 /**
  * Planner — client island of /grupos-vida/planificar (T5a of
  * odd/tasks/planner-gdv.md; artboards 01, 03 and 08 of design/planner-gdv;
- * S1, S4, S5, S7, S9–S11, S16, S17, S21). Moving people, creating and
- * deleting groups, applying a localidad suggestion, undoing and "Terminé mi
- * segmento" are saved steps (T5b, pasos-planner.tsx): the board shows a move
- * at once and the header shows the save state and Deshacer.
+ * S1, S4, S5, S7, S9–S11, S16, S17, S21, S24). Moving people, creating,
+ * editing and deleting groups and applying a localidad suggestion add to the
+ * session draft (S24, pasos-planner.tsx): the board, the bank, the alerts and
+ * the blocker counts show the draft applied at once, and nothing is saved
+ * until "Guardar" in the header's save bar (estado-guardado.tsx), which also
+ * opens the pending list (panel-cambios.tsx), discards and undoes. Undoing a
+ * saved step and "Terminé mi segmento" save at once.
  *
  * Top to bottom: the one-line season header (cabecera-temporada.tsx), one
  * toolbar row (view switch Tablero · Lado a lado, search over groups and
@@ -17,8 +20,9 @@
  * panel (panel-grupo.tsx, T6) from its card, the alerts or the bank; the
  * alerts fix what they can from there. Warnings come from calcularAvisos
  * (T4) kept to the actor's scope (S10); blockers from planner_bloqueos, which
- * the database already scopes. The bank toggle is remembered per user in
- * localStorage.
+ * the database already scopes, recomputed over the draft while there are
+ * pending changes (bloqueosConBorrador). The bank toggle is remembered per
+ * user in localStorage.
  */
 import { useMemo, useState, useSyncExternalStore, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -28,6 +32,7 @@ import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { botonPublicar, calcularAvisos, sugerirLocalidad, type PasoHistorial, type SugerenciaLocalidad } from '@/lib/platform/grupos-vida/planner'
+import { bloqueosConBorrador } from '@/lib/platform/grupos-vida/planner/borrador'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 import { cn } from '@/lib/utils'
 
@@ -35,10 +40,11 @@ import { BancoPersonas } from './banco-personas'
 import { CabeceraTemporada } from './cabecera-temporada'
 import { DialogoEliminarGrupo } from './dialogo-eliminar-grupo'
 import { DialogoUbicar } from './dialogo-ubicar'
-import { EstadoGuardado } from './estado-guardado'
+import { BarraGuardado } from './estado-guardado'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
 import { PanelAlertas } from './panel-alertas'
+import { DialogoDescartar, PanelCambios } from './panel-cambios'
 import { PanelGrupo } from './panel-grupo'
 import { PanelNuevoGrupo } from './panel-nuevo-grupo'
 import { PasosPlannerProvider, usePasosPlanner } from './pasos-planner'
@@ -98,9 +104,13 @@ function useBancoVisible(usuarioId: string): [boolean, (visible: boolean) => voi
 }
 
 export function PlannerClient({ datos, pasos = null }: PlannerClientProps): ReactElement {
-  const { capacidades, temporada, bloqueos, estado, localidades, faltantes } = datos
+  const { capacidades, temporada, estado, localidades, faltantes } = datos
   const control = usePasosPlanner(datos, pasos)
   const { grupos, banco } = control.tablero
+  const { borrador } = control
+  // The blockers as they will be once the draft is saved.
+  const bloqueos = useMemo(() => bloqueosConBorrador(datos.bloqueos, control.tablero, borrador.cambios), [datos.bloqueos, control.tablero, borrador.cambios])
+  const [descartando, setDescartando] = useState(false)
   // The groups "Ubicar" offers: those of the actor's segments (S10), by segment and name.
   const editables = useMemo(() => {
     const segmentos = new Set(capacidades.segmentos_editables)
@@ -157,7 +167,18 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
           alertasAbiertas={alertasAbiertas}
           publicar={publicar}
           puedeCrearTemporada={capacidades.puede_crear_temporada}
-          guardado={<EstadoGuardado estado={control.guardado} deshacer={control.deshacer} />}
+          cambiosSinGuardar={borrador.cambios.length}
+          guardado={
+            <BarraGuardado
+              cambios={borrador.cambios.length}
+              guardando={borrador.guardando}
+              conError={borrador.error !== null}
+              deshacer={control.deshacer}
+              onAbrirLista={borrador.abrirLista}
+              onDescartar={() => setDescartando(true)}
+              onGuardar={borrador.guardar}
+            />
+          }
         />
 
         {faltantes.includes('localidades') && (
@@ -284,6 +305,26 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
           onCrear={control.crear}
         />
         <DialogoEliminarGrupo grupo={control.eliminar} onCerrar={control.cerrarEliminar} onConfirmar={control.confirmarEliminar} />
+        <PanelCambios
+          abierto={borrador.listaAbierta}
+          onCerrar={borrador.cerrarLista}
+          cambios={borrador.cambios}
+          error={borrador.error}
+          guardando={borrador.guardando}
+          motivoQuitar={borrador.motivoQuitar}
+          onQuitar={borrador.quitar}
+          onDescartar={() => setDescartando(true)}
+          onGuardar={borrador.guardar}
+        />
+        <DialogoDescartar
+          abierto={descartando && borrador.cambios.length > 0}
+          cambios={borrador.cambios.length}
+          onCerrar={() => setDescartando(false)}
+          onConfirmar={() => {
+            setDescartando(false)
+            borrador.descartar()
+          }}
+        />
         <p role="status" aria-live="polite" aria-label="Cambios del planificador" className="sr-only">
           {control.anuncio}
         </p>

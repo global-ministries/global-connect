@@ -6,8 +6,10 @@
  * <Segmento> - N" from the localidad chosen), the computed label, the
  * segment fixed to the lane, the localidad (a group without one blocks
  * publishing), day, hour, capacity and the directores de etapa: every eligible
- * one of the segment, a couple as one option (directoresElegibles). One step
- * on the server; a refusal stays in the form with the server's words.
+ * one of the segment, a couple as one option (directoresElegibles). The new
+ * group joins the session draft (S24) and shows on the board at once; it is
+ * created on "Guardar". A refusal (a used name, a bad field) stays in the
+ * form.
  */
 import { useId, useState, type FormEvent, type ReactElement } from 'react'
 
@@ -176,7 +178,7 @@ export function PanelNuevoGrupo(props: PanelNuevoGrupoProps): ReactElement {
       abierto={segmento !== null}
       onAbiertoChange={(abierto) => !abierto && onCerrar()}
       titulo={segmento ? `Nuevo grupo de ${segmento.nombre}` : 'Nuevo grupo'}
-      descripcion="Se guarda como un paso del historial; puedes deshacerlo."
+      descripcion="Queda sin guardar hasta que toques «Guardar»."
       pie={
         <>
           <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={onCerrar}>

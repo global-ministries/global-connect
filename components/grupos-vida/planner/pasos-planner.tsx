@@ -1,83 +1,128 @@
 'use client'
 
 /**
- * Planner — the saved steps of the board (T5b of odd/tasks/planner-gdv.md;
- * S2, S3, S10, S13–S15, S17, S22).
+ * Planner — the session draft of the board (S24 of odd/tasks/planner-gdv.md;
+ * T5b; S2, S3, S10, S13–S15, S17, S22).
  *
- * usePasosPlanner runs every change as one server action (actions.ts) inside
- * a transition: a move shows at once (useOptimistic over the loaded groups
- * and bank) and falls back to the server data when the step is refused; on
- * success the route refreshes and the new data replaces the optimistic one.
- * It also keeps the save state ("Guardando…", "Guardado", "No se guardó"),
- * the live-region text, the dialog requests (Ubicar, Nuevo grupo, Eliminar),
- * the open group panel (T6) and the drag in progress.
+ * Nothing is saved while the director works. Every board action (drag,
+ * Ubicar, Mover, Al banco, a role change, Nuevo grupo, Usar <localidad>, a
+ * field of the group panel, Eliminar) adds one pending change to the draft
+ * (lib/platform/grupos-vida/planner/borrador.ts), kept in localStorage per
+ * user and season (borrador-local.ts); the board, the bank and the alerts
+ * are the loaded data with the draft applied. The spouse rule (S2), the
+ * scope (S10) and S22 are checked here as before; the server checks them
+ * again on save. "Guardar" sends the whole draft in one
+ * planner_guardar_cambios call (all or nothing): on success the draft
+ * empties and the route refreshes; on a refusal the draft stays and the
+ * failed change is pointed at in the pending list.
+ *
+ * "Deshacer" (and Ctrl/Cmd+Z) removes the last pending change; with none it
+ * undoes the actor's latest saved step (planner_deshacer_paso), as does
+ * "Terminé mi segmento", which saves at once (it is not a board change).
+ * Leaving the page with unsaved changes asks first (beforeunload). The hook
+ * also keeps the live-region text, the dialog requests (Ubicar, Nuevo grupo,
+ * Eliminar), the open group panel (T6) and the drag in progress.
  *
  * The board components read the actions from contexto-pasos.tsx.
  */
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useOptimistic,
-  useRef,
-  useState,
-  useTransition,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import {
-  crearGrupoAction,
-  deshacerPasoAction,
-  editarGrupoAction,
-  eliminarGrupoAction,
-  marcarSegmentoAction,
-  moverPersonasAction,
-} from '@/app/(auth)/grupos-vida/planificar/actions'
+import { deshacerPasoAction, guardarCambiosAction, marcarSegmentoAction } from '@/app/(auth)/grupos-vida/planificar/actions'
 import {
   enLista,
   nombrePersona,
+  normalizar,
   type GrupoTablero,
   type PasoHistorial,
   type SegmentoPlanner,
   type SugerenciaLocalidad,
 } from '@/lib/platform/grupos-vida/planner'
-import { pasoADeshacer, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
+import {
+  MAXIMO_CAMBIOS,
+  pasoADeshacer,
+  validarDatosGrupo,
+  type CambioPlanner,
+  type DatosGrupo,
+  type ResultadoAccion,
+  type ResultadoGuardar,
+} from '@/lib/platform/grupos-vida/planner/acciones'
+import {
+  BORRADOR_VACIO,
+  aPayload,
+  agregarCambio,
+  aplicarBorrador,
+  marcasBorrador,
+  motivoNoQuitar,
+  normalizarBorrador,
+  nuevaClave,
+  quitarCambio,
+  quitarUltimo,
+  type Borrador,
+  type Catalogo,
+  type CambioPendiente,
+  type EstadoTablero,
+} from '@/lib/platform/grupos-vida/planner/borrador'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 
-import type { Carga, EstadoGuardado, PasosPlanner, PeticionUbicar } from './contexto-pasos'
-import { aplicarMovimiento, cambiaAlgo, planearMovimiento, type EstadoTablero, type Movimiento, type RolDestino } from './modelo'
+import { useBorradorLocal } from './borrador-local'
+import type { Carga, PasosPlanner, PeticionUbicar } from './contexto-pasos'
+import { planearMovimiento, type RolDestino } from './modelo'
 
-export type { Carga, EstadoGuardado, PeticionUbicar } from './contexto-pasos'
+export type { Carga, PeticionUbicar } from './contexto-pasos'
 export { PasosPlannerProvider } from './contexto-pasos'
 
 const MIME = 'application/x-planner-gdv'
 
-const ultimoGuardado = (pasos: readonly PasoHistorial[] | null): number | null => {
-  const fecha = pasos?.[0] ? Date.parse(pasos[0].creado_en) : NaN
-  return Number.isNaN(fecha) ? null : fecha
-}
+const ERROR_RED = 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'
+const GUARDANDO = 'Espera a que terminen de guardarse los cambios.'
+const LLENO = `Guarda tus cambios antes de seguir: se guardan hasta ${MAXIMO_CAMBIOS} a la vez.`
 
-const ERROR_RED = 'No se pudo guardar el cambio. Revisa tu conexión e inténtalo de nuevo.'
+const rechazo = (mensaje: string): ResultadoAccion<null> => ({ ok: false, codigo: 'validacion', mensaje })
+const LISTO: ResultadoAccion<null> = { ok: true, datos: null }
 
 export interface Deshacer {
-  /** The step "Deshacer" would undo; null without own steps. */
+  /** The last pending change: "Deshacer" removes it first. */
+  readonly pendiente: CambioPendiente | null
+  /** The saved step "Deshacer último guardado" would undo; null without own steps. */
   readonly paso: PasoHistorial | null
   /** Why it cannot run now; null when it can. */
   readonly motivo: string | null
   readonly ejecutar: () => void
 }
 
+export interface ErrorGuardar {
+  readonly mensaje: string
+  /** The failed change (0-based) in the pending list; null when it is not one change. */
+  readonly indice: number | null
+}
+
 export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistorial[] | null) {
   const { capacidades, temporada, estado } = datos
   const router = useRouter()
   const notificar = useNotificaciones()
-  const base = useMemo<EstadoTablero>(() => ({ grupos: datos.grupos, banco: datos.banco }), [datos.grupos, datos.banco])
-  const [tablero, moverOptimista] = useOptimistic(base, aplicarMovimiento)
   const [, iniciar] = useTransition()
-  const [guardado, setGuardado] = useState<EstadoGuardado>(() => ({ tipo: 'listo', en: ultimoGuardado(pasos) }))
-  // Shown while a step runs: an optimistic flag, because a plain state update inside the transition only commits when it ends.
-  const [guardando, marcarGuardando] = useOptimistic(false)
+  const cargado = useMemo<EstadoTablero>(() => ({ grupos: datos.grupos, banco: datos.banco }), [datos.grupos, datos.banco])
+  const catalogo = useMemo<Catalogo>(() => ({ segmentos: capacidades.segmentos, localidades: datos.localidades }), [capacidades.segmentos, datos.localidades])
+  // The changes just saved stay applied until the refreshed data (a new `cargado`) arrives.
+  const [enCamino, setEnCamino] = useState<{ readonly cargado: EstadoTablero; readonly cambios: readonly CambioPendiente[] } | null>(null)
+  const base = useMemo(
+    () => (enCamino && enCamino.cargado === cargado ? aplicarBorrador(cargado, enCamino.cambios, catalogo) : cargado),
+    [cargado, enCamino, catalogo],
+  )
+
+  const [guardado, escribirBorrador] = useBorradorLocal(capacidades.usuario_id, temporada.id)
+  // Changes that no longer apply to the loaded data (another director did it, the group is gone) drop out.
+  const borrador = useMemo(() => normalizarBorrador(guardado, base, catalogo), [guardado, base, catalogo])
+  const cambios = borrador.cambios
+  const [guardando, setGuardando] = useState(false)
+  const [errorGuardar, setErrorGuardar] = useState<ErrorGuardar | null>(null)
+  const [listaAbierta, setListaAbierta] = useState(false)
+
+  const tablero = useMemo(() => aplicarBorrador(base, cambios, catalogo), [base, cambios, catalogo])
+  const marcas = useMemo(() => marcasBorrador(cambios, base), [cambios, base])
+
   const [anuncio, setAnuncio] = useState('')
   const [ubicar, setUbicar] = useState<PeticionUbicar | null>(null)
   const [nuevoGrupo, setNuevoGrupo] = useState<SegmentoPlanner | null>(null)
@@ -91,13 +136,48 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
   const editables = useMemo(() => new Set(capacidades.segmentos_editables), [capacidades.segmentos_editables])
   const editable = useCallback((segmentoId: string) => editables.has(segmentoId), [editables])
 
-  /** Runs one step: optimistic move first, then the save state, the announcement and the refresh. */
+  const avisar = useCallback(
+    (texto: string) => {
+      setAnuncio(texto)
+      notificar.info(texto)
+    },
+    [notificar],
+  )
+
+  /** Replaces the draft; any change to it clears the last save error (its position no longer holds). */
+  const cambiarBorrador = useCallback(
+    (siguiente: Borrador) => {
+      escribirBorrador(siguiente)
+      setErrorGuardar(null)
+    },
+    [escribirBorrador],
+  )
+
+  /** Adds one change; false when it changed nothing or could not be added now. */
+  const agregar = useCallback(
+    (cambio: CambioPlanner, texto: string): boolean => {
+      if (guardando) {
+        avisar(GUARDANDO)
+        return false
+      }
+      const siguiente = agregarCambio(borrador, cambio, base, catalogo)
+      if (siguiente === borrador) return false
+      if (siguiente.cambios.length > MAXIMO_CAMBIOS) {
+        avisar(LLENO)
+        return false
+      }
+      cambiarBorrador(siguiente)
+      setAnuncio(`${texto}. Sin guardar.`)
+      return true
+    },
+    [avisar, base, borrador, cambiarBorrador, catalogo, guardando],
+  )
+
+  /** Runs one server call right away (undo of a saved step, "Terminé mi segmento"), then refreshes. */
   const ejecutar = useCallback(
-    <T,>(accion: () => Promise<ResultadoAccion<T>>, opciones: { readonly movimiento?: Movimiento; readonly exito: (datos: T) => string }) =>
+    <T,>(accion: () => Promise<ResultadoAccion<T>>, exito: (datos: T) => string) =>
       new Promise<ResultadoAccion<T>>((resolver) => {
         iniciar(async () => {
-          if (opciones.movimiento) moverOptimista(opciones.movimiento)
-          marcarGuardando(true)
           let resultado: ResultadoAccion<T>
           try {
             resultado = await accion()
@@ -105,18 +185,16 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
             resultado = { ok: false, codigo: null, mensaje: ERROR_RED }
           }
           if (resultado.ok) {
-            setGuardado({ tipo: 'listo', en: Date.now() })
-            setAnuncio(opciones.exito(resultado.datos))
+            setAnuncio(exito(resultado.datos))
             iniciar(() => router.refresh())
           } else {
-            setGuardado({ tipo: 'error', mensaje: resultado.mensaje })
             setAnuncio(resultado.mensaje)
             notificar.error(resultado.mensaje)
           }
           resolver(resultado)
         })
       }),
-    [marcarGuardando, moverOptimista, notificar, router],
+    [notificar, router],
   )
 
   const nombres = useCallback(
@@ -124,19 +202,15 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     [fichas],
   )
 
-  /** One planner_mover_personas step; `avisar` shows the spouse note as a toast (drag, where no dialog showed it). */
+  /** One move into the draft; `avisarConyuge` shows the spouse note as a toast (drag, where no dialog showed it). */
   const mover = useCallback(
-    (usuarioIds: readonly string[], grupo: GrupoTablero | null, rol: RolDestino, aviso: string | null, avisar: boolean) => {
-      const movimiento: Movimiento = { usuarioIds, grupoId: grupo?.grupo_id ?? null, rol: grupo ? rol : null }
-      if (!cambiaAlgo(tablero, movimiento)) return
-      if (aviso && avisar) notificar.info(aviso)
+    (usuarioIds: readonly string[], grupo: GrupoTablero | null, rol: RolDestino, aviso: string | null, avisarConyuge: boolean) => {
+      const cambio: CambioPlanner = { tipo: 'mover', usuarios: [...usuarioIds], grupo: grupo?.grupo_id ?? null, rol: grupo ? rol : null }
       const quien = nombres(usuarioIds)
-      void ejecutar(() => moverPersonasAction({ temporadaId: temporada.id, ...movimiento }), {
-        movimiento,
-        exito: () => `${quien} ${grupo ? `en ${grupo.nombre}` : 'al banco'}${aviso ? `. ${aviso}` : ''}`,
-      })
+      const texto = `${quien} ${grupo ? `en ${grupo.nombre}` : 'al banco'}${aviso ? `. ${aviso}` : ''}`
+      if (agregar(cambio, texto) && aviso && avisarConyuge) notificar.info(aviso)
     },
-    [ejecutar, nombres, notificar, tablero, temporada.id],
+    [agregar, nombres, notificar],
   )
 
   const soltar = useCallback(
@@ -155,32 +229,40 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     [fichas, mover],
   )
 
+  // ─── Deshacer ───
+
+  const ultimo = cambios.at(-1) ?? null
   const pasoDeshacer = useMemo(
     () => (pasos ? pasoADeshacer(pasos.filter((p) => !deshechos.has(p.paso_id)), capacidades.usuario_id) : null),
     [pasos, deshechos, capacidades.usuario_id],
   )
-  const motivoDeshacer = !pasos
-    ? 'No se pudo leer el historial; recarga la página'
-    : !pasoDeshacer
-      ? 'No tienes cambios para deshacer'
-      : pasoDeshacer.puede_deshacer
-        ? null
-        : (pasoDeshacer.motivo_no_deshacer ?? 'Este cambio ya no se puede deshacer')
+  const motivoDeshacer = ultimo
+    ? guardando
+      ? GUARDANDO
+      : null
+    : !pasos
+      ? 'No se pudo leer el historial; recarga la página'
+      : !pasoDeshacer
+        ? 'No tienes cambios para deshacer'
+        : pasoDeshacer.puede_deshacer
+          ? null
+          : (pasoDeshacer.motivo_no_deshacer ?? 'Este cambio ya no se puede deshacer')
 
   const deshacer = useCallback(() => {
-    if (!pasoDeshacer || motivoDeshacer) {
-      const motivo = motivoDeshacer ?? 'No tienes cambios para deshacer'
-      setAnuncio(motivo)
-      notificar.info(motivo)
+    if (motivoDeshacer) return avisar(motivoDeshacer)
+    if (ultimo) {
+      cambiarBorrador(quitarUltimo(borrador))
+      setAnuncio(`Quitaste: ${ultimo.descripcion}`)
       return
     }
+    if (!pasoDeshacer) return
     const paso = pasoDeshacer
-    void ejecutar(() => deshacerPasoAction({ pasoId: paso.paso_id }), { exito: () => `Deshiciste: ${paso.descripcion}` }).then((r) => {
+    void ejecutar(() => deshacerPasoAction({ pasoId: paso.paso_id }), () => `Deshiciste: ${paso.descripcion}`).then((r) => {
       if (r.ok) setDeshechos((d) => new Set(d).add(paso.paso_id))
     })
-  }, [ejecutar, motivoDeshacer, notificar, pasoDeshacer])
+  }, [avisar, borrador, cambiarBorrador, ejecutar, motivoDeshacer, pasoDeshacer, ultimo])
 
-  // Ctrl/Cmd+Z outside text fields and dialogs undoes the latest own step.
+  // Ctrl/Cmd+Z outside text fields and dialogs runs Deshacer.
   const deshacerActual = useRef(deshacer)
   useEffect(() => {
     deshacerActual.current = deshacer
@@ -197,14 +279,101 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     return () => window.removeEventListener('keydown', alTeclear)
   }, [])
 
+  // Leaving the page (reload, close, another site) with unsaved changes asks first; the draft stays in this browser anyway.
+  const hayCambios = cambios.length > 0
+  useEffect(() => {
+    if (!hayCambios) return
+    const alSalir = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', alSalir)
+    return () => window.removeEventListener('beforeunload', alSalir)
+  }, [hayCambios])
+
+  // ─── Guardar, Descartar, Quitar ───
+
+  const guardar = useCallback(async () => {
+    if (cambios.length === 0 || guardando) return
+    const enviados = cambios
+    setGuardando(true)
+    setErrorGuardar(null)
+    let resultado: ResultadoGuardar
+    try {
+      resultado = await guardarCambiosAction({ temporadaId: temporada.id, cambios: aPayload(enviados) })
+    } catch {
+      resultado = { ok: false, codigo: null, mensaje: ERROR_RED, indice: null }
+    }
+    setGuardando(false)
+    if (resultado.ok) {
+      const n = resultado.datos.guardados || enviados.length
+      const texto = n === 1 ? 'Se guardó 1 cambio' : `Se guardaron ${n} cambios`
+      setEnCamino({ cargado, cambios: [...(enCamino && enCamino.cargado === cargado ? enCamino.cambios : []), ...enviados] })
+      escribirBorrador(BORRADOR_VACIO)
+      setListaAbierta(false)
+      setAnuncio(texto)
+      notificar.success(texto)
+      iniciar(() => router.refresh())
+    } else {
+      setErrorGuardar({ mensaje: resultado.mensaje, indice: resultado.indice })
+      setAnuncio(resultado.mensaje)
+      notificar.error(resultado.mensaje)
+      if (resultado.indice !== null) setListaAbierta(true)
+    }
+  }, [cambios, cargado, enCamino, escribirBorrador, guardando, notificar, router, temporada.id])
+
+  const descartar = useCallback(() => {
+    if (guardando) return avisar(GUARDANDO)
+    cambiarBorrador(BORRADOR_VACIO)
+    setListaAbierta(false)
+    setAnuncio('Descartaste los cambios sin guardar')
+  }, [avisar, cambiarBorrador, guardando])
+
+  const quitar = useCallback(
+    (indice: number) => {
+      if (guardando) return avisar(GUARDANDO)
+      const motivo = motivoNoQuitar(cambios, indice)
+      if (motivo) return avisar(motivo)
+      const siguiente = quitarCambio(borrador, indice, base, catalogo)
+      if (!siguiente) return
+      const quitado = cambios[indice]
+      cambiarBorrador(siguiente)
+      if (quitado) setAnuncio(`Quitaste: ${quitado.descripcion}`)
+    },
+    [avisar, base, borrador, cambiarBorrador, cambios, catalogo, guardando],
+  )
+
+  // ─── Groups ───
+
   const segmentos = useMemo(() => new Map((estado?.segmentos ?? []).map((s) => [s.id, s])), [estado])
   const visibles = useMemo(() => new Set(tablero.grupos.map((g) => g.grupo_id)), [tablero.grupos])
 
-  /** One planner_editar_grupo step with only the changed keys (S3, S4); `que` names the field in the announcement. */
+  /** The name rule the server checks on save, in the director's words: unique per segment (S4). */
+  const nombreUsado = useCallback(
+    (nombre: string, segmentoId: string, salvo: string | null) =>
+      tablero.grupos.some((g) => g.segmento_id === segmentoId && g.grupo_id !== salvo && normalizar(g.nombre) === normalizar(nombre)),
+    [tablero.grupos],
+  )
+
+  /** One edit of a group (S3, S4) with only the changed keys; `que` names the field in the announcement. */
   const editar = useCallback(
-    (grupo: GrupoTablero, cambios: Partial<DatosGrupo>, que: string) =>
-      ejecutar(() => editarGrupoAction({ grupoId: grupo.grupo_id, cambios }), { exito: () => `Guardaste ${que} de ${grupo.nombre}` }),
-    [ejecutar],
+    async (grupo: GrupoTablero, cambiosGrupo: Partial<DatosGrupo>, que: string): Promise<ResultadoAccion<null>> => {
+      const validados = validarDatosGrupo(cambiosGrupo, { comprobarIds: false })
+      if ('error' in validados) return rechazo(validados.error)
+      const { nombre } = validados.valores
+      if (nombre !== undefined && nombreUsado(nombre, grupo.segmento_id, grupo.grupo_id)) {
+        return rechazo(`Ya hay un grupo llamado «${nombre}» en ${grupo.segmento_nombre}.`)
+      }
+      if (guardando) return rechazo(GUARDANDO)
+      agregar({ tipo: 'editar', grupo: grupo.grupo_id, cambios: validados.valores }, `Cambiaste ${que} de ${grupo.nombre}`)
+      return LISTO
+    },
+    [agregar, guardando, nombreUsado],
+  )
+
+  const usarLocalidad = useCallback(
+    (grupo: GrupoTablero, sugerencia: SugerenciaLocalidad) => editar(grupo, { localidad_id: sugerencia.localidadId }, 'la localidad'),
+    [editar],
   )
 
   const abrirGrupo = useCallback(
@@ -212,14 +381,6 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
       if (visibles.has(grupoId)) setGrupoAbiertoId(grupoId)
     },
     [visibles],
-  )
-
-  const usarLocalidad = useCallback(
-    (grupo: GrupoTablero, sugerencia: SugerenciaLocalidad) =>
-      ejecutar(() => editarGrupoAction({ grupoId: grupo.grupo_id, cambios: { localidad_id: sugerencia.localidadId } }), {
-        exito: () => `${grupo.nombre} ahora es de ${sugerencia.nombre}`,
-      }),
-    [ejecutar],
   )
 
   const contexto = useMemo<PasosPlanner>(
@@ -248,11 +409,17 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
       pedirNuevoGrupo: setNuevoGrupo,
       segmento: (id) => segmentos.get(id) ?? null,
       marcar: (s, terminado) =>
-        void ejecutar(() => marcarSegmentoAction({ temporadaId: temporada.id, segmentoId: s.id, terminado }), {
-          exito: () => (terminado ? `Marcaste ${s.nombre} como terminado` : `${s.nombre} vuelve a estar sin terminar`),
-        }),
+        void ejecutar(
+          () => marcarSegmentoAction({ temporadaId: temporada.id, segmentoId: s.id, terminado }),
+          () => (terminado ? `Marcaste ${s.nombre} como terminado` : `${s.nombre} vuelve a estar sin terminar`),
+        ),
+      pendiente: {
+        grupo: (grupoId) => marcas.grupos.has(grupoId),
+        persona: (usuarioId) => marcas.personas.has(usuarioId),
+        enSegmento: (segmentoId) => marcas.segmentos.get(segmentoId) ?? 0,
+      },
     }),
-    [abrirGrupo, arrastrando, editable, ejecutar, segmentos, soltar, temporada.id, usarLocalidad, visibles],
+    [abrirGrupo, arrastrando, editable, ejecutar, marcas, segmentos, soltar, temporada.id, usarLocalidad, visibles],
   )
 
   const confirmarUbicar = (usuarioIds: readonly string[], grupoId: string | null, rol: RolDestino, aviso: string | null) => {
@@ -263,21 +430,41 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
   /** From the group panel: a new role in the same group, or back to the bank (null). */
   const moverDesdePanel = (usuarioIds: readonly string[], grupo: GrupoTablero | null, rol: RolDestino) => mover(usuarioIds, grupo, rol, null, false)
 
-  const crear = (segmento: SegmentoPlanner, grupo: DatosGrupo) =>
-    ejecutar(() => crearGrupoAction({ temporadaId: temporada.id, datos: grupo }), { exito: () => `Creaste ${grupo.nombre} en ${segmento.nombre}` })
+  const crear = async (segmento: SegmentoPlanner, grupo: DatosGrupo): Promise<ResultadoAccion<null>> => {
+    const validados = validarDatosGrupo(grupo, { comprobarIds: false })
+    if ('error' in validados) return rechazo(validados.error)
+    const nombre = validados.valores.nombre ?? ''
+    if (nombreUsado(nombre, segmento.id, null)) return rechazo(`Ya hay un grupo llamado «${nombre}» en ${segmento.nombre}.`)
+    if (guardando) return rechazo(GUARDANDO)
+    const clave = nuevaClave(borrador, visibles)
+    const agregado = agregar({ tipo: 'crear', clave, datos: { ...grupo, ...validados.valores } }, `Creaste ${nombre} en ${segmento.nombre}`)
+    return agregado ? LISTO : rechazo(LLENO)
+  }
 
   const confirmarEliminar = (grupo: GrupoTablero) => {
     setEliminar(null)
-    void ejecutar(() => eliminarGrupoAction({ grupoId: grupo.grupo_id }), { exito: () => `Eliminaste ${grupo.nombre}` })
+    agregar({ tipo: 'eliminar', grupo: grupo.grupo_id }, `Eliminaste ${grupo.nombre}`)
   }
 
   return {
     tablero,
     fichas,
     contexto,
-    guardado: guardando ? ({ tipo: 'guardando' } satisfies EstadoGuardado) : guardado,
     anuncio,
-    deshacer: { paso: pasoDeshacer, motivo: motivoDeshacer, ejecutar: deshacer } satisfies Deshacer,
+    deshacer: { pendiente: ultimo, paso: pasoDeshacer, motivo: motivoDeshacer, ejecutar: deshacer } satisfies Deshacer,
+    /** The pending changes, in order, and what can be done with them. */
+    borrador: {
+      cambios,
+      guardando,
+      error: errorGuardar,
+      guardar: () => void guardar(),
+      descartar,
+      quitar,
+      motivoQuitar: (indice: number) => motivoNoQuitar(cambios, indice),
+      listaAbierta,
+      abrirLista: () => setListaAbierta(true),
+      cerrarLista: () => setListaAbierta(false),
+    },
     ubicar,
     cerrarUbicar: () => setUbicar(null),
     confirmarUbicar,
@@ -287,7 +474,7 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     eliminar,
     cerrarEliminar: () => setEliminar(null),
     confirmarEliminar,
-    /** The open group panel; null when closed or when the group left the board (deleted, undone). */
+    /** The open group panel; null when closed or when the group left the board (deleted, removed from the draft). */
     grupoAbierto: tablero.grupos.find((g) => g.grupo_id === grupoAbiertoId) ?? null,
     abrirGrupo,
     cerrarGrupo: () => setGrupoAbiertoId(null),

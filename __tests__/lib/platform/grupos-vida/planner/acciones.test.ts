@@ -1,20 +1,19 @@
 /**
- * Planner step wrappers (T5b of odd/tasks/planner-gdv.md): input validation
- * before any RPC, the exact RPC names and arguments, the Spanish error
- * messages (the RPC's own message for 22023/42501/40001/55000) and the server
- * actions, which use the session client and revalidate the planner route only
- * after a saved step.
+ * Planner server wrappers (T5b and S24 of odd/tasks/planner-gdv.md): input
+ * validation before any RPC, the exact RPC names and arguments, the Spanish
+ * error messages (the RPC's own message for 22023/42501/40001/55000), the
+ * position of the failed change of a save, and the server actions, which use
+ * the session client and revalidate the planner route only after a saved call.
  */
 import {
+  FALTA_GUARDAR_CAMBIOS,
   RUTA_PLANNER,
-  crearGrupo,
   deshacerPaso,
-  editarGrupo,
-  eliminarGrupo,
+  guardarCambios,
   marcarSegmento,
   mensajeErrorAccion,
-  moverPersonas,
   ultimosPasos,
+  type CambioPlanner,
   type ClienteAcciones,
 } from '@/lib/platform/grupos-vida/planner/acciones'
 
@@ -27,7 +26,7 @@ const P = '66666666-6666-4666-8666-666666666666'
 
 const PASO = { paso_id: P, descripcion: 'movió a Ana Pérez a Grupo Rosas', segmentos: [S], segmentos_reabiertos: [S] }
 
-function cliente(respuesta: { data?: unknown; error?: { code?: string; message?: string } | null } = { data: PASO }) {
+function cliente(respuesta: { data?: unknown; error?: { code?: string; message?: string; details?: string } | null } = { data: PASO }) {
   const rpc = jest.fn().mockResolvedValue({ data: respuesta.data ?? null, error: respuesta.error ?? null })
   return { rpc } satisfies ClienteAcciones
 }
@@ -47,47 +46,7 @@ describe('mensajeErrorAccion', () => {
   })
 })
 
-describe('moverPersonas', () => {
-  it('calls planner_mover_personas with the people, the group and the role, and reads the step', async () => {
-    const c = cliente()
-    const r = await moverPersonas(c, { temporadaId: T, usuarioIds: [U1, U2], grupoId: G, rol: 'miembro' })
-
-    expect(c.rpc).toHaveBeenCalledWith('planner_mover_personas', { p_temporada_id: T, p_usuarios: [U1, U2], p_grupo_destino: G, p_rol: 'miembro' })
-    expect(r).toEqual({ ok: true, datos: { pasoId: P, descripcion: 'movió a Ana Pérez a Grupo Rosas', segmentosReabiertos: [S] } })
-  })
-
-  it('sends a move to the bank with no group and no role', async () => {
-    const c = cliente()
-    await moverPersonas(c, { temporadaId: T, usuarioIds: [U1], grupoId: null, rol: null })
-
-    expect(c.rpc).toHaveBeenCalledWith('planner_mover_personas', { p_temporada_id: T, p_usuarios: [U1], p_grupo_destino: null, p_rol: null })
-  })
-
-  it.each([
-    [{ temporadaId: 'x', usuarioIds: [U1], grupoId: G, rol: 'miembro' }, 'La temporada no es válida.'],
-    [{ temporadaId: T, usuarioIds: [], grupoId: G, rol: 'miembro' }, 'Indica al menos una persona.'],
-    [{ temporadaId: T, usuarioIds: ['nope'], grupoId: G, rol: 'miembro' }, 'Alguna de las personas no es válida.'],
-    [{ temporadaId: T, usuarioIds: Array(21).fill(U1), grupoId: G, rol: 'miembro' }, 'Puedes mover hasta 20 personas por paso.'],
-    [{ temporadaId: T, usuarioIds: [U1], grupoId: 'g', rol: 'miembro' }, 'El grupo no es válido.'],
-    [{ temporadaId: T, usuarioIds: [U1], grupoId: G, rol: 'colider' }, 'El rol debe ser Líder, Aprendiz o Miembro.'],
-    [{ temporadaId: T, usuarioIds: [U1], grupoId: G, rol: null }, 'El rol debe ser Líder, Aprendiz o Miembro.'],
-  ])('rejects %j before calling the RPC', async (entrada, mensaje) => {
-    const c = cliente()
-    const r = await moverPersonas(c, entrada as Parameters<typeof moverPersonas>[1])
-
-    expect(r).toEqual({ ok: false, codigo: 'validacion', mensaje })
-    expect(c.rpc).not.toHaveBeenCalled()
-  })
-
-  it('returns the RPC refusal in Spanish (42501 out of scope)', async () => {
-    const c = cliente({ error: { code: '42501', message: 'No puedes mover personas a Grupo Rosas: es de otro segmento (Mujeres +36)' } })
-    const r = await moverPersonas(c, { temporadaId: T, usuarioIds: [U1], grupoId: G, rol: 'lider' })
-
-    expect(r).toEqual({ ok: false, codigo: '42501', mensaje: 'No puedes mover personas a Grupo Rosas: es de otro segmento (Mujeres +36).' })
-  })
-})
-
-describe('crearGrupo and editarGrupo', () => {
+describe('guardarCambios (S24)', () => {
   const DATOS = {
     nombre: '  Cabudare Matrimonios 10 ',
     segmento_id: S,
@@ -97,57 +56,122 @@ describe('crearGrupo and editarGrupo', () => {
     capacidad_maxima: 12,
     director_etapa_ids: [U1],
   }
+  const CAMBIOS: CambioPlanner[] = [
+    { tipo: 'crear', clave: 'tmp:g1', datos: DATOS },
+    { tipo: 'mover', usuarios: [U1, U2], grupo: 'tmp:g1', rol: 'lider' },
+    { tipo: 'editar', grupo: G, cambios: { localidad_id: S } },
+    { tipo: 'mover', usuarios: [U1], grupo: null, rol: 'miembro' },
+    { tipo: 'eliminar', grupo: G },
+  ]
+  const RESPUESTA = { guardados: 5, pasos: [P, P, P, P, P], grupos_creados: { 'tmp:g1': G } }
 
-  it('creates the group with the trimmed name and returns its id', async () => {
-    const c = cliente({ data: { ...PASO, grupo_id: G } })
-    const r = await crearGrupo(c, { temporadaId: T, datos: DATOS })
+  it('sends every change in order to planner_guardar_cambios, normalized, and reads what it saved', async () => {
+    const c = cliente({ data: RESPUESTA })
+    const r = await guardarCambios(c, { temporadaId: T, cambios: CAMBIOS })
 
-    expect(c.rpc).toHaveBeenCalledWith('planner_crear_grupo', { p_temporada_id: T, p_datos: { ...DATOS, nombre: 'Cabudare Matrimonios 10' } })
-    expect(r).toEqual({ ok: true, datos: { pasoId: P, descripcion: PASO.descripcion, segmentosReabiertos: [S], grupoId: G } })
+    expect(c.rpc).toHaveBeenCalledWith('planner_guardar_cambios', {
+      p_temporada_id: T,
+      p_cambios: [
+        { tipo: 'crear', clave: 'tmp:g1', datos: { ...DATOS, nombre: 'Cabudare Matrimonios 10' } },
+        { tipo: 'mover', usuarios: [U1, U2], grupo: 'tmp:g1', rol: 'lider' },
+        { tipo: 'editar', grupo: G, cambios: { localidad_id: S } },
+        { tipo: 'mover', usuarios: [U1], grupo: null, rol: null },
+        { tipo: 'eliminar', grupo: G },
+      ],
+    })
+    expect(r).toEqual({ ok: true, datos: { guardados: 5, pasos: [P, P, P, P, P], gruposCreados: { 'tmp:g1': G } } })
   })
 
   it.each([
-    [{ ...DATOS, nombre: '  ' }, 'El grupo debe tener nombre.'],
-    [{ ...DATOS, nombre: 'x'.repeat(121) }, 'El nombre del grupo puede tener hasta 120 caracteres.'],
-    [{ ...DATOS, segmento_id: 'seg' }, 'El segmento no es válido.'],
-    [{ ...DATOS, localidad_id: 'loc' }, 'La localidad no es válida.'],
-    [{ ...DATOS, dia_reunion: 'Feriado' }, 'El día de reunión no es válido.'],
-    [{ ...DATOS, hora_reunion: '7pm' }, 'La hora de reunión no es válida.'],
-    [{ ...DATOS, capacidad_maxima: 0 }, 'La capacidad debe ser un número entero mayor que 0.'],
-    [{ ...DATOS, director_etapa_ids: [U1, U2, S, G, P] }, 'Un grupo puede tener hasta 4 directores de etapa.'],
-    [{ ...DATOS, director_etapa_ids: ['d'] }, 'Alguno de los directores de etapa no es válido.'],
-  ])('rejects invalid data %#', async (datos, mensaje) => {
+    [[{ tipo: 'mover', usuarios: [], grupo: G, rol: 'miembro' }], 'Cambio 1 de 1: Indica al menos una persona.', 0],
+    [[{ tipo: 'mover', usuarios: ['nope'], grupo: G, rol: 'miembro' }], 'Cambio 1 de 1: Alguna de las personas no es válida.', 0],
+    [[{ tipo: 'mover', usuarios: Array(21).fill(U1), grupo: G, rol: 'miembro' }], 'Cambio 1 de 1: Puedes mover hasta 20 personas por paso.', 0],
+    [[{ tipo: 'mover', usuarios: [U1], grupo: G, rol: 'colider' }], 'Cambio 1 de 1: El rol debe ser Líder, Aprendiz o Miembro.', 0],
+    [[{ tipo: 'mover', usuarios: [U1], grupo: 'tmp:g9', rol: 'miembro' }], 'Cambio 1 de 1: El grupo nuevo no se creó antes en estos cambios.', 0],
+    [[{ tipo: 'eliminar', grupo: G }, { tipo: 'eliminar', grupo: 'tmp:g1' }], 'Cambio 2 de 2: El grupo no es válido.', 1],
+    [[{ tipo: 'crear', clave: 'g1', datos: DATOS }], 'Cambio 1 de 1: La clave del grupo nuevo no es válida.', 0],
+    [[{ tipo: 'crear', clave: 'tmp:g1', datos: DATOS }, { tipo: 'crear', clave: 'tmp:g1', datos: DATOS }], 'Cambio 2 de 2: La clave del grupo nuevo ya se usó.', 1],
+    [[{ tipo: 'crear', clave: 'tmp:g1', datos: { ...DATOS, nombre: '  ' } }], 'Cambio 1 de 1: El grupo debe tener nombre.', 0],
+    [[{ tipo: 'crear', clave: 'tmp:g1', datos: { ...DATOS, nombre: 'x'.repeat(121) } }], 'Cambio 1 de 1: El nombre del grupo puede tener hasta 120 caracteres.', 0],
+    [[{ tipo: 'crear', clave: 'tmp:g1', datos: { ...DATOS, segmento_id: 'seg' } }], 'Cambio 1 de 1: El segmento no es válido.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: { localidad_id: 'loc' } }], 'Cambio 1 de 1: La localidad no es válida.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: { dia_reunion: 'Feriado' } }], 'Cambio 1 de 1: El día de reunión no es válido.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: { hora_reunion: '7pm' } }], 'Cambio 1 de 1: La hora de reunión no es válida.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: { capacidad_maxima: 0 } }], 'Cambio 1 de 1: La capacidad debe ser un número entero mayor que 0.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: { director_etapa_ids: [U1, U2, S, G, P] } }], 'Cambio 1 de 1: Un grupo puede tener hasta 4 directores de etapa.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: { director_etapa_ids: ['d'] } }], 'Cambio 1 de 1: Alguno de los directores de etapa no es válido.', 0],
+    [[{ tipo: 'editar', grupo: G, cambios: {} }], 'Cambio 1 de 1: No hay cambios para guardar.', 0],
+  ])('refuses %j before calling the RPC, with its position', async (cambios, mensaje, indice) => {
     const c = cliente()
-    expect(await crearGrupo(c, { temporadaId: T, datos })).toEqual({ ok: false, codigo: 'validacion', mensaje })
+    const r = await guardarCambios(c, { temporadaId: T, cambios: cambios as CambioPlanner[] })
+
+    expect(r).toEqual({ ok: false, codigo: 'validacion', mensaje, indice })
     expect(c.rpc).not.toHaveBeenCalled()
   })
 
-  it('edits only the given fields (localidad from "Usar <localidad>")', async () => {
+  it('refuses a bad season, an empty list and more than 200 changes', async () => {
     const c = cliente()
-    const r = await editarGrupo(c, { grupoId: G, cambios: { localidad_id: S } })
+    const uno: CambioPlanner = { tipo: 'eliminar', grupo: G }
 
-    expect(c.rpc).toHaveBeenCalledWith('planner_editar_grupo', { p_grupo_id: G, p_cambios: { localidad_id: S } })
-    expect(r.ok).toBe(true)
+    expect(await guardarCambios(c, { temporadaId: 'x', cambios: [uno] })).toEqual({ ok: false, codigo: 'validacion', mensaje: 'La temporada no es válida.', indice: null })
+    expect(await guardarCambios(c, { temporadaId: T, cambios: [] })).toEqual({ ok: false, codigo: 'validacion', mensaje: 'No hay cambios para guardar.', indice: null })
+    expect(await guardarCambios(c, { temporadaId: T, cambios: Array(201).fill(uno) })).toEqual({
+      ok: false,
+      codigo: 'validacion',
+      mensaje: 'Puedes guardar hasta 200 cambios a la vez.',
+      indice: null,
+    })
+    expect(c.rpc).not.toHaveBeenCalled()
   })
 
-  it('refuses an edit without changes or with a bad group id', async () => {
-    const c = cliente()
-    expect(await editarGrupo(c, { grupoId: G, cambios: {} })).toEqual({ ok: false, codigo: 'validacion', mensaje: 'No hay cambios para guardar.' })
-    expect(await editarGrupo(c, { grupoId: 'g', cambios: { nombre: 'A' } })).toEqual({ ok: false, codigo: 'validacion', mensaje: 'El grupo no es válido.' })
-    expect(c.rpc).not.toHaveBeenCalled()
+  it.each(['22023', '42501', '40001', '55000'])('keeps the RPC message and the failed position for %s', async (code) => {
+    const c = cliente({ error: { code, message: 'Cambio 2 de 5: No puedes mover personas a Grupo Rosas: es de otro segmento', details: '{"indice": 1}' } })
+
+    expect(await guardarCambios(c, { temporadaId: T, cambios: CAMBIOS })).toEqual({
+      ok: false,
+      codigo: code,
+      mensaje: 'Cambio 2 de 5: No puedes mover personas a Grupo Rosas: es de otro segmento.',
+      indice: 1,
+    })
+  })
+
+  it('ignores a DETAIL that is not a position of the list', async () => {
+    const fuera = cliente({ error: { code: '22023', message: 'Cambio 9 de 5: x', details: '{"indice": 9}' } })
+    const raro = cliente({ error: { code: '22023', message: 'La temporada no está en planificación', details: 'texto' } })
+
+    expect(await guardarCambios(fuera, { temporadaId: T, cambios: CAMBIOS })).toMatchObject({ indice: null })
+    expect(await guardarCambios(raro, { temporadaId: T, cambios: CAMBIOS })).toEqual({
+      ok: false,
+      codigo: '22023',
+      mensaje: 'La temporada no está en planificación.',
+      indice: null,
+    })
+  })
+
+  it.each(['PGRST202', '42883'])('says the database is missing the update when the RPC does not exist (%s)', async (code) => {
+    const espia = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const c = cliente({ error: { code, message: 'Could not find the function public.planner_guardar_cambios' } })
+
+    expect(await guardarCambios(c, { temporadaId: T, cambios: CAMBIOS })).toEqual({ ok: false, codigo: code, mensaje: FALTA_GUARDAR_CAMBIOS, indice: null })
+    expect(FALTA_GUARDAR_CAMBIOS).toBe('Falta aplicar la actualización del planificador en la base de datos')
+    espia.mockRestore()
+  })
+
+  it('gives a generic message for an unexpected error, keeping the position', async () => {
+    const espia = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const c = cliente({ error: { code: 'XX000', message: 'internal: relation foo', details: '{"indice": 3}' } })
+
+    expect(await guardarCambios(c, { temporadaId: T, cambios: CAMBIOS })).toEqual({
+      ok: false,
+      codigo: 'XX000',
+      mensaje: 'No se pudieron guardar los cambios. Inténtalo de nuevo.',
+      indice: 3,
+    })
+    espia.mockRestore()
   })
 })
 
-describe('eliminarGrupo, deshacerPaso and marcarSegmento', () => {
-  it('deletes a group and returns the refusal of a group that already started', async () => {
-    const ok = cliente()
-    expect((await eliminarGrupo(ok, { grupoId: G })).ok).toBe(true)
-    expect(ok.rpc).toHaveBeenCalledWith('planner_eliminar_grupo', { p_grupo_id: G })
-
-    const no = cliente({ error: { code: '22023', message: 'No puedes eliminar Grupo Rosas: ya se reúne.' } })
-    expect(await eliminarGrupo(no, { grupoId: G })).toEqual({ ok: false, codigo: '22023', mensaje: 'No puedes eliminar Grupo Rosas: ya se reúne.' })
-  })
-
+describe('deshacerPaso and marcarSegmento', () => {
   it('undoes a step and keeps the refusal reason (40001, 55000)', async () => {
     const ok = cliente()
     expect((await deshacerPaso(ok, { pasoId: P })).ok).toBe(true)
@@ -193,16 +217,29 @@ describe('server actions', () => {
     jest.clearAllMocks()
   })
 
-  it('use the session client and revalidate the planner route after a saved step', async () => {
-    const { moverPersonasAction } = await import('@/app/(auth)/grupos-vida/planificar/actions')
-    sesion.rpc.mockResolvedValue({ data: PASO, error: null })
+  it('use the session client and revalidate the planner route after a save', async () => {
+    const { guardarCambiosAction } = await import('@/app/(auth)/grupos-vida/planificar/actions')
+    sesion.rpc.mockResolvedValue({ data: { guardados: 1, pasos: [P], grupos_creados: {} }, error: null })
 
-    const r = await moverPersonasAction({ temporadaId: T, usuarioIds: [U1], grupoId: G, rol: 'aprendiz' })
+    const r = await guardarCambiosAction({ temporadaId: T, cambios: [{ tipo: 'mover', usuarios: [U1], grupo: G, rol: 'aprendiz' }] })
 
     expect(createSupabaseServerClient).toHaveBeenCalled()
-    expect(sesion.rpc).toHaveBeenCalledWith('planner_mover_personas', { p_temporada_id: T, p_usuarios: [U1], p_grupo_destino: G, p_rol: 'aprendiz' })
+    expect(sesion.rpc).toHaveBeenCalledWith('planner_guardar_cambios', {
+      p_temporada_id: T,
+      p_cambios: [{ tipo: 'mover', usuarios: [U1], grupo: G, rol: 'aprendiz' }],
+    })
     expect(r.ok).toBe(true)
     expect(revalidatePath).toHaveBeenCalledWith(RUTA_PLANNER)
+  })
+
+  it('do not revalidate when a save is refused', async () => {
+    const { guardarCambiosAction } = await import('@/app/(auth)/grupos-vida/planificar/actions')
+    sesion.rpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'Cambio 1 de 1: El grupo no es de esta temporada', details: '{"indice": 0}' } })
+
+    const r = await guardarCambiosAction({ temporadaId: T, cambios: [{ tipo: 'eliminar', grupo: G }] })
+
+    expect(r).toEqual({ ok: false, codigo: '22023', mensaje: 'Cambio 1 de 1: El grupo no es de esta temporada.', indice: 0 })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('do not revalidate when the step is refused', async () => {
@@ -215,16 +252,15 @@ describe('server actions', () => {
     expect(revalidatePath).not.toHaveBeenCalled()
   })
 
-  it('cover every step RPC', async () => {
+  it('cover undo and "Terminé mi segmento"', async () => {
     const acciones = await import('@/app/(auth)/grupos-vida/planificar/actions')
-    sesion.rpc.mockResolvedValue({ data: { ...PASO, grupo_id: G, terminado: false }, error: null })
+    sesion.rpc.mockResolvedValue({ data: { ...PASO, terminado: false }, error: null })
 
-    await acciones.crearGrupoAction({ temporadaId: T, datos: { nombre: 'A', segmento_id: S, localidad_id: null, dia_reunion: null, hora_reunion: null, capacidad_maxima: null, director_etapa_ids: [] } })
-    await acciones.editarGrupoAction({ grupoId: G, cambios: { localidad_id: S } })
-    await acciones.eliminarGrupoAction({ grupoId: G })
+    await acciones.deshacerPasoAction({ pasoId: P })
     await acciones.marcarSegmentoAction({ temporadaId: T, segmentoId: S, terminado: false })
 
-    expect(sesion.rpc.mock.calls.map(([nombre]) => nombre)).toEqual(['planner_crear_grupo', 'planner_editar_grupo', 'planner_eliminar_grupo', 'planner_marcar_segmento'])
-    expect(revalidatePath).toHaveBeenCalledTimes(4)
+    expect(sesion.rpc.mock.calls.map(([nombre]) => nombre)).toEqual(['planner_deshacer_paso', 'planner_marcar_segmento'])
+    expect(revalidatePath).toHaveBeenCalledTimes(2)
+    expect(Object.keys(acciones).sort()).toEqual(['deshacerPasoAction', 'guardarCambiosAction', 'marcarSegmentoAction'])
   })
 })

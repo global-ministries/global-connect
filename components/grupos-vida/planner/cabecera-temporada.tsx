@@ -8,11 +8,12 @@
  * button "N bloqueos · M avisos" that opens the alerts panel and, for admin,
  * pastor and director general only, the publish button whose label carries
  * the season state (S16): ghost until everything is ready. A director de
- * etapa gets the note of what they see instead (S10). The save state and
- * Deshacer (T5b, estado-guardado.tsx) come first on the right; Historial
- * comes with T8.
+ * etapa gets the note of what they see instead (S10). The save bar (S24,
+ * estado-guardado.tsx: unsaved changes, Deshacer, Descartar, Guardar) comes
+ * first on the right; Historial comes with T8. With unsaved changes,
+ * switching season asks first (the draft stays in this browser).
  */
-import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ChevronDown } from 'lucide-react'
 
@@ -42,16 +43,30 @@ export interface CabeceraTemporadaProps {
   /** The publish button (S16); null hides it (director de etapa, S12). */
   readonly publicar: BotonPublicar | null
   readonly puedeCrearTemporada: boolean
-  /** Save state and Deshacer (estado-guardado.tsx). */
+  /** The save bar (estado-guardado.tsx). */
   readonly guardado?: ReactNode
+  /** Unsaved changes of this season (S24): switching season asks first. */
+  readonly cambiosSinGuardar?: number
 }
 
 function SelectorTemporada({
   temporada,
   temporadas,
   puedeCrearTemporada,
-}: Pick<CabeceraTemporadaProps, 'temporada' | 'temporadas' | 'puedeCrearTemporada'>): ReactElement {
+  cambiosSinGuardar = 0,
+}: Pick<CabeceraTemporadaProps, 'temporada' | 'temporadas' | 'puedeCrearTemporada' | 'cambiosSinGuardar'>): ReactElement {
   const [abierto, setAbierto] = useState(false)
+  /** Leaving the season with unsaved changes asks first; a no keeps the director here. */
+  const salir = (e: ClicReact<HTMLAnchorElement>, mismaTemporada: boolean) => {
+    if (cambiosSinGuardar > 0 && !mismaTemporada) {
+      const pregunta = `Tienes ${contar(cambiosSinGuardar, 'cambio', 'cambios')} sin guardar en ${temporada.nombre}. Quedan en este navegador hasta que los guardes o descartes. ¿Cambiar de temporada?`
+      if (!window.confirm(pregunta)) {
+        e.preventDefault()
+        return
+      }
+    }
+    setAbierto(false)
+  }
   const idMenu = useId()
   const contenedor = useRef<HTMLDivElement>(null)
   const boton = useRef<HTMLButtonElement>(null)
@@ -103,7 +118,7 @@ function SelectorTemporada({
                 <Link
                   href={hrefTemporada(t.id)}
                   aria-current={actual ? 'page' : undefined}
-                  onClick={() => setAbierto(false)}
+                  onClick={(e) => salir(e, actual)}
                   className={cn(
                     'focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-accent',
                     actual && 'bg-brand-tint text-brand-text',
@@ -123,7 +138,7 @@ function SelectorTemporada({
               <li>
                 <Link
                   href={`${RUTA_PLANIFICAR}/nueva`}
-                  onClick={() => setAbierto(false)}
+                  onClick={(e) => salir(e, false)}
                   className="focus-ring flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
                 >
                   Nueva temporada
@@ -150,6 +165,7 @@ export function CabeceraTemporada({
   publicar,
   puedeCrearTemporada,
   guardado,
+  cambiosSinGuardar = 0,
 }: CabeceraTemporadaProps): ReactElement {
   const estado = estadoTemporada(temporada)
   const nombresAlcance = enLista(segmentosAlcance.map((s) => s.nombre))
@@ -160,7 +176,7 @@ export function CabeceraTemporada({
     <div className="space-y-4">
       <section aria-labelledby="planner-temporada" className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div id="planner-temporada" className="min-w-0 space-y-1">
-          <SelectorTemporada temporada={temporada} temporadas={temporadas} puedeCrearTemporada={puedeCrearTemporada} />
+          <SelectorTemporada temporada={temporada} temporadas={temporadas} puedeCrearTemporada={puedeCrearTemporada} cambiosSinGuardar={cambiosSinGuardar} />
           <p className="text-[15px] text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
             <PuntoEstado tono={estado.tono} etiqueta={estado.etiqueta} className="align-middle text-[15px]" />
             {nombresAlcance && <span>{` · ${nombresAlcance}`}</span>}

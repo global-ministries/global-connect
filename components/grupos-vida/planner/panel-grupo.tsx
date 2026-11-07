@@ -17,13 +17,14 @@
  * one row (S23) with the role per person and Mover / Al banco for both; a
  * missing spouse is marked in Matrimonios.
  *
- * There is no "Guardar": each field saves on blur or selection as one
- * planner_editar_grupo step with only the changed key, shows "Guardando…" in
- * place, the server's refusal in the field and announces both in the panel's
- * live region. Read-only (fields disabled, actions hidden) for a segment the
- * actor does not edit (S10); "Eliminar grupo" only while the group has not
- * started (S22). The sheet traps the focus, closes with Escape and returns
- * the focus to what opened it.
+ * Each field applies on blur or selection as one edit with only the changed
+ * key, added to the session draft (S24): the board shows it at once and it
+ * is saved with the rest on "Guardar". A refusal (a used name, a bad
+ * capacity) shows in the field and in the panel's live region. People the
+ * draft moved show "Sin guardar". Read-only (fields disabled, actions
+ * hidden) for a segment the actor does not edit (S10); "Eliminar grupo" only
+ * while the group has not started (S22). The sheet traps the focus, closes
+ * with Escape and returns the focus to what opened it.
  */
 import { Fragment, useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 
@@ -49,8 +50,8 @@ import {
 import { DIAS_REUNION, LARGO_NOMBRE_GRUPO, MAXIMO_DIRECTORES, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
 import { cn } from '@/lib/utils'
 
-import type { Carga } from './contexto-pasos'
-import { EtiquetaPlanner } from './etiqueta'
+import { usePasos, type Carga } from './contexto-pasos'
+import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
 import {
   ETIQUETA_ROL,
   directoresElegibles,
@@ -74,7 +75,7 @@ const ROLES: readonly RolDestino[] = ['lider', 'aprendiz', 'miembro']
 
 type Campo = 'nombre' | 'localidad' | 'dia' | 'hora' | 'capacidad' | 'directores'
 
-/** What each field is called in the announcements ("Guardando el día…", "Guardaste el día de …"). */
+/** What each field is called in the announcements ("Cambiaste el día"). */
 const NOMBRE_CAMPO: Readonly<Record<Campo, string>> = {
   nombre: 'el nombre',
   localidad: 'la localidad',
@@ -87,7 +88,7 @@ const NOMBRE_CAMPO: Readonly<Record<Campo, string>> = {
 const ERROR_CAPACIDAD = 'La capacidad debe ser un número entero mayor que 0.'
 
 export interface PanelGrupoProps {
-  /** The open group (live, with the optimistic moves); null closes the panel. */
+  /** The open group (live, with the draft applied); null closes the panel. */
   readonly grupo: GrupoTablero | null
   /** S10: whether the actor edits the group's segment. */
   readonly editable: boolean
@@ -111,14 +112,14 @@ export interface PanelGrupoProps {
 interface Borrador {
   /** The value the board data has now. */
   readonly servidor: string
-  /** The last value the server accepted (the board refreshes later). */
+  /** The last value the board accepted. */
   readonly guardado: string
   readonly valor: string
 }
 
 /**
- * A field's draft: starts from the board data and starts over whenever the
- * board data changes (a refresh after the step, an undo, another director).
+ * A field's value while typing: starts from the board data and starts over
+ * whenever the board data changes (the edit applied, an undo, a refresh).
  */
 function useBorrador(servidor: string) {
   const [estado, setEstado] = useState<Borrador>({ servidor, guardado: servidor, valor: servidor })
@@ -150,9 +151,6 @@ function Seccion({ titulo, extra, children }: { readonly titulo: string; readonl
     </section>
   )
 }
-
-const Guardando = ({ activo }: { readonly activo: boolean }): ReactElement | null =>
-  activo ? <p className="text-xs text-muted-foreground">Guardando…</p> : null
 
 /** The age after a name of a couple row, as in the bank. */
 const Edad = ({ edad }: { readonly edad: number | null | undefined }): ReactElement | null =>
@@ -195,6 +193,8 @@ function FilaIntegrante({
     .flatMap((p) => insigniasPersona(p.usuario_id, grupo.grupo_id, bloqueos, avisos))
     .filter((m, i, todas) => todas.findIndex((x) => x.etiqueta === m.etiqueta) === i)
   const nota = pareja ? null : notaPareja(ids[0], grupo, fichas)
+  const pasos = usePasos()
+  const sinGuardar = pasos !== null && ids.some((id) => pasos.pendiente.persona(id))
   return (
     <li aria-label={nombre} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-border py-2.5 last:border-b-0">
       <div className="min-w-0 flex-1 basis-48">
@@ -211,6 +211,7 @@ function FilaIntegrante({
         </p>
         {datos.length > 0 && <p className="break-words text-xs text-muted-foreground">{datos.join(' · ')}</p>}
         {nota && <p className={cn('break-words text-xs', nota.falta ? 'font-medium text-warning-text' : 'text-muted-foreground')}>{nota.texto}</p>}
+        {sinGuardar && <MarcaSinGuardar />}
         {marcas.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {marcas.map((m) => (
@@ -307,7 +308,6 @@ function Formulario({
   const hora = useBorrador(horaCorta(grupo.hora_reunion))
   const capacidad = useBorrador(grupo.capacidad_maxima === null ? '' : String(grupo.capacidad_maxima))
   const directores = useBorrador(claveIds(grupo.directores.map((d) => d.usuario_id)))
-  const [guardando, setGuardando] = useState<ReadonlySet<Campo>>(() => new Set())
   const [errores, setErrores] = useState<Partial<Record<Campo, string>>>({})
   const [anuncio, setAnuncio] = useState('')
 
@@ -316,19 +316,12 @@ function Formulario({
     setAnuncio(mensaje)
   }
 
-  /** One step with only `cambios`; true when the server accepted it. */
+  /** One edit with only `cambios` into the draft; true when the board accepted it. */
   const guardar = async (campo: Campo, cambios: Partial<DatosGrupo>): Promise<boolean> => {
     const que = NOMBRE_CAMPO[campo]
     setErrores((e) => ({ ...e, [campo]: undefined }))
-    setGuardando((g) => new Set(g).add(campo))
-    setAnuncio(`Guardando ${que}…`)
     const resultado = await onEditar(grupo, cambios, que)
-    setGuardando((g) => {
-      const siguiente = new Set(g)
-      siguiente.delete(campo)
-      return siguiente
-    })
-    if (resultado.ok) setAnuncio(`Guardaste ${que}`)
+    if (resultado.ok) setAnuncio(`Cambiaste ${que}. Sin guardar.`)
     else fallar(campo, resultado.mensaje)
     return resultado.ok
   }
@@ -340,7 +333,7 @@ function Formulario({
     if (await guardar('nombre', { nombre: limpio })) nombre.confirmar(limpio)
   }
 
-  /** A select saves at once; on a refusal it shows the saved value again, with the error. */
+  /** A select applies at once; on a refusal it shows the previous value again, with the error. */
   const guardarSeleccion = async (borrador: ReturnType<typeof useBorrador>, campo: Campo, valor: string, cambios: Partial<DatosGrupo>) => {
     if (valor === borrador.guardado) return
     borrador.cambiar(valor)
@@ -415,7 +408,6 @@ function Formulario({
           error={errores.nombre}
           autoComplete="off"
         />
-        <Guardando activo={guardando.has('nombre')} />
         {editable && nombreSugerido && nombreSugerido !== nombre.valor.trim() && (
           <BotonSistema
             type="button"
@@ -467,7 +459,6 @@ function Formulario({
           disabled={!editable}
           error={errores.localidad}
         />
-        <Guardando activo={guardando.has('localidad')} />
         {!localidad.valor && <p className="text-xs text-danger-text">Sin localidad no se puede publicar la temporada.</p>}
         {lugares.length > 0 && (
           <div className="space-y-1">
@@ -520,7 +511,6 @@ function Formulario({
             className="font-mono tabular-nums"
           />
         </div>
-        <Guardando activo={guardando.has('dia') || guardando.has('hora') || guardando.has('capacidad')} />
       </Seccion>
 
       <Seccion titulo="Directores de etapa">
@@ -542,7 +532,6 @@ function Formulario({
         ) : (
           <p className="text-sm text-foreground">{grupo.directores.length > 0 ? enLista(grupo.directores.map(nombrePersona)) : 'Sin director de etapa'}</p>
         )}
-        <Guardando activo={guardando.has('directores')} />
         {errores.directores && (
           <p role="alert" className="text-sm text-danger-text">
             {errores.directores}
@@ -597,7 +586,7 @@ export function PanelGrupo(props: PanelGrupoProps): ReactElement {
         grupo && (
           <>
             {editable && (
-              <p className="text-xs text-muted-foreground sm:mr-auto">Cada cambio se guarda solo como un paso; puedes deshacerlo con «Deshacer».</p>
+              <p className="text-xs text-muted-foreground sm:mr-auto">Los cambios quedan sin guardar hasta que toques «Guardar»; «Deshacer» quita el último.</p>
             )}
             {editable && puedeEliminarGrupo(grupo) && (
               <BotonSistema type="button" variante="peligro" tamaño="sm" onClick={() => onEliminar(grupo)}>
@@ -611,7 +600,7 @@ export function PanelGrupo(props: PanelGrupoProps): ReactElement {
         )
       }
     >
-      {/* Keyed so each group starts from its own data and save state. */}
+      {/* Keyed so each group starts from its own data and field state. */}
       {grupo && <Formulario key={grupo.grupo_id} {...props} grupo={grupo} />}
     </PanelLateralSistema>
   )

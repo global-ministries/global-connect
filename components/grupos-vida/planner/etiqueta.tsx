@@ -2,10 +2,12 @@
  * Planner — the small status tag of cards, people and bank rows ("Sin Líder",
  * "Repite líder", "Activo en 2026-I"). The status tag of foundations.md
  * (tint fill + `-text` token); the words carry the meaning, never the color
- * alone. Server-safe.
+ * alone. Server-safe. MarcaSinGuardar is the dot of a card or person that
+ * the session draft changed and is not saved yet (S24).
  */
 import type { ReactElement } from 'react'
 
+import { PuntoEstado } from '@/components/ui/punto-estado'
 import { cn } from '@/lib/utils'
 
 export type TonoEtiqueta = 'danger' | 'warning' | 'success' | 'info' | 'neutro'
@@ -24,4 +26,8 @@ export function EtiquetaPlanner({ tono, children }: { readonly tono: TonoEtiquet
       {children}
     </span>
   )
+}
+
+export function MarcaSinGuardar(): ReactElement {
+  return <PuntoEstado tono="info" etiqueta="Sin guardar" className="text-xs" />
 }

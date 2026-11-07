@@ -3,7 +3,8 @@
 /**
  * Planner — confirm deleting a group (S22). Only offered for a group that has
  * not started (puedeEliminarGrupo); the server refuses one that already
- * meets. Its people go back to the bank and the step can be undone.
+ * meets. Its people go back to the bank. Like every board change it waits
+ * for "Guardar" (S24) and "Deshacer" takes it back until then.
  */
 import type { ReactElement } from 'react'
 
@@ -33,7 +34,7 @@ export function DialogoEliminarGrupo({ grupo, onCerrar, onConfirmar }: DialogoEl
           <AlertDialogTitle>¿Eliminar {grupo?.nombre}?</AlertDialogTitle>
           <AlertDialogDescription>
             {personas > 0 ? `${contar(personas, 'persona vuelve', 'personas vuelven')} al banco. ` : ''}
-            Puedes deshacerlo con «Deshacer».
+            Se aplica al guardar; hasta entonces puedes quitarlo con «Deshacer».
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

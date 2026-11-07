@@ -1,11 +1,12 @@
 'use client'
 
 /**
- * Planner — what the board components need from the saved steps (T5b of
- * odd/tasks/planner-gdv.md): the actions of usePasosPlanner
- * (pasos-planner.tsx) through a context, and the drop zones. Without a
- * provider (a card or the bank rendered alone) the components stay
- * read-only. No server actions here, so the components stay testable alone.
+ * Planner — what the board components need from the session draft (T5b and
+ * S24 of odd/tasks/planner-gdv.md): the actions of usePasosPlanner
+ * (pasos-planner.tsx) through a context, what is still unsaved, and the drop
+ * zones. Without a provider (a card or the bank rendered alone) the
+ * components stay read-only. No server actions here, so the components stay
+ * testable alone.
  */
 import { createContext, useContext, useState, type DragEvent } from 'react'
 
@@ -27,10 +28,13 @@ export interface PeticionUbicar {
   readonly rol: RolDestino
 }
 
-export type EstadoGuardado =
-  | { readonly tipo: 'listo'; readonly en: number | null }
-  | { readonly tipo: 'guardando' }
-  | { readonly tipo: 'error'; readonly mensaje: string }
+/** What the draft changed and is not saved yet (S24): the board marks it "Sin guardar". */
+export interface Pendiente {
+  readonly grupo: (grupoId: string) => boolean
+  readonly persona: (usuarioId: string) => boolean
+  /** Pending changes that touch the segment ("Terminé mi segmento" waits for them). */
+  readonly enSegmento: (segmentoId: string) => number
+}
 
 export interface PasosPlanner {
   readonly editable: (segmentoId: string) => boolean
@@ -49,6 +53,7 @@ export interface PasosPlanner {
   /** The publish state of a segment (S14); null when it has no groups or the state could not be read. */
   readonly segmento: (segmentoId: string) => SegmentoPublicacion | null
   readonly marcar: (segmento: SegmentoPublicacion, terminado: boolean) => void
+  readonly pendiente: Pendiente
 }
 
 const PasosPlannerContext = createContext<PasosPlanner | null>(null)

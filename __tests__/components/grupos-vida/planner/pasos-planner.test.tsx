@@ -1,19 +1,20 @@
 /**
- * The board's saved steps (T5b of odd/tasks/planner-gdv.md; artboards 01, 02,
- * 05, 08; S2, S3, S4, S10, S11, S13–S15, S17, S22).
+ * The board's session draft (S24 of odd/tasks/planner-gdv.md; T5b; artboards
+ * 01, 02, 05, 08; S2, S3, S4, S10, S11, S13–S15, S17, S22).
  *
- * "Ubicar" (the keyboard and touch path) and dragging send one
- * planner_mover_personas step with the spouse rule: into Matrimonios the
- * couple, elsewhere only the person and the note of who stays. The move shows
- * at once and rolls back on error, with the server's message. The header's
- * save state and "Deshacer" (the actor's latest step, or why not). "Nuevo
- * grupo" with the name suggestion and every eligible director of the segment
- * (a couple as one option), an empty lane for every segment the actor edits
- * (T5c), "Usar <localidad>", deleting only groups that have not started, and
- * "Terminé mi segmento" disabled until 0 blockers.
+ * Nothing is saved while the director works: "Ubicar" (the keyboard and touch
+ * path), dragging, "Nuevo grupo", "Usar <localidad>" and deleting add a
+ * pending change, and the board, the bank and the alerts show the result at
+ * once. The header says "N cambios sin guardar" (the list, with "Quitar"),
+ * "Descartar" and "Guardar", which sends every change in one
+ * planner_guardar_cambios call; a refusal keeps the draft and points at the
+ * failed change. "Deshacer" removes the last pending change, then undoes the
+ * latest saved step. The spouse rule (S2), the scope (S10) and S22 stay
+ * client-side; "Terminé mi segmento" waits for the segment's changes to be
+ * saved; leaving the page with unsaved changes asks first.
  */
 import React from 'react'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { PlannerClient } from '@/components/grupos-vida/planner/planner-client'
@@ -32,23 +33,18 @@ const refresh = jest.fn()
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh, push: jest.fn(), replace: jest.fn() }) }))
 
 const acciones = {
-  moverPersonasAction: jest.fn(),
-  crearGrupoAction: jest.fn(),
-  editarGrupoAction: jest.fn(),
-  eliminarGrupoAction: jest.fn(),
+  guardarCambiosAction: jest.fn(),
   deshacerPasoAction: jest.fn(),
   marcarSegmentoAction: jest.fn(),
 }
 jest.mock('@/app/(auth)/grupos-vida/planificar/actions', () => ({
-  moverPersonasAction: (...a: unknown[]) => acciones.moverPersonasAction(...a),
-  crearGrupoAction: (...a: unknown[]) => acciones.crearGrupoAction(...a),
-  editarGrupoAction: (...a: unknown[]) => acciones.editarGrupoAction(...a),
-  eliminarGrupoAction: (...a: unknown[]) => acciones.eliminarGrupoAction(...a),
+  guardarCambiosAction: (...a: unknown[]) => acciones.guardarCambiosAction(...a),
   deshacerPasoAction: (...a: unknown[]) => acciones.deshacerPasoAction(...a),
   marcarSegmentoAction: (...a: unknown[]) => acciones.marcarSegmentoAction(...a),
 }))
 
 const PASO_OK = { ok: true, datos: { pasoId: 'p-nuevo', descripcion: 'movió a Ana', segmentosReabiertos: [] } }
+const GUARDADO_OK = (n: number) => ({ ok: true, datos: { guardados: n, pasos: [], gruposCreados: {} } })
 
 const TEMPORADA = {
   id: 't-2026-ii',
@@ -191,10 +187,23 @@ async function abrirUbicar(nombreFila: string) {
   return screen.getByRole('dialog', { name: `Ubicar a ${nombreFila}` })
 }
 
+/** Clicks the header "Guardar" and returns the changes it sent. */
+async function guardar() {
+  await userEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+  await waitFor(() => expect(acciones.guardarCambiosAction).toHaveBeenCalled())
+  const [{ temporadaId, cambios }] = acciones.guardarCambiosAction.mock.calls.at(-1) as [{ temporadaId: string; cambios: unknown[] }]
+  expect(temporadaId).toBe('t-2026-ii')
+  return cambios
+}
+
+const contador = (n: number) => screen.getByRole('button', { name: `${n} ${n === 1 ? 'cambio' : 'cambios'} sin guardar` })
+
 beforeEach(() => {
   jest.clearAllMocks()
   window.localStorage.clear()
-  Object.values(acciones).forEach((f) => f.mockResolvedValue(PASO_OK))
+  acciones.deshacerPasoAction.mockResolvedValue(PASO_OK)
+  acciones.marcarSegmentoAction.mockResolvedValue(PASO_OK)
+  acciones.guardarCambiosAction.mockImplementation(async ({ cambios }: { cambios: unknown[] }) => GUARDADO_OK(cambios.length))
 })
 
 describe('Ubicar and the spouse rule (S2, S11)', () => {
@@ -206,9 +215,8 @@ describe('Ubicar and the spouse rule (S2, S11)', () => {
     expect(within(dialogo).getByText('Su esposo no viene: sigue en Grupo #9 Familia Torrealba')).toBeInTheDocument()
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Ubicar' }))
 
-    expect(acciones.moverPersonasAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['ana'], grupoId: 'g-valientes', rol: 'miembro' })
-    await waitFor(() => expect(refresh).toHaveBeenCalled())
     expect(anuncio()).toHaveTextContent('Ana Gil en Mujeres Valientes')
+    expect(await guardar()).toEqual([{ tipo: 'mover', usuarios: ['ana'], grupo: 'g-valientes', rol: 'miembro' }])
   })
 
   it('moves the couple together into Matrimonios, with the chosen role', async () => {
@@ -220,7 +228,7 @@ describe('Ubicar and the spouse rule (S2, S11)', () => {
     expect(within(dialogo).getByText('Van los dos: es un grupo de Matrimonios')).toBeInTheDocument()
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Ubicar' }))
 
-    expect(acciones.moverPersonasAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['c1', 'c2'], grupoId: 'g-torrealba', rol: 'aprendiz' })
+    expect(await guardar()).toEqual([{ tipo: 'mover', usuarios: ['c1', 'c2'], grupo: 'g-torrealba', rol: 'aprendiz' }])
   })
 
   it('asks who goes when a couple row goes to a non-Matrimonios group', async () => {
@@ -232,7 +240,7 @@ describe('Ubicar and the spouse rule (S2, S11)', () => {
     expect(within(dialogo).getByText('Su esposo no viene: está en el banco')).toBeInTheDocument()
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Ubicar' }))
 
-    expect(acciones.moverPersonasAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['c2'], grupoId: 'g-valientes', rol: 'miembro' })
+    expect(await guardar()).toEqual([{ tipo: 'mover', usuarios: ['c2'], grupo: 'g-valientes', rol: 'miembro' }])
   })
 
   it('offers a director de etapa only the groups of their segments', async () => {
@@ -253,7 +261,7 @@ describe('Ubicar and the spouse rule (S2, S11)', () => {
     expect(within(dialogo).queryByLabelText('Rol')).not.toBeInTheDocument()
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Mover' }))
 
-    expect(acciones.moverPersonasAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['m4'], grupoId: null, rol: null })
+    expect(await guardar()).toEqual([{ tipo: 'mover', usuarios: ['m4'], grupo: null, rol: null }])
   })
 })
 
@@ -265,44 +273,233 @@ describe('dragging (S9)', () => {
     fireEvent.dragStart(fila)
     fireEvent.dragOver(tarjeta('Mujeres Valientes'))
     fireEvent.drop(tarjeta('Mujeres Valientes'))
-    await waitFor(() =>
-      expect(acciones.moverPersonasAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['ana'], grupoId: 'g-valientes', rol: 'miembro' }),
-    )
     expect(toast.info).toHaveBeenCalledWith('Su esposo no viene: sigue en Grupo #9 Familia Torrealba')
+    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '3 integrantes' })).toBeInTheDocument()
+    expect(contador(1)).toBeInTheDocument()
 
+    // Ana is on the card now; dragging her row onto the Líderes zone changes her role, still one pending move.
     await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: /integrantes/ }))
-    fireEvent.dragStart(within(banco()).getByRole('button', { name: 'Ubicar a Ana Gil' }).closest('li') as HTMLElement)
+    fireEvent.dragStart(within(tarjeta('Mujeres Valientes')).getByRole('listitem', { name: 'Ana Gil' }))
     fireEvent.drop(within(tarjeta('Mujeres Valientes')).getByRole('region', { name: 'Líderes' }))
-    await waitFor(() =>
-      expect(acciones.moverPersonasAction).toHaveBeenLastCalledWith({ temporadaId: 't-2026-ii', usuarioIds: ['ana'], grupoId: 'g-valientes', rol: 'lider' }),
-    )
+
+    expect(contador(1)).toBeInTheDocument()
+    expect(await guardar()).toEqual([{ tipo: 'mover', usuarios: ['ana'], grupo: 'g-valientes', rol: 'lider' }])
+    expect(acciones.guardarCambiosAction).toHaveBeenCalledTimes(1)
   })
 })
 
-describe('optimistic move and rollback (S13)', () => {
-  it('shows the move at once, then rolls it back with the server message', async () => {
-    let responder: (valor: unknown) => void = () => undefined
-    acciones.moverPersonasAction.mockReturnValue(new Promise((r) => (responder = r)))
-    render(<PlannerClient datos={datos()} pasos={[]} />)
+describe('the draft (S24)', () => {
+  async function ubicar(nombreFila: string, grupoId: string, rol?: string) {
+    const dialogo = await abrirUbicar(nombreFila)
+    await userEvent.selectOptions(within(dialogo).getByLabelText('Grupo'), grupoId)
+    if (rol) await userEvent.selectOptions(within(dialogo).getByLabelText('Rol'), rol)
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Ubicar' }))
+  }
 
+  it('shows a move at once, marks it unsaved and calls nobody until "Guardar"', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+
+    await ubicar('Ana Gil', 'g-valientes')
+
+    const valientes = tarjeta('Mujeres Valientes')
+    expect(within(valientes).getByRole('button', { name: '3 integrantes' })).toBeInTheDocument()
+    // The card and Ana's row in it.
+    expect(within(valientes).getAllByText('Sin guardar')).toHaveLength(2)
+    expect(within(tarjeta('Grupo #9 Familia Torrealba')).queryByText('Sin guardar')).not.toBeInTheDocument()
+    await userEvent.click(within(valientes).getByRole('button', { name: '3 integrantes' }))
+    expect(within(within(valientes).getByRole('listitem', { name: 'Ana Gil' })).getByText('Sin guardar')).toBeInTheDocument()
+    expect(contador(1)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
+    expect(acciones.guardarCambiosAction).not.toHaveBeenCalled()
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('lists the pending changes in order with counts per kind, and "Quitar" removes one', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+    await ubicar('Carlos Mendoza y Yelitza Mendoza', 'g-torrealba')
+    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Usar Cabudare como localidad de Grupo #9 Familia Torrealba' }))
+
+    await userEvent.click(contador(3))
+    const panel = screen.getByRole('dialog', { name: 'Cambios sin guardar' })
+    expect(within(panel).getByText('2 movimientos · 1 edición')).toBeInTheDocument()
+    const lista = within(panel).getByRole('list', { name: 'Cambios sin guardar' })
+    expect(within(lista).getAllByRole('listitem').map((li) => within(li).getByTestId('descripcion').textContent)).toEqual([
+      'Mover a Ana Gil a Mujeres Valientes como miembro',
+      'Mover a Carlos y Yelitza Mendoza a Grupo #9 Familia Torrealba como miembros',
+      'Cambiar localidad de Grupo #9 Familia Torrealba a Cabudare',
+    ])
+
+    await userEvent.click(within(lista).getByRole('button', { name: 'Quitar: Mover a Ana Gil a Mujeres Valientes como miembro' }))
+
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(2)
+    await userEvent.keyboard('{Escape}')
+    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '2 integrantes' })).toBeInTheDocument()
+    expect(contador(2)).toBeInTheDocument()
+  })
+
+  it('refuses to remove a new group while a later change moves people into it', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Mujeres +36' }))
+    const nuevo = screen.getByRole('dialog', { name: 'Nuevo grupo de Mujeres +36' })
+    await userEvent.type(within(nuevo).getByLabelText('Nombre'), 'Rosas de Sarón')
+    await userEvent.click(within(nuevo).getByRole('button', { name: 'Crear grupo' }))
+    await ubicar('Ana Gil', 'tmp:g1')
+
+    await userEvent.click(contador(2))
+    const quitar = within(screen.getByRole('dialog', { name: 'Cambios sin guardar' })).getByRole('button', { name: 'Quitar: Crear grupo Rosas de Sarón' })
+    expect(quitar).toHaveAttribute('aria-disabled', 'true')
+    expect(quitar).toHaveAccessibleDescription('Primero quita «Mover a Ana Gil a Rosas de Sarón como miembro»: usa este grupo nuevo.')
+    await userEvent.click(quitar)
+
+    expect(toast.info).toHaveBeenCalledWith('Primero quita «Mover a Ana Gil a Rosas de Sarón como miembro»: usa este grupo nuevo.')
+    expect(within(screen.getByRole('list', { name: 'Cambios sin guardar' })).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('"Descartar" asks, then puts the board back as saved', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Descartar' }))
+    const confirmar = screen.getByRole('alertdialog', { name: '¿Descartar 1 cambio sin guardar?' })
+    await userEvent.click(within(confirmar).getByRole('button', { name: 'Descartar' }))
+
+    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '2 integrantes' })).toBeInTheDocument()
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument()
+    expect(acciones.guardarCambiosAction).not.toHaveBeenCalled()
+  })
+
+  it('"Guardar" sends every change in order, then clears the draft and refreshes', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+    await ubicar('Carlos Mendoza y Yelitza Mendoza', 'g-torrealba', 'aprendiz')
+
+    expect(await guardar()).toEqual([
+      { tipo: 'mover', usuarios: ['ana'], grupo: 'g-valientes', rol: 'miembro' },
+      { tipo: 'mover', usuarios: ['c1', 'c2'], grupo: 'g-torrealba', rol: 'aprendiz' },
+    ])
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Se guardaron 2 cambios'))
+    expect(refresh).toHaveBeenCalled()
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument()
+    // Until the refreshed data arrives the saved changes stay on the board.
+    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '3 integrantes' })).toBeInTheDocument()
+    expect(window.localStorage.getItem('planner-gdv:borrador:u-dg:t-2026-ii')).toBeNull()
+  })
+
+  it('keeps every change when the server refuses one, and points at it', async () => {
+    acciones.guardarCambiosAction.mockResolvedValue({
+      ok: false,
+      codigo: '42501',
+      indice: 1,
+      mensaje: 'Cambio 2 de 3: No puedes mover personas a Grupo #9 Familia Torrealba: es de otro segmento (Matrimonios).',
+    })
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+    await ubicar('Carlos Mendoza y Yelitza Mendoza', 'g-torrealba')
+    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Usar Cabudare como localidad de Grupo #9 Familia Torrealba' }))
+
+    await guardar()
+
+    const panel = await screen.findByRole('dialog', { name: 'Cambios sin guardar' })
+    expect(within(panel).getByRole('alert')).toHaveTextContent('No se guardó ningún cambio.')
+    const items = within(within(panel).getByRole('list', { name: 'Cambios sin guardar' })).getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    expect(items[1]).toHaveAttribute('data-error', 'true')
+    expect(items[1]).toHaveTextContent('Cambio 2 de 3: No puedes mover personas a Grupo #9 Familia Torrealba: es de otro segmento (Matrimonios).')
+    expect(items[0]).not.toHaveAttribute('data-error')
+    expect(toast.error).toHaveBeenCalledWith('Cambio 2 de 3: No puedes mover personas a Grupo #9 Familia Torrealba: es de otro segmento (Matrimonios).')
+    expect(refresh).not.toHaveBeenCalled()
+    await userEvent.keyboard('{Escape}')
+    expect(contador(3)).toBeInTheDocument()
+  })
+
+  it('keeps the draft when the database is missing the update', async () => {
+    acciones.guardarCambiosAction.mockResolvedValue({ ok: false, codigo: 'PGRST202', indice: null, mensaje: 'Falta aplicar la actualización del planificador en la base de datos' })
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+
+    await guardar()
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Falta aplicar la actualización del planificador en la base de datos'))
+    expect(contador(1)).toBeInTheDocument()
+  })
+
+  it('survives a reload: the draft is kept per user and season', async () => {
+    const { unmount } = render(<PlannerClient datos={datos()} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+    unmount()
+
+    const otra = render(<PlannerClient datos={datos()} pasos={[]} />)
+    expect(contador(1)).toBeInTheDocument()
+    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '3 integrantes' })).toBeInTheDocument()
+    otra.unmount()
+
+    render(<PlannerClient datos={datos({ temporada: { ...TEMPORADA, id: 't-otra' } })} pasos={[]} />)
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument()
+  })
+
+  it('asks before leaving the page only while there are unsaved changes', async () => {
+    const agregar = jest.spyOn(window, 'addEventListener')
+    const quitar = jest.spyOn(window, 'removeEventListener')
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    expect(agregar.mock.calls.filter(([tipo]) => tipo === 'beforeunload')).toHaveLength(0)
+
+    await ubicar('Ana Gil', 'g-valientes')
+    expect(agregar.mock.calls.filter(([tipo]) => tipo === 'beforeunload')).toHaveLength(1)
+    const evento = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(evento)
+    expect(evento.defaultPrevented).toBe(true)
+
+    await guardar()
+    await waitFor(() => expect(quitar.mock.calls.filter(([tipo]) => tipo === 'beforeunload')).toHaveLength(1))
+    agregar.mockRestore()
+    quitar.mockRestore()
+  })
+
+  it('asks before switching season with unsaved changes', async () => {
+    const confirmar = jest.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<PlannerClient datos={datos({ capacidades: { ...DIRECTOR_GENERAL, temporadas: [TEMPORADA, { ...TEMPORADA, id: 't-2026-i', nombre: '2026-I' }] } })} pasos={[]} />)
+    await ubicar('Ana Gil', 'g-valientes')
+
+    await userEvent.click(screen.getByRole('button', { name: /cambiar de temporada/ }))
+    await userEvent.click(screen.getByRole('link', { name: /2026-I\b(?!I)/ }))
+
+    expect(confirmar).toHaveBeenCalledWith('Tienes 1 cambio sin guardar en 2026-II. Quedan en este navegador hasta que los guardes o descartes. ¿Cambiar de temporada?')
+    confirmar.mockRestore()
+  })
+})
+
+describe('Deshacer (S15, S24)', () => {
+  it('removes the last pending change first, with Ctrl/Cmd+Z too, then undoes the latest saved step', async () => {
+    render(<PlannerClient datos={datos()} pasos={[paso({ paso_id: 'p-mio' })]} />)
     const dialogo = await abrirUbicar('Ana Gil')
     await userEvent.selectOptions(within(dialogo).getByLabelText('Grupo'), 'g-valientes')
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Ubicar' }))
+    const otro = await abrirUbicar('Carlos Mendoza y Yelitza Mendoza')
+    await userEvent.selectOptions(within(otro).getByLabelText('Grupo'), 'g-torrealba')
+    await userEvent.click(within(otro).getByRole('button', { name: 'Ubicar' }))
 
-    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '3 integrantes' })).toBeInTheDocument()
-    expect(screen.getByText('Guardando…')).toBeInTheDocument()
+    const deshacer = screen.getByRole('button', { name: 'Deshacer' })
+    expect(deshacer).toHaveAccessibleDescription('Quita: Mover a Carlos y Yelitza Mendoza a Grupo #9 Familia Torrealba como miembros')
+    await userEvent.click(deshacer)
+    expect(contador(1)).toBeInTheDocument()
+    expect(anuncio()).toHaveTextContent('Quitaste: Mover a Carlos y Yelitza Mendoza a Grupo #9 Familia Torrealba como miembros')
 
-    await act(async () => responder({ ok: false, codigo: '42501', mensaje: 'No puedes mover personas a Mujeres Valientes: es de otro segmento (Mujeres +36).' }))
-
+    await userEvent.keyboard('{Control>}z{/Control}')
+    expect(screen.getByText('Todo guardado')).toBeInTheDocument()
     expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: '2 integrantes' })).toBeInTheDocument()
-    expect(toast.error).toHaveBeenCalledWith('No puedes mover personas a Mujeres Valientes: es de otro segmento (Mujeres +36).')
-    expect(screen.getByText('No se guardó')).toBeInTheDocument()
-    expect(refresh).not.toHaveBeenCalled()
-  })
-})
+    expect(acciones.deshacerPasoAction).not.toHaveBeenCalled()
 
-describe('save state and Deshacer (S13, S15)', () => {
-  it('undoes the actor latest step that is not an undo', async () => {
+    const guardado = screen.getByRole('button', { name: 'Deshacer último guardado' })
+    expect(guardado).toHaveAccessibleDescription('Deshace: movió a Ana Gil a Mujeres Valientes')
+    await userEvent.click(guardado)
+    expect(acciones.deshacerPasoAction).toHaveBeenCalledWith({ pasoId: 'p-mio' })
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
+  })
+
+  it('undoes the actor latest saved step that is not an undo', async () => {
     const pasos = [
       paso({ paso_id: 'p-otro', actor_id: 'u-otro', numero: 4 }),
       paso({ paso_id: 'p-deshacer', accion: 'deshacer', numero: 3 }),
@@ -311,19 +508,18 @@ describe('save state and Deshacer (S13, S15)', () => {
     ]
     render(<PlannerClient datos={datos()} pasos={pasos} />)
 
-    expect(screen.getByText(/^Guardado · hace 1 min$/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer último guardado' }))
 
     expect(acciones.deshacerPasoAction).toHaveBeenCalledWith({ pasoId: 'p-mio' })
     await waitFor(() => expect(anuncio()).toHaveTextContent('Deshiciste: movió a Ana Gil a Mujeres Valientes'))
     expect(refresh).toHaveBeenCalled()
   })
 
-  it('says why the latest step cannot be undone and does not call the server', async () => {
+  it('says why the latest saved step cannot be undone and does not call the server', async () => {
     const motivo = 'No se puede deshacer: después Héctor Linárez editó el grupo Mujeres Valientes'
     render(<PlannerClient datos={datos()} pasos={[paso({ puede_deshacer: false, motivo_no_deshacer: motivo })]} />)
 
-    const boton = screen.getByRole('button', { name: 'Deshacer' })
+    const boton = screen.getByRole('button', { name: 'Deshacer último guardado' })
     expect(boton).toHaveAttribute('aria-disabled', 'true')
     expect(boton).toHaveAccessibleDescription(motivo)
     await userEvent.click(boton)
@@ -336,7 +532,7 @@ describe('save state and Deshacer (S13, S15)', () => {
     acciones.deshacerPasoAction.mockResolvedValue({ ok: false, codigo: '40001', mensaje: 'No se puede deshacer: Ana ahora está en Grupo Rosas.' })
     render(<PlannerClient datos={datos()} pasos={[paso()]} />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Deshacer' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Deshacer último guardado' }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('No se puede deshacer: Ana ahora está en Grupo Rosas.'))
   })
@@ -344,13 +540,12 @@ describe('save state and Deshacer (S13, S15)', () => {
   it('has nothing to undo without own steps', () => {
     render(<PlannerClient datos={datos()} pasos={[paso({ actor_id: 'u-otro' })]} />)
 
-    expect(screen.getByRole('button', { name: 'Deshacer' })).toHaveAccessibleDescription('No tienes cambios para deshacer')
+    expect(screen.getByRole('button', { name: 'Deshacer último guardado' })).toHaveAccessibleDescription('No tienes cambios para deshacer')
   })
 })
 
 describe('groups (S3, S4, S22)', () => {
-  it('creates a group in the lane with the suggested name and the segment directors', async () => {
-    acciones.crearGrupoAction.mockResolvedValue({ ok: true, datos: { ...PASO_OK.datos, grupoId: 'g-nuevo' } })
+  it('creates a group in the lane with the suggested name and the segment directors, as a pending change', async () => {
     render(<PlannerClient datos={datos()} pasos={[]} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Matrimonios' }))
@@ -363,19 +558,25 @@ describe('groups (S3, S4, S22)', () => {
     await userEvent.click(within(panel).getByRole('button', { name: 'Héctor Linárez' }))
     await userEvent.click(within(panel).getByRole('button', { name: 'Crear grupo' }))
 
-    expect(acciones.crearGrupoAction).toHaveBeenCalledWith({
-      temporadaId: 't-2026-ii',
-      datos: {
-        nombre: 'Cabudare Matrimonios 1',
-        segmento_id: 'seg-mat',
-        localidad_id: 'loc-cab',
-        dia_reunion: 'Jueves',
-        hora_reunion: '19:30',
-        capacidad_maxima: 12,
-        director_etapa_ids: ['u-hector'],
-      },
-    })
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo grupo de Matrimonios' })).not.toBeInTheDocument())
+    const nuevo = tarjeta('Cabudare Matrimonios 1')
+    expect(within(nuevo).getByText('Sin guardar')).toBeInTheDocument()
+    expect(within(nuevo).getByText('Matrimonios · Cabudare')).toBeInTheDocument()
+    expect(await guardar()).toEqual([
+      {
+        tipo: 'crear',
+        clave: 'tmp:g1',
+        datos: {
+          nombre: 'Cabudare Matrimonios 1',
+          segmento_id: 'seg-mat',
+          localidad_id: 'loc-cab',
+          dia_reunion: 'Jueves',
+          hora_reunion: '19:30',
+          capacidad_maxima: 12,
+          director_etapa_ids: ['u-hector'],
+        },
+      },
+    ])
   })
 
   it('offers every eligible director of the lane segment, a couple as one option', async () => {
@@ -390,7 +591,6 @@ describe('groups (S3, S4, S22)', () => {
       persona({ usuario_id: 'u-luisa', nombre: 'Luisa', apellido: 'Pérez', conyuge_id: 'u-orlando', ...sinGrupo }),
       persona({ usuario_id: 'u-orlando', nombre: 'Orlando', apellido: 'Pérez', conyuge_id: 'u-luisa', ...sinGrupo }),
     ]
-    acciones.crearGrupoAction.mockResolvedValue({ ok: true, datos: { ...PASO_OK.datos, grupoId: 'g-nuevo' } })
     render(<PlannerClient datos={datos({ capacidades, banco: [...datos().banco, ...conyuges] })} pasos={[]} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Matrimonios' }))
@@ -405,10 +605,9 @@ describe('groups (S3, S4, S22)', () => {
     await userEvent.type(within(panel).getByLabelText('Nombre'), 'Rosas')
     await userEvent.click(within(panel).getByRole('button', { name: 'Crear grupo' }))
 
-    expect(acciones.crearGrupoAction).toHaveBeenCalledWith({
-      temporadaId: 't-2026-ii',
-      datos: expect.objectContaining({ segmento_id: 'seg-mat', director_etapa_ids: ['u-luisa', 'u-orlando', 'u-ramon'] }),
-    })
+    expect(await guardar()).toEqual([
+      { tipo: 'crear', clave: 'tmp:g1', datos: expect.objectContaining({ segmento_id: 'seg-mat', director_etapa_ids: ['u-luisa', 'u-orlando', 'u-ramon'] }) },
+    ])
   })
 
   it('lists spouses individually when only one of them is eligible', async () => {
@@ -431,16 +630,32 @@ describe('groups (S3, S4, S22)', () => {
     expect(within(panel).getByText('Matrimonios no tiene directores de etapa todavía; puedes asignarlo después.')).toBeInTheDocument()
   })
 
-  it('keeps the form open with the server message when creating fails', async () => {
-    acciones.crearGrupoAction.mockResolvedValue({ ok: false, codigo: '22023', mensaje: 'Ya existe un grupo llamado «Rosas» en Matrimonios en esta temporada.' })
+  it('keeps the form open when the name is already used in the segment, without a pending change', async () => {
     render(<PlannerClient datos={datos()} pasos={[]} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Matrimonios' }))
     const panel = screen.getByRole('dialog', { name: 'Nuevo grupo de Matrimonios' })
-    await userEvent.type(within(panel).getByLabelText('Nombre'), 'Rosas')
+    await userEvent.type(within(panel).getByLabelText('Nombre'), 'grupo #9  familia torrealba')
     await userEvent.click(within(panel).getByRole('button', { name: 'Crear grupo' }))
 
-    expect(await within(panel).findByText('Ya existe un grupo llamado «Rosas» en Matrimonios en esta temporada.')).toBeInTheDocument()
+    expect(await within(panel).findByText('Ya hay un grupo llamado «grupo #9 familia torrealba» en Matrimonios.')).toBeInTheDocument()
+    expect(within(panel).getByLabelText('Nombre')).toBeInTheDocument()
+  })
+
+  it('moves people into a new group by its tmp key', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo grupo en Mujeres +36' }))
+    const panel = screen.getByRole('dialog', { name: 'Nuevo grupo de Mujeres +36' })
+    await userEvent.type(within(panel).getByLabelText('Nombre'), 'Rosas de Sarón')
+    await userEvent.click(within(panel).getByRole('button', { name: 'Crear grupo' }))
+
+    const dialogo = await abrirUbicar('Ana Gil')
+    await userEvent.selectOptions(within(dialogo).getByLabelText('Grupo'), 'tmp:g1')
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Ubicar' }))
+
+    expect(within(tarjeta('Rosas de Sarón')).getByRole('button', { name: '1 integrante' })).toBeInTheDocument()
+    expect((await guardar()).map((c) => (c as { tipo: string }).tipo)).toEqual(['crear', 'mover'])
+    expect((acciones.guardarCambiosAction.mock.calls[0][0] as { cambios: unknown[] }).cambios[1]).toEqual({ tipo: 'mover', usuarios: ['ana'], grupo: 'tmp:g1', rol: 'miembro' })
   })
 
   it('applies the suggested localidad with "Usar <localidad>"', async () => {
@@ -448,7 +663,9 @@ describe('groups (S3, S4, S22)', () => {
 
     await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Usar Cabudare como localidad de Grupo #9 Familia Torrealba' }))
 
-    expect(acciones.editarGrupoAction).toHaveBeenCalledWith({ grupoId: 'g-torrealba', cambios: { localidad_id: 'loc-cab' } })
+    expect(within(tarjeta('Grupo #9 Familia Torrealba')).getByText('Matrimonios · Cabudare')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Matrimonios' })).getByRole('group', { name: 'Cabudare, 1 grupo' })).toBeInTheDocument()
+    expect(await guardar()).toEqual([{ tipo: 'editar', grupo: 'g-torrealba', cambios: { localidad_id: 'loc-cab' } }])
   })
 
   it('deletes, after confirming, only a group that has not started', async () => {
@@ -463,7 +680,8 @@ describe('groups (S3, S4, S22)', () => {
     const confirmar = screen.getByRole('alertdialog', { name: '¿Eliminar Grupo #9 Familia Torrealba?' })
     await userEvent.click(within(confirmar).getByRole('button', { name: 'Eliminar' }))
 
-    expect(acciones.eliminarGrupoAction).toHaveBeenCalledWith({ grupoId: 'g-torrealba' })
+    expect(screen.queryByRole('article', { name: 'Grupo #9 Familia Torrealba' })).not.toBeInTheDocument()
+    expect(await guardar()).toEqual([{ tipo: 'eliminar', grupo: 'g-torrealba' }])
   })
 
   it('does not delete a group whose cycle is active', async () => {
@@ -534,6 +752,22 @@ describe('"Terminé mi segmento" (S14, S17)', () => {
     await userEvent.click(within(matrimonios).getByRole('button', { name: 'Desmarcar Matrimonios como terminado' }))
 
     expect(acciones.marcarSegmentoAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', segmentoId: 'seg-mat', terminado: false })
+  })
+
+  it('waits for the segment changes to be saved; marking itself saves at once', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Usar Cabudare como localidad de Grupo #9 Familia Torrealba' }))
+
+    const boton = within(screen.getByRole('region', { name: 'Matrimonios' })).getByRole('button', { name: 'Terminé mi segmento' })
+    expect(boton).toHaveAttribute('aria-disabled', 'true')
+    expect(boton).toHaveAccessibleDescription('Guarda tus cambios primero')
+    await userEvent.click(boton)
+    expect(acciones.marcarSegmentoAction).not.toHaveBeenCalled()
+
+    await guardar()
+    await waitFor(() => expect(within(screen.getByRole('region', { name: 'Matrimonios' })).getByRole('button', { name: 'Terminé mi segmento' })).not.toHaveAttribute('aria-disabled', 'true'))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Matrimonios' })).getByRole('button', { name: 'Terminé mi segmento' }))
+    expect(acciones.marcarSegmentoAction).toHaveBeenCalledWith({ temporadaId: 't-2026-ii', segmentoId: 'seg-mat', terminado: true })
   })
 
   it('is not offered on segments the actor does not edit', () => {

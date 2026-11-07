@@ -7,7 +7,9 @@
  * description, until the segment has groups and 0 blockers
  * (puedeMarcarSegmento, the same check as planner_marcar_segmento). Once
  * marked: "Terminado por <nombre>" and "Desmarcar". Any later step on the
- * segment removes the mark on the server (S17); the refresh shows it.
+ * segment removes the mark on the server (S17); the refresh shows it. With
+ * unsaved changes in the segment (S24) it waits: "Guarda tus cambios
+ * primero". Marking itself saves at once.
  */
 import { useId, type ReactElement } from 'react'
 
@@ -40,7 +42,7 @@ export function MarcaSegmento({ segmento }: { readonly segmento: SegmentoPublica
     )
   }
 
-  const { puede, motivo } = puedeMarcarSegmento(segmento)
+  const { puede, motivo } = pasos.pendiente.enSegmento(segmento.id) > 0 ? { puede: false, motivo: 'Guarda tus cambios primero' } : puedeMarcarSegmento(segmento)
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
       <BotonSistema

@@ -65,7 +65,7 @@ function Formulario({ peticion, grupos, fichas, onCerrar, onConfirmar }: Dialogo
         <DialogTitle>
           {verbo} a {carga.nombre}
         </DialogTitle>
-        <DialogDescription>Se guarda al confirmar y puedes deshacerlo.</DialogDescription>
+        <DialogDescription>Queda sin guardar hasta que toques «Guardar».</DialogDescription>
       </DialogHeader>
       <form id={idForm} onSubmit={enviar} className="space-y-4">
         <SelectSistema label="Grupo" opciones={opciones} placeholder="Elige un grupo" value={destino} onValueChange={(v) => setDestino(v)} />

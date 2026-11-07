@@ -1,9 +1,9 @@
 /**
- * The pure step helpers of the board (T5b): the optimistic move, the spouse
- * plan of a move (S2), whether a move changes anything, deletable groups
- * (S22) and the relative save time.
+ * The pure step helpers of the board (T5b): a move on the board, the spouse
+ * plan of a move (S2), whether a move changes anything and deletable groups
+ * (S22).
  */
-import { aplicarMovimiento, cambiaAlgo, haceCuanto, planearMovimiento, puedeEliminarGrupo } from '@/components/grupos-vida/planner/modelo'
+import { aplicarMovimiento, cambiaAlgo, planearMovimiento, puedeEliminarGrupo } from '@/components/grupos-vida/planner/modelo'
 import { bancoDe, enGrupo, grupo, persona } from '@/lib/platform/grupos-vida/planner/__fixtures__/planner'
 
 const MAT = grupo({ grupo_id: 'g-mat', nombre: 'Matrimonios 1', miembros: [enGrupo('m1')] })
@@ -41,7 +41,7 @@ describe('planearMovimiento (S2)', () => {
   })
 })
 
-describe('cambiaAlgo, puedeEliminarGrupo and haceCuanto', () => {
+describe('cambiaAlgo and puedeEliminarGrupo', () => {
   it('skips a move that leaves everything as it is', () => {
     expect(cambiaAlgo(ESTADO, { usuarioIds: ['m1'], grupoId: 'g-mat', rol: 'miembro' })).toBe(false)
     expect(cambiaAlgo(ESTADO, { usuarioIds: ['m1'], grupoId: 'g-mat', rol: 'lider' })).toBe(true)
@@ -54,11 +54,4 @@ describe('cambiaAlgo, puedeEliminarGrupo and haceCuanto', () => {
     expect(puedeEliminarGrupo({ activo: false, estado_ciclo: 'activo' })).toBe(false)
   })
 
-  it('says how long ago it was saved', () => {
-    expect(haceCuanto(0, 3_000)).toBe('ahora')
-    expect(haceCuanto(0, 42_000)).toBe('hace 42 s')
-    expect(haceCuanto(0, 180_000)).toBe('hace 3 min')
-    expect(haceCuanto(0, 7_200_000)).toBe('hace 2 h')
-    expect(haceCuanto(null, 1)).toBeNull()
-  })
 })
