@@ -32,7 +32,7 @@
 --   (d) anon cannot read taller_inscripciones nor usuarios (permission
 --       denied or zero rows), nor execute talleres_inscribirme.
 --   (e) the new account enrolls in Jun through talleres_inscribirme:
---       ok, estado pendiente; then cupo_restante reads 11 for anon; a
+--       ok, estado aprobado (Próximo Paso has inscripcion_automatica on); then cupo_restante reads 11 for anon; a
 --       second call answers YA_INSCRITO; Jul (cancelado) answers
 --       EDICION_NOT_FOUND.
 --   structural: SECURITY DEFINER, search_path pinned, EXECUTE for anon and
@@ -285,8 +285,8 @@ EXCEPTION
 END;
 $e$;
 
-SELECT pg_temp.assert_rows('(e) the first enrollment is ok and pendiente',
-  $$SELECT 1 FROM t_pr_resultado WHERE key = 'e1' AND (valor ->> 'ok')::boolean AND valor ->> 'estado' = 'pendiente'$$, 1);
+SELECT pg_temp.assert_rows('(e) the first enrollment is ok and aprobado',
+  $$SELECT 1 FROM t_pr_resultado WHERE key = 'e1' AND (valor ->> 'ok')::boolean AND valor ->> 'estado' = 'aprobado'$$, 1);
 SELECT pg_temp.assert_rows('(e) a second enrollment answers YA_INSCRITO',
   $$SELECT 1 FROM t_pr_resultado WHERE key = 'e2' AND valor ->> 'codigo' = 'YA_INSCRITO'$$, 1);
 SELECT pg_temp.assert_rows('(e) a cancelled edición answers EDICION_NOT_FOUND',
@@ -298,7 +298,7 @@ SELECT pg_temp.assert_rows('(e) the inscripción belongs to the new ficha',
   $$SELECT 1 FROM public.taller_inscripciones i
      WHERE i.taller_id = (SELECT id FROM t_pr_fixture WHERE key = 'pp_jun')
        AND i.persona_principal_id = 'c7b00000-0000-4000-8000-000000000041'
-       AND i.estado = 'pendiente'$$, 1);
+       AND i.estado = 'aprobado'$$, 1);
 
 SET LOCAL ROLE anon;
 SELECT pg_temp.as_anon();
