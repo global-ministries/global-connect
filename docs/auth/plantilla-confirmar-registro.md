@@ -38,7 +38,7 @@ Supabase corta.
 <div style="font-family: Arial, Helvetica, sans-serif; color: #1f2937; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="margin: 0 0 16px; font-size: 22px;">Confirma tu correo</h2>
   <p style="margin: 0 0 16px; font-size: 16px; line-height: 1.5;">
-    ¡Hola! Para terminar de crear tu cuenta en Global, escribe este código en la página donde te registraste:
+    ¡Hola! Para terminar de crear tu cuenta en Global, escribe este código en la página de Próximo Paso donde te registraste. Si te registraste desde otra página, usa el botón de abajo.
   </p>
   <p style="margin: 0 0 16px; text-align: center;">
     <span style="display: inline-block; padding: 12px 20px; font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; letter-spacing: 8px; border: 1px solid #d1d5db; border-radius: 12px;">{{ .Token }}</span>

@@ -112,6 +112,11 @@ const CODIGO_INVALIDO = fallo(
   'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.',
 )
 const LIMITE_CODIGO = fallo('LIMITE', 'Hiciste muchos intentos. Espera un momento y vuelve a intentarlo.')
+// A server or network failure is not a bad code: asking for a new one would not help.
+const CODIGO_NO_VERIFICADO = fallo(
+  'internal',
+  'No pudimos revisar tu código en este momento. Espera unos segundos y vuelve a intentarlo.',
+)
 const CODIGO_REENVIADO: ResultadoReenvio = {
   ok: true,
   message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.',
@@ -159,6 +164,12 @@ function esCorreoExistente(error: ErrorAuth): boolean {
 
 function esLimite(error: ErrorAuth): boolean {
   return error?.status === 429 || (error?.code ?? '').startsWith('over_')
+}
+
+/** Supabase down or unreachable (5xx, or status 0 on a network error). */
+function esFalloTemporal(error: ErrorAuth): boolean {
+  const status = error?.status
+  return status === 0 || (typeof status === 'number' && status >= 500)
 }
 
 /** The confirmation email of a signup, whose link comes back to the chosen edición. */
@@ -280,7 +291,11 @@ export async function confirmarCodigoProximoPaso(input: unknown): Promise<Result
   const client = await createSupabaseServerClient()
   // The SSR client stores the new session in the response cookies.
   const { data, error } = await client.auth.verifyOtp({ email, token, type: 'signup' })
-  if (error) return esLimite(error) ? LIMITE_CODIGO : CODIGO_INVALIDO
+  if (error) {
+    if (esLimite(error)) return LIMITE_CODIGO
+    if (esFalloTemporal(error)) return CODIGO_NO_VERIFICADO
+    return CODIGO_INVALIDO
+  }
   const user = data?.user
   if (!user || !data.session) return CODIGO_INVALIDO
 
