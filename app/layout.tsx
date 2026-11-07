@@ -22,28 +22,22 @@ export const metadata: Metadata = {
   title: 'Global Connect',
   description: 'Sistema para los miembros de Global Barquisimeto.',
   generator: 'Global Connect',
+  applicationName: 'Global Connect',
+  // Local files the middleware serves without a session (installing the app).
   icons: {
     icon: [
-      {
-        url: 'https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/favicon%20global.webp',
-        type: 'image/webp',
-        sizes: '512x512',
-      },
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-512.png', type: 'image/png', sizes: '512x512' },
     ],
-    shortcut: [
-      {
-        url: 'https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/favicon%20global.webp',
-        type: 'image/webp',
-        sizes: '512x512',
-      },
-    ],
-    apple: [
-      {
-        url: 'https://wcnqocyqtksxhthnquta.supabase.co/storage/v1/object/public/logos/favicon%20global.webp',
-        type: 'image/webp',
-        sizes: '180x180',
-      },
-    ],
+    shortcut: ['/favicon.ico'],
+    apple: [{ url: '/apple-touch-icon.png', type: 'image/png', sizes: '180x180' }],
+  },
+  // iPhone "Agregar a pantalla de inicio": opens full screen with this title.
+  appleWebApp: {
+    capable: true,
+    title: 'Global',
+    statusBarStyle: 'default',
   },
   openGraph: {
     title: 'Global Connect',
