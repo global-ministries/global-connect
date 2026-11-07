@@ -1,0 +1,614 @@
+'use client'
+
+/**
+ * Planner — one group as a side panel (T6 of odd/tasks/planner-gdv.md;
+ * artboard 02; S2–S5, S7, S10, S13, S22). Opened from a card (its name or
+ * "Abrir"), from the alerts ("Ir al grupo") and from the bank (the person's
+ * current group).
+ *
+ * Sections: Nombre (free name, "Usar sugerencia" from sugerirNombre, the
+ * computed label and full name, S4), Localidad (selector, the suggestion of
+ * sugerirLocalidad with its reason and "Usar <localidad>", where the members
+ * live, S3, S5), Reunión (day, hour, capacity; the meeting address has no
+ * field in the step RPC yet), Directores de etapa (the eligible ones of the
+ * segment, a couple as one option, at most MAXIMO_DIRECTORES) and Integrantes
+ * by role with each person's warning chips and the actions change role,
+ * "Mover" (the Ubicar dialog) and back to the bank. Spouses of one role are
+ * one row (S23) with the role per person and Mover / Al banco for both; a
+ * missing spouse is marked in Matrimonios.
+ *
+ * Each field applies on blur or selection as one edit with only the changed
+ * key, added to the session draft (S24): the board shows it at once and it
+ * is saved with the rest on "Guardar". A refusal (a used name, a bad
+ * capacity) shows in the field and in the panel's live region. People the
+ * draft moved show "Sin guardar". Read-only (fields disabled, actions
+ * hidden) for a segment the actor does not edit (S10); "Eliminar grupo" only
+ * while the group has not started (S22). The sheet traps the focus, closes
+ * with Escape and returns the focus to what opened it.
+ */
+import { Fragment, useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
+
+import { DetalleResponsivo, useEsEscritorio } from '@/components/ui/detalle-responsivo'
+import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
+import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
+import { AvisoFormulario } from '@/components/forms/aviso-formulario'
+import {
+  enLista,
+  etiquetaGrupo,
+  nombreCompleto,
+  nombrePersona,
+  personasDelGrupo,
+  sugerirLocalidad,
+  sugerirNombre,
+  type Aviso,
+  type Bloqueo,
+  type GrupoTablero,
+  type Localidad,
+  type PersonaBanco,
+  type SegmentoConDirectores,
+} from '@/lib/platform/grupos-vida/planner'
+import { DIAS_REUNION, LARGO_NOMBRE_GRUPO, MAXIMO_DIRECTORES, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
+import { cn } from '@/lib/utils'
+
+import { usePasos, type Carga } from './contexto-pasos'
+import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
+import {
+  ETIQUETA_ROL,
+  directoresElegibles,
+  dondeViven,
+  filasDelRol,
+  horaCorta,
+  insigniasGrupo,
+  insigniasPersona,
+  nombresFila,
+  notaPareja,
+  puedeEliminarGrupo,
+  rolEnGrupo,
+  rolesGrupo,
+  type DirectorElegible,
+  type FilaRol,
+  type RolDestino,
+  type RolGrupo,
+} from './modelo'
+
+const ROLES: readonly RolDestino[] = ['lider', 'aprendiz', 'miembro']
+
+type Campo = 'nombre' | 'localidad' | 'dia' | 'hora' | 'capacidad' | 'directores'
+
+/** What each field is called in the announcements ("Cambiaste el día"). */
+const NOMBRE_CAMPO: Readonly<Record<Campo, string>> = {
+  nombre: 'el nombre',
+  localidad: 'la localidad',
+  dia: 'el día',
+  hora: 'la hora',
+  capacidad: 'la capacidad',
+  directores: 'los directores de etapa',
+}
+
+const ERROR_CAPACIDAD = 'La capacidad debe ser un número entero mayor que 0.'
+
+export interface PanelGrupoProps {
+  /** The open group (live, with the draft applied); null closes the panel. */
+  readonly grupo: GrupoTablero | null
+  /** S10: whether the actor edits the group's segment. */
+  readonly editable: boolean
+  /** Every group on the board, for the next free number of the name suggestion. */
+  readonly grupos: readonly GrupoTablero[]
+  readonly bloqueos: readonly Bloqueo[]
+  readonly avisos: readonly Aviso[]
+  readonly banco: readonly PersonaBanco[]
+  readonly fichas: ReadonlyMap<string, PersonaBanco>
+  /** Empty when they could not be read: no suggestion, only "Sin localidad". */
+  readonly localidades: readonly Localidad[]
+  /** planner_temporadas.segmentos, each with its eligible directores de etapa. */
+  readonly segmentos: readonly SegmentoConDirectores[]
+  readonly onCerrar: () => void
+  readonly onEditar: (grupo: GrupoTablero, cambios: Partial<DatosGrupo>, que: string) => Promise<ResultadoAccion<unknown>>
+  readonly onMover: (usuarioIds: readonly string[], grupo: GrupoTablero | null, rol: RolDestino) => void
+  readonly onPedirUbicar: (carga: Carga, inicial: { readonly grupoId: string; readonly rol: RolDestino }) => void
+  readonly onEliminar: (grupo: GrupoTablero) => void
+}
+
+interface Borrador {
+  /** The value the board data has now. */
+  readonly servidor: string
+  /** The last value the board accepted. */
+  readonly guardado: string
+  readonly valor: string
+}
+
+/**
+ * A field's value while typing: starts from the board data and starts over
+ * whenever the board data changes (the edit applied, an undo, a refresh).
+ */
+function useBorrador(servidor: string) {
+  const [estado, setEstado] = useState<Borrador>({ servidor, guardado: servidor, valor: servidor })
+  const actual = estado.servidor === servidor ? estado : { servidor, guardado: servidor, valor: servidor }
+  if (actual !== estado) setEstado(actual)
+  return {
+    valor: actual.valor,
+    guardado: actual.guardado,
+    cambiar: (valor: string) => setEstado((e) => ({ ...e, valor })),
+    confirmar: (valor: string) => setEstado((e) => ({ ...e, guardado: valor, valor })),
+    revertir: () => setEstado((e) => ({ ...e, valor: e.guardado })),
+  }
+}
+
+const claveIds = (ids: readonly string[]): string => ids.join('|')
+const idsDe = (clave: string): string[] => (clave ? clave.split('|') : [])
+
+function Seccion({ titulo, extra, children }: { readonly titulo: string; readonly extra?: ReactNode; readonly children: ReactNode }): ReactElement {
+  const id = useId()
+  return (
+    <section aria-labelledby={id} className="space-y-3 border-b border-border pb-5 last:border-b-0 last:pb-0">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 id={id} className="text-sm font-semibold text-foreground">
+          {titulo}
+        </h3>
+        {extra}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/** The age after a name of a couple row, as in the bank. */
+const Edad = ({ edad }: { readonly edad: number | null | undefined }): ReactElement | null =>
+  edad === null || edad === undefined ? null : <span className="ml-1 font-mono text-xs font-normal tabular-nums text-muted-foreground">{edad}</span>
+
+/**
+ * One member row: a person, or a couple of the same role (S23) with both full
+ * names and ages. Names wrap, never cut. The role stays per person; "Mover"
+ * and "Al banco" take the whole row. Under the name, where the spouse is.
+ */
+function FilaIntegrante({
+  fila,
+  grupo,
+  editable,
+  fichas,
+  bloqueos,
+  avisos,
+  onMover,
+  onPedirUbicar,
+}: {
+  readonly fila: FilaRol
+  readonly grupo: GrupoTablero
+  readonly editable: boolean
+  readonly fichas: ReadonlyMap<string, PersonaBanco>
+  readonly bloqueos: readonly Bloqueo[]
+  readonly avisos: readonly Aviso[]
+  readonly onMover: PanelGrupoProps['onMover']
+  readonly onPedirUbicar: PanelGrupoProps['onPedirUbicar']
+}): ReactElement {
+  const nombre = nombresFila(fila.personas)
+  const pareja = fila.personas.length > 1
+  const ids = fila.personas.map((p) => p.usuario_id)
+  const rolDe = (id: string): RolDestino => rolEnGrupo(grupo, id) ?? 'miembro'
+  const rol = rolDe(ids[0])
+  const ficha = fichas.get(ids[0])
+  const datos = pareja
+    ? [...new Set(fila.personas.map((p) => fichas.get(p.usuario_id)?.municipio_nombre).filter(Boolean))]
+    : [ficha?.edad !== null && ficha?.edad !== undefined ? `${ficha.edad} años` : null, ficha?.municipio_nombre].filter(Boolean)
+  const marcas = fila.personas
+    .flatMap((p) => insigniasPersona(p.usuario_id, grupo.grupo_id, bloqueos, avisos))
+    .filter((m, i, todas) => todas.findIndex((x) => x.etiqueta === m.etiqueta) === i)
+  const nota = pareja ? null : notaPareja(ids[0], grupo, fichas)
+  const pasos = usePasos()
+  const sinGuardar = pasos !== null && ids.some((id) => pasos.pendiente.persona(id))
+  return (
+    <li aria-label={nombre} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-border py-2.5 last:border-b-0">
+      <div className="min-w-0 flex-1 basis-48">
+        <p data-nombres className="break-words text-sm font-medium text-foreground">
+          {pareja
+            ? fila.personas.map((p, i) => (
+                <Fragment key={p.usuario_id}>
+                  {i > 0 && ' y '}
+                  {nombrePersona(p)}
+                  <Edad edad={fichas.get(p.usuario_id)?.edad} />
+                </Fragment>
+              ))
+            : nombre}
+        </p>
+        {datos.length > 0 && <p className="break-words text-xs text-muted-foreground">{datos.join(' · ')}</p>}
+        {nota && <p className={cn('break-words text-xs', nota.falta ? 'font-medium text-warning-text' : 'text-muted-foreground')}>{nota.texto}</p>}
+        {sinGuardar && <MarcaSinGuardar />}
+        {marcas.length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {marcas.map((m) => (
+              <EtiquetaPlanner key={m.etiqueta} tono={m.tono}>
+                {m.etiqueta}
+              </EtiquetaPlanner>
+            ))}
+          </div>
+        )}
+      </div>
+      {editable && (
+        <div className="flex flex-wrap items-center gap-1">
+          {fila.personas.map((p) => {
+            const actual = rolDe(p.usuario_id)
+            return (
+              <div key={p.usuario_id} className="w-32">
+                <SelectSistema
+                  aria-label={`Rol de ${nombrePersona(p)}`}
+                  opciones={ROLES.map((r) => ({ valor: r, etiqueta: ETIQUETA_ROL[r] }))}
+                  value={actual}
+                  onValueChange={(v) => {
+                    const nuevo = ROLES.find((r) => r === v)
+                    if (nuevo && nuevo !== actual) onMover([p.usuario_id], grupo, nuevo)
+                  }}
+                />
+              </div>
+            )
+          })}
+          <BotonSistema
+            type="button"
+            variante="ghost"
+            tamaño="sm"
+            aria-label={`Mover a ${nombre}`}
+            onClick={() => onPedirUbicar({ ids, nombre, desdeGrupo: true }, { grupoId: grupo.grupo_id, rol })}
+          >
+            Mover
+          </BotonSistema>
+          <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Devolver a ${nombre} al banco`} onClick={() => onMover(ids, null, rol)}>
+            Al banco
+          </BotonSistema>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function SeccionRol(props: {
+  readonly rol: RolGrupo
+  readonly grupo: GrupoTablero
+  readonly editable: boolean
+  readonly fichas: ReadonlyMap<string, PersonaBanco>
+  readonly bloqueos: readonly Bloqueo[]
+  readonly avisos: readonly Aviso[]
+  readonly onMover: PanelGrupoProps['onMover']
+  readonly onPedirUbicar: PanelGrupoProps['onPedirUbicar']
+}): ReactElement {
+  const { rol, fichas } = props
+  const falta = rol.id === 'lideres' && rol.personas.length === 0
+  return (
+    <section aria-label={rol.titulo}>
+      <h4 className={cn('text-xs font-medium uppercase tracking-[0.08em]', falta ? 'text-danger-text' : 'text-muted-foreground')}>
+        {rol.titulo} <span className="font-mono tabular-nums">{rol.personas.length}</span>
+      </h4>
+      {rol.personas.length === 0 ? (
+        <p className={cn('py-2 text-sm', falta ? 'text-danger-text' : 'text-muted-foreground')}>{falta ? 'Falta el Líder' : 'Nadie todavía'}</p>
+      ) : (
+        <ul>
+          {filasDelRol(rol.personas, fichas).map((fila) => (
+            <FilaIntegrante key={fila.clave} {...props} fila={fila} />
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+function Formulario({
+  grupo,
+  editable,
+  grupos,
+  bloqueos,
+  avisos,
+  banco,
+  fichas,
+  localidades,
+  segmentos,
+  onEditar,
+  onMover,
+  onPedirUbicar,
+}: Omit<PanelGrupoProps, 'grupo' | 'onCerrar' | 'onEliminar'> & { readonly grupo: GrupoTablero }): ReactElement {
+  const telefono = useEsEscritorio() === false
+  const nombre = useBorrador(grupo.nombre)
+  const localidad = useBorrador(grupo.localidad_id ?? '')
+  const dia = useBorrador(grupo.dia_reunion ?? '')
+  const hora = useBorrador(horaCorta(grupo.hora_reunion))
+  const capacidad = useBorrador(grupo.capacidad_maxima === null ? '' : String(grupo.capacidad_maxima))
+  const directores = useBorrador(claveIds(grupo.directores.map((d) => d.usuario_id)))
+  const [errores, setErrores] = useState<Partial<Record<Campo, string>>>({})
+  const [anuncio, setAnuncio] = useState('')
+
+  const fallar = (campo: Campo, mensaje: string) => {
+    setErrores((e) => ({ ...e, [campo]: mensaje }))
+    setAnuncio(mensaje)
+  }
+
+  /** One edit with only `cambios` into the draft; true when the board accepted it. */
+  const guardar = async (campo: Campo, cambios: Partial<DatosGrupo>): Promise<boolean> => {
+    const que = NOMBRE_CAMPO[campo]
+    setErrores((e) => ({ ...e, [campo]: undefined }))
+    const resultado = await onEditar(grupo, cambios, que)
+    if (resultado.ok) setAnuncio(`Cambiaste ${que}. Sin guardar.`)
+    else fallar(campo, resultado.mensaje)
+    return resultado.ok
+  }
+
+  const guardarNombre = async (valor: string) => {
+    const limpio = valor.replace(/\s+/g, ' ').trim()
+    if (limpio === nombre.guardado.replace(/\s+/g, ' ').trim()) return
+    if (!limpio) return fallar('nombre', 'El grupo debe tener nombre.')
+    if (await guardar('nombre', { nombre: limpio })) nombre.confirmar(limpio)
+  }
+
+  /** A select applies at once; on a refusal it shows the previous value again, with the error. */
+  const guardarSeleccion = async (borrador: ReturnType<typeof useBorrador>, campo: Campo, valor: string, cambios: Partial<DatosGrupo>) => {
+    if (valor === borrador.guardado) return
+    borrador.cambiar(valor)
+    if (await guardar(campo, cambios)) borrador.confirmar(valor)
+    else borrador.revertir()
+  }
+
+  const guardarHora = async () => {
+    if (hora.valor === hora.guardado) return
+    if (await guardar('hora', { hora_reunion: hora.valor || null })) hora.confirmar(hora.valor)
+  }
+
+  const guardarCapacidad = async () => {
+    const texto = capacidad.valor.trim()
+    if (texto === capacidad.guardado) return
+    const cupo = Number(texto)
+    if (texto !== '' && (!Number.isInteger(cupo) || cupo <= 0)) return fallar('capacidad', ERROR_CAPACIDAD)
+    if (await guardar('capacidad', { capacidad_maxima: texto === '' ? null : cupo })) capacidad.confirmar(texto)
+  }
+
+  // Nombre (S4): the suggestion uses the chosen localidad or, without one, the suggested.
+  const sugerencia = useMemo(() => (localidades.length > 0 ? sugerirLocalidad(grupo, banco, localidades) : null), [grupo, banco, localidades])
+  const localidadElegida = localidades.find((l) => l.id === localidad.valor) ?? null
+  const otrosNombres = grupos.filter((g) => g.segmento_id === grupo.segmento_id && g.grupo_id !== grupo.grupo_id).map((g) => g.nombre)
+  const nombreSugerido = sugerirNombre(localidadElegida?.nombre ?? sugerencia?.nombre ?? null, grupo.segmento_nombre, otrosNombres)
+  const vista = { nombre: nombre.valor, segmento_nombre: grupo.segmento_nombre, localidad_nombre: localidadElegida?.nombre ?? null }
+  const lugares = dondeViven(grupo, fichas)
+
+  // Directores de etapa: the eligible ones of the segment, plus any current one no longer eligible.
+  const elegidos = idsDe(directores.valor)
+  const opcionesDirectores = useMemo((): DirectorElegible[] => {
+    const elegibles = directoresElegibles(segmentos.find((s) => s.id === grupo.segmento_id), fichas)
+    const ofrecidos = new Set(elegibles.flatMap((d) => d.usuarioIds))
+    const actuales = grupo.directores
+      .filter((d) => !ofrecidos.has(d.usuario_id))
+      .map((d): DirectorElegible => ({ clave: d.usuario_id, usuarioIds: [d.usuario_id], nombre: nombrePersona(d) }))
+    return [...elegibles, ...actuales]
+  }, [segmentos, grupo.segmento_id, grupo.directores, fichas])
+
+  const alternarDirector = (usuarioIds: readonly string[]) => {
+    const quitar = usuarioIds.every((id) => elegidos.includes(id))
+    const siguientes = quitar ? elegidos.filter((id) => !usuarioIds.includes(id)) : [...elegidos, ...usuarioIds.filter((id) => !elegidos.includes(id))]
+    if (siguientes.length > MAXIMO_DIRECTORES) return fallar('directores', `Un grupo puede tener hasta ${MAXIMO_DIRECTORES} directores de etapa.`)
+    void guardarSeleccion(directores, 'directores', claveIds(siguientes), { director_etapa_ids: siguientes })
+  }
+
+  const cantidad = personasDelGrupo(grupo).length
+
+  return (
+    <div className="space-y-5">
+      {!editable && (
+        <AvisoFormulario tono="info" role="note" className="py-3">
+          Solo lectura: {grupo.segmento_nombre} no es de tus segmentos.
+        </AvisoFormulario>
+      )}
+      <ul aria-label="Alertas del grupo" className="flex flex-wrap gap-1">
+        {insigniasGrupo(grupo, bloqueos, avisos, fichas).map((insignia) => (
+          <li key={insignia.etiqueta} className="min-w-0 max-w-full">
+            <EtiquetaPlanner tono={insignia.tono}>{insignia.etiqueta}</EtiquetaPlanner>
+          </li>
+        ))}
+      </ul>
+
+      <Seccion titulo="Nombre">
+        <InputSistema
+          label="Nombre del grupo"
+          value={nombre.valor}
+          onChange={(e) => nombre.cambiar(e.target.value)}
+          onBlur={(e) => void guardarNombre(e.target.value)}
+          maxLength={LARGO_NOMBRE_GRUPO}
+          disabled={!editable}
+          error={errores.nombre}
+          autoComplete="off"
+        />
+        {editable && nombreSugerido && nombreSugerido !== nombre.valor.trim() && (
+          <BotonSistema
+            type="button"
+            variante="ghost"
+            tamaño="sm"
+            onClick={() => {
+              nombre.cambiar(nombreSugerido)
+              void guardarNombre(nombreSugerido)
+            }}
+          >
+            Usar sugerencia: {nombreSugerido}
+          </BotonSistema>
+        )}
+        <p className="text-xs text-muted-foreground">El segmento y la localidad no se escriben en el nombre: se agregan solos.</p>
+        <dl className="grid gap-1 text-sm @md:grid-cols-[auto_minmax(0,1fr)] @md:gap-x-4">
+          <dt className="text-muted-foreground">Etiqueta</dt>
+          <dd className={cn('min-w-0 truncate', localidadElegida ? 'text-foreground' : 'text-danger-text')}>{etiquetaGrupo(vista)}</dd>
+          <dt className="text-muted-foreground">Nombre completo</dt>
+          <dd className="min-w-0 text-foreground">{nombreCompleto(vista)}</dd>
+        </dl>
+      </Seccion>
+
+      <Seccion titulo="Localidad">
+        {sugerencia && sugerencia.localidadId !== localidad.valor && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border p-3">
+            <p className="min-w-0 flex-1 text-sm text-foreground">
+              Sugerido: {sugerencia.nombre} — {sugerencia.motivo}
+            </p>
+            {editable && (
+              <BotonSistema
+                type="button"
+                variante="outline"
+                tamaño="sm"
+                onClick={() => void guardarSeleccion(localidad, 'localidad', sugerencia.localidadId, { localidad_id: sugerencia.localidadId })}
+              >
+                Usar {sugerencia.nombre}
+              </BotonSistema>
+            )}
+          </div>
+        )}
+        {!sugerencia && !localidad.valor && localidades.length > 0 && (
+          <p className="text-xs text-muted-foreground">Sin sugerencia: elige la localidad a mano.</p>
+        )}
+        <SelectSistema
+          label="Localidad del grupo"
+          opciones={[{ valor: '', etiqueta: 'Sin localidad' }, ...localidades.map((l) => ({ valor: l.id, etiqueta: l.nombre }))]}
+          value={localidad.valor}
+          onValueChange={(v) => void guardarSeleccion(localidad, 'localidad', v, { localidad_id: v || null })}
+          disabled={!editable}
+          error={errores.localidad}
+        />
+        {!localidad.valor && <p className="text-xs text-danger-text">Sin localidad no se puede publicar la temporada.</p>}
+        {lugares.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Dónde viven</p>
+            <ul aria-label="Dónde viven los integrantes" className="text-sm">
+              {lugares.map((l) => (
+                <li key={l.clave} className="flex justify-between gap-3 py-0.5">
+                  <span className="min-w-0 truncate text-foreground">{l.etiqueta}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    <span className="font-mono tabular-nums text-foreground">{l.cantidad}</span>
+                    {l.conLideres ? ', con los líderes' : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Seccion>
+
+      <Seccion titulo="Reunión">
+        <div className="grid gap-3 @md:grid-cols-3">
+          <SelectSistema
+            label="Día"
+            opciones={[{ valor: '', etiqueta: 'Sin día' }, ...DIAS_REUNION.map((d) => ({ valor: d, etiqueta: d }))]}
+            value={dia.valor}
+            onValueChange={(v) => void guardarSeleccion(dia, 'dia', v, { dia_reunion: v || null })}
+            disabled={!editable}
+            error={errores.dia}
+          />
+          <InputSistema
+            label="Hora"
+            type="time"
+            value={hora.valor}
+            onChange={(e) => hora.cambiar(e.target.value)}
+            onBlur={() => void guardarHora()}
+            disabled={!editable}
+            error={errores.hora}
+          />
+          <InputSistema
+            label="Capacidad"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step={1}
+            value={capacidad.valor}
+            onChange={(e) => capacidad.cambiar(e.target.value)}
+            onBlur={() => void guardarCapacidad()}
+            disabled={!editable}
+            error={errores.capacidad}
+            className="font-mono tabular-nums"
+          />
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Directores de etapa">
+        {editable ? (
+          opcionesDirectores.length > 0 ? (
+            <div role="group" aria-label="Directores de etapa" className="flex flex-wrap gap-2">
+              {opcionesDirectores.map((d) => (
+                <PastillaFiltro
+                  key={d.clave}
+                  etiqueta={d.nombre}
+                  activa={d.usuarioIds.every((id) => elegidos.includes(id))}
+                  onClick={() => alternarDirector(d.usuarioIds)}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{grupo.segmento_nombre} no tiene directores de etapa todavía.</p>
+          )
+        ) : (
+          <p className="text-sm text-foreground">{grupo.directores.length > 0 ? enLista(grupo.directores.map(nombrePersona)) : 'Sin director de etapa'}</p>
+        )}
+        {errores.directores && (
+          <p role="alert" className="text-sm text-danger-text">
+            {errores.directores}
+          </p>
+        )}
+        {elegidos.length === 0 && <p className="text-xs text-danger-text">Sin director de etapa no se puede publicar.</p>}
+        {editable && <p className="text-xs text-muted-foreground">Un matrimonio es una sola opción; hasta {MAXIMO_DIRECTORES} directores.</p>}
+      </Seccion>
+
+      <Seccion
+        titulo="Integrantes"
+        extra={
+          <span className="font-mono text-sm tabular-nums text-muted-foreground">
+            {cantidad}
+            {grupo.capacidad_maxima !== null && ` / ${grupo.capacidad_maxima}`}
+          </span>
+        }
+      >
+        {rolesGrupo(grupo).map((rol) => (
+          <SeccionRol
+            key={rol.id}
+            rol={rol}
+            grupo={grupo}
+            editable={editable}
+            fichas={fichas}
+            bloqueos={bloqueos}
+            avisos={avisos}
+            onMover={onMover}
+            onPedirUbicar={onPedirUbicar}
+          />
+        ))}
+        {editable && (
+          <p className="text-xs text-muted-foreground">
+            {telefono ? 'Para agregar personas, usa «Ubicar» en el banco.' : 'Para agregar personas, arrastra desde el banco o usa «Ubicar».'}
+          </p>
+        )}
+      </Seccion>
+
+      <p role="status" aria-live="polite" aria-label="Cambios del grupo" className="sr-only">
+        {anuncio}
+      </p>
+    </div>
+  )
+}
+
+export function PanelGrupo(props: PanelGrupoProps): ReactElement {
+  const { grupo, editable, onCerrar, onEliminar } = props
+  // On the phone sheet the footer is a row of equal buttons: the note goes in the body.
+  const telefono = useEsEscritorio() === false
+  const nota = 'Los cambios quedan sin guardar hasta que toques «Guardar»; «Deshacer» quita el último.'
+  return (
+    <DetalleResponsivo
+      abierto={grupo !== null}
+      onCambioAbierto={(abierto) => !abierto && onCerrar()}
+      ancho="lg"
+      titulo={grupo ? grupo.nombre.trim() || etiquetaGrupo(grupo) : 'Grupo'}
+      descripcion={grupo ? etiquetaGrupo(grupo) : undefined}
+      pie={
+        grupo && (
+          <>
+            {editable && !telefono && <p className="text-xs text-muted-foreground sm:mr-auto">{nota}</p>}
+            {editable && puedeEliminarGrupo(grupo) && (
+              <BotonSistema type="button" variante="peligro" tamaño="sm" onClick={() => onEliminar(grupo)}>
+                Eliminar grupo
+              </BotonSistema>
+            )}
+            <BotonSistema type="button" variante="outline" tamaño="sm" onClick={onCerrar}>
+              Cerrar
+            </BotonSistema>
+          </>
+        )
+      }
+    >
+      {/* Keyed so each group starts from its own data and field state. */}
+      {grupo && <Formulario key={grupo.grupo_id} {...props} grupo={grupo} />}
+      {grupo && editable && telefono && <p className="mt-4 text-xs text-muted-foreground">{nota}</p>}
+    </DetalleResponsivo>
+  )
+}

@@ -28,6 +28,11 @@ const RUTAS_INTERNAS: [RegExp | string, string][] = [
   [/\/grupos-vida\/temporadas\/[^/]+\/edit/, 'Editar Temporada'],
   ['/grupos-vida/temporadas/crear', 'Crear Temporada'],
   ['/grupos-vida/temporadas', 'Temporadas'],
+  // The planner (odd/tasks/planner-gdv.md T9): the titles of its pages' metadata.
+  [/^\/grupos-vida\/planificar\/nueva/, 'Nueva temporada'],
+  [/^\/grupos-vida\/planificar\/publicar/, 'Publicar temporada'],
+  [/^\/grupos-vida\/planificar\/diagnostico/, 'Diagnóstico de cierre'],
+  [/^\/grupos-vida\/planificar/, 'Planificar temporada'],
   ['/grupos-vida/mapa', 'Mapa de Grupos'],
   [/\/grupos-vida\/reportes/, 'Reportes'],
   [/\/grupos-vida\/importar/, 'Importar Grupos'],

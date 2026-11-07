@@ -153,7 +153,7 @@ describe('shell navigation per role', () => {
     expect(mas.subpaginas.map((bloque) => [bloque.grupo.label, bloque.paginas.map((pagina) => pagina.href)])).toEqual([
       ['Grupos de Vida', [
         '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/directores', '/grupos-vida/temporadas',
-        '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo',
+        '/grupos-vida/planificar', '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo',
         '/grupos-vida/solicitudes', '/grupos-vida/configuracion',
       ]],
       ['Talleres', paginasTalleres([]).map((pagina) => pagina.href)],

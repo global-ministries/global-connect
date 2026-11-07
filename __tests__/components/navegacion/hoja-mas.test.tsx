@@ -179,7 +179,7 @@ describe('the "Más" sheet', () => {
     expect(enlaces).toEqual([
       '/perfil', '/users',
       '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/directores', '/grupos-vida/temporadas',
-      '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo',
+      '/grupos-vida/planificar', '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo',
       '/grupos-vida/solicitudes', '/grupos-vida/configuracion',
       '/configuracion',
       '/actualizaciones', '/ayuda',
@@ -243,7 +243,7 @@ describe('the "Más" sub-page blocks (S10)', () => {
 
     const grupos = within(hoja.getByRole('region', { name: 'Grupos de Vida' }))
     expect(hrefs(grupos)).toEqual([
-      '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/mapa',
+      '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/planificar', '/grupos-vida/mapa',
       '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo', '/grupos-vida/solicitudes',
     ])
     expect(grupos.getByRole('link', { name: 'Salud de los Grupos' })).toHaveClass('min-h-[52px]')
