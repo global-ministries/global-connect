@@ -1,7 +1,7 @@
 /**
  * Planner — the page-level states without a board: no season in planning
  * (artboard 10 `#entrada` / `#etapa`), a load error, and the pages that come
- * later (publish review, new-season assistant). Server-safe.
+ * later (the new-season assistant). Server-safe.
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
@@ -64,7 +64,7 @@ export function PlannerError({ mensaje }: { readonly mensaje: string }): ReactEl
   return <Marco migas="Planificar temporada" icono={TriangleAlert} titulo="No se pudo abrir el planificador" subtitulo={mensaje} />
 }
 
-/** Placeholder of the pages built in T8 (publish review, new-season assistant). */
+/** Placeholder of the pages still to build in T8 (the new-season assistant). */
 export function PlannerPronto({ migas, titulo, volver }: { readonly migas: string; readonly titulo: string; readonly volver: string }): ReactElement {
   return (
     <Marco

@@ -10,12 +10,13 @@
  * the season state (S16): ghost until everything is ready. A director de
  * etapa gets the note of what they see instead (S10). The save bar (S24,
  * estado-guardado.tsx: unsaved changes, Deshacer, Descartar, Guardar) comes
- * first on the right; Historial comes with T8. With unsaved changes,
+ * first on the right, then "Historial" (T8a), which opens the history panel
+ * (panel-historial.tsx). With unsaved changes,
  * switching season asks first (the draft stays in this browser).
  */
 import { useEffect, useId, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, History } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { PuntoEstado } from '@/components/ui/punto-estado'
@@ -40,6 +41,9 @@ export interface CabeceraTemporadaProps {
   readonly avisos: number
   readonly onAbrirAlertas: () => void
   readonly alertasAbiertas: boolean
+  /** Opens the history panel (artboard 09); without it there is no "Historial" button. */
+  readonly onAbrirHistorial?: () => void
+  readonly historialAbierto?: boolean
   /** The publish button (S16); null hides it (director de etapa, S12). */
   readonly publicar: BotonPublicar | null
   readonly puedeCrearTemporada: boolean
@@ -162,6 +166,8 @@ export function CabeceraTemporada({
   avisos,
   onAbrirAlertas,
   alertasAbiertas,
+  onAbrirHistorial,
+  historialAbierto = false,
   publicar,
   puedeCrearTemporada,
   guardado,
@@ -189,6 +195,20 @@ export function CabeceraTemporada({
         </div>
         <div role="group" aria-label="Acciones de la temporada" className="flex flex-wrap items-center gap-2">
           {guardado}
+          {onAbrirHistorial && (
+            <BotonSistema
+              type="button"
+              variante="ghost"
+              tamaño="sm"
+              soloIcono
+              icono={History}
+              aria-label="Historial"
+              title="Historial de la temporada"
+              aria-haspopup="dialog"
+              aria-expanded={historialAbierto}
+              onClick={onAbrirHistorial}
+            />
+          )}
           <BotonSistema
             type="button"
             variante="outline"

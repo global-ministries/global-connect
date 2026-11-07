@@ -9,7 +9,8 @@
  * 20261107110000_planner_pasos.sql, one step per change. Undo
  * (planner_deshacer_paso), the history (planner_historial) and "Terminé mi
  * segmento" (planner_marcar_segmento of 20261107120000_planner_temporada.sql)
- * still run on their own. Each wrapper checks the input shape first (uuids,
+ * still run on their own, as do the history pages ("Ver pasos anteriores",
+ * p_antes) and publishing (planner_publicar, T8a). Each wrapper checks the input shape first (uuids,
  * roles, group fields, "tmp:" keys) so a bad call never reaches the
  * database, then calls the RPC with the caller's session client: the
  * database checks the role, the segment scope and the rules again. Errors
@@ -85,11 +86,13 @@ async function llamar<T>(
   nombre: string,
   args: Record<string, unknown>,
   leer: (data: unknown) => T,
+  generico: string = GENERICO,
 ): Promise<ResultadoAccion<T>> {
   const { data, error } = await cliente.rpc(nombre, args)
   if (error) {
     if (!error.code || !CODIGOS_CON_MENSAJE.has(error.code)) console.error(`[grupos-vida/planificar] ${nombre} failed`, error)
-    return { ok: false, codigo: error.code ?? null, mensaje: mensajeErrorAccion(error) }
+    const mensaje = mensajeErrorAccion(error)
+    return { ok: false, codigo: error.code ?? null, mensaje: mensaje === GENERICO ? generico : mensaje }
   }
   return { ok: true, datos: leer(data) }
 }
@@ -337,12 +340,90 @@ export function ultimosPasos(
   return llamar(cliente, 'planner_historial', { p_temporada_id: entrada.temporadaId, p_limite: limite }, (data) => leerHistorial(data).filas)
 }
 
+/** One page of the history panel (artboard 09). */
+export const PASOS_POR_PAGINA = 30
+
+export interface PaginaHistorial {
+  readonly pasos: readonly PasoHistorial[]
+  /** planner_historial has older steps than the last one of this page. */
+  readonly hayMas: boolean
+}
+
+/**
+ * A page of the history, newest first: the steps saved before `antes` (the
+ * creado_en of the last step shown; none for the first page). It asks one
+ * row more than the page to know whether there are older ones.
+ */
+export function historialPaginado(
+  cliente: ClienteAcciones,
+  entrada: { readonly temporadaId: string; readonly antes?: string | null; readonly limite?: number },
+): Promise<ResultadoAccion<PaginaHistorial>> {
+  if (!esUuid(entrada.temporadaId)) return Promise.resolve(invalido('La temporada no es válida.'))
+  const antes = entrada.antes ?? null
+  if (antes !== null && (typeof antes !== 'string' || Number.isNaN(Date.parse(antes)))) {
+    return Promise.resolve(invalido('La fecha del historial no es válida.'))
+  }
+  const limite = Math.min(Math.max(Math.trunc(entrada.limite ?? PASOS_POR_PAGINA), 1), 499)
+  return llamar(
+    cliente,
+    'planner_historial',
+    { p_temporada_id: entrada.temporadaId, p_limite: limite + 1, p_antes: antes },
+    (data) => {
+      const filas = leerHistorial(data).filas
+      return { pasos: filas.slice(0, limite), hayMas: filas.length > limite }
+    },
+    'No se pudo leer el historial. Inténtalo de nuevo.',
+  )
+}
+
 /**
  * The step "Deshacer" undoes: the caller's newest step that is not an undo
  * and was not undone. Null when the caller has none in the list.
  */
 export function pasoADeshacer(pasos: readonly PasoHistorial[], usuarioId: string): PasoHistorial | null {
   return pasos.find((p) => p.actor_id === usuarioId && p.accion !== 'deshacer' && p.deshecho_por === null) ?? null
+}
+
+// ─── Publish (S8, S12, S19) ───
+
+export interface TemporadaPublicada {
+  readonly temporadaId: string
+  readonly nombre: string
+  /** The season's groups, all active now. */
+  readonly grupos: number
+  /** Those that were not active yet. */
+  readonly gruposActivados: number
+  /** The origin season of the same cohort it closed; null when there was none. */
+  readonly origenNombre: string | null
+  readonly gruposArchivados: number
+}
+
+const numero = (valor: unknown): number => (typeof valor === 'number' && Number.isFinite(valor) ? valor : 0)
+
+/**
+ * planner_publicar: activates the season and its groups and closes only the
+ * origin of its cohort (S19). Refused with the RPC's own words: blockers or
+ * unfinished segments (22023), not the director general (42501).
+ */
+export function publicarTemporada(cliente: ClienteAcciones, entrada: { readonly temporadaId: string }): Promise<ResultadoAccion<TemporadaPublicada>> {
+  if (!esUuid(entrada.temporadaId)) return Promise.resolve(invalido('La temporada no es válida.'))
+  return llamar(
+    cliente,
+    'planner_publicar',
+    { p_temporada_id: entrada.temporadaId },
+    (data) => {
+      const fila = esObjeto(data) ? data : {}
+      return {
+        temporadaId: id(fila.temporada_id) ?? entrada.temporadaId,
+        nombre: textoOVacio(fila.nombre),
+        grupos: numero(fila.grupos),
+        gruposActivados: numero(fila.grupos_activados),
+        origenNombre: id(fila.origen_nombre),
+        gruposArchivados: numero(fila.grupos_archivados),
+      }
+    },
+    'No se pudo publicar la temporada. Inténtalo de nuevo.',
+  )
 }
 
 // ─── "Terminé mi segmento" (S14) ───

@@ -26,7 +26,9 @@
  * (T4) kept to the actor's scope (S10); blockers from planner_bloqueos, which
  * the database already scopes, recomputed over the draft while there are
  * pending changes (bloqueosConBorrador). The bank toggle is remembered per
- * user in localStorage.
+ * user in localStorage. "Historial" in the header opens the saved steps
+ * (panel-historial.tsx, T8a); `?alertas=1` (the publish review's links)
+ * opens the alerts panel on load.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -51,6 +53,7 @@ import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_
 import { PanelAlertas } from './panel-alertas'
 import { DialogoDescartar, PanelCambios } from './panel-cambios'
 import { PanelGrupo } from './panel-grupo'
+import { PanelHistorial } from './panel-historial'
 import { PanelNuevoGrupo } from './panel-nuevo-grupo'
 import { PasosPlannerProvider, usePasosPlanner } from './pasos-planner'
 import { TableroPlanner } from './tablero-planner'
@@ -67,6 +70,8 @@ export interface PlannerClientProps {
   readonly pasos?: readonly PasoHistorial[] | null
   /** `?vista=` of the URL. */
   readonly vistaInicial?: Vista
+  /** `?alertas=1` of the URL: the alerts panel starts open. */
+  readonly alertasIniciales?: boolean
 }
 
 const EVENTO_BANCO = 'planner-gdv:banco'
@@ -146,7 +151,7 @@ function useGruposOrigen(temporadaId: string, origenNombre: string | null) {
   return { estado, pedir, reintentar }
 }
 
-export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero' }: PlannerClientProps): ReactElement {
+export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', alertasIniciales = false }: PlannerClientProps): ReactElement {
   const { capacidades, temporada, estado, localidades, faltantes } = datos
   const control = usePasosPlanner(datos, pasos)
   const { grupos, banco } = control.tablero
@@ -161,7 +166,8 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero' }:
       .filter((g) => segmentos.has(g.segmento_id))
       .sort((a, b) => a.segmento_nombre.localeCompare(b.segmento_nombre, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
   }, [grupos, capacidades.segmentos_editables])
-  const [alertasAbiertas, setAlertasAbiertas] = useState(false)
+  const [alertasAbiertas, setAlertasAbiertas] = useState(alertasIniciales)
+  const [historialAbierto, setHistorialAbierto] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [agrupar, setAgrupar] = useState<Agrupar>('localidad')
   const [bancoVisible, setBancoVisible] = useBancoVisible(capacidades.usuario_id)
@@ -219,6 +225,8 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero' }:
           avisos={avisos.length}
           onAbrirAlertas={() => setAlertasAbiertas(true)}
           alertasAbiertas={alertasAbiertas}
+          onAbrirHistorial={() => setHistorialAbierto(true)}
+          historialAbierto={historialAbierto}
           publicar={publicar}
           puedeCrearTemporada={capacidades.puede_crear_temporada}
           cambiosSinGuardar={borrador.cambios.length}
@@ -339,6 +347,21 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero' }:
             return grupo ? control.usarLocalidad(grupo, sugerencia) : Promise.resolve({ ok: false, codigo: null, mensaje: 'El grupo ya no está en el tablero.' })
           }}
           onUbicar={(item) => item.personas && control.contexto.pedirUbicar({ ids: item.personaIds, nombre: item.personas, desdeGrupo: false })}
+        />
+
+        <PanelHistorial
+          abierto={historialAbierto}
+          onAbiertoChange={setHistorialAbierto}
+          temporada={temporada}
+          usuarioId={capacidades.usuario_id}
+          veTodo={capacidades.ve_todos_los_segmentos}
+          segmentos={capacidades.segmentos}
+          pasos={pasos}
+          cambiosSinGuardar={borrador.cambios.length}
+          guardando={borrador.guardando}
+          onGuardar={borrador.guardar}
+          onDescartar={() => setDescartando(true)}
+          onDeshacer={control.deshacerGuardado}
         />
 
         <PanelGrupo

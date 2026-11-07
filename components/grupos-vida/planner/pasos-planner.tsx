@@ -19,6 +19,8 @@
  * "Deshacer" (and Ctrl/Cmd+Z) removes the last pending change; with none it
  * undoes the actor's latest saved step (planner_deshacer_paso), as does
  * "Terminé mi segmento", which saves at once (it is not a board change).
+ * The history panel (panel-historial.tsx, T8a) undoes any step it lists
+ * through deshacerGuardado, which waits while there are pending changes.
  * Leaving the page with unsaved changes asks first (beforeunload). The hook
  * also keeps the live-region text, the dialog requests (Ubicar, Nuevo grupo,
  * Eliminar), the open group panel (T6) and the drag in progress.
@@ -84,6 +86,7 @@ const MIME = 'application/x-planner-gdv'
 const ERROR_RED = 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'
 const GUARDANDO = 'Espera a que terminen de guardarse los cambios.'
 const LLENO = `Guarda tus cambios antes de seguir: se guardan hasta ${MAXIMO_CAMBIOS} a la vez.`
+const PENDIENTES_ANTES = 'Guarda o descarta tus cambios sin guardar antes de deshacer un paso guardado.'
 
 const rechazo = (mensaje: string): ResultadoAccion<null> => ({ ok: false, codigo: 'validacion', mensaje })
 const LISTO: ResultadoAccion<null> = { ok: true, datos: null }
@@ -281,6 +284,25 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
           ? null
           : (pasoDeshacer.motivo_no_deshacer ?? 'Este cambio ya no se puede deshacer')
 
+  /**
+   * Undoes one saved step (planner_deshacer_paso). Refused while the draft
+   * has changes: the board shows them over the saved data, and an undo
+   * underneath would mix both (S24).
+   */
+  const deshacerGuardado = useCallback(
+    (paso: PasoHistorial): Promise<ResultadoAccion<unknown>> => {
+      if (cambios.length > 0) {
+        avisar(PENDIENTES_ANTES)
+        return Promise.resolve(rechazo(PENDIENTES_ANTES))
+      }
+      return ejecutar(() => deshacerPasoAction({ pasoId: paso.paso_id }), () => `Deshiciste: ${paso.descripcion}`).then((r) => {
+        if (r.ok) setDeshechos((d) => new Set(d).add(paso.paso_id))
+        return r
+      })
+    },
+    [avisar, cambios.length, ejecutar],
+  )
+
   const deshacer = useCallback(() => {
     if (motivoDeshacer) return avisar(motivoDeshacer)
     if (ultimo) {
@@ -288,12 +310,8 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
       setAnuncio(`Quitaste: ${ultimo.descripcion}`)
       return
     }
-    if (!pasoDeshacer) return
-    const paso = pasoDeshacer
-    void ejecutar(() => deshacerPasoAction({ pasoId: paso.paso_id }), () => `Deshiciste: ${paso.descripcion}`).then((r) => {
-      if (r.ok) setDeshechos((d) => new Set(d).add(paso.paso_id))
-    })
-  }, [avisar, borrador, cambiarBorrador, ejecutar, motivoDeshacer, pasoDeshacer, ultimo])
+    if (pasoDeshacer) void deshacerGuardado(pasoDeshacer)
+  }, [avisar, borrador, cambiarBorrador, deshacerGuardado, motivoDeshacer, pasoDeshacer, ultimo])
 
   // Ctrl/Cmd+Z outside text fields and dialogs runs Deshacer.
   const deshacerActual = useRef(deshacer)
@@ -551,6 +569,8 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     contexto,
     anuncio,
     deshacer: { pendiente: ultimo, paso: pasoDeshacer, motivo: motivoDeshacer, ejecutar: deshacer } satisfies Deshacer,
+    /** Undo any saved step of the history panel (S15); waits for pending changes. */
+    deshacerGuardado,
     /** The pending changes, in order, and what can be done with them. */
     borrador: {
       cambios,

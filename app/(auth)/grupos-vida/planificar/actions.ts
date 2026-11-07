@@ -6,7 +6,10 @@
  * browser until "Guardar": guardarCambiosAction saves them all in one
  * planner_guardar_cambios call. Undo and "Terminé mi segmento" run on their
  * own; cargarOrigenAction only reads the origin season's groups for the Lado
- * a lado view (T7). Each action uses the caller's session client (never the
+ * a lado view (T7) and cargarHistorialAction the older steps of the history
+ * panel (T8a). publicarTemporadaAction publishes from the review
+ * (/publicar, T8a) and revalidates every Grupos de Vida page, whose groups
+ * and seasons change. Each action uses the caller's session client (never the
  * service role: the RPCs check role and segment scope with auth.uid()) and
  * revalidates the planner route after a saved call. Validation and error messages live in
  * lib/platform/grupos-vida/planner/acciones.ts.
@@ -18,7 +21,9 @@ import {
   RUTA_PLANNER,
   deshacerPaso,
   guardarCambios,
+  historialPaginado,
   marcarSegmento,
+  publicarTemporada,
   type ClienteAcciones,
   type EntradaGuardarCambios,
   type EntradaMarcarSegmento,
@@ -50,4 +55,21 @@ export async function cargarOrigenAction(entrada: { readonly temporadaId: string
   if (!temporadaId) return { ok: false as const, mensaje: 'La temporada no existe.' }
   const supabase = await createSupabaseServerClient()
   return cargarGruposOrigen(comoClientePlanner(supabase), temporadaId)
+}
+
+export async function cargarHistorialAction(entrada: { readonly temporadaId: string; readonly antes?: string | null }) {
+  const supabase = await createSupabaseServerClient()
+  const rpc = supabase.rpc as unknown as ClienteAcciones['rpc']
+  return historialPaginado({ rpc: rpc.bind(supabase) }, { temporadaId: entrada?.temporadaId ?? '', antes: entrada?.antes ?? null })
+}
+
+export async function publicarTemporadaAction(entrada: { readonly temporadaId: string }) {
+  const supabase = await createSupabaseServerClient()
+  const rpc = supabase.rpc as unknown as ClienteAcciones['rpc']
+  const resultado = await publicarTemporada({ rpc: rpc.bind(supabase) }, { temporadaId: entrada?.temporadaId ?? '' })
+  if (resultado.ok) {
+    revalidatePath(RUTA_PLANNER, 'layout')
+    revalidatePath('/grupos-vida', 'layout')
+  }
+  return resultado
 }
