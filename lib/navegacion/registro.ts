@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import {
   BarChart3,
   Calendar,
+  CalendarRange,
   ClipboardList,
   HelpCircle,
   Home,
@@ -90,6 +91,8 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
       { id: 'gv-segmentos', label: 'Segmentos', href: '/grupos-vida/segmentos', icon: Users, roles: ROLES_DIRECCION_ETAPA },
       { id: 'gv-directores', label: 'Directores', href: '/grupos-vida/directores', icon: UserCog, roles: ROLES_DIRECCION },
       { id: 'gv-temporadas', label: 'Temporadas', href: '/grupos-vida/temporadas', icon: Calendar, roles: ROLES_DIRECCION },
+      // The season planner (odd/tasks/planner-gdv.md T9; S10: a director de etapa plans their segments).
+      { id: 'gv-planificar', label: 'Planificar temporada', href: '/grupos-vida/planificar', icon: CalendarRange, roles: ROLES_DIRECCION_ETAPA },
       { id: 'gv-mapa', label: 'Mapa', href: '/grupos-vida/mapa', icon: MapPin, roles: ROLES_DIRECCION_ETAPA },
       { id: 'gv-reportes', label: 'Reportes', href: '/grupos-vida/reportes/asistencia-semanal', icon: BarChart3, roles: ROLES_DIRECCION_ETAPA },
       // Named after the page it opens ("Salud de los Grupos"), not its URL.

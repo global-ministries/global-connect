@@ -8,6 +8,31 @@ import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TarjetaSistema, BotonSistema, BadgeSistema } from "@/components/ui/sistema-diseno"
 import { useNotificaciones } from "@/hooks/use-notificaciones"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+/**
+ * Manual Activar / Desactivar only flips `activa`. It stays (other workflows
+ * may depend on it), but asks first: opening a season is publishing it from
+ * the planner, which also closes the previous season of its cohort and
+ * activates its groups (T9a of odd/tasks/planner-gdv.md; S12, S19).
+ */
+const CONFIRMACION = {
+  activar: {
+    accion: "Activar",
+    consecuencia: "Activar a mano no cierra la temporada anterior de su cohorte ni activa sus grupos. Para abrir una temporada nueva, publícala desde el planificador.",
+  },
+  desactivar: {
+    accion: "Desactivar",
+    consecuencia: "Desactivar a mano no archiva sus grupos. Al publicar la siguiente temporada de su cohorte desde el planificador, esta se cierra sola.",
+  },
+} as const
 
 type Temporada = {
   id: string
@@ -29,6 +54,7 @@ export default function TemporadasListClient({
   const [selectedSeasons, setSelectedSeasons] = useState<string[]>([])
   const [isUpdating, setIsUpdating] = useState(false)
   const [updatingAction, setUpdatingAction] = useState<'activar' | 'desactivar' | null>(null)
+  const [confirmando, setConfirmando] = useState<'activar' | 'desactivar' | null>(null)
 
   const puedeGestionarEnLote = useMemo(() =>
     (userRoles || []).some(role =>
@@ -74,10 +100,10 @@ export default function TemporadasListClient({
           <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
             <span className="text-sm font-medium text-foreground whitespace-nowrap">{selectedSeasons.length} seleccionados</span>
             <div className="flex items-center gap-2 flex-wrap">
-              <BotonSistema onClick={() => handleUpdateStatus(true)} tamaño="sm" cargando={isUpdating && updatingAction === 'activar'} disabled={isUpdating}>
+              <BotonSistema onClick={() => setConfirmando('activar')} tamaño="sm" cargando={isUpdating && updatingAction === 'activar'} disabled={isUpdating}>
                 {isUpdating && updatingAction === 'activar' ? 'Activando...' : 'Activar'}
               </BotonSistema>
-              <BotonSistema onClick={() => handleUpdateStatus(false)} tamaño="sm" variante="secundario" cargando={isUpdating && updatingAction === 'desactivar'} disabled={isUpdating}>
+              <BotonSistema onClick={() => setConfirmando('desactivar')} tamaño="sm" variante="secundario" cargando={isUpdating && updatingAction === 'desactivar'} disabled={isUpdating}>
                 {isUpdating && updatingAction === 'desactivar' ? 'Desactivando...' : 'Desactivar'}
               </BotonSistema>
               <BotonSistema onClick={() => setSelectedSeasons([])} tamaño="sm" variante="ghost" disabled={isUpdating}>
@@ -87,6 +113,39 @@ export default function TemporadasListClient({
           </div>
         </TarjetaSistema>
       )}
+
+      <AlertDialog open={confirmando !== null} onOpenChange={(abierto) => { if (!abierto) setConfirmando(null) }}>
+        {confirmando && (
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                ¿{CONFIRMACION[confirmando].accion} {selectedSeasons.length} {selectedSeasons.length === 1 ? "temporada" : "temporadas"} a mano?
+              </AlertDialogTitle>
+              <AlertDialogDescription>{CONFIRMACION[confirmando].consecuencia}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <BotonSistema asChild variante="ghost" tamaño="sm">
+                <Link href="/grupos-vida/planificar">Ir al planificador</Link>
+              </BotonSistema>
+              <BotonSistema type="button" variante="secundario" tamaño="sm" onClick={() => setConfirmando(null)}>
+                Cancelar
+              </BotonSistema>
+              <BotonSistema
+                type="button"
+                variante="primario"
+                tamaño="sm"
+                onClick={() => {
+                  const activar = confirmando === 'activar'
+                  setConfirmando(null)
+                  void handleUpdateStatus(activar)
+                }}
+              >
+                {CONFIRMACION[confirmando].accion} de todos modos
+              </BotonSistema>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
 
       {/* Lista de Temporadas - Vista Desktop */}
       <div className="hidden md:block">

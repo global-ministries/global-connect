@@ -33,8 +33,8 @@ describe('SeasonForm on the design system', () => {
     } as unknown as typeof ResizeObserver
   })
 
-  it('labels every control, the active switch included', () => {
-    render(<SeasonForm />)
+  it('labels every control, the active switch included (edit only since T9a of planner-gdv)', () => {
+    render(<SeasonForm initialData={{ id: 't1', nombre: 'T', fecha_inicio: '2026-01-01', fecha_fin: '2026-06-01', activa: true }} />)
 
     for (const etiqueta of ['Nombre de la Temporada *', 'Fecha de Inicio *', 'Fecha de Fin *']) {
       expect(screen.getByLabelText(etiqueta)).toBeTruthy()

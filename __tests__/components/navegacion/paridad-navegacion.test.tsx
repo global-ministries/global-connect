@@ -95,7 +95,8 @@ const PERFILES: Record<string, Perfil> = {
 }
 
 const GRUPOS_VIDA_DIRECCION = [
-  '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/directores', '/grupos-vida/temporadas',
+  // '/grupos-vida/planificar' joined after Temporadas with the planner (odd/tasks/planner-gdv.md T9).
+  '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/directores', '/grupos-vida/temporadas', '/grupos-vida/planificar',
   '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo', '/grupos-vida/solicitudes',
 ]
 const GRUPOS_VIDA_ETAPA = GRUPOS_VIDA_DIRECCION.filter((href) => href !== '/grupos-vida/directores' && href !== '/grupos-vida/temporadas')
