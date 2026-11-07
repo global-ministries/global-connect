@@ -13,7 +13,7 @@
  */
 import { useId, type ReactElement } from 'react'
 
-import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -92,9 +92,9 @@ function Fila({
 
 export function PanelCambios({ abierto, onCerrar, cambios, error, guardando, motivoQuitar, onQuitar, onDescartar, onGuardar }: PanelCambiosProps): ReactElement {
   return (
-    <PanelLateralSistema
+    <DetalleResponsivo
       abierto={abierto}
-      onAbiertoChange={(a) => !a && onCerrar()}
+      onCambioAbierto={(a) => !a && onCerrar()}
       titulo="Cambios sin guardar"
       descripcion={resumenCambios(cambios)}
       pie={
@@ -139,7 +139,7 @@ export function PanelCambios({ abierto, onCerrar, cambios, error, guardando, mot
           Al guardar se aplican todos juntos: si uno no se puede, no se guarda ninguno. Cada cambio queda en el historial y se puede deshacer después.
         </p>
       </div>
-    </PanelLateralSistema>
+    </DetalleResponsivo>
   )
 }
 

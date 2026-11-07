@@ -42,6 +42,8 @@ export interface PasosPlanner {
   readonly arrastrar: (carga: Carga, evento: DragEvent) => void
   readonly terminarArrastre: () => void
   readonly arrastrando: boolean
+  /** false on phones (T8c): no drag on touch, "Ubicar" and "Mover" instead. Missing means drag works. */
+  readonly arrastre?: boolean
   /** Drop the dragged people on a group (in that role) or, with null, on the bank. */
   readonly soltar: (grupo: GrupoTablero | null, rol: RolDestino) => void
   readonly usarLocalidad: (grupo: GrupoTablero, sugerencia: SugerenciaLocalidad) => void

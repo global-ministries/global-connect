@@ -28,7 +28,7 @@
  */
 import { Fragment, useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 
-import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
+import { DetalleResponsivo, useEsEscritorio } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
@@ -302,6 +302,7 @@ function Formulario({
   onMover,
   onPedirUbicar,
 }: Omit<PanelGrupoProps, 'grupo' | 'onCerrar' | 'onEliminar'> & { readonly grupo: GrupoTablero }): ReactElement {
+  const telefono = useEsEscritorio() === false
   const nombre = useBorrador(grupo.nombre)
   const localidad = useBorrador(grupo.localidad_id ?? '')
   const dia = useBorrador(grupo.dia_reunion ?? '')
@@ -563,7 +564,11 @@ function Formulario({
             onPedirUbicar={onPedirUbicar}
           />
         ))}
-        {editable && <p className="text-xs text-muted-foreground">Para agregar personas, arrastra desde el banco o usa «Ubicar».</p>}
+        {editable && (
+          <p className="text-xs text-muted-foreground">
+            {telefono ? 'Para agregar personas, usa «Ubicar» en el banco.' : 'Para agregar personas, arrastra desde el banco o usa «Ubicar».'}
+          </p>
+        )}
       </Seccion>
 
       <p role="status" aria-live="polite" aria-label="Cambios del grupo" className="sr-only">
@@ -575,19 +580,20 @@ function Formulario({
 
 export function PanelGrupo(props: PanelGrupoProps): ReactElement {
   const { grupo, editable, onCerrar, onEliminar } = props
+  // On the phone sheet the footer is a row of equal buttons: the note goes in the body.
+  const telefono = useEsEscritorio() === false
+  const nota = 'Los cambios quedan sin guardar hasta que toques «Guardar»; «Deshacer» quita el último.'
   return (
-    <PanelLateralSistema
+    <DetalleResponsivo
       abierto={grupo !== null}
-      onAbiertoChange={(abierto) => !abierto && onCerrar()}
-      tamaño="lg"
+      onCambioAbierto={(abierto) => !abierto && onCerrar()}
+      ancho="lg"
       titulo={grupo ? grupo.nombre.trim() || etiquetaGrupo(grupo) : 'Grupo'}
       descripcion={grupo ? etiquetaGrupo(grupo) : undefined}
       pie={
         grupo && (
           <>
-            {editable && (
-              <p className="text-xs text-muted-foreground sm:mr-auto">Los cambios quedan sin guardar hasta que toques «Guardar»; «Deshacer» quita el último.</p>
-            )}
+            {editable && !telefono && <p className="text-xs text-muted-foreground sm:mr-auto">{nota}</p>}
             {editable && puedeEliminarGrupo(grupo) && (
               <BotonSistema type="button" variante="peligro" tamaño="sm" onClick={() => onEliminar(grupo)}>
                 Eliminar grupo
@@ -602,6 +608,7 @@ export function PanelGrupo(props: PanelGrupoProps): ReactElement {
     >
       {/* Keyed so each group starts from its own data and field state. */}
       {grupo && <Formulario key={grupo.grupo_id} {...props} grupo={grupo} />}
-    </PanelLateralSistema>
+      {grupo && editable && telefono && <p className="mt-4 text-xs text-muted-foreground">{nota}</p>}
+    </DetalleResponsivo>
   )
 }

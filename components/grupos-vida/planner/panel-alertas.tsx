@@ -17,7 +17,7 @@
 import { useId, useState, type ReactElement } from 'react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
-import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { contar, type SugerenciaLocalidad } from '@/lib/platform/grupos-vida/planner'
 import type { ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
@@ -230,14 +230,14 @@ export function PanelAlertas({ abierto, onAbiertoChange, temporada, bloqueos, av
     acciones.onIrAlGrupo(grupoId)
   }
   return (
-    <PanelLateralSistema
+    <DetalleResponsivo
       abierto={abierto}
-      onAbiertoChange={onAbiertoChange}
-      tamaño="lg"
+      onCambioAbierto={onAbiertoChange}
+      ancho="lg"
       titulo={`Alertas de ${temporada}`}
       descripcion={`${totalBloqueos} ${totalBloqueos === 1 ? 'bloquea' : 'bloquean'} la publicación · ${contar(totalAvisos, 'aviso', 'avisos')} que no ${totalAvisos === 1 ? 'bloquea' : 'bloquean'}`}
     >
       <Contenido bloqueos={bloqueos} avisos={avisos} totalBloqueos={totalBloqueos} totalAvisos={totalAvisos} acciones={{ ...acciones, onIrAlGrupo: irAlGrupo }} />
-    </PanelLateralSistema>
+    </DetalleResponsivo>
   )
 }

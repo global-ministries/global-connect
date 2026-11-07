@@ -29,6 +29,14 @@
  * user in localStorage. "Historial" in the header opens the saved steps
  * (panel-historial.tsx, T8a); `?alertas=1` (the publish review's links)
  * opens the alerts panel on load.
+ *
+ * Phone (< 768 px, T8c, artboard 05): the compact header (cabecera-temporada
+ * `compacta`), search and "Banco · N sin ubicar", which opens the bank as a
+ * bottom sheet; the groups as an inset list by segment and localidad
+ * (lista-planner.tsx); no drag (Ubicar / Mover sheets instead) and only the
+ * Tablero view: `?vista=lado` says it needs a big screen. Every panel is a
+ * bottom sheet there (DetalleResponsivo). The server renders the desktop
+ * tree; the phone tree replaces it after hydration (useEsEscritorio).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -36,6 +44,8 @@ import { Search } from 'lucide-react'
 import { BotonSistema, InputSistema, PaginaSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
+import { useEsEscritorio } from '@/components/ui/detalle-responsivo'
+import { HojaInferior } from '@/components/ui/hoja-inferior'
 import { botonPublicar, calcularAvisos, sugerirLocalidad, type PasoHistorial, type SugerenciaLocalidad } from '@/lib/platform/grupos-vida/planner'
 import { bloqueosConBorrador } from '@/lib/platform/grupos-vida/planner/borrador'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
@@ -47,6 +57,7 @@ import { CabeceraTemporada } from './cabecera-temporada'
 import { DialogoEliminarGrupo } from './dialogo-eliminar-grupo'
 import { DialogoUbicar } from './dialogo-ubicar'
 import { LadoALado, type EstadoOrigen } from './lado-a-lado'
+import { ListaPlanner } from './lista-planner'
 import { BarraGuardado } from './estado-guardado'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
@@ -154,6 +165,11 @@ function useGruposOrigen(temporadaId: string, origenNombre: string | null) {
 export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', alertasIniciales = false }: PlannerClientProps): ReactElement {
   const { capacidades, temporada, estado, localidades, faltantes } = datos
   const control = usePasosPlanner(datos, pasos)
+  // null on the server and during hydration: the desktop tree until the client knows.
+  const telefono = useEsEscritorio() === false
+  // No drag on touch (T8c): the bank rows offer "Ubicar" only.
+  const contexto = useMemo(() => (telefono ? { ...control.contexto, arrastre: false } : control.contexto), [telefono, control.contexto])
+  const [bancoAbierto, setBancoAbierto] = useState(false)
   const { grupos, banco } = control.tablero
   const { borrador } = control
   // The blockers as they will be once the draft is saved.
@@ -176,7 +192,7 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
     () => avisosDelAlcance(calcularAvisos({ grupos, banco, localidades, segmentos: capacidades.segmentos }), grupos, banco, capacidades),
     [grupos, banco, localidades, capacidades],
   )
-  const lanes = useMemo(() => carriles(grupos, capacidades, agrupar, busqueda), [grupos, capacidades, agrupar, busqueda])
+  const lanes = useMemo(() => carriles(grupos, capacidades, telefono ? 'localidad' : agrupar, busqueda), [grupos, capacidades, telefono, agrupar, busqueda])
   const sinUbicar = useMemo(() => modeloBanco(banco, FILTROS_BANCO_INICIALES, temporada).conteos.sinUbicar, [banco, temporada])
   // The localidad suggestion of each group without one, for "Usar sugerida" in the alerts (S3).
   const sugerencias = useMemo(() => {
@@ -194,13 +210,14 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
   const [vista, setVista] = useState<Vista>(vistaInicial)
   const conOrigen = temporada.origen_id !== null
   const origen = useGruposOrigen(temporada.id, temporada.origen_nombre)
-  const necesitaOrigen = vista === 'lado' && conOrigen && origen.estado === null
+  // Lado a lado needs two panes side by side: on a phone the Tablero stays.
+  const lado = vista === 'lado' && !telefono
+  const necesitaOrigen = lado && conOrigen && origen.estado === null
   const { pedir } = origen
   useEffect(() => {
     if (necesitaOrigen) pedir()
   }, [necesitaOrigen, pedir])
   const estadoOrigen: EstadoOrigen = !conOrigen ? { tipo: 'listo', grupos: [] } : (origen.estado ?? { tipo: 'cargando' })
-  const lado = vista === 'lado'
 
   const cambiarVista = (siguiente: Vista) => {
     setVista(siguiente)
@@ -208,7 +225,7 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
   }
 
   return (
-    <PasosPlannerProvider value={control.contexto}>
+    <PasosPlannerProvider value={contexto}>
       {/* No `titulo`: the season switcher is the page h1. `relative` contains
           the absolute descendants (the sr-only live region): the shell's
           <main> is not positioned, so without it their containing block is
@@ -230,6 +247,7 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
           publicar={publicar}
           puedeCrearTemporada={capacidades.puede_crear_temporada}
           cambiosSinGuardar={borrador.cambios.length}
+          compacta={telefono}
           guardado={
             <BarraGuardado
               cambios={borrador.cambios.length}
@@ -239,6 +257,7 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
               onAbrirLista={borrador.abrirLista}
               onDescartar={() => setDescartando(true)}
               onGuardar={borrador.guardar}
+              compacta={telefono}
             />
           }
         />
@@ -249,81 +268,111 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
           </AvisoFormulario>
         )}
 
-        <section aria-label="Vista, buscar y agrupar" className="flex flex-wrap items-center gap-2">
-          <ControlSegmentado<Vista>
-            etiqueta="Vista"
-            opciones={[
-              { valor: 'tablero', etiqueta: 'Tablero' },
-              { valor: 'lado', etiqueta: 'Lado a lado' },
-            ]}
-            valor={vista}
-            onCambio={cambiarVista}
-          />
-          <div className="min-w-[14rem] flex-1">
-            <InputSistema
-              type="search"
-              icono={Search}
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar grupo o persona"
-              aria-label="Buscar grupo, líder o persona"
-              autoComplete="off"
-            />
-          </div>
-          <div className="w-52" hidden={lado}>
-            <SelectSistema
-              aria-label="Agrupar por"
-              opciones={[
-                { valor: 'localidad', etiqueta: 'Agrupar: localidad' },
-                { valor: 'director', etiqueta: 'Agrupar: director' },
-              ]}
-              value={agrupar}
-              onValueChange={(valor) => setAgrupar(valor === 'director' ? 'director' : 'localidad')}
-            />
-          </div>
-          <BotonSistema
-            type="button"
-            variante="outline"
-            tamaño="sm"
-            aria-expanded={bancoVisible}
-            aria-controls={ID_BANCO}
-            onClick={() => setBancoVisible(!bancoVisible)}
-          >
-            {bancoVisible ? (
-              'Ocultar banco'
-            ) : (
-              <>
-                Mostrar banco · <span className="font-mono tabular-nums">{sinUbicar}</span> sin ubicar
-              </>
+        {telefono ? (
+          <>
+            {vista === 'lado' && (
+              <AvisoFormulario tono="info" role="note" className="py-3">
+                Lado a lado está disponible en pantalla grande.
+              </AvisoFormulario>
             )}
-          </BotonSistema>
-        </section>
+            <section aria-label="Buscar y banco" className="space-y-2">
+              <InputSistema
+                type="search"
+                icono={Search}
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar grupo o persona"
+                aria-label="Buscar grupo, líder o persona"
+                autoComplete="off"
+              />
+              <BotonSistema type="button" variante="outline" tamaño="sm" aria-haspopup="dialog" onClick={() => setBancoAbierto(true)} className="w-full">
+                Banco · <span className="font-mono tabular-nums">{sinUbicar}</span> sin ubicar
+              </BotonSistema>
+            </section>
+            <ListaPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} busqueda={busqueda} />
+            <HojaInferior abierta={bancoAbierto} onCambioAbierta={setBancoAbierto} titulo="Banco de personas">
+              <BancoPersonas id={ID_BANCO} banco={banco} temporada={temporada} enHoja />
+            </HojaInferior>
+          </>
+        ) : (
+          <>
+            <section aria-label="Vista, buscar y agrupar" className="flex flex-wrap items-center gap-2">
+              <ControlSegmentado<Vista>
+                etiqueta="Vista"
+                opciones={[
+                  { valor: 'tablero', etiqueta: 'Tablero' },
+                  { valor: 'lado', etiqueta: 'Lado a lado' },
+                ]}
+                valor={vista}
+                onCambio={cambiarVista}
+              />
+              <div className="min-w-[14rem] flex-1">
+                <InputSistema
+                  type="search"
+                  icono={Search}
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Buscar grupo o persona"
+                  aria-label="Buscar grupo, líder o persona"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="w-52" hidden={lado}>
+                <SelectSistema
+                  aria-label="Agrupar por"
+                  opciones={[
+                    { valor: 'localidad', etiqueta: 'Agrupar: localidad' },
+                    { valor: 'director', etiqueta: 'Agrupar: director' },
+                  ]}
+                  value={agrupar}
+                  onValueChange={(valor) => setAgrupar(valor === 'director' ? 'director' : 'localidad')}
+                />
+              </div>
+              <BotonSistema
+                type="button"
+                variante="outline"
+                tamaño="sm"
+                aria-expanded={bancoVisible}
+                aria-controls={ID_BANCO}
+                onClick={() => setBancoVisible(!bancoVisible)}
+              >
+                {bancoVisible ? (
+                  'Ocultar banco'
+                ) : (
+                  <>
+                    Mostrar banco · <span className="font-mono tabular-nums">{sinUbicar}</span> sin ubicar
+                  </>
+                )}
+              </BotonSistema>
+            </section>
 
-        {/* Lado a lado: the two panes need 1280 px next to the bank; below it the bank sits above them (07). */}
-        <div className={cn('grid items-start gap-6', bancoVisible && (lado ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'))}>
-          {lado ? (
-            <LadoALado
-              temporada={temporada}
-              capacidades={capacidades}
-              grupos={grupos}
-              fichas={control.fichas}
-              origen={estadoOrigen}
-              onReintentar={origen.reintentar}
-              busqueda={busqueda}
-              acciones={{ pasar: control.pasar, pasarVarios: control.pasarVarios, crearCopia: control.crearCopia }}
-            />
-          ) : (
-            <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
-          )}
-          <div hidden={!bancoVisible} className={cn('min-w-0', lado ? 'order-first xl:order-none xl:sticky xl:top-24' : 'lg:sticky lg:top-24')}>
-            <BancoPersonas
-              id={ID_BANCO}
-              banco={banco}
-              temporada={temporada}
-              className={lado ? 'max-h-[380px] overflow-y-auto xl:max-h-[calc(100dvh-7rem)]' : 'lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto'}
-            />
-          </div>
-        </div>
+            {/* Lado a lado: the two panes need 1280 px next to the bank; below it the bank sits above them (07). */}
+            <div className={cn('grid items-start gap-6', bancoVisible && (lado ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'))}>
+              {lado ? (
+                <LadoALado
+                  temporada={temporada}
+                  capacidades={capacidades}
+                  grupos={grupos}
+                  fichas={control.fichas}
+                  origen={estadoOrigen}
+                  onReintentar={origen.reintentar}
+                  busqueda={busqueda}
+                  acciones={{ pasar: control.pasar, pasarVarios: control.pasarVarios, crearCopia: control.crearCopia }}
+                />
+              ) : (
+                <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
+              )}
+              <div hidden={!bancoVisible} className={cn('min-w-0', lado ? 'order-first xl:order-none xl:sticky xl:top-24' : 'lg:sticky lg:top-24')}>
+                <BancoPersonas
+                  id={ID_BANCO}
+                  banco={banco}
+                  temporada={temporada}
+                  className={lado ? 'max-h-[380px] overflow-y-auto xl:max-h-[calc(100dvh-7rem)]' : 'lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto'}
+                />
+              </div>
+            </div>
+          </>
+        )}
 
         <PanelAlertas
           abierto={alertasAbiertas}

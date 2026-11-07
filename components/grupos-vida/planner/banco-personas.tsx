@@ -15,6 +15,9 @@
  * itself takes members dragged out of a group; "Ver grupo" opens the group
  * panel of a person's current group (T6) when it is on the board. A person
  * the session draft moved shows "Sin guardar" (S24). Alone it is read-only.
+ *
+ * On a phone (T8c) the bank is a bottom sheet (`enHoja`: no card frame, the
+ * sheet's title names it) and rows are not dragged: "Ubicar" places them.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { GripVertical, Search } from 'lucide-react'
@@ -75,14 +78,15 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
   const carga = { ids: fila.personas.map((p) => p.usuario_id), nombre, desdeGrupo: false }
   const grupoActual = una.grupo_actual_id && pasos?.grupoVisible(una.grupo_actual_id) ? una.grupo_actual_id : null
   const sinGuardar = pasos !== null && fila.personas.some((p) => pasos.pendiente.persona(p.usuario_id))
+  const arrastre = pasos !== null && pasos.arrastre !== false
   return (
     <li
-      draggable={pasos !== null}
-      onDragStart={pasos ? (e) => pasos.arrastrar(carga, e) : undefined}
-      onDragEnd={pasos ? () => pasos.terminarArrastre() : undefined}
-      className={cn('flex min-w-0 items-start gap-2 border-b border-border px-1 py-2.5 last:border-b-0', pasos && 'cursor-grab')}
+      draggable={arrastre}
+      onDragStart={arrastre ? (e) => pasos.arrastrar(carga, e) : undefined}
+      onDragEnd={arrastre ? () => pasos.terminarArrastre() : undefined}
+      className={cn('flex min-w-0 items-start gap-2 border-b border-border px-1 py-2.5 last:border-b-0', arrastre && 'cursor-grab')}
     >
-      {pasos && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
+      {arrastre && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
       <div className="min-w-0 flex-1">
         <p data-nombres className="break-words text-sm font-semibold leading-snug text-foreground">
           <NombreConEdad persona={una} />
@@ -140,9 +144,11 @@ export interface BancoPersonasProps {
   readonly banco: readonly PersonaBanco[]
   readonly temporada: TemporadaPlanner
   readonly className?: string
+  /** Inside the phone sheet: no card frame and the heading only for screen readers. */
+  readonly enHoja?: boolean
 }
 
-export function BancoPersonas({ id, banco, temporada, className }: BancoPersonasProps): ReactElement {
+export function BancoPersonas({ id, banco, temporada, className, enHoja = false }: BancoPersonasProps): ReactElement {
   const [filtros, setFiltros] = useState<FiltrosBanco>(FILTROS_BANCO_INICIALES)
   const [limite, setLimite] = useState(TAMANO_PAGINA_BANCO)
   const modelo = useMemo(() => modeloBanco(banco, filtros, temporada), [banco, filtros, temporada])
@@ -160,10 +166,10 @@ export function BancoPersonas({ id, banco, temporada, className }: BancoPersonas
       id={id}
       aria-labelledby={`${id}-titulo`}
       {...zona.props}
-      className={cn('flex min-w-0 flex-col gap-3 rounded-2xl border border-border bg-card p-4', zona.sobre && 'ring-2 ring-brand', className)}
+      className={cn('flex min-w-0 flex-col gap-3', !enHoja && 'rounded-2xl border border-border bg-card p-4', zona.sobre && 'ring-2 ring-brand', className)}
     >
       <div className="space-y-0.5">
-        <h2 id={`${id}-titulo`} className="text-base font-semibold text-foreground">
+        <h2 id={`${id}-titulo`} className={enHoja ? 'sr-only' : 'text-base font-semibold text-foreground'}>
           Banco de personas
         </h2>
         <p className="text-sm text-muted-foreground">

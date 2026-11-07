@@ -22,7 +22,7 @@ import { useEffect, useId, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
-import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { contar, type PasoHistorial, type SegmentoPlanner, type TemporadaPlanner } from '@/lib/platform/grupos-vida/planner'
 import { PASOS_RECIENTES, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
@@ -279,10 +279,10 @@ function Contenido(props: PanelHistorialProps): ReactElement {
 export function PanelHistorial(props: PanelHistorialProps): ReactElement {
   const { abierto, onAbiertoChange, temporada, veTodo } = props
   return (
-    <PanelLateralSistema
+    <DetalleResponsivo
       abierto={abierto}
-      onAbiertoChange={onAbiertoChange}
-      tamaño="lg"
+      onCambioAbierto={onAbiertoChange}
+      ancho="lg"
       titulo={`Historial de ${temporada.nombre}`}
       descripcion={
         veTodo
@@ -291,6 +291,6 @@ export function PanelHistorial(props: PanelHistorialProps): ReactElement {
       }
     >
       <Contenido {...props} />
-    </PanelLateralSistema>
+    </DetalleResponsivo>
   )
 }

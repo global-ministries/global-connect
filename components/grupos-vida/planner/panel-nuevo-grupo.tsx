@@ -13,7 +13,7 @@
  */
 import { useId, useState, type FormEvent, type ReactElement } from 'react'
 
-import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
@@ -174,9 +174,9 @@ export function PanelNuevoGrupo(props: PanelNuevoGrupoProps): ReactElement {
   const idForm = useId()
   const [enviando, setEnviando] = useState(false)
   return (
-    <PanelLateralSistema
+    <DetalleResponsivo
       abierto={segmento !== null}
-      onAbiertoChange={(abierto) => !abierto && onCerrar()}
+      onCambioAbierto={(abierto) => !abierto && onCerrar()}
       titulo={segmento ? `Nuevo grupo de ${segmento.nombre}` : 'Nuevo grupo'}
       descripcion="Queda sin guardar hasta que toques «Guardar»."
       pie={
@@ -191,6 +191,6 @@ export function PanelNuevoGrupo(props: PanelNuevoGrupoProps): ReactElement {
       }
     >
       {segmento && <Formulario key={segmento.id} {...props} segmento={segmento} idForm={idForm} onEnviando={setEnviando} />}
-    </PanelLateralSistema>
+    </DetalleResponsivo>
   )
 }

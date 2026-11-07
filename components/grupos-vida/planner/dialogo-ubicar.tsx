@@ -7,13 +7,16 @@
  * spouse rule shows before confirming: into Matrimonios the couple goes
  * together, elsewhere a couple row asks who goes and the note says where the
  * spouse stays (mensajeConyugeQueSeQueda). The dialog traps the focus and
- * returns it to the button that opened it.
+ * returns it to the button that opened it. On a phone (T8c) it is a bottom
+ * sheet: the touch path, since nothing is dragged there.
  */
 import { useId, useState, type FormEvent, type ReactElement } from 'react'
 
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { BotonSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
+import { HojaInferior } from '@/components/ui/hoja-inferior'
+import { useEsEscritorio } from '@/components/ui/detalle-responsivo'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { esMatrimonios, etiquetaGrupo, nombrePersona, personasDelGrupo, type GrupoTablero, type PersonaBanco } from '@/lib/platform/grupos-vida/planner'
 
@@ -33,7 +36,18 @@ export interface DialogoUbicarProps {
 
 const ROLES: readonly RolDestino[] = ['miembro', 'aprendiz', 'lider']
 
-function Formulario({ peticion, grupos, fichas, onCerrar, onConfirmar }: DialogoUbicarProps & { readonly peticion: PeticionUbicar }): ReactElement {
+const DESCRIPCION = 'Queda sin guardar hasta que toques «Guardar».'
+
+const tituloDe = (peticion: PeticionUbicar): string => `${peticion.carga.desdeGrupo ? 'Mover' : 'Ubicar'} a ${peticion.carga.nombre}`
+
+function Formulario({
+  peticion,
+  grupos,
+  fichas,
+  onCerrar,
+  onConfirmar,
+  enHoja = false,
+}: DialogoUbicarProps & { readonly peticion: PeticionUbicar; readonly enHoja?: boolean }): ReactElement {
   const { carga } = peticion
   const idForm = useId()
   const [destino, setDestino] = useState<string>(peticion.grupoId ?? '')
@@ -59,14 +73,25 @@ function Formulario({ peticion, grupos, fichas, onCerrar, onConfirmar }: Dialogo
     ...(carga.desdeGrupo ? [{ valor: DESTINO_BANCO, etiqueta: 'Banco de personas (sin grupo)' }] : []),
   ]
 
+  const botones = (
+    <>
+      <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={onCerrar}>
+        Cancelar
+      </BotonSistema>
+      <BotonSistema type="submit" form={idForm} tamaño="sm" disabled={!listo}>
+        {verbo}
+      </BotonSistema>
+    </>
+  )
+
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>
-          {verbo} a {carga.nombre}
-        </DialogTitle>
-        <DialogDescription>Queda sin guardar hasta que toques «Guardar».</DialogDescription>
-      </DialogHeader>
+      {!enHoja && (
+        <DialogHeader>
+          <DialogTitle>{tituloDe(peticion)}</DialogTitle>
+          <DialogDescription>{DESCRIPCION}</DialogDescription>
+        </DialogHeader>
+      )}
       <form id={idForm} onSubmit={enviar} className="space-y-4">
         <SelectSistema label="Grupo" opciones={opciones} placeholder="Elige un grupo" value={destino} onValueChange={(v) => setDestino(v)} />
         {!alBanco && (
@@ -95,20 +120,21 @@ function Formulario({ peticion, grupos, fichas, onCerrar, onConfirmar }: Dialogo
           </AvisoFormulario>
         )}
       </form>
-      <DialogFooter>
-        <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={onCerrar}>
-          Cancelar
-        </BotonSistema>
-        <BotonSistema type="submit" form={idForm} tamaño="sm" disabled={!listo}>
-          {verbo}
-        </BotonSistema>
-      </DialogFooter>
+      {enHoja ? <div className="mt-5 grid grid-cols-2 gap-2.5">{botones}</div> : <DialogFooter>{botones}</DialogFooter>}
     </>
   )
 }
 
 export function DialogoUbicar(props: DialogoUbicarProps): ReactElement {
   const { peticion, onCerrar } = props
+  const telefono = useEsEscritorio() === false
+  if (telefono) {
+    return (
+      <HojaInferior abierta={peticion !== null} onCambioAbierta={(abierta) => !abierta && onCerrar()} titulo={peticion ? tituloDe(peticion) : 'Ubicar'} descripcion={DESCRIPCION}>
+        {peticion && <Formulario key={`${peticion.carga.ids.join('|')}:${peticion.grupoId ?? ''}`} {...props} peticion={peticion} enHoja />}
+      </HojaInferior>
+    )
+  }
   return (
     <Dialog open={peticion !== null} onOpenChange={(abierto) => !abierto && onCerrar()}>
       <DialogContent>
