@@ -139,8 +139,12 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
 
   return (
     <PasosPlannerProvider value={control.contexto}>
-      {/* No `titulo`: the season switcher is the page h1. */}
-      <PaginaSistema breadcrumbs={<MigasPlanner actual={temporada.nombre} />}>
+      {/* No `titulo`: the season switcher is the page h1. `relative` contains
+          the absolute descendants (the sr-only live region): the shell's
+          <main> is not positioned, so without it their containing block is
+          the viewport and, placed at the end of the long board, they make
+          the document scroll past the shell into an empty area. */}
+      <PaginaSistema breadcrumbs={<MigasPlanner actual={temporada.nombre} />} className="relative">
         <CabeceraTemporada
           temporada={temporada}
           temporadas={capacidades.temporadas}

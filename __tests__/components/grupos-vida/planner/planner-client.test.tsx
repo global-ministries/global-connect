@@ -311,3 +311,17 @@ describe('alerts panel', () => {
     expect(within(panel).getByRole('region', { name: /grupos? pequeños? \(menos de 6\)/ })).toHaveTextContent('Mujeres Valientes')
   })
 })
+
+describe('page layout', () => {
+  // The shell's <main> scrolls and is not positioned: an absolute element
+  // (the sr-only live region) whose containing block is the viewport sat at
+  // the end of the long board and made the document itself scroll into an
+  // empty area below the shell. The page root contains it.
+  it('keeps the live region inside a positioned page root, so the document never scrolls', () => {
+    render(<PlannerClient datos={datos()} />)
+
+    const anuncio = screen.getByRole('status', { name: 'Cambios del planificador' })
+    expect(anuncio).toHaveClass('sr-only')
+    expect(anuncio.closest('[data-ancho]')).toHaveClass('relative')
+  })
+})
