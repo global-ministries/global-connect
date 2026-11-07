@@ -17,6 +17,13 @@ Servidores prototype v3 in [`prototipos/servidores/`](prototipos/servidores/):
 Widths below: desktop `lg`+ (≥ 1024px), tablet `md`–`lg`, phone < `md` (768px)
 (decided 2026-10-26; see [foundations.md](foundations.md#spacing-and-gutters-decided)).
 
+New work follows the planning style (artboards in
+[`prototipos/planificacion-dps/`](prototipos/planificacion-dps/)); its
+recipes are at the end: [inline edit and autosave](#inline-edit-and-autosave),
+[matrix assign](#matrix-assign), [spreadsheet keyboard](#spreadsheet-keyboard).
+A people list keeps the anatomy below with the planning type, borders and
+density.
+
 ## List screen anatomy
 
 Every screen that lists people or items follows this order, top to bottom:
@@ -209,3 +216,92 @@ toast.error(e?.message || 'No se pudieron guardar los cambios. Inténtalo de nue
 - Route progress: `nextjs-toploader` in `app/layout.tsx` (brand color,
   3px, no spinner).
 - Buttons: `cargando` + `disabled` while the mutation runs.
+- Planning views announce each saved change in one polite live region
+  ("Convocaste a Irene Saavedra para Pantallas.") instead of a toast.
+
+## Inline edit and autosave
+
+Planning style ([`02-plan-domingo-orden.html`](prototipos/planificacion-dps/02-plan-domingo-orden.html),
+[`04-programacion-anual-hoja.html`](prototipos/planificacion-dps/04-programacion-anual-hoja.html)).
+Edits happen where the value is shown and save on their own; there is no
+"Guardar" button.
+
+- Fields read as text (`CampoEnLinea`): the border shows on hover; focus
+  shows the brand border and marks the row (`bg-brand-tint`).
+- `Enter` or leaving the field saves; `Escape` restores the previous value.
+  Saving an unchanged value does nothing.
+- Invalid input keeps the focus, sets `aria-invalid` (danger border) and
+  says the format in the live region ("Escribe la duración como
+  minutos:segundos, por ejemplo 4:30.").
+- Each save flips `EstadoGuardado` to "Guardando…" and back to "Guardado",
+  and announces one sentence of what changed ("Duración de Hogar: 6:00.
+  Horas recalculadas."). A failed save says so with "Reintentar" and keeps
+  the typed value.
+- Derived values recalculate at once (start times of both services from the
+  durations; the summary "termina 10:35 y 12:35").
+- After a re-render the focus returns to the same field or cell.
+- Reorder: drag the row or, with the handle focused, `↑` / `↓`; announce
+  "<elemento>: posición 2 de 3 en Banda" or "Ya está primero en Banda".
+- Adding ("+ Elemento", "+ Encabezado") inserts the row and focuses its
+  title with the text selected.
+- Destructive or bulk changes ("Copiar del domingo anterior") still confirm
+  in a dialog whose text says what stays untouched.
+- Edit forms with many fields keep the save bar ([forms](#forms)); autosave
+  is for per-cell and per-item edits in planning views.
+
+## Matrix assign
+
+Planning style ([`03-matriz-domingos.html`](prototipos/planificacion-dps/03-matriz-domingos.html);
+the team columns of
+[`01-plan-domingo-equipos.html`](prototipos/planificacion-dps/01-plan-domingo-equipos.html)
+use the same popover).
+
+- The matrix is a `role="grid"` with `aria-rowcount` / `aria-colindex` and
+  one roving `tabindex="0"` cell. Arrows move, `Home` / `End` go to the
+  first / last date; filtered-out rows are skipped.
+- Click, `Enter` or `F2` opens `PopoverAsignar` on the cell (the cell gets
+  `aria-selected` and an inset brand ring). Focus goes to the search; the
+  popover lists who is already there (highlight, remove) and candidates
+  with a context line, the conflict first in `warning-text` ("Ya sirve ese
+  día en Monitores"). Picking or removing saves, keeps the popover open on
+  the updated cell and announces the change.
+- `Escape` or a click outside closes it and returns focus to the cell. A
+  cell that does not apply announces why ("Pantallas no se convoca para
+  Cena del Señor.") instead of opening.
+- Unfilled positions show "Falta N" in the cell; team rows sum them
+  ("2 faltan"); the header summary counts "N puestos sin cubrir".
+- Highlight a person from the popover's target button: their chips light up
+  in every date and the toolbar chip says "3 de 8 domingos", to see one
+  person's load. One person at a time; clearing it is one button.
+- Toolbar: team select ("Todos los equipos"), density toggle ("Condensado
+  | Normal"), the highlight chip, `EstadoGuardado`; period with "‹ Hoy ›" in
+  the header. A footer line lists the keys.
+- Date headers link to that date's plan; the next date carries "Próximo".
+
+## Spreadsheet keyboard
+
+Planning style ([`04-programacion-anual-hoja.html`](prototipos/planificacion-dps/04-programacion-anual-hoja.html)).
+For data people keep in Excel today; behaves like Excel.
+
+| Key | Not editing | Editing |
+| --- | --- | --- |
+| Arrows | Move one cell | Move the caret |
+| `Tab` / `Shift+Tab` | Next / previous cell, wrapping to the next row | Save and move right / left |
+| `Enter` / `F2` / double click | Edit, text selected | `Enter`: save and move down |
+| Any character | Replace the cell with it and keep typing | — |
+| `Delete` / `Backspace` | Clear the cell (saves) | — |
+| `Escape` | — | Cancel, keep the old value |
+| Click elsewhere | Select that cell | Save first |
+
+- The edited cell keeps its size (input fills it, brand outline) so the
+  grid never jumps.
+- Each input is named "<columna>, <fecha>" ("Opener, 15 de noviembre").
+- Filters (year, month) and the column picker never lose the focused cell
+  if it is still visible; the month filter announces "Mostrando octubre: 4
+  domingos.".
+- Long text truncates with an ellipsis and is read in full in `title` or
+  while editing.
+- Rows that are not editable (special days, free Sundays) are full-width
+  hatched rows and are skipped by the keyboard.
+- Creating many rows at once ("Nueva serie": name, first Sunday, weeks)
+  goes through a dialog whose button says the result ("Crear 4 domingos").

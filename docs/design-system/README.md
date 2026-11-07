@@ -4,8 +4,34 @@ One design language for the whole repo. Every screen, component, doc and
 agent follows this folder. If something here disagrees with another doc, a
 code comment or a generic design skill, this folder wins.
 
-The visual reference is the approved Servidores prototype (v3, approved
-2026-10-28): three artboards in
+**New work follows the planning style (DPS).** Since 2026-11-07 every new
+screen, component or area is built like the approved DPS planning artboards
+(Planning Center style, approved 2026-11-07), five self-contained files in
+[`prototipos/planificacion-dps/`](prototipos/planificacion-dps/):
+
+| Artboard | Shows |
+| --- | --- |
+| [`01-plan-domingo-equipos.html`](prototipos/planificacion-dps/01-plan-domingo-equipos.html) | Wide layout: header band with cover, date pill and actions; context sidebar; narrow team columns with position rows, 32px person rows and "Falta N"; assign popover; autosave status |
+| [`02-plan-domingo-orden.html`](prototipos/planificacion-dps/02-plan-domingo-orden.html) | Dense table with sticky header, section bands, inline edit, reorder by handle |
+| [`03-matriz-domingos.html`](prototipos/planificacion-dps/03-matriz-domingos.html) | Matrix: sticky first column and two header rows, series bands, cell popover, highlight a person, density toggle |
+| [`04-programacion-anual-hoja.html`](prototipos/planificacion-dps/04-programacion-anual-hoja.html) | Spreadsheet: frozen columns, sticky month separators, Excel keyboard, column picker |
+| [`05-asistencia-celular.html`](prototipos/planificacion-dps/05-asistencia-celular.html) | Phone attendance: sticky team headers, one big toggle per person |
+
+The style changes type, density, borders and layout, not the tokens: colors,
+fonts and motion stay as in [foundations.md](foundations.md). Its rules:
+[foundations.md › Planning style](foundations.md#planning-style-new-work-decided-2026-11-07)
+(type, spacing, density, borders),
+[layout.md › Wide layout](layout.md#wide-layout-planning-style),
+[components.md › Planning style components](components.md#planning-style-components),
+[patterns.md](patterns.md#inline-edit-and-autosave) (inline edit, matrix,
+spreadsheet) and
+[mobile.md › Attendance list](mobile.md#attendance-list-planning-style). Screens
+already migrated keep their current look until a task redesigns them (see
+[migration.md](migration.md#the-rule)). When asked for "el diseño de DPS",
+"estilo Planning Center" or "planificación", this is it.
+
+The reference for the areas already migrated is the approved Servidores
+prototype (v3, approved 2026-10-28): three artboards in
 [`prototipos/servidores/`](prototipos/servidores/) —
 [`01-escritorio.html`](prototipos/servidores/01-escritorio.html) (≥ 1024),
 [`02-tablet.html`](prototipos/servidores/02-tablet.html) (768–1023) and
@@ -78,7 +104,7 @@ Add each new canonical piece to the gallery in the PR that builds it.
 | [patterns.md](patterns.md) | Recipes: list screen anatomy, filters sheet, detail drawer, empty and loading states, permission-gated actions, URL-synced filters, forms, feedback |
 | [mobile.md](mobile.md) | Native-app rules for phones |
 | [migration.md](migration.md) | Status per area, open follow-ups, the lint guardrail |
-| [prototipos/](prototipos/) | Approved prototypes and screenshots: `servidores/` (v3, current), `servidores.html` (v2, superseded) |
+| [prototipos/](prototipos/) | Approved prototypes and screenshots: `planificacion-dps/` (planning style, reference for new work), `servidores/` (v3, reference for migrated areas), `servidores.html` (v2, superseded) |
 
 ## How agents use this
 
@@ -88,7 +114,10 @@ Add each new canonical piece to the gallery in the PR that builds it.
    It overrides generic design skills (`frontend-design`, `ui-ux-pro-max`,
    `web-design-guidelines`, `sleek-design-mobile-apps`).
 2. Read the files above that match the task; for a list screen, start with
-   [patterns.md](patterns.md#list-screen-anatomy).
+   [patterns.md](patterns.md#list-screen-anatomy). For new work, open the
+   matching artboard in
+   [`prototipos/planificacion-dps/`](prototipos/planificacion-dps/) and the
+   "Planning style" sections.
 3. Import canonical components; do not restyle them with class overrides to
    get a different look.
 4. Check [migration.md](migration.md) for the area's status before editing,

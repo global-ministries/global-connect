@@ -21,6 +21,57 @@ and the containers inside it. Values come from
 - `components/ui/sidebar.tsx` (shadcn sidebar) is unused; the shell is
   `sidebar-moderna`.
 
+## Wide layout (planning style)
+
+New data-dense views (plans, matrices, sheets) use this frame, from the
+artboards in [`prototipos/planificacion-dps/`](prototipos/planificacion-dps/)
+01–04. Sizes are in
+[foundations.md](foundations.md#planning-style-new-work-decided-2026-11-07);
+the pieces in [components.md](components.md#planning-style-components).
+
+```
++------+----------------------------------------------------------------+
+| rail | header band: [cover] crumbs, h1, date pill + meta    [actions] |
+| 64px +-----------------+----------------------------------------------+
+|      | context sidebar | toolbar: tabs, summary            Guardado   |
+|      | 240px           | data region (scrolls in x and y)             |
++------+-----------------+----------------------------------------------+
+```
+
+- **Shell**: the app sidebar collapsed to its rail (64px in the artboards);
+  no new navigation. The view fills the viewport height; the header band
+  and toolbar stay put and only the data region (and the context sidebar)
+  scroll.
+- **Header band**: `bg-card border-b`, 16px 24px, replacing the hero. With
+  a cover: cover, crumbs, `h1`, date pill + meta line ("9:15 y 11:15 · un
+  solo llamado para los dos"); without one: crumbs, `h1`, summary line, and
+  the period controls ("‹ Hoy ›") at the right. Actions at the right, 36px.
+- **Context sidebar** (optional): 240px, `bg-card border-r`, left of the
+  content, for what describes the item (horarios, equipos with counts,
+  archivos, notas). Never navigation.
+- **Toolbar**: one row, 24px gutters: section tabs or filters (select,
+  density toggle, column picker), the summary, and the autosave status at
+  the far right.
+- **Data region**: 24px gutters; the table, matrix or sheet sits in one
+  `bg-card border rounded-md` wrapper with `overflow: auto`; team columns
+  scroll inside a region with `tabindex="0"` and an `aria-label`.
+- **Footer line** (optional): 12px muted keyboard hints with `kbd`.
+
+### Horizontal scroll and sticky regions
+
+The page never scrolls sideways; a bounded data region may, on desktop and
+tablet only:
+
+- Team columns: fixed 196px columns; the ones that do not fit sit to the
+  right of the region ("Otros equipos" last).
+- Matrix and sheet: `position: sticky` for the header rows (`top: 0`; a
+  second header row at the first one's height), the first column or the
+  frozen columns (`left: 0`, then `left: <first width>`), and the month
+  separator label (`left: 0`), with `bg-card` / `bg-muted` behind them and
+  higher `z-index` where header and column cross.
+- Phones do not get these regions: they get a task view instead (see
+  [mobile.md](mobile.md#attendance-list-planning-style)).
+
 ## Page: `PaginaSistema`
 
 Every authenticated page uses `PaginaSistema`
@@ -34,7 +85,8 @@ migrate.
 | `form` | `max-w-3xl` (768px), left-aligned | Deprecated. Kept until the last pages move to `SeccionesSistema`; do not use |
 
 - Gutters: 16px mobile, 24px from `sm`, 48px from `lg`, the same as the
-  desktop header so content lines up with the title.
+  desktop header so content lines up with the title. Wide planning views
+  keep 24px at every desktop width ([wide layout](#wide-layout-planning-style)).
 - Vertical rhythm: `space-y-6` between sections.
 - Props: `titulo`, `regreso` (back link `{ href, texto }`), `acciones` and
   `breadcrumbs` render in the sticky desktop header; `descripcion` renders

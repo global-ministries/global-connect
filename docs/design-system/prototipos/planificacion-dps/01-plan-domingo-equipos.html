@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Plan del domingo · Equipos — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Shared block of design/dps-plan (01); layout new for v2. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--tinte-estado:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--sidebar:oklch(.975 .003 80);--surface-primary:#FAFAF8;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--chart-2:oklch(.6 .118 184.704);--chart-3:oklch(.398 .07 227.392);--chart-4:oklch(.828 .189 84.429);--chart-5:oklch(.769 .188 70.08);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28);--shadow-fab:0 16px 36px -10px rgba(233,108,32,.75)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.4;overflow:hidden}
+button,input{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.mut{color:var(--muted-foreground)}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s14{width:14px;height:14px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.skip{position:absolute;left:-9999px;top:8px;z-index:100;padding:10px 16px;border-radius:var(--r-xl);background:var(--card);border:2px solid var(--brand-primary);font-weight:600}.skip:focus{left:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 12px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none;color:var(--foreground);transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:hover{background:var(--accent)}.btn:active{transform:scale(.97)}.btn.pri{background:var(--brand-strong);border-color:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.ghost{border-color:transparent;color:var(--muted-foreground)}.btn.icon{width:36px;padding:0}
+@media (pointer:coarse){.btn{min-height:44px}.btn.icon{width:44px}}
+.lnk{border:0;background:none;padding:2px 4px;border-radius:var(--r-md);color:var(--brand-text);font-size:12px;font-weight:500;cursor:pointer;text-transform:none;letter-spacing:0}.lnk:hover{text-decoration:underline}
+[data-h="1"]{--h:var(--chart-1)}[data-h="2"]{--h:var(--chart-2)}[data-h="3"]{--h:var(--chart-3)}[data-h="4"]{--h:var(--chart-4)}[data-h="5"]{--h:var(--chart-5)}
+.av{width:24px;height:24px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:10px;font-weight:650;background:color-mix(in oklab,var(--h) 26%,var(--card));border:1px solid color-mix(in oklab,var(--h) 40%,transparent)}
+/* Shell: SidebarModerna en riel de 64px (vista amplia) */
+.app{display:grid;grid-template-columns:64px minmax(0,1fr);height:100vh}
+.rail{background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 0}
+.rail .lg{width:28px;height:28px;border-radius:var(--radius);background:var(--brand-primary);margin-bottom:14px}
+.rail a{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-xl);color:var(--muted-foreground)}.rail a:hover{background:var(--accent);color:var(--foreground)}.rail a[aria-current]{background:var(--brand-accent-strong);color:var(--brand-text)}
+.pg{display:flex;flex-direction:column;min-width:0;min-height:0}
+/* Encabezado del plan */
+.hd{display:flex;align-items:center;gap:20px;padding:16px 24px;background:var(--card);border-bottom:1px solid var(--border)}
+.cover{width:160px;height:100px;flex:none;border-radius:var(--r-md);padding:10px 12px;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(135deg,color-mix(in oklab,var(--chart-1) 30%,var(--card)),color-mix(in oklab,var(--chart-5) 22%,var(--card)));border:1px solid color-mix(in oklab,var(--chart-1) 35%,transparent);font-size:13px;font-weight:750;line-height:1.1;letter-spacing:-.01em;text-transform:uppercase}
+.hd .tx{flex:1;min-width:0}.crumb ol{display:flex;gap:6px;font-size:13px;color:var(--muted-foreground)}.crumb a{color:inherit;text-decoration:none}.crumb a:hover{color:var(--foreground);text-decoration:underline}
+.hd h1{font-size:24px;font-weight:650;letter-spacing:-.02em;line-height:1.15;margin:4px 0 8px}
+.dp{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:9999px;background:var(--background);font-size:13px;font-weight:500}
+.dp button{width:30px;height:30px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;cursor:pointer;color:var(--muted-foreground)}.dp button:hover{background:var(--accent);color:var(--foreground)}.dp span{padding:0 6px}
+.meta{display:inline-flex;gap:6px;align-items:center;margin-left:12px;font-size:13px;color:var(--muted-foreground)}
+.hact{display:flex;gap:8px;position:relative}
+/* Cuerpo: barra de plan + contenido */
+.bd{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0}
+.ps{border-right:1px solid var(--border);background:var(--card);overflow:auto}
+.ps>section{padding:10px 12px 12px 16px}.ps>section+section{border-top:1px solid var(--border)}
+.ps h2{display:flex;justify-content:space-between;align-items:center;min-height:26px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.hr li{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.tm{display:grid;grid-template-columns:14px 1fr;column-gap:6px;width:100%;padding:5px 4px;border:0;background:none;text-align:left;border-radius:var(--r-md);cursor:pointer}.tm:hover{background:var(--accent)}
+.tm svg{margin-top:2px;transition:transform var(--duration-fast) var(--ease-expo)}.tm[aria-expanded=true] svg{transform:rotate(90deg)}
+.tm b{font-size:13px;font-weight:600}.tm small{grid-column:2;font-size:12px;color:var(--muted-foreground)}
+.tp{padding:2px 0 6px 24px}.tp li{display:flex;justify-content:space-between;font-size:12px;color:var(--muted-foreground);padding:2px 0}.tp .f{color:var(--danger-text);font-weight:600}
+.fi li{display:flex;gap:8px;align-items:center;font-size:13px;padding:4px 0}.fi a{color:var(--foreground);text-decoration:none;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.fi a:hover{text-decoration:underline}
+.nt{font-size:13px;line-height:1.45}.nt small{display:block;color:var(--muted-foreground);font-size:12px;margin-top:4px}
+.mn{display:flex;flex-direction:column;min-width:0;min-height:0}
+.tb{display:flex;align-items:center;gap:16px;padding:12px 24px}
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:var(--r-xl);background:var(--card)}
+.seg a{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 14px;border-radius:var(--r-md);color:var(--muted-foreground);font-size:14px;font-weight:500;text-decoration:none}.seg a:hover{color:var(--foreground)}.seg a[aria-current]{background:var(--foreground);color:var(--background)}
+.seg small{font-size:11px}
+.sum{font-size:13px;color:var(--muted-foreground)}.sum strong{color:var(--foreground)}.sum .f{color:var(--danger-text);font-weight:600}
+.sv{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted-foreground)}
+/* Columnas de equipos */
+.cols{flex:1;display:flex;gap:10px;align-items:flex-start;overflow:auto;padding:0 24px 24px}
+.col{flex:none;width:196px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+.ch{display:grid;grid-template-columns:1fr auto;align-items:center;padding:8px 2px 8px 12px;border-bottom:1px solid var(--border)}
+.ch h2{font-size:14px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ch p{grid-column:1;font-size:12px;color:var(--muted-foreground)}.ch p .f{color:var(--danger-text);font-weight:600}
+.ch .btn{grid-row:1/3;grid-column:2;width:28px;min-height:28px;border:0}
+.pt{display:flex;justify-content:space-between;gap:6px;padding:4px 10px 4px 12px;background:var(--muted);border-bottom:1px solid var(--border);font-size:12px;font-weight:600}.pt .num{font-weight:500;color:var(--muted-foreground)}
+.pos+.pos .pt{border-top:1px solid var(--border)}
+.pr{display:flex;align-items:center;gap:8px;height:32px;padding:0 2px 0 10px;font-size:13px}.pr+.pr,.pr+.fl{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.pr b{flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr .x{width:28px;height:28px;display:grid;place-items:center;border:0;background:none;border-radius:var(--r-md);color:var(--muted-foreground);cursor:pointer;opacity:0}.pr:hover .x,.pr .x:focus-visible{opacity:1}.pr .x:hover{background:var(--accent);color:var(--foreground)}
+.fl,.ad{display:flex;align-items:center;gap:8px;width:100%;height:32px;padding:0 10px;border:0;background:none;text-align:left;cursor:pointer;font-size:13px}
+.fl{color:var(--danger-text);font-weight:500}.fl:hover{background:color-mix(in oklab,var(--danger) var(--tinte-estado),transparent)}
+.bdg{min-width:20px;height:20px;padding:0 5px;display:inline-grid;place-items:center;border-radius:9999px;background:color-mix(in oklab,var(--danger) 14%,transparent);border:1px solid color-mix(in oklab,var(--danger) 45%,transparent);font-size:11px;font-weight:700}
+.ad{height:26px;color:var(--brand-text);font-size:12px;font-weight:500;opacity:0;border-top:1px dashed color-mix(in oklab,var(--border) 80%,transparent)}.pos:hover .ad,.ad:focus-visible{opacity:1}.ad:hover{background:var(--brand-accent-strong)}
+@media (pointer:coarse){.pr,.fl{height:44px}.ad{height:44px;opacity:1}.pr .x{opacity:1;width:44px;height:44px}}
+.ot{background:var(--muted);padding:12px}.ot h2{font-size:14px;font-weight:650;margin-bottom:6px}.ot p{font-size:12px;color:var(--muted-foreground);margin-bottom:6px}
+/* Capas: popover de convocar, menú Acciones, confirmación */
+.pop,.menu{position:fixed;z-index:20;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-sheet)}
+.pop{width:280px;padding:10px}.pop h3{font-size:13px;font-weight:650}.pop>p{font-size:12px;color:var(--muted-foreground);margin-bottom:8px}
+.inp{width:100%;min-height:34px;padding:0 10px;border-radius:var(--r-md);border:1px solid var(--border);background:var(--background);font-size:13px}.inp:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.cand{margin-top:6px;max-height:220px;overflow:auto}.cand button{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:4px 6px;border:0;background:none;border-radius:var(--r-md);text-align:left;cursor:pointer}.cand button:hover,.cand button:focus-visible{background:var(--accent)}
+.cand b{display:block;font-size:13px;font-weight:500}.cand small{font-size:12px;color:var(--muted-foreground)}.cand small.w{color:var(--warning-text)}
+.menu{min-width:240px;padding:4px;right:0;top:44px;position:absolute}.menu button{display:flex;gap:10px;align-items:center;width:100%;min-height:36px;padding:0 10px;border:0;background:none;border-radius:var(--r-md);text-align:left;cursor:pointer;font-size:14px}.menu button:hover,.menu button:focus-visible{background:var(--accent)}.menu hr{border:0;border-top:1px solid var(--border);margin:4px 0}
+dialog{width:420px;padding:20px;border:1px solid var(--border);border-radius:var(--r-2xl);background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sheet)}dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog h2{font-size:17px;font-weight:650;margin-bottom:6px}dialog p{color:var(--muted-foreground)}.acts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></symbol>
+<symbol id="i-kebab" viewBox="0 0 24 24"><path d="M12 5h.01M12 12h.01M12 19h.01"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V4h10v5M7 17H5v-7h14v7h-2M8 14h8v6H8z"/></symbol>
+</defs></svg>
+<div class="app">
+<nav class="rail" aria-label="Principal">
+  <span class="lg" aria-hidden="true"></span>
+  <a href="#" aria-label="Inicio"><svg class="i"><use href="#i-home"/></svg></a>
+  <a href="#" aria-label="Dream Team" aria-current="page"><svg class="i"><use href="#i-users"/></svg></a>
+  <a href="#" aria-label="Programación DPS"><svg class="i"><use href="#i-cal"/></svg></a>
+  <span style="flex:1"></span>
+  <a href="#" aria-label="Notificaciones"><svg class="i"><use href="#i-bell"/></svg></a>
+</nav>
+<div class="pg">
+<header class="hd">
+  <div class="cover" aria-hidden="true">Tu casa tiene influencers</div>
+  <div class="tx">
+    <nav class="crumb" aria-label="Ruta"><ol><li><a href="#">DPS</a></li><li aria-hidden="true">›</li><li><a href="#" aria-current="page">Domingos</a></li></ol></nav>
+    <h1>Tu casa tiene influencers · Parte 3</h1>
+    <div style="display:flex;align-items:center">
+      <div class="dp"><button aria-label="Domingo anterior, 1 de noviembre"><svg class="i s14"><use href="#i-back"/></svg></button><span>Domingo 8 nov 2026</span><button aria-label="Domingo siguiente, 15 de noviembre"><svg class="i s14"><use href="#i-chev"/></svg></button></div>
+      <span class="meta"><svg class="i s14"><use href="#i-clock"/></svg><span><span class="num">9:15</span> y <span class="num">11:15</span> · un solo llamado para los dos</span></span>
+    </div>
+  </div>
+  <div class="hact">
+    <a class="btn" href="03-matriz-domingos.html"><svg class="i s14"><use href="#i-grid"/></svg>Matriz</a>
+    <button class="btn" id="acc" aria-haspopup="menu" aria-expanded="false" aria-controls="menu">Acciones<svg class="i s14"><use href="#i-down"/></svg></button>
+    <div class="menu" id="menu" role="menu" aria-label="Acciones del plan" hidden>
+      <button role="menuitem" data-a="copy"><svg class="i s14"><use href="#i-copy"/></svg>Copiar del domingo anterior</button>
+      <button role="menuitem" data-a="asis"><svg class="i s14"><use href="#i-check"/></svg>Pasar asistencia</button>
+      <hr><button role="menuitem" data-a="print"><svg class="i s14"><use href="#i-print"/></svg>Imprimir plan</button>
+    </div>
+  </div>
+</header>
+<div class="bd">
+<aside class="ps" aria-label="Detalles del plan">
+  <section aria-labelledby="h-hr"><h2 id="h-hr">Horarios</h2>
+    <ul class="hr"><li><span>Llegada del equipo</span><span class="num">7:00</span></li><li><span>Ensayo general</span><span class="num">8:00</span></li><li><span>Servicio</span><span class="num">9:15</span></li><li><span>Servicio</span><span class="num">11:15</span></li></ul></section>
+  <section aria-labelledby="h-eq"><h2 id="h-eq">Equipos</h2><div id="side"></div></section>
+  <section aria-labelledby="h-ar"><h2 id="h-ar">Archivos <button class="lnk">Agregar</button></h2>
+    <ul class="fi"><li><svg class="i s14 mut"><use href="#i-file"/></svg><a href="#">Guion Parte 3.pdf</a></li><li><svg class="i s14 mut"><use href="#i-file"/></svg><a href="#">Paleta de colores músicos.png</a></li></ul></section>
+  <section aria-labelledby="h-no"><h2 id="h-no">Notas <button class="lnk">Agregar</button></h2>
+    <p class="nt">Bautizos en el segundo servicio: Técnicos deja libre la salida lateral.<small>Ximena Rangel · jueves</small></p></section>
+</aside>
+<main class="mn" id="main">
+  <div class="tb">
+    <nav class="seg" aria-label="Secciones del plan"><a href="02-plan-domingo-orden.html">Orden</a><a href="#" aria-current="page">Equipos</a><a href="#" aria-disabled="true" title="Llega en una fase posterior">Ensayo <small>pronto</small></a></nav>
+    <p class="sum" id="sum"></p>
+    <p class="sv" id="sv" role="status"><svg class="i s14"><use href="#i-check"/></svg>Guardado</p>
+  </div>
+  <div class="cols" id="cols" aria-label="Equipos del domingo" role="region" tabindex="0"></div>
+</main>
+</div>
+</div>
+</div>
+<div class="pop" id="pop" role="dialog" aria-labelledby="pop-t" hidden>
+  <h3 id="pop-t"></h3><p id="pop-s"></p>
+  <label class="sr" for="q">Buscar en el equipo</label><input class="inp" id="q" type="search" placeholder="Buscar en el equipo" autocomplete="off">
+  <ul class="cand" id="cand"></ul>
+</div>
+<dialog id="cf" aria-labelledby="cf-t">
+  <h2 id="cf-t">¿Copiar del domingo 1 de noviembre?</h2>
+  <p>Llenamos los puestos vacíos con quienes sirvieron la semana pasada. Lo que ya armaste se queda igual.</p>
+  <div class="acts"><button class="btn ghost" data-close>Cancelar</button><button class="btn pri" id="cfok">Copiar</button></div>
+</dialog>
+<p class="sr" role="status" aria-live="polite" id="live"></p>
+<script>
+const ic=(n,c='i s14')=>`<svg class="${c}"><use href="#${n}"/></svg>`;
+// [equipo, [[puesto, cuántos, [convocados]]]] · nombres ficticios
+const T=[['Audio',[['Audio FOH',1,['Rubén Carvajal']],['Monitores',2,['Lorena Ibarra']],['Escenario',2,['Hugo Pacheco','Noelia Ferrer']],['Streaming',1,['Simón Arrieta']]]],
+['Video',[['Cámara 1',1,['Daniela Montes']],['Cámara 2',1,['Óscar Bermúdez']],['Cámara 3',1,['Gisela Ponce']],['Mesa de video',1,['Esteban Yánez']],['Generador',1,['Mónica Salcedo']],['Teleprompter',1,['Raúl Ocampo']],['Pantallas',1,[]]]],
+['Iluminación',[['Consola de luces',1,['Fabián Quintero']],['Seguidor',2,['Adriana Lobo','Tobías Mendoza']]]],
+['Técnicos',[['Stage',2,['Leandro Soto','Julián Ríos']],['Backline',1,['Marcos Peña']],['Técnico de guardia',1,[]]]],
+['Producción Creativa',[['Productor',1,['Ximena Rangel']],['Host',1,['Iván Castellanos']],['Comunicador',1,['Patricia Olmedo']],['Dir. de programación',1,['Andrés Valero']],['Stage manager',1,['Elena Garrido']]]],
+['Global Music',[['Voz líder',1,['Carla Benavides']],['Coros',2,['Mauricio Lara','Sara Villegas']],['Teclado',1,['Joel Arismendi']],['Guitarra',1,['Nadia Cordero']],['Bajo',1,['Pedro Linares']],['Batería',1,['Victoria Paz']]]]];
+const POOL=[['Irene Saavedra','Sirvió hace 2 domingos'],['Wilmer Duque','Sirvió hace 3 domingos'],['Carmen Aular','Ya está en Video este domingo',1],['Leonel Briceño','No sirve desde septiembre'],['Rocío Tovar','Sirvió hace 4 domingos']];
+const open=new Set([0]);
+const ini=n=>n.split(' ').slice(0,2).map(w=>w[0]).join('');
+const hue=n=>[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%5+1;
+const $=id=>document.getElementById(id),live=m=>{$('live').textContent=m};
+const cnt=t=>{let c=0,f=0;t[1].forEach(p=>{c+=p[2].length;f+=Math.max(0,p[1]-p[2].length)});return[c,f]};
+const line=(c,f)=>`<span class="num">${c}</span> ${c===1?'convocado':'convocados'} · ${f?`<span class="f"><span class="num">${f}</span> ${f>1?'faltan':'falta'}</span>`:'completo'}`;
+function col(t,ti){const[c,f]=cnt(t);
+return `<section class="col" id="c-${ti}" aria-labelledby="ct-${ti}"><div class="ch"><h2 id="ct-${ti}">${t[0]}</h2><p>${line(c,f)}</p><button class="btn ghost icon" aria-label="Opciones de ${t[0]}">${ic('i-kebab','i')}</button></div>`+
+t[1].map((p,pi)=>{const miss=Math.max(0,p[1]-p[2].length),k=`${ti}-${pi}`;
+return `<div class="pos"><h3 class="pt"><span>${p[0]}</span><span class="num">${p[2].length}/${p[1]}</span></h3><ul>`+
+p[2].map((n,ni)=>`<li class="pr"><span class="av" data-h="${hue(n)}" aria-hidden="true">${ini(n)}</span><b>${n}</b><button class="x" data-rm="${k}-${ni}" aria-label="Quitar a ${n} de ${p[0]}">${ic('i-x')}</button></li>`).join('')+
+(miss?`<li><button class="fl" data-conv="${k}"><span class="bdg num">${miss}</span>Falta<span class="sr">en ${p[0]}, ${t[0]}. Convocar</span></button></li>`:'')+
+`</ul><button class="ad" data-conv="${k}">${ic('i-plus')}Convocar<span class="sr"> para ${p[0]}, ${t[0]}</span></button></div>`}).join('')+`</section>`}
+function side(){$('side').innerHTML=T.map((t,ti)=>{const[c,f]=cnt(t),o=open.has(ti);
+return `<button class="tm" data-tg="${ti}" aria-expanded="${o}" aria-controls="tp-${ti}">${ic('i-chev')}<b>${t[0]}</b><small>${line(c,f)}</small></button><ul class="tp" id="tp-${ti}"${o?'':' hidden'}>${t[1].map(p=>`<li><span>${p[0]}</span><span class="num${p[2].length<p[1]?' f':''}">${p[2].length}/${p[1]}</span></li>`).join('')}</ul>`}).join('')}
+function render(){let c=0,f=0;T.forEach(t=>{const[a,b]=cnt(t);c+=a;f+=b});
+$('cols').innerHTML=T.map(col).join('')+`<section class="col ot" aria-labelledby="ot"><h2 id="ot">Otros equipos</h2><p>Bienvenida, Ujieres y Niños también sirven este domingo, pero no están en este plan.</p><button class="lnk" style="padding:0">Mostrar todos</button></section>`;
+$('sum').innerHTML=`<strong class="num">${c}</strong> convocados en <span class="num">${T.length}</span> equipos · ${f?`<span class="f"><span class="num">${f}</span> puestos sin cubrir</span>`:'todo cubierto'}`;side()}
+function saved(m){live(m);const s=$('sv');s.textContent='Guardando…';setTimeout(()=>{s.innerHTML=ic('i-check')+'Guardado'},600)}
+let cur=null,from=null;
+function pop(btn){const[ti,pi]=btn.dataset.conv.split('-').map(Number),p=T[ti][1][pi];cur=[ti,pi];from=btn;
+$('pop-t').textContent=`Convocar para ${p[0]}`;$('pop-s').textContent=`${T[ti][0]} · 9:15 y 11:15`;$('q').value='';list();
+const r=btn.getBoundingClientRect(),P=$('pop');P.hidden=false;P.style.left=Math.min(r.left,innerWidth-296)+'px';P.style.top=Math.min(r.bottom+4,innerHeight-P.offsetHeight-8)+'px';$('q').focus()}
+function close(){if($('pop').hidden)return;$('pop').hidden=true;if(from&&from.isConnected)from.focus()}
+function list(){const q=$('q').value.toLowerCase(),taken=T.flatMap(t=>t[1].flatMap(p=>p[2]));
+const c=POOL.filter(x=>!taken.includes(x[0])&&x[0].toLowerCase().includes(q));
+$('cand').innerHTML=c.length?c.map(x=>`<li><button data-add="${x[0]}"><span class="av" data-h="${hue(x[0])}" aria-hidden="true">${ini(x[0])}</span><span><b>${x[0]}</b><small${x[2]?' class="w"':''}>${x[1]}</small></span></button></li>`).join(''):'<li class="mut" style="padding:8px 4px;font-size:13px">Nadie con ese nombre en el equipo.</li>'}
+$('q').addEventListener('input',list);
+const menu=$('menu'),acc=$('acc');
+function menuOpen(o){menu.hidden=!o;acc.setAttribute('aria-expanded',String(o));if(o)menu.querySelector('button').focus()}
+menu.addEventListener('keydown',e=>{const it=[...menu.querySelectorAll('button')],i=it.indexOf(document.activeElement);
+if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();it[(i+(e.key==='ArrowDown'?1:it.length-1))%it.length].focus()}});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(!menu.hidden){menuOpen(false);acc.focus()}else close()});
+document.addEventListener('click',e=>{const b=e.target.closest('button');
+if(!e.target.closest('#pop')&&!(b&&b.dataset.conv))close();
+if(!e.target.closest('.hact'))menuOpen(false);if(!b)return;
+if(b===acc)menuOpen(menu.hidden);
+else if(b.dataset.conv)pop(b);
+else if(b.dataset.add){const[ti,pi]=cur,p=T[ti][1][pi];p[2].push(b.dataset.add);$('pop').hidden=true;render();saved(`Convocaste a ${b.dataset.add} para ${p[0]}.`);document.querySelector(`[data-conv="${ti}-${pi}"]`).focus()}
+else if(b.dataset.rm){const[ti,pi,ni]=b.dataset.rm.split('-').map(Number),p=T[ti][1][pi],n=p[2].splice(ni,1)[0];render();saved(`Quitaste a ${n} de ${p[0]}.`);document.querySelector(`[data-conv="${ti}-${pi}"]`).focus()}
+else if(b.dataset.tg){const i=+b.dataset.tg;open.has(i)?open.delete(i):open.add(i);side();document.querySelector(`[data-tg="${i}"]`).focus();$('c-'+i).scrollIntoView({block:'nearest',inline:'nearest'})}
+else if(b.dataset.a==='copy'){menuOpen(false);$('cf').showModal()}
+else if(b.dataset.a){menuOpen(false);acc.focus();live(b.dataset.a==='asis'?'Abre la asistencia del domingo en el celular.':'Preparando el plan para imprimir.')}
+else if(b.id==='cfok'){$('cf').close();T[1][1][6][2].push('Irene Saavedra');T[3][1][2][2].push('Wilmer Duque');render();saved('Copiamos 2 puestos del 1 de noviembre. Falta 1 en Monitores.');acc.focus()}
+else if('close' in b.dataset){b.closest('dialog').close();acc.focus()}});
+render();
+</script>
+</body>
+</html>

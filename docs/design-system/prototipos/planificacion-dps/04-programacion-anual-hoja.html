@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Programación 2026 · hoja — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Shared block of design/dps-plan (01); layout new for v2. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--tinte-estado:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--sidebar:oklch(.975 .003 80);--surface-primary:#FAFAF8;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--chart-2:oklch(.6 .118 184.704);--chart-3:oklch(.398 .07 227.392);--chart-4:oklch(.828 .189 84.429);--chart-5:oklch(.769 .188 70.08);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28);--shadow-fab:0 16px 36px -10px rgba(233,108,32,.75)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.4;overflow:hidden}
+button,input,select{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s14{width:14px;height:14px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.skip{position:absolute;left:-9999px;top:8px;z-index:100;padding:10px 16px;border-radius:var(--r-xl);background:var(--card);border:2px solid var(--brand-primary);font-weight:600}.skip:focus{left:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 12px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none;color:var(--foreground);transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:hover{background:var(--accent)}.btn:active{transform:scale(.97)}.btn.pri{background:var(--brand-strong);border-color:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}.btn.ghost{border-color:transparent;color:var(--muted-foreground)}
+@media (pointer:coarse){.btn{min-height:44px}}
+.app{display:grid;grid-template-columns:64px minmax(0,1fr);height:100vh}
+.rail{background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 0}
+.rail .lg{width:28px;height:28px;border-radius:var(--radius);background:var(--brand-primary);margin-bottom:14px}
+.rail a{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-xl);color:var(--muted-foreground)}.rail a:hover{background:var(--accent);color:var(--foreground)}.rail a[aria-current]{background:var(--brand-accent-strong);color:var(--brand-text)}
+.pg{display:flex;flex-direction:column;min-width:0;min-height:0}
+.hd{display:flex;align-items:flex-end;gap:12px;padding:16px 24px 12px;background:var(--card);border-bottom:1px solid var(--border)}
+.hd .tx{flex:1}.crumb ol{display:flex;gap:6px;font-size:13px;color:var(--muted-foreground)}.crumb a{color:inherit;text-decoration:none}
+.hd h1{font-size:24px;font-weight:650;letter-spacing:-.02em;line-height:1.15;margin:4px 0 2px}.hd p{font-size:15px;color:var(--muted-foreground)}.hd p strong{color:var(--foreground)}
+.tb{display:flex;align-items:center;gap:10px;padding:10px 24px;position:relative}
+.sel{min-height:36px;padding:0 28px 0 12px;border-radius:var(--r-xl);border:1px solid var(--border);background:var(--card);font-size:14px}
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:var(--r-xl);background:var(--card)}
+.seg button{min-height:30px;padding:0 12px;border:0;border-radius:var(--r-md);background:none;color:var(--muted-foreground);font-size:14px;font-weight:500;cursor:pointer}.seg button:hover{color:var(--foreground)}.seg button[aria-pressed=true]{background:var(--foreground);color:var(--background)}
+.sv{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted-foreground)}
+.cp{position:absolute;z-index:20;top:50px;padding:6px;min-width:220px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-sheet)}
+.cp label{display:flex;gap:8px;align-items:center;min-height:32px;padding:0 8px;border-radius:var(--r-md);font-size:13px;cursor:pointer}.cp label:hover{background:var(--accent)}.cp input{accent-color:var(--brand-strong);width:16px;height:16px}
+/* Hoja */
+.wrap{flex:1;overflow:auto;margin:0 24px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--card)}
+table{border-collapse:separate;border-spacing:0;font-size:13px}
+th,td{height:var(--rh,36px);padding:0 10px;border-right:1px solid color-mix(in oklab,var(--border) 70%,transparent);border-bottom:1px solid color-mix(in oklab,var(--border) 70%,transparent);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.cond{--rh:30px}body.cond table{font-size:12px}
+thead th{position:sticky;top:0;z-index:3;height:34px;background:var(--card);font-size:12px;font-weight:600;color:var(--muted-foreground);border-bottom:1px solid var(--border)}
+.f1{position:sticky;left:0;z-index:2;width:146px;min-width:146px;max-width:146px;background:var(--card)}
+.f2{position:sticky;left:146px;z-index:2;width:250px;min-width:250px;max-width:250px;background:var(--card);border-right:2px solid var(--border);padding-left:14px}
+thead .f1,thead .f2{z-index:4}
+tbody th.f1{font-weight:500}tbody th.f1 small{color:var(--muted-foreground);font-weight:400;margin-right:4px}
+.f2{position:sticky}.f2::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sc,transparent)}
+.f2 b{font-weight:600}.f2 span{color:var(--muted-foreground);margin-left:6px}
+[data-s="0"]{--sc:var(--chart-1)}[data-s="1"]{--sc:var(--chart-2)}[data-s="2"]{--sc:var(--chart-3)}[data-s="3"]{--sc:var(--chart-4)}[data-s="4"]{--sc:var(--chart-5)}
+tr.past th.f1{color:var(--muted-foreground)}
+.nx{display:inline-block;margin-left:4px;padding:0 5px;border-radius:6px;background:var(--brand-accent-strong);color:var(--brand-text);font-size:11px;font-weight:600}
+tr.mo th{height:30px;background:var(--muted);font-size:12px;font-weight:650;text-transform:uppercase;letter-spacing:.08em;color:var(--foreground)}tr.mo td{background:var(--muted)}tr.mo .mo-l{position:sticky;left:0;z-index:2;text-align:left;padding-left:10px;white-space:nowrap}tr.mo small{text-transform:none;letter-spacing:0;font-weight:400;color:var(--muted-foreground);margin-left:8px}
+tr.sp td,tr.sp th{background:repeating-linear-gradient(135deg,var(--card) 0 7px,color-mix(in oklab,var(--border) 45%,var(--card)) 7px 8px)}
+tr.sp .f2{font-style:italic}.mut2{color:var(--muted-foreground)}tr.sp .tg{font-style:normal;display:inline-block;margin-left:8px;padding:0 6px;border-radius:6px;border:1px solid color-mix(in oklab,var(--info) 40%,transparent);background:color-mix(in oklab,var(--info) var(--tinte-estado),var(--card));color:var(--info-text);font-size:11px;font-weight:600}
+td[role=gridcell]{cursor:cell;max-width:var(--cw)}td[role=gridcell]:hover{background:var(--accent)}
+td[role=gridcell]:focus{outline:2px solid var(--brand-primary);outline-offset:-2px}
+td.vac{color:var(--muted-foreground)}td.vac:hover::after{content:"Agregar";font-size:12px}
+td.ed{padding:0;outline:2px solid var(--brand-primary);outline-offset:-2px}td.ed input{width:100%;height:calc(var(--rh,36px) - 2px);padding:0 9px;border:0;background:var(--background);font-size:13px;outline:none;box-shadow:inset 0 0 0 3px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.ft{display:flex;gap:16px;align-items:center;padding:8px 24px 12px;font-size:12px;color:var(--muted-foreground)}
+kbd{font-family:var(--font-mono);font-size:11px;padding:1px 5px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--foreground)}
+dialog{width:420px;padding:20px;border:1px solid var(--border);border-radius:var(--r-2xl);background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sheet)}dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog h2{font-size:17px;font-weight:650;margin-bottom:12px}dialog label{display:block;font-size:13px;font-weight:500;margin:10px 0 4px}
+.inp{width:100%;min-height:44px;padding:0 12px;border-radius:var(--r-xl);border:1px solid var(--border);background:var(--background)}.inp:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.row2{display:grid;grid-template-columns:1fr 120px;gap:10px}.acts{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}dialog small{color:var(--muted-foreground);font-size:12px}
+</style>
+</head>
+<body>
+<a class="skip" href="#grid">Saltar a la hoja</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="i-cols" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9.5 4v16M14.5 4v16"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+</defs></svg>
+<div class="app">
+<nav class="rail" aria-label="Principal">
+  <span class="lg" aria-hidden="true"></span>
+  <a href="#" aria-label="Inicio"><svg class="i"><use href="#i-home"/></svg></a>
+  <a href="01-plan-domingo-equipos.html" aria-label="Dream Team"><svg class="i"><use href="#i-users"/></svg></a>
+  <a href="#" aria-label="Programación DPS" aria-current="page"><svg class="i"><use href="#i-cal"/></svg></a>
+  <span style="flex:1"></span>
+  <a href="#" aria-label="Notificaciones"><svg class="i"><use href="#i-bell"/></svg></a>
+</nav>
+<main class="pg" id="main">
+<header class="hd">
+  <div class="tx">
+    <nav class="crumb" aria-label="Ruta"><ol><li><a href="#">DPS</a></li><li aria-hidden="true">›</li><li><a href="#" aria-current="page">Programación</a></li></ol></nav>
+    <h1>Programación 2026</h1>
+    <p id="sum"></p>
+  </div>
+  <a class="btn" href="03-matriz-domingos.html">Ver matriz de equipos</a>
+  <button class="btn pri" id="nueva"><svg class="i s14"><use href="#i-plus"/></svg>Nueva serie</button>
+</header>
+<div class="tb">
+  <label class="sr" for="yr">Año</label><select class="sel" id="yr"><option>2026</option><option>2027</option></select>
+  <label class="sr" for="ms">Mes</label><select class="sel" id="ms"><option value="">Todos los meses</option></select>
+  <button class="btn" id="colb" aria-expanded="false" aria-controls="cp"><svg class="i s14"><use href="#i-cols"/></svg>Columnas <span class="num" id="coln"></span><svg class="i s14"><use href="#i-down"/></svg></button>
+  <div class="cp" id="cp" role="group" aria-label="Columnas visibles" hidden></div>
+  <div class="seg" role="group" aria-label="Densidad"><button aria-pressed="false" data-d="cond">Condensado</button><button aria-pressed="true" data-d="">Normal</button></div>
+  <p class="sv" id="sv" role="status"><svg class="i s14"><use href="#i-check"/></svg>Guardado</p>
+</div>
+<div class="wrap" id="wrap"><table role="grid" id="grid" aria-label="Programación 2026, un domingo por fila" aria-describedby="ft"><thead id="th"></thead><tbody id="tbd"></tbody></table></div>
+<p class="ft" id="ft"><span><kbd>Enter</kbd> edita y baja</span><span><kbd>Tab</kbd> siguiente</span><span><kbd>Esc</kbd> cancela</span><span>Escribe sobre una celda para reemplazarla</span><span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> para moverte</span><span style="margin-left:auto">Las columnas Fecha y Serie quedan fijas al desplazarte</span></p>
+</main>
+</div>
+<dialog id="dlg" aria-labelledby="dlg-t">
+  <h2 id="dlg-t">Nueva serie</h2>
+  <label for="n1">Nombre</label><input class="inp" id="n1" value="Lo que el corazón guarda">
+  <div class="row2"><div><label for="n2">Primer domingo</label><input class="inp" id="n2" type="date" value="2027-01-03"></div><div><label for="n3">Semanas</label><input class="inp num" id="n3" type="number" min="1" max="12" value="4"></div></div>
+  <small>Creamos sus domingos en la hoja; los días especiales que caigan en medio se respetan.</small>
+  <div class="acts"><button class="btn ghost" data-close>Cancelar</button><button class="btn pri" id="crear">Crear <span id="n4">4</span> domingos</button></div>
+</dialog>
+<p class="sr" role="status" aria-live="polite" id="live"></p>
+<script>
+const MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'],DIA=['dom','lun','mar','mié','jue','vie','sáb'];
+// Series 2026 (ficticias) en orden, con semanas
+const SER=[['Empezar de nuevo',4],['Vida en comunidad',4],['Más que suficiente',5],['La tumba vacía',2],['Hábitos santos',4],['Fe en el trabajo',3],['Generosos',4],['Verano en Salmos',5],['Nombres de Dios',4],['Libres',4],['Fe que se ve',3],['Tu casa tiene influencers',4],['Cuando lo bueno se convierte en tu Dios',2],['Pecadores como yo',3]];
+const ESP=[[2,3,'Cena del Señor','6:45 pm'],[3,17,'Noche de adoración','7:00 pm'],[5,2,'Cena del Señor','6:45 pm'],[8,1,'Cena del Señor','6:45 pm'],[10,20,'Noche de adoración','7:00 pm'],[11,1,'Cena del Señor','6:45 pm']];
+const COL=[['Productor',150],['Host',150],['Comunicador',180],['Opener',220],['Anuncios',200],['Cantantes',180],['Canciones',280],['Closer',180],['Historia de vida',170],['Notas',200]];
+const P=[['Ximena Rangel','Andrés Valero','Elena Garrido','Tomás Aguilera'],['Iván Castellanos','Paola Mejía','Rafael Duarte'],['Ps. Patricia Olmedo','Ps. Patricia Olmedo','Ps. Ernesto Villalba','Ps. Patricia Olmedo','Invitado: Ps. Samuel Ortiz'],
+['Video: sala llena de pantallas','Dinámica con el público','Drama corto: la mesa','Video: el algoritmo de la casa','Monólogo del host'],['Grupos de Vida: inscripciones','Bautizos del mes','Retiro de jóvenes','Escuela de servidores','Ofrenda misionera'],
+['Carla B. · Mauricio L.','Sara V. · Gabriela N.','Carla B. · Sara V.'],['Hogar · Ancla del alma · Tu nombre es fiel','Gracia sin fin · Hogar · Aquí estás','Ancla del alma · Rey de mi casa · Hogar'],
+['Oración por familias','Llamado a Grupos de Vida','Canción final acústica','Oración de salvación'],['Familia Morales','Andrea y Luis','Don Ramiro',''],['Bautizos en el 2.º servicio','Grabar clip para redes','','']];
+const HOY=new Date(2026,10,7);
+const R=[];let d=new Date(2026,0,4),k=0;
+SER.forEach((s,si)=>{for(let w=1;w<=s[1];w++){const f=new Date(d);R.push({f,si,w,of:s[1],c:COL.map((_,ci)=>{const late=f>new Date(2026,10,20);if(late&&ci>2)return'';if(f>new Date(2026,11,10)&&ci===1)return'';const p=P[ci];return p[(k+ci*(ci>2?1:0)+(ci>2?w:0))%p.length]})});d.setDate(d.getDate()+7);k++}});
+R.push({f:new Date(2026,11,27),sp:'Domingo libre',info:'sin serie · un solo servicio',libre:1});
+ESP.forEach(e=>R.push({f:new Date(2026,e[0],e[1]),sp:e[2],info:e[3]}));R.sort((a,b)=>a.f-b.f);
+// Estado de muestra: 15 nov sin opener todavía (se está escribiendo)
+const r15=R.find(r=>!r.sp&&r.f.getMonth()===10&&r.f.getDate()===15);r15.c[3]='';
+let vis=COL.map(()=>true),MF='',fr=0,fc=0,ed=null;
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent=m};
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const nx=R.find(r=>!r.sp&&r.f>HOY);
+const rows=()=>R.filter(r=>!r.sp&&(MF===''||r.f.getMonth()==MF));
+function head(){$('th').innerHTML=`<tr><th class="f1" scope="col">Fecha</th><th class="f2" scope="col">Serie · semana</th>${COL.map((c,i)=>vis[i]?`<th scope="col" style="min-width:${c[1]}px">${c[0]}</th>`:'').join('')}</tr>`;
+$('coln').textContent=`${vis.filter(Boolean).length}/${COL.length}`}
+function body(){let h='',m=-1,ri=1,ed2=[];const nv=vis.filter(Boolean).length;
+R.forEach(r=>{if(MF!==''&&r.f.getMonth()!=MF)return;
+if(r.f.getMonth()!==m){m=r.f.getMonth();const n=R.filter(x=>!x.sp&&!x.libre&&x.f.getMonth()===m).length;h+=`<tr class="mo" aria-rowindex="${++ri}"><th colspan="2" scope="rowgroup" class="mo-l" id="m-${m}"><span>${MES[m]} 2026<small>${n} domingos</small></span></th><td colspan="${nv}" aria-hidden="true"></td></tr>`}
+const dt=`<small>${DIA[r.f.getDay()]}</small><span class="num">${r.f.getDate()}</span> ${MES[r.f.getMonth()].slice(0,3)}`;
+if(r.sp){h+=`<tr class="sp" aria-rowindex="${++ri}"><th class="f1" scope="row">${dt}</th><td class="f2"><b class="tg" style="margin:0 8px 0 0">${r.libre?'Libre':'Especial'}</b>${r.sp}</td><td colspan="${nv}" class="mut2">${r.info}</td></tr>`;return}
+const ix=R.filter(x=>!x.sp).indexOf(r);
+h+=`<tr aria-rowindex="${++ri}"${r.f<HOY?' class="past"':''}><th class="f1" scope="row">${dt}${r===nx?'<span class="nx">Próximo</span>':''}</th><td class="f2" data-s="${(r.si+4)%5}"><b>${SER[r.si][0]}</b><span class="num">${r.w}/${r.of}</span></td>`+
+COL.map((c,ci)=>vis[ci]?`<td role="gridcell" data-r="${ix}" data-c="${ci}" tabindex="-1" style="--cw:${c[1]}px"${r.c[ci]?` title="${esc(r.c[ci])}"`:' class="vac"'}>${esc(r.c[ci])}</td>`:'').join('')+'</tr>'});
+$('tbd').innerHTML=h;$('grid').setAttribute('aria-rowcount',ri);const t=cell(fr,fc)||document.querySelector('td[role=gridcell]');if(t)t.tabIndex=0}
+const SUN=R.filter(r=>!r.sp);
+const cell=(r,c)=>document.querySelector(`td[data-r="${r}"][data-c="${c}"]`);
+function go(r,c){const o=document.querySelector('td[role=gridcell][tabindex="0"]');if(o)o.tabIndex=-1;const t=cell(r,c);if(!t)return;fr=r;fc=c;t.tabIndex=0;t.focus({preventScroll:false})}
+function saved(m){live(m);const s=$('sv');s.textContent='Guardando…';setTimeout(()=>{s.innerHTML='<svg class="i s14"><use href="#i-check"/></svg>Guardado'},600)}
+function edit(t,seed){if(ed)return;const r=+t.dataset.r,c=+t.dataset.c,v=SUN[r].c[c];ed={t,r,c,v};t.classList.add('ed');t.classList.remove('vac');
+t.innerHTML=`<input aria-label="${COL[c][0]}, ${SUN[r].f.getDate()} de ${MES[SUN[r].f.getMonth()]}" value="${esc(seed!=null?seed:v)}">`;const i=t.querySelector('input');i.focus();if(seed==null)i.select();else i.setSelectionRange(i.value.length,i.value.length)}
+function done(keep){if(!ed)return;const{t,r,c,v}=ed,nv=t.querySelector('input').value.trim();ed=null;SUN[r].c[c]=keep?nv:v;
+t.classList.remove('ed');t.textContent=SUN[r].c[c];t.classList.toggle('vac',!SUN[r].c[c]);if(SUN[r].c[c])t.title=SUN[r].c[c];
+if(keep&&nv!==v)saved(`${COL[c][0]} del ${SUN[r].f.getDate()} de ${MES[SUN[r].f.getMonth()]}: ${nv||'vacío'}.`);sumUp()}
+const visC=()=>COL.map((_,i)=>i).filter(i=>vis[i]),visR=()=>rows().map(r=>SUN.indexOf(r));
+function step(dr,dc){const C=visC(),Rr=visR();let ci=C.indexOf(fc)+dc,ri=Rr.indexOf(fr)+dr;
+if(ci>=C.length){ci=0;ri++}if(ci<0){ci=C.length-1;ri--}ri=Math.max(0,Math.min(Rr.length-1,ri));go(Rr[ri],C[ci])}
+$('tbd').addEventListener('keydown',e=>{const t=e.target.closest('td[role=gridcell]');if(!t)return;
+if(ed){if(e.key==='Enter'){e.preventDefault();done(true);step(1,0)}else if(e.key==='Tab'){e.preventDefault();done(true);step(0,e.shiftKey?-1:1)}else if(e.key==='Escape'){e.preventDefault();done(false);t.focus()}return}
+const mv={ArrowUp:[-1,0],ArrowDown:[1,0],ArrowLeft:[0,-1],ArrowRight:[0,1]}[e.key];
+if(mv){e.preventDefault();step(...mv)}else if(e.key==='Tab'){e.preventDefault();step(0,e.shiftKey?-1:1)}else if(e.key==='Enter'||e.key==='F2'){e.preventDefault();edit(t)}
+else if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();edit(t,'');done(true);t.focus()}
+else if(e.key.length===1&&!e.metaKey&&!e.ctrlKey){e.preventDefault();edit(t,e.key)}});
+$('tbd').addEventListener('click',e=>{const t=e.target.closest('td[role=gridcell]');if(!t||t.classList.contains('ed'))return;if(ed)done(true);go(+t.dataset.r,+t.dataset.c)});
+$('tbd').addEventListener('dblclick',e=>{const t=e.target.closest('td[role=gridcell]');if(t)edit(t)});
+$('tbd').addEventListener('focusout',e=>{if(ed&&!ed.t.contains(e.relatedTarget))done(true)});
+function sumUp(){const s=SUN.filter(r=>r.f>HOY&&r.f<new Date(2026,11,31)),v=s.reduce((a,r)=>a+r.c.slice(0,3).filter(x=>!x).length,0);
+$('sum').innerHTML=`<strong class="num">${R.filter(r=>r.f.getDay()===0).length}</strong> domingos · <strong class="num">${SER.length}</strong> series · <strong class="num">${ESP.length+1}</strong> días especiales · <strong class="num">${v}</strong> puestos de productor, host o comunicador sin asignar de aquí a fin de año`}
+$('ms').innerHTML+=MES.map((m,i)=>`<option value="${i}">${m[0].toUpperCase()+m.slice(1)}</option>`).join('');
+$('ms').addEventListener('change',e=>{MF=e.target.value;const r=visR();fr=r[0];fc=visC()[0];body();live(MF===''?'Mostrando todo el año.':`Mostrando ${MES[MF]}: ${r.length} domingos.`)});
+$('cp').innerHTML=COL.map((c,i)=>`<label><input type="checkbox" data-v="${i}" checked>${c[0]}</label>`).join('');
+$('cp').addEventListener('change',e=>{const i=+e.target.dataset.v;if(vis.filter(Boolean).length===1&&!e.target.checked){e.target.checked=true;return}vis[i]=e.target.checked;if(!vis[fc])fc=visC()[0];head();body()});
+document.addEventListener('click',e=>{const b=e.target.closest('button');
+if(!e.target.closest('#cp')&&b!==$('colb')&&!$('cp').hidden){$('cp').hidden=true;$('colb').setAttribute('aria-expanded','false')}if(!b)return;
+if(b.id==='colb'){const o=$('cp').hidden;$('cp').hidden=!o;b.setAttribute('aria-expanded',String(o));if(o)$('cp').querySelector('input').focus();$('cp').style.left=b.offsetLeft+'px'}
+else if('d' in b.dataset){document.body.classList.toggle('cond',!!b.dataset.d);document.querySelectorAll('[data-d]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))}
+else if(b.id==='nueva')$('dlg').showModal();
+else if(b.id==='crear'){$('dlg').close();saved(`Creamos «${$('n1').value}» con ${$('n3').value} domingos en 2027.`);$('nueva').focus()}
+else if('close' in b.dataset){$('dlg').close();$('nueva').focus()}});
+$('cp').addEventListener('keydown',e=>{if(e.key==='Escape'){$('cp').hidden=true;$('colb').setAttribute('aria-expanded','false');$('colb').focus()}});
+$('n3').addEventListener('input',e=>{$('n4').textContent=e.target.value||'0'});
+head();body();sumUp();
+// Abrimos la hoja en octubre y dejamos una celda en edición: Opener del 15 de noviembre
+const W=$('wrap');W.scrollTop=$('m-9').closest('tr').offsetTop-34;
+const ri=SUN.indexOf(r15);fr=ri;fc=3;go(ri,3);W.scrollLeft=0;edit(cell(ri,3),'Video: el algoritmo de la ca');
+</script>
+</body>
+</html>
