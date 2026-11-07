@@ -7,7 +7,7 @@
  * localidades. The client is a stub that records every call and answers from
  * the fixture of each RPC or table.
  */
-import { cargarPlanner, elegirTemporada, FILAS_POR_PAGINA, MAXIMO_PAGINAS, mensajeErrorPlanner, type ClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
+import { cargarGruposOrigen, cargarPlanner, elegirTemporada, FILAS_POR_PAGINA, MAXIMO_PAGINAS, mensajeErrorPlanner, type ClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
 
 type Respuesta = { data: unknown; error: { code?: string; message?: string } | null }
 
@@ -338,5 +338,40 @@ describe('mensajeErrorPlanner', () => {
     expect(mensajeErrorPlanner({ code: '22023', message: 'Elige un grupo.' })).toBe('Elige un grupo.')
     expect(mensajeErrorPlanner({ code: 'XX000', message: 'boom' })).toBe('No se pudo cargar el planificador. Recarga la página.')
     expect(mensajeErrorPlanner(null)).toBe('No se pudo cargar el planificador. Recarga la página.')
+  })
+})
+
+describe('cargarGruposOrigen', () => {
+  const conOrigen = () => ({
+    ...TEMPORADAS,
+    temporadas: TEMPORADAS.temporadas.map((t) => (t.id === T_PLAN ? { ...t, origen_id: T_VIEJA_PLAN, origen_nombre: '2025 - II' } : t)),
+  })
+
+  it('reads the groups of the origin season of the planning season with planner_tablero (Lado a lado, T7)', async () => {
+    respuestas.planner_temporadas = ok(conOrigen())
+
+    const resultado = await cargarGruposOrigen(cliente(), T_PLAN)
+
+    expect(resultado).toEqual({ ok: true, origen: { id: T_VIEJA_PLAN, nombre: '2025 - II' }, grupos: [expect.objectContaining({ grupo_id: 'g1' })] })
+    expect(llamadas.map((l) => l.nombre)).toEqual(['planner_temporadas', 'planner_tablero'])
+    expect(llamadas[1].args).toEqual({ p_temporada_id: T_VIEJA_PLAN })
+    expect(llamadas[1].rango).toEqual([0, FILAS_POR_PAGINA - 1])
+  })
+
+  it('answers no groups, without reading any board, when the season has no origin', async () => {
+    expect(await cargarGruposOrigen(cliente(), T_PLAN)).toEqual({ ok: true, origen: null, grupos: [] })
+    expect(llamadas.map((l) => l.nombre)).toEqual(['planner_temporadas'])
+  })
+
+  it('refuses a season the actor does not see', async () => {
+    expect(await cargarGruposOrigen(cliente(), 't-otra')).toEqual({ ok: false, mensaje: 'La temporada no existe.' })
+    expect(llamadas.map((l) => l.nombre)).toEqual(['planner_temporadas'])
+  })
+
+  it('says why when a read fails', async () => {
+    respuestas.planner_temporadas = ok(conOrigen())
+    respuestas.planner_tablero = falla('42501', 'sin acceso')
+
+    expect(await cargarGruposOrigen(cliente(), T_PLAN)).toEqual({ ok: false, mensaje: 'No tienes permiso para usar el planificador.' })
   })
 })

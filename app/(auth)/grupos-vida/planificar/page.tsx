@@ -12,9 +12,10 @@
  * server action of ./actions.ts (S24). The latest steps of planner_historial
  * come along for "Deshacer último guardado".
  *
- * `?temporada=<id>` opens that season; without it, the most recent season in
- * planning. With none in planning: an empty state that sends the director
- * general to the new-season assistant (T8).
+ * `?vista=lado` opens the Lado a lado view (T7). `?temporada=<id>` opens
+ * that season; without it, the most recent season in planning. With none in
+ * planning: an empty state that sends the director general to the new-season
+ * assistant (T8).
  */
 import { redirect } from 'next/navigation'
 
@@ -55,5 +56,6 @@ export default async function PlanificarPage({ searchParams }: PlanificarPagePro
   if (resultado.tipo === 'sin_temporada') return <PlannerSinTemporada puedeCrearTemporada={resultado.capacidades.puede_crear_temporada} />
   // Without the history the board still opens; Deshacer then says it could not read it.
   const pasos = await ultimosPasos(cliente, { temporadaId: resultado.datos.temporada.id })
-  return <PlannerClient datos={resultado.datos} pasos={pasos.ok ? pasos.datos : null} />
+  const vista = primero(parametros.vista) === 'lado' ? 'lado' : 'tablero'
+  return <PlannerClient datos={resultado.datos} pasos={pasos.ok ? pasos.datos : null} vistaInicial={vista} />
 }

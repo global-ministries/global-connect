@@ -23,6 +23,11 @@
  * also keeps the live-region text, the dialog requests (Ubicar, Nuevo grupo,
  * Eliminar), the open group panel (T6) and the drag in progress.
  *
+ * The Lado a lado view (T7, lado-a-lado.tsx) adds to the same draft: "Pasar"
+ * (one move per role, so everyone keeps their origin role), "Pasar las N sin
+ * ubicar" and "Crear grupo copiando este" (a "crear" with its "tmp:" key and
+ * the leaders' move) each write the draft once.
+ *
  * The board components read the actions from contexto-pasos.tsx.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
@@ -69,6 +74,7 @@ import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 import { useBorradorLocal } from './borrador-local'
 import type { Carga, PasosPlanner, PeticionUbicar } from './contexto-pasos'
 import { planearMovimiento, type RolDestino } from './modelo'
+import { datosCopia, planPasar, type MovimientoLado } from './modelo-lado'
 
 export type { Carga, PeticionUbicar } from './contexto-pasos'
 export { PasosPlannerProvider } from './contexto-pasos'
@@ -169,6 +175,33 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
       cambiarBorrador(siguiente)
       setAnuncio(`${texto}. Sin guardar.`)
       return true
+    },
+    [avisar, base, borrador, cambiarBorrador, catalogo, guardando],
+  )
+
+  /** Adds several changes in order and writes the draft once; how many changed something (0 when none could be added). */
+  const agregarVarios = useCallback(
+    (lista: readonly CambioPlanner[], texto: string): number => {
+      if (guardando) {
+        avisar(GUARDANDO)
+        return 0
+      }
+      let siguiente = borrador
+      let agregados = 0
+      lista.forEach((cambio) => {
+        const otro = agregarCambio(siguiente, cambio, base, catalogo)
+        if (otro === siguiente) return
+        siguiente = otro
+        agregados += 1
+      })
+      if (agregados === 0) return 0
+      if (siguiente.cambios.length > MAXIMO_CAMBIOS) {
+        avisar(LLENO)
+        return 0
+      }
+      cambiarBorrador(siguiente)
+      setAnuncio(`${texto}. Sin guardar.`)
+      return agregados
     },
     [avisar, base, borrador, cambiarBorrador, catalogo, guardando],
   )
@@ -446,6 +479,72 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     agregar({ tipo: 'eliminar', grupo: grupo.grupo_id }, `Eliminaste ${grupo.nombre}`)
   }
 
+  // ─── Lado a lado (T7) ───
+
+  const movimientos = (lista: readonly MovimientoLado[], destino: GrupoTablero): CambioPlanner[] =>
+    lista.map((m) => ({ tipo: 'mover', usuarios: [...m.usuarios], grupo: destino.grupo_id, rol: m.rol }))
+
+  /** "Pasar": `carga` into `destino` keeping each one's role in `origen` (or `rol`); a couple outside Matrimonios asks who goes. */
+  const pasar = (carga: Carga, destino: GrupoTablero, rol: RolDestino, origen: GrupoTablero | null) => {
+    const plan = planPasar(carga.ids, rol, origen, destino, fichas)
+    if (plan.tipo === 'elegir') return setUbicar({ carga, grupoId: destino.grupo_id, rol })
+    const quien = nombres(plan.movimientos.flatMap((m) => m.usuarios))
+    const agregados = agregarVarios(movimientos(plan.movimientos, destino), `${quien} en ${destino.nombre}${plan.aviso ? `. ${plan.aviso}` : ''}`)
+    if (agregados > 0 && plan.aviso) notificar.info(plan.aviso)
+  }
+
+  /** "Pasar las N sin ubicar": every row in order; couples that must choose who goes stay, and the toast says so. */
+  const pasarVarios = (filas: readonly { readonly carga: Carga; readonly rol: RolDestino }[], destino: GrupoTablero, origen: GrupoTablero | null) => {
+    const cambiosLado: CambioPlanner[] = []
+    const avisos: string[] = []
+    const eligen: string[] = []
+    filas.forEach(({ carga: c, rol }) => {
+      const plan = planPasar(c.ids, rol, origen, destino, fichas)
+      if (plan.tipo === 'elegir') return void eligen.push(c.nombre)
+      cambiosLado.push(...movimientos(plan.movimientos, destino))
+      if (plan.aviso) avisos.push(`${c.nombre}: ${plan.aviso}`)
+    })
+    const personas = new Set(cambiosLado.flatMap((c) => (c.tipo === 'mover' ? c.usuarios : []))).size
+    const agregados = cambiosLado.length > 0 ? agregarVarios(cambiosLado, `Pasaste ${personas === 1 ? '1 persona' : `${personas} personas`} a ${destino.nombre}`) : 0
+    if (agregados > 0 && avisos.length > 0) notificar.info(avisos.join(' · '))
+    if (eligen.length > 0) notificar.info(`Elige quién va de ${enLista(eligen)} con «Pasar»: fuera de Matrimonios cada uno va a su grupo.`)
+  }
+
+  /**
+   * "Crear grupo copiando este": a "crear" of the origin group's fields
+   * (datosCopia) and the move of its leaders still without a group. The new
+   * group's "tmp:" key, or null when nothing was added.
+   */
+  const crearCopia = (origen: GrupoTablero): string | null => {
+    if (!editable(origen.segmento_id)) {
+      avisar(`No puedes crear grupos de ${origen.segmento_nombre}.`)
+      return null
+    }
+    const delSegmento = tablero.grupos.filter((g) => g.segmento_id === origen.segmento_id).map((g) => g.nombre)
+    const copia = datosCopia(origen, catalogo, delSegmento, temporada.nombre)
+    const validados = validarDatosGrupo(copia.datos, { comprobarIds: false })
+    if ('error' in validados) {
+      avisar(validados.error)
+      return null
+    }
+    const clave = nuevaClave(borrador, visibles)
+    const lideres = origen.lideres.map((l) => l.usuario_id)
+    const libres = lideres.filter((id) => !fichas.get(id)?.grupo_actual_id)
+    const ocupados = lideres.filter((id) => fichas.get(id)?.grupo_actual_id)
+    const lista: CambioPlanner[] = [
+      { tipo: 'crear', clave, datos: { ...copia.datos, ...validados.valores } },
+      ...(libres.length > 0 ? [{ tipo: 'mover' as const, usuarios: libres, grupo: clave, rol: 'lider' as const }] : []),
+    ]
+    if (agregarVarios(lista, `Creaste ${copia.datos.nombre} copiando ${origen.nombre}`) === 0) return null
+    if (copia.omitidos.length > 0) {
+      notificar.info(
+        `No se copiaron como directores de etapa: ${enLista(copia.omitidos.map(nombrePersona))}. Ya no son directores de ${origen.segmento_nombre}.`,
+      )
+    }
+    if (ocupados.length > 0) notificar.info(`${nombres(ocupados)} ya ${ocupados.length === 1 ? 'está' : 'están'} en otro grupo de ${temporada.nombre}: no se movieron.`)
+    return clave
+  }
+
   return {
     tablero,
     fichas,
@@ -481,5 +580,8 @@ export function usePasosPlanner(datos: DatosPlanner, pasos: readonly PasoHistori
     editar,
     usarLocalidad,
     moverDesdePanel,
+    pasar,
+    pasarVarios,
+    crearCopia,
   }
 }

@@ -33,6 +33,7 @@ jest.mock('@/app/(auth)/grupos-vida/planificar/actions', () => ({
   guardarCambiosAction: jest.fn(),
   deshacerPasoAction: jest.fn(),
   marcarSegmentoAction: jest.fn(),
+  cargarOrigenAction: jest.fn(() => Promise.resolve({ ok: true, origen: null, grupos: [] })),
 }))
 
 const TEMPORADA = {
@@ -281,13 +282,13 @@ describe('board', () => {
     expect(window.localStorage.getItem('planner-gdv:banco-oculto:u-toggle')).toBe('1')
   })
 
-  it('tells that Lado a lado comes later', async () => {
-    render(<PlannerClient datos={datos()} />)
+  it('opens Lado a lado from the URL, without the Agrupar select of the Tablero (T7)', async () => {
+    render(<PlannerClient datos={datos()} vistaInicial="lado" />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Lado a lado · pronto' }))
-
-    expect(toast.info).toHaveBeenCalledWith('La vista Lado a lado llega pronto.')
-    expect(screen.getByRole('button', { name: 'Tablero' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Lado a lado' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('region', { name: 'Grupos lado a lado' })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Agrupar por' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Grupos de la temporada, vista Tablero' })).not.toBeInTheDocument()
   })
 })
 

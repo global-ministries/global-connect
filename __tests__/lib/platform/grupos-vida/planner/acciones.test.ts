@@ -261,6 +261,29 @@ describe('server actions', () => {
 
     expect(sesion.rpc.mock.calls.map(([nombre]) => nombre)).toEqual(['planner_deshacer_paso', 'planner_marcar_segmento'])
     expect(revalidatePath).toHaveBeenCalledTimes(2)
-    expect(Object.keys(acciones).sort()).toEqual(['deshacerPasoAction', 'guardarCambiosAction', 'marcarSegmentoAction'])
+    expect(Object.keys(acciones).sort()).toEqual(['cargarOrigenAction', 'deshacerPasoAction', 'guardarCambiosAction', 'marcarSegmentoAction'])
+  })
+
+  it('read the origin season groups for Lado a lado without revalidating (T7)', async () => {
+    const { cargarOrigenAction } = await import('@/app/(auth)/grupos-vida/planificar/actions')
+    sesion.rpc.mockResolvedValue({
+      data: {
+        usuario_id: U1,
+        ve_todos_los_segmentos: true,
+        puede_publicar: true,
+        puede_crear_temporada: true,
+        segmentos_editables: [],
+        segmentos: [],
+        temporadas: [{ id: T, nombre: '2026-II', estado: 'planificacion', activa: false, origen_id: null }],
+      },
+      error: null,
+    })
+
+    expect(await cargarOrigenAction({ temporadaId: '' })).toEqual({ ok: false, mensaje: 'La temporada no existe.' })
+    expect(sesion.rpc).not.toHaveBeenCalled()
+
+    expect(await cargarOrigenAction({ temporadaId: T })).toEqual({ ok: true, origen: null, grupos: [] })
+    expect(sesion.rpc.mock.calls.map(([nombre]) => nombre)).toEqual(['planner_temporadas'])
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 })

@@ -13,9 +13,13 @@
  *
  * Top to bottom: the one-line season header (cabecera-temporada.tsx), one
  * toolbar row (view switch Tablero · Lado a lado, search over groups and
- * people, Agrupar por localidad | director, Ocultar / Mostrar banco), then the
- * Tablero lanes (tablero-planner.tsx) next to the people bank
- * (banco-personas.tsx). The alerts live only in the header button, which
+ * people, Agrupar por localidad | director in Tablero, Ocultar / Mostrar
+ * banco), then the Tablero lanes (tablero-planner.tsx) or the Lado a lado
+ * panes (lado-a-lado.tsx, T7) next to the people bank (banco-personas.tsx).
+ * The view lives in the URL (`?vista=lado`, replaced in place, no reload);
+ * entering Lado a lado reads the origin season's groups once
+ * (cargarOrigenAction). In Lado a lado the bank sits above the panes below
+ * 1280 px (artboard 07). The alerts live only in the header button, which
  * opens the side panel (panel-alertas.tsx). A group opens as its own side
  * panel (panel-grupo.tsx, T6) from its card, the alerts or the bank; the
  * alerts fix what they can from there. Warnings come from calcularAvisos
@@ -24,22 +28,23 @@
  * pending changes (bloqueosConBorrador). The bank toggle is remembered per
  * user in localStorage.
  */
-import { useMemo, useState, useSyncExternalStore, type ReactElement } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, PaginaSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
-import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { botonPublicar, calcularAvisos, sugerirLocalidad, type PasoHistorial, type SugerenciaLocalidad } from '@/lib/platform/grupos-vida/planner'
 import { bloqueosConBorrador } from '@/lib/platform/grupos-vida/planner/borrador'
 import type { DatosPlanner } from '@/lib/platform/grupos-vida/planner/datos'
 import { cn } from '@/lib/utils'
+import { cargarOrigenAction } from '@/app/(auth)/grupos-vida/planificar/actions'
 
 import { BancoPersonas } from './banco-personas'
 import { CabeceraTemporada } from './cabecera-temporada'
 import { DialogoEliminarGrupo } from './dialogo-eliminar-grupo'
 import { DialogoUbicar } from './dialogo-ubicar'
+import { LadoALado, type EstadoOrigen } from './lado-a-lado'
 import { BarraGuardado } from './estado-guardado'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
@@ -50,7 +55,7 @@ import { PanelNuevoGrupo } from './panel-nuevo-grupo'
 import { PasosPlannerProvider, usePasosPlanner } from './pasos-planner'
 import { TableroPlanner } from './tablero-planner'
 
-type Vista = 'tablero' | 'lado'
+export type Vista = 'tablero' | 'lado'
 
 const ID_BANCO = 'banco-personas'
 
@@ -60,6 +65,8 @@ export interface PlannerClientProps {
   readonly datos: DatosPlanner
   /** planner_historial (latest steps) for Deshacer; null when it could not be read. */
   readonly pasos?: readonly PasoHistorial[] | null
+  /** `?vista=` of the URL. */
+  readonly vistaInicial?: Vista
 }
 
 const EVENTO_BANCO = 'planner-gdv:banco'
@@ -103,7 +110,43 @@ function useBancoVisible(usuarioId: string): [boolean, (visible: boolean) => voi
   return [!oculto, cambiar]
 }
 
-export function PlannerClient({ datos, pasos = null }: PlannerClientProps): ReactElement {
+/** The view in the URL, replaced in place (no navigation, no new data). */
+function escribirVista(vista: Vista) {
+  const url = new URL(window.location.href)
+  if (vista === 'lado') url.searchParams.set('vista', 'lado')
+  else url.searchParams.delete('vista')
+  window.history.replaceState(window.history.state, '', url)
+}
+
+/**
+ * The origin season's groups for Lado a lado, read once on demand. null until
+ * requested (shown as loading); `pedir` sets nothing synchronously, so the
+ * effect that requests it on a `?vista=lado` load stays a plain subscription.
+ */
+function useGruposOrigen(temporadaId: string, origenNombre: string | null) {
+  const [estado, setEstado] = useState<EstadoOrigen | null>(null)
+  const pidiendo = useRef(false)
+  const pedir = useCallback(() => {
+    if (pidiendo.current) return
+    pidiendo.current = true
+    cargarOrigenAction({ temporadaId })
+      .then(
+        (r): EstadoOrigen => (r.ok ? { tipo: 'listo', grupos: r.grupos } : { tipo: 'error', mensaje: r.mensaje }),
+        (): EstadoOrigen => ({ tipo: 'error', mensaje: `No se pudieron leer los grupos de ${origenNombre ?? 'la temporada anterior'}. Revisa tu conexión.` }),
+      )
+      .then((siguiente) => {
+        pidiendo.current = false
+        setEstado(siguiente)
+      })
+  }, [temporadaId, origenNombre])
+  const reintentar = useCallback(() => {
+    setEstado({ tipo: 'cargando' })
+    pedir()
+  }, [pedir])
+  return { estado, pedir, reintentar }
+}
+
+export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero' }: PlannerClientProps): ReactElement {
   const { capacidades, temporada, estado, localidades, faltantes } = datos
   const control = usePasosPlanner(datos, pasos)
   const { grupos, banco } = control.tablero
@@ -118,7 +161,6 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
       .filter((g) => segmentos.has(g.segmento_id))
       .sort((a, b) => a.segmento_nombre.localeCompare(b.segmento_nombre, 'es') || a.nombre.localeCompare(b.nombre, 'es'))
   }, [grupos, capacidades.segmentos_editables])
-  const notificar = useNotificaciones()
   const [alertasAbiertas, setAlertasAbiertas] = useState(false)
   const [busqueda, setBusqueda] = useState('')
   const [agrupar, setAgrupar] = useState<Agrupar>('localidad')
@@ -143,8 +185,20 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
 
   const publicar = capacidades.puede_publicar ? (estado ? botonPublicar(estado) : { texto: 'Publicar', listo: false }) : null
 
-  const cambiarVista = (vista: Vista) => {
-    if (vista === 'lado') notificar.info('La vista Lado a lado llega pronto.')
+  const [vista, setVista] = useState<Vista>(vistaInicial)
+  const conOrigen = temporada.origen_id !== null
+  const origen = useGruposOrigen(temporada.id, temporada.origen_nombre)
+  const necesitaOrigen = vista === 'lado' && conOrigen && origen.estado === null
+  const { pedir } = origen
+  useEffect(() => {
+    if (necesitaOrigen) pedir()
+  }, [necesitaOrigen, pedir])
+  const estadoOrigen: EstadoOrigen = !conOrigen ? { tipo: 'listo', grupos: [] } : (origen.estado ?? { tipo: 'cargando' })
+  const lado = vista === 'lado'
+
+  const cambiarVista = (siguiente: Vista) => {
+    setVista(siguiente)
+    escribirVista(siguiente)
   }
 
   return (
@@ -192,9 +246,9 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
             etiqueta="Vista"
             opciones={[
               { valor: 'tablero', etiqueta: 'Tablero' },
-              { valor: 'lado', etiqueta: 'Lado a lado · pronto' },
+              { valor: 'lado', etiqueta: 'Lado a lado' },
             ]}
-            valor="tablero"
+            valor={vista}
             onCambio={cambiarVista}
           />
           <div className="min-w-[14rem] flex-1">
@@ -208,7 +262,7 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
               autoComplete="off"
             />
           </div>
-          <div className="w-52">
+          <div className="w-52" hidden={lado}>
             <SelectSistema
               aria-label="Agrupar por"
               opciones={[
@@ -237,10 +291,29 @@ export function PlannerClient({ datos, pasos = null }: PlannerClientProps): Reac
           </BotonSistema>
         </section>
 
-        <div className={cn('grid items-start gap-6', bancoVisible && 'lg:grid-cols-[minmax(0,1fr)_20rem]')}>
-          <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
-          <div hidden={!bancoVisible} className="min-w-0 lg:sticky lg:top-24">
-            <BancoPersonas id={ID_BANCO} banco={banco} temporada={temporada} className="lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto" />
+        {/* Lado a lado: the two panes need 1280 px next to the bank; below it the bank sits above them (07). */}
+        <div className={cn('grid items-start gap-6', bancoVisible && (lado ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'))}>
+          {lado ? (
+            <LadoALado
+              temporada={temporada}
+              capacidades={capacidades}
+              grupos={grupos}
+              fichas={control.fichas}
+              origen={estadoOrigen}
+              onReintentar={origen.reintentar}
+              busqueda={busqueda}
+              acciones={{ pasar: control.pasar, pasarVarios: control.pasarVarios, crearCopia: control.crearCopia }}
+            />
+          ) : (
+            <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
+          )}
+          <div hidden={!bancoVisible} className={cn('min-w-0', lado ? 'order-first xl:order-none xl:sticky xl:top-24' : 'lg:sticky lg:top-24')}>
+            <BancoPersonas
+              id={ID_BANCO}
+              banco={banco}
+              temporada={temporada}
+              className={lado ? 'max-h-[380px] overflow-y-auto xl:max-h-[calc(100dvh-7rem)]' : 'lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto'}
+            />
           </div>
         </div>
 

@@ -14,6 +14,10 @@
  * PostgREST's max_rows cuts one answer of a set-returning RPC at 1000 rows,
  * and the church has more people than that (L35).
  *
+ * cargarGruposOrigen reads, on demand, the groups of the origin season of
+ * the season in planning for the Lado a lado view (T7): planner_tablero
+ * accepts any season and scopes it by segment the same way (S10).
+ *
  * The board needs the groups, the bank and the blockers; any of them failing
  * is an error. The publish state and the localidades are extras: when they
  * fail the board still opens and `faltantes` says what is missing.
@@ -125,7 +129,7 @@ export const MAXIMO_PAGINAS = 20
  * not overlap. The first error is the answer; past MAXIMO_PAGINAS it stops
  * with what it read and logs it.
  */
-export async function rpcPorPaginas(supabase: ClientePlanner, nombre: string, args: Record<string, unknown>): Promise<Respuesta> {
+export async function rpcPorPaginas(supabase: Pick<ClientePlanner, 'rpc'>, nombre: string, args: Record<string, unknown>): Promise<Respuesta> {
   const filas: unknown[] = []
   for (let pagina = 0; pagina < MAXIMO_PAGINAS; pagina += 1) {
     const desde = pagina * FILAS_POR_PAGINA
@@ -179,5 +183,38 @@ export async function cargarPlanner(supabase: ClientePlanner, temporadaPedida?: 
       localidades: localidadesRes.error ? [] : leerLocalidades(localidadesRes.data).filas,
       faltantes,
     },
+  }
+}
+
+export type ResultadoGruposOrigen =
+  | {
+      readonly ok: true
+      /** The season the planning season closes; null when it has none (then no groups). */
+      readonly origen: { readonly id: string; readonly nombre: string } | null
+      readonly grupos: readonly GrupoTablero[]
+    }
+  | { readonly ok: false; readonly mensaje: string }
+
+/**
+ * The groups of the origin season of `temporadaId` (Lado a lado, T7). The
+ * origin comes from planner_temporadas, never from the caller, so only that
+ * season is read; planner_tablero scopes its groups by the actor's segments
+ * (S10).
+ */
+export async function cargarGruposOrigen(supabase: Pick<ClientePlanner, 'rpc'>, temporadaId: string): Promise<ResultadoGruposOrigen> {
+  const temporadasRes = await supabase.rpc('planner_temporadas')
+  if (temporadasRes.error) return { ok: false, mensaje: mensajeErrorPlanner(temporadasRes.error) }
+  const capacidades = leerTemporadas(temporadasRes.data)
+  if (!capacidades) return { ok: false, mensaje: SIN_DATOS }
+  const temporada = capacidades.temporadas.find((t) => t.id === temporadaId)
+  if (!temporada) return { ok: false, mensaje: 'La temporada no existe.' }
+  if (!temporada.origen_id) return { ok: true, origen: null, grupos: [] }
+
+  const tableroRes = await rpcPorPaginas(supabase, 'planner_tablero', { p_temporada_id: temporada.origen_id })
+  if (tableroRes.error) return { ok: false, mensaje: mensajeErrorPlanner(tableroRes.error) }
+  return {
+    ok: true,
+    origen: { id: temporada.origen_id, nombre: temporada.origen_nombre ?? 'Temporada anterior' },
+    grupos: leerTablero(tableroRes.data).filas,
   }
 }

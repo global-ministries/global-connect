@@ -5,9 +5,10 @@
  * S24 of odd/tasks/planner-gdv.md). The board keeps its changes in the
  * browser until "Guardar": guardarCambiosAction saves them all in one
  * planner_guardar_cambios call. Undo and "Terminé mi segmento" run on their
- * own. Each action uses the caller's session client (never the service role:
- * the RPCs check role and segment scope with auth.uid()) and revalidates the
- * planner route after a saved call. Validation and error messages live in
+ * own; cargarOrigenAction only reads the origin season's groups for the Lado
+ * a lado view (T7). Each action uses the caller's session client (never the
+ * service role: the RPCs check role and segment scope with auth.uid()) and
+ * revalidates the planner route after a saved call. Validation and error messages live in
  * lib/platform/grupos-vida/planner/acciones.ts.
  */
 import { revalidatePath } from 'next/cache'
@@ -22,6 +23,7 @@ import {
   type EntradaGuardarCambios,
   type EntradaMarcarSegmento,
 } from '@/lib/platform/grupos-vida/planner/acciones'
+import { cargarGruposOrigen, comoClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
 
 async function conSesion<R extends { readonly ok: boolean }>(accion: (cliente: ClienteAcciones) => Promise<R>): Promise<R> {
   const supabase = await createSupabaseServerClient()
@@ -41,4 +43,11 @@ export async function deshacerPasoAction(entrada: { readonly pasoId: string }) {
 
 export async function marcarSegmentoAction(entrada: EntradaMarcarSegmento) {
   return conSesion((cliente) => marcarSegmento(cliente, entrada))
+}
+
+export async function cargarOrigenAction(entrada: { readonly temporadaId: string }) {
+  const temporadaId = typeof entrada?.temporadaId === 'string' ? entrada.temporadaId : ''
+  if (!temporadaId) return { ok: false as const, mensaje: 'La temporada no existe.' }
+  const supabase = await createSupabaseServerClient()
+  return cargarGruposOrigen(comoClientePlanner(supabase), temporadaId)
 }
