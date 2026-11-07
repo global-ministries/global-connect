@@ -32,6 +32,10 @@
  * picks how its ediciones start: "Primer domingo de cada mes"
  * (talleres.ancla_ediciones) or "Cada N días" (the intervalo field, only
  * shown for that choice). Saved in the same `updateTallerConfiguracion`.
+ *
+ * Registro por QR (odd/tasks/proximo-paso.md T2) — on Próximo Paso itself,
+ * whoever edits the taller also gets its "Enlace de inscripción" (public
+ * URL, copy and QR) for the announcement.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -46,6 +50,8 @@ import {
 } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
 import type { AnclaEdiciones } from '@/lib/platform/talleres/ancla-ediciones'
+import { PROXIMO_PASO_SLUG } from '@/lib/platform/talleres/proximo-paso-registro'
+import { EnlaceInscripcionProximoPaso } from '@/components/talleres/enlace-inscripcion-proximo-paso'
 
 export interface ConfiguracionTallerProps {
   readonly tallerId: string
@@ -353,6 +359,8 @@ export function ConfiguracionTaller({
           </Campo>
         </dl>
       )}
+
+      {puedeEditar && tallerSlug === PROXIMO_PASO_SLUG && <EnlaceInscripcionProximoPaso />}
     </section>
   )
 }

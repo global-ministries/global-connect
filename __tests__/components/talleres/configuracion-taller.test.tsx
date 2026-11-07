@@ -329,3 +329,18 @@ describe('ConfiguracionTaller — envío del acceso al cónyuge nuevo', () => {
     expect(screen.getByText('Al inscribirse')).toBeInTheDocument()
   })
 })
+
+describe('ConfiguracionTaller — Próximo Paso registration link (odd/tasks/proximo-paso.md T2)', () => {
+  it('shows the registration link to whoever edits Próximo Paso', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    expect(screen.getByRole('heading', { name: 'Enlace de inscripción' })).toBeInTheDocument()
+  })
+
+  it('does not show it on another taller nor to a read-only viewer', () => {
+    const { unmount } = render(<ConfiguracionTaller {...baseProps({ tallerSlug: 'otro-taller', puedeEditar: true })} />)
+    expect(screen.queryByRole('heading', { name: 'Enlace de inscripción' })).not.toBeInTheDocument()
+    unmount()
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: false })} />)
+    expect(screen.queryByRole('heading', { name: 'Enlace de inscripción' })).not.toBeInTheDocument()
+  })
+})

@@ -30,7 +30,7 @@ descubre siguiendo el hilo hasta la base de datos.
 | **El líder no toma asistencia** | La pantalla le pide escribir a mano el identificador de la sesión en la URL, muestra códigos en vez de nombres y no tiene control para marcar. El guardado exige un permiso de coordinador que un líder nunca tiene. |
 | **El cupo no se respeta** | `taller_grupos.capacidad` existe y nunca se valida: ni disparador, ni verificación. Hoy se puede inscribir gente de más sin que nada se queje. |
 | **Las temporadas no hacen nada** | `talleres_temporadas` y su pantalla existen; nadie las lee. Cerrar una temporada no cierra nada. La propia pantalla promete «marcá los talleres que abren inscripción cuando esta temporada esté abierta»: sin implementar. |
-| **Inscribirse sin cuenta** | No existe, ni a medias. Sin token, sin política para visitantes, sin página pública. La etapa `public` de la bandera no desbloquea nada porque nadie la lee. |
+| **Inscribirse sin cuenta** | No existe, ni a medias. Sin token, sin política para visitantes, sin página pública. La etapa `public` de la bandera no desbloquea nada porque nadie la lee. *(Próximo Paso ya tiene su página pública `/proximo-paso`, que crea la cuenta y la inscribe; ver §4. El resto de los talleres sigue igual.)* |
 | **El prefijo de rol en la URL no controla nada** | `requireOperacionalRole()` (`lib/platform/talleres/operacional.ts:137`) **no recibe ningún argumento**: ni ruta, ni capacidad. Sólo pregunta «¿tiene algún rol operacional?». No puede saber si estás en `/direccion` o en `/coordinacion`. Un líder que escribe `/talleres/direccion/talleres` entra. |
 | **La base tampoco acota** | En la política de `taller_grupos` sólo la rama del coordinador está acotada; `lead.read`, `volunteer.read`, `participation.read` y `metrics.read` son chequeos pelados. En `taller_ediciones` **ninguna** de las siete ramas está acotada. Y aunque los otorgamientos tienen `scope_id`, `auth_has_talleres_capability` lo **ignora**: registra el alcance y no lo usa. |
 
@@ -183,6 +183,27 @@ también las próximas 3" desde el domingo 4 de octubre:
 | Noviembre 2026 | dom 1 nov | dom 22 nov | al comenzar la clase 1 |
 | Diciembre 2026 | dom 6 dic | dom 27 dic | al comenzar la clase 1 |
 | Enero 2027 | dom 3 ene | dom 24 ene | al comenzar la clase 1 |
+
+**Registro por QR (Próximo Paso, T2 de `odd/tasks/proximo-paso.md`).** El QR
+del anuncio apunta a `/proximo-paso`, una página pública (está en
+`SKIP_AUTH_PATHS` del middleware). Lista las ediciones abiertas de Próximo
+Paso con `proximo_paso_ediciones_abiertas()` (migración
+`20261107110000_proximo_paso_ediciones_abiertas.sql`): la puede ejecutar
+`anon`, sólo mira el taller `proximo-paso`, sólo ediciones individuales con
+cohorte y estado efectivo `abierto`, y devuelve sólo nombre, fechas, clases y
+cupo restante —nunca personas—. La persona elige el mes y escribe nombre,
+apellido, teléfono, correo y contraseña; la acción del servidor
+(`app/proximo-paso/actions.ts`) vuelve a buscar la edición en esa lista, crea
+la cuenta igual que `/signup` (`supabase.auth.signUp`, la ficha se vincula con
+`vincularFichaConfirmada` sólo con el correo confirmado) y la inscribe con
+`talleres_inscribirme`, como cualquier miembro (queda `pendiente`, igual que en
+Explorar). Si el proyecto pide confirmar el correo, el enlace del correo trae
+de vuelta a `/proximo-paso?edicion=…` con la sesión abierta y un toque en
+"Inscribirme" termina. Un correo que ya tiene cuenta va a iniciar sesión y
+vuelve a la misma edición; quien ya tiene sesión sólo elige y se inscribe. El
+teléfono se guarda en la ficha si no tenía. Quien edita Próximo Paso ve en su
+"Configuración" el "Enlace de inscripción" con botón de copiar y el QR para
+descargar.
 
 Noviembre tiene cinco domingos: el 29 queda libre. Un taller sin ancla con
 intervalo de 28 días, en cambio, pondría la tercera edición el 29 de
