@@ -635,6 +635,14 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(findByType(element, OpenEdicionForm)?.props.anclaEdiciones).toBe('primer_domingo_mes')
   })
 
+  // T2b (odd/tasks/proximo-paso.md, L6.2)
+  it('passes inscripcion_automatica to ConfiguracionTaller', async () => {
+    setup({ permisos: { editarTaller: true }, taller: { ...TALLER, inscripcion_automatica: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, ConfiguracionTaller)?.props.inscripcionAutomatica).toBe(true)
+  })
+
   it('passes every configuration field verbatim to ConfiguracionTaller', async () => {
     setup({
       permisos: { editarTaller: true },

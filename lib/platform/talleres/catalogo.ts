@@ -177,6 +177,11 @@ export interface TallerDetalle extends CatalogoTaller {
   readonly clases_minimas_para_completar: number | null
   /** When a new partner ficha gets its access email (odd/tasks/talleres-conyuge-invitacion.md C2). */
   readonly momento_envio_acceso?: 'al_aprobar' | 'al_inscribirse'
+  /**
+   * T2b (odd/tasks/proximo-paso.md, L6.2) — an individual inscripción is
+   * approved on the spot when the edición has cupo (talleres_inscribirme).
+   */
+  readonly inscripcion_automatica?: boolean
 }
 
 interface TallerDetalleQueryClient {
@@ -209,7 +214,7 @@ export async function loadTallerDetalle(
     .select(
       `${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos,
        tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, ancla_ediciones,
-       clases_minimas_para_completar, momento_envio_acceso`,
+       clases_minimas_para_completar, momento_envio_acceso, inscripcion_automatica`,
     )
     .eq('slug', slug)
     .maybeSingle()
@@ -230,6 +235,7 @@ export async function loadTallerDetalle(
     ancla_ediciones: row.ancla_ediciones === 'primer_domingo_mes' ? 'primer_domingo_mes' : null,
     clases_minimas_para_completar: (row.clases_minimas_para_completar as number | null | undefined) ?? null,
     momento_envio_acceso: row.momento_envio_acceso === 'al_inscribirse' ? 'al_inscribirse' : 'al_aprobar',
+    inscripcion_automatica: row.inscripcion_automatica === true,
   }
 }
 

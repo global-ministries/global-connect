@@ -330,6 +330,59 @@ describe('ConfiguracionTaller — envío del acceso al cónyuge nuevo', () => {
   })
 })
 
+// T2b (odd/tasks/proximo-paso.md, L6.2) — "Inscripción automática si hay
+// cupo": individual talleres only; saved with the rest of the configuration.
+describe('ConfiguracionTaller — inscripción automática', () => {
+  it('editor: shows the switch with its current value and saves the change', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, inscripcionAutomatica: false })} />)
+
+    const interruptor = screen.getByRole('switch', { name: 'Inscripción automática si hay cupo' })
+    expect(interruptor).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByText(/Con cupo, la inscripción queda aprobada al momento/)).toBeInTheDocument()
+
+    fireEvent.click(interruptor)
+    expect(interruptor).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ tipo: 'individual', inscripcionAutomatica: true }),
+      ),
+    )
+  })
+
+  it('editor: an enabled taller opens with the switch on and keeps it when saving', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, inscripcionAutomatica: true })} />)
+
+    expect(screen.getByRole('switch', { name: 'Inscripción automática si hay cupo' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(expect.objectContaining({ inscripcionAutomatica: true })),
+    )
+  })
+
+  it('editor: hides the switch and sends nothing for a couple taller', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, tipo: 'pareja', inscripcionAutomatica: true })} />)
+
+    expect(screen.queryByRole('switch', { name: 'Inscripción automática si hay cupo' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() => expect(updateTallerConfiguracionMock).toHaveBeenCalled())
+    expect(updateTallerConfiguracionMock.mock.calls[0][0]).not.toHaveProperty('inscripcionAutomatica')
+  })
+
+  it('read-only: says whether it is on, only for an individual taller', () => {
+    const { unmount } = render(<ConfiguracionTaller {...baseProps({ inscripcionAutomatica: true })} />)
+    expect(screen.getByText('Inscripción automática si hay cupo')).toBeInTheDocument()
+    expect(screen.getByText('Sí')).toBeInTheDocument()
+    unmount()
+    render(<ConfiguracionTaller {...baseProps({ tipo: 'pareja', inscripcionAutomatica: true })} />)
+    expect(screen.queryByText('Inscripción automática si hay cupo')).not.toBeInTheDocument()
+  })
+})
+
 describe('ConfiguracionTaller — Próximo Paso registration link (odd/tasks/proximo-paso.md T2)', () => {
   it('shows the registration link to whoever edits Próximo Paso', () => {
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)

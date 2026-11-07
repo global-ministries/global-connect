@@ -621,6 +621,13 @@ export interface UpdateTallerConfiguracionInput {
    * Omitted = the column is left as it is.
    */
   readonly momentoEnvioAcceso?: 'al_aprobar' | 'al_inscribirse'
+  /**
+   * T2b (odd/tasks/proximo-paso.md, L6.2) — talleres.inscripcion_automatica:
+   * an individual inscripción is approved on the spot when there is cupo.
+   * Written only for tipo=individual (couples always stay pendiente);
+   * omitted = the column is left as it is.
+   */
+  readonly inscripcionAutomatica?: boolean
 }
 
 const MOMENTOS_ENVIO_ACCESO = ['al_aprobar', 'al_inscribirse'] as const
@@ -699,6 +706,15 @@ export async function updateTallerConfiguracion(
     }
   }
 
+  if (input.inscripcionAutomatica !== undefined && typeof input.inscripcionAutomatica !== 'boolean') {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: 'La inscripción automática debe estar activada o desactivada.',
+    }
+  }
+  const inscripcionAutomatica = input.tipo === 'individual' ? input.inscripcionAutomatica : undefined
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
   const { data, error } = await client
@@ -712,6 +728,7 @@ export async function updateTallerConfiguracion(
       ancla_ediciones: anclaEdiciones,
       clases_minimas_para_completar: clasesMinimas,
       ...(input.momentoEnvioAcceso !== undefined ? { momento_envio_acceso: input.momentoEnvioAcceso } : {}),
+      ...(inscripcionAutomatica !== undefined ? { inscripcion_automatica: inscripcionAutomatica } : {}),
     })
     .eq('id', input.tallerId)
     .select('id')

@@ -316,6 +316,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         anclaEdiciones={taller.ancla_ediciones ?? null}
         clasesMinimasParaCompletar={taller.clases_minimas_para_completar}
         momentoEnvioAcceso={taller.momento_envio_acceso}
+        inscripcionAutomatica={taller.inscripcion_automatica}
         cadenciaDias={taller.cadencia_dias}
         duracionMinutos={taller.duracion_minutos}
         puedeEditar={permisos.editarTaller}

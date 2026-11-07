@@ -253,6 +253,23 @@ describe('loadTallerDetalle', () => {
     expect((await loadTallerDetalle(sinAncla.client, 'otro'))?.ancla_ediciones).toBeNull()
   })
 
+  // T2b (odd/tasks/proximo-paso.md, L6.2)
+  it('selects and maps inscripcion_automatica, defaulting to false', async () => {
+    const activa = buildTallerDetalleClientMock({
+      id: 't-5', slug: 'proximo-paso', nombre: 'Próximo Paso', estado: 'active',
+      dream_team_equipo_id: 'eq-1', modalidad_default: 'permanente_custom', ediciones: [],
+      inscripcion_automatica: true,
+    })
+    expect((await loadTallerDetalle(activa.client, 'proximo-paso'))?.inscripcion_automatica).toBe(true)
+    expect(activa.selectCols[0]).toMatch(/inscripcion_automatica/)
+
+    const sinValor = buildTallerDetalleClientMock({
+      id: 't-6', slug: 'otro', nombre: 'Otro', estado: 'active',
+      dream_team_equipo_id: null, modalidad_default: 'periodo_general', ediciones: [],
+    })
+    expect((await loadTallerDetalle(sinValor.client, 'otro'))?.inscripcion_automatica).toBe(false)
+  })
+
   it('returns null when no taller matches the slug', async () => {
     const { client } = buildTallerDetalleClientMock(null)
     const result = await loadTallerDetalle(client, 'no-existe')

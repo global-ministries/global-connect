@@ -33,6 +33,12 @@
  * (talleres.ancla_ediciones) or "Cada N días" (the intervalo field, only
  * shown for that choice). Saved in the same `updateTallerConfiguracion`.
  *
+ * Inscripción automática (odd/tasks/proximo-paso.md T2b, L6.2) — an
+ * individual taller can approve each inscripción on the spot when the
+ * edición has cupo (talleres.inscripcion_automatica, an `Interruptor`),
+ * saved in the same `updateTallerConfiguracion`. Couples always wait for
+ * the coordinación, so the switch is not offered to them.
+ *
  * Registro por QR (odd/tasks/proximo-paso.md T2) — on Próximo Paso itself,
  * whoever edits the taller also gets its "Enlace de inscripción" (public
  * URL, copy and QR) for the announcement.
@@ -41,6 +47,7 @@
 import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { Interruptor } from '@/components/ui/interruptor'
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import {
   cierreRelativoLabel,
@@ -67,6 +74,8 @@ export interface ConfiguracionTallerProps {
   readonly clasesMinimasParaCompletar: number | null
   /** talleres.momento_envio_acceso; defaults to 'al_aprobar'. */
   readonly momentoEnvioAcceso?: MomentoEnvioAcceso
+  /** talleres.inscripcion_automatica; defaults to false. */
+  readonly inscripcionAutomatica?: boolean
   readonly cadenciaDias: number
   readonly duracionMinutos: number | null
   readonly puedeEditar: boolean
@@ -78,6 +87,8 @@ const MOMENTO_ENVIO_LABEL: Record<MomentoEnvioAcceso, string> = {
   al_aprobar: 'Al aprobar',
   al_inscribirse: 'Al inscribirse',
 }
+
+const INSCRIPCION_AUTOMATICA_LABEL = 'Inscripción automática si hay cupo'
 
 type InicioEdicion = AnclaEdiciones | 'cada_n_dias'
 
@@ -102,6 +113,7 @@ export function ConfiguracionTaller({
   anclaEdiciones = null,
   clasesMinimasParaCompletar,
   momentoEnvioAcceso = 'al_aprobar',
+  inscripcionAutomatica = false,
   cadenciaDias,
   duracionMinutos,
   puedeEditar,
@@ -123,6 +135,7 @@ export function ConfiguracionTaller({
   )
 
   const [momentoSel, setMomentoSel] = useState<MomentoEnvioAcceso>(momentoEnvioAcceso)
+  const [automaticaSel, setAutomaticaSel] = useState(inscripcionAutomatica)
 
   const [cadencia, setCadencia] = useState(String(cadenciaDias))
   const [duracion, setDuracion] = useState(duracionMinutos !== null ? String(duracionMinutos) : '')
@@ -144,7 +157,7 @@ export function ConfiguracionTaller({
         intervaloEdicionesDias: intervaloNum,
         anclaEdiciones: ancla,
         clasesMinimasParaCompletar: clasesMinimasNum,
-        ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : {}),
+        ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : { inscripcionAutomatica: automaticaSel }),
       })
       if (result.ok) {
         router.refresh()
@@ -226,6 +239,18 @@ export function ConfiguracionTaller({
                 { valor: 'al_inscribirse', etiqueta: MOMENTO_ENVIO_LABEL.al_inscribirse },
               ]}
             />
+          )}
+
+          {tipoSel === 'individual' && (
+            <div className="flex items-start justify-between gap-3 md:col-span-2">
+              <div className="grid gap-1">
+                <TextoSistema className="block font-medium">{INSCRIPCION_AUTOMATICA_LABEL}</TextoSistema>
+                <TextoSistema variante="sutil" tamaño="sm" className="block">
+                  Con cupo, la inscripción queda aprobada al momento, sin pasar por Pendientes.
+                </TextoSistema>
+              </div>
+              <Interruptor activo={automaticaSel} onCambio={setAutomaticaSel} aria-label={INSCRIPCION_AUTOMATICA_LABEL} />
+            </div>
           )}
 
           <div>
@@ -342,6 +367,9 @@ export function ConfiguracionTaller({
           {tipo === 'pareja' && <Campo titulo="Vínculo">{vinculoLabel(vinculo)}</Campo>}
           {tipo === 'pareja' && (
             <Campo titulo="Envío del acceso al cónyuge nuevo">{MOMENTO_ENVIO_LABEL[momentoEnvioAcceso]}</Campo>
+          )}
+          {tipo === 'individual' && (
+            <Campo titulo={INSCRIPCION_AUTOMATICA_LABEL}>{inscripcionAutomatica ? 'Sí' : 'No'}</Campo>
           )}
           <Campo titulo="Régimen">{regimenLabel(regimen)}</Campo>
           <Campo titulo="Cierre de inscripción">{cierreRelativoLabel(cierreInscripcionOffsetDias)}</Campo>

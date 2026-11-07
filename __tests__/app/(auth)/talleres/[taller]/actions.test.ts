@@ -386,6 +386,38 @@ describe('updateTallerConfiguracion — ancla de ediciones', () => {
   })
 })
 
+// T2b (odd/tasks/proximo-paso.md, L6.2) — inscripción automática si hay
+// cupo: written only for an individual taller, and only when sent.
+describe('updateTallerConfiguracion — inscripción automática', () => {
+  const individual = { ...validConfiguracionInput, tipo: 'individual' as const, vinculo: null }
+
+  it.each([true, false])('writes inscripcion_automatica=%s for an individual taller', async (valor) => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...individual, inscripcionAutomatica: valor })
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ inscripcion_automatica: valor }))
+  })
+
+  it('leaves the column alone when it is not sent or the taller is for couples', async () => {
+    const { updateMock } = setupConfiguracion({})
+    await updateTallerConfiguracion(individual)
+    await updateTallerConfiguracion({ ...validConfiguracionInput, inscripcionAutomatica: true })
+    expect(updateMock.mock.calls[0][0]).not.toHaveProperty('inscripcion_automatica')
+    expect(updateMock.mock.calls[1][0]).not.toHaveProperty('inscripcion_automatica')
+  })
+
+  it('rejects a value that is not true or false without touching the row', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...individual, inscripcionAutomatica: 'si' as never })
+    expect(result).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'La inscripción automática debe estar activada o desactivada.',
+    })
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+})
+
 // Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) — the
 // taller's own completion rule: null means "every clase dictada", a number
 // is the minimum attended clases (1..50) talleres_cerrar_edicion applies.
