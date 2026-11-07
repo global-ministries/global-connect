@@ -261,7 +261,16 @@ describe('server actions', () => {
 
     expect(sesion.rpc.mock.calls.map(([nombre]) => nombre)).toEqual(['planner_deshacer_paso', 'planner_marcar_segmento'])
     expect(revalidatePath).toHaveBeenCalledTimes(2)
-    expect(Object.keys(acciones).sort()).toEqual(['cargarHistorialAction', 'cargarOrigenAction', 'deshacerPasoAction', 'guardarCambiosAction', 'marcarSegmentoAction', 'publicarTemporadaAction'])
+    expect(Object.keys(acciones).sort()).toEqual([
+      'cargarCierreAction',
+      'cargarHistorialAction',
+      'cargarOrigenAction',
+      'crearTemporadaAction',
+      'deshacerPasoAction',
+      'guardarCambiosAction',
+      'marcarSegmentoAction',
+      'publicarTemporadaAction',
+    ])
   })
 
   it('read the origin season groups for Lado a lado without revalidating (T7)', async () => {

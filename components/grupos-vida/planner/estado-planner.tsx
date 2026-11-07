@@ -1,11 +1,10 @@
 /**
  * Planner — the page-level states without a board: no season in planning
- * (artboard 10 `#entrada` / `#etapa`), a load error, and the pages that come
- * later (the new-season assistant). Server-safe.
+ * (artboard 10 `#entrada` / `#etapa`) and a load error. Server-safe.
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
-import { CalendarPlus, CalendarX, Clock, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { CalendarPlus, CalendarX, TriangleAlert, type LucideIcon } from 'lucide-react'
 
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
@@ -62,21 +61,4 @@ export function PlannerSinTemporada({ puedeCrearTemporada }: { readonly puedeCre
 
 export function PlannerError({ mensaje }: { readonly mensaje: string }): ReactElement {
   return <Marco migas="Planificar temporada" icono={TriangleAlert} titulo="No se pudo abrir el planificador" subtitulo={mensaje} />
-}
-
-/** Placeholder of the pages still to build in T8 (the new-season assistant). */
-export function PlannerPronto({ migas, titulo, volver }: { readonly migas: string; readonly titulo: string; readonly volver: string }): ReactElement {
-  return (
-    <Marco
-      migas={migas}
-      icono={Clock}
-      titulo={titulo}
-      subtitulo="Esta parte del planificador llega pronto."
-      accion={
-        <BotonSistema asChild variante="outline" tamaño="sm">
-          <Link href={volver}>Volver al planificador</Link>
-        </BotonSistema>
-      }
-    />
-  )
 }

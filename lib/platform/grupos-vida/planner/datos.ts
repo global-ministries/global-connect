@@ -18,6 +18,12 @@
  * the season in planning for the Lado a lado view (T7): planner_tablero
  * accepts any season and scopes it by segment the same way (S10).
  *
+ * cargarCierre reads the season that closes (the origin) for the new-season
+ * assistant (T8b, S18): its groups and its bank, the closing diagnosis
+ * computed over them (diagnostico.ts) and, when the destination already
+ * exists, how many groups it has. cargarDiagnostico is the same diagnosis
+ * for the planner view of a season ("Diagnóstico de cierre").
+ *
  * The board needs the groups, the bank and the blockers; any of them failing
  * is an error. The publish state and the localidades are extras: when they
  * fail the board still opens and `faltantes` says what is missing.
@@ -38,6 +44,7 @@ import {
   type TemporadaPlanner,
   type TemporadasPlanner,
 } from './tipos'
+import { diagnosticarCierre, gruposQueCuentan, type DiagnosticoCierre } from './diagnostico'
 
 export interface ErrorPlanner {
   readonly code?: string
@@ -216,5 +223,79 @@ export async function cargarGruposOrigen(supabase: Pick<ClientePlanner, 'rpc'>, 
     ok: true,
     origen: { id: temporada.origen_id, nombre: temporada.origen_nombre ?? 'Temporada anterior' },
     grupos: leerTablero(tableroRes.data).filas,
+  }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export type ResultadoCierre =
+  | {
+      readonly ok: true
+      readonly diagnostico: DiagnosticoCierre
+      /** The origin's groups, for "Copiar los grupos" (copia.ts). */
+      readonly grupos: readonly GrupoTablero[]
+      /** The groups (not cancelled) the destination already has; null when no destination was asked. */
+      readonly gruposDestino: number | null
+    }
+  | { readonly ok: false; readonly mensaje: string }
+
+/**
+ * The season that closes, read for the new-season assistant (S18): the
+ * origin's groups and bank in pages (planner_tablero scopes the groups by
+ * segment, S10; the bank is everyone, S11) and, with `destinoId`, the groups
+ * the destination already has.
+ */
+export async function cargarCierre(
+  supabase: Pick<ClientePlanner, 'rpc'>,
+  entrada: { readonly origenId: string; readonly destinoId?: string | null },
+): Promise<ResultadoCierre> {
+  const origenId = typeof entrada?.origenId === 'string' ? entrada.origenId : ''
+  const destinoId = typeof entrada?.destinoId === 'string' && entrada.destinoId ? entrada.destinoId : null
+  if (!UUID.test(origenId) || (destinoId !== null && !UUID.test(destinoId))) return { ok: false, mensaje: 'La temporada no existe.' }
+  const [tableroRes, bancoRes, destinoRes] = await Promise.all([
+    rpcPorPaginas(supabase, 'planner_tablero', { p_temporada_id: origenId }),
+    rpcPorPaginas(supabase, 'planner_banco', { p_temporada_id: origenId }),
+    destinoId ? rpcPorPaginas(supabase, 'planner_tablero', { p_temporada_id: destinoId }) : Promise.resolve(null),
+  ])
+  const fallida = [tableroRes, bancoRes, destinoRes].find((r) => r?.error)
+  if (fallida?.error) return { ok: false, mensaje: mensajeErrorPlanner(fallida.error) }
+  const grupos = leerTablero(tableroRes.data).filas
+  return {
+    ok: true,
+    diagnostico: diagnosticarCierre(grupos, leerBanco(bancoRes.data).filas),
+    grupos,
+    gruposDestino: destinoRes ? gruposQueCuentan(leerTablero(destinoRes.data).filas).length : null,
+  }
+}
+
+export type ResultadoDiagnostico =
+  | { readonly tipo: 'sin_acceso' }
+  | { readonly tipo: 'sin_temporada' }
+  | { readonly tipo: 'error'; readonly mensaje: string }
+  /** The season is the first of its cohort: it closes nothing. */
+  | { readonly tipo: 'sin_origen'; readonly temporada: TemporadaPlanner }
+  | {
+      readonly tipo: 'listo'
+      readonly temporada: TemporadaPlanner
+      readonly origen: { readonly id: string; readonly nombre: string }
+      readonly diagnostico: DiagnosticoCierre
+    }
+
+/** "Diagnóstico de cierre" of a planner season (S18): the diagnosis of the season it closes. */
+export async function cargarDiagnostico(supabase: Pick<ClientePlanner, 'rpc'>, temporadaPedida?: string | null): Promise<ResultadoDiagnostico> {
+  const temporadasRes = await supabase.rpc('planner_temporadas')
+  if (temporadasRes.error) return temporadasRes.error.code === '42501' ? { tipo: 'sin_acceso' } : { tipo: 'error', mensaje: mensajeErrorPlanner(temporadasRes.error) }
+  const capacidades = leerTemporadas(temporadasRes.data)
+  if (!capacidades) return { tipo: 'error', mensaje: SIN_DATOS }
+  const temporada = elegirTemporada(capacidades.temporadas, temporadaPedida)
+  if (!temporada) return { tipo: 'sin_temporada' }
+  if (!temporada.origen_id) return { tipo: 'sin_origen', temporada }
+  const cierre = await cargarCierre(supabase, { origenId: temporada.origen_id })
+  if (!cierre.ok) return { tipo: 'error', mensaje: cierre.mensaje }
+  return {
+    tipo: 'listo',
+    temporada,
+    origen: { id: temporada.origen_id, nombre: temporada.origen_nombre ?? 'Temporada anterior' },
+    diagnostico: cierre.diagnostico,
   }
 }

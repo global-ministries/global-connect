@@ -3,7 +3,8 @@
 /**
  * Planner — the one-line season header (S21; artboards 01 and 08). Left: the
  * season switcher "Temporada 2026-II ▾" (the h1 of the page; its menu lists
- * every season and, for whoever creates seasons, "Nueva temporada") and the
+ * every season, "Diagnóstico de cierre" of the season it closes (T8b) and,
+ * for whoever creates seasons, "Nueva temporada · <next name>") and the
  * summary "En planificación · 27 grupos · 366 personas". Right: the alerts
  * button "N bloqueos · M avisos" that opens the alerts panel and, for admin,
  * pastor and director general only, the publish button whose label carries
@@ -14,7 +15,7 @@
  * (panel-historial.tsx). With unsaved changes,
  * switching season asks first (the draft stays in this browser).
  */
-import { useEffect, useId, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ChevronDown, History } from 'lucide-react'
 
@@ -22,6 +23,7 @@ import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { contar, enLista, type BotonPublicar, type SegmentoPlanner, type TemporadaPlanner } from '@/lib/platform/grupos-vida/planner'
+import { sugerirSiguienteTemporada } from '@/lib/platform/grupos-vida/planner/temporada-nueva'
 import { cn } from '@/lib/utils'
 
 import { estadoTemporada, formatearCantidad } from './modelo'
@@ -72,6 +74,8 @@ function SelectorTemporada({
     setAbierto(false)
   }
   const idMenu = useId()
+  // The next season of the cohort rule (A14), e.g. "2027-I"; today only matters for a cohort without seasons.
+  const siguiente = useMemo(() => sugerirSiguienteTemporada(temporadas, new Date().toISOString().slice(0, 10)).nombre, [temporadas])
   const contenedor = useRef<HTMLDivElement>(null)
   const boton = useRef<HTMLButtonElement>(null)
 
@@ -135,19 +139,34 @@ function SelectorTemporada({
             )
           })}
         </ul>
-        {puedeCrearTemporada && (
+        {(puedeCrearTemporada || temporada.origen_id) && (
           <>
             <hr className="my-2 border-border" />
             <ul aria-label="Más de la temporada">
-              <li>
-                <Link
-                  href={`${RUTA_PLANIFICAR}/nueva`}
-                  onClick={(e) => salir(e, false)}
-                  className="focus-ring flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
-                >
-                  Nueva temporada
-                </Link>
-              </li>
+              {temporada.origen_id && (
+                <li>
+                  <Link
+                    href={`${RUTA_PLANIFICAR}/diagnostico?temporada=${encodeURIComponent(temporada.id)}`}
+                    onClick={(e) => salir(e, false)}
+                    className="focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                  >
+                    <span>Diagnóstico de cierre</span>
+                    <span className="truncate text-xs font-normal text-muted-foreground">{temporada.origen_nombre}</span>
+                  </Link>
+                </li>
+              )}
+              {puedeCrearTemporada && (
+                <li>
+                  <Link
+                    href={`${RUTA_PLANIFICAR}/nueva`}
+                    onClick={(e) => salir(e, false)}
+                    className="focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                  >
+                    <span>Nueva temporada</span>
+                    <span className="truncate text-xs font-normal text-muted-foreground">{siguiente}</span>
+                  </Link>
+                </li>
+              )}
             </ul>
           </>
         )}

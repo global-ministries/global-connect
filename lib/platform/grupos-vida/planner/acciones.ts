@@ -10,7 +10,8 @@
  * (planner_deshacer_paso), the history (planner_historial) and "Terminé mi
  * segmento" (planner_marcar_segmento of 20261107120000_planner_temporada.sql)
  * still run on their own, as do the history pages ("Ver pasos anteriores",
- * p_antes) and publishing (planner_publicar, T8a). Each wrapper checks the input shape first (uuids,
+ * p_antes), publishing (planner_publicar, T8a) and creating a season
+ * (planner_crear_temporada, the new-season assistant of T8b). Each wrapper checks the input shape first (uuids,
  * roles, group fields, "tmp:" keys) so a bad call never reaches the
  * database, then calls the RPC with the caller's session client: the
  * database checks the role, the segment scope and the rules again. Errors
@@ -22,7 +23,7 @@
  * session client and revalidate RUTA_PLANNER after a saved call.
  */
 import { esObjeto, id, ids, textoOVacio } from './campos'
-import { leerHistorial, type PasoHistorial } from './tipos'
+import { leerHistorial, type Cohorte, type PasoHistorial } from './tipos'
 import type { ErrorPlanner } from './datos'
 
 export const RUTA_PLANNER = '/grupos-vida/planificar'
@@ -424,6 +425,61 @@ export function publicarTemporada(cliente: ClienteAcciones, entrada: { readonly 
     },
     'No se pudo publicar la temporada. Inténtalo de nuevo.',
   )
+}
+
+// ─── New season (S18, S20) ───
+
+export interface TemporadaCreada {
+  readonly id: string
+  readonly nombre: string
+  readonly cohorte: Cohorte | null
+  /** The season it closes when published (S19); null for the first of its cohort. */
+  readonly origen: { readonly id: string; readonly nombre: string } | null
+}
+
+export interface EntradaCrearTemporada {
+  readonly nombre: string
+  /** 'YYYY-MM-DD'. */
+  readonly fechaInicio: string
+  readonly fechaFin: string
+}
+
+const GENERICO_CREAR_TEMPORADA = 'No se pudo crear la temporada. Inténtalo de nuevo.'
+const esFechaIso = (valor: unknown): valor is string => typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor)
+
+/**
+ * planner_crear_temporada: a season in planning and inactive (S20), for
+ * admin, pastor and director general. The cohort, the unique name and the
+ * start after the last season of the cohort are the RPC's checks (22023,
+ * its own words; the assistant runs them first with
+ * temporada-nueva.ts#validarNuevaTemporada).
+ */
+export async function crearTemporada(cliente: ClienteAcciones, entrada: EntradaCrearTemporada): Promise<ResultadoAccion<TemporadaCreada>> {
+  const nombre = typeof entrada?.nombre === 'string' ? entrada.nombre.replace(/\s+/g, ' ').trim() : ''
+  if (!nombre) return invalido('La temporada debe tener nombre.')
+  if (!esFechaIso(entrada.fechaInicio) || !esFechaIso(entrada.fechaFin)) return invalido('Indica la fecha de inicio y la de fin.')
+  const resultado = await llamar(
+    cliente,
+    'planner_crear_temporada',
+    { p_nombre: nombre, p_fecha_inicio: entrada.fechaInicio, p_fecha_fin: entrada.fechaFin },
+    (data): TemporadaCreada | null => {
+      const fila = esObjeto(data) ? data : {}
+      const temporadaId = id(fila.id)
+      if (!temporadaId) return null
+      const origen = esObjeto(fila.origen) ? fila.origen : null
+      const origenId = origen ? id(origen.id) : null
+      return {
+        id: temporadaId,
+        nombre: textoOVacio(fila.nombre) || nombre,
+        cohorte: fila.cohorte === 'I' || fila.cohorte === 'II' ? fila.cohorte : null,
+        origen: origen && origenId ? { id: origenId, nombre: textoOVacio(origen.nombre) } : null,
+      }
+    },
+    GENERICO_CREAR_TEMPORADA,
+  )
+  if (!resultado.ok) return resultado
+  if (!resultado.datos) return { ok: false, codigo: null, mensaje: GENERICO_CREAR_TEMPORADA }
+  return { ok: true, datos: resultado.datos }
 }
 
 // ─── "Terminé mi segmento" (S14) ───

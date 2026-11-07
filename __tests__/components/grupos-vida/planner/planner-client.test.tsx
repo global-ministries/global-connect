@@ -155,7 +155,9 @@ describe('season header', () => {
     const temporadas = screen.getByRole('list', { name: 'Temporadas' })
     expect(within(temporadas).getByRole('link', { name: /2026-II/ })).toHaveAttribute('aria-current', 'page')
     expect(within(temporadas).getByRole('link', { name: /2026-I\b.*Activa/ })).toHaveAttribute('href', '/grupos-vida/planificar?temporada=t-2026-i')
-    expect(screen.getByRole('link', { name: 'Nueva temporada' })).toHaveAttribute('href', '/grupos-vida/planificar/nueva')
+    // T8b: the next season of the cohort rule next to "Nueva temporada", and the closing diagnosis.
+    expect(screen.getByRole('link', { name: 'Nueva temporada 2027-I' })).toHaveAttribute('href', '/grupos-vida/planificar/nueva')
+    expect(screen.getByRole('link', { name: 'Diagnóstico de cierre 2025 - II' })).toHaveAttribute('href', '/grupos-vida/planificar/diagnostico?temporada=t-2026-ii')
   })
 
   it('gives the director general the publish button with the season state (S16), ghost until ready', () => {
@@ -190,7 +192,8 @@ describe('season header', () => {
     expect(screen.queryByRole('heading', { level: 2, name: 'Matrimonios' })).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /cambiar de temporada/ }))
-    expect(screen.queryByRole('link', { name: 'Nueva temporada' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Nueva temporada/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Diagnóstico de cierre 2025 - II' })).toBeInTheDocument()
   })
 
   it('names the blockers and warnings on the alerts button', () => {
