@@ -197,12 +197,23 @@ apellido, teléfono, correo y contraseña; la acción del servidor
 la cuenta igual que `/signup` (`supabase.auth.signUp`, la ficha se vincula con
 `vincularFichaConfirmada` sólo con el correo confirmado) y la inscribe con
 `talleres_inscribirme`, como cualquier miembro. Si el proyecto pide confirmar
-el correo, el enlace del correo trae de vuelta a `/proximo-paso?edicion=…` con
+el correo (T2c), el formulario cambia en la misma pantalla al paso del código:
+"Te enviamos un código de 6 dígitos a …", la casilla del código, "Confirmar",
+"Reenviar código" (tras 60 segundos) y "Cambiar correo". Con el código bien
+escrito, `confirmarCodigoProximoPaso` hace `verifyOtp` (tipo `signup`) en el
+cliente del servidor —la sesión queda en las cookies— y recién entonces vincula
+la ficha, guarda el teléfono, vuelve a revisar la edición y la inscribe. Una
+ficha que ya existía sólo se vincula cuando el código se confirma. Un código
+equivocado o vencido dice siempre lo mismo, y "Reenviar código" responde igual
+exista o no el correo. Supabase limita cuántas veces se pide y se prueba un
+código; la página lo traduce a "Hiciste muchos intentos…". El código sale en el
+correo por la plantilla "Confirm signup" (`docs/auth/plantilla-confirmar-registro.md`),
+que mantiene el enlace: abrirlo trae de vuelta a `/proximo-paso?edicion=…` con
 la sesión abierta y un toque en "Inscribirme" termina. La página nunca dice si
-un correo ya tiene cuenta: un correo existente recibe la misma respuesta
-"Revisa tu correo" que uno nuevo, y quien ya tenía cuenta entra por "¿Ya tienes
-cuenta? Inicia sesión", que vuelve a la misma edición; quien ya tiene sesión
-sólo elige y se inscribe. El
+un correo ya tiene cuenta: un correo existente recibe el mismo paso del código
+que uno nuevo, y quien ya tenía cuenta entra por "¿Ya tienes cuenta? Inicia
+sesión", que vuelve a la misma edición; quien ya tiene sesión sólo elige y se
+inscribe. El
 teléfono se guarda en la ficha si no tenía. Quien edita Próximo Paso ve en su
 "Configuración" el "Enlace de inscripción" con botón de copiar y el QR para
 descargar.
