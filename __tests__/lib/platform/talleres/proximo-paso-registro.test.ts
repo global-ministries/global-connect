@@ -4,8 +4,10 @@ import {
   loginProximoPaso,
   mensajeInscrito,
   mensajePendiente,
+  normalizarCorreo,
   parseEdicionesProximoPaso,
   rutaProximoPaso,
+  validarCodigo,
   validarRegistro,
 } from '@/lib/platform/talleres/proximo-paso-registro'
 
@@ -140,5 +142,29 @@ describe('validarRegistro', () => {
     const r = validarRegistro(raw)
     expect(r.ok).toBe(false)
     expect(Object.keys(!r.ok ? r.errores : {})).toEqual(['nombre', 'apellido', 'telefono', 'email', 'password'])
+  })
+})
+
+// T2c (L8): the 6-digit code of the confirmation email.
+describe('validarCodigo', () => {
+  it.each([
+    ['123456', '123456'],
+    ['  004521 ', '004521'],
+  ])('accepts %j as %j', (raw, codigo) => {
+    expect(validarCodigo(raw)).toBe(codigo)
+  })
+
+  it.each(['12345', '1234567', '12a456', '12 456', '', null, 123456])('rejects %j', (raw) => {
+    expect(validarCodigo(raw)).toBeNull()
+  })
+})
+
+describe('normalizarCorreo', () => {
+  it('trims and lowercases a valid address', () => {
+    expect(normalizarCorreo('  Ana.Perez@Example.COM ')).toBe('ana.perez@example.com')
+  })
+
+  it.each(['ana@', 'no es correo', '', null])('rejects %j', (raw) => {
+    expect(normalizarCorreo(raw)).toBeNull()
   })
 })

@@ -10,9 +10,16 @@
  * inscribirseATaller.
  */
 
-import { inscribirmeEnProximoPaso, registrarseEnProximoPaso } from '@/app/proximo-paso/actions'
+import {
+  confirmarCodigoProximoPaso,
+  inscribirmeEnProximoPaso,
+  reenviarCodigoProximoPaso,
+  registrarseEnProximoPaso,
+} from '@/app/proximo-paso/actions'
 
 const signUp = jest.fn()
+const verifyOtp = jest.fn()
+const resend = jest.fn()
 const getUser = jest.fn()
 const rpc = jest.fn()
 const adminUpdate = jest.fn()
@@ -26,7 +33,12 @@ jest.mock('next/cache', () => ({ revalidatePath: (...a: unknown[]) => revalidate
 jest.mock('@/lib/platform/talleres/flags', () => ({ isTalleresEnabled: () => isTalleresEnabled() }))
 jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({
-    auth: { signUp: (...a: unknown[]) => signUp(...a), getUser: () => getUser() },
+    auth: {
+      signUp: (...a: unknown[]) => signUp(...a),
+      getUser: () => getUser(),
+      verifyOtp: (...a: unknown[]) => verifyOtp(...a),
+      resend: (...a: unknown[]) => resend(...a),
+    },
     rpc: (...a: unknown[]) => rpc(...a),
     from: (tabla: string) => ({
       select: (columnas: string) => ({
@@ -355,5 +367,160 @@ describe('inscribirmeEnProximoPaso (signed in)', () => {
   it.each([undefined, '', 42])('rejects %j as edición', async (valor) => {
     const r = await inscribirmeEnProximoPaso(valor)
     expect(r).toEqual({ ok: false, error: 'invalid-input', message: 'Elige una fecha para empezar.' })
+  })
+})
+
+// T2c (L8): the 6-digit code of the confirmation email, typed on the same page.
+describe('confirmarCodigoProximoPaso', () => {
+  const recienConfirmado = {
+    ...usuarioConfirmado,
+    user_metadata: { nombre: 'Ana', apellido: 'Pérez', telefono: '04125551234' },
+  }
+  const codigo = (extra: Record<string, unknown> = {}) => ({ email: '  Ana@Example.COM ', token: ' 123456 ', edicionId: 'ed-dic', ...extra })
+  const verificado = () => verifyOtp.mockResolvedValue({ data: { user: recienConfirmado, session: { access_token: 't' } }, error: null })
+
+  it('verifies the code as a signup with the trimmed lowercase email', async () => {
+    verificado()
+    await confirmarCodigoProximoPaso(codigo())
+    expect(verifyOtp).toHaveBeenCalledTimes(1)
+    expect(verifyOtp).toHaveBeenCalledWith({ email: 'ana@example.com', token: '123456', type: 'signup' })
+  })
+
+  it('links the ficha, saves the phone and enrolls once the code is right', async () => {
+    verificado()
+    const r = await confirmarCodigoProximoPaso(codigo())
+    expect(vincularFichaConfirmada).toHaveBeenCalledWith(expect.anything(), recienConfirmado)
+    expect(adminUpdate).toHaveBeenCalledWith('usuarios', { telefono: '04125551234' }, 'auth_id', 'auth-1', 'telefono', null)
+    expect(rpc).toHaveBeenCalledWith('talleres_inscribirme', { p_edicion_id: 'ed-dic', p_pareja: null })
+    expect(revalidatePath).toHaveBeenCalledWith('/talleres/mi-recorrido')
+    expect(r).toEqual({ ok: true, estado: 'inscrito', edicion: RESUMEN })
+  })
+
+  it('reports pendiente when the enrollment waits for the coordinación', async () => {
+    verificado()
+    rpcCon([EDICION], { ok: true, inscripcion_id: 'ins-1', estado: 'pendiente' })
+    expect(await confirmarCodigoProximoPaso(codigo())).toEqual({ ok: true, estado: 'pendiente', edicion: RESUMEN })
+  })
+
+  it('re-checks the edición after the verification, before enrolling', async () => {
+    verificado()
+    rpcCon([])
+    const r = await confirmarCodigoProximoPaso(codigo())
+    expect(r).toEqual({
+      ok: false,
+      error: 'EDICION_NO_DISPONIBLE',
+      message: 'Esa fecha ya no está disponible. Elige otra.',
+      sesionAbierta: true,
+    })
+    const orden = (fn: jest.Mock, i = 0) => fn.mock.invocationCallOrder[i]
+    expect(orden(verifyOtp)).toBeLessThan(orden(rpc))
+    expect(rpc).toHaveBeenCalledWith('proximo_paso_ediciones_abiertas')
+    expect(rpc).not.toHaveBeenCalledWith('talleres_inscribirme', expect.anything())
+  })
+
+  it.each([
+    ['otp_expired', { code: 'otp_expired', status: 403, message: 'Token has expired or is invalid' }],
+    ['a bare 400', { status: 400, message: 'Invalid token' }],
+    ['an unknown email', { code: 'user_not_found', status: 400 }],
+  ])('answers the same generic message for a wrong code (%s) and links nothing', async (_caso, error) => {
+    verifyOtp.mockResolvedValue({ data: { user: null, session: null }, error })
+    const r = await confirmarCodigoProximoPaso(codigo())
+    expect(r).toEqual({
+      ok: false,
+      error: 'CODIGO_INVALIDO',
+      message: 'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.',
+    })
+    expect(vincularFichaConfirmada).not.toHaveBeenCalled()
+    expect(adminUpdate).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['429', { status: 429, message: 'Too many requests' }],
+    ['over_request_rate_limit', { code: 'over_request_rate_limit', status: 429 }],
+  ])('maps the rate limit (%s) to a plain message', async (_caso, error) => {
+    verifyOtp.mockResolvedValue({ data: { user: null, session: null }, error })
+    expect(await confirmarCodigoProximoPaso(codigo())).toEqual({
+      ok: false,
+      error: 'LIMITE',
+      message: 'Hiciste muchos intentos. Espera un momento y vuelve a intentarlo.',
+    })
+    expect(vincularFichaConfirmada).not.toHaveBeenCalled()
+  })
+
+  it.each(['12345', '1234567', 'abcdef', '', undefined])('rejects the code %j without calling Supabase', async (token) => {
+    const r = await confirmarCodigoProximoPaso(codigo({ token }))
+    expect(r).toEqual({ ok: false, error: 'invalid-input', message: 'Escribe los 6 dígitos del código.' })
+    expect(verifyOtp).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('rejects an invalid email without calling Supabase', async () => {
+    const r = await confirmarCodigoProximoPaso(codigo({ email: 'no-es-correo' }))
+    expect(r).toEqual({ ok: false, error: 'invalid-input', message: 'Revisa tu correo: no parece una dirección válida.' })
+    expect(verifyOtp).not.toHaveBeenCalled()
+  })
+
+  it('answers not-found while talleres are off', async () => {
+    isTalleresEnabled.mockReturnValue(false)
+    expect(await confirmarCodigoProximoPaso(codigo())).toEqual({
+      ok: false,
+      error: 'not-found',
+      message: 'Las inscripciones no están disponibles en este momento.',
+    })
+    expect(verifyOtp).not.toHaveBeenCalled()
+  })
+
+  it('keeps the confirmed account but does not enroll while a director must review the ficha', async () => {
+    verificado()
+    vincularFichaConfirmada.mockResolvedValue({ estado: 'pendiente_aprobacion' })
+    const r = await confirmarCodigoProximoPaso(codigo())
+    expect(r).toEqual({
+      ok: false,
+      error: 'CUENTA_EN_REVISION',
+      message: 'Tu cuenta quedó creada. La coordinación debe revisarla antes de inscribirte; te avisaremos.',
+      sesionAbierta: true,
+    })
+    expect(rpc).not.toHaveBeenCalledWith('talleres_inscribirme', expect.anything())
+  })
+})
+
+describe('reenviarCodigoProximoPaso', () => {
+  const ENVIADO = { ok: true, message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.' }
+
+  it('resends the signup email with the link back to the edición', async () => {
+    resend.mockResolvedValue({ data: {}, error: null })
+    const r = await reenviarCodigoProximoPaso({ email: ' Ana@Example.com ', edicionId: 'ed-dic' })
+    expect(resend).toHaveBeenCalledWith({
+      type: 'signup',
+      email: 'ana@example.com',
+      options: { emailRedirectTo: `https://global.test/auth/callback?next=${encodeURIComponent('/proximo-paso?edicion=ed-dic')}` },
+    })
+    expect(r).toEqual(ENVIADO)
+  })
+
+  it.each([
+    ['sent', { data: {}, error: null }],
+    ['an unknown email', { data: null, error: { code: 'user_not_found', status: 400 } }],
+    ['an already confirmed email', { data: null, error: { code: 'email_address_invalid', status: 400 } }],
+  ])('answers the same message whether or not the email exists (%s)', async (_caso, respuesta) => {
+    resend.mockResolvedValue(respuesta)
+    expect(await reenviarCodigoProximoPaso({ email: 'ana@example.com', edicionId: 'ed-dic' })).toEqual(ENVIADO)
+    expect(resend).toHaveBeenCalledTimes(1)
+  })
+
+  it('maps the rate limit to a plain message', async () => {
+    resend.mockResolvedValue({ data: null, error: { code: 'over_email_send_rate_limit', status: 429 } })
+    expect(await reenviarCodigoProximoPaso({ email: 'ana@example.com', edicionId: 'ed-dic' })).toEqual({
+      ok: false,
+      error: 'LIMITE',
+      message: 'Hiciste muchos intentos. Espera un momento y vuelve a intentarlo.',
+    })
+  })
+
+  it('rejects an invalid email without calling Supabase', async () => {
+    const r = await reenviarCodigoProximoPaso({ email: 'ana@', edicionId: 'ed-dic' })
+    expect(r).toEqual({ ok: false, error: 'invalid-input', message: 'Revisa tu correo: no parece una dirección válida.' })
+    expect(resend).not.toHaveBeenCalled()
   })
 })

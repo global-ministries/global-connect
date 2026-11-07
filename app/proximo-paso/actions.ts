@@ -9,6 +9,13 @@
  *     edición they picked.
  *   - `inscribirmeEnProximoPaso(edicionId)`: a signed-in person enrolls
  *     through the existing `inscribirseATaller` of /talleres/explorar.
+ *   - `confirmarCodigoProximoPaso({ email, token, edicionId })` (T2c, L8):
+ *     the 6-digit code of the confirmation email, typed on the same page.
+ *     verifyOtp (type signup) on the SSR client sets the session cookies;
+ *     only then is the ficha linked and the person enrolled, the same steps
+ *     as an account confirmed at once.
+ *   - `reenviarCodigoProximoPaso({ email, edicionId })`: sends the
+ *     confirmation email again, with the same answer for every address.
  *
  * The edición is never trusted from the client: both actions look it up in
  * proximo_paso_ediciones_abiertas (only open Próximo Paso ediciones), so
@@ -18,9 +25,9 @@
  * supabase.auth.signUp with the form data in user_metadata, the ficha linked
  * by vincularFichaConfirmada only once the email is confirmed, and Supabase
  * Auth's own rate limit. When the project confirms emails, signUp returns no
- * session: the person gets the link by email, whose `next` brings them back
- * to /proximo-paso with the edición preselected, signed in, one tap from
- * enrolling. When it confirms at once, the ficha is linked and the
+ * session: the person gets an email with a 6-digit code to type on the page
+ * and a link whose `next` brings them back to /proximo-paso with the edición
+ * preselected, signed in, one tap from enrolling (the fallback). When it confirms at once, the ficha is linked and the
  * enrollment goes through talleres_inscribirme right away with the new
  * session.
  *
@@ -28,7 +35,11 @@
  * email (Supabase answers an error, or a user without identities when it
  * hides it) gets exactly the same "revisa tu correo" answer as a new account,
  * with no extra call. The form's "¿Ya tienes cuenta? Inicia sesión" link is
- * the way in for someone who already has one.
+ * the way in for someone who already has one. The code step keeps that
+ * promise: a wrong or expired code and an unknown email read the same, and
+ * a resend answers the same message for every address. Supabase Auth limits
+ * how often a code can be sent and tried; its rate-limit error becomes a
+ * plain message.
  *
  * The enrollment is "inscrito" only when talleres_inscribirme approved it on
  * the spot (taller with inscripcion_automatica and cupo, L6.2); otherwise it
@@ -50,9 +61,12 @@ import {
 import {
   estadoInscripcion,
   loginProximoPaso,
+  MENSAJES_REGISTRO,
+  normalizarCorreo,
   parseEdicionesProximoPaso,
   RUTA_MIS_CLASES,
   rutaProximoPaso,
+  validarCodigo,
   validarRegistro,
   type CampoRegistro,
   type EdicionProximoPaso,
@@ -71,6 +85,8 @@ export interface FalloProximoPaso {
   readonly loginHref?: string
   /** Per-field messages of the form. */
   readonly errores?: Partial<Record<CampoRegistro, string>>
+  /** The code was verified: the person is signed in even though the enrollment did not go through. */
+  readonly sesionAbierta?: true
 }
 
 export type ResultadoInscripcion =
@@ -81,12 +97,25 @@ export type ResultadoRegistro =
   | ResultadoInscripcion
   | { readonly ok: true; readonly estado: 'confirmar_correo'; readonly email: string; readonly edicion: EdicionResumen }
 
+export type ResultadoReenvio = { readonly ok: true; readonly message: string } | FalloProximoPaso
+
 const MENSAJE_INTERNO = 'No se pudo completar el registro. Inténtalo de nuevo.'
 
 const fallo = (error: string, message: string): FalloProximoPaso => ({ ok: false, error, message })
 
 const NO_DISPONIBLE = fallo('not-found', 'Las inscripciones no están disponibles en este momento.')
 const EDICION_NO_DISPONIBLE = fallo('EDICION_NO_DISPONIBLE', 'Esa fecha ya no está disponible. Elige otra.')
+const CODIGO_INCOMPLETO = fallo('invalid-input', 'Escribe los 6 dígitos del código.')
+const CORREO_INVALIDO = fallo('invalid-input', MENSAJES_REGISTRO.email)
+const CODIGO_INVALIDO = fallo(
+  'CODIGO_INVALIDO',
+  'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.',
+)
+const LIMITE_CODIGO = fallo('LIMITE', 'Hiciste muchos intentos. Espera un momento y vuelve a intentarlo.')
+const CODIGO_REENVIADO: ResultadoReenvio = {
+  ok: true,
+  message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.',
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
 type Cliente = any
@@ -128,6 +157,16 @@ function esCorreoExistente(error: ErrorAuth): boolean {
   return code === 'user_already_exists' || code === 'email_exists' || (!code && error?.status === 400)
 }
 
+function esLimite(error: ErrorAuth): boolean {
+  return error?.status === 429 || (error?.code ?? '').startsWith('over_')
+}
+
+/** The confirmation email of a signup, whose link comes back to the chosen edición. */
+function redireccionCorreo(edicionId: string): string {
+  const sitio = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  return `${sitio}/auth/callback?next=${encodeURIComponent(rutaProximoPaso(edicionId))}`
+}
+
 function falloSignUp(error: ErrorAuth): FalloProximoPaso {
   const code = error?.code ?? ''
   if (code === 'weak_password') {
@@ -136,7 +175,7 @@ function falloSignUp(error: ErrorAuth): FalloProximoPaso {
       errores: { password: 'Elige una contraseña más segura: mezcla letras y números.' },
     }
   }
-  if (error?.status === 429 || code.startsWith('over_')) {
+  if (esLimite(error)) {
     return fallo('LIMITE', 'Hubo muchos intentos seguidos. Espera unos minutos y vuelve a intentarlo.')
   }
   return fallo('internal', MENSAJE_INTERNO)
@@ -163,13 +202,12 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
   if (!elegida.ok) return elegida
   const { edicion } = elegida
 
-  const sitio = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   const { data, error } = await client.auth.signUp({
     email: datos.email,
     password: datos.password,
     options: {
       data: { nombre: datos.nombre, apellido: datos.apellido, telefono: datos.telefono },
-      emailRedirectTo: `${sitio}/auth/callback?next=${encodeURIComponent(rutaProximoPaso(edicion.id))}`,
+      emailRedirectTo: redireccionCorreo(edicion.id),
     },
   })
   const confirmarCorreo: ResultadoRegistro = { ok: true, estado: 'confirmar_correo', email: datos.email, edicion: resumen(edicion) }
@@ -183,6 +221,20 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
   if (Array.isArray(user.identities) && user.identities.length === 0) return confirmarCorreo
   if (!data.session || !user.email_confirmed_at) return confirmarCorreo
 
+  const vinculo = await vincularCuenta(user, datos.telefono)
+  if (vinculo) return vinculo
+  return inscribirConSesionNueva(client, edicion)
+}
+
+/**
+ * The steps once an account is confirmed and signed in on this request: link
+ * the ficha (vincularFichaConfirmada) and save the phone. The failure to
+ * return, or null when the person can enroll.
+ */
+async function vincularCuenta(
+  user: Parameters<typeof vincularFichaConfirmada>[1] & { readonly id: string },
+  telefono: unknown,
+): Promise<FalloProximoPaso | null> {
   const vinculo = await vincularFichaConfirmada(createSupabaseAdminClient(), user)
   if (vinculo.estado === 'pendiente_aprobacion' || vinculo.estado === 'ambigua') {
     return fallo(
@@ -193,10 +245,13 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
   if (vinculo.estado === 'error' || vinculo.estado === 'sin_confirmar') {
     return fallo('CUENTA_SIN_INSCRIPCION', 'Tu cuenta quedó creada, pero no pudimos inscribirte. Inténtalo de nuevo.')
   }
+  await guardarTelefono(user.id, telefono)
+  return null
+}
 
-  await guardarTelefono(user.id, datos.telefono)
-
-  // The same RPC inscribirseATaller calls, with the session signUp just opened on this client.
+/** Enrolls with the session just opened on this client (signUp or verifyOtp). */
+async function inscribirConSesionNueva(client: Cliente, edicion: EdicionProximoPaso): Promise<ResultadoInscripcion> {
+  // The same RPC inscribirseATaller calls.
   const inscripcion = await client.rpc('talleres_inscribirme', { p_edicion_id: edicion.id, p_pareja: null })
   const resultado = inscripcion.error ? null : parseResultadoInscribirme(inscripcion.data)
   if (!resultado?.ok) {
@@ -210,6 +265,50 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
 
   revalidatePath(RUTA_MIS_CLASES)
   return { ok: true, estado: estadoInscripcion(inscripcion.data), edicion: resumen(edicion) }
+}
+
+export async function confirmarCodigoProximoPaso(input: unknown): Promise<ResultadoInscripcion> {
+  if (!isTalleresEnabled()) return NO_DISPONIBLE
+  const r = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+  const token = validarCodigo(r.token)
+  if (!token) return CODIGO_INCOMPLETO
+  const email = normalizarCorreo(r.email)
+  if (!email) return CORREO_INVALIDO
+  const edicionId = typeof r.edicionId === 'string' ? r.edicionId.trim() : ''
+  if (edicionId === '') return EDICION_NO_DISPONIBLE
+
+  const client = await createSupabaseServerClient()
+  // The SSR client stores the new session in the response cookies.
+  const { data, error } = await client.auth.verifyOtp({ email, token, type: 'signup' })
+  if (error) return esLimite(error) ? LIMITE_CODIGO : CODIGO_INVALIDO
+  const user = data?.user
+  if (!user || !data.session) return CODIGO_INVALIDO
+
+  // From here on the person is signed in: every failure says so.
+  const conSesion = (f: FalloProximoPaso): FalloProximoPaso => ({ ...f, sesionAbierta: true })
+  const vinculo = await vincularCuenta(user, user.user_metadata?.telefono)
+  if (vinculo) return conSesion(vinculo)
+  const elegida = await edicionAbierta(client, edicionId)
+  if (!elegida.ok) return conSesion(elegida)
+  const resultado = await inscribirConSesionNueva(client, elegida.edicion)
+  return resultado.ok ? resultado : conSesion(resultado)
+}
+
+export async function reenviarCodigoProximoPaso(input: unknown): Promise<ResultadoReenvio> {
+  if (!isTalleresEnabled()) return NO_DISPONIBLE
+  const r = input && typeof input === 'object' ? (input as Record<string, unknown>) : {}
+  const email = normalizarCorreo(r.email)
+  if (!email) return CORREO_INVALIDO
+  const edicionId = typeof r.edicionId === 'string' ? r.edicionId.trim() : ''
+
+  const client = await createSupabaseServerClient()
+  const { error } = await client.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: redireccionCorreo(edicionId) },
+  })
+  // Any other answer (unknown or already confirmed email) reads like a sent code.
+  return esLimite(error) ? LIMITE_CODIGO : CODIGO_REENVIADO
 }
 
 export async function inscribirmeEnProximoPaso(edicionId: unknown): Promise<ResultadoInscripcion> {

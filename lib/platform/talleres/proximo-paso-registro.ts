@@ -156,10 +156,20 @@ function telefono(valor: unknown): string | null {
   return INTERNACIONAL.test(internacional) ? internacional : null
 }
 
-function correo(valor: unknown): string | null {
+/** A valid email, trimmed and lowercased; null otherwise. */
+export function normalizarCorreo(valor: unknown): string | null {
   if (typeof valor !== 'string') return null
   const limpio = valor.trim().toLowerCase()
   return limpio.length <= 254 && EMAIL.test(limpio) ? limpio : null
+}
+
+const CODIGO = /^\d{6}$/
+
+/** T2c (L8): the 6-digit code of the confirmation email, trimmed; null otherwise. */
+export function validarCodigo(valor: unknown): string | null {
+  if (typeof valor !== 'string') return null
+  const limpio = valor.trim()
+  return CODIGO.test(limpio) ? limpio : null
 }
 
 function contrasena(valor: unknown): string | null {
@@ -173,7 +183,7 @@ export function validarRegistro(raw: unknown): ValidacionRegistro {
     nombre: nombrePropio(r.nombre),
     apellido: nombrePropio(r.apellido),
     telefono: telefono(r.telefono),
-    email: correo(r.email),
+    email: normalizarCorreo(r.email),
     password: contrasena(r.password),
   }
   const errores: Partial<Record<CampoRegistro, string>> = {}
