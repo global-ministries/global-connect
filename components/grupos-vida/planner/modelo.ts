@@ -183,14 +183,25 @@ const ETIQUETA_AVISO_GRUPO: Readonly<Record<TipoAviso, (n: number, grupo: GrupoT
   otra_temporada: (n) => `${n} en otra temporada`,
 }
 
-/** Blockers (red) then warnings (amber) of one group, one badge per kind; "Listo" when there is nothing. */
-export function insigniasGrupo(grupo: GrupoTablero, bloqueos: readonly Bloqueo[], avisos: readonly Aviso[]): Insignia[] {
+/**
+ * Blockers (red) then warnings (amber) of one group, one badge per kind, and
+ * with the bank rows "N sin su pareja" in Matrimonios (S23); "Listo" when
+ * there is nothing.
+ */
+export function insigniasGrupo(
+  grupo: GrupoTablero,
+  bloqueos: readonly Bloqueo[],
+  avisos: readonly Aviso[],
+  fichas?: ReadonlyMap<string, PersonaBanco>,
+): Insignia[] {
   const tiposBloqueo = new Set(bloqueos.filter((b) => b.grupo_id === grupo.grupo_id).map((b) => b.tipo))
   const rojas = [...tiposBloqueo].map((tipo): Insignia => ({ etiqueta: ETIQUETA_BLOQUEO[tipo], tono: 'danger' }))
   const porTipo = new Map<TipoAviso, number>()
   avisos.filter((a) => a.grupoIds.includes(grupo.grupo_id)).forEach((a) => porTipo.set(a.tipo, (porTipo.get(a.tipo) ?? 0) + 1))
   const amarillas = [...porTipo].map(([tipo, n]): Insignia => ({ etiqueta: ETIQUETA_AVISO_GRUPO[tipo](n, grupo), tono: 'warning' }))
-  const todas = [...rojas, ...amarillas]
+  const solos = fichas ? sinPareja(grupo, fichas) : 0
+  const pareja: Insignia[] = solos > 0 ? [{ etiqueta: `${solos} sin su pareja`, tono: 'warning' }] : []
+  const todas = [...rojas, ...amarillas, ...pareja]
   return todas.length > 0 ? todas : [{ etiqueta: 'Listo', tono: 'success' }]
 }
 
@@ -234,6 +245,72 @@ export const rolesGrupo = (grupo: GrupoTablero): RolGrupo[] => [
   { id: 'aprendices', titulo: grupo.aprendices.length === 1 ? 'Aprendiz' : 'Aprendices', personas: grupo.aprendices },
   { id: 'miembros', titulo: grupo.miembros.length === 1 ? 'Miembro' : 'Miembros', personas: grupo.miembros },
 ]
+
+// ─── Couples in a group (S23) ───
+
+/** One member row of a role: a person, or the two spouses when both have that role. */
+export interface FilaRol {
+  readonly clave: string
+  readonly personas: readonly PersonaGrupo[]
+}
+
+/** The rows of one role: spouses of the same role (bank conyuge_id) are one row, in the first one's place. */
+export const filasDelRol = (personas: readonly PersonaGrupo[], fichas: ReadonlyMap<string, Pick<PersonaBanco, 'conyuge_id'>>): FilaRol[] =>
+  emparejar(personas, (p) => fichas.get(p.usuario_id)?.conyuge_id)
+
+/** "Juan Castejón y Érica de Castejón": both full names, never shortened. */
+export const nombresFila = (personas: readonly Pick<PersonaGrupo, 'nombre' | 'apellido'>[]): string => enLista(personas.map(nombrePersona))
+
+const OPUESTO: Readonly<Record<string, string>> = { Masculino: 'Femenino', Femenino: 'Masculino' }
+
+/** 'esposo' / 'esposa' by the spouse's gender (or the opposite of the person's), else 'cónyuge'. */
+function palabraConyuge(conyuge: string | null | undefined, persona: string | null | undefined): string {
+  const genero = conyuge ?? (persona ? OPUESTO[persona] : undefined)
+  return genero === 'Masculino' ? 'esposo' : genero === 'Femenino' ? 'esposa' : 'cónyuge'
+}
+
+const mayuscula = (texto: string): string => texto.charAt(0).toUpperCase() + texto.slice(1)
+
+export interface NotaPareja {
+  readonly texto: string
+  /** The spouse is not in the group (only in Matrimonios): counted as "sin su pareja". */
+  readonly falta: boolean
+}
+
+/**
+ * Where a member's spouse is (S23), or null when there is nothing to say: the
+ * couple shares a role (one row), or the person has no bank row. A spouse in
+ * another role of the same group is a hint, "Esposa: Carla Rivas (Miembro)".
+ * Only in a Matrimonios group (S2) the missing spouse is marked: "Su esposa
+ * está en Grupo Rosas", "Su esposo está en el banco", "Sin cónyuge registrado".
+ */
+export function notaPareja(personaId: string, grupo: GrupoTablero, fichas: ReadonlyMap<string, PersonaBanco>): NotaPareja | null {
+  const ficha = fichas.get(personaId)
+  if (!ficha) return null
+  const conyugeId = ficha.conyuge_id && ficha.conyuge_id !== personaId ? ficha.conyuge_id : null
+  const matrimonios = esMatrimonios(grupo.segmento_nombre)
+  if (!conyugeId) return matrimonios ? { texto: 'Sin cónyuge registrado', falta: true } : null
+  const conyuge = fichas.get(conyugeId)
+  const palabra = palabraConyuge(conyuge?.genero, ficha.genero)
+  const rolConyuge = rolEnGrupo(grupo, conyugeId)
+  if (rolConyuge) {
+    if (rolConyuge === rolEnGrupo(grupo, personaId)) return null
+    const enGrupo = personasDelGrupo(grupo).find((p) => p.usuario_id === conyugeId)
+    const nombre = enGrupo ?? conyuge
+    return { texto: `${mayuscula(palabra)}: ${nombre ? nombrePersona(nombre) : 'en el grupo'} (${ETIQUETA_ROL[rolConyuge]})`, falta: false }
+  }
+  if (!matrimonios) return null
+  const donde = !conyuge
+    ? 'no está en este grupo'
+    : conyuge.grupo_actual_id
+      ? `está en ${conyuge.grupo_actual_nombre?.trim() || 'otro grupo'}`
+      : 'está en el banco'
+  return { texto: `Su ${palabra} ${donde}`, falta: true }
+}
+
+/** The people of a Matrimonios group whose spouse is not there (S23); 0 elsewhere. */
+export const sinPareja = (grupo: GrupoTablero, fichas: ReadonlyMap<string, PersonaBanco>): number =>
+  esMatrimonios(grupo.segmento_nombre) ? personasDelGrupo(grupo).filter((p) => notaPareja(p.usuario_id, grupo, fichas)?.falta).length : 0
 
 /** "José y Mariela Torrealba", "Carmen Rivero", or null without Líder. */
 export function textoLideres(grupo: GrupoTablero): string | null {
@@ -324,14 +401,18 @@ function coincideBanco(p: PersonaBanco, consulta: string): boolean {
   )
 }
 
-/** Pairs each person with their spouse when both are in the list; the couple takes the first one's place. */
-export function agruparParejas(personas: readonly PersonaBanco[]): FilaBanco[] {
+/** Pairs each one with their spouse (`conyugeDe`) when both are in the list; the couple takes the first one's place. */
+function emparejar<T extends { readonly usuario_id: string }>(
+  personas: readonly T[],
+  conyugeDe: (persona: T) => string | null | undefined,
+): { clave: string; personas: T[] }[] {
   const presentes = new Map(personas.map((p) => [p.usuario_id, p]))
   const usados = new Set<string>()
   return personas.flatMap((p) => {
     if (usados.has(p.usuario_id)) return []
     usados.add(p.usuario_id)
-    const conyuge = p.conyuge_id && p.conyuge_id !== p.usuario_id ? presentes.get(p.conyuge_id) : undefined
+    const conyugeId = conyugeDe(p)
+    const conyuge = conyugeId && conyugeId !== p.usuario_id ? presentes.get(conyugeId) : undefined
     if (conyuge && !usados.has(conyuge.usuario_id)) {
       usados.add(conyuge.usuario_id)
       return [{ clave: `${p.usuario_id}|${conyuge.usuario_id}`, personas: [p, conyuge] }]
@@ -339,6 +420,9 @@ export function agruparParejas(personas: readonly PersonaBanco[]): FilaBanco[] {
     return [{ clave: p.usuario_id, personas: [p] }]
   })
 }
+
+/** Pairs each person with their spouse when both are in the list; the couple takes the first one's place. */
+export const agruparParejas = (personas: readonly PersonaBanco[]): FilaBanco[] => emparejar(personas, (p) => p.conyuge_id)
 
 /**
  * The bank: everyone of the church, never limited by segment (S11). "Sin

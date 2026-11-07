@@ -83,7 +83,7 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
     >
       {pasos && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold leading-snug text-foreground">
+        <p data-nombres className="break-words text-sm font-semibold leading-snug text-foreground">
           <NombreConEdad persona={una} />
           {otra && (
             <>

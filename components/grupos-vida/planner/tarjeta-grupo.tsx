@@ -15,9 +15,13 @@
  * "Mover"; "Usar <localidad>" saves the suggestion; "Eliminar grupo" shows
  * only while the group has not started (S22). The name and "Abrir" open the
  * group panel (T6, panel-grupo.tsx), read-only outside the actor's segments.
+ *
+ * S23: names are never cut (they wrap); within a role the two spouses are one
+ * row with both names and ages, moved together; under a name, where the
+ * spouse is, and in Matrimonios the card counts "N sin su pareja".
  */
-import { useId, useState, type ReactElement } from 'react'
-import { ChevronRight, GripVertical } from 'lucide-react'
+import { Fragment, useId, useState, type ReactElement } from 'react'
+import { ArrowRightLeft, ChevronRight, GripVertical } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import {
@@ -34,10 +38,32 @@ import {
 import { cn } from '@/lib/utils'
 
 import { EtiquetaPlanner } from './etiqueta'
-import { insigniasGrupo, insigniasPersona, puedeEliminarGrupo, rolesGrupo, textoLideres, type RolDestino, type RolGrupo } from './modelo'
+import {
+  filasDelRol,
+  insigniasGrupo,
+  insigniasPersona,
+  nombresFila,
+  notaPareja,
+  puedeEliminarGrupo,
+  rolesGrupo,
+  textoLideres,
+  type FilaRol,
+  type Insignia,
+  type RolDestino,
+  type RolGrupo,
+} from './modelo'
 import { usePasos, useZonaSoltar } from './contexto-pasos'
 
 const ROL_DE_SECCION: Readonly<Record<RolGrupo['id'], RolDestino>> = { lideres: 'lider', aprendices: 'aprendiz', miembros: 'miembro' }
+
+const edadDe = (ficha: PersonaBanco | undefined): string | null => (ficha?.edad !== null && ficha?.edad !== undefined ? String(ficha.edad) : null)
+
+/** The age after a name of a couple row, as in the bank. */
+const Edad = ({ edad }: { readonly edad: number | null | undefined }): ReactElement | null =>
+  edad === null || edad === undefined ? null : <span className="ml-1 font-mono text-xs font-normal tabular-nums text-muted-foreground">{edad}</span>
+
+/** The chips of a row, once each (a couple shares them). */
+const unicas = (insignias: readonly Insignia[]): Insignia[] => insignias.filter((m, i) => insignias.findIndex((x) => x.etiqueta === m.etiqueta) === i)
 
 /** Drop highlight of a card or role zone while someone is dragged over it. */
 const SOBRE = 'ring-2 ring-brand ring-offset-2 ring-offset-background'
@@ -103,6 +129,86 @@ function Sugerencia({ grupo, sugerencia }: { readonly grupo: GrupoTablero; reado
   )
 }
 
+/**
+ * One member row of the expanded card: a person, or a couple of the same role
+ * with both full names and ages (S23). Names wrap, never cut; "Mover" is an
+ * icon so it never squeezes them. Under the name, where the spouse is.
+ */
+function FilaMiembro({
+  fila,
+  grupo,
+  rol,
+  bloqueos,
+  avisos,
+  fichas,
+  editable,
+}: Pick<TarjetaGrupoProps, 'grupo' | 'bloqueos' | 'avisos' | 'fichas'> & {
+  readonly fila: FilaRol
+  readonly rol: RolDestino
+  readonly editable: boolean
+}): ReactElement {
+  const pasos = usePasos()
+  const nombre = nombresFila(fila.personas)
+  const pareja = fila.personas.length > 1
+  const ids = fila.personas.map((p) => p.usuario_id)
+  const datos = pareja
+    ? [...new Set(fila.personas.map((p) => fichas.get(p.usuario_id)?.municipio_nombre).filter(Boolean))]
+    : [edadDe(fichas.get(ids[0])), fichas.get(ids[0])?.municipio_nombre].filter(Boolean)
+  const marcas = unicas(fila.personas.flatMap((p) => insigniasPersona(p.usuario_id, grupo.grupo_id, bloqueos, avisos)))
+  const nota = pareja ? null : notaPareja(ids[0], grupo, fichas)
+  const carga = { ids, nombre, desdeGrupo: true }
+  return (
+    <li
+      aria-label={nombre}
+      draggable={editable}
+      onDragStart={editable ? (e) => pasos?.arrastrar(carga, e) : undefined}
+      onDragEnd={editable ? () => pasos?.terminarArrastre() : undefined}
+      className={cn('flex min-w-0 items-start gap-1', editable && 'cursor-grab')}
+    >
+      {editable && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
+      <div className="min-w-0 flex-1">
+        <p data-nombres className="break-words text-[13px] font-medium leading-snug text-foreground">
+          {pareja ? (
+            fila.personas.map((p, i) => (
+              <Fragment key={p.usuario_id}>
+                {i > 0 && ' y '}
+                {nombrePersona(p)}
+                <Edad edad={fichas.get(p.usuario_id)?.edad} />
+              </Fragment>
+            ))
+          ) : (
+            nombre
+          )}
+        </p>
+        {datos.length > 0 && <p className="break-words text-xs text-muted-foreground">{datos.join(' · ')}</p>}
+        {nota && <p className={cn('break-words text-xs', nota.falta ? 'font-medium text-warning-text' : 'text-muted-foreground')}>{nota.texto}</p>}
+        {marcas.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {marcas.map((m) => (
+              <EtiquetaPlanner key={m.etiqueta} tono={m.tono}>
+                {m.etiqueta}
+              </EtiquetaPlanner>
+            ))}
+          </div>
+        )}
+      </div>
+      {editable && (
+        <BotonSistema
+          type="button"
+          variante="ghost"
+          tamaño="sm"
+          soloIcono
+          icono={ArrowRightLeft}
+          aria-label={`Mover a ${nombre}`}
+          title="Mover"
+          onClick={() => pasos?.pedirUbicar(carga, { grupoId: grupo.grupo_id, rol })}
+          className="shrink-0"
+        />
+      )}
+    </li>
+  )
+}
+
 function SeccionRol({
   grupo,
   rol,
@@ -129,50 +235,9 @@ function SeccionRol({
         </p>
       ) : (
         <ul className="space-y-1.5">
-          {rol.personas.map((persona) => {
-            const ficha = fichas.get(persona.usuario_id)
-            const datos = [ficha?.edad !== null && ficha?.edad !== undefined ? String(ficha.edad) : null, ficha?.municipio_nombre].filter(Boolean)
-            const marcas = insigniasPersona(persona.usuario_id, grupo.grupo_id, bloqueos, avisos)
-            const nombre = nombrePersona(persona)
-            const carga = { ids: [persona.usuario_id], nombre, desdeGrupo: true }
-            return (
-              <li
-                key={persona.usuario_id}
-                draggable={editable}
-                onDragStart={editable ? (e) => pasos?.arrastrar(carga, e) : undefined}
-                onDragEnd={editable ? () => pasos?.terminarArrastre() : undefined}
-                className={cn('flex min-w-0 items-start gap-1', editable && 'cursor-grab')}
-              >
-                {editable && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-foreground" title={nombre}>
-                    {nombre}
-                  </p>
-                  {datos.length > 0 && <p className="truncate text-xs text-muted-foreground">{datos.join(' · ')}</p>}
-                  {marcas.length > 0 && (
-                    <div className="mt-0.5 flex flex-wrap gap-1">
-                      {marcas.map((m) => (
-                        <EtiquetaPlanner key={m.etiqueta} tono={m.tono}>
-                          {m.etiqueta}
-                        </EtiquetaPlanner>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {editable && (
-                  <BotonSistema
-                    type="button"
-                    variante="ghost"
-                    tamaño="sm"
-                    aria-label={`Mover a ${nombre}`}
-                    onClick={() => pasos?.pedirUbicar(carga, { grupoId: grupo.grupo_id, rol: ROL_DE_SECCION[rol.id] })}
-                  >
-                    Mover
-                  </BotonSistema>
-                )}
-              </li>
-            )
-          })}
+          {filasDelRol(rol.personas, fichas).map((fila) => (
+            <FilaMiembro key={fila.clave} fila={fila} grupo={grupo} rol={ROL_DE_SECCION[rol.id]} bloqueos={bloqueos} avisos={avisos} fichas={fichas} editable={editable} />
+          ))}
         </ul>
       )}
     </section>
@@ -216,7 +281,7 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
         </p>
       </div>
       {lideres ? (
-        <p title={`Líderes: ${lideres}`} className="truncate text-[13px] text-foreground">
+        <p className="break-words text-[13px] text-foreground">
           {lideres}
         </p>
       ) : (
@@ -225,7 +290,7 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
       <Cupo grupo={grupo} />
       {!grupo.localidad_id && sugerencia !== undefined && <Sugerencia grupo={grupo} sugerencia={sugerencia} />}
       <ul aria-label="Alertas del grupo" className="flex flex-wrap gap-1">
-        {insigniasGrupo(grupo, bloqueos, avisos).map((insignia) => (
+        {insigniasGrupo(grupo, bloqueos, avisos, fichas).map((insignia) => (
           <li key={insignia.etiqueta} className="min-w-0 max-w-full">
             <EtiquetaPlanner tono={insignia.tono}>{insignia.etiqueta}</EtiquetaPlanner>
           </li>

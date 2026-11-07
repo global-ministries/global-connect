@@ -7,7 +7,7 @@
  * localidades. The client is a stub that records every call and answers from
  * the fixture of each RPC or table.
  */
-import { cargarPlanner, elegirTemporada, mensajeErrorPlanner, type ClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
+import { cargarPlanner, elegirTemporada, FILAS_POR_PAGINA, MAXIMO_PAGINAS, mensajeErrorPlanner, type ClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
 
 type Respuesta = { data: unknown; error: { code?: string; message?: string } | null }
 
@@ -79,7 +79,9 @@ const LOCALIDADES = [
 ]
 
 let respuestas: Record<string, Respuesta>
-let llamadas: { nombre: string; args?: Record<string, unknown> }[]
+/** Answers by page (`<rpc>:<desde>`), before `respuestas`. */
+let paginas: Record<string, Respuesta>
+let llamadas: { nombre: string; args?: Record<string, unknown>; rango?: [number, number] }[]
 let consultas: { tabla: string; ops: [string, unknown[]][] }[]
 
 const ok = (data: unknown): Respuesta => ({ data, error: null })
@@ -88,8 +90,20 @@ const falla = (code: string, message: string): Respuesta => ({ data: null, error
 function cliente(): ClientePlanner {
   return {
     rpc: (nombre, args) => {
-      llamadas.push({ nombre, args })
-      return Promise.resolve(respuestas[nombre] ?? ok(null))
+      const llamada: (typeof llamadas)[number] = { nombre, args }
+      llamadas.push(llamada)
+      const completa = () => respuestas[nombre] ?? ok(null)
+      return {
+        then: (bien, mal) => Promise.resolve(completa()).then(bien, mal),
+        // Like PostgREST: the rows desde..hasta of the whole answer.
+        range: (desde, hasta) => {
+          llamada.rango = [desde, hasta]
+          const pagina = paginas[`${nombre}:${desde}`]
+          if (pagina) return Promise.resolve(pagina)
+          const r = completa()
+          return Promise.resolve(Array.isArray(r.data) ? { ...r, data: r.data.slice(desde, hasta + 1) } : r)
+        },
+      }
     },
     from: (tabla) => {
       const consulta = { tabla, ops: [] as [string, unknown[]][] }
@@ -116,6 +130,7 @@ beforeEach(() => {
   consola = jest.spyOn(console, 'error').mockImplementation(() => undefined)
   llamadas = []
   consultas = []
+  paginas = {}
   respuestas = {
     planner_temporadas: ok(TEMPORADAS),
     planner_tablero: ok([GRUPO]),
@@ -241,6 +256,67 @@ describe('cargarPlanner', () => {
     const resultado = await cargarPlanner(cliente())
 
     expect(resultado.tipo === 'listo' && resultado.datos.grupos.map((g) => g.grupo_id)).toEqual(['g1'])
+  })
+})
+
+describe('reading the bank in pages (L35)', () => {
+  const gente = (n: number, desde = 0) =>
+    Array.from({ length: n }, (_, i) => ({ ...PERSONA, usuario_id: `p${desde + i}` }))
+  const rangos = (nombre: string) => llamadas.filter((l) => l.nombre === nombre).map((l) => l.rango)
+
+  it('pages planner_banco by 1000 until a short page, keeping the order', async () => {
+    respuestas.planner_banco = ok(gente(1193))
+
+    const resultado = await cargarPlanner(cliente())
+
+    expect(FILAS_POR_PAGINA).toBe(1000)
+    expect(rangos('planner_banco')).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ])
+    expect(resultado.tipo === 'listo' && resultado.datos.banco.map((p) => p.usuario_id)).toEqual(gente(1193).map((p) => p.usuario_id))
+  })
+
+  it('reads one more page when the last one is exactly full', async () => {
+    respuestas.planner_banco = ok(gente(1000))
+
+    const resultado = await cargarPlanner(cliente())
+
+    expect(rangos('planner_banco')).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ])
+    expect(resultado.tipo === 'listo' && resultado.datos.banco).toHaveLength(1000)
+  })
+
+  it('pages planner_tablero the same way', async () => {
+    respuestas.planner_tablero = ok([GRUPO])
+
+    await cargarPlanner(cliente())
+
+    expect(rangos('planner_tablero')).toEqual([[0, 999]])
+  })
+
+  it('fails as the bank failing when page 2 errors', async () => {
+    paginas['planner_banco:0'] = ok(gente(1000))
+    paginas['planner_banco:1000'] = falla('XX000', 'boom')
+
+    expect(await cargarPlanner(cliente())).toEqual({ tipo: 'error', mensaje: 'No se pudo cargar el planificador. Recarga la página.' })
+    expect(rangos('planner_banco')).toEqual([
+      [0, 999],
+      [1000, 1999],
+    ])
+  })
+
+  it('stops at the safety maximum of pages', async () => {
+    for (let p = 0; p < MAXIMO_PAGINAS + 2; p += 1) paginas[`planner_banco:${p * 1000}`] = ok(gente(1000, p * 1000))
+
+    const resultado = await cargarPlanner(cliente())
+
+    expect(MAXIMO_PAGINAS).toBe(20)
+    expect(rangos('planner_banco')).toHaveLength(20)
+    expect(resultado.tipo === 'listo' && resultado.datos.banco).toHaveLength(20000)
+    expect(consola).toHaveBeenCalledWith('[grupos-vida/planificar] planner_banco: más de 20 páginas, se cortó', expect.anything())
   })
 })
 

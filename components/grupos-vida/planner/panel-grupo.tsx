@@ -13,7 +13,9 @@
  * field in the step RPC yet), Directores de etapa (the eligible ones of the
  * segment, a couple as one option, at most MAXIMO_DIRECTORES) and Integrantes
  * by role with each person's warning chips and the actions change role,
- * "Mover" (the Ubicar dialog) and back to the bank.
+ * "Mover" (the Ubicar dialog) and back to the bank. Spouses of one role are
+ * one row (S23) with the role per person and Mover / Al banco for both; a
+ * missing spouse is marked in Matrimonios.
  *
  * There is no "Guardar": each field saves on blur or selection as one
  * planner_editar_grupo step with only the changed key, shows "Guardando…" in
@@ -23,7 +25,7 @@
  * started (S22). The sheet traps the focus, closes with Escape and returns
  * the focus to what opened it.
  */
-import { useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
+import { Fragment, useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 
 import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
@@ -42,7 +44,6 @@ import {
   type GrupoTablero,
   type Localidad,
   type PersonaBanco,
-  type PersonaGrupo,
   type SegmentoConDirectores,
 } from '@/lib/platform/grupos-vida/planner'
 import { DIAS_REUNION, LARGO_NOMBRE_GRUPO, MAXIMO_DIRECTORES, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
@@ -54,13 +55,17 @@ import {
   ETIQUETA_ROL,
   directoresElegibles,
   dondeViven,
+  filasDelRol,
   horaCorta,
   insigniasGrupo,
   insigniasPersona,
+  nombresFila,
+  notaPareja,
   puedeEliminarGrupo,
   rolEnGrupo,
   rolesGrupo,
   type DirectorElegible,
+  type FilaRol,
   type RolDestino,
   type RolGrupo,
 } from './modelo'
@@ -149,38 +154,63 @@ function Seccion({ titulo, extra, children }: { readonly titulo: string; readonl
 const Guardando = ({ activo }: { readonly activo: boolean }): ReactElement | null =>
   activo ? <p className="text-xs text-muted-foreground">Guardando…</p> : null
 
+/** The age after a name of a couple row, as in the bank. */
+const Edad = ({ edad }: { readonly edad: number | null | undefined }): ReactElement | null =>
+  edad === null || edad === undefined ? null : <span className="ml-1 font-mono text-xs font-normal tabular-nums text-muted-foreground">{edad}</span>
+
+/**
+ * One member row: a person, or a couple of the same role (S23) with both full
+ * names and ages. Names wrap, never cut. The role stays per person; "Mover"
+ * and "Al banco" take the whole row. Under the name, where the spouse is.
+ */
 function FilaIntegrante({
-  persona,
+  fila,
   grupo,
-  rol,
   editable,
-  ficha,
+  fichas,
   bloqueos,
   avisos,
   onMover,
   onPedirUbicar,
 }: {
-  readonly persona: PersonaGrupo
+  readonly fila: FilaRol
   readonly grupo: GrupoTablero
-  readonly rol: RolDestino
   readonly editable: boolean
-  readonly ficha: PersonaBanco | undefined
+  readonly fichas: ReadonlyMap<string, PersonaBanco>
   readonly bloqueos: readonly Bloqueo[]
   readonly avisos: readonly Aviso[]
   readonly onMover: PanelGrupoProps['onMover']
   readonly onPedirUbicar: PanelGrupoProps['onPedirUbicar']
 }): ReactElement {
-  const idNombre = useId()
-  const nombre = nombrePersona(persona)
-  const datos = [ficha?.edad !== null && ficha?.edad !== undefined ? `${ficha.edad} años` : null, ficha?.municipio_nombre].filter(Boolean)
-  const marcas = insigniasPersona(persona.usuario_id, grupo.grupo_id, bloqueos, avisos)
+  const nombre = nombresFila(fila.personas)
+  const pareja = fila.personas.length > 1
+  const ids = fila.personas.map((p) => p.usuario_id)
+  const rolDe = (id: string): RolDestino => rolEnGrupo(grupo, id) ?? 'miembro'
+  const rol = rolDe(ids[0])
+  const ficha = fichas.get(ids[0])
+  const datos = pareja
+    ? [...new Set(fila.personas.map((p) => fichas.get(p.usuario_id)?.municipio_nombre).filter(Boolean))]
+    : [ficha?.edad !== null && ficha?.edad !== undefined ? `${ficha.edad} años` : null, ficha?.municipio_nombre].filter(Boolean)
+  const marcas = fila.personas
+    .flatMap((p) => insigniasPersona(p.usuario_id, grupo.grupo_id, bloqueos, avisos))
+    .filter((m, i, todas) => todas.findIndex((x) => x.etiqueta === m.etiqueta) === i)
+  const nota = pareja ? null : notaPareja(ids[0], grupo, fichas)
   return (
-    <li aria-labelledby={idNombre} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-border py-2.5 last:border-b-0">
+    <li aria-label={nombre} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-border py-2.5 last:border-b-0">
       <div className="min-w-0 flex-1 basis-48">
-        <p id={idNombre} className="truncate text-sm font-medium text-foreground" title={nombre}>
-          {nombre}
+        <p data-nombres className="break-words text-sm font-medium text-foreground">
+          {pareja
+            ? fila.personas.map((p, i) => (
+                <Fragment key={p.usuario_id}>
+                  {i > 0 && ' y '}
+                  {nombrePersona(p)}
+                  <Edad edad={fichas.get(p.usuario_id)?.edad} />
+                </Fragment>
+              ))
+            : nombre}
         </p>
-        {datos.length > 0 && <p className="truncate text-xs text-muted-foreground">{datos.join(' · ')}</p>}
+        {datos.length > 0 && <p className="break-words text-xs text-muted-foreground">{datos.join(' · ')}</p>}
+        {nota && <p className={cn('break-words text-xs', nota.falta ? 'font-medium text-warning-text' : 'text-muted-foreground')}>{nota.texto}</p>}
         {marcas.length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {marcas.map((m) => (
@@ -193,27 +223,32 @@ function FilaIntegrante({
       </div>
       {editable && (
         <div className="flex flex-wrap items-center gap-1">
-          <div className="w-32">
-            <SelectSistema
-              aria-label={`Rol de ${nombre}`}
-              opciones={ROLES.map((r) => ({ valor: r, etiqueta: ETIQUETA_ROL[r] }))}
-              value={rol}
-              onValueChange={(v) => {
-                const nuevo = ROLES.find((r) => r === v)
-                if (nuevo && nuevo !== rol) onMover([persona.usuario_id], grupo, nuevo)
-              }}
-            />
-          </div>
+          {fila.personas.map((p) => {
+            const actual = rolDe(p.usuario_id)
+            return (
+              <div key={p.usuario_id} className="w-32">
+                <SelectSistema
+                  aria-label={`Rol de ${nombrePersona(p)}`}
+                  opciones={ROLES.map((r) => ({ valor: r, etiqueta: ETIQUETA_ROL[r] }))}
+                  value={actual}
+                  onValueChange={(v) => {
+                    const nuevo = ROLES.find((r) => r === v)
+                    if (nuevo && nuevo !== actual) onMover([p.usuario_id], grupo, nuevo)
+                  }}
+                />
+              </div>
+            )
+          })}
           <BotonSistema
             type="button"
             variante="ghost"
             tamaño="sm"
             aria-label={`Mover a ${nombre}`}
-            onClick={() => onPedirUbicar({ ids: [persona.usuario_id], nombre, desdeGrupo: true }, { grupoId: grupo.grupo_id, rol })}
+            onClick={() => onPedirUbicar({ ids, nombre, desdeGrupo: true }, { grupoId: grupo.grupo_id, rol })}
           >
             Mover
           </BotonSistema>
-          <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Devolver a ${nombre} al banco`} onClick={() => onMover([persona.usuario_id], null, rol)}>
+          <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Devolver a ${nombre} al banco`} onClick={() => onMover(ids, null, rol)}>
             Al banco
           </BotonSistema>
         </div>
@@ -232,7 +267,7 @@ function SeccionRol(props: {
   readonly onMover: PanelGrupoProps['onMover']
   readonly onPedirUbicar: PanelGrupoProps['onPedirUbicar']
 }): ReactElement {
-  const { rol, grupo, fichas } = props
+  const { rol, fichas } = props
   const falta = rol.id === 'lideres' && rol.personas.length === 0
   return (
     <section aria-label={rol.titulo}>
@@ -243,14 +278,8 @@ function SeccionRol(props: {
         <p className={cn('py-2 text-sm', falta ? 'text-danger-text' : 'text-muted-foreground')}>{falta ? 'Falta el Líder' : 'Nadie todavía'}</p>
       ) : (
         <ul>
-          {rol.personas.map((persona) => (
-            <FilaIntegrante
-              key={persona.usuario_id}
-              {...props}
-              persona={persona}
-              rol={rolEnGrupo(grupo, persona.usuario_id) ?? 'miembro'}
-              ficha={fichas.get(persona.usuario_id)}
-            />
+          {filasDelRol(rol.personas, fichas).map((fila) => (
+            <FilaIntegrante key={fila.clave} {...props} fila={fila} />
           ))}
         </ul>
       )}
@@ -368,7 +397,7 @@ function Formulario({
         </AvisoFormulario>
       )}
       <ul aria-label="Alertas del grupo" className="flex flex-wrap gap-1">
-        {insigniasGrupo(grupo, bloqueos, avisos).map((insignia) => (
+        {insigniasGrupo(grupo, bloqueos, avisos, fichas).map((insignia) => (
           <li key={insignia.etiqueta} className="min-w-0 max-w-full">
             <EtiquetaPlanner tono={insignia.tono}>{insignia.etiqueta}</EtiquetaPlanner>
           </li>

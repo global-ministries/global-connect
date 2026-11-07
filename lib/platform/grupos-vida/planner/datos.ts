@@ -10,6 +10,10 @@
  * campus_localidades for the localidad suggestions (S3, S5). Rows are parsed
  * with the T4 readers (tipos.ts).
  *
+ * planner_tablero and planner_banco are read in pages of FILAS_POR_PAGINA:
+ * PostgREST's max_rows cuts one answer of a set-returning RPC at 1000 rows,
+ * and the church has more people than that (L35).
+ *
  * The board needs the groups, the bank and the blockers; any of them failing
  * is an error. The publish state and the localidades are extras: when they
  * fail the board still opens and `faltantes` says what is missing.
@@ -47,15 +51,20 @@ interface ConsultaLocalidades {
   order(columna: string): PromiseLike<Respuesta>
 }
 
+/** One RPC call: awaited whole, or one page of its rows with `range` (both ends included). */
+export interface ConsultaRpc extends PromiseLike<Respuesta> {
+  range(desde: number, hasta: number): PromiseLike<Respuesta>
+}
+
 /** What the loader needs from the Supabase session client (the planner RPCs are not in database.types.ts yet). */
 export interface ClientePlanner {
-  rpc(nombre: string, args?: Record<string, unknown>): PromiseLike<Respuesta>
+  rpc(nombre: string, args?: Record<string, unknown>): ConsultaRpc
   from(tabla: 'campus_localidades'): ConsultaLocalidades
 }
 
 /** The session client seen through ClientePlanner, keeping `this` bound. */
 export function comoClientePlanner(supabase: { rpc: unknown; from: unknown }): ClientePlanner {
-  const rpc = supabase.rpc as (nombre: string, args?: Record<string, unknown>) => PromiseLike<Respuesta>
+  const rpc = supabase.rpc as (nombre: string, args?: Record<string, unknown>) => ConsultaRpc
   const from = supabase.from as (tabla: string) => ConsultaLocalidades
   return { rpc: rpc.bind(supabase), from: from.bind(supabase) }
 }
@@ -105,6 +114,32 @@ export function elegirTemporada(temporadas: readonly TemporadaPlanner[], pedida:
   return temporadas.find((t) => t.id === pedida) ?? temporadas.find((t) => t.estado === 'planificacion') ?? null
 }
 
+/** PostgREST's max_rows on Supabase: the most rows one answer carries. */
+export const FILAS_POR_PAGINA = 1000
+/** Safety stop: 20.000 rows. */
+export const MAXIMO_PAGINAS = 20
+
+/**
+ * A set-returning planner RPC read page by page until a short page. The RPCs
+ * order their rows (planner_banco by apellido, nombre, id), so the pages do
+ * not overlap. The first error is the answer; past MAXIMO_PAGINAS it stops
+ * with what it read and logs it.
+ */
+export async function rpcPorPaginas(supabase: ClientePlanner, nombre: string, args: Record<string, unknown>): Promise<Respuesta> {
+  const filas: unknown[] = []
+  for (let pagina = 0; pagina < MAXIMO_PAGINAS; pagina += 1) {
+    const desde = pagina * FILAS_POR_PAGINA
+    const respuesta = await supabase.rpc(nombre, args).range(desde, desde + FILAS_POR_PAGINA - 1)
+    if (respuesta.error) return respuesta
+    // Not rows (a malformed answer): the reader decides, as without pages.
+    if (!Array.isArray(respuesta.data)) return pagina === 0 ? respuesta : { data: filas, error: null }
+    filas.push(...respuesta.data)
+    if (respuesta.data.length < FILAS_POR_PAGINA) return { data: filas, error: null }
+  }
+  console.error(`[grupos-vida/planificar] ${nombre}: más de ${MAXIMO_PAGINAS} páginas, se cortó`, { filas: filas.length })
+  return { data: filas, error: null }
+}
+
 export async function cargarPlanner(supabase: ClientePlanner, temporadaPedida?: string | null): Promise<ResultadoPlanner> {
   const temporadasRes = await supabase.rpc('planner_temporadas')
   if (temporadasRes.error) return fallo(temporadasRes.error)
@@ -116,8 +151,8 @@ export async function cargarPlanner(supabase: ClientePlanner, temporadaPedida?: 
 
   const args = { p_temporada_id: temporada.id }
   const [tableroRes, bancoRes, bloqueosRes, estadoRes, localidadesRes] = await Promise.all([
-    supabase.rpc('planner_tablero', args),
-    supabase.rpc('planner_banco', args),
+    rpcPorPaginas(supabase, 'planner_tablero', args),
+    rpcPorPaginas(supabase, 'planner_banco', args),
     supabase.rpc('planner_bloqueos', args),
     supabase.rpc('planner_estado_publicacion', args),
     supabase.from('campus_localidades').select('id, nombre, municipio_id').eq('activo', true).order('nombre'),
