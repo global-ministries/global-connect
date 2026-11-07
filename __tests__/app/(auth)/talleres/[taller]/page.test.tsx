@@ -623,6 +623,18 @@ describe('TallerDetallePage — permission wiring', () => {
     expect(form?.props.intervaloEdicionesDias).toBe(28)
   })
 
+  // T1 (odd/tasks/proximo-paso.md, S1)
+  it('passes ancla_ediciones to ConfiguracionTaller and OpenEdicionForm', async () => {
+    setup({
+      permisos: { editarTaller: true, abrirEdicion: true },
+      taller: { ...TALLER, regimen: 'cadencia', intervalo_ediciones_dias: null, ancla_ediciones: 'primer_domingo_mes' },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, ConfiguracionTaller)?.props.anclaEdiciones).toBe('primer_domingo_mes')
+    expect(findByType(element, OpenEdicionForm)?.props.anclaEdiciones).toBe('primer_domingo_mes')
+  })
+
   it('passes every configuration field verbatim to ConfiguracionTaller', async () => {
     setup({
       permisos: { editarTaller: true },
@@ -649,6 +661,7 @@ describe('TallerDetallePage — permission wiring', () => {
       regimen: 'cadencia',
       cierreInscripcionOffsetDias: -3,
       intervaloEdicionesDias: 28,
+      anclaEdiciones: null,
       clasesMinimasParaCompletar: 6,
       cadenciaDias: 14,
       duracionMinutos: 75,

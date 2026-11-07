@@ -26,6 +26,7 @@
  * `loadCoordInscripcionesPendientes` already uses in operacional.ts.
  */
 
+import type { AnclaEdiciones } from './ancla-ediciones'
 import {
   loadEquipoGrupos,
   loadEquipoProximasSesiones,
@@ -161,6 +162,12 @@ export interface TallerDetalle extends CatalogoTaller {
   readonly cierre_inscripcion_offset_dias: number
   readonly intervalo_ediciones_dias: number | null
   /**
+   * T1 (odd/tasks/proximo-paso.md, S1) — régimen=cadencia only:
+   * `primer_domingo_mes` starts every edición on the first Sunday of its
+   * month instead of every intervalo_ediciones_dias. null = no anchor.
+   */
+  readonly ancla_ediciones?: AnclaEdiciones | null
+  /**
    * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md) — the
    * taller's completion rule: the minimum number of attended clases an
    * inscrito needs to complete an edición. `null` means every clase dictada
@@ -201,7 +208,7 @@ export async function loadTallerDetalle(
     .from('talleres')
     .select(
       `${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos,
-       tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias,
+       tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, ancla_ediciones,
        clases_minimas_para_completar, momento_envio_acceso`,
     )
     .eq('slug', slug)
@@ -220,6 +227,7 @@ export async function loadTallerDetalle(
     regimen: (row.regimen as TallerDetalle['regimen'] | undefined) ?? 'temporada',
     cierre_inscripcion_offset_dias: (row.cierre_inscripcion_offset_dias as number | undefined) ?? 0,
     intervalo_ediciones_dias: (row.intervalo_ediciones_dias as number | null | undefined) ?? null,
+    ancla_ediciones: row.ancla_ediciones === 'primer_domingo_mes' ? 'primer_domingo_mes' : null,
     clases_minimas_para_completar: (row.clases_minimas_para_completar as number | null | undefined) ?? null,
     momento_envio_acceso: row.momento_envio_acceso === 'al_inscribirse' ? 'al_inscribirse' : 'al_aprobar',
   }

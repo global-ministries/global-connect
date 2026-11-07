@@ -235,6 +235,24 @@ describe('loadTallerDetalle', () => {
     expect(result?.clases_minimas_para_completar).toBeNull()
   })
 
+  // T1 (odd/tasks/proximo-paso.md, S1) — the cadencia anchor.
+  it('selects and maps ancla_ediciones, defaulting to null', async () => {
+    const anclado = buildTallerDetalleClientMock({
+      id: 't-3', slug: 'proximo-paso', nombre: 'Próximo Paso', estado: 'active',
+      dream_team_equipo_id: 'eq-1', modalidad_default: 'permanente_custom', ediciones: [],
+      regimen: 'cadencia', ancla_ediciones: 'primer_domingo_mes',
+    })
+    const result = await loadTallerDetalle(anclado.client, 'proximo-paso')
+    expect(anclado.selectCols[0]).toMatch(/ancla_ediciones/)
+    expect(result?.ancla_ediciones).toBe('primer_domingo_mes')
+
+    const sinAncla = buildTallerDetalleClientMock({
+      id: 't-4', slug: 'otro', nombre: 'Otro', estado: 'active',
+      dream_team_equipo_id: null, modalidad_default: 'periodo_general', ediciones: [],
+    })
+    expect((await loadTallerDetalle(sinAncla.client, 'otro'))?.ancla_ediciones).toBeNull()
+  })
+
   it('returns null when no taller matches the slug', async () => {
     const { client } = buildTallerDetalleClientMock(null)
     const result = await loadTallerDetalle(client, 'no-existe')

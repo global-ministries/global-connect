@@ -8130,6 +8130,7 @@ export type Database = {
       }
       talleres: {
         Row: {
+          ancla_ediciones: string | null
           cadencia_dias: number
           cierre_inscripcion_offset_dias: number
           clases_minimas_para_completar: number | null
@@ -8152,6 +8153,7 @@ export type Database = {
           vinculo: string | null
         }
         Insert: {
+          ancla_ediciones?: string | null
           cadencia_dias?: number
           cierre_inscripcion_offset_dias?: number
           clases_minimas_para_completar?: number | null
@@ -8174,6 +8176,7 @@ export type Database = {
           vinculo?: string | null
         }
         Update: {
+          ancla_ediciones?: string | null
           cadencia_dias?: number
           cierre_inscripcion_offset_dias?: number
           clases_minimas_para_completar?: number | null

@@ -128,6 +128,7 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
         regimen: 'cadencia',
         cierreInscripcionOffsetDias: -5,
         intervaloEdicionesDias: 28,
+        anclaEdiciones: null,
         clasesMinimasParaCompletar: null,
         momentoEnvioAcceso: 'al_aprobar',
       }),
@@ -156,6 +157,81 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/-60 y 60/)
+  })
+})
+
+// T1 (odd/tasks/proximo-paso.md, S1) — a cadencia taller chooses how its
+// ediciones start: on the first Sunday of each month, or every N días.
+describe('ConfiguracionTaller — inicio de cada edición', () => {
+  it('editor: offers the choice only for régimen=cadencia', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'temporada' })} />)
+    expect(screen.queryByLabelText(/inicio de cada edición/i)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'cadencia' } })
+    expect(screen.getByLabelText(/inicio de cada edición/i)).toHaveValue('cada_n_dias')
+  })
+
+  it('editor: "Primer domingo de cada mes" hides the intervalo and saves the anchor', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'cadencia', intervaloEdicionesDias: 28 })} />)
+
+    fireEvent.change(screen.getByLabelText(/inicio de cada edición/i), { target: { value: 'primer_domingo_mes' } })
+    expect(screen.queryByLabelText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Cada edición empieza el primer domingo de su mes, una por mes.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          regimen: 'cadencia',
+          anclaEdiciones: 'primer_domingo_mes',
+          intervaloEdicionesDias: null,
+        }),
+      ),
+    )
+  })
+
+  it('editor: an anchored taller opens on "Primer domingo de cada mes" and can go back to Cada N días', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(
+      <ConfiguracionTaller
+        {...baseProps({ puedeEditar: true, regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })}
+      />,
+    )
+    expect(screen.getByLabelText(/inicio de cada edición/i)).toHaveValue('primer_domingo_mes')
+    expect(screen.queryByLabelText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/inicio de cada edición/i), { target: { value: 'cada_n_dias' } })
+    fireEvent.change(screen.getByLabelText(/intervalo entre ediciones/i), { target: { value: '28' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ anclaEdiciones: null, intervaloEdicionesDias: 28 }),
+      ),
+    )
+  })
+
+  it('editor: switching to régimen=temporada sends no anchor', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(
+      <ConfiguracionTaller
+        {...baseProps({ puedeEditar: true, regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'temporada' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ regimen: 'temporada', anclaEdiciones: null }),
+      ),
+    )
+  })
+
+  it('read-only: shows "Primer domingo de cada mes" for an anchored taller, no intervalo', () => {
+    render(<ConfiguracionTaller {...baseProps({ regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })} />)
+    expect(screen.getByText('Inicio de cada edición')).toBeInTheDocument()
+    expect(screen.getByText('Primer domingo de cada mes')).toBeInTheDocument()
+    expect(screen.queryByText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
   })
 })
 

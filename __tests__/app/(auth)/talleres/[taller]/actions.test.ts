@@ -334,9 +334,55 @@ describe('updateTallerConfiguracion — happy path', () => {
       regimen: 'temporada',
       cierre_inscripcion_offset_dias: -3,
       intervalo_ediciones_dias: null,
+      ancla_ediciones: null,
       clases_minimas_para_completar: null,
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+})
+
+// T1 (odd/tasks/proximo-paso.md, S1) — "Primer domingo de cada mes" vs
+// "Cada N días": the anchor and the intervalo never coexist (the DB CHECKs
+// refuse it), so the action normalizes before writing.
+describe('updateTallerConfiguracion — ancla de ediciones', () => {
+  const cadencia = { ...validConfiguracionInput, regimen: 'cadencia' as const }
+
+  it('persists the anchor and clears the intervalo for a cadencia taller', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({
+      ...cadencia,
+      anclaEdiciones: 'primer_domingo_mes',
+      intervaloEdicionesDias: 28,
+    })
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ancla_ediciones: 'primer_domingo_mes', intervalo_ediciones_dias: null }),
+    )
+  })
+
+  it('keeps the intervalo and writes no anchor when "Cada N días" is chosen', async () => {
+    const { updateMock } = setupConfiguracion({})
+    await updateTallerConfiguracion({ ...cadencia, anclaEdiciones: null, intervaloEdicionesDias: 28 })
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ ancla_ediciones: null, intervalo_ediciones_dias: 28 }),
+    )
+  })
+
+  it('clears the anchor for a régimen=temporada taller', async () => {
+    const { updateMock } = setupConfiguracion({})
+    await updateTallerConfiguracion({ ...validConfiguracionInput, anclaEdiciones: 'primer_domingo_mes' })
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ regimen: 'temporada', ancla_ediciones: null }))
+  })
+
+  it('rejects an unknown anchor without touching the row', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...cadencia, anclaEdiciones: 'ultimo_domingo' as never })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.error).toBe('invalid-input')
+      expect(result.message).toBe('El inicio de cada edición no es válido.')
+    }
+    expect(updateMock).not.toHaveBeenCalled()
   })
 })
 

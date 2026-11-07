@@ -126,6 +126,13 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'invalid-input',
     message: 'Puedes adelantar como máximo 6 ediciones más.',
   },
+  // T1 (odd/tasks/proximo-paso.md, S1) — an anchored taller's first clase
+  // (migration 20261107100000_talleres_ancla_ediciones.sql).
+  FECHA_NO_ES_PRIMER_DOMINGO: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'La primera clase debe ser el primer domingo del mes. Para un feriado, crea la edición y luego reprográmala.',
+  },
   SIN_INTERVALO: {
     status: 409,
     error: 'conflict',

@@ -126,8 +126,9 @@ taller declara cómo se abre con su propia columna `regimen` (`temporada` |
 `cadencia`), editable en la pantalla del taller, sección **"Configuración"**,
 junto con el resto de su configuración: `tipo` (`individual` | `pareja`),
 `vinculo` (`matrimonio` | `novios` | ninguno = cualquiera), `cierre_inscripcion_offset_dias`
-(la ventana relativa, §5), `intervalo_ediciones_dias` y, heredados de la
-pantalla de Clases, `cadencia_dias` y `duracion_minutos`.
+(la ventana relativa, §5), el inicio de cada edición (`ancla_ediciones` o
+`intervalo_ediciones_dias`) y, heredados de la pantalla de Clases,
+`cadencia_dias` y `duracion_minutos`.
 
 **Régimen 1 — por temporada** (`regimen = 'temporada'`). Abre cuando abre la
 temporada de talleres, *si está marcado en esa temporada*, y dentro de su
@@ -150,29 +151,44 @@ Cómo nace una edición depende del régimen del taller:
   existente crea su edición del mismo modo; quitarlo **cancela** esa edición
   (nunca la borra) si no tiene inscritos, y se niega si los tiene.
 - **Por cadencia.** La pantalla "Crear edición" pide sólo la fecha de la
-  primera clase y ofrece, opcional, "crear también las próximas N" (`N` ≤ 6),
-  espaciadas por el `intervalo_ediciones_dias` del taller (Próximo Paso: 28
-  días). El RPC `talleres_crear_edicion` las crea todas de una vez, en
-  borrador; cada nombre es "Mes Año" en español, y si dos caen en el mismo mes
-  la segunda agrega el día de su primera clase.
+  primera clase y ofrece, opcional, "crear también las próximas N" (`N` ≤ 6).
+  El taller elige en "Configuración" cómo empieza cada edición ("Inicio de
+  cada edición"):
+  - **Primer domingo de cada mes** (`ancla_ediciones = 'primer_domingo_mes'`).
+    La primera clase tiene que ser un primer domingo (si no, el RPC responde
+    `FECHA_NO_ES_PRIMER_DOMINGO` y la pantalla lo avisa antes de enviar), y
+    cada edición adelantada empieza el primer domingo del mes siguiente: una
+    por mes. Si el mes tiene cinco domingos, el quinto queda libre. No usa
+    `intervalo_ediciones_dias` (las dos opciones no conviven).
+  - **Cada N días** (`intervalo_ediciones_dias`, sin ancla). Las adelantadas
+    se espacian por ese intervalo; sin intervalo, no se adelanta.
 
-Quedan a la vista y en borrador —nadie las publica solo—, se corrigen a mano
-si un domingo cae feriado, y no hace falta ningún trabajo programado.
+  El RPC `talleres_crear_edicion` las crea todas de una vez, en borrador; cada
+  nombre es "Mes Año" en español, y si dos caen en el mismo mes la segunda
+  agrega el día de su primera clase.
 
-Próximo Paso, con "crear también las próximas 6" desde el domingo 4 de
-octubre:
+Quedan a la vista y en borrador —nadie las publica solo—, y no hace falta
+ningún trabajo programado. Si un primer domingo cae feriado, la serie se crea
+igual desde el primer domingo real y esa edición se mueve después con
+"Reprogramar" (`talleres_reprogramar_edicion`).
+
+Próximo Paso está anclado al primer domingo (migración
+`20261107100000_talleres_ancla_ediciones.sql`): cuatro clases semanales
+(`cadencia_dias` 7) y la inscripción cierra al comenzar la clase 1. Con "crear
+también las próximas 3" desde el domingo 4 de octubre:
 
 | Edición (nombre) | Clase 1 | Clase 4 | Cierra inscripción |
 |---|---|---|---|
 | Octubre 2026 | dom 4 oct | dom 25 oct | al comenzar la clase 1 |
 | Noviembre 2026 | dom 1 nov | dom 22 nov | al comenzar la clase 1 |
-| Noviembre 2026 (29) | dom 29 nov | dom 20 dic | al comenzar la clase 1 |
-| Diciembre 2026 | dom 27 dic | dom 17 ene | al comenzar la clase 1 |
-| Enero 2027 | dom 24 ene | dom 14 feb | al comenzar la clase 1 |
-| Febrero 2027 | dom 21 feb | dom 14 mar | al comenzar la clase 1 |
+| Diciembre 2026 | dom 6 dic | dom 27 dic | al comenzar la clase 1 |
+| Enero 2027 | dom 3 ene | dom 24 ene | al comenzar la clase 1 |
 
-La tercera fila es el caso real que cubre la prueba de esta migración: dos
-ediciones caen en noviembre, y la segunda se distingue agregando el día.
+Noviembre tiene cinco domingos: el 29 queda libre. Un taller sin ancla con
+intervalo de 28 días, en cambio, pondría la tercera edición el 29 de
+noviembre y la llamaría "Noviembre 2026 (29)" — el caso que cubren
+`supabase/tests/talleres-crear-edicion.test.sql` y
+`supabase/tests/talleres-cadencia-ancla.test.sql`.
 
 ### Las dos tablas que había, y la que ganó
 
@@ -722,12 +738,12 @@ Certificado, y la persona tiene una Inscripción.
 
 | Cosa | Tabla | Estado real |
 |---|---|---|
-| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, cadencia_dias, duracion_minutos, clases_minimas_para_completar` (vacío = todas las clases dictadas). Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
+| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, ancla_ediciones, cadencia_dias, duracion_minutos, clases_minimas_para_completar` (vacío = todas las clases dictadas). Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
 | Edición | `taller_ediciones` | Sigue guardando `sesiones_snapshot`, `firmantes`, `temporada_id` (nullable, ahora acotado al árbol de la temporada), `recurrence_rule` (**sigue inerte**). Ganó `fecha_inicio`, `fecha_fin`, `cierre_inscripcion`: su `estado` se deriva de esas fechas, salvo `borrador`/`cancelado`, que siguen siendo manuales. Desde el cierre, `cerrada_en`/`cerrada_por`: una edición cerrada lee `cerrado` siempre, y esas dos columnas sólo las escribe `talleres_cerrar_edicion` (`EDICION_CIERRE_SOLO_POR_RPC`); reabrir no está diseñado. |
 | Cohorte | `talleres_crecimiento_cohortes` | Sin cambios: 1:1 con la edición en la práctica; la crea `talleres_instanciar_edicion` (antes `open_edicion`). Capa vestigial. |
 | Grupo | `taller_grupos` | Sigue colgando de la cohorte, pero ya no se arma a mano: nace **instanciado desde la plantilla del taller** al abrir la edición, con su `capacidad` y sus facilitadores ya puestos. Sin día/hora, sin cambios ahí. |
 | Equipo del grupo | `taller_grupo_asignaciones` | Sus filas se instancian desde `taller_plantilla_facilitadores`, y sólo puede asignarse —en la plantilla o en el grupo ya abierto— a alguien que sea **servidor activo de Dream Team en el nodo del taller** (`talleres_es_servidor_activo_del_taller`), no cualquier persona de la iglesia. |
-| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
+| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia — cargadas en su plantilla por `20261107100500_proximo_paso_plantilla_clases.sql`). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
 | Asistencia | `taller_asistencias` | Sin cambios: `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` sigue huérfana. |
 | Reporte | `taller_reportes` | Ya no hay que crearlo a mano: **el borrador nace junto con el grupo**, al instanciar la edición. "Enviar" sigue exigiendo que ya exista, y ahora siempre existe. |
 | Certificado | `taller_certificados` | **Hecho (cierre de edición)**: 1 por persona (`UNIQUE (inscripcion_id, persona_id)`). En pareja, cada uno recibe el suyo y lleva el nombre del otro en `nombre_pareja_snapshot`, visible también en la verificación pública. Lo emite el cierre de la edición; `emit_taller_certificado` emite los dos y conserva su respuesta. |
