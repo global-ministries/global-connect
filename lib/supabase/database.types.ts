@@ -8141,6 +8141,7 @@ export type Database = {
           duracion_minutos: number | null
           estado: string
           id: string
+          inscripcion_automatica: boolean
           intervalo_ediciones_dias: number | null
           modalidad_default: string
           momento_envio_acceso: string
@@ -8164,6 +8165,7 @@ export type Database = {
           duracion_minutos?: number | null
           estado?: string
           id?: string
+          inscripcion_automatica?: boolean
           intervalo_ediciones_dias?: number | null
           modalidad_default?: string
           momento_envio_acceso?: string
@@ -8187,6 +8189,7 @@ export type Database = {
           duracion_minutos?: number | null
           estado?: string
           id?: string
+          inscripcion_automatica?: boolean
           intervalo_ediciones_dias?: number | null
           modalidad_default?: string
           momento_envio_acceso?: string
