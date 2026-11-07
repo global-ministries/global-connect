@@ -2,18 +2,22 @@
  * Public QR page of Próximo Paso (odd/tasks/proximo-paso.md T2, S3): pick the
  * edición, then create the account (or, signed in, just enroll).
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { RegistroProximoPaso } from '@/components/proximo-paso/registro-proximo-paso'
 import type { EdicionProximoPaso } from '@/lib/platform/talleres/proximo-paso-registro'
 
 const registrarseEnProximoPaso = jest.fn()
 const inscribirmeEnProximoPaso = jest.fn()
+const confirmarCodigoProximoPaso = jest.fn()
+const reenviarCodigoProximoPaso = jest.fn()
 const refresh = jest.fn()
 
 jest.mock('@/app/proximo-paso/actions', () => ({
   registrarseEnProximoPaso: (...a: unknown[]) => registrarseEnProximoPaso(...a),
   inscribirmeEnProximoPaso: (...a: unknown[]) => inscribirmeEnProximoPaso(...a),
+  confirmarCodigoProximoPaso: (...a: unknown[]) => confirmarCodigoProximoPaso(...a),
+  reenviarCodigoProximoPaso: (...a: unknown[]) => reenviarCodigoProximoPaso(...a),
 }))
 jest.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
 
@@ -99,7 +103,8 @@ describe('RegistroProximoPaso', () => {
     expect(screen.getByRole('link', { name: 'Ver mis clases' })).toHaveAttribute('href', '/talleres/mi-recorrido')
   })
 
-  it('asks to open the email when the account must be confirmed first', async () => {
+  // T2c (L8): the code step replaces the form in place, the same for every address.
+  it('switches in place to the 6-digit code step when the account must be confirmed', async () => {
     registrarseEnProximoPaso.mockResolvedValue({ ok: true, estado: 'confirmar_correo', email: 'ana@example.com', edicion: RESUMEN })
     render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} />)
 
@@ -107,22 +112,118 @@ describe('RegistroProximoPaso', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
 
     expect(await screen.findByRole('heading', { name: 'Revisa tu correo' })).toBeInTheDocument()
-    expect(screen.getByText(/ana@example\.com/)).toBeInTheDocument()
+    expect(screen.getByText(/Te enviamos un código de 6 dígitos a ana@example\.com/)).toBeInTheDocument()
     expect(screen.getByText(/Diciembre 2026/)).toBeInTheDocument()
-  })
-
-  it('offers to sign in on the email screen, the same for every address', async () => {
-    registrarseEnProximoPaso.mockResolvedValue({ ok: true, estado: 'confirmar_correo', email: 'ana@example.com', edicion: RESUMEN })
-    render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} />)
-
-    llenarFormulario()
-    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
-
-    expect(await screen.findByText(/¿Ya tenías cuenta con ese correo\?/)).toBeInTheDocument()
+    const codigo = screen.getByLabelText('Código de 6 dígitos')
+    expect(codigo).toHaveAttribute('inputmode', 'numeric')
+    expect(codigo).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(codigo).toHaveAttribute('maxlength', '6')
+    expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Reenviar código en 60 s/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cambiar correo' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument()
+    expect(screen.getByText(/¿Ya tenías cuenta con ese correo\?/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Inicia sesión' })).toHaveAttribute(
       'href',
       `/?redirect=${encodeURIComponent('/proximo-paso?edicion=ed-dic')}`,
     )
+  })
+
+  async function alPasoCodigo() {
+    registrarseEnProximoPaso.mockResolvedValue({ ok: true, estado: 'confirmar_correo', email: 'ana@example.com', edicion: RESUMEN })
+    render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} />)
+    llenarFormulario()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
+    return screen.findByLabelText('Código de 6 dígitos')
+  }
+
+  it('takes a pasted code with spaces and enrolls once it is confirmed', async () => {
+    confirmarCodigoProximoPaso.mockResolvedValue({ ok: true, estado: 'inscrito', edicion: RESUMEN })
+    const codigo = await alPasoCodigo()
+
+    fireEvent.change(codigo, { target: { value: '123 456' } })
+    expect(codigo).toHaveValue('123456')
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(
+      await screen.findByRole('heading', {
+        name: 'Quedaste inscrito en Próximo Paso — Diciembre 2026, primera clase el domingo 6 de diciembre',
+      }),
+    ).toBeInTheDocument()
+    expect(confirmarCodigoProximoPaso).toHaveBeenCalledWith({ email: 'ana@example.com', token: '123456', edicionId: 'ed-dic' })
+    expect(screen.getByRole('link', { name: 'Ver mis clases' })).toHaveAttribute('href', '/talleres/mi-recorrido')
+  })
+
+  it('asks for the 6 digits without calling the server', async () => {
+    const codigo = await alPasoCodigo()
+
+    fireEvent.change(codigo, { target: { value: '1234' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText('Escribe los 6 dígitos del código.')).toBeInTheDocument()
+    expect(confirmarCodigoProximoPaso).not.toHaveBeenCalled()
+  })
+
+  it('stays on the code step with the message of a wrong code', async () => {
+    const message = 'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.'
+    confirmarCodigoProximoPaso.mockResolvedValue({ ok: false, error: 'CODIGO_INVALIDO', message })
+    const codigo = await alPasoCodigo()
+
+    fireEvent.change(codigo, { target: { value: '000000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText(message)).toBeInTheDocument()
+    expect(screen.getByLabelText('Código de 6 dígitos')).toBeInTheDocument()
+  })
+
+  it('lets the person resend the code after the cooldown', async () => {
+    jest.useFakeTimers()
+    try {
+      reenviarCodigoProximoPaso.mockResolvedValue({ ok: true, message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.' })
+      await alPasoCodigo()
+
+      act(() => jest.advanceTimersByTime(30_000))
+      expect(screen.getByRole('button', { name: /Reenviar código en 30 s/ })).toBeDisabled()
+      act(() => jest.advanceTimersByTime(30_000))
+      fireEvent.click(screen.getByRole('button', { name: 'Reenviar código' }))
+
+      expect(await screen.findByText('Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.')).toBeInTheDocument()
+      expect(reenviarCodigoProximoPaso).toHaveBeenCalledWith({ email: 'ana@example.com', edicionId: 'ed-dic' })
+      expect(screen.getByRole('button', { name: /Reenviar código en 60 s/ })).toBeDisabled()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('goes back to the form with the data and the edición kept on «Cambiar correo»', async () => {
+    registrarseEnProximoPaso.mockResolvedValue({ ok: true, estado: 'confirmar_correo', email: 'ana@example.com', edicion: { id: 'ed-ene', nombre: 'Enero 2027', fechaInicio: '2027-01-03' } })
+    render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} edicionInicial="ed-ene" />)
+    llenarFormulario()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cambiar correo' }))
+
+    expect(screen.getByLabelText('Correo electrónico')).toHaveValue('ana@example.com')
+    expect(screen.getByLabelText('Nombre')).toHaveValue('Ana')
+    expect(screen.getByRole('radio', { name: /Enero 2027/ })).toBeChecked()
+    expect(screen.queryByLabelText('Código de 6 dígitos')).not.toBeInTheDocument()
+  })
+
+  it('continues signed in when the code was right but the enrollment did not go through', async () => {
+    confirmarCodigoProximoPaso.mockResolvedValue({
+      ok: false,
+      error: 'EDICION_NO_DISPONIBLE',
+      message: 'Esa fecha ya no está disponible. Elige otra.',
+      sesionAbierta: true,
+    })
+    const codigo = await alPasoCodigo()
+
+    fireEvent.change(codigo, { target: { value: '123456' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esa fecha ya no está disponible. Elige otra.')
+    expect(screen.getByRole('button', { name: 'Inscribirme' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Contraseña')).not.toBeInTheDocument()
+    expect(refresh).toHaveBeenCalled()
   })
 
   it('says the coordinación will confirm a pendiente enrollment, without claiming it is done', async () => {

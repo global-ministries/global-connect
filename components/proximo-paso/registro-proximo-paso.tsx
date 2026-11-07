@@ -10,20 +10,23 @@
  * with a sticky send bar. A signed-in person skips the form: one tap on
  * "Inscribirme". The end states are the confirmation ("Quedaste inscrito…")
  * with "Ver mis clases" when the inscripción was approved on the spot,
- * "Recibimos tu inscripción…" when the coordinación still has to confirm it,
- * or "Revisa tu correo" when the account must be confirmed first. That last
- * screen reads the same for every address (it never says whether the email
- * already had an account) and offers "Inicia sesión" to whoever had one.
- * The server actions re-check everything.
+ * or "Recibimos tu inscripción…" when the coordinación still has to confirm it.
+ * When the account must confirm its email first, the form switches in place
+ * to the code step (paso-codigo.tsx, T2c): it reads the same for every
+ * address (it never says whether the email already had an account) and
+ * offers "Inicia sesión" to whoever had one. «Cambiar correo» comes back to
+ * the form with the data and the edición kept. The server actions re-check
+ * everything.
  */
 
 import { useState, type FormEvent, type ReactElement } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, CalendarX, CheckCircle2, Clock, Eye, EyeOff, Mail } from 'lucide-react'
+import { ArrowRight, CalendarX, CheckCircle2, Clock, Eye, EyeOff } from 'lucide-react'
 
 import { inscribirmeEnProximoPaso, registrarseEnProximoPaso, type FalloProximoPaso } from '@/app/proximo-paso/actions'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
+import { PasoCodigo } from '@/components/proximo-paso/paso-codigo'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import {
@@ -49,7 +52,12 @@ export interface RegistroProximoPasoProps {
 type Final =
   | { readonly tipo: 'inscrito'; readonly edicion: EdicionResumen }
   | { readonly tipo: 'pendiente'; readonly edicion: EdicionResumen }
-  | { readonly tipo: 'confirmar_correo'; readonly email: string; readonly edicion: EdicionResumen }
+
+/** The account waits for the code of its confirmation email. */
+interface EsperaCodigo {
+  readonly email: string
+  readonly edicion: EdicionResumen
+}
 
 const CAMPOS_VACIOS: Record<CampoRegistro, string> = { nombre: '', apellido: '', telefono: '', email: '', password: '' }
 
@@ -72,7 +80,7 @@ function cupoEdicion(e: EdicionProximoPaso): string | null {
   return e.cupoRestante === 1 ? 'Queda 1 cupo' : `Quedan ${e.cupoRestante} cupos`
 }
 
-export function RegistroProximoPaso({ ediciones, conSesion, edicionInicial }: RegistroProximoPasoProps): ReactElement {
+export function RegistroProximoPaso({ ediciones, conSesion: conSesionInicial, edicionInicial }: RegistroProximoPasoProps): ReactElement {
   const router = useRouter()
   const [edicionId, setEdicionId] = useState<string | null>(() => edicionPorDefecto(ediciones, edicionInicial))
   const [campos, setCampos] = useState(CAMPOS_VACIOS)
@@ -81,8 +89,28 @@ export function RegistroProximoPaso({ ediciones, conSesion, edicionInicial }: Re
   const [enviando, setEnviando] = useState(false)
   const [verContrasena, setVerContrasena] = useState(false)
   const [final, setFinal] = useState<Final | null>(null)
+  const [esperaCodigo, setEsperaCodigo] = useState<EsperaCodigo | null>(null)
+  // The code was right but the enrollment did not go through: signed in from now on.
+  const [sesionAbierta, setSesionAbierta] = useState(false)
+  const conSesion = conSesionInicial || sesionAbierta
 
   if (final) return <PantallaFinal final={final} />
+  if (esperaCodigo) {
+    return (
+      <PasoCodigo
+        email={esperaCodigo.email}
+        edicion={esperaCodigo.edicion}
+        onInscrito={(r) => setFinal({ tipo: r.estado, edicion: r.edicion })}
+        onSesionAbierta={(f) => {
+          setEsperaCodigo(null)
+          setSesionAbierta(true)
+          setFalloEnvio(f)
+          router.refresh()
+        }}
+        onCambiarCorreo={() => setEsperaCodigo(null)}
+      />
+    )
+  }
 
   const conClases = ediciones.find((e) => e.clases.some((c) => c.tema)) ?? ediciones[0]
   const numeroClases = conClases?.clases.length || 4
@@ -124,7 +152,7 @@ export function RegistroProximoPaso({ ediciones, conSesion, edicionInicial }: Re
     setEnviando(true)
     try {
       const r = await registrarseEnProximoPaso({ edicionId, ...campos })
-      if (r.ok && r.estado === 'confirmar_correo') setFinal({ tipo: 'confirmar_correo', email: r.email, edicion: r.edicion })
+      if (r.ok && r.estado === 'confirmar_correo') setEsperaCodigo({ email: r.email, edicion: r.edicion })
       else if (r.ok) setFinal({ tipo: r.estado, edicion: r.edicion })
       else {
         if (r.errores) setErrores(r.errores)
@@ -324,7 +352,7 @@ function AvisoFalloEnvio({ fallo, onOtraFecha }: { readonly fallo: FalloProximoP
   )
 }
 
-const ICONO_FINAL = { inscrito: CheckCircle2, pendiente: Clock, confirmar_correo: Mail } as const
+const ICONO_FINAL = { inscrito: CheckCircle2, pendiente: Clock } as const
 
 function PantallaFinal({ final }: { readonly final: Final }): ReactElement {
   const Icono = ICONO_FINAL[final.tipo]
@@ -334,27 +362,13 @@ function PantallaFinal({ final }: { readonly final: Final }): ReactElement {
         <Icono className={cn('mx-auto size-10', final.tipo === 'inscrito' ? 'text-success-text' : 'text-brand')} aria-hidden />
         <div className="grid gap-2">
           <h2 id="proximo-paso-final" className="text-xl font-bold tracking-tight text-foreground">
-            {final.tipo === 'inscrito'
-              ? mensajeInscrito(final.edicion)
-              : final.tipo === 'pendiente'
-                ? mensajePendiente(final.edicion)
-                : 'Revisa tu correo'}
+            {final.tipo === 'inscrito' ? mensajeInscrito(final.edicion) : mensajePendiente(final.edicion)}
           </h2>
           <TextoSistema variante="sutil">
             {final.tipo === 'inscrito'
               ? 'Te esperamos ese domingo. En la app ves tus clases.'
-              : final.tipo === 'pendiente'
-                ? `La coordinación la confirmará. La primera clase es el domingo ${fechaDomingo(final.edicion.fechaInicio)}.`
-                : `Te enviamos un enlace a ${final.email}. Ábrelo para activar tu cuenta y terminar tu inscripción en ${final.edicion.nombre}.`}
+              : `La coordinación la confirmará. La primera clase es el domingo ${fechaDomingo(final.edicion.fechaInicio)}.`}
           </TextoSistema>
-          {final.tipo === 'confirmar_correo' && (
-            <p className="text-sm text-muted-foreground">
-              ¿Ya tenías cuenta con ese correo?{' '}
-              <Link href={loginProximoPaso(final.edicion.id)} className={enlace}>
-                Inicia sesión
-              </Link>
-            </p>
-          )}
         </div>
         {final.tipo === 'inscrito' && (
           <BotonSistema asChild tamaño="lg" icono={ArrowRight} iconoPosicion="derecha" className="w-full">
