@@ -22,8 +22,17 @@
  * to /proximo-paso with the edición preselected, signed in, one tap from
  * enrolling. When it confirms at once, the ficha is linked and the
  * enrollment goes through talleres_inscribirme right away with the new
- * session. An existing email is sent to sign in and continue (Supabase
- * answers an error, or a user without identities when it hides it).
+ * session.
+ *
+ * Never reveals whether an email already has an account (L6.1): an existing
+ * email (Supabase answers an error, or a user without identities when it
+ * hides it) gets exactly the same "revisa tu correo" answer as a new account,
+ * with no extra call. The form's "¿Ya tienes cuenta? Inicia sesión" link is
+ * the way in for someone who already has one.
+ *
+ * The enrollment is "inscrito" only when talleres_inscribirme approved it on
+ * the spot (taller with inscripcion_automatica and cupo, L6.2); otherwise it
+ * is "pendiente" until the coordinación approves it.
  *
  * The phone is saved on the person's own ficha only when the ficha has none
  * (vincularFichaConfirmada does not carry it), best effort.
@@ -39,6 +48,7 @@ import {
   traducirErrorRpcPareja,
 } from '@/lib/platform/talleres/inscripcion-pareja'
 import {
+  estadoInscripcion,
   loginProximoPaso,
   parseEdicionesProximoPaso,
   RUTA_MIS_CLASES,
@@ -47,6 +57,7 @@ import {
   type CampoRegistro,
   type EdicionProximoPaso,
   type EdicionResumen,
+  type EstadoInscripcionProximoPaso,
 } from '@/lib/platform/talleres/proximo-paso-registro'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -62,14 +73,13 @@ export interface FalloProximoPaso {
   readonly errores?: Partial<Record<CampoRegistro, string>>
 }
 
-export type ResultadoRegistro =
-  | { readonly ok: true; readonly estado: 'inscrito'; readonly edicion: EdicionResumen }
-  | { readonly ok: true; readonly estado: 'confirmar_correo'; readonly email: string; readonly edicion: EdicionResumen }
+export type ResultadoInscripcion =
+  | { readonly ok: true; readonly estado: EstadoInscripcionProximoPaso; readonly edicion: EdicionResumen }
   | FalloProximoPaso
 
-export type ResultadoInscripcion =
-  | { readonly ok: true; readonly estado: 'inscrito'; readonly edicion: EdicionResumen }
-  | FalloProximoPaso
+export type ResultadoRegistro =
+  | ResultadoInscripcion
+  | { readonly ok: true; readonly estado: 'confirmar_correo'; readonly email: string; readonly edicion: EdicionResumen }
 
 const MENSAJE_INTERNO = 'No se pudo completar el registro. Inténtalo de nuevo.'
 
@@ -112,11 +122,14 @@ async function guardarTelefono(authId: string, telefono: unknown): Promise<void>
 
 type ErrorAuth = { readonly code?: string; readonly status?: number } | null
 
-function falloSignUp(error: ErrorAuth, edicion: EdicionProximoPaso): FalloProximoPaso {
+/** An existing email: Supabase's own error when it does not hide it. */
+function esCorreoExistente(error: ErrorAuth): boolean {
   const code = error?.code ?? ''
-  if (code === 'user_already_exists' || code === 'email_exists' || (!code && error?.status === 400)) {
-    return cuentaExistente(edicion)
-  }
+  return code === 'user_already_exists' || code === 'email_exists' || (!code && error?.status === 400)
+}
+
+function falloSignUp(error: ErrorAuth): FalloProximoPaso {
+  const code = error?.code ?? ''
   if (code === 'weak_password') {
     return {
       ...fallo('invalid-input', 'Revisa los datos marcados.'),
@@ -127,13 +140,6 @@ function falloSignUp(error: ErrorAuth, edicion: EdicionProximoPaso): FalloProxim
     return fallo('LIMITE', 'Hubo muchos intentos seguidos. Espera unos minutos y vuelve a intentarlo.')
   }
   return fallo('internal', MENSAJE_INTERNO)
-}
-
-function cuentaExistente(edicion: EdicionProximoPaso): FalloProximoPaso {
-  return {
-    ...fallo('CUENTA_EXISTENTE', `Ya tienes una cuenta con ese correo. Inicia sesión y te inscribimos en ${edicion.nombre}.`),
-    loginHref: loginProximoPaso(edicion.id),
-  }
 }
 
 export async function registrarseEnProximoPaso(input: unknown): Promise<ResultadoRegistro> {
@@ -166,16 +172,16 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
       emailRedirectTo: `${sitio}/auth/callback?next=${encodeURIComponent(rutaProximoPaso(edicion.id))}`,
     },
   })
-  if (error) return falloSignUp(error, edicion)
+  const confirmarCorreo: ResultadoRegistro = { ok: true, estado: 'confirmar_correo', email: datos.email, edicion: resumen(edicion) }
+  // An existing email reads exactly like a new account (L6.1).
+  if (esCorreoExistente(error)) return confirmarCorreo
+  if (error) return falloSignUp(error)
 
   const user = data?.user
   if (!user) return fallo('internal', MENSAJE_INTERNO)
   // With email confirmation on, Supabase hides an existing email behind a user without identities.
-  if (Array.isArray(user.identities) && user.identities.length === 0) return cuentaExistente(edicion)
-
-  if (!data.session || !user.email_confirmed_at) {
-    return { ok: true, estado: 'confirmar_correo', email: datos.email, edicion: resumen(edicion) }
-  }
+  if (Array.isArray(user.identities) && user.identities.length === 0) return confirmarCorreo
+  if (!data.session || !user.email_confirmed_at) return confirmarCorreo
 
   const vinculo = await vincularFichaConfirmada(createSupabaseAdminClient(), user)
   if (vinculo.estado === 'pendiente_aprobacion' || vinculo.estado === 'ambigua') {
@@ -203,7 +209,7 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
   }
 
   revalidatePath(RUTA_MIS_CLASES)
-  return { ok: true, estado: 'inscrito', edicion: resumen(edicion) }
+  return { ok: true, estado: estadoInscripcion(inscripcion.data), edicion: resumen(edicion) }
 }
 
 export async function inscribirmeEnProximoPaso(edicionId: unknown): Promise<ResultadoInscripcion> {
@@ -225,5 +231,11 @@ export async function inscribirmeEnProximoPaso(edicionId: unknown): Promise<Resu
   if (!resultado.ok) return fallo(resultado.error, resultado.message)
 
   await guardarTelefono(user.id, user.user_metadata?.telefono)
-  return { ok: true, estado: 'inscrito', edicion: resumen(elegida.edicion) }
+  // inscribirseATaller returns only the id; the person may read their own row.
+  const { data: fila, error } = await client
+    .from('taller_inscripciones')
+    .select('estado')
+    .eq('id', resultado.inscripcionId)
+    .maybeSingle()
+  return { ok: true, estado: estadoInscripcion(error ? null : fila), edicion: resumen(elegida.edicion) }
 }

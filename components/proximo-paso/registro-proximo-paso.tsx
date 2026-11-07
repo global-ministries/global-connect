@@ -9,14 +9,18 @@
  * then the account form (nombre, apellido, teléfono, correo, contraseña)
  * with a sticky send bar. A signed-in person skips the form: one tap on
  * "Inscribirme". The end states are the confirmation ("Quedaste inscrito…")
- * with "Ver mis clases", or "Revisa tu correo" when the account must be
- * confirmed first. The server actions re-check everything.
+ * with "Ver mis clases" when the inscripción was approved on the spot,
+ * "Recibimos tu inscripción…" when the coordinación still has to confirm it,
+ * or "Revisa tu correo" when the account must be confirmed first. That last
+ * screen reads the same for every address (it never says whether the email
+ * already had an account) and offers "Inicia sesión" to whoever had one.
+ * The server actions re-check everything.
  */
 
 import { useState, type FormEvent, type ReactElement } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, CalendarX, CheckCircle2, Eye, EyeOff, Mail } from 'lucide-react'
+import { ArrowRight, CalendarX, CheckCircle2, Clock, Eye, EyeOff, Mail } from 'lucide-react'
 
 import { inscribirmeEnProximoPaso, registrarseEnProximoPaso, type FalloProximoPaso } from '@/app/proximo-paso/actions'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
@@ -26,6 +30,7 @@ import {
   fechaDomingo,
   loginProximoPaso,
   mensajeInscrito,
+  mensajePendiente,
   RUTA_MIS_CLASES,
   validarRegistro,
   type CampoRegistro,
@@ -43,6 +48,7 @@ export interface RegistroProximoPasoProps {
 
 type Final =
   | { readonly tipo: 'inscrito'; readonly edicion: EdicionResumen }
+  | { readonly tipo: 'pendiente'; readonly edicion: EdicionResumen }
   | { readonly tipo: 'confirmar_correo'; readonly email: string; readonly edicion: EdicionResumen }
 
 const CAMPOS_VACIOS: Record<CampoRegistro, string> = { nombre: '', apellido: '', telefono: '', email: '', password: '' }
@@ -100,7 +106,7 @@ export function RegistroProximoPaso({ ediciones, conSesion, edicionInicial }: Re
       setEnviando(true)
       try {
         const r = await inscribirmeEnProximoPaso(edicionId)
-        if (r.ok) setFinal({ tipo: 'inscrito', edicion: r.edicion })
+        if (r.ok) setFinal({ tipo: r.estado, edicion: r.edicion })
         else setFalloEnvio(r)
       } catch {
         setFalloEnvio({ ok: false, error: 'internal', message: 'No se pudo completar la inscripción. Inténtalo de nuevo.' })
@@ -118,8 +124,8 @@ export function RegistroProximoPaso({ ediciones, conSesion, edicionInicial }: Re
     setEnviando(true)
     try {
       const r = await registrarseEnProximoPaso({ edicionId, ...campos })
-      if (r.ok && r.estado === 'inscrito') setFinal({ tipo: 'inscrito', edicion: r.edicion })
-      else if (r.ok) setFinal({ tipo: 'confirmar_correo', email: r.email, edicion: r.edicion })
+      if (r.ok && r.estado === 'confirmar_correo') setFinal({ tipo: 'confirmar_correo', email: r.email, edicion: r.edicion })
+      else if (r.ok) setFinal({ tipo: r.estado, edicion: r.edicion })
       else {
         if (r.errores) setErrores(r.errores)
         setFalloEnvio(r)
@@ -301,19 +307,14 @@ export function RegistroProximoPaso({ ediciones, conSesion, edicionInicial }: Re
 }
 
 function AvisoFalloEnvio({ fallo, onOtraFecha }: { readonly fallo: FalloProximoPaso; readonly onOtraFecha: () => void }): ReactElement {
-  if (fallo.error === 'CUENTA_EXISTENTE' && fallo.loginHref) {
-    return (
-      <AvisoFormulario tono="marca" className="grid gap-2">
-        <p>{fallo.message}</p>
-        <Link href={fallo.loginHref} className={cn(enlace, 'justify-self-start')}>
-          Iniciar sesión y seguir
-        </Link>
-      </AvisoFormulario>
-    )
-  }
   return (
     <AvisoFormulario tono="error" className="grid gap-2">
       <p>{fallo.message}</p>
+      {fallo.loginHref && (
+        <Link href={fallo.loginHref} className={cn(enlace, 'justify-self-start')}>
+          Iniciar sesión
+        </Link>
+      )}
       {(fallo.error === 'CUENTA_SIN_INSCRIPCION' || fallo.error === 'CON_SESION') && (
         <button type="button" onClick={onOtraFecha} className={cn(enlace, 'justify-self-start')}>
           Volver a intentar
@@ -323,24 +324,39 @@ function AvisoFalloEnvio({ fallo, onOtraFecha }: { readonly fallo: FalloProximoP
   )
 }
 
+const ICONO_FINAL = { inscrito: CheckCircle2, pendiente: Clock, confirmar_correo: Mail } as const
+
 function PantallaFinal({ final }: { readonly final: Final }): ReactElement {
-  const inscrito = final.tipo === 'inscrito'
-  const Icono = inscrito ? CheckCircle2 : Mail
+  const Icono = ICONO_FINAL[final.tipo]
   return (
     <TarjetaSistema className="grid gap-5 p-5 text-center">
       <section aria-labelledby="proximo-paso-final" className="grid gap-5" aria-live="polite">
-        <Icono className={cn('mx-auto size-10', inscrito ? 'text-success-text' : 'text-brand')} aria-hidden />
+        <Icono className={cn('mx-auto size-10', final.tipo === 'inscrito' ? 'text-success-text' : 'text-brand')} aria-hidden />
         <div className="grid gap-2">
           <h2 id="proximo-paso-final" className="text-xl font-bold tracking-tight text-foreground">
-            {inscrito ? mensajeInscrito(final.edicion) : 'Revisa tu correo'}
+            {final.tipo === 'inscrito'
+              ? mensajeInscrito(final.edicion)
+              : final.tipo === 'pendiente'
+                ? mensajePendiente(final.edicion)
+                : 'Revisa tu correo'}
           </h2>
           <TextoSistema variante="sutil">
-            {inscrito
+            {final.tipo === 'inscrito'
               ? 'Te esperamos ese domingo. En la app ves tus clases.'
-              : `Te enviamos un enlace a ${final.email}. Ábrelo para activar tu cuenta y terminar tu inscripción en ${final.edicion.nombre}.`}
+              : final.tipo === 'pendiente'
+                ? `La coordinación la confirmará. La primera clase es el domingo ${fechaDomingo(final.edicion.fechaInicio)}.`
+                : `Te enviamos un enlace a ${final.email}. Ábrelo para activar tu cuenta y terminar tu inscripción en ${final.edicion.nombre}.`}
           </TextoSistema>
+          {final.tipo === 'confirmar_correo' && (
+            <p className="text-sm text-muted-foreground">
+              ¿Ya tenías cuenta con ese correo?{' '}
+              <Link href={loginProximoPaso(final.edicion.id)} className={enlace}>
+                Inicia sesión
+              </Link>
+            </p>
+          )}
         </div>
-        {inscrito && (
+        {final.tipo === 'inscrito' && (
           <BotonSistema asChild tamaño="lg" icono={ArrowRight} iconoPosicion="derecha" className="w-full">
             <Link href={RUTA_MIS_CLASES}>Ver mis clases</Link>
           </BotonSistema>

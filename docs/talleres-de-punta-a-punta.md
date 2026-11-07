@@ -196,14 +196,29 @@ apellido, teléfono, correo y contraseña; la acción del servidor
 (`app/proximo-paso/actions.ts`) vuelve a buscar la edición en esa lista, crea
 la cuenta igual que `/signup` (`supabase.auth.signUp`, la ficha se vincula con
 `vincularFichaConfirmada` sólo con el correo confirmado) y la inscribe con
-`talleres_inscribirme`, como cualquier miembro (queda `pendiente`, igual que en
-Explorar). Si el proyecto pide confirmar el correo, el enlace del correo trae
-de vuelta a `/proximo-paso?edicion=…` con la sesión abierta y un toque en
-"Inscribirme" termina. Un correo que ya tiene cuenta va a iniciar sesión y
-vuelve a la misma edición; quien ya tiene sesión sólo elige y se inscribe. El
+`talleres_inscribirme`, como cualquier miembro. Si el proyecto pide confirmar
+el correo, el enlace del correo trae de vuelta a `/proximo-paso?edicion=…` con
+la sesión abierta y un toque en "Inscribirme" termina. La página nunca dice si
+un correo ya tiene cuenta: un correo existente recibe la misma respuesta
+"Revisa tu correo" que uno nuevo, y quien ya tenía cuenta entra por "¿Ya tienes
+cuenta? Inicia sesión", que vuelve a la misma edición; quien ya tiene sesión
+sólo elige y se inscribe. El
 teléfono se guarda en la ficha si no tenía. Quien edita Próximo Paso ve en su
 "Configuración" el "Enlace de inscripción" con botón de copiar y el QR para
 descargar.
+
+**Inscripción automática si hay cupo (T2b).** `talleres.inscripcion_automatica`
+(migración `20261107120000_talleres_inscripcion_automatica.sql`, apagada por
+defecto y encendida en Próximo Paso). Con la opción encendida,
+`talleres_inscribirme` aprueba la inscripción de una edición individual en el
+momento, con el mismo `UPDATE` pendiente → aprobado que hace la coordinación
+desde Pendientes (mismos disparadores; no asigna grupo, igual que la
+aprobación manual). Hay cupo exactamente cuando el `INSERT` pasa la compuerta
+de cupo; una edición llena sigue respondiendo `CUPO_LLENO`. Las ediciones de
+pareja siempre quedan `pendiente`. La página de Próximo Paso dice "Quedaste
+inscrito…" sólo si quedó aprobada; si no, "Recibimos tu inscripción… La
+coordinación la confirmará". Se cambia en "Configuración" con el interruptor
+"Inscripción automática si hay cupo" (sólo talleres individuales).
 
 Noviembre tiene cinco domingos: el 29 queda libre. Un taller sin ancla con
 intervalo de 28 días, en cambio, pondría la tercera edición el 29 de

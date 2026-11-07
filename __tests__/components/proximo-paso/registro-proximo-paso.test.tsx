@@ -111,21 +111,43 @@ describe('RegistroProximoPaso', () => {
     expect(screen.getByText(/Diciembre 2026/)).toBeInTheDocument()
   })
 
-  it('sends an existing account to sign in and continue', async () => {
-    const loginHref = `/?redirect=${encodeURIComponent('/proximo-paso?edicion=ed-dic')}`
-    registrarseEnProximoPaso.mockResolvedValue({
-      ok: false,
-      error: 'CUENTA_EXISTENTE',
-      message: 'Ya tienes una cuenta con ese correo. Inicia sesión y te inscribimos en Diciembre 2026.',
-      loginHref,
-    })
+  it('offers to sign in on the email screen, the same for every address', async () => {
+    registrarseEnProximoPaso.mockResolvedValue({ ok: true, estado: 'confirmar_correo', email: 'ana@example.com', edicion: RESUMEN })
     render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} />)
 
     llenarFormulario()
     fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
 
-    expect(await screen.findByText(/Ya tienes una cuenta con ese correo/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Iniciar sesión y seguir' })).toHaveAttribute('href', loginHref)
+    expect(await screen.findByText(/¿Ya tenías cuenta con ese correo\?/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Inicia sesión' })).toHaveAttribute(
+      'href',
+      `/?redirect=${encodeURIComponent('/proximo-paso?edicion=ed-dic')}`,
+    )
+  })
+
+  it('says the coordinación will confirm a pendiente enrollment, without claiming it is done', async () => {
+    registrarseEnProximoPaso.mockResolvedValue({ ok: true, estado: 'pendiente', edicion: RESUMEN })
+    render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} />)
+
+    llenarFormulario()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
+
+    expect(
+      await screen.findByRole('heading', { name: 'Recibimos tu inscripción en Próximo Paso — Diciembre 2026' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/La coordinación la confirmará\. La primera clase es el domingo 6 de diciembre\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Quedaste inscrito/)).not.toBeInTheDocument()
+  })
+
+  it('offers sign-in when the session expired before enrolling', async () => {
+    const loginHref = `/?redirect=${encodeURIComponent('/proximo-paso?edicion=ed-dic')}`
+    inscribirmeEnProximoPaso.mockResolvedValue({ ok: false, error: 'unauthorized', message: 'Inicia sesión para inscribirte.', loginHref })
+    render(<RegistroProximoPaso ediciones={ediciones} conSesion />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Inscribirme' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Inicia sesión para inscribirte.')
+    expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', loginHref)
   })
 
   it('shows the server field errors on their fields', async () => {

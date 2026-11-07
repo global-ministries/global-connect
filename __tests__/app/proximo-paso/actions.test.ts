@@ -20,6 +20,7 @@ const vincularFichaConfirmada = jest.fn()
 const inscribirseATaller = jest.fn()
 const isTalleresEnabled = jest.fn()
 const revalidatePath = jest.fn()
+const leerInscripcion = jest.fn()
 
 jest.mock('next/cache', () => ({ revalidatePath: (...a: unknown[]) => revalidatePath(...a) }))
 jest.mock('@/lib/platform/talleres/flags', () => ({ isTalleresEnabled: () => isTalleresEnabled() }))
@@ -27,6 +28,11 @@ jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({
     auth: { signUp: (...a: unknown[]) => signUp(...a), getUser: () => getUser() },
     rpc: (...a: unknown[]) => rpc(...a),
+    from: (tabla: string) => ({
+      select: (columnas: string) => ({
+        eq: (col: string, val: unknown) => ({ maybeSingle: () => leerInscripcion(tabla, columnas, col, val) }),
+      }),
+    }),
   }),
 }))
 jest.mock('@/lib/supabase/admin', () => ({
@@ -69,7 +75,7 @@ const datos = (extra: Record<string, unknown> = {}) => ({
 
 const usuarioConfirmado = { id: 'auth-1', email: 'ana@example.com', email_confirmed_at: '2026-11-07T00:00:00Z', identities: [{}] }
 
-function rpcCon(ediciones: unknown[], inscribirme: unknown = { ok: true, inscripcion_id: 'ins-1', estado: 'pendiente' }) {
+function rpcCon(ediciones: unknown[], inscribirme: unknown = { ok: true, inscripcion_id: 'ins-1', estado: 'aprobado' }) {
   rpc.mockImplementation(async (nombre: string) => {
     if (nombre === 'proximo_paso_ediciones_abiertas') return { data: ediciones, error: null }
     if (nombre === 'talleres_inscribirme') return { data: inscribirme, error: null }
@@ -84,6 +90,7 @@ beforeEach(() => {
   rpcCon([EDICION])
   adminUpdate.mockResolvedValue({ error: null })
   vincularFichaConfirmada.mockResolvedValue({ estado: 'creada' })
+  leerInscripcion.mockResolvedValue({ data: { estado: 'aprobado' }, error: null })
   process.env.NEXT_PUBLIC_SITE_URL = 'https://global.test'
 })
 
@@ -161,26 +168,62 @@ describe('registrarseEnProximoPaso', () => {
     expect(r).toEqual({ ok: true, estado: 'inscrito', edicion: RESUMEN })
   })
 
+  // L6.1: never reveal whether an email already has an account. Supabase
+  // answers an existing email with an error (confirmation off) or with a user
+  // without identities (confirmation on); both read exactly like a new
+  // account that must confirm its email, with no extra call.
   it.each([
-    [{ code: 'user_already_exists', status: 422, message: 'User already registered' }],
-    [{ code: 'email_exists', status: 422, message: 'Email exists' }],
-    [{ status: 400, message: 'User already registered' }],
-  ])('sends an existing email to sign in and continue (%j)', async (error) => {
-    signUp.mockResolvedValue({ data: { user: null, session: null }, error })
-    const r = await registrarseEnProximoPaso(datos())
-    expect(r).toEqual({
-      ok: false,
-      error: 'CUENTA_EXISTENTE',
-      message: 'Ya tienes una cuenta con ese correo. Inicia sesión y te inscribimos en Diciembre 2026.',
-      loginHref: `/?redirect=${encodeURIComponent('/proximo-paso?edicion=ed-dic')}`,
-    })
+    ['user_already_exists', { data: { user: null, session: null }, error: { code: 'user_already_exists', status: 422, message: 'User already registered' } }],
+    ['email_exists', { data: { user: null, session: null }, error: { code: 'email_exists', status: 422, message: 'Email exists' } }],
+    ['a bare 400', { data: { user: null, session: null }, error: { status: 400, message: 'User already registered' } }],
+    ['the obfuscated user without identities', { data: { user: { id: 'x', email_confirmed_at: null, identities: [] }, session: null }, error: null }],
+  ])('answers an existing email (%s) exactly like a new account', async (_caso, respuesta) => {
+    signUp.mockResolvedValue({ data: { user: { ...usuarioConfirmado, email_confirmed_at: null }, session: null }, error: null })
+    const nueva = await registrarseEnProximoPaso(datos())
+    const llamadasNueva = rpc.mock.calls.length
+
+    jest.clearAllMocks()
+    rpcCon([EDICION])
+    signUp.mockResolvedValue(respuesta)
+    const existente = await registrarseEnProximoPaso(datos())
+
+    expect(existente).toEqual(nueva)
+    expect(existente).toEqual({ ok: true, estado: 'confirmar_correo', email: 'ana@example.com', edicion: RESUMEN })
+    expect(rpc.mock.calls.length).toBe(llamadasNueva)
+    expect(signUp).toHaveBeenCalledTimes(1)
+    expect(vincularFichaConfirmada).not.toHaveBeenCalled()
+    expect(adminUpdate).not.toHaveBeenCalled()
+    expect(JSON.stringify(existente)).not.toMatch(/CUENTA_EXISTENTE|Ya tienes una cuenta/)
   })
 
-  it('reads the obfuscated user of an existing email (no identities) as an existing account', async () => {
-    signUp.mockResolvedValue({ data: { user: { id: 'x', email_confirmed_at: null, identities: [] }, session: null }, error: null })
+  it('sends signUp the trimmed lowercase email and the callback back to the edición', async () => {
+    signUp.mockResolvedValue({ data: { user: { ...usuarioConfirmado, email_confirmed_at: null }, session: null }, error: null })
+    await registrarseEnProximoPaso(datos({ email: '  Ana.Perez@Example.COM  ' }))
+    expect(signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'ana.perez@example.com',
+        options: expect.objectContaining({
+          emailRedirectTo: 'https://global.test/auth/callback?next=%2Fproximo-paso%3Fedicion%3Ded-dic',
+        }),
+      }),
+    )
+  })
+
+  it('never links, updates or enrolls an account that is not confirmed yet', async () => {
+    signUp.mockResolvedValue({ data: { user: { ...usuarioConfirmado, email_confirmed_at: null }, session: { access_token: 't' } }, error: null })
     const r = await registrarseEnProximoPaso(datos())
-    expect(r).toMatchObject({ ok: false, error: 'CUENTA_EXISTENTE' })
+    expect(r).toMatchObject({ ok: true, estado: 'confirmar_correo' })
     expect(vincularFichaConfirmada).not.toHaveBeenCalled()
+    expect(adminUpdate).not.toHaveBeenCalled()
+    expect(rpc).not.toHaveBeenCalledWith('talleres_inscribirme', expect.anything())
+  })
+
+  // L6.2: an inscripción approved on the spot (Próximo Paso with cupo) reads
+  // "inscrito"; one waiting for the coordinación reads "pendiente".
+  it('reports pendiente when the enrollment waits for the coordinación', async () => {
+    signUp.mockResolvedValue({ data: { user: usuarioConfirmado, session: { access_token: 't' } }, error: null })
+    rpcCon([EDICION], { ok: true, inscripcion_id: 'ins-1', estado: 'pendiente' })
+    expect(await registrarseEnProximoPaso(datos())).toEqual({ ok: true, estado: 'pendiente', edicion: RESUMEN })
   })
 
   it('maps a weak password and the rate limit to plain messages', async () => {
@@ -244,9 +287,44 @@ describe('inscribirmeEnProximoPaso (signed in)', () => {
     inscribirseATaller.mockResolvedValue({ ok: true, inscripcionId: 'ins-2' })
     const r = await inscribirmeEnProximoPaso('ed-dic')
     expect(inscribirseATaller).toHaveBeenCalledWith({ edicionId: 'ed-dic' })
+    expect(leerInscripcion).toHaveBeenCalledWith('taller_inscripciones', 'estado', 'id', 'ins-2')
     expect(adminUpdate).toHaveBeenCalledWith('usuarios', { telefono: '04145550000' }, 'auth_id', 'auth-2', 'telefono', null)
     expect(r).toEqual({ ok: true, estado: 'inscrito', edicion: RESUMEN })
   })
+
+  it.each([
+    ['pendiente', { data: { estado: 'pendiente' }, error: null }],
+    ['unreadable', { data: null, error: { message: 'down' } }],
+  ])('reports pendiente when the inscripción is %s', async (_caso, lectura) => {
+    getUser.mockResolvedValue({ data: { user: sesion }, error: null })
+    inscribirseATaller.mockResolvedValue({ ok: true, inscripcionId: 'ins-2' })
+    leerInscripcion.mockResolvedValue(lectura)
+    expect(await inscribirmeEnProximoPaso('ed-dic')).toEqual({ ok: true, estado: 'pendiente', edicion: RESUMEN })
+  })
+
+  it('refuses a full edición before enrolling', async () => {
+    getUser.mockResolvedValue({ data: { user: sesion }, error: null })
+    rpcCon([{ ...EDICION, cupo_restante: 0 }])
+    const r = await inscribirmeEnProximoPaso('ed-dic')
+    expect(r).toEqual({ ok: false, error: 'CUPO_LLENO', message: 'Esta edición ya no tiene cupos disponibles.' })
+    expect(inscribirseATaller).not.toHaveBeenCalled()
+  })
+
+  it.each(['//evil.example/x', 'https://evil.example', '/\\evil.example', '\\\\evil.example', 'javascript:alert(1)'])(
+    'keeps the login redirect on this site for the hostile id %j',
+    async (hostil) => {
+      const r = await inscribirmeEnProximoPaso(hostil)
+      expect(r).toMatchObject({ ok: false, error: 'unauthorized' })
+      const loginHref = (r as { loginHref: string }).loginHref
+      const login = new URL(loginHref, 'https://global.test')
+      expect(login.origin).toBe('https://global.test')
+      expect(login.pathname).toBe('/')
+      const redirect = login.searchParams.get('redirect') ?? ''
+      expect(redirect.startsWith('/proximo-paso?edicion=')).toBe(true)
+      expect(new URL(redirect, 'https://global.test').origin).toBe('https://global.test')
+      expect(new URL(redirect, 'https://global.test').searchParams.get('edicion')).toBe(hostil.trim())
+    },
+  )
 
   it('never enrolls in an edición outside the open Próximo Paso list', async () => {
     getUser.mockResolvedValue({ data: { user: sesion }, error: null })

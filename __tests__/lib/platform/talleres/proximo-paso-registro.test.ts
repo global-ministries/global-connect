@@ -1,7 +1,9 @@
 import {
+  estadoInscripcion,
   fechaDomingo,
   loginProximoPaso,
   mensajeInscrito,
+  mensajePendiente,
   parseEdicionesProximoPaso,
   rutaProximoPaso,
   validarRegistro,
@@ -73,6 +75,24 @@ describe('copy', () => {
     expect(mensajeInscrito({ nombre: 'Diciembre 2026', fechaInicio: '2026-12-06' })).toBe(
       'Quedaste inscrito en Próximo Paso — Diciembre 2026, primera clase el domingo 6 de diciembre',
     )
+  })
+})
+
+describe('estadoInscripcion', () => {
+  it('reads only an explicit aprobado as inscrito', () => {
+    expect(estadoInscripcion({ ok: true, inscripcion_id: 'i', estado: 'aprobado' })).toBe('inscrito')
+    expect(estadoInscripcion({ estado: 'aprobado' })).toBe('inscrito')
+  })
+
+  it.each([{ estado: 'pendiente' }, { estado: 'retirado' }, {}, null, undefined, 'aprobado'])(
+    'never claims more than pendiente for %j',
+    (raw) => {
+      expect(estadoInscripcion(raw)).toBe('pendiente')
+    },
+  )
+
+  it('titles a pendiente enrollment without claiming it is done', () => {
+    expect(mensajePendiente({ nombre: 'Diciembre 2026' })).toBe('Recibimos tu inscripción en Próximo Paso — Diciembre 2026')
   })
 })
 

@@ -99,6 +99,23 @@ export function mensajeInscrito(edicion: Pick<EdicionResumen, 'nombre' | 'fechaI
   return `Quedaste inscrito en Próximo Paso — ${edicion.nombre}, primera clase el domingo ${fechaDomingo(edicion.fechaInicio)}`
 }
 
+/** inscrito = approved on the spot; pendiente = waiting for the coordinación. */
+export type EstadoInscripcionProximoPaso = 'inscrito' | 'pendiente'
+
+/**
+ * The estado of a talleres_inscribirme result or of a taller_inscripciones
+ * row. Only an explicit 'aprobado' reads as inscrito: anything else, or
+ * nothing, never claims more than "pendiente".
+ */
+export function estadoInscripcion(raw: unknown): EstadoInscripcionProximoPaso {
+  const estado = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).estado : null
+  return estado === 'aprobado' ? 'inscrito' : 'pendiente'
+}
+
+export function mensajePendiente(edicion: Pick<EdicionResumen, 'nombre'>): string {
+  return `Recibimos tu inscripción en Próximo Paso — ${edicion.nombre}`
+}
+
 export type CampoRegistro = 'nombre' | 'apellido' | 'telefono' | 'email' | 'password'
 
 export interface DatosRegistro {

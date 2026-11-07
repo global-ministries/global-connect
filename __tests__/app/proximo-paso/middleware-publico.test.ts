@@ -47,4 +47,27 @@ describe('/proximo-paso is public', () => {
       expect(new URL(respuesta.url).searchParams.get('redirect')).toBe(path)
     },
   )
+
+  // Regression of the independent verification (odd/tasks/proximo-paso.md L5):
+  // only the exact path is public; look-alikes and encoded traversals are not.
+  it.each([
+    '/proximo-paso/',
+    '/Proximo-paso',
+    '/proximo-paso%2F..%2Fdashboard',
+    '/proximo-paso/..%2Fdashboard',
+    '/proximo-paso;/dashboard',
+    '//proximo-paso',
+    '/proximo-paso%20',
+  ])('keeps the look-alike %s private', async (path) => {
+    const pathname = new URL(`https://global.test${path}`).pathname
+    expect(isPublicPath(pathname)).toBe(false)
+    const respuesta = (await middleware(peticion(path))) as unknown as { type: string }
+    expect(respuesta.type).toBe('redirect')
+  })
+
+  it('stays public with the ?edicion= query of the QR', async () => {
+    const respuesta = (await middleware(peticion('/proximo-paso?edicion=x'))) as unknown as { type: string }
+    expect(respuesta.type).toBe('next')
+    expect(getUserMock).not.toHaveBeenCalled()
+  })
 })
