@@ -41,6 +41,29 @@ describe('mensajeErrorDps', () => {
     expect(mensajeErrorDps(error('XX000'), 'planilla')).toBe('No se pudo cargar la asistencia. Actualiza la página.')
   })
 
+  // T10: the plan del domingo (read, convocados, copy, cover).
+  it.each([
+    ['sin_autoridad', 'plan', 'No tienes acceso a los planes de DPS.'],
+    ['sin_autoridad', 'equipos', 'Solo quienes arman el plan pueden cambiar los convocados.'],
+    ['sin_autoridad', 'portada', 'Solo quienes arman el plan pueden cambiar la portada.'],
+    ['plan_invalido', 'equipos', 'Ese plan ya no existe. Actualiza la página.'],
+    ['servicio_invalido', 'equipos', 'Esa persona ya no sirve en este equipo. Busca de nuevo.'],
+    ['puesto_invalido', 'equipos', 'Ese puesto ya no está activo. Actualiza la página.'],
+    ['destino_con_convocados', 'equipos', 'Este plan ya tiene convocados. Elige si quieres reemplazarlos.'],
+    ['busqueda_invalida', 'equipos', 'La búsqueda es muy larga (máximo 100 caracteres).'],
+    ['imagen_invalida', 'portada', 'La imagen debe ser JPG, PNG o WebP de hasta 5 MB.'],
+    ['serie_invalida', 'portada', 'Esa serie ya no existe. Actualiza la página.'],
+  ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
+    expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)
+    expect(codigoErrorDps(error(codigo))).toBe(codigo)
+  })
+
+  it('falls back to a generic sentence on the plan screens', () => {
+    expect(mensajeErrorDps(error('XX000'), 'plan')).toBe('No se pudo cargar el plan. Actualiza la página.')
+    expect(mensajeErrorDps(error('XX000'), 'equipos')).toBe('No se pudo guardar el cambio. Intenta de nuevo.')
+    expect(mensajeErrorDps(error('XX000'), 'portada')).toBe('No se pudo cambiar la portada. Intenta de nuevo.')
+  })
+
   it('explains a missing sheet authority as "no teams"', () => {
     expect(mensajeErrorDps(error('sin_autoridad', '42501'), 'planilla')).toBe('No tienes equipos para pasar asistencia en este plan.')
   })

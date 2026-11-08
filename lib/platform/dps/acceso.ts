@@ -50,3 +50,13 @@ export function puedeAbrirAsistenciaDps(session: PlatformSession | null | undefi
     (acceso.ver && session.capabilities.some((c) => c.key === 'dream_team.coordinate' || c.key === 'dream_team.direct'))
   )
 }
+
+/**
+ * Where /dps opens (T10): the plan for planners (they arm it), the attendance
+ * for whoever passes it, else the plan, which anyone who sees DPS may read
+ * (and which decides who sees it).
+ */
+export function rutaInicioDps(session: PlatformSession | null | undefined, acceso: DpsAcceso): '/dps/plan' | '/dps/asistencia' {
+  if (acceso.planificar) return '/dps/plan'
+  return puedeAbrirAsistenciaDps(session, acceso) ? '/dps/asistencia' : '/dps/plan'
+}
