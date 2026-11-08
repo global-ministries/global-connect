@@ -10,6 +10,11 @@
  * at (DETAIL {"indice"}) with its message; every change stays pending.
  *
  * DialogoDescartar confirms throwing the draft away.
+ *
+ * Planning style (S25): the changes are numbered 13px rows (the number in
+ * mono) in one flat `rounded-md` surface with light dividers; the failed
+ * change is a `danger` tinted row. The dialog is the style's 420px dialog
+ * with the 17px title.
  */
 import { useId, type ReactElement } from 'react'
 
@@ -28,6 +33,7 @@ import { resumenCambios, type CambioPendiente } from '@/lib/platform/grupos-vida
 import { cn } from '@/lib/utils'
 
 import { textoSinGuardar } from './estado-guardado'
+import { CLASE_ACCION_TEXTO, CLASE_DIALOGO, CLASE_FILA, CLASE_SUPERFICIE, CLASE_TITULO_DIALOGO } from './estilo-planner'
 import type { ErrorGuardar } from './pasos-planner'
 
 export interface PanelCambiosProps {
@@ -59,28 +65,26 @@ function Fila({
   return (
     <li
       data-error={error ? 'true' : undefined}
-      className={cn('flex min-w-0 items-start gap-3 border-b border-border px-2 py-2.5 last:border-b-0', error && 'rounded-xl border-transparent bg-danger/10')}
+      className={cn(CLASE_FILA, 'flex items-start gap-3 py-2 pr-1.5 pl-2', error && 'bg-danger/10')}
     >
-      <span className={cn('w-6 shrink-0 pt-0.5 text-right font-mono text-xs tabular-nums', error ? 'text-danger-text' : 'text-muted-foreground')}>{indice + 1}</span>
+      <span className={cn('w-6 shrink-0 pt-px text-right font-mono text-xs tabular-nums tracking-[-0.02em]', error ? 'text-danger-text' : 'text-muted-foreground')}>{indice + 1}</span>
       <div className="min-w-0 flex-1">
-        <p data-testid="descripcion" className="break-words text-sm text-foreground">
+        <p data-testid="descripcion" className="break-words text-foreground">
           {cambio.descripcion}
         </p>
         {error && <p className="break-words text-xs font-medium text-danger-text">{error}</p>}
       </div>
-      <BotonSistema
+      <button
         type="button"
-        variante="ghost"
-        tamaño="sm"
         aria-label={`Quitar: ${cambio.descripcion}`}
         aria-disabled={motivo !== null}
         aria-describedby={motivo ? idMotivo : undefined}
         title={motivo ?? undefined}
         onClick={() => onQuitar(indice)}
-        className="shrink-0"
+        className={cn(CLASE_ACCION_TEXTO, '-my-1.5 shrink-0 aria-disabled:cursor-not-allowed aria-disabled:opacity-50')}
       >
         Quitar
-      </BotonSistema>
+      </button>
       {motivo && (
         <span id={idMotivo} hidden>
           {motivo}
@@ -120,9 +124,9 @@ export function PanelCambios({ abierto, onCerrar, cambios, error, guardando, mot
           </AvisoFormulario>
         )}
         {cambios.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay cambios sin guardar.</p>
+          <p className="text-[13px] text-muted-foreground">No hay cambios sin guardar.</p>
         ) : (
-          <ol aria-label="Cambios sin guardar">
+          <ol aria-label="Cambios sin guardar" className={CLASE_SUPERFICIE}>
             {cambios.map((cambio, i) => (
               <Fila
                 key={cambio.id}
@@ -146,9 +150,9 @@ export function PanelCambios({ abierto, onCerrar, cambios, error, guardando, mot
 export function DialogoDescartar({ abierto, cambios, onCerrar, onConfirmar }: { readonly abierto: boolean; readonly cambios: number; readonly onCerrar: () => void; readonly onConfirmar: () => void }): ReactElement {
   return (
     <AlertDialog open={abierto} onOpenChange={(a) => !a && onCerrar()}>
-      <AlertDialogContent>
+      <AlertDialogContent className={CLASE_DIALOGO}>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Descartar {textoSinGuardar(cambios)}?</AlertDialogTitle>
+          <AlertDialogTitle className={CLASE_TITULO_DIALOGO}>¿Descartar {textoSinGuardar(cambios)}?</AlertDialogTitle>
           <AlertDialogDescription>El tablero vuelve a lo guardado. Esto no se puede deshacer.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

@@ -33,3 +33,29 @@ export const CLASE_ACCION_FILA =
 
 /** Drop highlight of a zone inside a column (a role section, the bank sidebar). */
 export const CLASE_SOBRE_DENTRO = 'ring-2 ring-inset ring-brand'
+
+/** The options button of a column head (`.ch .btn`): 28px, always visible (44px on touch). */
+export const CLASE_BOTON_ICONO =
+  'focus-ring grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground pointer-coarse:size-11'
+
+/**
+ * Toolbar and sidebar controls at the 36px toolbar height (44px on touch):
+ * InputSistema and SelectSistema have no `tamaño` yet, so the height comes in
+ * through `className` (components.md gap, reported with T11b).
+ */
+export const CLASE_CONTROL_COMPACTO = 'h-9 text-sm pointer-coarse:h-11'
+
+/** A data surface of the planning style: flat card, 1px border, `rounded-md`. */
+export const CLASE_SUPERFICIE = 'overflow-hidden rounded-md border border-border bg-card'
+
+/** Sidebar / panel section heading (`.ps h2`): 12px / 600 uppercase, `.08em`, muted. */
+export const CLASE_TITULO_SECCION = 'text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground'
+
+/** A row inside a data surface: 13px, light divider between rows. */
+export const CLASE_FILA = 'min-w-0 text-[13px] [&+&]:border-t [&+&]:border-border/60'
+
+/** Dialogs of the planning style (layout.md › Dialogs; foundations: 420px, 20px padding). */
+export const CLASE_DIALOGO = 'max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-2xl bg-card p-5 shadow-sheet sm:max-w-[420px]'
+
+/** Dialog title: 17px / 650. */
+export const CLASE_TITULO_DIALOGO = 'text-[17px] font-[650] leading-snug tracking-[-0.01em]'

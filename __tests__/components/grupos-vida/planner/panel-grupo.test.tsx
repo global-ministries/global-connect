@@ -180,6 +180,7 @@ describe('opening the group panel', () => {
     await userEvent.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog', { name: TORREALBA.nombre })).not.toBeInTheDocument())
 
+    await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: 'Opciones de Mujeres Valientes' }))
     await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: 'Abrir Mujeres Valientes' }))
     expect(panelGrupo('Mujeres Valientes')).toBeInTheDocument()
   })
@@ -406,6 +407,7 @@ describe('scope and deleting (S10, S22)', () => {
     expect(screen.getByRole('alertdialog', { name: `¿Eliminar ${TORREALBA.nombre}?` })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
 
+    await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: 'Opciones de Mujeres Valientes' }))
     await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: 'Abrir Mujeres Valientes' }))
     expect(within(panelGrupo('Mujeres Valientes')).queryByRole('button', { name: 'Eliminar grupo' })).not.toBeInTheDocument()
     expect(within(panelGrupo('Mujeres Valientes')).getByText(/Los cambios quedan sin guardar hasta que toques «Guardar»/)).toBeInTheDocument()

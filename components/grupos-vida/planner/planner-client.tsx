@@ -68,6 +68,7 @@ import { DialogoUbicar } from './dialogo-ubicar'
 import { LadoALado, type EstadoOrigen } from './lado-a-lado'
 import { ListaPlanner } from './lista-planner'
 import { BarraGuardado } from './estado-guardado'
+import { CLASE_CONTROL_COMPACTO } from './estilo-planner'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
 import { PanelAlertas } from './panel-alertas'
@@ -332,10 +333,12 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
                   placeholder="Buscar grupo o persona"
                   aria-label="Buscar grupo, líder o persona"
                   autoComplete="off"
+                  className={CLASE_CONTROL_COMPACTO}
                 />
               </div>
               <div className="w-52" hidden={lado}>
                 <SelectSistema
+                  className={CLASE_CONTROL_COMPACTO}
                   aria-label="Agrupar por"
                   opciones={[
                     { valor: 'localidad', etiqueta: 'Agrupar: localidad' },

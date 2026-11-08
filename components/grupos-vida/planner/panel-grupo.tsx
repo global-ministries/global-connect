@@ -25,6 +25,12 @@
  * hidden) for a segment the actor does not edit (S10); "Eliminar grupo" only
  * while the group has not started (S22). The sheet traps the focus, closes
  * with Escape and returns the focus to what opened it.
+ *
+ * Planning style (S25): sections under the 12px uppercase heading split by
+ * borders; the members are the team column of the board (one flat
+ * `rounded-md` surface, a `bg-muted` row per role with its count in mono,
+ * initials avatar and 13px names that wrap), with the role select at the
+ * toolbar's 36px and "Mover" / "Al banco" as brand text actions.
  */
 import { Fragment, useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 
@@ -50,8 +56,20 @@ import {
 import { DIAS_REUNION, LARGO_NOMBRE_GRUPO, MAXIMO_DIRECTORES, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
 import { cn } from '@/lib/utils'
 
+import { AvatarIniciales } from './avatar-iniciales'
 import { usePasos, type Carga } from './contexto-pasos'
 import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
+import {
+  CLASE_ACCION_TEXTO,
+  CLASE_CABEZA_ROL,
+  CLASE_CONTROL_COMPACTO,
+  CLASE_CUENTA_ROL,
+  CLASE_FILA,
+  CLASE_NOMBRE_FILA,
+  CLASE_ROL_VACIO,
+  CLASE_SUPERFICIE,
+  CLASE_TITULO_SECCION,
+} from './estilo-planner'
 import {
   ETIQUETA_ROL,
   directoresElegibles,
@@ -142,7 +160,7 @@ function Seccion({ titulo, extra, children }: { readonly titulo: string; readonl
   return (
     <section aria-labelledby={id} className="space-y-3 border-b border-border pb-5 last:border-b-0 last:pb-0">
       <div className="flex items-baseline justify-between gap-2">
-        <h3 id={id} className="text-sm font-semibold text-foreground">
+        <h3 id={id} className={CLASE_TITULO_SECCION}>
           {titulo}
         </h3>
         {extra}
@@ -196,9 +214,10 @@ function FilaIntegrante({
   const pasos = usePasos()
   const sinGuardar = pasos !== null && ids.some((id) => pasos.pendiente.persona(id))
   return (
-    <li aria-label={nombre} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-border py-2.5 last:border-b-0">
-      <div className="min-w-0 flex-1 basis-48">
-        <p data-nombres className="break-words text-sm font-medium text-foreground">
+    <li aria-label={nombre} className={cn(CLASE_FILA, 'flex flex-wrap items-start gap-x-2.5 gap-y-1.5 py-2 pr-1.5 pl-3')}>
+      <AvatarIniciales nombres={fila.personas.map(nombrePersona)} className="mt-px" />
+      <div className="min-w-0 flex-1 basis-44">
+        <p data-nombres className={CLASE_NOMBRE_FILA}>
           {pareja
             ? fila.personas.map((p, i) => (
                 <Fragment key={p.usuario_id}>
@@ -229,6 +248,7 @@ function FilaIntegrante({
             return (
               <div key={p.usuario_id} className="w-32">
                 <SelectSistema
+                  className={CLASE_CONTROL_COMPACTO}
                   aria-label={`Rol de ${nombrePersona(p)}`}
                   opciones={ROLES.map((r) => ({ valor: r, etiqueta: ETIQUETA_ROL[r] }))}
                   value={actual}
@@ -240,18 +260,17 @@ function FilaIntegrante({
               </div>
             )
           })}
-          <BotonSistema
+          <button
             type="button"
-            variante="ghost"
-            tamaño="sm"
             aria-label={`Mover a ${nombre}`}
             onClick={() => onPedirUbicar({ ids, nombre, desdeGrupo: true }, { grupoId: grupo.grupo_id, rol })}
+            className={CLASE_ACCION_TEXTO}
           >
             Mover
-          </BotonSistema>
-          <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Devolver a ${nombre} al banco`} onClick={() => onMover(ids, null, rol)}>
+          </button>
+          <button type="button" aria-label={`Devolver a ${nombre} al banco`} onClick={() => onMover(ids, null, rol)} className={CLASE_ACCION_TEXTO}>
             Al banco
-          </BotonSistema>
+          </button>
         </div>
       )}
     </li>
@@ -271,12 +290,12 @@ function SeccionRol(props: {
   const { rol, fichas } = props
   const falta = rol.id === 'lideres' && rol.personas.length === 0
   return (
-    <section aria-label={rol.titulo}>
-      <h4 className={cn('text-xs font-medium uppercase tracking-[0.08em]', falta ? 'text-danger-text' : 'text-muted-foreground')}>
-        {rol.titulo} <span className="font-mono tabular-nums">{rol.personas.length}</span>
+    <section aria-label={rol.titulo} className="[&:first-child>h4]:border-t-0">
+      <h4 className={cn(CLASE_CABEZA_ROL, falta ? 'text-danger-text' : 'text-foreground')}>
+        {rol.titulo} <span className={CLASE_CUENTA_ROL}>{rol.personas.length}</span>
       </h4>
       {rol.personas.length === 0 ? (
-        <p className={cn('py-2 text-sm', falta ? 'text-danger-text' : 'text-muted-foreground')}>{falta ? 'Falta el Líder' : 'Nadie todavía'}</p>
+        <p className={cn(CLASE_ROL_VACIO, falta ? 'font-medium text-danger-text' : 'text-muted-foreground')}>{falta ? 'Falta el Líder' : 'Nadie todavía'}</p>
       ) : (
         <ul>
           {filasDelRol(rol.personas, fichas).map((fila) => (
@@ -433,8 +452,8 @@ function Formulario({
 
       <Seccion titulo="Localidad">
         {sugerencia && sugerencia.localidadId !== localidad.valor && (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-border p-3">
-            <p className="min-w-0 flex-1 text-sm text-foreground">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border px-3 py-2">
+            <p className="min-w-0 flex-1 text-[13px] text-foreground">
               Sugerido: {sugerencia.nombre} — {sugerencia.motivo}
             </p>
             {editable && (
@@ -463,8 +482,8 @@ function Formulario({
         {!localidad.valor && <p className="text-xs text-danger-text">Sin localidad no se puede publicar la temporada.</p>}
         {lugares.length > 0 && (
           <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Dónde viven</p>
-            <ul aria-label="Dónde viven los integrantes" className="text-sm">
+            <p className={CLASE_TITULO_SECCION}>Dónde viven</p>
+            <ul aria-label="Dónde viven los integrantes" className="text-[13px]">
               {lugares.map((l) => (
                 <li key={l.clave} className="flex justify-between gap-3 py-0.5">
                   <span className="min-w-0 truncate text-foreground">{l.etiqueta}</span>
@@ -551,19 +570,21 @@ function Formulario({
           </span>
         }
       >
-        {rolesGrupo(grupo).map((rol) => (
-          <SeccionRol
-            key={rol.id}
-            rol={rol}
-            grupo={grupo}
-            editable={editable}
-            fichas={fichas}
-            bloqueos={bloqueos}
-            avisos={avisos}
-            onMover={onMover}
-            onPedirUbicar={onPedirUbicar}
-          />
-        ))}
+        <div className={CLASE_SUPERFICIE}>
+          {rolesGrupo(grupo).map((rol) => (
+            <SeccionRol
+              key={rol.id}
+              rol={rol}
+              grupo={grupo}
+              editable={editable}
+              fichas={fichas}
+              bloqueos={bloqueos}
+              avisos={avisos}
+              onMover={onMover}
+              onPedirUbicar={onPedirUbicar}
+            />
+          ))}
+        </div>
         {editable && (
           <p className="text-xs text-muted-foreground">
             {telefono ? 'Para agregar personas, usa «Ubicar» en el banco.' : 'Para agregar personas, arrastra desde el banco o usa «Ubicar».'}

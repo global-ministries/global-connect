@@ -24,7 +24,9 @@
  * border, or a bordered box above Lado a lado); the head over a border, the
  * sections with a sticky 12px uppercase heading, and person rows with the
  * initials avatar, name 13px / 500 and 12px secondary lines split by light
- * dividers.
+ * dividers. Next to the board the search and the Edad / Ciudad selects take
+ * the toolbar's 36px (44px on touch, and in the phone sheet); the quick
+ * filter pills keep PastillaFiltro's 44px, which has no compact size yet.
  */
 import { useMemo, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -35,6 +37,7 @@ import { nombrePersona, type PersonaBanco, type TemporadaPlanner } from '@/lib/p
 import { cn } from '@/lib/utils'
 
 import { AvatarIniciales } from './avatar-iniciales'
+import { CLASE_CONTROL_COMPACTO } from './estilo-planner'
 import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
 import {
   FILTROS_BANCO_INICIALES,
@@ -200,6 +203,7 @@ export function BancoPersonas({ id, banco, temporada, className, enHoja = false 
           placeholder="Nombre, ciudad o grupo"
           aria-label="Buscar en el banco por nombre, ciudad o grupo"
           autoComplete="off"
+          className={enHoja ? undefined : CLASE_CONTROL_COMPACTO}
         />
         <div role="group" aria-label="Filtros rápidos del banco" className="flex flex-wrap gap-2">
           <PastillaFiltro etiqueta="Sin ubicar" cantidad={modelo.conteos.sinUbicar} activa={filtros.sinUbicar} onClick={() => cambiar({ sinUbicar: !filtros.sinUbicar })} />
@@ -208,12 +212,14 @@ export function BancoPersonas({ id, banco, temporada, className, enHoja = false 
         </div>
         <div className="grid grid-cols-2 gap-2">
           <SelectSistema
+            className={enHoja ? undefined : CLASE_CONTROL_COMPACTO}
             aria-label="Edad"
             opciones={EDADES.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta }))}
             value={filtros.edad}
             onValueChange={(valor) => cambiar({ edad: valor as FiltroEdad })}
           />
           <SelectSistema
+            className={enHoja ? undefined : CLASE_CONTROL_COMPACTO}
             aria-label="Ciudad donde vive"
             opciones={[{ valor: '', etiqueta: 'Ciudad: todas' }, ...modelo.ciudades]}
             value={filtros.ciudad}

@@ -12,9 +12,11 @@
  * With the board's steps (T5b, pasos-planner.tsx) and a segment the actor
  * edits: the card takes dropped people as Miembro and each role section of
  * the expanded card in its role; members can be dragged or moved with
- * "Mover"; "Usar <localidad>" saves the suggestion; "Eliminar grupo" shows
- * only while the group has not started (S22). The name and "Abrir" open the
- * group panel (T6, panel-grupo.tsx), read-only outside the actor's segments.
+ * "Mover"; "Usar <localidad>" saves the suggestion. The name opens the group
+ * panel (T6, panel-grupo.tsx), read-only outside the actor's segments; the
+ * "⋮" of the column head ("Opciones de <grupo>", like the column menu of
+ * the planning artboard) holds "Abrir" and, only while the group has not
+ * started (S22), "Eliminar grupo", which asks first.
  *
  * S23: names are never cut (they wrap); within a role the two spouses are one
  * row with both names and ages, moved together; under a name, where the
@@ -24,16 +26,15 @@
  * and each moved person show "Sin guardar" until the draft is saved.
  *
  * Planning style (S25; the team column of prototipos/planificacion-dps/01):
- * a flat `rounded-md` column with its head (name 14px / 650, label 12px)
- * over a border, the role headers as `bg-muted` rows with the count in mono,
+ * a flat `rounded-md` column with its head (name 14px / 650, label 12px,
+ * the options button at the right) over a border, the role headers as `bg-muted` rows with the count in mono,
  * and 32px person rows (initials avatar, name 13px / 500, wrapping) split by
  * light dividers; "Mover" shows on hover or focus with a mouse and always on
  * touch.
  */
 import { Fragment, useId, useState, type ReactElement } from 'react'
-import { ArrowRightLeft, ChevronRight } from 'lucide-react'
+import { ArrowRightLeft, ChevronRight, PanelRight, Trash2 } from 'lucide-react'
 
-import { BotonSistema } from '@/components/ui/sistema-diseno'
 import {
   MINIMO_PERSONAS_GRUPO,
   etiquetaGrupo,
@@ -59,6 +60,7 @@ import {
   CLASE_SOBRE_DENTRO,
 } from './estilo-planner'
 import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
+import { MenuColumna } from './menu-planner'
 import {
   filasDelRol,
   insigniasGrupo,
@@ -264,6 +266,7 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
   const idTitulo = useId()
   const lideres = textoLideres(grupo)
   const etiqueta = etiquetaGrupo(grupo)
+  const nombre = grupo.nombre.trim() || etiqueta
   const cantidad = personasDelGrupo(grupo).length
   const pasos = usePasos()
   const editable = pasos !== null && pasos.editable(grupo.segmento_id)
@@ -276,24 +279,37 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
       {...zona.props}
       className={cn('flex scroll-mt-4 flex-col overflow-hidden rounded-md border border-border bg-card', zona.sobre && SOBRE, className)}
     >
-      <div className="min-w-0 border-b border-border px-3 pt-2 pb-2">
-        <h3 id={idTitulo} title={grupo.nombre} className="line-clamp-2 text-sm font-[650] leading-[18px] text-foreground">
-          {pasos ? (
-            <button
-              type="button"
-              onClick={() => pasos.abrirGrupo(grupo.grupo_id)}
-              className="focus-ring rounded-md text-left transition-colors hover:text-brand-text"
-            >
-              {grupo.nombre.trim() || etiqueta}
-            </button>
-          ) : (
-            grupo.nombre.trim() || etiqueta
-          )}
-        </h3>
-        <p title={etiqueta} className={cn('truncate text-xs', grupo.localidad_id ? 'text-muted-foreground' : 'text-danger-text')}>
-          {etiqueta}
-        </p>
-        {pasos?.pendiente.grupo(grupo.grupo_id) && <MarcaSinGuardar />}
+      <div className="flex min-w-0 items-start gap-1 border-b border-border py-2 pr-1 pl-3">
+        <div className="min-w-0 flex-1">
+          <h3 id={idTitulo} title={grupo.nombre} className="line-clamp-2 text-sm font-[650] leading-[18px] text-foreground">
+            {pasos ? (
+              <button
+                type="button"
+                onClick={() => pasos.abrirGrupo(grupo.grupo_id)}
+                className="focus-ring rounded-md text-left transition-colors hover:text-brand-text"
+              >
+                {nombre}
+              </button>
+            ) : (
+              nombre
+            )}
+          </h3>
+          <p title={etiqueta} className={cn('truncate text-xs', grupo.localidad_id ? 'text-muted-foreground' : 'text-danger-text')}>
+            {etiqueta}
+          </p>
+          {pasos?.pendiente.grupo(grupo.grupo_id) && <MarcaSinGuardar />}
+        </div>
+        {pasos && (
+          <MenuColumna
+            etiqueta={`Opciones de ${nombre}`}
+            items={[
+              { clave: 'abrir', texto: 'Abrir', etiqueta: `Abrir ${nombre}`, icono: PanelRight, onElegir: () => pasos.abrirGrupo(grupo.grupo_id) },
+              ...(editable && puedeEliminarGrupo(grupo)
+                ? [{ clave: 'eliminar', texto: 'Eliminar grupo', icono: Trash2, peligro: true, abreDialogo: true, onElegir: () => pasos.pedirEliminar(grupo) }]
+                : []),
+            ]}
+          />
+        )}
       </div>
       <div className="flex flex-col gap-2 px-3 py-2.5">
         {lideres ? (
@@ -311,7 +327,7 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
           ))}
         </ul>
       </div>
-      <div className="mt-auto flex items-center justify-between gap-1 border-t border-border/60 py-0.5 pr-0.5 pl-1.5">
+      <div className="mt-auto border-t border-border/60 py-0.5 pr-0.5 pl-1.5">
         <button
           type="button"
           aria-expanded={abierta}
@@ -322,29 +338,11 @@ export function TarjetaGrupo({ grupo, bloqueos, avisos, fichas, sugerencia, clas
           <span className="font-mono tabular-nums">{cantidad}</span> {cantidad === 1 ? 'integrante' : 'integrantes'}
           <ChevronRight aria-hidden="true" className={cn('size-3.5 transition-transform', abierta && 'rotate-90')} />
         </button>
-        {pasos && (
-          <BotonSistema
-            type="button"
-            variante="ghost"
-            tamaño="sm"
-            aria-label={`Abrir ${grupo.nombre.trim() || etiqueta}`}
-            onClick={() => pasos.abrirGrupo(grupo.grupo_id)}
-          >
-            Abrir
-          </BotonSistema>
-        )}
       </div>
       <div id={idMiembros} hidden={!abierta}>
         {rolesGrupo(grupo).map((rol) => (
           <SeccionRol key={rol.id} grupo={grupo} rol={rol} bloqueos={bloqueos} avisos={avisos} fichas={fichas} />
         ))}
-        {editable && puedeEliminarGrupo(grupo) && (
-          <div className="border-t border-border p-2">
-            <BotonSistema type="button" variante="peligro" tamaño="sm" onClick={() => pasos?.pedirEliminar(grupo)} className="w-full">
-              Eliminar grupo
-            </BotonSistema>
-          </div>
-        )}
       </div>
     </article>
   )

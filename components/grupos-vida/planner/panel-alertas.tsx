@@ -13,6 +13,11 @@
  * undoable; nothing is applied in bulk); "Ubicar" opens the Ubicar dialog for
  * an unplaced person, over the panel. Only groups the actor edits offer
  * "Usar sugerida" (S10).
+ *
+ * Planning style (S25): the two parts carry the 12px uppercase heading; each
+ * kind is one flat `rounded-md` surface (a `bg-muted` head row with its dot,
+ * then 13px rows split by light dividers, the actions as brand text links),
+ * not a card in the panel.
  */
 import { useId, useState, type ReactElement } from 'react'
 
@@ -21,7 +26,9 @@ import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { contar, type SugerenciaLocalidad } from '@/lib/platform/grupos-vida/planner'
 import type { ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
+import { cn } from '@/lib/utils'
 
+import { CLASE_ACCION_TEXTO, CLASE_FILA, CLASE_SUPERFICIE, CLASE_TITULO_SECCION } from './estilo-planner'
 import type { ItemAlerta, SeccionAlerta } from './modelo'
 
 const VISIBLES_POR_SECCION = 5
@@ -93,26 +100,26 @@ function Item({ item, aplicar, onIrAlGrupo, puedeEditar, onUsarSugerida, onUbica
   const usar = item.grupoId !== null && item.sugerencia && onUsarSugerida && puedeEditar(item.grupoId)
   const ubicar = item.grupoId === null && item.personaIds.length > 0 && onUbicar
   return (
-    <li className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border py-2.5 last:border-b-0">
+    <li className={cn(CLASE_FILA, 'flex flex-wrap items-center gap-x-3 gap-y-1 py-2 pr-1.5 pl-3')}>
       <div className="min-w-0 flex-1 basis-48">
-        <p className="text-sm font-medium text-foreground">{item.titulo}</p>
+        <p className="break-words font-medium text-foreground">{item.titulo}</p>
         {item.detalle && (
           <p title={item.detalle} className="truncate text-xs text-muted-foreground">
             {item.detalle}
           </p>
         )}
       </div>
-      <div className="flex flex-wrap gap-1">
+      <div className="flex flex-wrap items-center gap-1">
         {usar && <BotonSugerida item={item} aplicar={aplicar} etiqueta="Usar sugerida" />}
         {ubicar && (
-          <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Ubicar a ${item.personas ?? 'esta persona'}`} onClick={() => onUbicar(item)}>
+          <button type="button" aria-label={`Ubicar a ${item.personas ?? 'esta persona'}`} onClick={() => onUbicar(item)} className={CLASE_ACCION_TEXTO}>
             Ubicar
-          </BotonSistema>
+          </button>
         )}
         {item.grupoId && (
-          <BotonSistema type="button" variante="ghost" tamaño="sm" onClick={() => item.grupoId && onIrAlGrupo(item.grupoId)}>
+          <button type="button" onClick={() => item.grupoId && onIrAlGrupo(item.grupoId)} className={CLASE_ACCION_TEXTO}>
             Ir al grupo
-          </BotonSistema>
+          </button>
         )}
       </div>
     </li>
@@ -127,7 +134,7 @@ function RevisarSugerencias({ items, aplicar, puedeEditar }: { readonly items: r
   const aMano = items.filter((i) => i.sugerencia === null).length
   if (conSugerencia.length === 0) return null
   return (
-    <div className="mt-2 space-y-2 rounded-xl bg-muted/50 p-3">
+    <div className="space-y-2 border-b border-border/60 px-3 py-2.5">
       <BotonSistema type="button" variante="outline" tamaño="sm" aria-expanded={abierta} aria-controls={idLista} onClick={() => setAbierta((a) => !a)}>
         Revisar sugerencias de localidad
       </BotonSistema>
@@ -137,9 +144,9 @@ function RevisarSugerencias({ items, aplicar, puedeEditar }: { readonly items: r
       </p>
       <ul id={idLista} hidden={!abierta} aria-label="Sugerencias de localidad">
         {conSugerencia.map((item) => (
-          <li key={item.clave} className="flex min-w-0 items-center gap-3 border-b border-border py-2 last:border-b-0">
+          <li key={item.clave} className={cn(CLASE_FILA, 'flex items-center gap-3 py-2')}>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground" title={item.titulo}>
+              <p className="truncate font-medium text-foreground" title={item.titulo}>
                 {item.titulo}
               </p>
               <p className="truncate text-xs text-muted-foreground">{item.sugerencia?.motivo}</p>
@@ -162,27 +169,29 @@ function Seccion({ seccion, tono, ...acciones }: { readonly seccion: SeccionAler
   const items = todas ? seccion.items : seccion.items.slice(0, VISIBLES_POR_SECCION)
   const idTitulo = `alerta-${seccion.id}`
   return (
-    <section id={seccion.id.replaceAll('_', '-')} aria-labelledby={idTitulo} className="rounded-2xl border border-border p-3">
-      <h4 id={idTitulo} className="flex items-center gap-2 text-sm font-semibold text-foreground">
+    <section id={seccion.id.replaceAll('_', '-')} aria-labelledby={idTitulo} className={CLASE_SUPERFICIE}>
+      <h4 id={idTitulo} className="flex min-h-8 items-center gap-2 border-b border-border bg-muted px-3 py-1.5 text-[13px] font-[650] text-foreground">
         <PuntoEstado tono={seccion.cantidad === 0 ? 'success' : tono} />
         {seccion.titulo}
       </h4>
       {seccion.vacio ? (
-        <p className="mt-1 text-sm text-muted-foreground">{seccion.vacio}</p>
+        <p className="px-3 py-2 text-[13px] text-muted-foreground">{seccion.vacio}</p>
       ) : (
         <>
           {seccion.id === 'sin_localidad' && acciones.onUsarSugerida && (
             <RevisarSugerencias items={seccion.items} aplicar={acciones.aplicar} puedeEditar={acciones.puedeEditar} />
           )}
-          <ul className="mt-1">
+          <ul>
             {items.map((item) => (
               <Item key={item.clave} item={item} {...acciones} />
             ))}
           </ul>
           {seccion.items.length > VISIBLES_POR_SECCION && (
-            <BotonSistema type="button" variante="ghost" tamaño="sm" aria-expanded={todas} onClick={() => setTodas((t) => !t)}>
-              {todas ? 'Ver menos' : `Ver los ${seccion.items.length}`}
-            </BotonSistema>
+            <div className="border-t border-border/60 px-1.5 py-0.5">
+              <button type="button" aria-expanded={todas} onClick={() => setTodas((t) => !t)} className={CLASE_ACCION_TEXTO}>
+                {todas ? 'Ver menos' : `Ver los ${seccion.items.length}`}
+              </button>
+            </div>
           )}
         </>
       )}
@@ -198,7 +207,7 @@ function Contenido({ bloqueos, avisos, totalBloqueos, totalAvisos, acciones }: P
     <div className="space-y-6">
       <section aria-labelledby="alertas-bloqueos" className="space-y-3">
         <div>
-          <h3 id="alertas-bloqueos" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <h3 id="alertas-bloqueos" className={CLASE_TITULO_SECCION}>
             Bloquean la publicación · <span className="font-mono tabular-nums">{totalBloqueos}</span>
           </h3>
           <p className="text-xs text-muted-foreground">Deben quedar en 0 para publicar</p>
@@ -209,13 +218,13 @@ function Contenido({ bloqueos, avisos, totalBloqueos, totalAvisos, acciones }: P
       </section>
       <section aria-labelledby="alertas-avisos" className="space-y-3">
         <div>
-          <h3 id="alertas-avisos" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+          <h3 id="alertas-avisos" className={CLASE_TITULO_SECCION}>
             Avisos · <span className="font-mono tabular-nums">{totalAvisos}</span>
           </h3>
           <p className="text-xs text-muted-foreground">No bloquean: revísalos y decide</p>
         </div>
         {avisos.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay avisos.</p>
+          <p className="text-[13px] text-muted-foreground">No hay avisos.</p>
         ) : (
           avisos.map((seccion) => <Seccion key={seccion.id} seccion={seccion} tono="warning" {...propsSeccion} />)
         )}

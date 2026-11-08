@@ -25,13 +25,20 @@
  * leaves the season and the batches already saved: the page says how many
  * groups were copied and offers to copy the rest or open the board. At the
  * end it opens /grupos-vida/planificar?temporada=<id>.
+ *
+ * Planning style (S25): the planner's page frame (header band with "Salir
+ * sin crear" at the right, 24px gutters); the stepper and each step are flat
+ * `rounded-md` surfaces (the step with a head row, 17px / 650 title, and a
+ * footer row with the navigation), the choices are `rounded-md` radio rows,
+ * and the running summary reads like the context sidebar of the artboards
+ * (12px uppercase headings, sections split by borders).
  */
 import { useEffect, useId, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check } from 'lucide-react'
 
-import { BotonSistema, InputSistema, PaginaSistema, SelectSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { contar, enLista, type TemporadaPlanner, type TemporadasPlanner } from '@/lib/platform/grupos-vida/planner'
 import { lotesDeCopia, planCopia, type GrupoACopiar } from '@/lib/platform/grupos-vida/planner/copia'
@@ -48,6 +55,9 @@ import { cn } from '@/lib/utils'
 
 import { hrefTemporada, RUTA_PLANIFICAR } from './cabecera-temporada'
 import { DiagnosticoCierreVista } from './diagnostico-cierre'
+import { EtiquetaPlanner } from './etiqueta'
+import { CLASE_SUPERFICIE, CLASE_TITULO_SECCION } from './estilo-planner'
+import { CLASE_RESUMEN_PAGINA, CLASE_TITULO_PAGINA, MarcoPlanner } from './marco-planner'
 import { MigasPlanner } from './migas-planner'
 import { formatearCantidad } from './modelo'
 
@@ -129,7 +139,7 @@ function Opcion({
   return (
     <div
       className={cn(
-        'grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-2xl border-[1.5px] p-4 transition-colors has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-brand',
+        'grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border px-4 py-3 transition-colors has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-brand',
         deshabilitada ? 'border-dashed border-border' : elegida ? 'border-brand bg-brand-tint' : 'border-border bg-card hover:bg-accent',
       )}
     >
@@ -142,15 +152,15 @@ function Opcion({
         disabled={deshabilitada}
         onChange={onElegir}
         aria-describedby={children ? `${id}-d` : undefined}
-        className="mt-0.5 size-5 accent-[var(--brand-strong)] disabled:cursor-not-allowed"
+        className="mt-px size-[18px] accent-[var(--brand-strong)] disabled:cursor-not-allowed"
       />
       <div className="min-w-0">
-        <label htmlFor={id} className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[15px] font-semibold', deshabilitada ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer text-foreground')}>
+        <label htmlFor={id} className={cn('flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm font-semibold', deshabilitada ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer text-foreground')}>
           {titulo}
-          {marca && <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success-text">{marca}</span>}
+          {marca && <EtiquetaPlanner tono="success">{marca}</EtiquetaPlanner>}
         </label>
         {children && (
-          <div id={`${id}-d`} className="mt-1 text-sm leading-relaxed text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground">
+          <div id={`${id}-d`} className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground [&_b]:font-semibold [&_b]:text-foreground">
             {children}
           </div>
         )}
@@ -162,18 +172,16 @@ function Opcion({
 
 function Paso({ titulo, descripcion, children, pie }: { readonly titulo: string; readonly descripcion: ReactNode; readonly children: ReactNode; readonly pie: ReactNode }): ReactElement {
   return (
-    <TarjetaSistema>
-      <section aria-labelledby="asistente-paso" className="grid gap-5">
-        <header>
-          <h2 id="asistente-paso" className="text-xl font-semibold tracking-[-0.01em] text-foreground">
-            {titulo}
-          </h2>
-          <p className="mt-1.5 text-[15px] text-muted-foreground">{descripcion}</p>
-        </header>
-        {children}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">{pie}</div>
-      </section>
-    </TarjetaSistema>
+    <section aria-labelledby="asistente-paso" className={CLASE_SUPERFICIE}>
+      <header className="border-b border-border px-5 py-3.5">
+        <h2 id="asistente-paso" className="text-[17px] font-[650] tracking-[-0.01em] text-foreground">
+          {titulo}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{descripcion}</p>
+      </header>
+      <div className="grid gap-4 px-5 py-4">{children}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">{pie}</div>
+    </section>
   )
 }
 
@@ -321,7 +329,7 @@ export function AsistenteTemporada({ capacidades, hoy }: AsistenteTemporadaProps
       Atrás
     </BotonSistema>
   )
-  const indicador = <span className="font-mono text-sm tabular-nums text-muted-foreground">Paso {paso} de 4</span>
+  const indicador = <span className="font-mono text-xs tabular-nums text-muted-foreground">Paso {paso} de 4</span>
   const siguiente = (onClick: () => void) => (
     <div className="flex items-center gap-3">
       {indicador}
@@ -532,19 +540,21 @@ export function AsistenteTemporada({ capacidades, hoy }: AsistenteTemporadaProps
   const resumenInicio = paso < 4 && alcanzado < 4 ? null : empezarValido === 'copiar' ? `Copia ${contar(plan?.grupos.length ?? 0, 'grupo', 'grupos')} de ${origen?.nombre}` : empezarValido === 'seguir' ? 'Sigue con lo que ya tiene' : 'En blanco'
 
   return (
-    <PaginaSistema
-      breadcrumbs={<MigasPlanner actual="Nueva temporada" />}
+    <MarcoPlanner
+      migas={<MigasPlanner actual="Nueva temporada" />}
       acciones={
         <BotonSistema asChild variante="ghost" tamaño="sm">
           <Link href={RUTA_PLANIFICAR}>Salir sin crear</Link>
         </BotonSistema>
       }
+      encabezado={
+        <>
+          <h1 className={CLASE_TITULO_PAGINA}>Planificar nueva temporada</h1>
+          <p className={CLASE_RESUMEN_PAGINA}>Cuatro pasos cortos. La temporada se crea En planificación y no queda activa hasta que la publiques.</p>
+        </>
+      }
+      className="space-y-4"
     >
-      <div className="space-y-1">
-        <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">Planificar nueva temporada</h1>
-        <p className="text-[15px] text-muted-foreground">Cuatro pasos cortos. La temporada se crea En planificación y no queda activa hasta que la publiques.</p>
-      </div>
-
       <ol aria-label="Pasos del asistente" className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {PASOS.map((p, i) => {
           const n = i + 1
@@ -565,7 +575,7 @@ export function AsistenteTemporada({ capacidades, hoy }: AsistenteTemporadaProps
             </>
           )
           const clase = cn(
-            'flex min-h-14 w-full items-center gap-2.5 rounded-xl border px-3 py-2 text-left text-sm transition-colors',
+            'flex min-h-11 w-full items-center gap-2.5 rounded-md border px-3 py-2 text-left text-[13px] transition-colors',
             actual ? 'border-brand bg-brand-tint' : 'border-border bg-card',
           )
           const puedeIr = !actual && n <= alcanzado && !trabajando && !creada
@@ -586,43 +596,41 @@ export function AsistenteTemporada({ capacidades, hoy }: AsistenteTemporadaProps
         })}
       </ol>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
         {paso === 1 ? paso1 : paso === 2 ? paso2 : paso === 3 ? paso3 : paso4}
-        <aside aria-label="Tu nueva temporada" className="lg:sticky lg:top-22">
-          <TarjetaSistema>
-            <h2 className="mb-4 text-base font-semibold text-foreground">Tu nueva temporada</h2>
-            <dl className="grid gap-3 text-sm">
-              <div className="grid gap-0.5">
-                <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Temporada</dt>
-                <dd>
-                  {destinoNombre || '—'}
-                  <small className="block text-[13px] text-muted-foreground">
-                    {modo === 'nueva' ? `${rango(inicio, fin)} · En planificación, no activa` : existente ? `${rango(existente.fecha_inicio, existente.fecha_fin)} · ya en planificación` : ''}
-                  </small>
-                </dd>
-              </div>
-              <div className="grid gap-0.5">
-                <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Cierra</dt>
-                <dd>{alcanzado >= 2 ? (origen?.nombre ?? 'Ninguna') : <span className="text-muted-foreground">Paso 2</span>}</dd>
-              </div>
-              <div className="grid gap-0.5">
-                <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Diagnóstico</dt>
-                <dd>
-                  {alcanzado >= 3 && datosCierre ? (
-                    `${contar(datosCierre.diagnostico.grupos, 'grupo', 'grupos')} · ${contar(datosCierre.diagnostico.listosParaLiderar, 'listo', 'listos')} para liderar`
-                  ) : (
-                    <span className="text-muted-foreground">{alcanzado >= 3 && !origen ? 'Sin temporada que cierre' : 'Paso 3'}</span>
-                  )}
-                </dd>
-              </div>
-              <div className="grid gap-0.5">
-                <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Cómo empieza</dt>
-                <dd>{resumenInicio ?? <span className="text-muted-foreground">Paso 4</span>}</dd>
-              </div>
-            </dl>
-          </TarjetaSistema>
+        <aside aria-label="Tu nueva temporada" className={cn(CLASE_SUPERFICIE, 'lg:sticky lg:top-22')}>
+          <h2 className="border-b border-border px-4 py-2.5 text-sm font-[650] text-foreground">Tu nueva temporada</h2>
+          <dl className="text-[13px] [&>div]:grid [&>div]:gap-0.5 [&>div]:px-4 [&>div]:py-2.5 [&>div+div]:border-t [&>div+div]:border-border">
+            <div>
+              <dt className={CLASE_TITULO_SECCION}>Temporada</dt>
+              <dd>
+                {destinoNombre || '—'}
+                <small className="block text-[13px] text-muted-foreground">
+                  {modo === 'nueva' ? `${rango(inicio, fin)} · En planificación, no activa` : existente ? `${rango(existente.fecha_inicio, existente.fecha_fin)} · ya en planificación` : ''}
+                </small>
+              </dd>
+            </div>
+            <div>
+              <dt className={CLASE_TITULO_SECCION}>Cierra</dt>
+              <dd>{alcanzado >= 2 ? (origen?.nombre ?? 'Ninguna') : <span className="text-muted-foreground">Paso 2</span>}</dd>
+            </div>
+            <div>
+              <dt className={CLASE_TITULO_SECCION}>Diagnóstico</dt>
+              <dd>
+                {alcanzado >= 3 && datosCierre ? (
+                  `${contar(datosCierre.diagnostico.grupos, 'grupo', 'grupos')} · ${contar(datosCierre.diagnostico.listosParaLiderar, 'listo', 'listos')} para liderar`
+                ) : (
+                  <span className="text-muted-foreground">{alcanzado >= 3 && !origen ? 'Sin temporada que cierre' : 'Paso 3'}</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className={CLASE_TITULO_SECCION}>Cómo empieza</dt>
+              <dd>{resumenInicio ?? <span className="text-muted-foreground">Paso 4</span>}</dd>
+            </div>
+          </dl>
         </aside>
       </div>
-    </PaginaSistema>
+    </MarcoPlanner>
   )
 }

@@ -17,6 +17,11 @@
  * unsaved changes a saved step cannot be undone: the board shows the draft
  * over the saved data, and undoing under it would mix both, so the panel
  * asks to save or discard them first (S24).
+ *
+ * Planning style (S25): the filters at the toolbar's 36px, each day under
+ * the 12px uppercase heading as one flat `rounded-md` surface of 13px rows
+ * (the actor's initials avatar, sentence, chips and time in 12px, "Deshacer"
+ * as a brand text action) split by light dividers.
  */
 import { useEffect, useId, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -27,13 +32,15 @@ import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { contar, type PasoHistorial, type SegmentoPlanner, type TemporadaPlanner } from '@/lib/platform/grupos-vida/planner'
 import { PASOS_RECIENTES, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
 import { cargarHistorialAction } from '@/app/(auth)/grupos-vida/planificar/actions'
+import { cn } from '@/lib/utils'
 
+import { AvatarIniciales } from './avatar-iniciales'
 import { EtiquetaPlanner } from './etiqueta'
+import { CLASE_ACCION_TEXTO, CLASE_CONTROL_COMPACTO, CLASE_FILA, CLASE_SUPERFICIE, CLASE_TITULO_SECCION } from './estilo-planner'
 import {
   FILTROS_HISTORIAL,
   agruparPorDia,
   filtrarPasos,
-  iniciales,
   opcionesDirector,
   opcionesSegmento,
   tiempoPaso,
@@ -93,12 +100,10 @@ function Fila({
   const yaDeshecho = paso.deshecho_por !== null || deshecho
   const meta = [paso.actor_id === usuarioId ? 'Tú' : null, tiempoPaso(paso.creado_en, ahora)].filter(Boolean).join(' · ')
   return (
-    <li className="flex min-w-0 items-start gap-3 border-b border-border py-3 last:border-b-0">
-      <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-        {iniciales(paso.actor_nombre)}
-      </span>
+    <li className={cn(CLASE_FILA, 'flex items-start gap-2.5 py-2.5 pr-1.5 pl-3')}>
+      <AvatarIniciales nombres={[paso.actor_nombre]} className="mt-px" />
       <div className="min-w-0 flex-1 space-y-1">
-        <p className={yaDeshecho ? 'break-words text-sm text-muted-foreground line-through' : 'break-words text-sm text-foreground'}>
+        <p className={yaDeshecho ? 'break-words text-muted-foreground line-through' : 'break-words text-foreground'}>
           <span className="font-semibold">{paso.actor_nombre}</span> {paso.descripcion}
         </p>
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -116,19 +121,18 @@ function Fila({
         )}
       </div>
       {!yaDeshecho && paso.puede_deshacer && (
-        <BotonSistema
+        <button
           type="button"
-          variante="ghost"
-          tamaño="sm"
           aria-label={`Deshacer: ${paso.descripcion}`}
           aria-disabled={bloqueado}
           aria-describedby={bloqueado ? idNota : undefined}
-          cargando={deshaciendo}
+          aria-busy={deshaciendo || undefined}
+          disabled={deshaciendo}
           onClick={() => !bloqueado && onDeshacer(paso)}
-          className="shrink-0"
+          className={cn(CLASE_ACCION_TEXTO, '-my-1 shrink-0 aria-disabled:cursor-not-allowed aria-disabled:opacity-50')}
         >
-          Deshacer
-        </BotonSistema>
+          {deshaciendo ? 'Deshaciendo…' : 'Deshacer'}
+        </button>
       )}
     </li>
   )
@@ -208,8 +212,20 @@ function Contenido(props: PanelHistorialProps): ReactElement {
       )}
 
       <div role="group" aria-label="Filtrar el historial" className="grid gap-2 @md:grid-cols-2">
-        <SelectSistema aria-label="Director" opciones={opcionesDirector(todos, usuarioId)} value={filtros.actor} onValueChange={(actor) => cambiar({ actor })} />
-        <SelectSistema aria-label="Segmento" opciones={opcionesSegmento(todos, segmentos)} value={filtros.segmento} onValueChange={(segmento) => cambiar({ segmento })} />
+        <SelectSistema
+          aria-label="Director"
+          className={CLASE_CONTROL_COMPACTO}
+          opciones={opcionesDirector(todos, usuarioId)}
+          value={filtros.actor}
+          onValueChange={(actor) => cambiar({ actor })}
+        />
+        <SelectSistema
+          aria-label="Segmento"
+          className={CLASE_CONTROL_COMPACTO}
+          opciones={opcionesSegmento(todos, segmentos)}
+          value={filtros.segmento}
+          onValueChange={(segmento) => cambiar({ segmento })}
+        />
         <div className="@md:col-span-2">
           <InputSistema
             type="search"
@@ -219,6 +235,7 @@ function Contenido(props: PanelHistorialProps): ReactElement {
             placeholder="Buscar persona, grupo o director"
             aria-label="Buscar en el historial"
             autoComplete="off"
+            className={CLASE_CONTROL_COMPACTO}
           />
         </div>
       </div>
@@ -244,9 +261,9 @@ function Contenido(props: PanelHistorialProps): ReactElement {
       ) : (
         <section aria-label="Pasos guardados" className="space-y-4">
           {dias.map((dia) => (
-            <div key={dia.titulo}>
-              <h3 className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">{dia.titulo}</h3>
-              <ul aria-label={`Pasos de ${dia.titulo}`}>
+            <div key={dia.titulo} className="space-y-1.5">
+              <h3 className={CLASE_TITULO_SECCION}>{dia.titulo}</h3>
+              <ul aria-label={`Pasos de ${dia.titulo}`} className={CLASE_SUPERFICIE}>
                 {dia.pasos.map((paso) => (
                   <Fila
                     key={paso.paso_id}
