@@ -13,6 +13,7 @@
  * `PaginaSistema` page of the other Niños v2 screen (check-in): breadcrumbs,
  * hero with the summary, then the list and the detail as two columns from lg.
  * URL: ?campus (router.push, new data) and ?evento (history.replaceState).
+ * The Eventos · Salones tabs lead to /ninos/salones (T1d) with the campus.
  */
 import { useRouter } from 'next/navigation'
 import { useMemo, useState, type ReactElement } from 'react'
@@ -20,6 +21,7 @@ import { CalendarClock, CalendarX, Plus } from 'lucide-react'
 
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
+import { PestanasAdmin } from '@/components/ninos/salones/pestanas-admin'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { BotonSistema, PaginaSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
@@ -300,6 +302,8 @@ export function EventosClient({
           </div>
         )}
       </div>
+
+      <PestanasAdmin actual="eventos" campusId={campusId} />
 
       {!puedeEditar && campus.length > 0 && !errorLectura && (
         <AvisoFormulario tono="info">

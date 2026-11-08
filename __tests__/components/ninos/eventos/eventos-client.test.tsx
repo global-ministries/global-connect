@@ -172,6 +172,13 @@ describe('reading', () => {
     expect(screen.getByText('Todavía no hay sesiones')).toBeInTheDocument()
   })
 
+  it('links to the Salones tab with the campus (T1d)', () => {
+    pintar()
+    const tabs = screen.getByRole('navigation', { name: 'Administración del check-in' })
+    expect(within(tabs).getByRole('link', { name: 'Eventos' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('link', { name: 'Salones' })).toHaveAttribute('href', `/ninos/salones?campus=${CAMPUS}`)
+  })
+
   it('shows the HINT when the events cannot be read', () => {
     pintar({ eventos: [], errorLectura: 'No tienes permiso para ver los eventos de Niños de este campus.' })
     expect(screen.getByText('No se pudieron cargar los eventos')).toBeInTheDocument()

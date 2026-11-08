@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils'
 
 import type { EstadoGuardado } from './use-guardado'
 
-export function MigasEventos(): ReactElement {
+/** "Niños / Eventos"; the Salones screen passes its own page. */
+export function MigasEventos({ actual = 'Eventos' }: { readonly actual?: string }): ReactElement {
   return (
     <nav aria-label="Ubicación">
       <ol className="flex min-w-0 flex-wrap items-center gap-0.5 text-sm">
@@ -22,7 +23,7 @@ export function MigasEventos(): ReactElement {
             /
           </span>
           <span aria-current="page" className="truncate px-2 py-1.5 font-semibold text-foreground">
-            Eventos
+            {actual}
           </span>
         </li>
       </ol>
@@ -31,14 +32,22 @@ export function MigasEventos(): ReactElement {
 }
 
 /** Title and summary: the 24px `h1` from md, the large title on phones. */
-export function EncabezadoEventos({ resumen }: { readonly resumen: ReactNode }): ReactElement {
+export function EncabezadoEventos({
+  resumen,
+  titulo = 'Eventos de check-in',
+  testId = 'resumen-eventos',
+}: {
+  readonly resumen: ReactNode
+  readonly titulo?: string
+  readonly testId?: string
+}): ReactElement {
   return (
-    <div data-testid="resumen-eventos" className="min-w-0">
+    <div data-testid={testId} className="min-w-0">
       <div className="md:hidden">
-        <TituloGrande titulo="Eventos de check-in" resumen={resumen} />
+        <TituloGrande titulo={titulo} resumen={resumen} />
       </div>
       <div className="hidden min-w-0 md:block">
-        <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">Eventos de check-in</h1>
+        <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">{titulo}</h1>
         <p className="mt-1.5 text-[15px] text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">{resumen}</p>
       </div>
     </div>
