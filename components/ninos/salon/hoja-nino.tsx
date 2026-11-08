@@ -5,7 +5,8 @@
  * S9.4; artboard design/ninos-checkin-pco/06-salon-celular.html, B). One
  * `DetalleResponsivo` per child:
  *  - Aquí: the alerts (as the list), «Mover a otro salón» (one step: the
- *    destinations open under it and a tap moves; same code) and «Retirar»,
+ *    destinations open under it and a tap moves; same code; T2f, S9.5: only
+ *    the salones that correspond to the child's age or grade) and «Retirar»,
  *    which hands over to the pickup by code of this screen (RetiroPanel).
  *  - Esperado: who sent the notice and «Llegó al salón» (S9.4), for whoever
  *    sees the salón (L32: coordinators, Líderes, Anfitriones).
@@ -21,6 +22,7 @@ import type { Servicio } from '@/lib/platform/ninos/checkin'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import { alertasDeLista, edadOGrado, type FilaLista } from '@/lib/platform/ninos/salon'
 import {
+  destinosDelNino,
   moverDeSalon,
   registrarLlegada,
   textoDestino,
@@ -151,6 +153,7 @@ export function HojaNino({ seleccion, onCerrar, servicio, salonId, estado, puede
   }
   const movimiento =
     seleccion?.tipo === 'aqui' ? [...estado.movimientos].reverse().find((m) => m.ninoId === seleccion.fila.nino_id && m.haciaId === salonId) : undefined
+  const destinos = seleccion?.tipo === 'aqui' ? destinosDelNino(estado, seleccion.fila.nino_id) : []
 
   return (
     <DetalleResponsivo abierto={seleccion !== null} onCambioAbierto={(a) => !a && cerrar()} titulo={titulo} descripcion={descripcion || undefined}>
@@ -174,10 +177,14 @@ export function HojaNino({ seleccion, onCerrar, servicio, salonId, estado, puede
                       />
                       {abreMover && (
                         <div role="group" aria-label="Salones disponibles" className="grid gap-1.5 pl-2">
-                          {estado.destinos.length === 0 && (
-                            <p className="text-sm text-muted-foreground">No hay otro salón de este campus al que puedas moverlo.</p>
+                          {destinos.length === 0 && (
+                            <p className="text-sm text-muted-foreground">
+                              {estado.destinos.length === 0
+                                ? 'No hay otro salón de este campus al que puedas moverlo.'
+                                : 'No hay otro salón para su edad o grado.'}
+                            </p>
                           )}
-                          {estado.destinos.map((d) => {
+                          {destinos.map((d) => {
                             const lleno = d.capacidad !== null && d.ocupados >= d.capacidad
                             return (
                               <button

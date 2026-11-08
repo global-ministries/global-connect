@@ -11,7 +11,10 @@
  *    (puede_llegar: whoever sees the salón, L32 — coordinators, Líderes and
  *    Anfitriones; not a volunteer who only has the salón in the planilla).
  *  - ninos_mover_salon: the child changes salón in one step; same code and
- *    visit, audited.
+ *    visit, audited. T2f (S9.5, 20261108160000_ninos_mover_corresponde.sql):
+ *    only to a salón that corresponds to the child's age or grade
+ *    (salon_no_corresponde otherwise); ninos_salon_estado answers, per child
+ *    inside, the destinations that correspond (destinos_por_nino).
  *  - ninos_checkin_desde_salon: «Llegó» for an Esperado (S9.4); the code is
  *    issued like at the desk and the parent's phone reads «Ingresó».
  * They are not in the generated types yet, so this file reads their JSON by
@@ -78,6 +81,11 @@ export interface EstadoSalon {
   readonly retirados: readonly FilaRetirado[]
   readonly movimientos: readonly MovimientoSalon[]
   readonly destinos: readonly DestinoSalon[]
+  /**
+   * Per child inside, the ids of the destinos that correspond to their age or
+   * grade (S9.5). Null when the answer does not carry it (before T2f).
+   */
+  readonly destinosPorNino: Readonly<Record<string, readonly string[]>> | null
 }
 
 type Fila = Record<string, unknown>
@@ -153,6 +161,11 @@ function leerDestino(f: unknown): DestinoSalon | null {
 
 const sinNulos = <T>(xs: readonly (T | null)[]): T[] => xs.filter((x): x is T => x !== null)
 
+function leerDestinosPorNino(x: unknown): Record<string, string[]> | null {
+  if (!esFila(x)) return null
+  return Object.fromEntries(Object.entries(x).map(([ninoId, ids]) => [ninoId, sinNulos(lista(ids).map(texto))]))
+}
+
 /** The JSON of ninos_salon_estado; null when it is not that object. */
 export function leerEstadoSalon(raw: unknown): EstadoSalon | null {
   if (!esFila(raw)) return null
@@ -166,7 +179,20 @@ export function leerEstadoSalon(raw: unknown): EstadoSalon | null {
     retirados: sinNulos(lista(raw.retirados).map(leerRetirado)),
     movimientos: sinNulos(lista(raw.movimientos).map(leerMovimiento)),
     destinos: sinNulos(lista(raw.destinos).map(leerDestino)),
+    destinosPorNino: leerDestinosPorNino(raw.destinos_por_nino),
   }
+}
+
+/**
+ * The destinos a child inside may be moved to: only those that correspond to
+ * their age or grade (S9.5), in the order of `destinos`. Without
+ * destinos_por_nino every destino; ninos_mover_salon still refuses one that
+ * does not correspond.
+ */
+export function destinosDelNino(e: Pick<EstadoSalon, 'destinos' | 'destinosPorNino'>, ninoId: string): DestinoSalon[] {
+  if (!e.destinosPorNino) return [...e.destinos]
+  const ids = new Set(e.destinosPorNino[ninoId] ?? [])
+  return e.destinos.filter((d) => ids.has(d.id))
 }
 
 /** Esperados · Aquí · Retirados with their counts (Aquí from the live list). */

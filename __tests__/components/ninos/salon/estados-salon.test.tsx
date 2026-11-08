@@ -2,7 +2,8 @@
  * Niños › Salón, Esperados / Aquí / Retirados (odd/tasks/ninos-checkin-pco.md,
  * T2b, S6, S9.4; artboard 06-salon-celular): the tabs with counts, the child
  * sheet (alerts, «Mover a otro salón» in one step, «Retirar» with the pickup
- * by code) and «Llegó al salón» for an Esperado.
+ * by code) and «Llegó al salón» for an Esperado. T2f (S9.5): «Mover» lists
+ * only the salones that correspond to the child's age or grade.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
@@ -131,6 +132,46 @@ describe('SalonClient · Esperados / Aquí / Retirados', () => {
     expect(await screen.findByText('Luis Pérez ahora está en Sala B. Su código 4821 sigue sirviendo.')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(llamadas('ninos_lista_salon').length).toBeGreaterThan(antes)
+  })
+
+  it('«Mover a otro salón» lists only the salones that correspond to the child (S9.5)', async () => {
+    responder({
+      estado: estado({
+        destinos: [
+          { id: 's2', nombre: 'Sala B', capacidad: 18, ocupados: 12, abierto: true },
+          { id: 's3', nombre: 'Preescolar', capacidad: 20, ocupados: 4, abierto: true },
+        ],
+        destinos_por_nino: { n1: ['s2'] },
+      }),
+    })
+    renderSalon()
+    fireEvent.click(within(await screen.findByTestId('fila-n1')).getByRole('button', { name: 'Abrir Luis Pérez' }))
+    const hoja = await screen.findByRole('dialog')
+    fireEvent.click(within(hoja).getByRole('button', { name: /Mover a otro salón/ }))
+    const grupo = within(hoja).getByRole('group', { name: 'Salones disponibles' })
+    expect(within(grupo).getByRole('button', { name: /Sala B/ })).toBeInTheDocument()
+    expect(within(grupo).queryByRole('button', { name: /Preescolar/ })).not.toBeInTheDocument()
+  })
+
+  it('when no other salón corresponds the sheet says so and offers none (S9.5)', async () => {
+    responder({ estado: estado({ destinos_por_nino: { n1: [] } }) })
+    renderSalon()
+    fireEvent.click(within(await screen.findByTestId('fila-n1')).getByRole('button', { name: 'Abrir Luis Pérez' }))
+    const hoja = await screen.findByRole('dialog')
+    fireEvent.click(within(hoja).getByRole('button', { name: /Mover a otro salón/ }))
+    const grupo = within(hoja).getByRole('group', { name: 'Salones disponibles' })
+    expect(within(grupo).getByText('No hay otro salón para su edad o grado.')).toBeInTheDocument()
+    expect(within(grupo).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('a move refused because the salón does not correspond shows the reason', async () => {
+    responder({ mover: { data: null, error: { message: 'salon_no_corresponde', hint: 'Ese salón no corresponde a la edad o el grado del niño.' } } })
+    renderSalon()
+    fireEvent.click(within(await screen.findByTestId('fila-n1')).getByRole('button', { name: 'Abrir Luis Pérez' }))
+    const hoja = await screen.findByRole('dialog')
+    fireEvent.click(within(hoja).getByRole('button', { name: /Mover a otro salón/ }))
+    fireEvent.click(within(hoja).getByRole('button', { name: /Sala B/ }))
+    expect(await within(hoja).findByRole('alert')).toHaveTextContent('Ese salón no corresponde a la edad o el grado del niño.')
   })
 
   it('a refused move keeps the sheet open with the reason', async () => {

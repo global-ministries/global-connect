@@ -2,9 +2,12 @@
  * Niños › Salón, Esperados / Aquí / Retirados (odd/tasks/ninos-checkin-pco.md,
  * T2b, S6, S9.4): reading ninos_salon_estado, the tabs, the texts of the
  * rows and the two writes (move to another salón, «Llegó» from the salón).
+ * T2f (S9.5): the destinations of each child, only the salones that
+ * correspond to their age or grade.
  */
 import {
   cargarEstadoSalon,
+  destinosDelNino,
   leerEstadoSalon,
   mensajeErrorEstado,
   moverDeSalon,
@@ -41,6 +44,7 @@ const crudo = {
     { id: 's2', nombre: 'Sala B', capacidad: 18, ocupados: 12, abierto: true, edad_min_meses: 36, edad_max_meses: 59, grado_min: null, grado_max: null },
     { id: 's3', nombre: 'Sala C', capacidad: 10, ocupados: 10, abierto: false, edad_min_meses: null, edad_max_meses: null, grado_min: 1, grado_max: 2 },
   ],
+  destinos_por_nino: { n31: ['s3', 's2'], n27: [], n40: 'malo', n41: ['s2', 7, 's9'] },
 }
 
 describe('leerEstadoSalon', () => {
@@ -61,6 +65,7 @@ describe('leerEstadoSalon', () => {
       ['s2', 12, 18, true],
       ['s3', 10, 10, false],
     ])
+    expect(e?.destinosPorNino).toEqual({ n31: ['s3', 's2'], n27: [], n40: [], n41: ['s2', 's9'] })
   })
 
   it('is null for anything that is not the object', () => {
@@ -72,7 +77,27 @@ describe('leerEstadoSalon', () => {
   it('missing lists read as empty and missing permissions as false', () => {
     expect(leerEstadoSalon({ salon_id: 's1' })).toEqual({
       salonId: 's1', puedeOperar: false, puedeLlegar: false, esperados: [], retirados: [], movimientos: [], destinos: [],
+      destinosPorNino: null,
     })
+  })
+})
+
+describe('destinosDelNino (T2f, S9.5)', () => {
+  const e = leerEstadoSalon(crudo)!
+
+  it('only the destinos that correspond to the child, in the order of destinos', () => {
+    expect(destinosDelNino(e, 'n31').map((d) => d.id)).toEqual(['s2', 's3'])
+    expect(destinosDelNino(e, 'n41').map((d) => d.id)).toEqual(['s2'])
+  })
+
+  it('none when no destino corresponds or the child is not in the list', () => {
+    expect(destinosDelNino(e, 'n27')).toEqual([])
+    expect(destinosDelNino(e, 'n99')).toEqual([])
+  })
+
+  it('without destinos_por_nino (an older answer) every destino; the server still refuses one that does not correspond', () => {
+    const viejo = leerEstadoSalon({ ...crudo, destinos_por_nino: undefined })!
+    expect(destinosDelNino(viejo, 'n31').map((d) => d.id)).toEqual(['s2', 's3'])
   })
 })
 
