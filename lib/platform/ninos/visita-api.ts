@@ -14,7 +14,15 @@ const esObjeto = (v: unknown): v is Objeto => typeof v === 'object' && v !== nul
 const esUuids = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string' && UUID.test(x))
 
 export type EntradaCheckin = { ninoIds: string[]; salonIds: string[]; turnoId: string; fecha: string }
-export type EntradaCheckout = { codigo: string; turnoId: string; fecha: string; retiradoPor: string; motivoOtra: string | null }
+/** ninoIds only when the door marked some of the code's children (T2a); absent = the whole code. */
+export type EntradaCheckout = {
+  codigo: string
+  turnoId: string
+  fecha: string
+  retiradoPor: string
+  motivoOtra: string | null
+  ninoIds?: string[]
+}
 
 function servicio(o: Objeto): { turnoId: string; fecha: string } | null {
   const { turnoId, fecha } = o
@@ -39,11 +47,17 @@ export function parseCheckout(body: unknown): EntradaCheckout | null {
   // "Otra persona" (someone outside the child's list) travels with a reason.
   const motivoOtra = typeof body.motivoOtra === 'string' ? body.motivoOtra.trim() : ''
   if (!s || !/^\d{3,4}$/.test(codigo) || !retiradoPor || retiradoPor.length > 200 || motivoOtra.length > 300) return null
-  return { codigo, retiradoPor, motivoOtra: motivoOtra || null, ...s }
+  const entrada: EntradaCheckout = { codigo, retiradoPor, motivoOtra: motivoOtra || null, ...s }
+  // Pickup per child: absent or null keeps the whole code (as before).
+  if (body.ninoIds === undefined || body.ninoIds === null) return entrada
+  if (!esUuids(body.ninoIds)) return null
+  const ninoIds = [...new Set(body.ninoIds)]
+  if (ninoIds.length === 0 || ninoIds.length > MAX_NINOS) return null
+  return { ...entrada, ninoIds }
 }
 
 /** RPC messages that are fixed codes (never data), safe to send to the screen. */
-const MENSAJES_PUBLICOS = new Set(['retiro_no_autorizado'])
+const MENSAJES_PUBLICOS = new Set(['retiro_no_autorizado', 'nino_no_esta_adentro', 'sin_ninos'])
 
 export function errorPublico(error: { code?: string; message?: string }): { code?: string; message?: string } {
   const message = (error.message ?? '').trim()

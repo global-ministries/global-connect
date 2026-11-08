@@ -1,9 +1,11 @@
 /**
  * POST /api/ninos/checkout — N5 check-out moved behind a route for N9 emails.
  *
- * { codigo, turnoId, fecha, retiradoPor, motivoOtra? } → { filas } (children
- * released). Without motivoOtra the database requires retiradoPor to be on
- * the list of every child (ninos_checkout, 20261012130100).
+ * { codigo, turnoId, fecha, retiradoPor, motivoOtra?, ninoIds? } → { filas }
+ * (children released). Without ninoIds every child inside with the code
+ * leaves; with them, only those (T2a, 20261108120000). Without motivoOtra
+ * the database requires retiradoPor to be on the list of every child
+ * released (ninos_checkout, 20261012130100).
  * The RPC runs AS THE USER (authority in SQL); then one email per family
  * visit to the parents with an email (best effort, never fails the call).
  */
@@ -29,6 +31,7 @@ export async function POST(req: NextRequest) {
       p_fecha: e.fecha,
       p_retirado_por: e.retiradoPor,
       p_motivo_otra: e.motivoOtra,
+      ...(e.ninoIds ? { p_nino_ids: e.ninoIds } : {}),
     })
     if (error) return NextResponse.json({ error: errorPublico(error) }, { status: statusDeError(error.code) })
 

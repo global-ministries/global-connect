@@ -27,5 +27,7 @@ export const registrarRetiroApi = (body: {
   fecha: string
   retiradoPor: string
   motivoOtra: string | null
+  /** Only the marked children (T2a); omitted = every child inside with the code. */
+  ninoIds?: string[]
 }) =>
   postear<{ nino_id: string; salon_id: string; salida_at: string }>('/api/ninos/checkout', body)

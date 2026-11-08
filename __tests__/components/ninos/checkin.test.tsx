@@ -306,8 +306,8 @@ describe('CheckinClient', () => {
     expect(retiro).toHaveAttribute('aria-pressed', 'false')
     fireEvent.click(retiro)
     expect(retiro).toHaveAttribute('aria-pressed', 'true')
+    // The code searches by itself at its 4th digit (T2a).
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
   }
 
   it('has a Retiro tab that looks up a code and confirms who picks up from the list', async () => {
@@ -324,18 +324,18 @@ describe('CheckinClient', () => {
     expect(rpc).toHaveBeenCalledWith('ninos_buscar_codigo', { p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11' })
     expect(rpc).toHaveBeenCalledWith('ninos_retiro_opciones', { p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11' })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Elige quién retira al niño.')
     expect(llamadaRuta('ninos_checkout')).toBeUndefined()
 
     fireEvent.click(screen.getByRole('radio', { name: /Abuela Rosa/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar a Luis · con Abuela' }))
     await waitFor(() =>
       expect(llamadaRuta('ninos_checkout')).toEqual({
         p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Abuela Rosa', p_motivo_otra: null,
       }),
     )
-    expect(await screen.findByText(/Retiro registrado/)).toBeInTheDocument()
+    expect(await screen.findByText(/Retirado por Abuela Rosa/)).toBeInTheDocument()
   })
 
   it('"Otra persona" needs a name and a reason, and sends both', async () => {
@@ -347,11 +347,11 @@ describe('CheckinClient', () => {
     await buscarCodigo()
     fireEvent.click(await screen.findByRole('radio', { name: 'Otra persona' }))
     fireEvent.change(screen.getByLabelText('Nombre de quien retira'), { target: { value: 'Carla Gómez' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar a Luis · con Carla' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Escribe por qué retira una persona que no está en la lista.')
 
     fireEvent.change(screen.getByLabelText('Motivo'), { target: { value: 'La mamá avisó por teléfono' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar a Luis · con Carla' }))
     await waitFor(() =>
       expect(llamadaRuta('ninos_checkout')).toEqual({
         p_codigo: '4821', p_turno_id: 't9', p_fecha: '2026-10-11', p_retirado_por: 'Carla Gómez', p_motivo_otra: 'La mamá avisó por teléfono',
@@ -375,7 +375,6 @@ describe('CheckinClient', () => {
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     fireEvent.click(screen.getByRole('button', { name: 'Retiro' }))
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '9999' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('No hay niños con el código 9999 en este servicio.')
   })
 
@@ -394,9 +393,8 @@ describe('CheckinClient', () => {
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     fireEvent.click(screen.getByRole('button', { name: 'Retiro' }))
     fireEvent.change(screen.getByLabelText('Código de seguridad'), { target: { value: '4821' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Buscar' }))
-    expect(await screen.findByText(/Retirado a las 10:42 por Ana/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Confirmar retiro' })).not.toBeInTheDocument()
+    expect(await screen.findByText('Salió 10:42 con Ana')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Retirar/ })).not.toBeInTheDocument()
   })
 })
 
