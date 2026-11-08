@@ -4,7 +4,7 @@
  * (resolverDpsAcceso, fails closed), and the attendance rule of the "DPS"
  * menu section (components/dps/dps-menu-item.ts).
  */
-import { puedeAbrirAsistenciaDps, resolverDpsAcceso, SIN_ACCESO_DPS } from '@/lib/platform/dps/acceso'
+import { puedeAbrirAsistenciaDps, resolverDpsAcceso, rutaInicioDps, SIN_ACCESO_DPS } from '@/lib/platform/dps/acceso'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 const sesion = (capabilities: PlatformSession['capabilities'] = []): PlatformSession => ({
@@ -36,6 +36,19 @@ describe('puedeAbrirAsistenciaDps', () => {
   it('is false without a session', () => {
     expect(puedeAbrirAsistenciaDps(null, { ver: true, planificar: true })).toBe(false)
     expect(puedeAbrirAsistenciaDps(undefined, { ver: true, planificar: true })).toBe(false)
+  })
+})
+
+// T10: /dps opens the plan for planners, the attendance for whoever passes it, else the plan.
+describe('rutaInicioDps', () => {
+  it('planners go to the plan; attendance takers to the attendance; everyone else to the plan', () => {
+    expect(rutaInicioDps(sesion(), { ver: true, planificar: true })).toBe('/dps/plan')
+    expect(rutaInicioDps(sesion([cap('dream_team.coordinate')]), { ver: true, planificar: true })).toBe('/dps/plan')
+    expect(rutaInicioDps(sesion([cap('dream_team.coordinate')]), { ver: true, planificar: false })).toBe('/dps/asistencia')
+    expect(rutaInicioDps(sesion([cap('dream_team.direct')]), { ver: true, planificar: false })).toBe('/dps/asistencia')
+    expect(rutaInicioDps(sesion(), { ver: true, planificar: false })).toBe('/dps/plan')
+    expect(rutaInicioDps(null, { ver: true, planificar: false })).toBe('/dps/plan')
+    expect(rutaInicioDps(null, SIN_ACCESO_DPS)).toBe('/dps/plan')
   })
 })
 

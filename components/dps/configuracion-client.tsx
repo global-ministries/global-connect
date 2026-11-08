@@ -16,7 +16,8 @@
  * configurator writes (L17). Nobody can tell in advance without a new RPC,
  * so the screen starts editable and the first 'sin_autoridad' turns it
  * read-only, undoing that change. Planner and team changes are applied at
- * once and rolled back on failure.
+ * once and rolled back on failure. The page column is `relative` so `sr-only`
+ * text cannot stretch the document under the shell (L34, see plan-client.tsx).
  */
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { Plus, Search, Settings2, X } from 'lucide-react'
@@ -196,7 +197,7 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
 
   if (!config) {
     return (
-      <PaginaSistema breadcrumbs={migas}>
+      <PaginaSistema breadcrumbs={migas} className="relative">
         {encabezado}
         <EstadoVacioSistema icono={Settings2} titulo="No se pudo cargar la configuración" subtitulo={error ?? 'Actualiza la página.'} />
       </PaginaSistema>
@@ -204,7 +205,7 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
   }
 
   return (
-    <PaginaSistema breadcrumbs={migas} className="pb-28 md:pb-0">
+    <PaginaSistema breadcrumbs={migas} className="relative pb-28 md:pb-0">
       {encabezado}
 
       {soloLectura && (

@@ -160,6 +160,16 @@ describe('AsistenciaClient', () => {
     expect(within(equipo('Audio')).queryByText('Bruno Díaz')).not.toBeInTheDocument()
   })
 
+  it('sticks the team headers to the page scroll without gaps and keeps sr-only text in the page (L34)', () => {
+    render(<AsistenciaClient {...props()} />)
+    const cabecera = within(equipo('Audio')).getByRole('button', { name: /^Audio/ }).closest('.sticky')
+    expect(cabecera).toHaveClass('top-0', 'md:top-16')
+    // overflow-hidden would make the list a scroll container and the headers would not stick on desktop.
+    expect(equipo('Audio').parentElement).toHaveClass('md:overflow-clip')
+    expect(equipo('Audio').parentElement).not.toHaveClass('md:overflow-hidden')
+    expect(screen.getByTestId('aviso-cambio').closest('.relative')).not.toBeNull()
+  })
+
   it('marks "Llegó" on tap in every team of the person and says it is saved', async () => {
     render(<AsistenciaClient {...props()} />)
     await userEvent.click(filtro(/^Todos/))
