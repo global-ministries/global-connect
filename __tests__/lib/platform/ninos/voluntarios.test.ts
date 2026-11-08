@@ -216,3 +216,59 @@ describe('messages and URL', () => {
     expect(urlVoluntarios({ turnoId: null, fecha: '2026-10-04' }, null)).toBe('/ninos/voluntarios?fecha=2026-10-04')
   })
 })
+
+// T1b, S8.1: a dated turno ('fechas') of a Niños event serves on its planned dates.
+describe('turnos por fechas', () => {
+  const campamento: TurnoVoluntarios = {
+    id: 'tc',
+    nombre: 'Campamento 9:00',
+    hora: '09:00:00',
+    orden: 5,
+    dia_semana: 0,
+    campus_id: 'c1',
+    campus: 'Campus Uno',
+    tipo: 'fechas',
+    fechas: ['2026-10-03', '2026-10-07', '2026-10-21'],
+  }
+  const mezcla = [...turnos, campamento]
+
+  it('reads tipo and the planned dates, weekly turnos stay weekly', () => {
+    const [semanal, fechado] = leerTurnosVoluntarios([
+      { ...turnos[1], tipo: 'semanal', fechas: null },
+      { ...campamento, fechas: ['2026-10-03', 'x', '2026-10-07'] },
+    ])
+    expect(semanal).toMatchObject({ tipo: 'semanal', fechas: [] })
+    expect(fechado).toMatchObject({ tipo: 'fechas', fechas: ['2026-10-03', '2026-10-07'] })
+    expect(leerTurnosVoluntarios([{ ...turnos[1], tipo: 'otro' }])[0]).toMatchObject({ tipo: 'semanal', fechas: [] })
+  })
+
+  it('defaults a dated turno to its latest planned date up to today', () => {
+    expect(resolverServicioVoluntarios({ turno: 'tc' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tc', fecha: '2026-10-07' })
+    expect(resolverServicioVoluntarios({ turno: 'tc' }, mezcla, '2026-10-07')).toEqual({ turnoId: 'tc', fecha: '2026-10-07' })
+  })
+
+  it('keeps an explicit date only when it is planned', () => {
+    expect(resolverServicioVoluntarios({ turno: 'tc', fecha: '2026-10-03' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tc', fecha: '2026-10-03' })
+    expect(resolverServicioVoluntarios({ turno: 'tc', fecha: '2026-10-21' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tc', fecha: '2026-10-21' })
+    expect(resolverServicioVoluntarios({ turno: 'tc', fecha: '2026-10-04' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tc', fecha: '2026-10-07' })
+  })
+
+  it('opens the next planned date when none has passed, and today without dates', () => {
+    expect(resolverServicioVoluntarios({ turno: 'tc' }, mezcla, '2026-10-01')).toEqual({ turnoId: 'tc', fecha: '2026-10-03' })
+    const sinFechas = [{ ...campamento, fechas: [] }]
+    expect(resolverServicioVoluntarios({ turno: 'tc' }, sinFechas, '2026-10-01')).toEqual({ turnoId: 'tc', fecha: '2026-10-01' })
+  })
+
+  it('moves the date to a planned one after picking a dated turno', () => {
+    expect(ajustarFecha({ turnoId: 'tc', fecha: '2026-10-04' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tc', fecha: '2026-10-07' })
+    expect(ajustarFecha({ turnoId: 'tc', fecha: '2026-10-03' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tc', fecha: '2026-10-03' })
+  })
+
+  it('weekly turnos keep their weekday rules next to a dated one', () => {
+    expect(resolverServicioVoluntarios({}, mezcla, '2026-10-10')).toEqual({ turnoId: 't9', fecha: '2026-10-04' })
+    expect(resolverServicioVoluntarios({ turno: 't9' }, mezcla, '2026-10-10')).toEqual({ turnoId: 't9', fecha: '2026-10-04' })
+    expect(resolverServicioVoluntarios({ turno: 't11', fecha: '2026-09-27' }, mezcla, '2026-10-10')).toEqual({ turnoId: 't11', fecha: '2026-09-27' })
+    expect(ajustarFecha({ turnoId: 'tm', fecha: '2026-10-04' }, mezcla, '2026-10-10')).toEqual({ turnoId: 'tm', fecha: '2026-10-07' })
+    expect(ajustarFecha({ turnoId: 't11', fecha: '2026-09-27' }, mezcla, '2026-10-10')).toEqual({ turnoId: 't11', fecha: '2026-09-27' })
+  })
+})

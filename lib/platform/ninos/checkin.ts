@@ -7,31 +7,36 @@ import { fechaServicioPorDefecto } from './fecha'
 
 export { fechaServicioPorDefecto }
 
-/** A dream_team_turnos row as selected by the screen. */
-export type TurnoFila = { id: string; nombre: string; hora: string; orden: number }
+/**
+ * A dream_team_turnos row as selected by the screen. `tipo: 'fechas'` marks a
+ * dated turno of a Niños event (T1b, S8.1); the Sunday turnos carry no tipo.
+ */
+export type TurnoFila = { id: string; nombre: string; hora: string; orden: number; tipo?: 'semanal' | 'fechas' }
 
 export type Servicio = { turnoId: string | null; fecha: string }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
-function esFechaValida(value: string | undefined): value is string {
+export function esFechaValida(value: string | undefined): value is string {
   if (!value || !ISO_DATE.test(value)) return false
   const d = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value
 }
 
-/** The service from the query (?turno=&fecha=), falling back to defaults. */
+/**
+ * The service from the query (?turno=&fecha=), falling back to defaults. Off
+ * Sunday the default turno is a dated one when listed: the event of that day.
+ */
 export function resolverServicio(
   query: { turno?: string; fecha?: string },
   turnos: readonly TurnoFila[],
   hoy: string,
 ): Servicio {
   const ordenados = [...turnos].sort((a, b) => a.orden - b.orden || a.hora.localeCompare(b.hora))
-  const turno = ordenados.find((t) => t.id === query.turno) ?? ordenados[0] ?? null
-  return {
-    turnoId: turno?.id ?? null,
-    fecha: esFechaValida(query.fecha) ? query.fecha : fechaServicioPorDefecto(hoy),
-  }
+  const fecha = esFechaValida(query.fecha) ? query.fecha : fechaServicioPorDefecto(hoy)
+  const delDia = new Date(`${fecha}T00:00:00Z`).getUTCDay() === 0 ? undefined : ordenados.find((t) => t.tipo === 'fechas')
+  const turno = ordenados.find((t) => t.id === query.turno) ?? delDia ?? ordenados[0] ?? null
+  return { turnoId: turno?.id ?? null, fecha }
 }
 
 export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string }

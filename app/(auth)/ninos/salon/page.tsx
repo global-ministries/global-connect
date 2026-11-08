@@ -6,13 +6,16 @@
  * room picker only lists rooms RLS lets the caller see (ninos_puede_ver_salon).
  * Check-out is shown only to ninos_puede_operar_algun_area(); the RPC still
  * checks each room. Everyone else gets a 404. Query: ?turno=&fecha=&salon=.
+ * The services are the Sunday turnos plus the Niños events planned that day
+ * (cargarTurnosDelServicio).
  */
 import { notFound } from 'next/navigation'
 
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { SalonClient } from '@/components/ninos/salon-client'
-import { resolverServicio, type TurnoFila } from '@/lib/platform/ninos/checkin'
+import { resolverServicio } from '@/lib/platform/ninos/checkin'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import { cargarTurnosDelServicio } from '@/lib/platform/ninos/turnos-servicio'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Salones — Niños' }
@@ -38,20 +41,9 @@ export default async function NinosSalonPage({ searchParams }: Props) {
 
   const lista = salones ?? []
   const campus = [...new Set(lista.map((s) => s.campus_id))]
-  const { data: turnos } = campus.length
-    ? await supabase
-        .from('dream_team_turnos')
-        .select('id, nombre, hora, orden')
-        .in('campus_id', campus)
-        .eq('activo', true)
-        .eq('dia_semana', 0)
-        // Dated Dream Team shifts (The Living Room) never reach Niños (S5, 20261026140000).
-        .eq('tipo', 'semanal')
-        .order('orden')
-    : { data: [] as TurnoFila[] }
-
-  const listaTurnos = (turnos ?? []) as TurnoFila[]
-  const servicio = resolverServicio({ turno: query.turno, fecha: query.fecha }, listaTurnos, hoyEnCaracas())
+  const hoy = hoyEnCaracas()
+  const { turnos: listaTurnos, fecha } = await cargarTurnosDelServicio(supabase, campus, query.fecha, hoy)
+  const servicio = resolverServicio({ turno: query.turno, fecha }, listaTurnos, hoy)
   const salonId = lista.find((s) => s.id === query.salon)?.id ?? lista[0]?.id ?? null
 
   return (

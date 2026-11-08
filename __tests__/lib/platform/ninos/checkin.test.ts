@@ -36,6 +36,23 @@ describe('resolverServicio', () => {
   })
 })
 
+// T1b, S8.1: a dated turno is only listed on a date it happens.
+describe('resolverServicio with a dated turno', () => {
+  const evento: TurnoFila = { id: 'te', nombre: 'Campamento 18:00', hora: '18:00:00', orden: 9, tipo: 'fechas' }
+  const mezcla = [...turnos, evento]
+
+  it('opens the dated turno on a weekday when no turno is asked for', () => {
+    expect(resolverServicio({ fecha: '2026-10-07' }, mezcla, '2026-10-07')).toEqual({ turnoId: 'te', fecha: '2026-10-07' })
+  })
+  it('keeps the asked turno and the Sunday order', () => {
+    expect(resolverServicio({ turno: 't11', fecha: '2026-10-07' }, mezcla, '2026-10-07')).toEqual({ turnoId: 't11', fecha: '2026-10-07' })
+    expect(resolverServicio({ fecha: '2026-10-11' }, mezcla, '2026-10-07')).toEqual({ turnoId: 't9', fecha: '2026-10-11' })
+  })
+  it('weekly turnos alone keep the first by orden on any date', () => {
+    expect(resolverServicio({ fecha: '2026-10-07' }, turnos, '2026-10-07')).toEqual({ turnoId: 't9', fecha: '2026-10-07' })
+  })
+})
+
 describe('armarCheckin', () => {
   it('aligns the children with their rooms', () => {
     expect(armarCheckin([{ ninoId: 'a', salonId: 's1' }, { ninoId: 'b', salonId: 's2' }])).toEqual({
