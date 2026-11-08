@@ -1,6 +1,7 @@
--- S8 (odd/tasks/dps-asistencia-pco.md, L36-L38) — DPS directors assigned on
--- their own (20261108204000_dps_directores_automaticos.sql). Needs the four
--- earlier DPS migrations; the fixture is its own (runs alone).
+-- S8 (odd/tasks/dps-asistencia-pco.md, L36-L38, amended by L40) — DPS
+-- directors assigned on their own (20261108204000_dps_directores_automaticos.sql,
+-- sync limited to plans from today on by 20261108205000_dps_directores_desde_hoy.sql).
+-- Needs the earlier DPS migrations; the fixture is its own (runs alone).
 --
 -- Covers:
 --   a. Structure and privileges: dps_puestos.direccion_equipo_id (nullable,
@@ -27,8 +28,10 @@
 --      fills nothing: «Falta 1»); a manual row of the director stays manual
 --      and is not duplicated; a manual extra person stays; a servicio paused
 --      or a rol changed removes the automatic row (and drops their aviso),
---      never a manual one; plans before ninos_hoy() - 14 are not rewritten;
---      the attendance sheet syncs too.
+--      never a manual one; only plans from ninos_hoy() on are synced (L40):
+--      a plan of today is, one of yesterday or hoy - 14 is not (a director
+--      appointed now is not added there, and a past automatic row and its
+--      aviso survive the director leaving); the attendance sheet syncs too.
 --   e. dps_desconvocar refuses an automatic row ('convocado_automatico').
 --   f. dps_copiar_plan skips automatic rows, ignores them in the destino
 --      check and keeps them when replacing.
@@ -53,7 +56,8 @@
 -- Equipos under the real DPS root: 1 ZZ Dd Alfa, 2 ZZ Dd Beta › 3 ZZ Dd Beta
 -- Hijo, 4 ZZ Dd Gamma (talleres_crecimiento), 5 ZZ Dd Delta (inactive), 6 ZZ
 -- Dd Epsilon (added in b). Plans: pl_1, pl_2 = the 1st and 2nd Sundays of
--- 2096; pl_14 / pl_15 'especial' plans at ninos_hoy() - 14 / - 15.
+-- 2096; pl_hoy / pl_ayer / pl_14 / pl_15 'especial' plans at ninos_hoy(),
+-- ninos_hoy() - 1, - 14 and - 15.
 
 SET LOCAL search_path TO pg_temp, public;
 -- The helpers name new functions: without this the RED run would abort early.
@@ -320,6 +324,8 @@ SELECT pg_temp.as_persona(2);
 SELECT pg_temp.put('pu_manual', $q$SELECT public.dps_puesto_guardar(NULL, pg_temp.raiz(), 'ZZ Dd Manual', 1, NULL)::text$q$);
 SELECT pg_temp.put('pl_1', $q$SELECT public.dps_plan_crear(pg_temp.dom(1), 'domingo', NULL)::text$q$);
 SELECT pg_temp.put('pl_2', $q$SELECT public.dps_plan_crear(pg_temp.dom(2), 'domingo', NULL)::text$q$);
+SELECT pg_temp.put('pl_hoy', $q$SELECT public.dps_plan_crear(pg_temp.ctx('hoy')::date, 'especial', 'ZZ Dd Hoy')::text$q$);
+SELECT pg_temp.put('pl_ayer', $q$SELECT public.dps_plan_crear(pg_temp.ctx('hoy')::date - 1, 'especial', 'ZZ Dd Ayer')::text$q$);
 SELECT pg_temp.put('pl_14', $q$SELECT public.dps_plan_crear(pg_temp.ctx('hoy')::date - 14, 'especial', 'ZZ Dd 14')::text$q$);
 SELECT pg_temp.put('pl_15', $q$SELECT public.dps_plan_crear(pg_temp.ctx('hoy')::date - 15, 'especial', 'ZZ Dd 15')::text$q$);
 
@@ -418,10 +424,10 @@ SELECT pg_temp.assert_eq('d3: stored rows: automatico, the director servicio of 
   'U3:true:true:true:true,U7:true:true:true:true,U8:true:true:true:true');
 SELECT pg_temp.assert_eq('d4: the attendance sheet syncs its plan too and lists the director in DPS',
   $q$SELECT (p -> 'puestos' -> 0 ->> 'nombre') || '|' || (p ->> 'convocado')
-       FROM jsonb_array_elements(public.dps_asistencia_planilla(pg_temp.plan('pl_14'), NULL) -> 'equipos') e,
+       FROM jsonb_array_elements(public.dps_asistencia_planilla(pg_temp.plan('pl_hoy'), NULL) -> 'equipos') e,
             jsonb_array_elements(e -> 'personas') p
       WHERE e ->> 'equipo_id' = pg_temp.ctx('raiz') AND p ->> 'apellido' = 'U3'$q$, 'Director de ZZ Dd Alfa|true');
-SELECT pg_temp.assert_eq('d5: a plan before hoy - 14 is not synced',
+SELECT pg_temp.assert_eq('d5: a plan before hoy (hoy - 15) is not synced',
   $q$SELECT pg_temp.directores('pl_15') || '|' || (SELECT count(*) FROM public.dps_convocados c
                                                      WHERE c.plan_id = pg_temp.plan('pl_15') AND c.automatico)$q$,
   'Alfa:1:,Beta:1:,Epsilon:1:,Gamma:1:|0');
@@ -429,6 +435,9 @@ SELECT pg_temp.assert_eq('d5: a plan before hoy - 14 is not synced',
 -- (through put: before the migration the column does not exist).
 SELECT pg_temp.put('cv_hist', $q$INSERT INTO public.dps_convocados (plan_id, puesto_id, servicio_id, persona_id, automatico)
   VALUES (pg_temp.plan('pl_15'), pg_temp.puesto_dir(1), pg_temp.id('se', 3), pg_temp.id('us', 3), true) RETURNING id::text$q$);
+-- The same on yesterday's plan: written when it was still today (L40).
+SELECT pg_temp.put('cv_ayer', $q$INSERT INTO public.dps_convocados (plan_id, puesto_id, servicio_id, persona_id, automatico)
+  VALUES (pg_temp.plan('pl_ayer'), pg_temp.puesto_dir(1), pg_temp.id('se', 3), pg_temp.id('us', 3), true) RETURNING id::text$q$);
 
 SELECT pg_temp.assert_eq('d6: a manual extra person in a director puesto',
   $q$SELECT (public.dps_convocar(pg_temp.plan('pl_1'), pg_temp.puesto_dir(1), pg_temp.id('se', 5)) IS NOT NULL) || '|' || pg_temp.directores('pl_1')$q$,
@@ -442,20 +451,45 @@ UPDATE public.dream_team_servicios SET rol_id = pg_temp.id('ro', 4) WHERE id = p
 SELECT pg_temp.assert_eq('d9: promoted to director, the manual row stays manual and is not duplicated; another plan gets him automatic',
   $q$SELECT pg_temp.directores('pl_1') || '|' || pg_temp.directores('pl_2')$q$,
   'Alfa:0:U3a+U5m,Beta:0:U6m,Epsilon:1:,Gamma:0:U7a|Alfa:0:U3a,Beta:0:U6a,Epsilon:1:,Gamma:0:U7a');
-SELECT pg_temp.assert_eq('d10: the Alfa director warns he will not come on pl_14',
-  $q$SELECT public.dps_asistencia_marcar(pg_temp.plan('pl_14'), ARRAY[pg_temp.id('us', 3)], 'aviso_no_viene') ->> 'cambiados'$q$, '1');
+SELECT pg_temp.assert_eq('d9b: today''s plan is synced: the new director is there',
+  $q$SELECT pg_temp.directores('pl_hoy')$q$, 'Alfa:0:U3a,Beta:0:U6a,Epsilon:1:,Gamma:0:U7a');
+SELECT pg_temp.assert_eq('d9c: yesterday''s plan is not synced: the director appointed now does not appear, nor do the others',
+  $q$SELECT pg_temp.directores('pl_ayer')$q$, 'Alfa:0:U3a,Beta:1:,Epsilon:1:,Gamma:1:');
+-- Separate statements: a read's writes show only to the next one.
+SELECT pg_temp.assert_eq('d9c2: and no automatic row was written there besides the earlier one',
+  $q$SELECT count(*)::text FROM public.dps_convocados c WHERE c.plan_id = pg_temp.plan('pl_ayer') AND c.automatico$q$, '1');
+SELECT pg_temp.assert_eq('d9d: neither is the plan of hoy - 14',
+  $q$SELECT pg_temp.directores('pl_14')$q$, 'Alfa:1:,Beta:1:,Epsilon:1:,Gamma:1:');
+SELECT pg_temp.assert_eq('d9d2: no automatic row there',
+  $q$SELECT count(*)::text FROM public.dps_convocados c WHERE c.plan_id = pg_temp.plan('pl_14') AND c.automatico$q$, '0');
+SELECT pg_temp.assert_eq('d10: the Alfa director warns he will not come today',
+  $q$SELECT public.dps_asistencia_marcar(pg_temp.plan('pl_hoy'), ARRAY[pg_temp.id('us', 3)], 'aviso_no_viene') ->> 'cambiados'$q$, '1');
+SELECT pg_temp.assert_eq('d10b: and on yesterday''s plan, where his automatic row was written earlier',
+  $q$SELECT public.dps_asistencia_marcar(pg_temp.plan('pl_ayer'), ARRAY[pg_temp.id('us', 3)], 'aviso_no_viene') ->> 'cambiados'$q$, '1');
 UPDATE public.dream_team_servicios SET estado = 'en_pausa', motivo_actual = 'admin_pausa' WHERE id = pg_temp.id('se', 3);
 SELECT pg_temp.assert_eq('d11: a paused servicio removes the automatic row only; the manual ones stay',
   $q$SELECT pg_temp.directores('pl_1') || '|' || (SELECT count(*) FROM public.dps_convocados c
                                                     WHERE c.plan_id = pg_temp.plan('pl_1') AND c.persona_id = pg_temp.id('us', 3)
                                                       AND NOT c.automatico)$q$,
   'Alfa:0:U5m,Beta:0:U6m,Epsilon:1:,Gamma:0:U7a|1');
-SELECT pg_temp.assert_eq('d12: on pl_14 the sheet drops him',
-  $q$SELECT count(*)::text FROM jsonb_array_elements(public.dps_asistencia_planilla(pg_temp.plan('pl_14'), NULL) -> 'equipos') e,
+SELECT pg_temp.assert_eq('d12: today the sheet drops him',
+  $q$SELECT count(*)::text FROM jsonb_array_elements(public.dps_asistencia_planilla(pg_temp.plan('pl_hoy'), NULL) -> 'equipos') e,
                                jsonb_array_elements(e -> 'personas') p
       WHERE p ->> 'apellido' = 'U3'$q$, '0');
 SELECT pg_temp.assert_eq('d12b: and his aviso',
-  $q$SELECT count(*)::text FROM public.dps_asistencias a WHERE a.plan_id = pg_temp.plan('pl_14') AND a.persona_id = pg_temp.id('us', 3)$q$, '0');
+  $q$SELECT count(*)::text FROM public.dps_asistencias a WHERE a.plan_id = pg_temp.plan('pl_hoy') AND a.persona_id = pg_temp.id('us', 3)$q$, '0');
+SELECT pg_temp.assert_eq('d12c: yesterday''s plan, read after the pause, keeps his automatic row',
+  $q$SELECT pg_temp.directores('pl_ayer')$q$, 'Alfa:0:U3a,Beta:1:,Epsilon:1:,Gamma:1:');
+SELECT pg_temp.assert_eq('d12d: and its sheet still lists him',
+  $q$SELECT count(*)::text FROM jsonb_array_elements(public.dps_asistencia_planilla(pg_temp.plan('pl_ayer'), NULL) -> 'equipos') e,
+                               jsonb_array_elements(e -> 'personas') p
+      WHERE p ->> 'apellido' = 'U3'$q$, '1');
+SELECT pg_temp.assert_eq('d12e: the same row and his «avisó que no viene» survive',
+  $q$SELECT ((SELECT string_agg(c.id::text, ',') FROM public.dps_convocados c
+               WHERE c.plan_id = pg_temp.plan('pl_ayer') AND c.persona_id = pg_temp.id('us', 3)) = pg_temp.ctx('cv_ayer'))::text
+            || '|' || (SELECT string_agg(a.estado || ':' || a.convocado, ',') FROM public.dps_asistencias a
+                        WHERE a.plan_id = pg_temp.plan('pl_ayer') AND a.persona_id = pg_temp.id('us', 3))$q$,
+  'true|aviso_no_viene:true');
 SELECT pg_temp.assert_eq('d13: the history keeps its automatic row',
   $q$SELECT pg_temp.directores('pl_15')$q$, 'Alfa:0:U3a,Beta:1:,Epsilon:1:,Gamma:1:');
 UPDATE public.dream_team_servicios SET rol_id = pg_temp.id('ro', 7) WHERE id = pg_temp.id('se', 7);
