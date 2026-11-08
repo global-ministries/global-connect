@@ -33,8 +33,14 @@ export function edadOGrado(f: Pick<FilaLista, 'grado' | 'fecha_nacimiento'>, fec
 
 export type AlertaLista = { texto: string; grave: boolean }
 
+/** The ficha fields the alerts read (a row of the list, or an expected child of the salón). */
+export type AlertasFicha = Pick<
+  FilaLista,
+  'alergias' | 'necesidades_especiales' | 'habitos' | 'puede_comer' | 'cambio_panal' | 'autoriza_imagen'
+>
+
 /** Allergies first (grave), then special needs, diaper, food and photos. */
-export function alertasDeLista(f: FilaLista): AlertaLista[] {
+export function alertasDeLista(f: AlertasFicha): AlertaLista[] {
   const a: AlertaLista[] = []
   if (f.alergias) a.push({ texto: `Alergias: ${f.alergias}`, grave: true })
   if (f.necesidades_especiales) a.push({ texto: `Necesidades especiales: ${f.necesidades_especiales}`, grave: false })

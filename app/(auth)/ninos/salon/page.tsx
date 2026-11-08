@@ -6,6 +6,9 @@
  * room picker only lists rooms RLS lets the caller see (ninos_puede_ver_salon).
  * Check-out is shown only to ninos_puede_operar_algun_area(); the RPC still
  * checks each room. Everyone else gets a 404. Query: ?turno=&fecha=&salon=.
+ * Esperados / Retirados, moving a child and «Llegó» from the salón come from
+ * ninos_salon_estado, which answers what the caller may do (T2b of
+ * odd/tasks/ninos-checkin-pco.md).
  * The services are the Sunday turnos plus the Niños events planned that day
  * (cargarTurnosDelServicio).
  */
