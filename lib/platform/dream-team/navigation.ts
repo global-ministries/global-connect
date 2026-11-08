@@ -1,4 +1,5 @@
 import { hasDreamTeamMiEquipoAccess, hasDreamTeamPendientesAccess, hasDreamTeamReadCapability } from './capabilities'
+import type { DpsAcceso } from './dps/acceso'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
 /**
@@ -61,6 +62,37 @@ export function isDreamTeamEnabledClient(): boolean {
 const DREAM_TEAM_MI_EQUIPO_ONLY: readonly DreamTeamNavItem[] = DREAM_TEAM_NAV_ITEMS.slice(0, 1)
 const DREAM_TEAM_MI_EQUIPO_Y_PENDIENTES: readonly DreamTeamNavItem[] = DREAM_TEAM_NAV_ITEMS.slice(0, 2)
 
+// The DPS planning screens (odd/tasks/dps-asistencia-pco.md, T9), after the
+// items above. Their facts come from dps_puede_ver / dps_puede_planificar
+// (lib/platform/dream-team/dps/acceso.ts), resolved by the (auth) layout.
+export const DPS_ASISTENCIA_NAV_ITEM: DreamTeamNavItem = { id: 'dt-dps-asistencia', label: 'Asistencia DPS', href: '/dream-team/dps/asistencia' }
+export const DPS_CONFIGURACION_NAV_ITEM: DreamTeamNavItem = {
+  id: 'dt-dps-configuracion',
+  label: 'Configuración DPS',
+  href: '/dream-team/dps/configuracion',
+}
+
+/**
+ * Whether the menu links the DPS attendance: a planner (who passes it in every
+ * team), or someone who sees DPS and coordinates or directs some team. That
+ * team may not be a DPS one or may not pass attendance; the page then says
+ * there is nothing to mark (dps_asistencia_planilla decides per team).
+ */
+export function puedeAbrirAsistenciaDps(session: PlatformSession, dps: DpsAcceso): boolean {
+  return (
+    dps.planificar ||
+    (dps.ver && session.capabilities.some((c) => c.key === 'dream_team.coordinate' || c.key === 'dream_team.direct'))
+  )
+}
+
+function itemsDps(session: PlatformSession, dps: DpsAcceso | undefined): DreamTeamNavItem[] {
+  if (!dps) return []
+  return [
+    ...(puedeAbrirAsistenciaDps(session, dps) ? [DPS_ASISTENCIA_NAV_ITEM] : []),
+    ...(dps.planificar ? [DPS_CONFIGURACION_NAV_ITEM] : []),
+  ]
+}
+
 /**
  * Resolves the Dream Team sidebar items for a session — [] when the flag is
  * off, there is no session, or the session can open none of the screens.
@@ -71,15 +103,24 @@ const DREAM_TEAM_MI_EQUIPO_Y_PENDIENTES: readonly DreamTeamNavItem[] = DREAM_TEA
  * Whoever may register new people (`acceso.puedeRegistrar`, the volunteer
  * coordinator of an area, T11) gets Mi equipo and Pendientes too: a fact the session does not carry,
  * computed server-side by the (auth) layout and handed down.
+ * The DPS entries (`acceso.dps`, the same layout) go after those, gated by
+ * puedeAbrirAsistenciaDps and dps_puede_planificar; without them the result
+ * is exactly the one above.
  */
 export function getDreamTeamNavItems(
   session: PlatformSession | null | undefined,
   enabled: boolean,
-  acceso: { readonly puedeRegistrar?: boolean } = {},
+  acceso: { readonly puedeRegistrar?: boolean; readonly dps?: DpsAcceso } = {},
 ): readonly DreamTeamNavItem[] {
   if (!enabled || !session) return []
+  const base = itemsBase(session, acceso.puedeRegistrar === true)
+  const dps = itemsDps(session, acceso.dps)
+  return dps.length === 0 ? base : [...base, ...dps]
+}
+
+function itemsBase(session: PlatformSession, puedeRegistrar: boolean): readonly DreamTeamNavItem[] {
   if (hasDreamTeamReadCapability(session)) return DREAM_TEAM_NAV_ITEMS
-  if (hasDreamTeamPendientesAccess(session) || acceso.puedeRegistrar === true) return DREAM_TEAM_MI_EQUIPO_Y_PENDIENTES
+  if (hasDreamTeamPendientesAccess(session) || puedeRegistrar) return DREAM_TEAM_MI_EQUIPO_Y_PENDIENTES
   if (hasDreamTeamMiEquipoAccess(session)) return DREAM_TEAM_MI_EQUIPO_ONLY
   return []
 }
