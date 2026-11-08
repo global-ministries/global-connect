@@ -182,6 +182,19 @@ describe('the team columns', () => {
     expect(screen.getByTestId('resumen-plan')).toHaveTextContent('1 convocado en 1 equipo · todo cubierto')
     expect(within(columna('Audio')).getByText('1 convocado · completo')).toBeInTheDocument()
   })
+
+  it('is one focusable scroll region in a frame bounded to the viewport from md (L34)', () => {
+    render(<PlanClient {...props()} />)
+    expect(region()).toHaveAttribute('tabindex', '0')
+    expect(region()).toHaveClass('md:overflow-x-auto', 'md:overflow-y-hidden', 'md:flex-1', 'md:min-h-0')
+    expect(screen.getByTestId('marco-plan')).toHaveClass('md:h-[calc(100dvh-4rem)]', 'md:flex', 'md:flex-col')
+    // The sr-only live region stays inside the page column instead of stretching the document.
+    expect(screen.getByTestId('aviso-cambio').parentElement).toHaveClass('relative')
+    expect(columna('Audio')).toHaveClass('relative', 'md:max-h-full')
+    expect(within(columna('Audio')).getByTestId('cuerpo-columna')).toHaveClass('md:overflow-y-auto')
+    // With controls to reach its rows, the column body takes no extra tab stop.
+    expect(within(columna('Audio')).getByTestId('cuerpo-columna')).not.toHaveAttribute('tabindex')
+  })
 })
 
 describe('convocar', () => {
@@ -365,6 +378,11 @@ describe('read-only', () => {
     expect(screen.queryByRole('button', { name: 'Acciones' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Elegir imagen de portada')).not.toBeInTheDocument()
     expect(screen.getByText(/Solo lectura/)).toBeInTheDocument()
+  })
+
+  it('lets the keyboard scroll a column without controls', () => {
+    render(<PlanClient {...props({ equipos: leerEquiposPlan(equiposJson(false)) })} />)
+    expect(within(columna('Audio')).getByRole('group', { name: 'Audio' })).toHaveAttribute('tabindex', '0')
   })
 })
 

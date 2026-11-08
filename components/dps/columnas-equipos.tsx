@@ -5,8 +5,12 @@
  * `.fl`, `.ad` of prototipos/planificacion-dps/01; planned `ColumnasEquipo`
  * of docs/design-system/components.md#planning-style-components, local here
  * until it moves to components/ui). From md, a horizontal scroll region
- * (`role="region"`, `tabindex="0"`) of 196px columns; on a phone the
- * columns stack full width (no sideways scroll). Column head: the team,
+ * (`role="region"`, `tabindex="0"`) of 196px columns that takes the height
+ * its parent gives it (plan-client.tsx bounds it to the viewport): a long
+ * column scrolls inside itself under its fixed head, so the region's thin
+ * horizontal scrollbar stays at the bottom of the view. On a phone the
+ * columns stack full width with the page's own scroll (no nested scroll,
+ * no sideways scroll). Column head: the team,
  * "N convocados · N falta". Per puesto: the muted header row with "n/m",
  * 32px person rows (44px on touch) with "Quitar a …" on hover or focus, one
  * "Falta N" row in the danger tone while places are missing and the
@@ -33,6 +37,9 @@ import {
 import { cn } from '@/lib/utils'
 
 import { ConvocarPuesto } from './convocar-puesto'
+
+/** Thin token-colored scrollbars of the board (no global scrollbar style in the system yet). */
+const CLASE_SCROLL_FINO = '[scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_40%,transparent)_transparent] [scrollbar-width:thin]'
 
 const CLASE_INSIGNIA_FALTA =
   'inline-grid h-5 min-w-5 place-items-center rounded-full border border-danger/45 bg-danger/15 px-1 font-mono text-[11px] font-bold tabular-nums'
@@ -156,16 +163,29 @@ function BloquePuesto({ equipo, puesto, acciones }: { equipo: EquipoPlan; puesto
 function ColumnaEquipo({ equipo, acciones }: { equipo: EquipoPlan; acciones: AccionesColumnas }): ReactElement {
   const id = useId()
   return (
-    <section aria-labelledby={id} className="w-full min-w-0 flex-none overflow-hidden rounded-md border border-border bg-card md:w-[196px]">
-      <div className="border-b border-border py-2 pr-2 pl-3">
+    // `relative`: the sr-only text of its rows stays clipped by the column instead of widening the page.
+    <section
+      aria-labelledby={id}
+      className="relative flex w-full min-w-0 flex-none flex-col overflow-hidden rounded-md border border-border bg-card md:max-h-full md:w-[196px]"
+    >
+      <div className="shrink-0 border-b border-border py-2 pr-2 pl-3">
         <h2 id={id} className="truncate text-sm font-[650]">
           {equipo.equipo}
         </h2>
         <p className="text-xs text-muted-foreground">{lineaEquipo(contarEquipoPlan(equipo))}</p>
       </div>
-      {equipo.puestos.map((p) => (
-        <BloquePuesto key={p.puestoId} equipo={equipo} puesto={p} acciones={acciones} />
-      ))}
+      {/* Read-only columns have no controls to reach their rows: the body takes focus to scroll with the keyboard. */}
+      <div
+        data-testid="cuerpo-columna"
+        role={acciones.editable ? undefined : 'group'}
+        aria-labelledby={acciones.editable ? undefined : id}
+        tabIndex={acciones.editable ? undefined : 0}
+        className={cn('focus-ring min-h-0 focus-visible:-outline-offset-2! md:overflow-y-auto', CLASE_SCROLL_FINO)}
+      >
+        {equipo.puestos.map((p) => (
+          <BloquePuesto key={p.puestoId} equipo={equipo} puesto={p} acciones={acciones} />
+        ))}
+      </div>
     </section>
   )
 }
@@ -176,7 +196,12 @@ export function ColumnasEquipos({ equipos, acciones, className }: { equipos: rea
       role="region"
       aria-label="Equipos del plan"
       tabIndex={0}
-      className={cn('focus-ring flex flex-col gap-2.5 rounded-md md:flex-row md:items-start md:overflow-x-auto md:pb-2', className)}
+      className={cn(
+        // From md it runs to the edges of the view (past the 24px gutters, kept as padding), as `.cols` in the artboard.
+        'focus-ring flex flex-col gap-2.5 rounded-md md:-mx-6 md:flex-row md:items-start md:overflow-x-auto md:overflow-y-hidden md:px-6 md:pt-1 md:pb-2 md:focus-visible:-outline-offset-2!',
+        CLASE_SCROLL_FINO,
+        className,
+      )}
     >
       {equipos.map((e) => (
         <ColumnaEquipo key={e.equipoId} equipo={e} acciones={acciones} />

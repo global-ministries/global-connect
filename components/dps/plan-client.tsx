@@ -11,7 +11,15 @@
  * llegada; "Acciones ▾" for whoever edits: "Copiar del domingo anterior" and
  * the series cover); the toolbar (tabs "Orden pronto" · "Equipos", the
  * summary "N convocados en M equipos · F puestos sin cubrir" and the
- * autosave status); the team columns (columnas-equipos.tsx).
+ * autosave status); the team columns (columnas-equipos.tsx). From md the
+ * view fills the viewport under the desktop header: the band and the toolbar
+ * stay put and only the columns scroll (layout.md › Wide layout), so their
+ * horizontal scrollbar is always in view. On a phone the page scrolls.
+ *
+ * The page column is `relative`: its `sr-only` text (absolutely positioned)
+ * would otherwise take the viewport as containing block, escape the clipping
+ * of the shell's `<main>` scroller and stretch the document under the shell,
+ * showing the body background as a band at the bottom (L34).
  *
  * Whoever edits (dps_plan_equipos.puede_editar) convoca from the popover and
  * quita from each row: the change is applied at once and saved through a
@@ -82,7 +90,7 @@ interface EstadoCopia {
 
 function SinPlan({ motivo, error }: { readonly motivo: PlanClientProps['motivo']; readonly error: string | null }): ReactElement {
   return (
-    <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />}>
+    <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />} className="relative">
       <h1 className={CLASE_TITULO_PAGINA}>Plan</h1>
       {motivo === 'plan_invalido' ? (
         <EstadoVacioSistema
@@ -287,12 +295,13 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
   ) : null
 
   return (
-    <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />}>
-      {/* Past the page gutters of PaginaSistema (p-4 sm:p-6 lg:px-12 lg:py-8), as components/grupos-vida/planner/marco-planner.tsx. */}
-      <div className="-m-4 sm:-m-6 lg:-mx-12 lg:-my-8">
+    <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />} className="relative">
+      {/* Past the page gutters of PaginaSistema (p-4 sm:p-6 lg:px-12 lg:py-8), as components/grupos-vida/planner/marco-planner.tsx.
+          From md, exactly the viewport under the 64px desktop header (at least 32rem on very short windows). */}
+      <div data-testid="marco-plan" className="-m-4 sm:-m-6 md:flex md:h-[calc(100dvh-4rem)] md:min-h-[32rem] md:flex-col lg:-mx-12 lg:-my-8">
         <EncabezadoPlan plan={plan} anterior={anterior} siguiente={siguiente} portadaUrl={portada} acciones={acciones} />
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-6">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-6">
           <nav aria-label="Secciones del plan" className={LISTA_PESTANAS}>
             <span aria-disabled="true" title="Llega en una fase posterior" className={cn(clasePestana(false), 'cursor-default gap-1.5 opacity-60 hover:text-muted-foreground')}>
               Orden <small className="text-[11px]">pronto</small>
@@ -321,7 +330,7 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
           {editable && <EstadoGuardado estado={guardado} className="ml-auto" />}
         </div>
 
-        <div className="px-4 pb-8 sm:px-6">
+        <div className="px-4 pb-8 sm:px-6 md:flex md:min-h-0 md:flex-1 md:flex-col md:pb-4">
           {!equipos ? (
             <EstadoVacioSistema icono={UsersRound} titulo="No se pudo cargar el plan" subtitulo={error ?? 'Actualiza la página.'} />
           ) : equipos.equipos.length === 0 ? (
@@ -332,6 +341,7 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
             />
           ) : (
             <ColumnasEquipos
+              className="md:min-h-0 md:flex-1"
               equipos={equipos.equipos}
               acciones={{ planId, horarios, editable, abierto, onAbrir: setAbierto, onElegir: (e, p, c) => void elegir(e, p, c), onQuitar: (e, p, c) => void quitar(e, p, c) }}
             />

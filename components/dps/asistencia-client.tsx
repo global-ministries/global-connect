@@ -20,6 +20,12 @@
  * a failure rolls back only the people it still owns and explains why. The
  * sheet reloads after "Marcar todos", after adding someone and when the tab
  * comes back. The database decides who may mark whom and the window.
+ *
+ * The page column is `relative` so its `sr-only` text cannot stretch the
+ * document under the shell (the band of L34, see plan-client.tsx), and the
+ * list clips its rounded corners with `overflow-clip`, which unlike
+ * `overflow-hidden` is no scroll container: the team headers stick to the
+ * page scroll on desktop too.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
@@ -73,8 +79,10 @@ const RUTA = '/dps/asistencia'
 
 // Under the app's fixed phone bar (app/(auth)/layout.tsx clears the same
 // height) and the sticky desktop header (min-h-16).
+// Sticky within the shell's <main> scroller: on a phone <main> already starts
+// under the fixed top bar (top 0), from md under the 64px desktop header.
 const CLASE_CABECERA_EQUIPO =
-  'sticky top-[calc(max(env(safe-area-inset-top),12px)+3.25rem)] z-[2] flex min-h-9 items-center gap-1 border-b border-border bg-muted pr-1.5 md:top-16'
+  'sticky top-0 z-[2] flex min-h-9 items-center gap-1 border-b border-border bg-muted pr-1.5 md:top-16'
 // Hairline between rows, starting after the 32px avatar (60px).
 const CLASE_LINEA = 'before:absolute before:top-0 before:right-0 before:left-[60px] before:h-px before:bg-border/60 first:before:hidden'
 
@@ -388,7 +396,7 @@ export function AsistenciaClient({ planes, plan, planilla: planillaInicial, erro
 
   if (!plan) {
     return (
-      <PaginaSistema breadcrumbs={migas}>
+      <PaginaSistema breadcrumbs={migas} className="relative">
         <h1 className="text-[28px] font-bold leading-[1.1] tracking-[-0.03em] md:text-2xl md:font-[650] md:tracking-[-0.02em]">Asistencia</h1>
         {error ? (
           <EstadoVacioSistema icono={CalendarDays} titulo="No se pudo cargar la asistencia" subtitulo={error.mensaje} />
@@ -407,7 +415,7 @@ export function AsistenciaClient({ planes, plan, planilla: planillaInicial, erro
   const progreso = totales && totales.total > 0 ? (totales.llegaron / totales.total) * 100 : 0
 
   return (
-    <PaginaSistema breadcrumbs={migas} className="pb-28 md:pb-0">
+    <PaginaSistema breadcrumbs={migas} className="relative pb-28 md:pb-0">
       <section aria-labelledby="dps-asistencia-titulo" className="space-y-1.5">
         <p className="text-[13px] text-muted-foreground">{tituloPlan(plan)}</p>
         <h1
@@ -485,7 +493,7 @@ export function AsistenciaClient({ planes, plan, planilla: planillaInicial, erro
                 <EstadoGuardado estado={guardado} />
               </div>
 
-              <div ref={listaRef} className="-mx-4 border-y border-border bg-card sm:-mx-6 md:mx-0 md:overflow-hidden md:rounded-md md:border">
+              <div ref={listaRef} className="-mx-4 border-y border-border bg-card sm:-mx-6 md:mx-0 md:overflow-clip md:rounded-md md:border">
                 {planilla.equipos.map((e) => (
                   <SeccionEquipo
                     key={e.equipoId}
