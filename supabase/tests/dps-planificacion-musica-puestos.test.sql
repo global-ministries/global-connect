@@ -1,5 +1,5 @@
 -- T8c-1 (odd/tasks/dps-asistencia-pco.md, L22, L23) — Global Music inside the
--- DPS plan and the seeded puestos (20261108103000_dps_planificacion_musica_puestos.sql).
+-- DPS plan and the seeded puestos (20261108203000_dps_planificacion_musica_puestos.sql).
 --
 -- Covers:
 --   m1. dps_equipos() returns the Global Music subtree with its own ruta.

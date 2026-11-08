@@ -1,6 +1,6 @@
 -- DPS planning, phase 1a-2: convocados and attendance (odd/tasks/dps-asistencia-pco.md,
--- T8b; S6.1, S6.2, S7.4, S2, S5). Builds on 20261108100000_dps_planificacion_base.sql
--- and 20261108101000_dps_planificacion_rpcs.sql.
+-- T8b; S6.1, S6.2, S7.4, S2, S5). Builds on 20261108200000_dps_planificacion_base.sql
+-- and 20261108201000_dps_planificacion_rpcs.sql.
 --
 -- What:
 --   1. Tables (RLS on, no policies, no privilege for anon or authenticated;

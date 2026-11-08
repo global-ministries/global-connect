@@ -1,6 +1,6 @@
 -- T8a (odd/tasks/dps-asistencia-pco.md, S6, S7.1-S7.3) — DPS planning schema,
--- authority and RPCs (20261108100000_dps_planificacion_base.sql and
--- 20261108101000_dps_planificacion_rpcs.sql).
+-- authority and RPCs (20261108200000_dps_planificacion_base.sql and
+-- 20261108201000_dps_planificacion_rpcs.sql).
 --
 -- Covers:
 --   a. Privileges: the six tables are not readable by authenticated; anon
@@ -260,7 +260,7 @@ SELECT pg_temp.assert_eq('a5: anon executes no dps_* function',
 SELECT pg_temp.assert_eq('a6: authenticated executes exactly the public dps_* functions',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname LIKE 'dps\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
-        -- T8b (20261108102000) functions are checked by its own suite.
+        -- T8b (20261108202000) functions are checked by its own suite.
         AND p.proname NOT IN ('dps_convocar', 'dps_desconvocar', 'dps_copiar_plan', 'dps_plan_anterior', 'dps_candidatos_puesto',
                               'dps_plan_equipos', 'dps_asistencia_planilla', 'dps_asistencia_marcar',
                               'dps_asistencia_marcar_equipo', 'dps_historial_persona')$q$,

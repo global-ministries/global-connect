@@ -1,5 +1,5 @@
 -- T8b (odd/tasks/dps-asistencia-pco.md, S6.1, S6.2, S7.4, S2, S5) — DPS
--- convocados and attendance (20261108102000_dps_planificacion_convocados.sql).
+-- convocados and attendance (20261108202000_dps_planificacion_convocados.sql).
 -- Needs both T8a migrations; the fixture is its own (runs alone).
 --
 -- Covers:

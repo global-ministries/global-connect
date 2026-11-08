@@ -1,6 +1,6 @@
 -- noqa: insert-into
 -- DPS planning, phase 1a-1: schema and authority (odd/tasks/dps-asistencia-pco.md,
--- T8a; S6, S7.1-S7.3). The RPCs live in 20261108101000_dps_planificacion_rpcs.sql.
+-- T8a; S6, S7.1-S7.3). The RPCs live in 20261108201000_dps_planificacion_rpcs.sql.
 --
 -- What:
 --   1. Tables (RLS on, no policies, no privilege for anon or authenticated;

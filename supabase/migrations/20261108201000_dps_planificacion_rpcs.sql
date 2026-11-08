@@ -1,5 +1,5 @@
 -- DPS planning, phase 1a-1: RPCs (odd/tasks/dps-asistencia-pco.md, T8a; S6,
--- S7.1-S7.3). Schema and authority helpers: 20261108100000_dps_planificacion_base.sql.
+-- S7.1-S7.3). Schema and authority helpers: 20261108200000_dps_planificacion_base.sql.
 --
 -- Read (dps_puede_ver: planners, DPS coordinators/directors, active DPS servidores):
 --   dps_puestos_listar(equipo)              active puestos of a DPS equipo and its

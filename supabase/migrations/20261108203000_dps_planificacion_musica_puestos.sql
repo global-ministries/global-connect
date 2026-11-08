@@ -14,7 +14,7 @@
 --      overwrites what a director edited.
 --
 -- Rollback:
---   restore dps_equipos() from 20261108100000_dps_planificacion_base.sql;
+--   restore dps_equipos() from 20261108200000_dps_planificacion_base.sql;
 --   DROP FUNCTION IF EXISTS public.dps_raiz_musica();
 --   the seeded puestos are ordinary rows (deactivate them with
 --   dps_puesto_desactivar if unwanted).
