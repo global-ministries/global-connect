@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { CalendarRange, Clapperboard, ClipboardCheck, Settings2 } from 'lucide-react'
+import { CalendarRange, Clapperboard, ClipboardCheck, Settings2, Sheet } from 'lucide-react'
 
 import { useDpsAcceso } from '@/hooks/useDpsAcceso'
 import { puedeAbrirAsistenciaDps, type DpsAcceso } from '@/lib/platform/dps/acceso'
@@ -10,7 +10,7 @@ import type { PlatformSession } from '@/lib/platform/session/types'
  * The "DPS" section of the sidebar (odd/tasks/dps-asistencia-pco.md, T9,
  * L29): its own ministry under Ministerios, built like Niños and Estudiantes
  * (components/estudiantes/estudiantes-menu-item.ts): Plan (T10) ·
- * Asistencia · Configuración, from the server-fed facts in hooks/useDpsAcceso and, for
+ * Programación (T11) · Asistencia · Configuración, from the server-fed facts in hooks/useDpsAcceso and, for
  * Asistencia, the session's coordinate / direct grants
  * (puedeAbrirAsistenciaDps). Not a phone tab: the tab bar priorities
  * (lib/navegacion/secciones.ts) are unchanged, so phones reach it through
@@ -40,6 +40,8 @@ export function getDpsNavItems(acceso: DpsAcceso, session: PlatformSession | nul
   // Same gate as /dps/plan (dps_planes_rango): whoever sees DPS reads the plan; editing is the RPCs' call.
   if (acceso.ver) {
     items.push({ id: 'dps-plan', label: 'Plan', href: '/dps/plan', icon: CalendarRange })
+    // Same gate as /dps/programacion (dps_planes_rango): everyone who sees DPS reads the sheet; planners edit it.
+    items.push({ id: 'dps-programacion', label: 'Programación', href: '/dps/programacion', icon: Sheet })
   }
   // Same gate as /dps/asistencia's sheet: a planner, or sees DPS and coordinates or directs some team.
   if (puedeAbrirAsistenciaDps(session, acceso)) {

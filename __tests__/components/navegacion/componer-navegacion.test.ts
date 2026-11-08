@@ -239,6 +239,7 @@ describe('the DPS section', () => {
     expect(dps).toMatchObject({ label: 'DPS', href: '/dps/plan' })
     expect((dps.children ?? []).map((hija) => [hija.label, hija.href])).toEqual([
       ['Plan', '/dps/plan'],
+      ['Programación', '/dps/programacion'],
       ['Asistencia', '/dps/asistencia'],
       ['Configuración', '/dps/configuracion'],
     ])
@@ -249,11 +250,11 @@ describe('the DPS section', () => {
     expect(ids(sinEstudiantes.secciones.find((grupo) => grupo.seccion === 'ministerios')!.entradas).slice(0, 3)).toEqual(['grupos-vida', 'ninos', 'dps'])
   })
 
-  it('gives a DPS coordinator Plan and Asistencia, and a plain DPS servidor only the Plan (T10)', () => {
+  it('gives a DPS coordinator Plan, Programación and Asistencia, and a plain DPS servidor only Plan and Programación (T10, T11)', () => {
     expect(dpsDe({ ver: true, planificar: false }, [cap('dream_team.coordinate')])?.children.map((hija) => hija.href)).toEqual([
-      '/dps/plan', '/dps/asistencia',
+      '/dps/plan', '/dps/programacion', '/dps/asistencia',
     ])
-    expect(dpsDe({ ver: true, planificar: false })?.children.map((hija) => hija.href)).toEqual(['/dps/plan'])
+    expect(dpsDe({ ver: true, planificar: false })?.children.map((hija) => hija.href)).toEqual(['/dps/plan', '/dps/programacion'])
     expect(dpsDe(SIN_ACCESO_DPS, [cap('dream_team.coordinate')])).toBeNull()
   })
 
@@ -270,7 +271,7 @@ describe('the DPS section', () => {
     const { pestanas, mas } = await navegacionDe('admin', { dps: { ver: true, planificar: true } })
     expect(pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Niños', 'Equipo'])
     expect(mas.subpaginas.find((bloque) => bloque.grupo.label === 'DPS')?.paginas.map((pagina) => pagina.href)).toEqual([
-      '/dps/plan', '/dps/asistencia', '/dps/configuracion',
+      '/dps/plan', '/dps/programacion', '/dps/asistencia', '/dps/configuracion',
     ])
   })
 })

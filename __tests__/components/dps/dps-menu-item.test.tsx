@@ -3,7 +3,7 @@
  * ministry under Ministerios, like Niños and Estudiantes, built from the
  * server-fed facts of hooks/useDpsAcceso (dps_puede_ver / dps_puede_planificar,
  * resolved by the (auth) layout) and the session's grants. "Plan" (T10) first
- * for whoever sees DPS; "Asistencia" for whoever plans, or sees DPS and
+ * and "Programación" (T11) after it for whoever sees DPS; "Asistencia" for whoever plans, or sees DPS and
  * coordinates or directs some team; "Configuración" for whoever plans; no
  * section when none shows.
  */
@@ -43,12 +43,12 @@ describe('getDpsNavItems', () => {
       'a planner, without any Dream Team grant',
       PLANIFICA,
       sesion(),
-      [['Plan', '/dps/plan'], ['Asistencia', '/dps/asistencia'], ['Configuración', '/dps/configuracion']],
+      [['Plan', '/dps/plan'], ['Programación', '/dps/programacion'], ['Asistencia', '/dps/asistencia'], ['Configuración', '/dps/configuracion']],
     ],
-    ['a DPS coordinator with a coordinate grant', VE, sesion([cap('dream_team.coordinate')]), [['Plan', '/dps/plan'], ['Asistencia', '/dps/asistencia']]],
-    ['a DPS director with a direct grant', VE, sesion([cap('dream_team.direct')]), [['Plan', '/dps/plan'], ['Asistencia', '/dps/asistencia']]],
-    ['a plain DPS servidor', VE, sesion(), [['Plan', '/dps/plan']]],
-    ['a DPS servidor with an unrelated grant', VE, sesion([cap('dream_team.metrics.read', 'experience')]), [['Plan', '/dps/plan']]],
+    ['a DPS coordinator with a coordinate grant', VE, sesion([cap('dream_team.coordinate')]), [['Plan', '/dps/plan'], ['Programación', '/dps/programacion'], ['Asistencia', '/dps/asistencia']]],
+    ['a DPS director with a direct grant', VE, sesion([cap('dream_team.direct')]), [['Plan', '/dps/plan'], ['Programación', '/dps/programacion'], ['Asistencia', '/dps/asistencia']]],
+    ['a plain DPS servidor', VE, sesion(), [['Plan', '/dps/plan'], ['Programación', '/dps/programacion']]],
+    ['a DPS servidor with an unrelated grant', VE, sesion([cap('dream_team.metrics.read', 'experience')]), [['Plan', '/dps/plan'], ['Programación', '/dps/programacion']]],
     ['a coordinator who does not see DPS', SIN_ACCESO_DPS, sesion([cap('dream_team.coordinate')]), []],
     ['a non-DPS user', SIN_ACCESO_DPS, sesion(), []],
     ['no session', PLANIFICA, null, []],
@@ -58,9 +58,9 @@ describe('getDpsNavItems', () => {
 
   it('carries an icon per entry', () => {
     const items = getDpsNavItems(PLANIFICA, sesion())
-    expect(items.map((hija) => hija.id)).toEqual(['dps-plan', 'dps-asistencia', 'dps-configuracion'])
+    expect(items.map((hija) => hija.id)).toEqual(['dps-plan', 'dps-programacion', 'dps-asistencia', 'dps-configuracion'])
     expect(items.every((hija) => hija.icon !== undefined)).toBe(true)
-    expect(new Set(items.map((hija) => hija.icon)).size).toBe(3)
+    expect(new Set(items.map((hija) => hija.icon)).size).toBe(4)
   })
 })
 
@@ -75,8 +75,8 @@ describe('buildDpsMenuItem', () => {
     const item = buildDpsMenuItem(getDpsNavItems(VE, sesion([cap('dream_team.coordinate')])))
     expect(item).toMatchObject({ id: 'dps', label: 'DPS', href: '/dps/plan' })
     expect(item?.icon).toBeDefined()
-    expect(item?.children.map((hija) => hija.id)).toEqual(['dps-plan', 'dps-asistencia'])
-    expect(buildDpsMenuItem(getDpsNavItems(VE, sesion()))?.children.map((hija) => hija.id)).toEqual(['dps-plan'])
+    expect(item?.children.map((hija) => hija.id)).toEqual(['dps-plan', 'dps-programacion', 'dps-asistencia'])
+    expect(buildDpsMenuItem(getDpsNavItems(VE, sesion()))?.children.map((hija) => hija.id)).toEqual(['dps-plan', 'dps-programacion'])
   })
 })
 
@@ -111,10 +111,10 @@ describe('useDpsAcceso / useDpsMenuItem', () => {
 
   it('builds the section from the provided facts and the session', () => {
     const planificador = renderHook(() => useDpsMenuItem(sesion()), { wrapper: con(PLANIFICA) })
-    expect(planificador.result.current?.children.map((hija) => hija.label)).toEqual(['Plan', 'Asistencia', 'Configuración'])
+    expect(planificador.result.current?.children.map((hija) => hija.label)).toEqual(['Plan', 'Programación', 'Asistencia', 'Configuración'])
     const coordinador = renderHook(() => useDpsMenuItem(sesion([cap('dream_team.coordinate')])), { wrapper: con(VE) })
-    expect(coordinador.result.current?.children.map((hija) => hija.label)).toEqual(['Plan', 'Asistencia'])
-    expect(renderHook(() => useDpsMenuItem(sesion()), { wrapper: con(VE) }).result.current?.children.map((hija) => hija.label)).toEqual(['Plan'])
+    expect(coordinador.result.current?.children.map((hija) => hija.label)).toEqual(['Plan', 'Programación', 'Asistencia'])
+    expect(renderHook(() => useDpsMenuItem(sesion()), { wrapper: con(VE) }).result.current?.children.map((hija) => hija.label)).toEqual(['Plan', 'Programación'])
     expect(renderHook(() => useDpsMenuItem(sesion()), { wrapper: con(SIN_ACCESO_DPS) }).result.current).toBeNull()
     expect(renderHook(() => useDpsMenuItem(null), { wrapper: con(PLANIFICA) }).result.current).toBeNull()
   })
