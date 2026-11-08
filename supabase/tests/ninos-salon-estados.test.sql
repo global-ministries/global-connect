@@ -52,7 +52,8 @@
 -- Children (all with ficha; 12 months unless said):
 --   21 pre-check T1                        → Esperado S1
 --   22 48 months, pre-check T1             → Esperado S2
---   23 preferred salón S2, pre-check T1    → Esperado S2
+--   23 preferred salón S2, pre-check T1    → Esperado S1 (12 months: S2 does not
+--      correspond, so the preferido is ignored, L34)
 --   24 grade 1, pre-check T1               → Esperado S3
 --   25 special needs, pre-check T1         → Esperado S6
 --   26 pre-check T1 cancelled              → nowhere
@@ -368,8 +369,8 @@ SELECT pg_temp.assert_eq('b: Aquí S1 lists the children inside (not the one pic
 
 -- ── c. ninos_salon_estado ────────────────────────────────────────────
 
-SELECT pg_temp.assert_eq('c: Esperados S1: the pending pre-check whose salón is S1 by age', pg_temp.nombres(1, 'esperados'), 'N21');
-SELECT pg_temp.assert_eq('c: Esperados S2: by age and by preferred salón', pg_temp.nombres(2, 'esperados'), 'N22,N23');
+SELECT pg_temp.assert_eq('c: Esperados S1: the pending pre-checks whose salón is S1 by age (23''s preferido S2 does not correspond, L34)', pg_temp.nombres(1, 'esperados'), 'N21,N23');
+SELECT pg_temp.assert_eq('c: Esperados S2: by age (not 23: its preferido does not correspond)', pg_temp.nombres(2, 'esperados'), 'N22');
 SELECT pg_temp.assert_eq('c: Esperados S6 by special needs', pg_temp.nombres(6, 'esperados'), 'N25');
 SELECT pg_temp.as_persona(4);
 SELECT pg_temp.assert_eq('c: Esperados S3 by grade (read by the UpStreet coordinator)', pg_temp.nombres(3, 'esperados'), 'N24');
@@ -378,7 +379,7 @@ SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('c: an esperado carries who sent the notice, when and the alerts',
   format($q$SELECT (x ->> 'nino_id') || '/' || (x -> 'avisado_por' ->> 'apellido') || '/' || (x ->> 'alergias') || '/'
                    || (x ->> 'cambio_panal') || '/' || ((x ->> 'avisado_at')::timestamptz < now())::text
-              FROM jsonb_array_elements((%s) -> 'esperados') x$q$, pg_temp.estado(1)),
+              FROM jsonb_array_elements((%s) -> 'esperados') x WHERE x ->> 'apellido' = 'N21'$q$, pg_temp.estado(1)),
   pg_temp.id('us', 21)::text || '/U9/ZZ Maní/true/true');
 SELECT pg_temp.assert_eq('c: Retirados S1 with hour and who',
   format($q$SELECT (x ->> 'apellido') || '/' || to_char((x ->> 'salida_at')::timestamptz AT TIME ZONE 'America/Caracas', 'HH24:MI')
@@ -395,7 +396,9 @@ SELECT pg_temp.assert_eq('c: destinos_por_nino: each child inside S1 with the de
   format($q$SELECT string_agg(u.apellido || '=' || (SELECT coalesce(string_agg(s.nombre, '+' ORDER BY s.nombre), '')
                                                     FROM jsonb_array_elements_text(e.v) x JOIN public.ninos_salones s ON s.id = x::uuid),
                               ',' ORDER BY u.apellido)
-              FROM jsonb_each((%s) -> 'destinos_por_nino') e(k, v) JOIN public.usuarios u ON u.id = e.k::uuid$q$, pg_temp.estado(1)),
+              FROM jsonb_each((%s) -> 'destinos_por_nino') e(k, v)
+              JOIN (SELECT 'N' || n AS apellido, pg_temp.id('us', n) AS id FROM generate_series(21, 32) n) u ON u.id = e.k::uuid$q$,
+         pg_temp.estado(1)),
   'N27=,N31=ZZ Se Sala B,N32=ZZ Se Plus');
 SELECT pg_temp.assert_eq('c: a past date has no esperados', pg_temp.nombres(1, 'esperados', 1, pg_temp.f() - 7), '');
 SELECT pg_temp.assert_eq('c: another turno of the day does not list T1 pre-checks (28 is T2)', pg_temp.nombres(1, 'esperados', 2), 'N28');
@@ -408,7 +411,7 @@ SELECT pg_temp.assert_eq('c: a Líder of the area reads it, may check in, may no
   format($q$SELECT (r ->> 'puede_operar') || '/' || (r ->> 'puede_llegar') || '/' || jsonb_array_length(r -> 'destinos')
                    || '/' || jsonb_array_length(r -> 'esperados')
               FROM (SELECT (%s) AS r) x$q$, pg_temp.estado(1)),
-  'false/true/0/1');
+  'false/true/0/2');
 SELECT pg_temp.as_persona(6);
 SELECT pg_temp.assert_raises('c: a volunteer only assigned to the salón in the planilla does not read it (L32)',
   pg_temp.estado(1), '42501', 'sin_autoridad', 'No tienes permiso para ver este salón.');
@@ -536,7 +539,7 @@ SELECT pg_temp.assert_eq('e: it answers the child, salón and a 4-digit code',
        FROM (SELECT pg_temp.ctx('llego21')::jsonb AS r) x$q$,
   pg_temp.id('us', 21)::text || '/' || pg_temp.id('sa', 1)::text || '/true');
 SELECT pg_temp.assert_eq('e: 21 is now in Aquí, out of Esperados',
-  $q$SELECT pg_temp.q(pg_temp.aqui(1)) || ' | ' || pg_temp.q(pg_temp.nombres(1, 'esperados'))$q$, 'N21,N27 | ');
+  $q$SELECT pg_temp.q(pg_temp.aqui(1)) || ' | ' || pg_temp.q(pg_temp.nombres(1, 'esperados'))$q$, 'N21,N27 | N23');
 RESET ROLE;
 SELECT pg_temp.assert_eq('e: the check-in is marked as from the salón, by the Líder, with a new visit and a free code',
   format($q$SELECT c.entrada_desde_salon::text || '/' || c.entrada_por::text || '/' || c.campus_id::text || '/'
@@ -555,8 +558,8 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_raises('e: a second «Llegó» for 21', pg_temp.llego(21, 1), '23505', 'ya_ingresado');
 SELECT pg_temp.as_persona(5);
-SELECT pg_temp.assert_eq('e: an anfitrión registers 23 in its preferred salón',
-  format($q$SELECT (r ->> 'salon_id') FROM (SELECT (%s) AS r) x$q$, pg_temp.llego(23, 2)), pg_temp.id('sa', 2)::text);
+SELECT pg_temp.assert_eq('e: an anfitrión registers 23 in its salón by age (S1)',
+  format($q$SELECT (r ->> 'salon_id') FROM (SELECT (%s) AS r) x$q$, pg_temp.llego(23, 1)), pg_temp.id('sa', 1)::text);
 SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_eq('e: the Líder registers 22 in Sala B too (any salón of the area)',
   format($q$SELECT (r ->> 'salon_id') FROM (SELECT (%s) AS r) x$q$, pg_temp.llego(22, 2)), pg_temp.id('sa', 2)::text);
