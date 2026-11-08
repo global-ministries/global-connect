@@ -223,7 +223,7 @@ SELECT pg_temp.assert_eq('1: authenticated still runs the five Niños RPCs',
   $q$SELECT count(*)::text FROM (VALUES
        ('public.ninos_voluntarios_turnos()'), ('public.ninos_voluntarios_planilla(uuid, date)'),
        ('public.ninos_voluntarios_marcar(uuid, date, uuid[], text, boolean)'),
-       ('public.ninos_checkin(uuid[], uuid, date, uuid[])'),
+       ('public.ninos_checkin(uuid[], uuid, date, uuid[], uuid[])'),
        ('public.ninos_reporte_voluntarios(date, date, uuid, uuid)')) AS f(sig)
       WHERE has_function_privilege('authenticated', f.sig, 'EXECUTE')$q$, '5');
 SELECT pg_temp.assert_eq('1: anon does not run the recreated ninos_voluntarios_turnos',
