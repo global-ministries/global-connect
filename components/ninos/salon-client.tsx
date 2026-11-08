@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Baby } from 'lucide-react'
 
@@ -20,6 +20,8 @@ import {
 import { cargarSalonVoluntarios, type SalonVoluntarios } from '@/lib/platform/ninos/salon-voluntarios'
 import { createClient } from '@/lib/supabase/client'
 
+import { ChipCustodia } from './custodia/chip-custodia'
+import { useCustodia } from './custodia/use-custodia'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
 import { RetiroPanel } from './retiro-panel'
@@ -61,7 +63,8 @@ function urlSalon(s: Servicio, salonId: string | null): string {
  * odd/tasks/ninos-checkin-pco.md, artboard 06-salon-celular) with a sheet per
  * child (move to another salón, pickup, «Llegó»), the volunteers of today and
  * check-out for operators. Without ninos_salon_estado it is the Aquí list as
- * before.
+ * before. A child with an active custody restriction carries the «Custodia»
+ * icon and its sheet says who not to hand over to (T2e, S9.2).
  */
 export function SalonClient({ salones, turnos, servicio: servicioInicial, salonId: salonInicial, puedeOperar }: Props) {
   const router = useRouter()
@@ -135,6 +138,11 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
     }, 0)
   }
 
+  const idsCustodia = useMemo(
+    () => [...(filas ?? []).map((f) => f.nino_id), ...(estado?.esperados ?? []).map((f) => f.nino_id)],
+    [filas, estado],
+  )
+  const custodia = useCustodia(idsCustodia)
   const abrirAqui = estado ? (f: FilaLista) => () => setSeleccion({ tipo: 'aqui', fila: f }) : null
 
   const titulo = filas ? `${filas.length} ${filas.length === 1 ? 'niño presente' : 'niños presentes'}` : 'Cargando…'
@@ -180,7 +188,12 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
             <ListaEstado
               etiqueta="Esperados"
               vacio="No hay más niños avisados para este salón."
-              filas={estado.esperados.map((f) => ({ id: f.nino_id, nombre: `${f.nombre} ${f.apellido}`, detalle: textoEsperado(f) }))}
+              filas={estado.esperados.map((f) => ({
+                id: f.nino_id,
+                nombre: `${f.nombre} ${f.apellido}`,
+                detalle: textoEsperado(f),
+                custodia: (custodia[f.nino_id]?.length ?? 0) > 0,
+              }))}
               onAbrir={(id) => {
                 const f = estado.esperados.find((x) => x.nino_id === id)
                 if (f) setSeleccion({ tipo: 'esperado', fila: f })
@@ -234,8 +247,9 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                             {f.codigo}
                           </span>
                         </div>
-                        {(alertas.length > 0 || f.habitos) && (
+                        {(alertas.length > 0 || f.habitos || (custodia[f.nino_id]?.length ?? 0) > 0) && (
                           <div className="flex flex-wrap gap-1.5">
+                            <ChipCustodia restricciones={custodia[f.nino_id] ?? []} />
                             {alertas.map((a) => (
                               <AlertaBadge key={a.texto} alerta={a} />
                             ))}
@@ -274,11 +288,14 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
                           <td className="px-4 py-3 font-mono text-xl font-bold tracking-widest text-[var(--brand-primary)]">{f.codigo}</td>
                           <td className="px-4 py-3">
                             <div className="flex flex-wrap gap-1.5">
+                              <ChipCustodia restricciones={custodia[f.nino_id] ?? []} />
                               {alertas.map((a) => (
                                 <AlertaBadge key={a.texto} alerta={a} />
                               ))}
                               {f.habitos && <p className="w-full text-xs text-muted-foreground">Hábitos: {f.habitos}</p>}
-                              {alertas.length === 0 && !f.habitos && <span className="text-sm text-muted-foreground">—</span>}
+                              {alertas.length === 0 && !f.habitos && !custodia[f.nino_id]?.length && (
+                                <span className="text-sm text-muted-foreground">—</span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -309,6 +326,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
           puedeRetirar={puedeOperar && estado.puedeOperar}
           onHecho={hecho}
           onRetirar={retirar}
+          custodia={seleccion && seleccion.tipo !== 'retirado' ? (custodia[seleccion.fila.nino_id] ?? []) : []}
         />
       )}
     </>

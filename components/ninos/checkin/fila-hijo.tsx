@@ -13,6 +13,9 @@
  * quota, plus the visitor places for a visitor) shows «{salón} está lleno»
  * with «Usar {otro salón}»; registering it anyway is allowed and recorded as
  * forced (S9.1).
+ *
+ * Custody (T2e, S9.2; artboard 05 `.q-al`): an active restriction adds the
+ * «Custodia» chip, which expands to «No entregar a {persona} — {respaldo}».
  */
 import type { ReactElement } from 'react'
 import { AlertTriangle, ClipboardPlus } from 'lucide-react'
@@ -20,10 +23,12 @@ import { AlertTriangle, ClipboardPlus } from 'lucide-react'
 import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
 import { edadCorta, estadoCupo, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
+import type { RestriccionCustodia } from '@/lib/platform/ninos/custodia'
 import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { ETIQUETA_VISITA, type EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
 import { cn } from '@/lib/utils'
 
+import { ChipCustodia } from '../custodia/chip-custodia'
 import { Alertas } from './alertas'
 import { CupoSalon, EtiquetaLleno } from './partes'
 
@@ -44,6 +49,8 @@ export interface FilaHijoProps {
   readonly estado?: EstadoHijoMesa
   /** «Usar {otro salón}». */
   readonly onUsarOtro?: (salonId: string) => void
+  /** Active custody restrictions of the child (T2e). */
+  readonly custodia?: readonly RestriccionCustodia[]
 }
 
 export function FilaHijo(p: FilaHijoProps): ReactElement {
@@ -202,8 +209,9 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
         </div>
       )}
 
-      {(h.es_vip_desde || h.desde_casa || etiquetaVisita || alertasDeHijo(h).length > 0) && (
+      {(h.es_vip_desde || h.desde_casa || etiquetaVisita || alertasDeHijo(h).length > 0 || (p.custodia?.length ?? 0) > 0) && (
         <div className="col-start-2 flex min-w-0 flex-wrap gap-1.5 pt-1">
+          <ChipCustodia restricciones={p.custodia ?? []} />
           {etiquetaVisita && (
             <BadgeSistema variante="info" tamaño="sm">
               {etiquetaVisita}

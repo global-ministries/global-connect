@@ -2,14 +2,19 @@
  * Niños › Salón, the Esperados and Retirados lists (odd/tasks/ninos-checkin-pco.md,
  * T2b; artboard design/ninos-checkin-pco/06-salon-celular.html, `.grp` rows):
  * one row per child with its second line and a chevron; the row opens the
- * child sheet.
+ * child sheet. A child with an active custody restriction is marked
+ * «Custodia» (T2e, S9.2); the sheet says who not to hand over to.
  */
-import { ChevronRight } from 'lucide-react'
+import { Ban, ChevronRight } from 'lucide-react'
+
+import { BadgeSistema } from '@/components/ui/sistema-diseno'
 
 export type FilaEstadoVista = {
   readonly id: string
   readonly nombre: string
   readonly detalle: string
+  /** Has an active custody restriction. */
+  readonly custodia?: boolean
 }
 
 type Props = {
@@ -35,6 +40,12 @@ export function ListaEstado({ etiqueta, filas, vacio, onAbrir }: Props) {
               <span className="block truncate text-base font-semibold text-foreground">{f.nombre}</span>
               <span className="block truncate text-[13px] text-muted-foreground">{f.detalle}</span>
             </span>
+            {f.custodia && (
+              <BadgeSistema variante="error" tamaño="sm" className="shrink-0 gap-1">
+                <Ban className="size-3 shrink-0" aria-hidden />
+                Custodia
+              </BadgeSistema>
+            )}
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
           </button>
         </li>

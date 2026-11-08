@@ -145,4 +145,14 @@ describe('mensajeDeErrorRetiro (per child)', () => {
     )
     expect(mensajeDeErrorRetiro({ code: '22023', message: 'sin_ninos' })).toBe('Marca al menos un niño.')
   })
+
+  it('shows the custody refusal HINT as is (T2e, S9.2)', () => {
+    const hint = 'Esta persona tiene una restricción de custodia: no puede retirar a este niño. Llama a coordinación.'
+    expect(mensajeDeErrorRetiro({ code: '42501', message: 'custodia_restringida', hint })).toBe(hint)
+    expect(mensajeDeErrorRetiro({ code: '42501', message: 'custodia_restringida' })).toBe(hint)
+  })
+
+  it('keeps the room message for any other 42501', () => {
+    expect(mensajeDeErrorRetiro({ code: '42501', message: 'not allowed' })).toBe('No tienes permiso para retirar niños de ese salón.')
+  })
 })

@@ -96,7 +96,12 @@ export function validarRetiro(
   return { ok: true, retiradoPor: nombre, motivoOtra: motivo }
 }
 
-export function mensajeDeErrorRetiro(error: { code?: string; message?: string } | null): string {
+/** The custody refusal of ninos_checkout (T2e, S9.2, 20261108170000): its HINT, shown as is. */
+export const MENSAJE_CUSTODIA_RESTRINGIDA =
+  'Esta persona tiene una restricción de custodia: no puede retirar a este niño. Llama a coordinación.'
+
+export function mensajeDeErrorRetiro(error: { code?: string; message?: string; hint?: string | null } | null): string {
+  if (error?.message === 'custodia_restringida') return error.hint?.trim() || MENSAJE_CUSTODIA_RESTRINGIDA
   if (error?.message === 'nino_no_esta_adentro') return 'Uno de los niños marcados ya salió o no tiene este código. Revisa la lista.'
   if (error?.message === 'sin_ninos') return MENSAJE_SIN_MARCADOS
   if (error?.message === 'retiro_no_autorizado') {

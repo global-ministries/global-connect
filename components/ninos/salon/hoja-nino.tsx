@@ -11,7 +11,9 @@
  *  - Esperado: who sent the notice and «Llegó al salón» (S9.4), for whoever
  *    sees the salón (L32: coordinators, Líderes, Anfitriones).
  *  - Retirado: when and with whom.
- * Not here (other tasks): «Avisar al representante» (T4), custody (T2e).
+ * Custody (T2e, S9.2): an active restriction opens the sheet with «No
+ * entregar a {persona} — {respaldo}» and its protocol.
+ * Not here (other tasks): «Avisar al representante» (T4).
  */
 import { useState } from 'react'
 import { ArrowLeftRight, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
@@ -19,6 +21,7 @@ import { ArrowLeftRight, ChevronDown, ChevronRight, LogOut } from 'lucide-react'
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import type { Servicio } from '@/lib/platform/ninos/checkin'
+import type { RestriccionCustodia } from '@/lib/platform/ninos/custodia'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import { alertasDeLista, edadOGrado, type FilaLista } from '@/lib/platform/ninos/salon'
 import {
@@ -36,6 +39,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
+import { AvisoCustodia } from '../custodia/aviso-custodia'
 import { AlertaBadge } from './alerta-badge'
 
 export type SeleccionSalon =
@@ -54,6 +58,8 @@ type Props = {
   /** After a move or a «Llegó»: the sentence to announce. */
   readonly onHecho: (mensaje: string) => void
   readonly onRetirar: (fila: FilaLista) => void
+  /** Active custody restrictions of the selected child (T2e). */
+  readonly custodia?: readonly RestriccionCustodia[]
 }
 
 const nombreDe = (f: { nombre: string; apellido: string }) => `${f.nombre} ${f.apellido}`.trim()
@@ -103,7 +109,7 @@ function Accion({
   )
 }
 
-export function HojaNino({ seleccion, onCerrar, servicio, salonId, estado, puedeRetirar, onHecho, onRetirar }: Props) {
+export function HojaNino({ seleccion, onCerrar, servicio, salonId, estado, puedeRetirar, onHecho, onRetirar, custodia = [] }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [abreMover, setAbreMover] = useState(false)
@@ -159,6 +165,9 @@ export function HojaNino({ seleccion, onCerrar, servicio, salonId, estado, puede
     <DetalleResponsivo abierto={seleccion !== null} onCambioAbierto={(a) => !a && cerrar()} titulo={titulo} descripcion={descripcion || undefined}>
       {seleccion && (
         <div className="grid gap-5">
+          {custodia.map((r) => (
+            <AvisoCustodia key={r.persona} persona={r.persona} respaldo={r.respaldo} notas={r.notas} />
+          ))}
           {seleccion.tipo !== 'retirado' && <Alertas fila={seleccion.fila} />}
 
           {seleccion.tipo === 'aqui' && (

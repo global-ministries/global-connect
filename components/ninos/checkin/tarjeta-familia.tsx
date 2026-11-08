@@ -9,6 +9,7 @@
 import type { ReactElement, Ref } from 'react'
 
 import { BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
 import { quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaEncontrada, HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
 import type { EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
@@ -23,6 +24,8 @@ export interface TarjetaFamiliaProps {
   readonly fecha: string
   readonly salones: readonly SalonFila[]
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
+  /** Active custody restrictions by child (T2e): the «Custodia» chip. */
+  readonly custodia?: CustodiaPorNino
   readonly ingresados: Ingresados
   readonly marcados: ReadonlySet<string>
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
@@ -82,6 +85,7 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
               estado={p.estadoDe?.(h)}
               onUsarOtro={p.onUsarOtro ? (salonId) => p.onUsarOtro?.(h.id, salonId) : undefined}
               ocupacion={p.ocupacion}
+              custodia={p.custodia?.[h.id]}
               codigo={p.ingresados[h.id]}
               marcado={p.marcados.has(h.id)}
               onMarcar={(v) => p.onMarcar(h.id, v)}

@@ -223,3 +223,20 @@ describe('POST /api/ninos/checkout — pickup per child (T2a)', () => {
     expect(tareasAfter).toHaveLength(0)
   })
 })
+
+describe('POST /api/ninos/checkout — custody (T2e, S9.2)', () => {
+  const HINT = 'Esta persona tiene una restricción de custodia: no puede retirar a este niño. Llama a coordinación.'
+
+  it('a refused restricted person comes back as 403 with the code and its HINT as is, no email', async () => {
+    setup({ ninos_checkout: { error: { code: '42501', message: 'custodia_restringida', hint: HINT } } })
+    const res = await checkout(req('checkout', { ...cuerpoCheckout, retiradoPor: 'Carlos Pérez', motivoOtra: 'Dice que es el papá' }))
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: { code: '42501', message: 'custodia_restringida', hint: HINT } })
+    expect(tareasAfter).toHaveLength(0)
+  })
+
+  it('any other 42501 keeps hiding its message and hint', async () => {
+    setup({ ninos_checkout: { error: { code: '42501', message: 'not allowed', hint: 'room ZZ' } } })
+    expect(await (await checkout(req('checkout', cuerpoCheckout))).json()).toEqual({ error: { code: '42501' } })
+  })
+})

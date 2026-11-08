@@ -11,6 +11,7 @@ import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncont
 
 import { AdultoSinHijos } from './adulto-sin-hijos'
 import { AgregarPadreForm } from './agregar-padre-form'
+import { SeccionCustodia } from './custodia/seccion-custodia'
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
@@ -29,12 +30,14 @@ type Props = {
   registrarAlInicio?: boolean
   /** Check-in URL to return to after registering (?volver=checkin). */
   volverCheckin?: string
+  /** Coordinación / dirección of Niños: the ficha shows the «Custodia» section (T2e, S9.2). */
+  puedeEditarCustodia?: boolean
 }
 
 type Vista = { tipo: 'buscar' } | { tipo: 'registrar' } | { tipo: 'agregar'; padre: { id: string; nombre: string } }
 
 /** Mobile-first Familias screen: search, register, add a child; a child's ficha is edited in a side panel. */
-export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volverCheckin }: Props) {
+export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volverCheckin, puedeEditarCustodia = false }: Props) {
   const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [vista, setVista] = useState<Vista>({ tipo: registrarAlInicio ? 'registrar' : 'buscar' })
@@ -245,7 +248,10 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
         onCerrar={() => setEditando(null)}
       >
         {editando && (
-          <EditarNinoForm salones={salonesNivel} key={editando.id} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
+          <div key={editando.id} className="space-y-6">
+            {puedeEditarCustodia && editando.tiene_ficha && <SeccionCustodia ninoId={editando.id} nombre={editando.nombre} />}
+            <EditarNinoForm salones={salonesNivel} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
+          </div>
         )}
       </PanelLateralNinos>
 

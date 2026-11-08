@@ -9,7 +9,8 @@
  * pick another one. A QR pre-registration has no ficha yet: "Revisar" opens
  * its review. Each child is placed with the salón rules, its prior visits
  * and the occupancy, as at the mesa (T2d); a room full for the child still
- * goes in with «Llegaron», recorded as forced (S9.1).
+ * goes in with «Llegaron», recorded as forced (S9.1). A child with an active
+ * custody restriction carries the «Custodia» chip (T2e, S9.2).
  */
 import { useState, type ReactElement } from 'react'
 import { Car, Check, QrCode } from 'lucide-react'
@@ -18,11 +19,13 @@ import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
 import { edadCorta, type ItemCola, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
+import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
 import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import { ETIQUETA_VISITA, estadoHijo, salonDeHijoConReglas, type VisitasPrevias } from '@/lib/platform/ninos/mesa-reglas'
 import type { FamiliaLlegando, PreregistroLlegando } from '@/lib/platform/ninos/precheck'
 
+import { ChipCustodia } from '../custodia/chip-custodia'
 import { Alertas } from './alertas'
 import { Avatar, CLASE_LINEA_INSET, EtiquetaLleno, ListaInset, TituloSeccion } from './partes'
 
@@ -35,6 +38,8 @@ export interface ColaLlegandoProps {
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
   /** Prior visits of the children (T2d, S9.3). */
   readonly visitas?: VisitasPrevias
+  /** Active custody restrictions by child (T2e): the «Custodia» chip. */
+  readonly custodia?: CustodiaPorNino
   /** Checks the family in; resolves to an error message, or null when done. */
   readonly onLlegaron: (f: FamiliaLlegando) => Promise<string | null>
   /** Opens the family at the mesa to change a child's salón. */
@@ -116,8 +121,9 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
                   </BotonSistema>
                 )}
               </span>
-              {(h.desde_casa || (visita && visita !== 'regular')) && (
+              {(h.desde_casa || (visita && visita !== 'regular') || (props.custodia?.[h.id]?.length ?? 0) > 0) && (
                 <span className="flex flex-wrap gap-1.5">
+                  <ChipCustodia restricciones={props.custodia?.[h.id] ?? []} />
                   {visita && visita !== 'regular' && (
                     <BadgeSistema variante="info" tamaño="sm">
                       {ETIQUETA_VISITA[visita]}

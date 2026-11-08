@@ -17,6 +17,9 @@
  * (VentanaHorario, informative only); the children are placed with the salón
  * rules, their prior visits (useVisitas, «Primera vez» / «Visitante») and the
  * occupancy, and a full room offers «Usar {otro}» or is forced (useMesa).
+ *
+ * Custody (T2e, S9.2): a child of the queue or the mesa with an active
+ * restriction carries the «Custodia» chip (useCustodia); never the label.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -34,6 +37,7 @@ import { createClient } from '@/lib/supabase/client'
 
 import { ColaLlegando } from './checkin/cola-llegando'
 import { ColumnaSalones } from './checkin/columna-salones'
+import { useCustodia } from './custodia/use-custodia'
 import { EncabezadoCheckin, MigasCheckin } from './checkin/encabezado-checkin'
 import { Mesa } from './checkin/mesa'
 import { PanelesCheckin, type PanelCheckin } from './checkin/paneles-checkin'
@@ -110,6 +114,11 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
     { visitas, ocupacion: porSalon, cargarVisitas },
   )
   const { busqueda, buscarYElegir } = mesa
+  const idsCustodia = useMemo(
+    () => [...cola.flatMap((i) => (i.tipo === 'familia' ? i.familia.hijos.map((h) => h.id) : [])), ...(mesa.familia?.hijos.map((h) => h.id) ?? [])],
+    [cola, mesa.familia],
+  )
+  const custodia = useCustodia(idsCustodia)
 
   useEffect(() => {
     if (consultaInicial) {
@@ -198,6 +207,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
                 fecha={servicio.fecha}
                 ocupacion={porSalon}
                 visitas={visitas}
+                custodia={custodia}
                 onLlegaron={mesa.llegaron}
                 onCambiarSalon={cambiarSalonLlegando}
                 onRevisar={setRevisar}
@@ -220,6 +230,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
             servicio={servicio}
             salones={salones}
             ocupacion={porSalon}
+            custodia={custodia}
             panelAbierto={panel !== null}
             onCambiarSalon={(hijo) => setPanel({ tipo: 'salon', hijo })}
             onCompletar={(hijo) => setPanel({ tipo: 'ficha', hijo })}

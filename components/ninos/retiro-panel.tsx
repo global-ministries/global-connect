@@ -1,14 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RotateCcw } from 'lucide-react'
 
 import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import type { Servicio } from '@/lib/platform/ninos/checkin'
+import { avisosPorPersona } from '@/lib/platform/ninos/custodia'
 import {
   agruparRetiro,
   cargarOpcionesRetiro,
   cargarRetirosRecientes,
+  listaNatural,
   marcadosIniciales,
   mensajeDeErrorRetiro,
   ninoIdsParaRetiro,
@@ -27,6 +29,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 
 import { registrarRetiroApi } from './api-visita'
+import { AvisoCustodia } from './custodia/aviso-custodia'
+import { useCustodia } from './custodia/use-custodia'
 import { NinosDelCodigo } from './retiro/ninos-del-codigo'
 import { OTRA, QuienRetira } from './retiro/quien-retira'
 import { RetiroHecho } from './retiro/retiro-hecho'
@@ -46,6 +50,11 @@ type Hecho = { titulo: string; detalle: string }
  * which children leave and who picks up from their list (or another person
  * with a reason); the success says who is still inside with the same code.
  * While no code is open it shows the service's last pickups.
+ *
+ * Custody (T2e, S9.2): a child of the code with an active restriction shows
+ * the red banner «No entregar a {persona} — {respaldo}» with the protocol and
+ * «Avisa a coordinación»; that person is not offered and the database refuses
+ * them (custodia_restringida, its HINT shown as is).
  */
 export function RetiroPanel({ servicio, onRetirado }: Props) {
   const [texto, setTexto] = useState('')
@@ -63,6 +72,9 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
   const [recientes, setRecientes] = useState<RetirosRecientes | null>(null)
   /** Only the answer to the last options request counts. */
   const pedidoOpciones = useRef(0)
+  const idsAdentro = useMemo(() => (retiro ? retiro.adentro.map((f) => f.nino_id) : []), [retiro])
+  const custodia = useCustodia(idsAdentro)
+  const avisosCustodia = avisosPorPersona(custodia, idsAdentro)
 
   const cargarRecientes = useCallback(async () => {
     if (!servicio.turnoId) return
@@ -270,6 +282,19 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
               Otro código
             </BotonSistema>
           </div>
+
+          {avisosCustodia.map((a) => (
+            <AvisoCustodia
+              key={a.persona}
+              persona={a.persona}
+              respaldo={a.respaldo}
+              notas={a.notas}
+              ninos={listaNatural(
+                retiro.adentro.filter((f) => a.ninoIds.includes(f.nino_id)).map((f) => f.nombre.trim().split(/\s+/)[0] ?? ''),
+              )}
+              conCoordinacion
+            />
+          ))}
 
           <NinosDelCodigo retiro={retiro} marcados={marcados} onMarcar={marcar} />
 

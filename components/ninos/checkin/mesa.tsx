@@ -18,6 +18,7 @@ import { ScanLine } from 'lucide-react'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import type { Servicio } from '@/lib/platform/ninos/checkin'
 import { atajoBuscar, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
+import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
 import type { FamiliaEncontrada, HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 import { AdultoSinHijos } from '../adulto-sin-hijos'
@@ -32,6 +33,8 @@ export interface MesaProps {
   readonly servicio: Servicio
   readonly salones: readonly SalonFila[]
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
+  /** Active custody restrictions by child (T2e): the «Custodia» chip. */
+  readonly custodia?: CustodiaPorNino
   /** A panel of the screen is open: "/" does nothing and the phone sheet steps aside. */
   readonly panelAbierto: boolean
   readonly onCambiarSalon: (h: HijoEncontrado) => void
@@ -42,7 +45,7 @@ export interface MesaProps {
 const esCampo = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.isContentEditable || Boolean(t.closest('input, select, textarea, [contenteditable="true"]')))
 
-export function Mesa({ mesa, servicio, salones, ocupacion, panelAbierto, onCambiarSalon, onCompletar, onParaAdulto }: MesaProps): ReactElement {
+export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbierto, onCambiarSalon, onCompletar, onParaAdulto }: MesaProps): ReactElement {
   const { busqueda, familia, resultado, foco } = mesa
   const varias = (busqueda.familias?.length ?? 0) > 1
   const refBuscar = useRef<HTMLInputElement>(null)
@@ -105,6 +108,7 @@ export function Mesa({ mesa, servicio, salones, ocupacion, panelAbierto, onCambi
             fecha={servicio.fecha}
             salones={salones}
             ocupacion={ocupacion}
+            custodia={custodia}
             ingresados={mesa.ingresados}
             marcados={mesa.marcados}
             salonDe={mesa.salonDe}

@@ -6,6 +6,11 @@
  * Directora de Niños, admin, pastor); everyone else gets a 404. Every write
  * goes through SECURITY DEFINER RPCs that re-check that authority.
  *
+ * The «Custodia» section of a ficha (T2e of odd/tasks/ninos-checkin-pco.md,
+ * S9.2) is shown only to coordinación / dirección of Niños
+ * (ninos_puede_configurar_algun_area); ninos_custodia_lista / _guardar check
+ * it again per child.
+ *
  * ?nueva=1&volver=checkin&turno=&fecha= opens the registration and returns to
  * the check-in with the new family selected (N4).
  */
@@ -29,11 +34,14 @@ export default async function NinosFamiliasPage({ searchParams }: Props) {
   if (!puede) notFound()
 
   const query = await searchParams
-  const { data: salones } = await supabase
-    .from('ninos_salones')
-    .select('id, nombre, area, edad_min_meses, edad_max_meses, grado_min, grado_max, es_necesidades_especiales, activo, orden')
-    .eq('activo', true)
-    .order('orden')
+  const [{ data: salones }, { data: puedeCustodia }] = await Promise.all([
+    supabase
+      .from('ninos_salones')
+      .select('id, nombre, area, edad_min_meses, edad_max_meses, grado_min, grado_max, es_necesidades_especiales, activo, orden')
+      .eq('activo', true)
+      .order('orden'),
+    supabase.rpc('ninos_puede_configurar_algun_area'),
+  ])
 
   const volverCheckin =
     query.volver === 'checkin'
@@ -47,6 +55,7 @@ export default async function NinosFamiliasPage({ searchParams }: Props) {
         fechaServicio={fechaServicioCaracas()}
         registrarAlInicio={query.nueva === '1'}
         volverCheckin={volverCheckin}
+        puedeEditarCustodia={puedeCustodia === true}
       />
     </ContenedorDashboard>
   )
