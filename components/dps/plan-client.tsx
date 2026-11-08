@@ -24,7 +24,8 @@
  * Whoever edits (dps_plan_equipos.puede_editar) convoca from the popover and
  * quita from each row: the change is applied at once and saved through a
  * server action; a failure rolls it back and explains why. The copy confirms
- * first (and asks to replace when the plan already has convocados), then
+ * first (and asks to replace when the plan already has people convocados by
+ * hand; the automatic directors of S8 stay), then
  * reloads the teams and says how many were copied. Everyone else reads the
  * same plan without controls. The database decides who edits and who may be
  * convocado where.
@@ -43,6 +44,7 @@ import { cambiarPortadaDps, cargarEquiposDps, convocarDps, copiarPlanDps, descon
 import { MENSAJE_IMAGEN } from '@/lib/platform/dps/errores'
 import {
   confirmarConvocado,
+  convocadosManuales,
   convocarEnPlan,
   quitarDePlan,
   textoCopia,
@@ -129,6 +131,8 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
   const archivoRef = useRef<HTMLInputElement>(null)
 
   const totales = useMemo(() => (equipos ? totalesPlan(equipos) : null), [equipos])
+  // The copy replaces only the people convocados by hand; the automatic directors stay (S8).
+  const manuales = useMemo(() => (equipos ? convocadosManuales(equipos) : 0), [equipos])
 
   if (!plan) return <SinPlan motivo={motivo} error={error} />
 
@@ -157,7 +161,7 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
     setAbierto(null)
     if (puesto.convocados.some((c) => c.personaId === candidato.personaId)) return
     const nombre = nombreCompleto(candidato)
-    const temporal: ConvocadoPlan = { convocadoId: '', personaId: candidato.personaId, servicioId: candidato.servicioId, nombre }
+    const temporal: ConvocadoPlan = { convocadoId: '', personaId: candidato.personaId, servicioId: candidato.servicioId, nombre, automatico: false }
     setEquipos((e) => e && convocarEnPlan(e, puesto.puestoId, temporal))
     empezar(`Convocaste a ${nombre} para ${puesto.nombre}.`)
 
@@ -194,7 +198,7 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
       toast.info('No hay un plan anterior del mismo tipo para copiar.')
       return
     }
-    setCopia({ origen: r.data, reemplazar: (totales?.convocados ?? 0) > 0, enviando: false, error: null })
+    setCopia({ origen: r.data, reemplazar: manuales > 0, enviando: false, error: null })
   }
 
   async function confirmarCopia(): Promise<void> {
@@ -356,7 +360,7 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
       {editable && (
         <DialogoCopiar
           origen={copia?.origen ?? null}
-          convocados={totales?.convocados ?? 0}
+          convocados={manuales}
           reemplazar={copia?.reemplazar ?? false}
           enviando={copia?.enviando ?? false}
           error={copia?.error ?? null}

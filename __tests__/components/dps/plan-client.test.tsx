@@ -278,6 +278,56 @@ describe('quitar', () => {
   })
 })
 
+// S8: the directors of the direcciones come from Dream Team (automatico).
+describe('automatic directors', () => {
+  const conDirectores = () => {
+    const json = equiposJson()
+    return {
+      ...json,
+      equipos: [
+        {
+          equipo_id: 'dps',
+          equipo: 'DPS',
+          ruta: 'd',
+          puestos: [
+            { puesto_id: 'dmedia', nombre: 'Director de Media', cantidad: 1, activo: true, convocados: [{ ...conv('dm', 'Delia Mora'), automatico: true }] },
+            { puesto_id: 'dbaut', nombre: 'Director de Bautizos', cantidad: 1, activo: true, convocados: [] },
+          ],
+        },
+        ...json.equipos,
+      ],
+    }
+  }
+
+  it('tags the automatic director, offers no remove for them and keeps «Convocar» for someone else', () => {
+    render(<PlanClient {...props({ equipos: leerEquiposPlan(conDirectores()) })} />)
+    const dps = columna('DPS')
+    expect(within(dps).getByText('Delia Mora')).toBeInTheDocument()
+    expect(within(dps).getByText('Automático')).toBeInTheDocument()
+    expect(within(dps).queryByRole('button', { name: /Quitar a Delia Mora/ })).not.toBeInTheDocument()
+    expect(within(dps).getByRole('button', { name: 'Convocar para Director de Media, DPS' })).toBeInTheDocument()
+    expect(within(dps).getByRole('button', { name: 'Falta 1 en Director de Bautizos, DPS. Convocar' })).toBeInTheDocument()
+    // A person convocado by hand keeps the remove action and no tag.
+    expect(within(columna('Audio')).getByRole('button', { name: 'Quitar a Lorena Ibarra de Monitores' })).toBeInTheDocument()
+    expect(within(columna('Audio')).queryByText('Automático')).not.toBeInTheDocument()
+  })
+
+  it('copies into a plan that only has automatic directors without asking to replace', async () => {
+    const usuario = userEvent.setup()
+    const soloDirectores = conDirectores()
+    soloDirectores.equipos.slice(1).forEach((e) => e.puestos.forEach((p) => (p.convocados = [])))
+    anterior.mockResolvedValueOnce({ ok: true, data: plan({ id: 'plan1', fecha: '2026-11-01', semana: 2 }) })
+    copiar.mockResolvedValueOnce({ ok: true, data: { copiados: 3, omitidos: 0 } })
+    render(<PlanClient {...props({ equipos: leerEquiposPlan(soloDirectores) })} />)
+    await usuario.click(screen.getByRole('button', { name: 'Acciones' }))
+    await usuario.click(await screen.findByRole('menuitem', { name: 'Copiar del domingo anterior' }))
+    const dialogo = await screen.findByRole('alertdialog', { name: '¿Copiar del domingo 1 de noviembre?' })
+    expect(within(dialogo).queryByRole('button', { name: 'Reemplazar' })).not.toBeInTheDocument()
+    await usuario.click(within(dialogo).getByRole('button', { name: 'Copiar' }))
+    expect(copiar).toHaveBeenCalledWith({ origenId: 'plan1', destinoId: 'plan8', reemplazar: false })
+  })
+})
+
 describe('Copiar del domingo anterior', () => {
   const abrirMenu = async (usuario: ReturnType<typeof userEvent.setup>) => {
     await usuario.click(screen.getByRole('button', { name: 'Acciones' }))

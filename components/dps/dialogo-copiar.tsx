@@ -19,7 +19,7 @@ import { fechaHablada, type PlanCabecera } from '@/lib/platform/dps/plan'
 
 export interface DialogoCopiarProps {
   readonly origen: PlanCabecera | null
-  /** Distinct convocados the plan already has; > 0 means the copy replaces them. */
+  /** Distinct people convocados by hand (the automatic directors stay); > 0 means the copy replaces them. */
   readonly convocados: number
   readonly reemplazar: boolean
   readonly enviando: boolean

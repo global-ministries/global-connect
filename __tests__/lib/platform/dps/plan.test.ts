@@ -17,6 +17,7 @@ import {
   fechaHablada,
   leerCandidatos,
   leerEquiposPlan,
+  convocadosManuales,
   leerPlanCabecera,
   leerPlanesCabecera,
   lineaEquipo,
@@ -177,9 +178,51 @@ describe('leerEquiposPlan and the counts', () => {
       nombre: 'Monitores',
       cantidad: 2,
       activo: true,
-      convocados: [{ convocadoId: 'c-li', personaId: 'li', servicioId: 'sv-li', nombre: 'Lorena Ibarra' }],
+      convocados: [{ convocadoId: 'c-li', personaId: 'li', servicioId: 'sv-li', nombre: 'Lorena Ibarra', automatico: false }],
     })
     expect(leerEquiposPlan(null)).toEqual({ planId: '', puedeEditar: false, equipos: [] })
+  })
+
+  // S8: the director of a dirección is convocado by the database (automatico).
+  it('reads automatico, false unless the RPC says true', () => {
+    const conAutomatico = leerEquiposPlan({
+      ...EQUIPOS_JSON,
+      equipos: [
+        {
+          equipo_id: 'dps',
+          equipo: 'DPS',
+          puestos: [
+            {
+              puesto_id: 'dmedia',
+              nombre: 'Director de Media',
+              cantidad: 1,
+              activo: true,
+              convocados: [{ ...convocado('dm', 'Delia Mora'), automatico: true }, { ...convocado('rc', 'Rubén Carvajal'), automatico: 'si' }],
+            },
+          ],
+        },
+      ],
+    })
+    expect(conAutomatico.equipos[0].puestos[0].convocados.map((c) => c.automatico)).toEqual([true, false])
+  })
+
+  it('counts the people convocados by hand once: the automatic directors stay when copying', () => {
+    const plan = leerEquiposPlan({
+      ...EQUIPOS_JSON,
+      equipos: [
+        ...EQUIPOS_JSON.equipos,
+        {
+          equipo_id: 'dps',
+          equipo: 'DPS',
+          puestos: [
+            { puesto_id: 'dmedia', nombre: 'Director de Media', cantidad: 1, activo: true, convocados: [{ ...convocado('dm', 'Delia Mora'), automatico: true }] },
+          ],
+        },
+      ],
+    })
+    expect(totalesPlan(plan).convocados).toBe(4)
+    expect(convocadosManuales(plan)).toBe(3)
+    expect(convocadosManuales(leerEquiposPlan(null))).toBe(0)
   })
 
   it('counts what is missing per puesto: never below zero, none for a deactivated puesto', () => {
@@ -206,7 +249,7 @@ describe('leerEquiposPlan and the counts', () => {
 
 describe('convocarEnPlan / quitarDePlan', () => {
   const eq = leerEquiposPlan(EQUIPOS_JSON)
-  const nuevo = { convocadoId: 'tmp', personaId: 'ab', servicioId: 'sv-ab', nombre: 'Adriana Bello' }
+  const nuevo = { convocadoId: 'tmp', personaId: 'ab', servicioId: 'sv-ab', nombre: 'Adriana Bello', automatico: false }
 
   it('adds the person to the puesto, in name order, once', () => {
     const despues = convocarEnPlan(eq, 'mon', nuevo)

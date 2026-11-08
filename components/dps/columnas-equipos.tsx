@@ -17,13 +17,16 @@
  * "+ Convocar" row (on hover or focus with a mouse, always on touch); both
  * open the assign popover (convocar-puesto.tsx) anchored to the puesto. A
  * deactivated puesto shows only while it still has convocados, without
- * "Falta" nor "Convocar". Read-only: the same rows without any control.
+ * "Falta" nor "Convocar". The director a dirección gets on its own (S8)
+ * shows a small «Automático» tag and no "Quitar"; "+ Convocar" stays for
+ * anyone else. Read-only: the same rows without any control.
  */
 import { useId, useRef, type ReactElement } from 'react'
 import { Plus, X } from 'lucide-react'
 
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { AvatarIniciales } from '@/components/grupos-vida/planner/avatar-iniciales'
+import { EtiquetaPlanner } from '@/components/grupos-vida/planner/etiqueta'
 import { CLASE_ACCION_FILA, CLASE_CABEZA_ROL, CLASE_CUENTA_ROL } from '@/components/grupos-vida/planner/estilo-planner'
 import {
   contarEquipoPlan,
@@ -61,7 +64,13 @@ function FilaConvocado({ convocado, puesto, editable, onQuitar }: { convocado: C
     <li className="group/fila flex min-h-8 items-center gap-2 pr-0.5 pl-2.5 text-[13px] pointer-coarse:min-h-11 [&+&]:border-t [&+&]:border-border/60">
       <AvatarIniciales nombres={[convocado.nombre]} />
       <span className="min-w-0 flex-1 truncate font-medium">{convocado.nombre}</span>
-      {editable && (
+      {/* The director of the dirección follows Dream Team: tagged, never removed here. */}
+      {convocado.automatico && (
+        <span className="shrink-0 pr-2">
+          <EtiquetaPlanner tono="neutro">Automático</EtiquetaPlanner>
+        </span>
+      )}
+      {editable && !convocado.automatico && (
         <button type="button" onClick={onQuitar} aria-label={`Quitar a ${convocado.nombre} de ${puesto.nombre}`} className={CLASE_ACCION_FILA}>
           <X aria-hidden="true" className="size-3.5" />
         </button>

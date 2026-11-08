@@ -429,8 +429,16 @@ SELECT pg_temp.as_persona(5);
 SELECT pg_temp.assert_eq('c1: a servidor reads the Equipos tab: puestos, convocados, falta, the inactive puesto with convocados',
   $q$SELECT pg_temp.equipos('pl_d1')$q$,
   'Media(1/0)[Proyeccion:1:0:U7] PT(2/0)[Jefe PT:1:0:U10+U5] Camaras(3/1)[Camara:3:1:U5+U6,Switcher:1:0:U8,Viejo:1:0:U6!]');
+-- S8 (20261108204000): reading the plan also convocates the real directors
+-- of the DPS direcciones (automatico); the totals leave them out here.
 SELECT pg_temp.assert_eq('c2: a servidor cannot edit; totals count each person once',
-  $q$SELECT (v ->> 'puede_editar') || '|' || (v ->> 'convocados') FROM public.dps_plan_equipos(pg_temp.plan('pl_d1')) v$q$, 'false|5');
+  $q$SELECT (v ->> 'puede_editar') || '|'
+            || ((v ->> 'convocados')::int
+                - (SELECT count(DISTINCT c ->> 'persona_id')
+                     FROM jsonb_array_elements(v -> 'equipos') e, jsonb_array_elements(e -> 'puestos') p,
+                          jsonb_array_elements(p -> 'convocados') c
+                    WHERE (c ->> 'automatico')::boolean))
+       FROM public.dps_plan_equipos(pg_temp.plan('pl_d1')) v$q$, 'false|5');
 SELECT pg_temp.assert_eq('c3: a convocado carries name and initials',
   $q$SELECT c ->> 'nombre' || '|' || (c ->> 'iniciales')
        FROM jsonb_array_elements(public.dps_plan_equipos(pg_temp.plan('pl_d1')) -> 'equipos') e,
@@ -509,8 +517,13 @@ SELECT pg_temp.assert_raises('f10: an unknown origen is plan_invalido',
   $q$SELECT public.dps_copiar_plan(gen_random_uuid(), pg_temp.plan('pl_d3'))$q$, '22023', 'plan_invalido');
 SELECT pg_temp.assert_eq('f11: replacing with an empty origen copies nothing',
   $q$SELECT public.dps_copiar_plan(pg_temp.plan('pl_d3'), pg_temp.plan('pl_d2'), true)::text$q$, '{"copiados": 0, "omitidos": 0}');
-SELECT pg_temp.assert_eq('f11b: and leaves the destino empty',
-  $q$SELECT public.dps_plan_equipos(pg_temp.plan('pl_d2')) ->> 'convocados'$q$, '0');
+-- S8: the destino keeps only its automatic directors (none in a database
+-- without real DPS directors).
+SELECT pg_temp.assert_eq('f11b: and leaves the destino without manual convocados',
+  $q$SELECT count(*)::text
+       FROM jsonb_array_elements(public.dps_plan_equipos(pg_temp.plan('pl_d2')) -> 'equipos') e,
+            jsonb_array_elements(e -> 'puestos') p, jsonb_array_elements(p -> 'convocados') c
+      WHERE NOT (c ->> 'automatico')::boolean$q$, '0');
 SELECT pg_temp.assert_raises('f12: desconvocar in an unknown plan is plan_invalido',
   $q$SELECT public.dps_desconvocar(gen_random_uuid(), pg_temp.ctx('pu_proy')::uuid, pg_temp.id('us', 7))$q$, '22023', 'plan_invalido');
 SELECT pg_temp.as_persona(3);
