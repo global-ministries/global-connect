@@ -24,6 +24,7 @@ describe('getNinosNavItems eventos entry', () => {
       'ninos-checkin',
       'ninos-familias',
       'ninos-eventos',
+      'ninos-salones',
       'ninos-salon',
       'ninos-cartel',
       'ninos-reportes',
@@ -34,5 +35,17 @@ describe('getNinosNavItems eventos entry', () => {
 
   it('hides Eventos from operators, room viewers and volunteer markers', () => {
     expect(ids({ ...base, puedeOperar: true, puedeVerSalon: true, puedeMarcarVoluntarios: true })).not.toContain('ninos-eventos')
+  })
+})
+
+describe('getNinosNavItems salones entry (T1d)', () => {
+  it('shows Salones de check-in to configurers, right after Eventos, apart from the roster', () => {
+    const items = getNinosNavItems({ ...base, puedeConfigurar: true })
+    expect(items.find((item) => item.id === 'ninos-salones')).toMatchObject({ label: 'Salones de check-in', href: '/ninos/salones' })
+    expect(ids({ ...base, puedeConfigurar: true })).toEqual(['ninos-eventos', 'ninos-salones', 'ninos-reportes'])
+  })
+
+  it('hides Salones de check-in from operators, room viewers and volunteer markers', () => {
+    expect(ids({ ...base, puedeOperar: true, puedeVerSalon: true, puedeMarcarVoluntarios: true })).not.toContain('ninos-salones')
   })
 })

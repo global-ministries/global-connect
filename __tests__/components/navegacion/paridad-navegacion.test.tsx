@@ -115,7 +115,7 @@ const MENU_PRINCIPAL: Record<string, string[]> = {
   'admin-dream-team-ninos': [
     '/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
     '/dream-team/mi-equipo', '/dream-team/mi-equipo', '/dream-team/pendientes', '/admin/dream-team/servidores', '/admin/dream-team/estructura',
-    '/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/eventos', '/ninos/salon', '/ninos/cartel', '/ninos/reportes',
+    '/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/eventos', '/ninos/salones', '/ninos/salon', '/ninos/cartel', '/ninos/reportes',
     '/configuracion', '/configuracion', ...PIE,
   ],
   // Added with "Mis 1 a 1" (uno-a-uno T4): right after Dashboard, server-fed like Niños.
@@ -143,7 +143,7 @@ const SIDEBAR_ANTES: Record<string, string[]> = {
  * Mi perfil moved to the account menu of the header.
  */
 const PIE_SIDEBAR = ['/actualizaciones', '/ayuda']
-const NINOS = ['/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/eventos', '/ninos/salon', '/ninos/cartel', '/ninos/reportes']
+const NINOS = ['/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/eventos', '/ninos/salones', '/ninos/salon', '/ninos/cartel', '/ninos/reportes']
 // Pendientes (odd/tasks/dream-team-pendientes-director.md, T4) joins after Mi equipo.
 const DREAM_TEAM = ['/dream-team/mi-equipo', '/dream-team/mi-equipo', '/dream-team/pendientes', '/admin/dream-team/servidores', '/admin/dream-team/estructura']
 const SIDEBAR: Record<string, string[]> = {
@@ -209,7 +209,7 @@ const BARRA_INFERIOR_DESPUES: Record<string, string[]> = {
  * group, so "Más" has no block for it.
  */
 const DESDE_RAIZ_PESTANA: Record<string, string[]> = {
-  'admin-dream-team-ninos': ['/ninos/familias', '/ninos/eventos', '/ninos/salon', '/ninos/cartel', '/ninos/reportes'],
+  'admin-dream-team-ninos': ['/ninos/familias', '/ninos/eventos', '/ninos/salones', '/ninos/salon', '/ninos/cartel', '/ninos/reportes'],
   'plataforma-grupos-pastoral': ['/talleres', '/talleres/mi-recorrido'],
 }
 

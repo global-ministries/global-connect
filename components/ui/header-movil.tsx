@@ -48,6 +48,8 @@ const RUTAS_INTERNAS: [RegExp | string, string][] = [
   [/^\/ninos\/checkin/, 'Check-in'],
   [/^\/ninos\/familias/, 'Familias'],
   [/^\/ninos\/eventos/, 'Eventos'],
+  // Before /ninos/salon, whose pattern also matches /ninos/salones.
+  [/^\/ninos\/salones/, 'Salones de check-in'],
   [/^\/ninos\/salon/, 'Salones'],
   [/^\/ninos\/voluntarios/, 'Voluntarios'],
   [/^\/ninos\/cartel/, 'Cartel QR'],
