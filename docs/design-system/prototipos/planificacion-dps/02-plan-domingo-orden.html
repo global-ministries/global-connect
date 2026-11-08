@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Plan del domingo · Orden — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Shared block of design/dps-plan (01); layout new for v2. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--tinte-estado:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--sidebar:oklch(.975 .003 80);--surface-primary:#FAFAF8;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--chart-2:oklch(.6 .118 184.704);--chart-3:oklch(.398 .07 227.392);--chart-4:oklch(.828 .189 84.429);--chart-5:oklch(.769 .188 70.08);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28);--shadow-fab:0 16px 36px -10px rgba(233,108,32,.75)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.4;overflow:hidden}
+button,input{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.mut{color:var(--muted-foreground)}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s14{width:14px;height:14px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.skip{position:absolute;left:-9999px;top:8px;z-index:100;padding:10px 16px;border-radius:var(--r-xl);background:var(--card);border:2px solid var(--brand-primary);font-weight:600}.skip:focus{left:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 12px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none;color:var(--foreground);transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:hover{background:var(--accent)}.btn:active{transform:scale(.97)}
+@media (pointer:coarse){.btn{min-height:44px}}
+.lnk{border:0;background:none;padding:2px 4px;border-radius:var(--r-md);color:var(--brand-text);font-size:12px;font-weight:500;cursor:pointer;text-transform:none;letter-spacing:0}.lnk:hover{text-decoration:underline}
+.app{display:grid;grid-template-columns:64px minmax(0,1fr);height:100vh}
+.rail{background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 0}
+.rail .lg{width:28px;height:28px;border-radius:var(--radius);background:var(--brand-primary);margin-bottom:14px}
+.rail a{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-xl);color:var(--muted-foreground)}.rail a:hover{background:var(--accent);color:var(--foreground)}.rail a[aria-current]{background:var(--brand-accent-strong);color:var(--brand-text)}
+.pg{display:flex;flex-direction:column;min-width:0;min-height:0}
+.hd{display:flex;align-items:center;gap:20px;padding:16px 24px;background:var(--card);border-bottom:1px solid var(--border)}
+.cover{width:160px;height:100px;flex:none;border-radius:var(--r-md);padding:10px 12px;display:flex;flex-direction:column;justify-content:flex-end;background:linear-gradient(135deg,color-mix(in oklab,var(--chart-1) 30%,var(--card)),color-mix(in oklab,var(--chart-5) 22%,var(--card)));border:1px solid color-mix(in oklab,var(--chart-1) 35%,transparent);font-size:13px;font-weight:750;line-height:1.1;letter-spacing:-.01em;text-transform:uppercase}
+.hd .tx{flex:1;min-width:0}.crumb ol{display:flex;gap:6px;font-size:13px;color:var(--muted-foreground)}.crumb a{color:inherit;text-decoration:none}.crumb a:hover{color:var(--foreground);text-decoration:underline}
+.hd h1{font-size:24px;font-weight:650;letter-spacing:-.02em;line-height:1.15;margin:4px 0 8px}
+.dp{display:inline-flex;align-items:center;border:1px solid var(--border);border-radius:9999px;background:var(--background);font-size:13px;font-weight:500}
+.dp button{width:30px;height:30px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;cursor:pointer;color:var(--muted-foreground)}.dp button:hover{background:var(--accent);color:var(--foreground)}.dp span{padding:0 6px}
+.meta{display:inline-flex;gap:6px;align-items:center;margin-left:12px;font-size:13px;color:var(--muted-foreground)}
+.hact{display:flex;gap:8px}
+.bd{flex:1;display:grid;grid-template-columns:240px minmax(0,1fr);min-height:0}
+.ps{border-right:1px solid var(--border);background:var(--card);overflow:auto}
+.ps>section{padding:10px 12px 12px 16px}.ps>section+section{border-top:1px solid var(--border)}
+.ps h2{display:flex;justify-content:space-between;align-items:center;min-height:26px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.hr li{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.tm{display:block;padding:5px 4px 5px 20px;border-radius:var(--r-md);text-decoration:none;color:var(--foreground)}.tm:hover{background:var(--accent)}
+.tm b{display:block;font-size:13px;font-weight:600}.tm small{font-size:12px;color:var(--muted-foreground)}.f{color:var(--danger-text);font-weight:600}
+.nt{font-size:13px;line-height:1.45}.nt small{display:block;color:var(--muted-foreground);font-size:12px;margin-top:4px}
+.mn{display:flex;flex-direction:column;min-width:0;min-height:0}
+.tb{display:flex;align-items:center;gap:16px;padding:12px 24px}
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:var(--r-xl);background:var(--card)}
+.seg a{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:0 14px;border-radius:var(--r-md);color:var(--muted-foreground);font-size:14px;font-weight:500;text-decoration:none}.seg a:hover{color:var(--foreground)}.seg a[aria-current]{background:var(--foreground);color:var(--background)}.seg small{font-size:11px}
+.sum{font-size:13px;color:var(--muted-foreground)}.sum strong{color:var(--foreground)}
+.sv{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted-foreground)}
+/* Orden del servicio */
+.wrap{flex:1;overflow:auto;padding:0 24px 16px}
+.ord{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r-md);font-size:13px}
+.ord thead th{position:sticky;top:0;z-index:2;background:var(--card);height:34px;padding:0 10px;border-bottom:1px solid var(--border);text-align:left;font-size:12px;font-weight:600;color:var(--muted-foreground)}
+.ord thead th:first-child{border-top-left-radius:var(--r-md)}.ord thead th:last-child{border-top-right-radius:var(--r-md)}
+.ord td{height:36px;padding:3px 10px;border-bottom:1px solid color-mix(in oklab,var(--border) 60%,transparent);vertical-align:middle}
+.ord .tA,.ord .tB{width:72px;color:var(--foreground)}.ord .tB{border-right:1px solid var(--border)}.ord .na{color:var(--muted-foreground)}
+.ord .hd0{width:32px;padding:0 0 0 4px}.ord .ln{width:76px}.ord .wh{width:200px;color:var(--muted-foreground)}
+tr.sec th{height:28px;padding:0 10px 0 40px;background:var(--muted);border-bottom:1px solid var(--border);text-align:left;font-size:12px;font-weight:650;letter-spacing:.02em}
+tr.sec th span{float:right;font-weight:500;color:var(--muted-foreground)}
+.grip{width:28px;height:28px;display:grid;place-items:center;border:0;background:none;border-radius:var(--r-md);color:var(--muted-foreground);cursor:grab;opacity:.35}tr:hover .grip,.grip:focus-visible{opacity:1}.grip:hover{background:var(--accent)}
+.ed{display:block;width:100%;min-height:24px;padding:0 6px;margin-left:-7px;border:1px solid transparent;border-radius:var(--r-md);background:transparent;font-size:13px}
+.ed:hover{border-color:var(--border)}.ed:focus{outline:none;border-color:var(--brand-primary);background:var(--background);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.ed.t{font-weight:600}.ed.n{min-height:20px;font-size:12px;color:var(--muted-foreground)}.ed.l{width:62px;min-height:28px;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.ed[aria-invalid=true]{border-color:var(--danger)}
+tr.on td{background:var(--brand-accent-strong)}tr.drag td{opacity:.4}
+@media (pointer:coarse){.ord td{height:48px}.grip{opacity:1;width:44px;height:44px}}
+.add{display:flex;gap:8px;margin-top:10px}.hint{margin-top:10px;font-size:12px;color:var(--muted-foreground)}
+kbd{font-family:var(--font-mono);font-size:11px;padding:1px 5px;border:1px solid var(--border);border-radius:6px;background:var(--card)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 4v16"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01" stroke-width="2.6"/></symbol>
+</defs></svg>
+<div class="app">
+<nav class="rail" aria-label="Principal">
+  <span class="lg" aria-hidden="true"></span>
+  <a href="#" aria-label="Inicio"><svg class="i"><use href="#i-home"/></svg></a>
+  <a href="#" aria-label="Dream Team" aria-current="page"><svg class="i"><use href="#i-users"/></svg></a>
+  <a href="#" aria-label="Programación DPS"><svg class="i"><use href="#i-cal"/></svg></a>
+  <span style="flex:1"></span>
+  <a href="#" aria-label="Notificaciones"><svg class="i"><use href="#i-bell"/></svg></a>
+</nav>
+<div class="pg">
+<header class="hd">
+  <div class="cover" aria-hidden="true">Tu casa tiene influencers</div>
+  <div class="tx">
+    <nav class="crumb" aria-label="Ruta"><ol><li><a href="#">DPS</a></li><li aria-hidden="true">›</li><li><a href="#" aria-current="page">Domingos</a></li></ol></nav>
+    <h1>Tu casa tiene influencers · Parte 3</h1>
+    <div style="display:flex;align-items:center">
+      <div class="dp"><button aria-label="Domingo anterior, 1 de noviembre"><svg class="i s14"><use href="#i-back"/></svg></button><span>Domingo 8 nov 2026</span><button aria-label="Domingo siguiente, 15 de noviembre"><svg class="i s14"><use href="#i-chev"/></svg></button></div>
+      <span class="meta"><svg class="i s14"><use href="#i-clock"/></svg><span><span class="num">9:15</span> y <span class="num">11:15</span> · un solo llamado para los dos</span></span>
+    </div>
+  </div>
+  <div class="hact">
+    <a class="btn" href="03-matriz-domingos.html"><svg class="i s14"><use href="#i-grid"/></svg>Matriz</a>
+    <a class="btn" href="01-plan-domingo-equipos.html#acc">Acciones<svg class="i s14"><use href="#i-down"/></svg></a>
+  </div>
+</header>
+<div class="bd">
+<aside class="ps" aria-label="Detalles del plan">
+  <section aria-labelledby="h-hr"><h2 id="h-hr">Horarios</h2>
+    <ul class="hr"><li><span>Llegada del equipo</span><span class="num">7:00</span></li><li><span>Ensayo general</span><span class="num">8:00</span></li><li><span>Servicio</span><span class="num">9:15</span></li><li><span>Servicio</span><span class="num">11:15</span></li></ul></section>
+  <section aria-labelledby="h-eq"><h2 id="h-eq">Equipos</h2><ul id="side"></ul></section>
+  <section aria-labelledby="h-no"><h2 id="h-no">Notas <button class="lnk">Agregar</button></h2>
+    <p class="nt">Bautizos en el segundo servicio: Técnicos deja libre la salida lateral.<small>Ximena Rangel · jueves</small></p></section>
+</aside>
+<main class="mn" id="main">
+  <div class="tb">
+    <nav class="seg" aria-label="Secciones del plan"><a href="#" aria-current="page">Orden</a><a href="01-plan-domingo-equipos.html">Equipos</a><a href="#" aria-disabled="true" title="Llega en una fase posterior">Ensayo <small>pronto</small></a></nav>
+    <p class="sum" id="sum"></p>
+    <p class="sv" id="sv" role="status"><svg class="i s14"><use href="#i-check"/></svg>Guardado</p>
+  </div>
+  <div class="wrap">
+    <table class="ord" aria-label="Orden del servicio, domingo 8 de noviembre">
+      <thead><tr><th class="hd0"><span class="sr">Mover</span></th><th scope="col" class="num">9:15</th><th scope="col" class="num">11:15</th><th scope="col">Duración</th><th scope="col">Elemento y notas</th><th scope="col">Responsable</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="add"><button class="btn" id="addI"><svg class="i s14"><use href="#i-plus"/></svg>Elemento</button><button class="btn" id="addH"><svg class="i s14"><use href="#i-plus"/></svg>Encabezado</button></div>
+    <p class="hint">Haz clic en la duración o el título para editar. <kbd>Enter</kbd> guarda · <kbd>Esc</kbd> deshace · arrastra <svg class="i s14" style="vertical-align:-2px"><use href="#i-grip"/></svg> o, con el asa enfocada, usa <kbd>↑</kbd> <kbd>↓</kbd> para mover. Las horas se recalculan solas.</p>
+  </div>
+</main>
+</div>
+</div>
+</div>
+<p class="sr" role="status" aria-live="polite" id="live"></p>
+<script>
+// Secciones del PDF del plan; contenido ficticio. Ítem: [título, segundos, notas, responsable, hora fija 9:15, hora fija 11:15]
+const S=[['Pre servicio',[['Montaje',2700,'Todos los equipos · escenario y cámaras','Stage manager','7:00'],['Reunión general y oración',900,'Salón 2','Productor','7:45']]],
+['Ensayo general',[['Ensayo general',3600,'Banda, host y cámaras en posición; prueba del video opener','Dir. de programación','8:00']]],
+['Ambiente',[['Cuenta regresiva en pantallas',180,'Música de ambiente baja al minuto 1','Video']]],
+['Opener',[['Video opener · Parte 3',120,'Luces a negro; entra la banda al terminar','Video']]],
+['Bienvenida',[['Bienvenida y anuncios',240,'Bautizos 22 nov · Retiro de jóvenes','Host']]],
+['Banda',[['Hogar (Sol)',360,'Voz: Carla B. · coros en el puente','Global Music'],['Ancla del alma (Re)',300,'Entra teclado solo','Global Music'],['Tu nombre es fiel (La)',300,'Termina en acústico para Dar','Global Music']]],
+['Dar',[['Momento de dar',240,'Versículo en pantalla y código QR','Host']]],
+['Mensaje',[['Versintro',60,'Texto: Josué 24:15','Video'],['Tu casa tiene influencers · Parte 3',2100,'Comunicador: Patricia O. · 4 videos cortos','Comunicador'],['Recap y oración final',180,'','Comunicador']]],
+['Post servicio',[['Salida y música de cierre',300,'Cámaras a plano general','Audio'],['Desmontaje',1800,'Solo después del segundo servicio','Stage manager',null,'12:45']]]];
+let id=0;const I=S.map(s=>({n:s[0],it:s[1].map(x=>({id:id++,t:x[0],l:x[1],no:x[2],w:x[3],a:x[4],b:x[5]}))}));
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent=m};
+const mm=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const hh=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
+const parse=v=>{const m=/^(\d{1,3})(?::([0-5]\d))?$/.exec(v.trim());return m?(+m[1])*60+(+(m[2]||0)):null};
+const esc=s=>s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const fixed=x=>x.a||x.b;
+function render(){let a=9*3600+15*60,b=11*3600+15*60,tot=0,out='';
+I.forEach((s,si)=>{const sl=s.it.reduce((z,x)=>z+x.l,0);out+=`<tr class="sec"><th colspan="6" scope="rowgroup">${s.n}<span class="num">${mm(sl)}</span></th></tr>`;
+s.it.forEach(x=>{let A,B;if(fixed(x)){A=x.a||'—';B=x.b||'—'}else{A=hh(Math.floor(a/60));B=hh(Math.floor(b/60));a+=x.l;b+=x.l;tot+=x.l}
+out+=`<tr data-id="${x.id}" draggable="true"><td class="hd0"><button class="grip" data-g="${x.id}" aria-label="Mover ${esc(x.t)}. Usa flechas arriba y abajo"><svg class="i s14"><use href="#i-grip"/></svg></button></td>`+
+`<td class="tA num${A==='—'?' na':''}">${A}</td><td class="tB num${B==='—'?' na':''}">${B}</td>`+
+`<td class="ln"><input class="ed l" data-f="l" data-id="${x.id}" value="${mm(x.l)}" aria-label="Duración de ${esc(x.t)}" inputmode="numeric"></td>`+
+`<td><input class="ed t" data-f="t" data-id="${x.id}" value="${esc(x.t)}" aria-label="Título"><input class="ed n" data-f="no" data-id="${x.id}" value="${esc(x.no)}" placeholder="Agregar nota" aria-label="Notas de ${esc(x.t)}"></td><td class="wh">${x.w}</td></tr>`})});
+$('rows').innerHTML=out;
+$('sum').innerHTML=`Servicio <strong class="num">${hh(Math.round(tot/60))}</strong> · termina <strong class="num">${hh(555+Math.round(tot/60))}</strong> y <strong class="num">${hh(675+Math.round(tot/60))}</strong>`}
+const find=i=>{for(const s of I){const k=s.it.findIndex(x=>x.id===i);if(k>-1)return[s,k]}};
+function saved(m){live(m);const s=$('sv');s.textContent='Guardando…';setTimeout(()=>{s.innerHTML='<svg class="i s14"><use href="#i-check"/></svg>Guardado'},600)}
+const old=new Map();
+document.addEventListener('focusin',e=>{const t=e.target;if(t.classList.contains('ed')){old.set(t,t.value);document.querySelectorAll('tr.on').forEach(r=>r.classList.remove('on'));t.closest('tr').classList.add('on')}});
+function commit(t){const[s,k]=find(+t.dataset.id),x=s.it[k],f=t.dataset.f;
+if(f==='l'){const v=parse(t.value);if(v===null){t.setAttribute('aria-invalid','true');live('Escribe la duración como minutos:segundos, por ejemplo 4:30.');return false}x.l=v}else x[f]=t.value.trim();
+if(old.get(t)!==t.value){const fid=t.dataset.id;render();saved(f==='l'?`Duración de ${x.t}: ${mm(x.l)}. Horas recalculadas.`:'Cambio guardado.');const n=document.querySelector(`.ed[data-f="${f}"][data-id="${fid}"]`);n.focus({preventScroll:true});old.set(n,n.value)}return true}
+document.addEventListener('keydown',e=>{const t=e.target;
+if(t.classList&&t.classList.contains('ed')){if(e.key==='Enter'){e.preventDefault();commit(t)}else if(e.key==='Escape'){t.value=old.get(t)??t.value;t.removeAttribute('aria-invalid')}return}
+if(t.dataset&&t.dataset.g&&(e.key==='ArrowUp'||e.key==='ArrowDown')){e.preventDefault();move(+t.dataset.g,e.key==='ArrowUp'?-1:1)}});
+document.addEventListener('focusout',e=>{const t=e.target;if(t.classList&&t.classList.contains('ed')&&t.isConnected&&old.get(t)!==t.value)commit(t)});
+function move(i,d){const[s,k]=find(i),j=k+d;if(j<0||j>=s.it.length){live(`Ya está ${d<0?'primero':'último'} en ${s.n}.`);return}
+const[x]=s.it.splice(k,1);s.it.splice(j,0,x);render();document.querySelector(`[data-g="${i}"]`).focus();saved(`${x.t}: posición ${j+1} de ${s.it.length} en ${s.n}.`)}
+let dr=null;
+$('rows').addEventListener('dragstart',e=>{const r=e.target.closest('tr[data-id]');if(!r)return;dr=+r.dataset.id;r.classList.add('drag');e.dataTransfer.effectAllowed='move'});
+$('rows').addEventListener('dragover',e=>{if(dr!==null&&e.target.closest('tr[data-id]'))e.preventDefault()});
+$('rows').addEventListener('drop',e=>{e.preventDefault();const r=e.target.closest('tr[data-id]');if(!r||dr===null)return;const to=+r.dataset.id;if(to===dr)return;
+const[s,k]=find(dr),[x]=s.it.splice(k,1),[s2,k2]=find(to);s2.it.splice(k2,0,x);render();saved(`Moviste ${x.t} a ${s2.n}.`);dr=null});
+$('rows').addEventListener('dragend',()=>{dr=null;document.querySelectorAll('tr.drag').forEach(r=>r.classList.remove('drag'))});
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+if(b.id==='addI'){const s=I[I.length-2];s.it.push({id:id++,t:'Nuevo elemento',l:120,no:'',w:'—'});render();const n=document.querySelector(`.ed.t[data-id="${id-1}"]`);n.focus();n.select();live('Agregaste un elemento al final de Mensaje.')}
+else if(b.id==='addH'){I.splice(I.length-1,0,{n:'Nuevo encabezado',it:[]});render();live('Agregaste un encabezado antes de Post servicio.')}});
+$('side').innerHTML=[['Audio','5 convocados · ','1 falta'],['Video','6 convocados · ','1 falta'],['Iluminación','3 convocados · completo'],['Técnicos','3 convocados · ','1 falta'],['Producción Creativa','5 convocados · completo'],['Global Music','7 convocados · completo']]
+.map((t,i)=>`<li><a class="tm" href="01-plan-domingo-equipos.html#c-${i}"><b>${t[0]}</b><small>${t[1]}${t[2]?`<span class="f">${t[2]}</span>`:''}</small></a></li>`).join('');
+render();
+const f=document.querySelector('.ed.t[data-id="5"]');f.focus({preventScroll:true});
+</script>
+</body>
+</html>

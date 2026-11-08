@@ -16,8 +16,12 @@ behavior):
    [`.agent/skills/global-connect-design/SKILL.md`](.agent/skills/global-connect-design/SKILL.md).
    It overrides generic design skills.
 2. Follow [`docs/design-system/`](docs/design-system/README.md), the single
-   source of truth. Visual reference:
-   [`docs/design-system/prototipos/servidores.html`](docs/design-system/prototipos/servidores.html).
+   source of truth. Visual reference: new work ("el diseño de DPS", Planning
+   Center style) →
+   [`docs/design-system/prototipos/planificacion-dps/`](docs/design-system/prototipos/planificacion-dps/);
+   areas already migrated →
+   [`docs/design-system/prototipos/servidores.html`](docs/design-system/prototipos/servidores.html)
+   (and `prototipos/servidores/`).
 3. No new visual styles. Use the canonical components
    ([`components.md`](docs/design-system/components.md)) and tokens
    ([`foundations.md`](docs/design-system/foundations.md)).

@@ -114,6 +114,9 @@ The prototype uses 12px controls and 14px cards; the implementation maps them
 to `rounded-xl` and `rounded-2xl`. Phone bottom sheets use a larger top
 radius (prototype 26px, `rounded-t-3xl`).
 
+New work (planning style) uses a smaller surface radius for data; see
+[Planning style](#planning-style-new-work-decided-2026-11-07).
+
 ## Typography (decided)
 
 - Fonts: Geist (`font-sans`) and Geist Mono (`font-mono`), loaded in
@@ -137,6 +140,8 @@ radius (prototype 26px, `rounded-t-3xl`).
   hero (Phase 2).
 - Body text never goes below 12px. `TituloSistema` and `TextoSistema` keep
   their levels; see [components.md](components.md#typography).
+- New work uses the denser planning scale (14px body, 13px rows); see
+  [Planning style](#planning-style-new-work-decided-2026-11-07).
 - Contrast at small sizes: text at 12–13px (secondary lines, hints, tags,
   list headers) uses `--muted-foreground` or a darker token, never a fainter
   one (no `muted-foreground/60`, no faint gray). Status tags use the status
@@ -169,6 +174,9 @@ Buttons and form controls share three heights. Both `BotonSistema` and
 | icon | 44px square | Icon-only actions | `soloIcono` + `aria-label` | `size="icon"` |
 
 - `sm` keeps a 44px touch target through `pointer-coarse:h-11`.
+- Dense rows (32–36px) are allowed in data-dense desktop views only, and
+  grow to 44px on touch; see
+  [Planning style › Density](#density-rows-and-targets).
 - `InputSistema`, `SelectSistema`, `ui/input` and the `ui/select` trigger are
   44px (md). `TextareaSistema` starts at 44px and grows.
 - Filter pills are 44px (`PastillaFiltro`, `min-h-[44px]`); the prototype's
@@ -214,6 +222,123 @@ legacy `--glass-shadow*` retire):
 | `--shadow-fab` | `0 16px 36px -10px rgba(233,108,32,.75)` | same | FAB |
 
 Do not add ad hoc shadows.
+
+## Planning style (new work, decided 2026-11-07)
+
+Everything new follows the DPS planning artboards in
+[`prototipos/planificacion-dps/`](prototipos/planificacion-dps/) (Planning
+Center style). Same tokens as above; what changes is type, density, radius
+and layout. Screens already migrated keep the values above until a task
+redesigns them ([migration.md](migration.md#the-rule)).
+
+### Tokens check
+
+The artboards' token block matches `app/globals.css` (light and dark), apart
+from formatting. Two helpers in the artboards are not in `globals.css`:
+
+| Artboard helper | Meaning | In code |
+| --- | --- | --- |
+| `--r-md`, `--r-xl`, `--r-2xl` | `--radius` − 2px / + 4px / + 8px | Tailwind `rounded-md` (10px), `rounded-xl` (16px), `rounded-2xl` (20px) |
+| `--tinte-estado` | Status tint, 10% light / 13% dark | The tint already described under [status colors](#status-colors-decided); there is no CSS variable yet, so code uses `bg-danger/10`-style fills. Adding the variable is open. |
+
+### Type scale
+
+Desktop base text is 14px (line height 1.4); phone base is 15px.
+
+| Role | Size, weight, tracking | Where |
+| --- | --- | --- |
+| Page title (`h1`) | 24px, 650, `-0.02em`, line height 1.15 | Header band, desktop |
+| Phone large title | 28px, 700, `-0.03em` | Phone header block |
+| Summary under the title | 15px muted, numbers in `strong` | Header band |
+| Breadcrumb | 13px muted, `›` separators, last crumb `aria-current="page"` | Header band |
+| Meta line, date pill text | 13px (pill 13px / 500) muted, clock icon 14px | Under the title |
+| Sidebar section heading | 12px, 600, uppercase, `.08em`, muted | Context sidebar, popovers |
+| Column title (team) | 14px, 650, truncated | Team columns |
+| Column meta | 12px muted; "falta" in `danger-text` 600 | Under the column title |
+| Position header row | 12px, 600; count `n/m` mono 500 muted | Team columns |
+| Person row, table cell | 13px, name 500 | Columns, tables, sheet |
+| Matrix cell | 12px | Matrix |
+| Table header | 12px, 600, muted | Tables, matrix, sheet |
+| Section band (in a table) | 12px, 650, `.02em` | Order table |
+| Month separator | 12px, 650, uppercase, `.08em`, foreground | Sheet |
+| Autosave status, hints | 12px muted | Toolbar, footer |
+| Dialog title | 17px, 650 | Dialogs |
+| Phone row | name 15px / 600, secondary 13px muted | Phone lists |
+
+- 11px only for count badges, small tags ("Próximo", "pronto") and `kbd`;
+  labels and headings stay at 12px or more (the matrix popover's 11px group
+  heading is rounded up to 12px).
+- Numbers (times, counts, `n/m`, durations, dates in cells) stay
+  `font-mono tabular-nums`, tracking `-.02em`.
+
+### Spacing and layout sizes
+
+| What | Value |
+| --- | --- |
+| Gutters in wide views (desktop) | 24px (`px-6`), header band and content alike; phone 16px |
+| Header band padding | 16px 24px (12px bottom when it ends in a summary) |
+| Toolbar row | 10–12px 24px, 10–16px gaps |
+| Context sidebar | 240px; sections padded 10px 12px 12px 16px |
+| Team column | 196px fixed, 10px gap |
+| Collapsed app sidebar (rail) | 64px in the artboards (the app's collapsed `SidebarModerna`) |
+| Cover thumbnail | 160 × 100px |
+| Popover | 280–290px wide, 10px padding |
+| Dialog | 420px wide, 20px padding |
+
+### Density: rows and targets
+
+This resolves the 44px rule for data-dense views:
+
+| Row | Fine pointer (mouse) | Coarse pointer (touch) |
+| --- | --- | --- |
+| Person row in team columns, "Falta" row | 32px | 44px |
+| Table and sheet row | 36px (condensed 30px, 12px text) | 48px for editable tables |
+| Table header row | 34px | 34px |
+| Section band, month separator, matrix series band | 28–30px | same |
+| Matrix date header | 44px | 44px |
+| Phone list row | — | 56px for mark-many lists (attendance); 64px elsewhere ([mobile.md](mobile.md)) |
+
+- Dense rows (32–36px) are allowed only in data-dense desktop views: team
+  columns, matrix, sheet, editable tables. Forms, people lists
+  (`ListaResponsiva`) and phones keep the 44px controls.
+- Every dense row and icon button grows to 44px under `pointer: coarse`
+  (`pointer-coarse:h-11`); actions that show on hover (remove "×", "+
+  Convocar", drag handle) become always visible there, and on desktop they
+  also show on `:focus-visible`.
+- Buttons are 36px (`tamaño="sm"`) in header bands and toolbars, 44px on
+  touch. Segmented controls: 30px segments inside a 3px padded frame (36px),
+  40px segments on touch and phones.
+- Inputs inside popovers and cells are 34px (`rounded-md`); inputs in
+  dialogs and forms stay 44px.
+
+### Borders, not shadows
+
+- Surfaces are flat: `bg-card` + 1px `border-border`. Separate regions with
+  borders (header band `border-b`, sidebar `border-r`, sidebar sections
+  `border-t`), not with cards in cards or shadows.
+- Row dividers inside a surface are lighter: `border-border/60` (rows),
+  `border-border/70` (matrix and sheet grid lines). Frozen columns end in a
+  2px `border-border`.
+- Data surfaces (team columns, table and matrix wrappers, popovers, menus)
+  use `rounded-md` (10px). Buttons, selects and segmented controls keep
+  `rounded-xl`; dialogs keep `rounded-2xl`; tags and `kbd` take the smallest
+  radius (artboard 6px → `rounded-sm`).
+- Only floating layers (popover, menu, dialog, bottom sheet) carry
+  `shadow-sheet`.
+
+### Color roles added by the style
+
+No new tokens; existing ones get these roles:
+
+| Role | Tokens |
+| --- | --- |
+| Categorical identity (series bands, avatar initials, cover) | `--chart-1` … `--chart-5`: series header 3px top border + 12% tint, 4px left stripe in the sheet; avatar fill 26% / border 40% over the card. Never for status. |
+| "Falta N" (unfilled position) | `danger-text` label, count badge `danger` 14% fill + 45% border |
+| Highlighted person, selected cell, "Próximo" tag | `bg-brand-tint` + `border-brand`; selected cell inset 2px `brand` ring |
+| Section bands, position rows, month rows | `bg-muted` |
+| Day that does not apply (special day, "No aplica") | diagonal hatch of `border` 45% over the card + an `info` tag |
+| Past rows | date in `muted-foreground` |
+| Done (arrived, saved) | `success` fill on the toggle; check icon in the "Guardado" status |
 
 ## Inventory behind the scale (origin/main, 2026-10-13)
 

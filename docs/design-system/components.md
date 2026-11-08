@@ -201,7 +201,9 @@ canonical one. "To decide" rows are open decisions for the user
 Phase 1 built most of the prototype pieces (catalog above). These remain.
 Each comes from a pattern in the prototype
 ([`prototipos/servidores/`](prototipos/servidores/)). Names are
-working names; the PR that builds one moves it into the catalog.
+working names; the PR that builds one moves it into the catalog. The
+pieces of the planning style, the standard for new work, are in
+[Planning style components](#planning-style-components).
 
 | Planned | Prototype pattern (CSS class) | Extends | Notes |
 | --- | --- | --- | --- |
@@ -233,3 +235,40 @@ working names; the PR that builds one moves it into the catalog.
 | Percentage cell (GR4, `CeldaPorcentaje`) | `.asis` (same artboard) | `ListaResponsiva` cell | Value in mono and a proportion bar on the patterns.md scale (≥80 success, ≥60 warning, ≥40 brand, else danger), "Sin reuniones" when there is no figure. Local in `components/estudiantes/reportes/partes-reportes.tsx`. `TarjetasFiltro` scope cards cannot draw this one-segment bar nor take a percentage as their big number (they show a count + unit), so the Reportes ámbito cards show the groups and put the % in their second line. |
 | Connection card (GC1, `TarjetaConexion`) | `.s-card.cx` (`design/estudiantes-asistencia/13-conexiones-escritorio.html`) | `TarjetaSistema` | Small summary card inside a drawer: icon + title, then one big number in mono ("3 · 1:1 realizados en el rango") or value rows with the GR4 bar, a short key/value list and a footnote; 2 × 2 from a 520px wide panel (`@container` of `PanelLateralSistema`), stacked below. `MetricasAtencion` cards are toggles and `TarjetaKpiAsistencia` is a page KPI, so neither fits. Local in `components/estudiantes/reportes/conexiones-persona.tsx` (Estudiantes C7c, the four «Conexiones» of The Living Room). |
 | Not recorded yet (GC2, `EstadoSinRegistro`) | `.cx-pend` (same artboard) | — | Muted block (`bg-muted`, info icon, a bold line and one sentence) for data the app does not collect yet ("Aún no se registra"), told apart from a real zero and from `EstadoVacioSistema`, which points at a fix. No number and no warning. Local in `components/estudiantes/reportes/conexiones-persona.tsx` (Con Jesús; retiros, CGL e Irresistibles). |
+
+### Planning style components
+
+The pieces of the planning style (DPS artboards in
+[`prototipos/planificacion-dps/`](prototipos/planificacion-dps/)), the
+standard for new work since 2026-11-07. None is in code yet: status
+**planificado**. Names are working names; the PR that builds one moves it
+into the catalog and the gallery. Reuse the existing piece named under
+"Extends" before adding anything.
+
+Density rule for all of them: dense rows (32px person rows, 36px table and
+sheet rows, 30px condensed) only in data-dense desktop views; under
+`pointer: coarse` rows grow to 44px (48px for editable table rows) and
+hover-only actions stay visible. Forms, `ListaResponsiva` and phones keep
+44px. Values in
+[foundations.md](foundations.md#density-rows-and-targets).
+
+| Planned | Artboard pattern (CSS class) | Extends | Status | Notes |
+| --- | --- | --- | --- | --- |
+| Header band (`EncabezadoAmplio`) | `.hd` (01–04) | `PaginaSistema` header | planificado | `bg-card border-b`, 16px 24px. Left: optional cover (`PortadaSerie`), then breadcrumb (13px, `›`), `h1` 24px, and either the summary line (15px) or the date pill + meta line. Right: 36px actions (secondary links such as "Matriz", the "Acciones ▾" menu, at most one `primario`). |
+| Cover thumbnail (`PortadaSerie`) | `.cover` | — | planificado | 160 × 100px, `rounded-md`, the series art; until there is an image, a `chart-1`/`chart-5` tint with the series name in 13px / 750 uppercase. Decorative (`aria-hidden`); the title carries the name. |
+| Date pill (`PastillaFecha`) | `.dp` | — | planificado | `rounded-full` border on `bg-background`: "‹ Domingo 8 nov 2026 ›", 13px / 500, round 30px buttons (44px on touch) named "Domingo anterior, 1 de noviembre". Steps between the dates that exist (Sundays of the plan), not calendar days. |
+| Actions menu (`MenuAcciones`) | `.menu` (01) | `ui/dropdown-menu` | planificado | "Acciones ▾" button with `aria-haspopup="menu"`, items 36px with icon, arrow keys, `Escape` returns focus. Holds the secondary actions of the view ("Copiar del domingo anterior", "Pasar asistencia", "Imprimir plan"); bulk ones confirm in a 420px dialog. |
+| Context sidebar (`BarraContexto`, `SeccionContexto`) | `.ps` (01, 02) | — | planificado | 240px `bg-card border-r`, scrolls on its own. Sections split by `border-t`, each with a 12px uppercase heading and an optional "Agregar" text action (`brand-text`, 12px): Horarios (times in mono), Equipos (collapsible list with "N convocados · N falta"), Archivos, Notas (author · day). Desktop only; on phones its content moves into the page or a sheet. |
+| Section tabs | `.seg` nav (01, 02) | `TabsSistema` / link tabs (`components/ninos/pestanas-sistema.ts`) | exists, use it | "Orden \| Equipos \| Ensayo pronto": the segmented look `TabsSistema` already has; route tabs are links with `aria-current="page"`; a future tab is disabled with "pronto". The summary and `EstadoGuardado` share its row. |
+| Autosave status (`EstadoGuardado`) | `.sv` (01–04) | `PuntoEstado` look | planificado | Right end of the toolbar, 12px muted, `role="status"`: "Guardando…" → check + "Guardado"; on failure "No se pudo guardar · Reintentar" in `danger-text`. Replaces save buttons in planning views (see [patterns.md](patterns.md#inline-edit-and-autosave)). |
+| Team columns (`ColumnasEquipo`, `ColumnaEquipo`) | `.cols`, `.col`, `.ch`, `.pt`, `.pr`, `.fl`, `.ad` (01) | — | planificado | A horizontal scroll region (`role="region"`, `tabindex="0"`, `aria-label`) of 196px columns (`bg-card border rounded-md`, 10px gap). Column head: title 14px / 650, "N convocados · N falta", options button. Per position: a `bg-muted` header row (12px / 600, `n/m` mono), 32px person rows (24px initials avatar, name 13px / 500, "Quitar a …" × on hover), one "Falta" row per unfilled position (danger count badge; opens the assign popover) and a hover "+ Convocar" row. A last muted column explains what is outside the plan ("Otros equipos"). |
+| Initials avatar (`AvatarIniciales`) | `.av` | — | planificado | 24px (desktop rows) / 32px (phone rows), initials 10px / 12px 650, hue from the name over `chart-1…5` (26% fill, 40% border). Decorative. |
+| Assign popover (`PopoverAsignar`) | `.pop` (01, 03) | `ui/popover` | planificado | Anchored to the cell or "Falta" row, flips to stay on screen, 280–290px, `rounded-md`, `shadow-sheet`. Title "Convocar para <puesto>" / "<puesto> · <fecha>", context line, the people already there (highlight and remove buttons), a 34px search and candidates with one context line ("Ya sirve ese día en Video" in `warning-text`, "Sirvió el domingo anterior", "Libre ese día"). Picking saves at once; `Escape` closes and returns focus. |
+| Assignment matrix (`MatrizAsignacion`) | `table[role=grid]` (03) | — | planificado | Rows = team › position (team rows `bg-muted` with "N faltan"), columns = dates. Sticky first column (190px) and two sticky header rows: series band (30px, `chart-*` top border and tint, name + weeks) and dates (44px, link to that plan, "Próximo" tag). Cells: name chips (12px, `bg-muted`, `rounded-sm`), "Falta N", "—" when the position does not apply that day (hatched special-day column). Roving `tabindex`; see [patterns.md](patterns.md#matrix-assign). |
+| Highlight a person (`ResaltadoPersona`) | `.hlc` (03) | `ChipsFiltrosActivos` chip | planificado | Brand-tint chip in the toolbar "Resaltado: <nombre> · 3 de 8 domingos" with a "Quitar resaltado" ×; that person's chips turn `bg-brand-tint border-brand` 650 in every cell. Toggled from the popover's target button (`aria-pressed`). It highlights, never filters. |
+| Density toggle | `.seg[aria-label=Densidad]` (03, 04) | `ControlSegmentado` | exists, use it | "Condensado \| Normal" (`aria-pressed`). Condensed: 30px rows and 12px text in the sheet; first names + initial on one line in the matrix. Local preference, not in the URL. |
+| Spreadsheet (`HojaCalculo`) | `table[role=grid]` (04) | — | planificado | One row per date, 36px rows, 13px cells truncated with the full text in `title`. Frozen Fecha (146px) and Serie (250px, 4px `chart-*` stripe, "n/m" week) columns ending in a 2px border; sticky 34px header; sticky month separator rows (`bg-muted`, "ENERO 2026 · 4 domingos", the label sticks left while scrolling sideways); special and free days as hatched full rows with a tag; past dates muted; empty cells read "Agregar" on hover. Keyboard in [patterns.md](patterns.md#spreadsheet-keyboard). |
+| Column picker (`MenuColumnas`) | `.cp` (04) | — | planificado | "Columnas 8/10 ▾" button (`aria-expanded`) opening a checkbox list (32px rows, `accent-[var(--brand-strong)]`); at least one column stays on; `Escape` closes. |
+| Inline field (`CampoEnLinea`) | `.ed` (02), `td.ed` (04) | `InputSistema` look | planificado | An input that reads as text: transparent border, the border shows on hover, on focus a `brand` border + 2px brand/20 ring on `bg-background`; `aria-invalid` turns the border `danger`. Durations and times in mono. |
+| Reorder handle (`AsaArrastre`) | `.grip` (02) | — | planificado | 28px grip (44px on touch), faint until row hover or focus, named "Mover <elemento>. Usa flechas arriba y abajo"; drag or ↑ / ↓ on the focused handle. |
+| Arrival toggle (`MarcaLlegada`) | `.ck` (05) | `Interruptor` semantics, sibling of G1 `MarcaAsistencia` | planificado | One big round toggle per person: a 30px circle with a 2px border in a 44px target, `aria-pressed`, named "Llegó: <nombre>"; pressed = `success` fill with a check, and the name turns muted 500. One tap saves, a second undoes. See [mobile.md](mobile.md#attendance-list-planning-style). |

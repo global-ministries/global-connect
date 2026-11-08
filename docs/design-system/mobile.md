@@ -13,6 +13,11 @@ The `servidores-phone-*.png` screenshots belong to the superseded v2.
 Test at 390px (and 360px for overflow). Desktop keeps its full-width layout;
 these rules apply below the phone breakpoint only.
 
+New work follows the planning style; its phone reference is
+[`prototipos/planificacion-dps/05-asistencia-celular.html`](prototipos/planificacion-dps/05-asistencia-celular.html)
+(see [attendance list](#attendance-list-planning-style)). The rules below
+still apply to it.
+
 ## Navigation bar
 
 - Sticky at the top, translucent (`--glass`-like material + blur), height
@@ -59,6 +64,36 @@ these rules apply below the phone breakpoint only.
   13px truncated, status dot (label hidden visually, kept for screen
   readers), chevron. Pressed state on `:active`, no hover effect.
 - No row entrance animation on phone.
+
+## Attendance list (planning style)
+
+For tasks where one person marks many others on a phone (arrivals on a
+Sunday). Phones get this task view instead of the desktop columns, matrix or
+sheet.
+
+- Nav bar: "‹ Plan" back and the centered title ("Asistencia").
+- Header block: an eyebrow line (13px muted, the series), the large title
+  (the date, 28px / 700), the summary ("**18 de 29** llegaron · una marca
+  vale para 9:15 y 11:15") and a 4px `success` progress bar.
+- A full-width segmented filter with counts, 40px: "Por llegar" (default,
+  shows only what is pending) | "Llegaron" | "Todos".
+- One full-bleed list (card fill, `border-y`, no inset) grouped by team.
+  Team headers are sticky under the nav bar: 36px, `bg-muted`, name 13px /
+  650, `n/m` in mono, and "Marcar todos" (disabled when the team is
+  complete, hidden in "Llegaron").
+- Rows are 56px (not 64px, so more people fit): 32px initials avatar, name
+  15px / 600, position 13px muted, and one big toggle at the end
+  (`MarcaLlegada`, 44px target). Tap saves, tap again undoes; arrived names
+  turn muted. Separators start after the avatar (60px).
+- A team with nothing left reads "Ya llegaron todos." ("Todavía nadie." in
+  "Llegaron").
+- After the list, a 56px brand-text row "Agregar a alguien que vino sin
+  estar convocado" opens a bottom sheet with a filled search; the person is
+  added as arrived in the team they served.
+- A footnote says how it saves ("Se guarda al tocar el círculo; tócalo otra
+  vez para deshacer."). Every change is announced in a polite live region;
+  focus stays on the same toggle (or the first toggle left when the row
+  leaves the filter).
 
 ## Bottom sheets
 

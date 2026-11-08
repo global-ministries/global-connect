@@ -22,6 +22,13 @@ in the same PR that migrates an area.
 4. Phase 2–3 of design system v2 (the prototype patterns) is a second pass:
    an area that is "migrated" (v1) still adopts the list anatomy, phone
    shell and planned components when its turn comes.
+5. **New areas use the planning style** (decided 2026-11-07, see
+   [below](#decisions-2026-11-07)): every new screen, component or area
+   follows [`prototipos/planificacion-dps/`](prototipos/planificacion-dps/)
+   and the "Planning style" sections of these docs. Areas already migrated
+   (the v2 rows below) stay as they are until a task redesigns them; bug
+   fixes and small additions there keep the screen's current look so it
+   stays consistent. This is not a new version and not a migration pass.
 
 ## Status per area
 
@@ -155,6 +162,33 @@ uses `amber-700` / `yellow-700` text; Talleres confirms use `peligro`; the
 Dream Team pages render `PaginaSistema` (no `ContenedorDashboard` islands);
 `coloresMarca` points at the CSS variables; `TarjetaSistema`
 `default`/`elevated` are on the card surface (Phase 1).
+
+## Decisions (2026-11-07)
+
+The user approved the DPS planning artboards (`design/dps-plan-v2`, Planning
+Center style) and asked that they be the design for everything new, by
+updating these docs rather than starting a "version 3".
+
+1. The five artboards are copied to
+   [`prototipos/planificacion-dps/`](prototipos/planificacion-dps/) (fictitious
+   names) and are the visual reference for new work. `prototipos/servidores/`
+   stays the reference for the areas already migrated.
+2. Tokens do not change. Type, spacing, density, radius of data surfaces,
+   borders and the wide layout are in
+   [foundations.md](foundations.md#planning-style-new-work-decided-2026-11-07)
+   and [layout.md](layout.md#wide-layout-planning-style).
+3. Density: 32–36px rows only in data-dense desktop views, 44px on touch
+   ([foundations.md](foundations.md#density-rows-and-targets)).
+4. Planning views autosave ("Guardado") instead of save buttons
+   ([patterns.md](patterns.md#inline-edit-and-autosave)).
+5. The new pieces are listed as **planificado** in
+   [components.md](components.md#planning-style-components); the first area
+   that builds one moves it into the catalog.
+6. Existing migrated areas are not redone now (rule 5 above).
+
+Open: a `--tinte-estado` variable (10% light / 13% dark) in
+`app/globals.css` for status tints, which the artboards use and the code
+does not have.
 
 ## Decisions (2026-10-28)
 
