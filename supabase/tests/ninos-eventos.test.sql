@@ -25,7 +25,12 @@
 --   i. Removing a horario: a weekly turno stays; a dated turno with check-ins
 --      stays; an unused future dated turno Niños created is deleted.
 --   j. ninos_horario_de_turno: the horario's window, 120/120 fallback.
---   k. ninos_es_visitante: 2 prior fechas → visitante, 3 → regular.
+--   k. ninos_es_visitante: 2 prior fechas → visitante, 3 → regular; a child
+--      outside the caller's campuses is sin_autoridad.
+--   Also (verification round): a dated turno with a volunteer assignment is
+--   unlinked, never deleted (B1); explicit arguments that do not fit the
+--   event are refused and write nothing (B2); re-syncing dates never deletes
+--   a past date or a date with check-ins; anuncio NULL keeps, '' clears.
 --   l. Salón rules and carpetas stay per salón / per area: the Waumba-only
 --      coordinator saves a Waumba salón and the Waumba carpeta, not UpStreet's.
 --   m. RLS: authenticated cannot write the new tables nor the new salón
@@ -44,6 +49,8 @@
 -- Turnos campus 1: T1 Sunday 9:00, T2 Sunday 11:00 (weekly), T3 Sunday dated,
 -- T4 Saturday weekly, T5 Sunday weekly inactive. Campus 2: T6 Sunday weekly.
 -- Check-ins on T1/T2: K1 on 1, 8, 15 Mar 2026; K2 on 8 (T1 and T2) and 15 Mar.
+-- Children 13 (no campus: out of scope) and 14 (campus 1, never checked in).
+-- Usuario 2 has campus 1 as principal campus (volunteer assignments need it).
 
 BEGIN;
 
@@ -180,8 +187,8 @@ SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Ev', 'U' || n, 'ev-' || n |
   FROM generate_series(1, 5) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, fecha_nacimiento)
 SELECT pg_temp.id('us', n), 'ZZ Ev Nino', 'K' || n, 'No especificado', 'Masculino', DATE '2021-01-01'
-  FROM generate_series(11, 12) AS n;
-INSERT INTO public.ninos_fichas (usuario_id) VALUES (pg_temp.id('us', 11)), (pg_temp.id('us', 12));
+  FROM generate_series(11, 14) AS n;
+INSERT INTO public.ninos_fichas (usuario_id) SELECT pg_temp.id('us', n) FROM generate_series(11, 14) AS n;
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Ev R1', true),
@@ -215,6 +222,12 @@ INSERT INTO public.dream_team_turnos (id, campus_id, nombre, dia_semana, hora, o
   (pg_temp.id('tu', 5), pg_temp.id('ca', 1), 'ZZ Ev Inactivo', 0, '13:00', 5, false, 'semanal'),
   (pg_temp.id('tu', 6), pg_temp.id('ca', 2), 'ZZ Ev Domingo C2', 0, '10:00', 1, true, 'semanal');
 
+INSERT INTO public.usuario_campus (usuario_id, campus_id, es_campus_principal) VALUES
+  (pg_temp.id('us', 2), pg_temp.id('ca', 1), true),
+  (pg_temp.id('us', 14), pg_temp.id('ca', 1), true);
+INSERT INTO t_ev_ctx (k, v)
+SELECT 'turnos_c1', count(*)::text FROM public.dream_team_turnos WHERE campus_id = pg_temp.id('ca', 1);
+
 INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo)
 SELECT pg_temp.id('us', k), pg_temp.id('sa', 1), pg_temp.id('tu', t), pg_temp.id('ca', 1), f, gen_random_uuid(), '1234'
   FROM (VALUES (11, 1, DATE '2026-03-01'), (11, 1, DATE '2026-03-08'), (11, 1, DATE '2026-03-15'),
@@ -233,6 +246,7 @@ GRANT EXECUTE ON FUNCTION pg_temp.fail(text, text), pg_temp.assert_eq(text, text
 SELECT pg_temp.assert_eq('a: anon runs none of the new functions',
   $q$SELECT count(*)::text FROM (VALUES
        ('public.ninos_puede_configurar_campus(uuid)'), ('public.ninos_puede_operar_campus(uuid)'),
+       ('public.ninos_puede_configurar_algun_area_campus(uuid)'), ('public.ninos_turno_en_uso(uuid)'),
        ('public.ninos_eventos_admin(uuid)'),
        ('public.ninos_evento_guardar(uuid, uuid, text, text, smallint, date, date, boolean, boolean, boolean, boolean, text, integer)'),
        ('public.ninos_evento_archivar(uuid, boolean)'),
@@ -244,9 +258,10 @@ SELECT pg_temp.assert_eq('a: anon runs none of the new functions',
        ('public.ninos_eventos_sembrar()'), ('public.ninos_evento_sync_fechas(uuid)'),
        ('public.ninos_eventos_touch()')) AS f(sig)
       WHERE has_function_privilege('anon', f.sig, 'EXECUTE')$q$, '0');
-SELECT pg_temp.assert_eq('a: authenticated runs the 12 RPCs and helpers',
+SELECT pg_temp.assert_eq('a: authenticated runs the 13 RPCs and helpers',
   $q$SELECT count(*)::text FROM (VALUES
        ('public.ninos_puede_configurar_campus(uuid)'), ('public.ninos_puede_operar_campus(uuid)'),
+       ('public.ninos_puede_configurar_algun_area_campus(uuid)'),
        ('public.ninos_eventos_admin(uuid)'),
        ('public.ninos_evento_guardar(uuid, uuid, text, text, smallint, date, date, boolean, boolean, boolean, boolean, text, integer)'),
        ('public.ninos_evento_archivar(uuid, boolean)'),
@@ -255,10 +270,11 @@ SELECT pg_temp.assert_eq('a: authenticated runs the 12 RPCs and helpers',
        ('public.ninos_salon_reglas_guardar(uuid, integer, integer, integer, boolean, boolean, boolean, smallint, smallint, smallint, smallint)'),
        ('public.ninos_carpeta_guardar(uuid, text, text, boolean)'),
        ('public.ninos_horario_de_turno(uuid)'), ('public.ninos_es_visitante(uuid, date)')) AS f(sig)
-      WHERE has_function_privilege('authenticated', f.sig, 'EXECUTE')$q$, '12');
-SELECT pg_temp.assert_eq('a: authenticated runs neither the backfill nor the date sync',
+      WHERE has_function_privilege('authenticated', f.sig, 'EXECUTE')$q$, '13');
+SELECT pg_temp.assert_eq('a: authenticated runs neither the backfill, the date sync nor the turno usage probe',
   $q$SELECT (has_function_privilege('authenticated', 'public.ninos_eventos_sembrar()', 'EXECUTE')
-          OR has_function_privilege('authenticated', 'public.ninos_evento_sync_fechas(uuid)', 'EXECUTE'))::text$q$,
+          OR has_function_privilege('authenticated', 'public.ninos_evento_sync_fechas(uuid)', 'EXECUTE')
+          OR has_function_privilege('authenticated', 'public.ninos_turno_en_uso(uuid)', 'EXECUTE'))::text$q$,
   'false');
 SELECT pg_temp.assert_eq('a: anon reads no new table; authenticated reads but cannot write',
   $q$SELECT string_agg(has_table_privilege('anon', t, 'SELECT')::text || '/'
@@ -279,6 +295,8 @@ SELECT pg_temp.assert_denied('a: anon cannot call ninos_eventos_admin',
 SELECT pg_temp.assert_denied('a: anon cannot call ninos_evento_guardar',
   pg_temp.guardar(1, 'nada', 'ZZ Ev X', 'semanal', 0, NULL, NULL));
 SELECT pg_temp.assert_denied('a: anon cannot read ninos_eventos', 'SELECT count(*) FROM public.ninos_eventos');
+SELECT pg_temp.assert_denied('a: anon cannot call ninos_puede_configurar_algun_area_campus',
+  format('SELECT public.ninos_puede_configurar_algun_area_campus(%L::uuid)', pg_temp.id('ca', 1)));
 RESET ROLE;
 
 -- ── b. existing salones unchanged (S8.5) ─────────────────────────────
@@ -436,6 +454,10 @@ SELECT pg_temp.assert_raises('e: the Waumba-only coordinator cannot change a win
 SELECT pg_temp.assert_raises('e: the Waumba-only coordinator cannot remove a horario',
   format('SELECT public.ninos_horario_quitar(%L::uuid)', pg_temp.ctx('h_t1')), '42501', 'sin_autoridad');
 
+SELECT pg_temp.assert_eq('e: the refused writes created no Dream Team turno',
+  format('SELECT count(*)::text FROM public.dream_team_turnos WHERE campus_id = %L::uuid', pg_temp.id('ca', 1)),
+  pg_temp.ctx('turnos_c1'));
+
 SELECT pg_temp.as_persona(4);
 SELECT pg_temp.assert_raises('e: the coordinator of another campus cannot read the events here',
   format('SELECT public.ninos_eventos_admin(%L::uuid)', pg_temp.id('ca', 1)), '42501', 'sin_autoridad');
@@ -497,6 +519,16 @@ SELECT pg_temp.assert_raises('g: a desk notice of 141 characters',
 SELECT pg_temp.assert_raises('g: the name of another active event',
   pg_temp.guardar(1, 'nada', 'domingo semanal', 'semanal', 3, NULL, NULL), '23505', 'nombre_duplicado',
   'Ya hay un evento activo con ese nombre en este campus.');
+SELECT pg_temp.assert_raises('g: a semanal event with dates (B2)',
+  pg_temp.guardar(1, 'nada', 'ZZ Ev B2 a', 'semanal', 3, DATE '2099-07-06', NULL), '22023', 'fechas_invalidas',
+  'Un evento semanal no lleva fechas: se repite cada semana en su día.');
+SELECT pg_temp.assert_raises('g: a diario event with a weekday (B2)',
+  pg_temp.guardar(1, 'nada', 'ZZ Ev B2 b', 'diario', 3, DATE '2099-07-06', DATE '2099-07-08'), '22023', 'dia_invalido',
+  'Un evento diario o de un solo día no lleva día de la semana.');
+SELECT pg_temp.assert_raises('g: a unico event with a weekday (B2)',
+  pg_temp.guardar(1, 'nada', 'ZZ Ev B2 c', 'unico', 3, DATE '2099-07-06', NULL), '22023', 'dia_invalido');
+SELECT pg_temp.assert_eq('g: the refused saves wrote no event',
+  $q$SELECT count(*)::text FROM public.ninos_eventos WHERE nombre LIKE 'ZZ Ev B2%'$q$, '0');
 SELECT pg_temp.run('g: create a diario camp and a unico night', $q$
   INSERT INTO t_ev_ctx (k, v) VALUES
     ('camp', public.ninos_evento_guardar(pg_temp.id('ca', 1), NULL, 'ZZ Ev Campamento', 'diario', NULL,
@@ -509,6 +541,16 @@ SELECT pg_temp.assert_eq('g: the camp is stored with its options',
                              visitante_una_vez, anuncio_mesa, activo)
               FROM public.ninos_eventos WHERE id = %L::uuid$q$, pg_temp.ctx('camp')),
   'diario,2099-07-06,2099-07-08,null,t,t,Trae protector solar.,t');
+SELECT pg_temp.run('g: save the camp without anuncio (NULL)',
+  pg_temp.guardar(1, 'camp', 'ZZ Ev Campamento', 'diario', NULL, DATE '2099-07-06', DATE '2099-07-08', NULL));
+SELECT pg_temp.assert_eq('g: anuncio NULL keeps the current notice',
+  format('SELECT anuncio_mesa FROM public.ninos_eventos WHERE id = %L::uuid', pg_temp.ctx('camp')),
+  'Trae protector solar.');
+SELECT pg_temp.run('g: save the camp with an empty anuncio',
+  pg_temp.guardar(1, 'camp', 'ZZ Ev Campamento', 'diario', NULL, DATE '2099-07-06', DATE '2099-07-08', ''));
+SELECT pg_temp.assert_eq('g: an empty anuncio clears the notice',
+  format($q$SELECT coalesce(anuncio_mesa, 'null') FROM public.ninos_eventos WHERE id = %L::uuid$q$, pg_temp.ctx('camp')),
+  'null');
 SELECT pg_temp.assert_eq('g: the unico night keeps fecha_fin empty',
   format($q$SELECT concat_ws(',', tipo, fecha_inicio, coalesce(fecha_fin::text, 'null'), precheck_app)
               FROM public.ninos_eventos WHERE id = %L::uuid$q$, pg_temp.ctx('noche')),
@@ -557,6 +599,18 @@ SELECT pg_temp.assert_eq('h: the weekly turno is created on the event''s weekday
 SELECT pg_temp.assert_raises('h: a turno name already used in the campus',
   format($q$SELECT public.ninos_horario_agregar(%L::uuid, NULL, 'ZZ Ev Domingo 17', TIME '18:00')$q$,
          pg_temp.ctx('domingo')), '23505', 'turno_duplicado', 'Ya hay un turno de Dream Team con ese nombre en el campus.');
+SELECT pg_temp.assert_raises('h: an existing turno together with a name (B2)',
+  format($q$SELECT public.ninos_horario_agregar(%L::uuid, %L::uuid, 'ZZ Ev Otro nombre')$q$,
+         pg_temp.ctx('domingo'), pg_temp.id('tu', 4)), '22023', 'turno_invalido',
+  'Elige un turno existente o indica nombre y hora para uno nuevo, no ambos.');
+SELECT pg_temp.assert_raises('h: an existing turno together with an hour (B2)',
+  format($q$SELECT public.ninos_horario_agregar(%L::uuid, %L::uuid, NULL, TIME '10:00')$q$,
+         pg_temp.ctx('domingo'), pg_temp.id('tu', 4)), '22023', 'turno_invalido');
+SELECT pg_temp.assert_eq('h: the refused horarios (and turno_duplicado) wrote no horario and only the Domingo 17 turno',
+  format($q$SELECT (SELECT count(*) FROM public.ninos_evento_horarios WHERE turno_id = %L::uuid) || ','
+                || ((SELECT count(*) FROM public.dream_team_turnos WHERE campus_id = %L::uuid) - %s)$q$,
+         pg_temp.id('tu', 4), pg_temp.id('ca', 1), pg_temp.ctx('turnos_c1')),
+  '0,1');
 SELECT pg_temp.run('h: the camp gets its turno por fechas', $q$
   INSERT INTO t_ev_ctx (k, v)
   VALUES ('h_camp', public.ninos_horario_agregar(pg_temp.ctx('camp')::uuid, NULL, 'ZZ Ev Jornada', TIME '08:30')::text)$q$);
@@ -589,6 +643,20 @@ SELECT pg_temp.assert_eq('h: moving the camp re-syncs its planned dates',
   format($q$SELECT string_agg(f.fecha::text, ',' ORDER BY f.fecha) FROM public.dream_team_turno_fechas f
              WHERE f.turno_id = %L::uuid$q$, pg_temp.ctx('tu_camp')),
   '2099-07-07,2099-07-08,2099-07-09,2099-07-10');
+RESET ROLE;
+SELECT pg_temp.run('h: a past planned date and a check-in on 7 Jul for the camp turno', format($q$
+  INSERT INTO public.dream_team_turno_fechas (turno_id, fecha) VALUES (%L::uuid, DATE '2020-01-05');
+  INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo)
+  VALUES (%L::uuid, %L::uuid, %L::uuid, %L::uuid, DATE '2099-07-07', gen_random_uuid(), '4321')$q$,
+  pg_temp.ctx('tu_camp'), pg_temp.id('us', 11), pg_temp.id('sa', 1), pg_temp.ctx('tu_camp'), pg_temp.id('ca', 1)));
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.run('h: move the camp to 8–11 Jul',
+  pg_temp.guardar(1, 'camp', 'ZZ Ev Campamento', 'diario', NULL, DATE '2099-07-08', DATE '2099-07-11'));
+SELECT pg_temp.assert_eq('h: re-syncing keeps the past date and the date with check-ins',
+  format($q$SELECT string_agg(f.fecha::text, ',' ORDER BY f.fecha) FROM public.dream_team_turno_fechas f
+             WHERE f.turno_id = %L::uuid$q$, pg_temp.ctx('tu_camp')),
+  '2020-01-05,2099-07-07,2099-07-08,2099-07-09,2099-07-10,2099-07-11');
 SELECT pg_temp.assert_raises('h: a dated event with horarios cannot become weekly',
   format($q$SELECT public.ninos_evento_guardar(%L::uuid, %L::uuid, 'ZZ Ev Campamento', 'semanal', 3::smallint)$q$,
          pg_temp.id('ca', 1), pg_temp.ctx('camp')), '22023', 'evento_con_horarios',
@@ -627,11 +695,34 @@ SELECT pg_temp.assert_eq('j: an unknown turno falls back to 120/120',
 
 -- ── i. removing horarios ─────────────────────────────────────────────
 
+-- The camp turno has a check-in on 7 Jul (section h).
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.run('i: a unico workshop with its dated turno', $q$
+  INSERT INTO t_ev_ctx (k, v)
+  VALUES ('taller', public.ninos_evento_guardar(pg_temp.id('ca', 1), NULL, 'ZZ Ev Taller', 'unico', NULL,
+                                                DATE '2099-11-01')::text)$q$);
+SELECT pg_temp.run('i: the workshop horario', $q$
+  INSERT INTO t_ev_ctx (k, v)
+  VALUES ('h_taller', public.ninos_horario_agregar(pg_temp.ctx('taller')::uuid, NULL, 'ZZ Ev Taller 10', TIME '10:00')::text)$q$);
 RESET ROLE;
-SELECT pg_temp.run('i: a check-in on the camp turno', format($q$
-  INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo)
-  VALUES (%L::uuid, %L::uuid, %L::uuid, %L::uuid, DATE '2099-07-07', gen_random_uuid(), '4321')$q$,
-  pg_temp.id('us', 11), pg_temp.id('sa', 1), pg_temp.ctx('tu_camp'), pg_temp.id('ca', 1)));
+SELECT pg_temp.run('i: assign the anfitrión''s servicio to the workshop turno', format($q$
+  INSERT INTO public.dream_team_servicio_turnos (servicio_id, turno_id)
+  SELECT s.id, h.turno_id FROM public.dream_team_servicios s, public.ninos_evento_horarios h
+   WHERE s.persona_id = %L::uuid AND h.id = %L::uuid$q$, pg_temp.id('us', 2), pg_temp.ctx('h_taller')));
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(5);
+SELECT pg_temp.assert_eq('i: removing the workshop horario keeps its turno (a volunteer is assigned, B1)',
+  format($q$SELECT public.ninos_horario_quitar(%L::uuid) ->> 'turno_borrado'$q$, pg_temp.ctx('h_taller')), 'false');
+RESET ROLE;
+SELECT pg_temp.assert_eq('i: the workshop turno, its assignment and its date survive; the horario is gone',
+  format($q$SELECT concat_ws(',',
+              (SELECT count(*) FROM public.dream_team_turnos WHERE nombre = 'ZZ Ev Taller 10'),
+              (SELECT count(*) FROM public.dream_team_servicio_turnos st JOIN public.dream_team_turnos t ON t.id = st.turno_id
+                WHERE t.nombre = 'ZZ Ev Taller 10'),
+              (SELECT count(*) FROM public.dream_team_turno_fechas f JOIN public.dream_team_turnos t ON t.id = f.turno_id
+                WHERE t.nombre = 'ZZ Ev Taller 10'),
+              (SELECT count(*) FROM public.ninos_evento_horarios WHERE id = %L::uuid))$q$, pg_temp.ctx('h_taller')),
+  '1,1,1,0');
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(5);
 SELECT pg_temp.assert_eq('i: removing the camp horario keeps its turno (it has check-ins)',
@@ -682,8 +773,11 @@ SELECT pg_temp.assert_eq('k: 3 prior fechas → regular',
   format($q$SELECT public.ninos_es_visitante(%L::uuid, DATE '2026-03-22')::text$q$, pg_temp.id('us', 11)), 'false');
 SELECT pg_temp.assert_eq('k: only fechas before the date count (3rd visit is still visitante)',
   format($q$SELECT public.ninos_es_visitante(%L::uuid, DATE '2026-03-15')::text$q$, pg_temp.id('us', 11)), 'true');
-SELECT pg_temp.assert_eq('k: a child never checked in → visitante',
-  format($q$SELECT public.ninos_es_visitante(%L::uuid, DATE '2026-03-22')::text$q$, pg_temp.id('us', 3)), 'true');
+SELECT pg_temp.assert_eq('k: a child of the campus never checked in → visitante',
+  format($q$SELECT public.ninos_es_visitante(%L::uuid, DATE '2026-03-22')::text$q$, pg_temp.id('us', 14)), 'true');
+SELECT pg_temp.assert_raises('k: a child outside the caller''s campuses is refused',
+  format($q$SELECT public.ninos_es_visitante(%L::uuid, DATE '2026-03-22')$q$, pg_temp.id('us', 13)), '42501', 'sin_autoridad',
+  'Ese niño no es de un campus donde operas Niños.');
 
 -- ── l. salón rules and carpetas ──────────────────────────────────────
 
@@ -760,7 +854,7 @@ SELECT pg_temp.assert_eq('m: the coordinator reads the campus 1 events and carpe
                 || (SELECT count(*) FROM public.ninos_evento_horarios h JOIN public.ninos_eventos e ON e.id = h.evento_id
                      WHERE e.campus_id = %L::uuid)$q$,
          pg_temp.id('ca', 1), pg_temp.id('ca', 2), pg_temp.id('ca', 1), pg_temp.id('ca', 1)),
-  '3,0,2,1');
+  '4,0,2,1');
 SELECT pg_temp.as_persona(3);
 SELECT pg_temp.assert_eq('m: a user without Niños rights reads none',
   format($q$SELECT (SELECT count(*) FROM public.ninos_eventos WHERE campus_id = %L::uuid) || ','

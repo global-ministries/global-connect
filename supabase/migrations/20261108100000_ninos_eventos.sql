@@ -7,7 +7,9 @@
 --      parents' night). tipo 'semanal' (dia_semana), 'diario' (fecha_inicio
 --      to fecha_fin, at most 31 days) or 'unico' (fecha_inicio). Options:
 --      precheck_app, avisos_push, visitante_una_vez, integracion_dream_team,
---      anuncio_mesa (up to 140 characters, the artboard's limit).
+--      anuncio_mesa (up to 140 characters, the artboard's limit). On an
+--      update a NULL anuncio keeps the current notice and an empty string
+--      (or only spaces) clears it.
 --   2. ninos_evento_horarios: one row per service of an event. Every horario
 --      links one dream_team_turnos row (S8.1, turno_id NOT NULL and UNIQUE);
 --      the hour lives in the turno (S8.2), the horario only holds the
@@ -85,6 +87,7 @@
 --   DROP FUNCTION IF EXISTS public.ninos_salon_reglas_guardar(uuid, integer, integer, integer, boolean,
 --     boolean, boolean, smallint, smallint, smallint, smallint);
 --   DROP FUNCTION IF EXISTS public.ninos_horario_quitar(uuid);
+--   DROP FUNCTION IF EXISTS public.ninos_turno_en_uso(uuid);
 --   DROP FUNCTION IF EXISTS public.ninos_horario_ventana_guardar(uuid, integer, integer);
 --   DROP FUNCTION IF EXISTS public.ninos_horario_agregar(uuid, uuid, text, time, integer, integer);
 --   DROP FUNCTION IF EXISTS public.ninos_evento_archivar(uuid, boolean);
@@ -106,8 +109,15 @@
 --     DROP COLUMN IF EXISTS cupo_visitantes, DROP COLUMN IF EXISTS ninos_por_voluntario,
 --     DROP COLUMN IF EXISTS min_voluntarios, DROP COLUMN IF EXISTS abierto,
 --     DROP COLUMN IF EXISTS opcion_panal, DROP COLUMN IF EXISTS opcion_merienda;
---   Dated turnos created by Niños stay in dream_team_turnos (delete them by
---   hand if wanted).
+--   COMMENT ON COLUMN public.ninos_salones.capacidad IS NULL;
+--   Turnos Niños created stay in Dream Team: before dropping
+--   ninos_evento_horarios list them with
+--     SELECT turno_id FROM public.ninos_evento_horarios WHERE turno_creado;
+--   they are weekly turnos (campus-wide, no listing) and dated turnos with
+--   their dream_team_equipo_turnos listings (one per salón equipo of the
+--   campus) and dream_team_turno_fechas rows. Delete them by hand only when
+--   unused (no check-in, assignment, roster or attendance); deleting a turno
+--   cascades to its listings, dates, assignments and rosters.
 
 -- ── 1. authority helpers ─────────────────────────────────────────────
 
@@ -416,9 +426,11 @@ GRANT EXECUTE ON FUNCTION public.ninos_eventos_admin(uuid) TO authenticated;
 
 -- ── 6. events ────────────────────────────────────────────────────────
 
--- Makes the planned dates of the event's dated turnos match its days
--- (diario: fecha_inicio..fecha_fin; unico: fecha_inicio). Internal: called
--- by the definer RPCs only.
+-- Makes the future planned dates of the event's dated turnos match its days
+-- (diario: fecha_inicio..fecha_fin; unico: fecha_inicio). It only adds days
+-- from today (ninos_hoy, Caracas) on and only removes days after today with
+-- no check-in and no volunteer chosen for them (dream_team_turno_fecha_servidores);
+-- past dates are history and stay. Internal: called by the definer RPCs only.
 CREATE OR REPLACE FUNCTION public.ninos_evento_sync_fechas(p_evento_id uuid)
 RETURNS void
 LANGUAGE plpgsql
@@ -436,14 +448,17 @@ BEGIN
   DELETE FROM public.dream_team_turno_fechas f
    USING public.ninos_evento_horarios h
    WHERE h.evento_id = p_evento_id AND f.turno_id = h.turno_id
-     AND f.fecha NOT BETWEEN v_ev.fecha_inicio AND coalesce(v_ev.fecha_fin, v_ev.fecha_inicio);
+     AND f.fecha NOT BETWEEN v_ev.fecha_inicio AND coalesce(v_ev.fecha_fin, v_ev.fecha_inicio)
+     AND f.fecha > public.ninos_hoy()
+     AND NOT EXISTS (SELECT 1 FROM public.ninos_checkins c WHERE c.turno_id = f.turno_id AND c.fecha = f.fecha)
+     AND NOT EXISTS (SELECT 1 FROM public.dream_team_turno_fecha_servidores s WHERE s.turno_fecha_id = f.id);
 
   INSERT INTO public.dream_team_turno_fechas (turno_id, fecha)
   SELECT h.turno_id, d::date
     FROM public.ninos_evento_horarios h
     JOIN public.dream_team_turnos t ON t.id = h.turno_id AND t.tipo = 'fechas'
    CROSS JOIN generate_series(v_ev.fecha_inicio, coalesce(v_ev.fecha_fin, v_ev.fecha_inicio), interval '1 day') d
-   WHERE h.evento_id = p_evento_id
+   WHERE h.evento_id = p_evento_id AND d::date >= public.ninos_hoy()
   ON CONFLICT (turno_id, fecha) DO NOTHING;
 END;
 $$;
@@ -502,6 +517,15 @@ BEGIN
     RAISE EXCEPTION 'tipo_invalido' USING ERRCODE = '22023',
       HINT = 'El evento es semanal, diario o de un solo día.';
   END IF;
+  -- Arguments that do not fit the tipo are refused, never ignored.
+  IF p_tipo = 'semanal' AND (v_ini IS NOT NULL OR v_fin IS NOT NULL) THEN
+    RAISE EXCEPTION 'fechas_invalidas' USING ERRCODE = '22023',
+      HINT = 'Un evento semanal no lleva fechas: se repite cada semana en su día.';
+  END IF;
+  IF p_tipo <> 'semanal' AND v_dia IS NOT NULL THEN
+    RAISE EXCEPTION 'dia_invalido' USING ERRCODE = '22023',
+      HINT = 'Un evento diario o de un solo día no lleva día de la semana.';
+  END IF;
   IF p_tipo = 'semanal' THEN
     IF v_dia IS NULL OR v_dia NOT BETWEEN 0 AND 6 THEN
       RAISE EXCEPTION 'dia_invalido' USING ERRCODE = '22023',
@@ -557,7 +581,7 @@ BEGIN
              avisos_push = coalesce(p_avisos_push, e.avisos_push),
              visitante_una_vez = coalesce(p_visitante_una_vez, e.visitante_una_vez),
              integracion_dream_team = coalesce(p_integracion_dream_team, e.integracion_dream_team),
-             anuncio_mesa = v_anuncio,
+             anuncio_mesa = CASE WHEN p_anuncio_mesa IS NULL THEN e.anuncio_mesa ELSE v_anuncio END,
              orden = coalesce(p_orden, e.orden)
        WHERE e.id = p_evento_id
       RETURNING e.id INTO v_id;
@@ -656,6 +680,11 @@ BEGIN
   IF v_abre NOT BETWEEN 0 AND 240 OR v_cierra NOT BETWEEN 0 AND 240 THEN
     RAISE EXCEPTION 'ventana_invalida' USING ERRCODE = '22023',
       HINT = 'La apertura y el cierre van de 0 a 240 minutos.';
+  END IF;
+
+  IF v_turno IS NOT NULL AND (p_nombre IS NOT NULL OR p_hora IS NOT NULL) THEN
+    RAISE EXCEPTION 'turno_invalido' USING ERRCODE = '22023',
+      HINT = 'Elige un turno existente o indica nombre y hora para uno nuevo, no ambos.';
   END IF;
 
   IF v_turno IS NOT NULL THEN
@@ -762,10 +791,61 @@ $$;
 REVOKE ALL ON FUNCTION public.ninos_horario_ventana_guardar(uuid, integer, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ninos_horario_ventana_guardar(uuid, integer, integer) TO authenticated;
 
+-- Whether anything references a turno besides its own planned dates
+-- (dream_team_turno_fechas) and node listings (dream_team_equipo_turnos):
+-- every foreign key to dream_team_turnos, and every foreign key to its
+-- planned dates, read from the catalog so a table added later is covered
+-- too. Today that is ninos_checkins, ninos_voluntarios_asistencias,
+-- ninos_prechecks, ninos_preregistro_avisos, ninos_voluntarios_rosters (and
+-- servicios), dream_team_servicio_turnos, dream_team_turno_fecha_servidores,
+-- estudiantes_* rosters and attendance, ninos_evento_horarios. Internal.
+CREATE OR REPLACE FUNCTION public.ninos_turno_en_uso(p_turno_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO ''
+AS $$
+DECLARE
+  r record;
+  v_usado boolean;
+BEGIN
+  FOR r IN
+    SELECT c.conrelid::regclass::text AS tabla, a.attname AS columna,
+           c.confrelid = 'public.dream_team_turnos'::regclass AS directa
+      FROM pg_catalog.pg_constraint c
+     CROSS JOIN LATERAL unnest(c.conkey, c.confkey) AS k(col, refcol)
+      JOIN pg_catalog.pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.col
+      JOIN pg_catalog.pg_attribute ra ON ra.attrelid = c.confrelid AND ra.attnum = k.refcol AND ra.attname = 'id'
+     WHERE c.contype = 'f'
+       AND c.confrelid IN ('public.dream_team_turnos'::regclass, 'public.dream_team_turno_fechas'::regclass)
+       AND c.conrelid NOT IN ('public.dream_team_turno_fechas'::regclass, 'public.dream_team_equipo_turnos'::regclass)
+  LOOP
+    IF r.directa THEN
+      EXECUTE format('SELECT EXISTS (SELECT 1 FROM %s x WHERE x.%I = $1)', r.tabla, r.columna)
+        INTO v_usado USING p_turno_id;
+    ELSE
+      EXECUTE format('SELECT EXISTS (SELECT 1 FROM %s x JOIN public.dream_team_turno_fechas f ON f.id = x.%I '
+                     'WHERE f.turno_id = $1)', r.tabla, r.columna)
+        INTO v_usado USING p_turno_id;
+    END IF;
+    IF v_usado THEN
+      RETURN true;
+    END IF;
+  END LOOP;
+  RETURN false;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ninos_turno_en_uso(uuid) FROM PUBLIC, anon, authenticated;
+
 -- Removes a horario. Its turno is unlinked; past sessions and attendance
 -- stay. A dated turno Niños created for it is deleted only when it has no
--- check-in, no planned date before today and nothing else references it.
--- Returns {"turno_borrado": bool}.
+-- planned date before today and nothing references it but its own planned
+-- dates and node listings (ninos_turno_en_uso): a check-in, a volunteer
+-- assignment, a pre-check, a roster… keep it, unlinked. The turno row is
+-- locked first, so no reference can be added between the check and the
+-- delete. Returns {"turno_borrado": bool}.
 CREATE OR REPLACE FUNCTION public.ninos_horario_quitar(p_horario_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -794,7 +874,7 @@ BEGIN
 
   SELECT t.tipo INTO v_tipo FROM public.dream_team_turnos t WHERE t.id = v_h.turno_id FOR UPDATE;
   IF v_h.turno_creado AND v_tipo = 'fechas'
-     AND NOT EXISTS (SELECT 1 FROM public.ninos_checkins c WHERE c.turno_id = v_h.turno_id)
+     AND NOT public.ninos_turno_en_uso(v_h.turno_id)
      AND NOT EXISTS (SELECT 1 FROM public.dream_team_turno_fechas f
                       WHERE f.turno_id = v_h.turno_id AND f.fecha < public.ninos_hoy()) THEN
     BEGIN
@@ -961,7 +1041,8 @@ GRANT EXECUTE ON FUNCTION public.ninos_horario_de_turno(uuid) TO authenticated;
 
 -- S8.3 "Hasta su 3.ª visita": a child is a visitor while they have fewer
 -- than 3 distinct check-in fechas before p_fecha (visits 1 to 3), regular
--- from the 4th. Only for who operates Niños.
+-- from the 4th. Only for who operates Niños, and only for a child of the
+-- caller's campuses (ninos_en_mi_alcance, the scope of 20261013110000).
 CREATE OR REPLACE FUNCTION public.ninos_es_visitante(p_nino_id uuid, p_fecha date)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -977,6 +1058,10 @@ BEGIN
   IF p_nino_id IS NULL OR p_fecha IS NULL THEN
     RAISE EXCEPTION 'datos_invalidos' USING ERRCODE = '22023',
       HINT = 'Indica el niño y la fecha.';
+  END IF;
+  IF NOT public.ninos_en_mi_alcance(p_nino_id) THEN
+    RAISE EXCEPTION 'sin_autoridad' USING ERRCODE = '42501',
+      HINT = 'Ese niño no es de un campus donde operas Niños.';
   END IF;
   RETURN (SELECT count(DISTINCT c.fecha) < 3
             FROM public.ninos_checkins c
