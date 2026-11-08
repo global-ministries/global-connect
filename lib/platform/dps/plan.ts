@@ -8,7 +8,10 @@
  * helpers read its answers, title the plan, pick the plan of the screen and
  * its neighbours, count what is missing and apply the optimistic changes.
  * One convocatoria per person per puesto, for every horario of the day; a
- * person may hold two puestos. Pure: safe on the client.
+ * person may hold two puestos. The director of each dirección is convocado
+ * by the database itself (S8, 20261108204000_dps_directores_automaticos.sql):
+ * those rows come `automatico`, cannot be removed here and are not copied.
+ * Pure: safe on the client.
  */
 import { ETIQUETA_TIPO, horariosTexto, type TipoPlan } from './planilla'
 
@@ -39,6 +42,8 @@ export interface ConvocadoPlan {
   readonly personaId: string
   readonly servicioId: string
   readonly nombre: string
+  /** The director of a dirección, convocado by the database from Dream Team (S8): not removable here. */
+  readonly automatico: boolean
 }
 
 export interface PuestoPlan {
@@ -182,7 +187,13 @@ export function urlPortada(path: string | null | undefined, baseSupabase: string
 }
 
 function leerConvocado(c: Objeto): ConvocadoPlan {
-  return { convocadoId: texto(c.convocado_id), personaId: texto(c.persona_id), servicioId: texto(c.servicio_id), nombre: texto(c.nombre) }
+  return {
+    convocadoId: texto(c.convocado_id),
+    personaId: texto(c.persona_id),
+    servicioId: texto(c.servicio_id),
+    nombre: texto(c.nombre),
+    automatico: c.automatico === true,
+  }
 }
 
 /** Reads dps_plan_equipos. The counts are recomputed on the client. */
@@ -220,6 +231,11 @@ export function contarEquipoPlan(equipo: EquipoPlan): { convocados: number; falt
 export function totalesPlan(plan: EquiposPlan): { convocados: number; equipos: number; falta: number } {
   const personas = new Set(plan.equipos.flatMap((e) => e.puestos.flatMap((p) => p.convocados.map((c) => c.personaId))))
   return { convocados: personas.size, equipos: plan.equipos.length, falta: plan.equipos.reduce((n, e) => n + contarEquipoPlan(e).falta, 0) }
+}
+
+/** People convocados by hand, each once: what a copy replaces (the automatic directors stay). */
+export function convocadosManuales(plan: EquiposPlan): number {
+  return new Set(plan.equipos.flatMap((e) => e.puestos.flatMap((p) => p.convocados.filter((c) => !c.automatico).map((c) => c.personaId)))).size
 }
 
 /** The column head: "3 convocados · 1 falta", "… · 2 faltan" or "… · completo". */

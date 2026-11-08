@@ -8,8 +8,12 @@
 --   m4. a Global Music servidor sees the plan (dps_puede_ver).
 --   m5. a Global Music coordinator passes attendance in Global Music only.
 --   m6. a puesto can be created in Global Music by a planner.
---   p1. the seeded puestos exist with their cantidad (35 rows on the real
---       DPS and Global Music tree).
+--   p1. the seeded puestos exist with their cantidad (29 rows on the real
+--       DPS and Global Music tree). The six «Director de …» rows on the DPS
+--       root were retired by 20261108204000_dps_directores_automaticos.sql
+--       (S8: one director puesto per dirección replaces them), so p1 no
+--       longer counts them; dps-planificacion-directores.test.sql a7 checks
+--       that none is left active without convocados.
 --
 -- Run against STAGING inside a transaction that is discarded; the last
 -- statement raises SUITE_RESULT with the failures or ALL OK.
@@ -76,12 +80,10 @@ SELECT 'musica', d.id::text
 INSERT INTO t_dm_ctx (k, v) SELECT 'dps', public.dps_raiz()::text;
 
 -- p1 runs before any fixture so it sees only the real tree.
-SELECT pg_temp.assert_eq('p1: the 35 seeded puestos exist with their cantidad',
+SELECT pg_temp.assert_eq('p1: the 29 seeded puestos below the DPS root and in Global Music exist with their cantidad',
   $q$SELECT count(*) || '|' || sum(p.cantidad)
        FROM public.dps_puestos p JOIN public.dps_equipos() d ON d.equipo_id = p.equipo_id
       WHERE p.activo AND (d.ruta, p.nombre) IN (
-        ('DPS', 'Director de programación'), ('DPS', 'Director de atención al invitado'), ('DPS', 'Director de media'),
-        ('DPS', 'Director de producción técnica'), ('DPS', 'Director de social media'), ('DPS', 'Director de producción creativa'),
         ('DPS › Producción Técnica › Audio', 'Coordinador de audio'), ('DPS › Producción Técnica › Audio', 'FOH'),
         ('DPS › Producción Técnica › Audio', 'Asistente de FOH'), ('DPS › Producción Técnica › Audio', 'Líder de tarima'),
         ('DPS › Producción Técnica › Audio', 'Backstage'),
@@ -96,7 +98,7 @@ SELECT pg_temp.assert_eq('p1: the 35 seeded puestos exist with their cantidad',
         ('DPS › Producción Creativa', 'Opening'),
         ('Global Music', 'Líder de alabanza'), ('Global Music', 'Líder de banda'), ('Global Music', 'Piano'), ('Global Music', 'Bajo'),
         ('Global Music', 'Batería'), ('Global Music', 'Guitarra eléctrica'), ('Global Music', 'Asistente técnico'))$q$,
-  '35|42');
+  '29|35');
 
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'dm-' || n || '@example.test', now(),

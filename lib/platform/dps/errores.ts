@@ -1,10 +1,12 @@
 /**
  * DPS planning — Spanish messages for the dps_* RPC errors
  * (odd/tasks/dps-asistencia-pco.md, T9; T10 adds the plan del domingo:
- * convocados, copy and the series cover). The RPCs raise their code as the
- * message ('sin_autoridad' 42501, the rest 22023; see the headers of
- * supabase/migrations/20261108201000_dps_planificacion_rpcs.sql and
- * 20261108202000_dps_planificacion_convocados.sql). Pure: safe on the client.
+ * convocados, copy and the series cover; S8 the automatic directors). The
+ * RPCs raise their code as the message ('sin_autoridad' 42501, the rest
+ * 22023; see the headers of
+ * supabase/migrations/20261108201000_dps_planificacion_rpcs.sql,
+ * 20261108202000_dps_planificacion_convocados.sql and
+ * 20261108204000_dps_directores_automaticos.sql). Pure: safe on the client.
  */
 
 export interface ErrorRpc {
@@ -32,6 +34,7 @@ const CODIGOS = [
   'busqueda_invalida',
   'imagen_invalida',
   'serie_invalida',
+  'convocado_automatico',
 ] as const
 
 export type CodigoErrorDps = (typeof CODIGOS)[number]
@@ -94,6 +97,8 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       return MENSAJE_IMAGEN
     case 'serie_invalida':
       return 'Esa serie ya no existe. Actualiza la página.'
+    case 'convocado_automatico':
+      return 'Este director se asigna solo desde su dirección; cámbialo en Dream Team'
     default:
       return GENERICO[contexto]
   }

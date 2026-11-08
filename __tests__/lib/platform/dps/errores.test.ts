@@ -53,6 +53,8 @@ describe('mensajeErrorDps', () => {
     ['busqueda_invalida', 'equipos', 'La búsqueda es muy larga (máximo 100 caracteres).'],
     ['imagen_invalida', 'portada', 'La imagen debe ser JPG, PNG o WebP de hasta 5 MB.'],
     ['serie_invalida', 'portada', 'Esa serie ya no existe. Actualiza la página.'],
+    // S8: the director of a dirección is not removed by hand.
+    ['convocado_automatico', 'equipos', 'Este director se asigna solo desde su dirección; cámbialo en Dream Team'],
   ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
     expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)
     expect(codigoErrorDps(error(codigo))).toBe(codigo)
