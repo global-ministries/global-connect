@@ -10,6 +10,11 @@
  * carries "Terminé mi segmento" (S14) and the lane ends with "Nuevo grupo".
  * A segment without groups (T5c) is a lane too: a short hint and "Nuevo
  * grupo", without "Terminé mi segmento" (publishing ignores it).
+ *
+ * Planning style (S25, prototipos/planificacion-dps/01): the lane head reads
+ * like the artboard's toolbar (title 15px / 650, counts 13px muted), the
+ * localidad clusters carry the 12px uppercase heading, and the cards are the
+ * flat team columns of tarjeta-grupo.tsx on the page background.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import { ChevronLeft, ChevronRight, Plus, UsersRound } from 'lucide-react'
@@ -93,9 +98,9 @@ function CarrilSegmento({
   )
 
   return (
-    <section aria-labelledby={idTitulo} className="min-w-0 space-y-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 id={idTitulo} className="text-base font-semibold text-foreground">
+    <section aria-labelledby={idTitulo} className="min-w-0 space-y-2.5">
+      <div className="flex min-h-9 flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 id={idTitulo} className="text-[15px] font-[650] tracking-[-0.01em] text-foreground">
           {segmento.nombre}
         </h2>
         <span className="text-[13px] text-muted-foreground">
@@ -129,8 +134,8 @@ function CarrilSegmento({
         )}
       </div>
       {vacio ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-border p-4">
-          <p className="text-sm text-muted-foreground">Todavía no hay grupos de {segmento.nombre} en esta temporada.</p>
+        <div className="flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-card px-4 py-3">
+          <p className="text-[13px] text-muted-foreground">Todavía no hay grupos de {segmento.nombre} en esta temporada.</p>
           {nuevo}
         </div>
       ) : (
@@ -140,7 +145,7 @@ function CarrilSegmento({
               <div key={bloque.id} role="group" aria-label={`${bloque.titulo}, ${bloque.grupos.length} ${bloque.grupos.length === 1 ? 'grupo' : 'grupos'}`} className="flex shrink-0 flex-col gap-2">
                 <h3
                   className={cn(
-                    'truncate text-xs font-medium uppercase tracking-[0.08em]',
+                    'truncate text-xs font-semibold uppercase tracking-[0.08em]',
                     bloque.falta ? 'text-danger-text' : 'text-muted-foreground',
                   )}
                 >
@@ -161,7 +166,7 @@ function CarrilSegmento({
                 </div>
               </div>
             ))}
-            {nuevo && <div className={cn('flex shrink-0 snap-start flex-col justify-start pt-6', ANCHO_COLUMNA)}>{nuevo}</div>}
+            {nuevo && <div className={cn('flex shrink-0 snap-start flex-col justify-start pt-[26px]', ANCHO_COLUMNA)}>{nuevo}</div>}
           </div>
         </div>
       )}
@@ -194,7 +199,7 @@ export function TableroPlanner({ carriles, bloqueos, avisos, banco, localidades,
   }
 
   return (
-    <div aria-label="Grupos de la temporada, vista Tablero" role="region" className="min-w-0 space-y-8">
+    <div aria-label="Grupos de la temporada, vista Tablero" role="region" className="min-w-0 space-y-7">
       {carriles.map((carril) => (
         <CarrilSegmento key={carril.segmento.id} carril={carril} bloqueos={bloqueos} avisos={avisos} fichas={fichas} sugerencia={sugerencia} />
       ))}

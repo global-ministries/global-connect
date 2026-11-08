@@ -20,6 +20,12 @@
  * actions are one wrapping row: the compact save bar, the alerts chip
  * "● N · ● M" and "Más acciones" (Historial and, for whoever publishes, the
  * publish link with its state).
+ *
+ * Desktop and tablet, planning style (S25, the header band of
+ * prototipos/planificacion-dps/01): a `bg-card` band with a bottom border and
+ * 24px gutters, the h1 at 24px / 650 with the summary under it and the 36px
+ * actions at the right; menus are flat `rounded-md` popovers with 36px items
+ * (44px on touch).
  */
 import { useEffect, useId, useMemo, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode, type RefObject } from 'react'
 import Link from 'next/link'
@@ -84,8 +90,9 @@ function useCerrarMenu(abierto: boolean, cerrar: () => void, contenedor: RefObje
   }, [abierto, cerrar, contenedor, boton])
 }
 
-const CLASE_MENU = 'absolute top-full z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-2 shadow-sheet'
-const CLASE_ITEM_MENU = 'focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-accent'
+const CLASE_MENU = 'absolute top-full z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card p-1 shadow-sheet'
+const CLASE_ITEM_MENU =
+  'focus-ring flex min-h-9 w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-sm font-medium transition-colors hover:bg-accent pointer-coarse:min-h-11'
 
 function SelectorTemporada({
   temporada,
@@ -124,7 +131,7 @@ function SelectorTemporada({
           aria-controls={idMenu}
           aria-label={`Temporada ${temporada.nombre}, cambiar de temporada`}
           onClick={() => setAbierto((a) => !a)}
-          className="focus-ring -mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 transition-colors hover:bg-accent"
+          className="focus-ring -mx-2 inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-accent pointer-coarse:min-h-11"
         >
           {compacta ? temporada.nombre : `Temporada ${temporada.nombre}`}
           <ChevronDown aria-hidden="true" className={cn('size-5 text-muted-foreground transition-transform', abierto && 'rotate-180')} />
@@ -145,7 +152,7 @@ function SelectorTemporada({
                   aria-current={actual ? 'page' : undefined}
                   onClick={(e) => salir(e, actual)}
                   className={cn(
-                    'focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-accent',
+                    'focus-ring flex min-h-9 items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent pointer-coarse:min-h-11',
                     actual && 'bg-brand-tint text-brand-text',
                   )}
                 >
@@ -158,14 +165,14 @@ function SelectorTemporada({
         </ul>
         {(puedeCrearTemporada || temporada.origen_id) && (
           <>
-            <hr className="my-2 border-border" />
+            <hr className="my-1 border-border" />
             <ul aria-label="Más de la temporada">
               {temporada.origen_id && (
                 <li>
                   <Link
                     href={`${RUTA_PLANIFICAR}/diagnostico?temporada=${encodeURIComponent(temporada.id)}`}
                     onClick={(e) => salir(e, false)}
-                    className="focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                    className={CLASE_ITEM_MENU}
                   >
                     <span>Diagnóstico de cierre</span>
                     <span className="truncate text-xs font-normal text-muted-foreground">{temporada.origen_nombre}</span>
@@ -177,7 +184,7 @@ function SelectorTemporada({
                   <Link
                     href={`${RUTA_PLANIFICAR}/nueva`}
                     onClick={(e) => salir(e, false)}
-                    className="focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                    className={CLASE_ITEM_MENU}
                   >
                     <span>Nueva temporada</span>
                     <span className="truncate text-xs font-normal text-muted-foreground">{siguiente}</span>
@@ -281,8 +288,11 @@ export function CabeceraTemporada({
   const textoAvisos = contar(avisos, 'aviso', 'avisos')
 
   return (
-    <div className="space-y-4">
-      <section aria-labelledby="planner-temporada" className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+    <div className={compacta ? 'space-y-4' : 'space-y-3 border-b border-border bg-card px-6 pt-4 pb-3.5'}>
+      <section
+        aria-labelledby="planner-temporada"
+        className={cn('flex flex-wrap justify-between gap-x-6 gap-y-3', compacta ? 'items-start' : 'items-center')}
+      >
         <div id="planner-temporada" className="min-w-0 space-y-1">
           {compacta ? (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
