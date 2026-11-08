@@ -44,6 +44,8 @@ export interface PanelesCheckinProps {
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
   /** The salón a child of the mesa goes to now (hand-picked included). */
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
+  /** The salón the rules suggest, ignoring a hand pick (T2d); default: by age and grade only. */
+  readonly sugeridoDe?: (h: HijoEncontrado) => SalonDeHijo
   readonly onElegirSalon: (hijoId: string, salonId: string) => void
   /** Opens a family at the mesa (search by `consulta`, select `padreId`). */
   readonly onAbrirFamilia: (padreId: string, consulta?: string) => void
@@ -110,7 +112,7 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
           salones={props.salones}
           ocupacion={props.ocupacion}
           actualId={props.salonDe(panel.hijo).salonId}
-          sugeridoId={salonDeHijo(panel.hijo, props.salones, props.fecha).salonId}
+          sugeridoId={(props.sugeridoDe?.(panel.hijo) ?? salonDeHijo(panel.hijo, props.salones, props.fecha)).salonId}
           onElegir={(salonId) => {
             props.onElegirSalon(panel.hijo.id, salonId)
             onCerrar()

@@ -7,7 +7,9 @@
  * "Llegaron" checks the family in through the usual path in one tap; a full
  * salón warns ("Lleno 12/12") and "Cambiar" opens the family at the mesa to
  * pick another one. A QR pre-registration has no ficha yet: "Revisar" opens
- * its review.
+ * its review. Each child is placed with the salón rules, its prior visits
+ * and the occupancy, as at the mesa (T2d); a room full for the child still
+ * goes in with «Llegaron», recorded as forced (S9.1).
  */
 import { useState, type ReactElement } from 'react'
 import { Car, Check, QrCode } from 'lucide-react'
@@ -15,9 +17,10 @@ import { Car, Check, QrCode } from 'lucide-react'
 import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
-import { edadCorta, estadoCupo, salonDeHijo, type ItemCola, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
+import { edadCorta, type ItemCola, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
+import { ETIQUETA_VISITA, estadoHijo, salonDeHijoConReglas, type VisitasPrevias } from '@/lib/platform/ninos/mesa-reglas'
 import type { FamiliaLlegando, PreregistroLlegando } from '@/lib/platform/ninos/precheck'
 
 import { Alertas } from './alertas'
@@ -30,6 +33,8 @@ export interface ColaLlegandoProps {
   readonly salones: readonly SalonFila[]
   readonly fecha: string
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
+  /** Prior visits of the children (T2d, S9.3). */
+  readonly visitas?: VisitasPrevias
   /** Checks the family in; resolves to an error message, or null when done. */
   readonly onLlegaron: (f: FamiliaLlegando) => Promise<string | null>
   /** Opens the family at the mesa to change a child's salón. */
@@ -81,10 +86,11 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
       </div>
       <ul className="grid min-w-0 gap-2 pl-[52px]">
         {f.hijos.map((h) => {
-          const salon = salonDeHijo(h, props.salones, props.fecha)
+          const reglas = { visitas: props.visitas, ocupacion: props.ocupacion }
+          const salon = salonDeHijoConReglas(h, props.salones, props.fecha, undefined, reglas)
           const nombreSalon = props.salones.find((s) => s.id === salon.salonId)?.nombre
           const cupo = salon.salonId ? props.ocupacion.get(salon.salonId) : undefined
-          const lleno = cupo !== undefined && estadoCupo(cupo.presentes, cupo.capacidad) === 'lleno'
+          const { visita, lleno } = estadoHijo(h, salon.salonId, props.salones, props.fecha, reglas)
           const edad = edadCorta(h.fecha_nacimiento, props.fecha)
           return (
             <li key={h.id} className="grid min-w-0 gap-1 text-sm">
@@ -110,11 +116,18 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
                   </BotonSistema>
                 )}
               </span>
-              {h.desde_casa && (
-                <span>
-                  <BadgeSistema variante="info" tamaño="sm">
-                    Registrado desde casa
-                  </BadgeSistema>
+              {(h.desde_casa || (visita && visita !== 'regular')) && (
+                <span className="flex flex-wrap gap-1.5">
+                  {visita && visita !== 'regular' && (
+                    <BadgeSistema variante="info" tamaño="sm">
+                      {ETIQUETA_VISITA[visita]}
+                    </BadgeSistema>
+                  )}
+                  {h.desde_casa && (
+                    <BadgeSistema variante="info" tamaño="sm">
+                      Registrado desde casa
+                    </BadgeSistema>
+                  )}
                 </span>
               )}
               <Alertas alertas={alertasDeHijo(h)} />

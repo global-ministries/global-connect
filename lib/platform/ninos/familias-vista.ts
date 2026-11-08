@@ -5,7 +5,7 @@
  * a manual choice; a room picked by hand (salon_preferido_id) wins.
  */
 import type { HijoForm } from './familia'
-import { sugerirSalon, type SalonSugerible } from './sugerir-salon'
+import { explicarSalon, type SalonSugerible } from './sugerir-salon'
 
 export type AutorizadoEncontrado = { id: string; nombre: string; telefono: string | null; relacion: string | null }
 
@@ -63,7 +63,21 @@ export type SalonFila = {
   es_necesidades_especiales: boolean
   activo: boolean
   orden: number
+  /**
+   * Salón rules (T1a, read by the check-in desk since T2d); absent on the
+   * screens that do not select them, so their suggestion is unchanged.
+   */
+  capacidad?: number
+  cupo_visitantes?: number
+  abierto?: boolean
+  corte_mes?: number | null
+  corte_dia?: number | null
+  promocion_mes?: number | null
+  promocion_dia?: number | null
 }
+
+/** Who the suggestion is for at the desk (T2d): a visitor (S8.3) and the children inside each room. */
+export type ReglasSugerencia = { visitante?: boolean; ocupados?: Readonly<Record<string, number>> }
 
 export type SalonVista = SalonSugerible & { nombre: string }
 
@@ -200,20 +214,44 @@ export function aSalonSugerible(s: SalonFila): SalonVista {
     esNecesidadesEspeciales: s.es_necesidades_especiales,
     activo: s.activo,
     orden: s.orden,
+    ...(s.capacidad !== undefined && { capacidad: s.capacidad }),
+    ...(s.cupo_visitantes !== undefined && { cupoVisitantes: s.cupo_visitantes }),
+    ...(s.abierto !== undefined && { abierto: s.abierto }),
+    ...(s.corte_mes !== undefined && { corteMes: s.corte_mes }),
+    ...(s.corte_dia !== undefined && { corteDia: s.corte_dia }),
+    ...(s.promocion_mes !== undefined && { promocionMes: s.promocion_mes }),
+    ...(s.promocion_dia !== undefined && { promocionDia: s.promocion_dia }),
   }
 }
 
-export function salonParaHijo(hijo: HijoEncontrado, salones: readonly SalonFila[], fechaServicio: string): SalonParaHijo {
+/**
+ * The room for a child: the one remembered on the ficha while it is active
+ * and open, else the suggestion by the salón rules. With `reglas` a full room
+ * is skipped for the next one with room (a visitor may use the visitor
+ * places); when every room that fits is full the first open one is still
+ * proposed, so the desk warns and offers another (S9.1). A closed room is
+ * never proposed.
+ */
+export function salonParaHijo(
+  hijo: HijoEncontrado,
+  salones: readonly SalonFila[],
+  fechaServicio: string,
+  reglas: ReglasSugerencia = {},
+): SalonParaHijo {
   const vistas = salones.map(aSalonSugerible)
-  const elegido = vistas.find((s) => s.id === hijo.salon_preferido_id && s.activo)
+  const elegido = vistas.find((s) => s.id === hijo.salon_preferido_id && s.activo && s.abierto !== false)
   if (elegido) return { tipo: 'elegido', salon: elegido }
-  const sugerido = sugerirSalon({
+  const explicacion = explicarSalon({
     fechaNacimiento: hijo.fecha_nacimiento,
     grado: hijo.grado,
     necesidadesEspeciales: Boolean(hijo.necesidades_especiales),
     fechaServicio,
     salones: vistas,
+    visitante: reglas.visitante,
+    ocupados: reglas.ocupados,
   })
+  const lleno = explicacion.estado === 'lleno' ? explicacion.candidatos.find((s) => s.abierto !== false) : undefined
+  const sugerido = explicacion.salon ?? lleno
   return sugerido ? { tipo: 'sugerido', salon: sugerido } : { tipo: 'ninguno' }
 }
 

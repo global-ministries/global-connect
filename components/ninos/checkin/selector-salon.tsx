@@ -5,7 +5,8 @@
  * `tpl-salon`): every salón with who it is for and its occupancy; the
  * suggested one is marked. A full salón can still be chosen (warns, never
  * blocks). One tap picks it and closes the panel; a salón other than the
- * suggestion is remembered on the ficha for next Sunday (as before).
+ * suggestion is remembered on the ficha for next Sunday (as before). A
+ * closed salón (T2d) reads «cerrado»: never suggested, still selectable.
  */
 import type { ReactElement } from 'react'
 
@@ -47,7 +48,7 @@ export function SelectorSalon({ hijo, fecha, salones, ocupacion, actualId, suger
         {salones.map((s) => {
           const cupo = ocupacion.get(s.id)
           const lleno = cupo !== undefined && estadoCupo(cupo.presentes, cupo.capacidad) === 'lleno'
-          const detalle = [rangoSalon(s), s.id === sugeridoId ? 'sugerido' : null].filter(Boolean).join(' · ')
+          const detalle = [rangoSalon(s), s.abierto === false ? 'cerrado' : null, s.id === sugeridoId ? 'sugerido' : null].filter(Boolean).join(' · ')
           return (
             <li key={s.id} className="[&+li]:border-t [&+li]:border-border/60">
               <button

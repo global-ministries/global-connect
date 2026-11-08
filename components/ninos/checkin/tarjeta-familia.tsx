@@ -11,6 +11,7 @@ import type { ReactElement, Ref } from 'react'
 import { BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaEncontrada, HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
+import type { EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
 
 import { FilaHijo } from './fila-hijo'
 import { Avatar, PistaTecla, PuedenRetirar } from './partes'
@@ -25,6 +26,10 @@ export interface TarjetaFamiliaProps {
   readonly ingresados: Ingresados
   readonly marcados: ReadonlySet<string>
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
+  /** Visit badge, full room and the other room (T2d); without it nothing is flagged. */
+  readonly estadoDe?: (h: HijoEncontrado) => EstadoHijoMesa
+  /** «Usar {otro}» on a full room. */
+  readonly onUsarOtro?: (hijoId: string, salonId: string) => void
   readonly error: string | null
   readonly guardando: boolean
   readonly puedeRegistrar: boolean
@@ -74,6 +79,8 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
               fecha={p.fecha}
               salones={p.salones}
               salon={p.salonDe(h)}
+              estado={p.estadoDe?.(h)}
+              onUsarOtro={p.onUsarOtro ? (salonId) => p.onUsarOtro?.(h.id, salonId) : undefined}
               ocupacion={p.ocupacion}
               codigo={p.ingresados[h.id]}
               marcado={p.marcados.has(h.id)}

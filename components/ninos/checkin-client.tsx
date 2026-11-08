@@ -11,6 +11,12 @@
  * column shows the salones. Nueva familia, Cambiar salón, Completar ficha and
  * the adult-without-children forms open in one panel without leaving the
  * screen (PanelesCheckin). Every RPC, API route and permission is unchanged.
+ *
+ * Desk rules (odd/tasks/ninos-checkin-pco.md, T2d): under the service, its
+ * event and horario with «Abierto · cierra en N min» / «Cerrado»
+ * (VentanaHorario, informative only); the children are placed with the salón
+ * rules, their prior visits (useVisitas, «Primera vez» / «Visitante») and the
+ * occupancy, and a full room offers «Usar {otro}» or is forced (useMesa).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -22,6 +28,7 @@ import { BotonSistema, PaginaSistema, TarjetaSistema } from '@/components/ui/sis
 import type { Servicio, TurnoFila } from '@/lib/platform/ninos/checkin'
 import { resumenCheckin, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import { aSalonSugerible, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import type { HorarioMesa } from '@/lib/platform/ninos/mesa-reglas'
 import type { FamiliaLlegando } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
@@ -33,6 +40,8 @@ import { PanelesCheckin, type PanelCheckin } from './checkin/paneles-checkin'
 import { SalonesOcupacion } from './checkin/salones-ocupacion'
 import { useColaLlegando } from './checkin/use-cola-llegando'
 import { useMesa } from './checkin/use-mesa'
+import { useVisitas } from './checkin/use-visitas'
+import { VentanaHorario } from './checkin/ventana-horario'
 import { PreregistrosPendientes } from './preregistros-pendientes'
 import { RetiroPanel } from './retiro-panel'
 import { SelectorServicio } from './selector-servicio'
@@ -48,6 +57,8 @@ type Props = {
   consultaInicial?: string
   /** Family to select after consultaInicial. */
   padreInicial?: string
+  /** Event and window of each turno with a Niños horario (T2d); a turno without one uses 120 / 120. */
+  horarios?: Readonly<Record<string, HorarioMesa>>
 }
 
 type Pestana = 'ingreso' | 'retiro'
@@ -61,7 +72,7 @@ function urlCheckin(s: Servicio): string {
   return `/ninos/checkin?turno=${encodeURIComponent(s.turnoId ?? '')}&fecha=${encodeURIComponent(s.fecha)}`
 }
 
-export function CheckinClient({ salones, turnos, servicio: servicioInicial, campus = null, consultaInicial, padreInicial }: Props) {
+export function CheckinClient({ salones, turnos, servicio: servicioInicial, campus = null, consultaInicial, padreInicial, horarios = {} }: Props) {
   const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [servicio, setServicio] = useState<Servicio>(servicioInicial)
@@ -84,10 +95,20 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
   useRefrescoVisible(() => void cargarOcupacion())
 
   const { cola, recargar: recargarCola } = useColaLlegando(servicio)
-  const mesa = useMesa(salones, servicio, () => {
-    void cargarOcupacion()
-    void recargarCola()
-  })
+  const porSalon = useMemo(() => new Map((ocupacion ?? []).map((o) => [o.salon_id, o])), [ocupacion])
+  const { visitas, cargar: cargarVisitas } = useVisitas(servicio.fecha)
+  useEffect(() => {
+    cargarVisitas(cola.flatMap((i) => (i.tipo === 'familia' ? i.familia.hijos.map((h) => h.id) : [])))
+  }, [cola, cargarVisitas])
+  const mesa = useMesa(
+    salones,
+    servicio,
+    () => {
+      void cargarOcupacion()
+      void recargarCola()
+    },
+    { visitas, ocupacion: porSalon, cargarVisitas },
+  )
   const { busqueda, buscarYElegir } = mesa
 
   useEffect(() => {
@@ -116,7 +137,6 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
     if (hijo) setPanel({ tipo: 'salon', hijo })
   }
 
-  const porSalon = useMemo(() => new Map((ocupacion ?? []).map((o) => [o.salon_id, o])), [ocupacion])
   const resumen = resumenCheckin(ocupacion, cola.length)
   const ocultarPreregistros = useMemo(() => cola.flatMap((i) => (i.tipo === 'preregistro' ? [i.clave] : [])), [cola])
   const abrirFamilia = (padreId: string, consulta = busqueda.q) => {
@@ -139,7 +159,14 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
       <div className="grid min-w-0 gap-6 lg:flex lg:flex-wrap lg:items-end lg:justify-between">
         <EncabezadoCheckin campus={campus} resumen={resumen} />
         <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end lg:w-[min(100%,640px)]">
-          <SelectorServicio idPrefijo="checkin" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
+          <div className="grid min-w-0 gap-2">
+            <SelectorServicio idPrefijo="checkin" turnos={turnos} servicio={servicio} onCambiar={cambiarServicio} />
+            <VentanaHorario
+              turno={turnos.find((t) => t.id === servicio.turnoId)}
+              fecha={servicio.fecha}
+              horario={servicio.turnoId ? horarios[servicio.turnoId] : undefined}
+            />
+          </div>
           <ControlSegmentado
             etiqueta="Ingreso o retiro"
             opciones={PESTANAS}
@@ -170,6 +197,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
                 salones={salones}
                 fecha={servicio.fecha}
                 ocupacion={porSalon}
+                visitas={visitas}
                 onLlegaron={mesa.llegaron}
                 onCambiarSalon={cambiarSalonLlegando}
                 onRevisar={setRevisar}
@@ -218,6 +246,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
         }}
         ocupacion={porSalon}
         salonDe={mesa.salonDe}
+        sugeridoDe={mesa.sugeridoDe}
         onElegirSalon={mesa.elegirSalon}
         onAbrirFamilia={(padreId, consulta) => abrirFamilia(padreId, consulta)}
         onFichaGuardada={() => {

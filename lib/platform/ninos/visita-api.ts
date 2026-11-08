@@ -13,7 +13,8 @@ type Objeto = Record<string, unknown>
 const esObjeto = (v: unknown): v is Objeto => typeof v === 'object' && v !== null && !Array.isArray(v)
 const esUuids = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string' && UUID.test(x))
 
-export type EntradaCheckin = { ninoIds: string[]; salonIds: string[]; turnoId: string; fecha: string }
+/** forzadoIds only when the desk forced a full salón for some children (T2d, S9.1); absent = none. */
+export type EntradaCheckin = { ninoIds: string[]; salonIds: string[]; turnoId: string; fecha: string; forzadoIds?: string[] }
 /** ninoIds only when the door marked some of the code's children (T2a); absent = the whole code. */
 export type EntradaCheckout = {
   codigo: string
@@ -36,7 +37,12 @@ export function parseCheckin(body: unknown): EntradaCheckin | null {
   const { ninoIds, salonIds } = body
   if (!s || !esUuids(ninoIds) || !esUuids(salonIds)) return null
   if (ninoIds.length === 0 || ninoIds.length > MAX_NINOS || ninoIds.length !== salonIds.length) return null
-  return { ninoIds, salonIds, ...s }
+  const entrada: EntradaCheckin = { ninoIds, salonIds, ...s }
+  // Forced over quota: absent, null or empty keeps the body as before.
+  if (body.forzadoIds === undefined || body.forzadoIds === null) return entrada
+  if (!esUuids(body.forzadoIds) || !body.forzadoIds.every((id) => ninoIds.includes(id))) return null
+  const forzadoIds = [...new Set(body.forzadoIds)]
+  return forzadoIds.length ? { ...entrada, forzadoIds } : entrada
 }
 
 export function parseCheckout(body: unknown): EntradaCheckout | null {

@@ -2,7 +2,7 @@
  * Body of POST /api/ninos/checkout with the optional child list (T2a of
  * odd/tasks/ninos-checkin-pco.md, pickup per child) and the public error codes.
  */
-import { errorPublico, parseCheckout } from '@/lib/platform/ninos/visita-api'
+import { errorPublico, parseCheckin, parseCheckout } from '@/lib/platform/ninos/visita-api'
 
 const N1 = '11111111-1111-4111-8111-111111111111'
 const N2 = '22222222-2222-4222-8222-222222222222'
@@ -35,5 +35,26 @@ describe('errorPublico', () => {
     expect(errorPublico({ code: '22023', message: 'sin_ninos' })).toEqual({ code: '22023', message: 'sin_ninos' })
     expect(errorPublico({ code: '22023', message: 'retiro_no_autorizado' })).toEqual({ code: '22023', message: 'retiro_no_autorizado' })
     expect(errorPublico({ code: '22023', message: 'room ZZ of Sofía' })).toEqual({ code: '22023' })
+  })
+})
+
+describe('parseCheckin with the forced list (T2d, S9.1)', () => {
+  const ingreso = { ninoIds: [N1, N2], salonIds: [T1, T1], turnoId: T1, fecha: '2026-11-08' }
+
+  it('without forzadoIds (absent, null or empty) it is the body as before', () => {
+    const antes = { ninoIds: [N1, N2], salonIds: [T1, T1], turnoId: T1, fecha: '2026-11-08' }
+    expect(parseCheckin(ingreso)).toEqual(antes)
+    expect(parseCheckin({ ...ingreso, forzadoIds: null })).toEqual(antes)
+    expect(parseCheckin({ ...ingreso, forzadoIds: [] })).toEqual(antes)
+  })
+
+  it('keeps each forced child once', () => {
+    expect(parseCheckin({ ...ingreso, forzadoIds: [N2, N2] })).toEqual({ ...ingreso, forzadoIds: [N2] })
+  })
+
+  it('refuses a forced child outside the call, a non-uuid and a non-list', () => {
+    expect(parseCheckin({ ...ingreso, forzadoIds: [T1] })).toBeNull()
+    expect(parseCheckin({ ...ingreso, forzadoIds: ['x'] })).toBeNull()
+    expect(parseCheckin({ ...ingreso, forzadoIds: N1 })).toBeNull()
   })
 })

@@ -56,11 +56,49 @@ describe('salonParaHijo', () => {
     const r = salonParaHijo({ ...hijoBase, salon_preferido_id: 'g1' }, salones, '2026-10-11')
     expect(r).toEqual({ tipo: 'elegido', salon: expect.objectContaining({ id: 'g1' }) })
   })
+
+  // T2d preservation: the desk now loads the salón rules; at their defaults (open, no
+  // visitor places, room left) every suggestion is the one it gave before.
+  it('with the default salón rules and room left it suggests exactly as without them', () => {
+    const conReglas: SalonFila[] = salones.map((s) => ({ ...s, capacidad: 20, cupo_visitantes: 0, abierto: true, corte_mes: null, corte_dia: null, promocion_mes: null, promocion_dia: null }))
+    const casos = [
+      { ...hijoBase, fecha_nacimiento: '2025-06-01' },
+      { ...hijoBase, fecha_nacimiento: '2021-06-01', grado: 0 },
+      { ...hijoBase, fecha_nacimiento: '2019-06-01', grado: 1 },
+      { ...hijoBase, salon_preferido_id: 'g1' },
+      { ...hijoBase, fecha_nacimiento: null },
+    ]
+    for (const h of casos) {
+      const antes = salonParaHijo(h, salones, '2026-10-11')
+      const ahora = salonParaHijo(h, conReglas, '2026-10-11', { visitante: false, ocupados: { mat: 5, g1: 19 } })
+      expect(ahora.tipo).toBe(antes.tipo)
+      expect(ahora.tipo === 'ninguno' ? null : ahora.salon.id).toBe(antes.tipo === 'ninguno' ? null : antes.salon.id)
+    }
+  })
+
+  it('a closed salón is not suggested; a full one is skipped for the next with room', () => {
+    const dos: SalonFila[] = [
+      { ...salones[1], capacidad: 20, abierto: false },
+      { ...salones[1], id: 'g1b', nombre: '1º grado B', orden: 120, capacidad: 20 },
+      { ...salones[1], id: 'g1c', nombre: '1º grado C', orden: 130, capacidad: 20 },
+    ]
+    const h = { ...hijoBase, grado: 1 }
+    expect(salonParaHijo(h, dos, '2026-10-11')).toEqual({ tipo: 'sugerido', salon: expect.objectContaining({ id: 'g1b' }) })
+    expect(salonParaHijo(h, dos, '2026-10-11', { ocupados: { g1b: 20 } })).toEqual({ tipo: 'sugerido', salon: expect.objectContaining({ id: 'g1c' }) })
+  })
 })
 
 describe('mappers', () => {
   it('maps a DB room row to the suggestion shape', () => {
     expect(aSalonSugerible(salones[1])).toMatchObject({ gradoMin: 1, gradoMax: 1, esNecesidadesEspeciales: false })
+  })
+
+  it('maps the salón rules when the row has them, and leaves them out when not', () => {
+    expect(aSalonSugerible({ ...salones[1], capacidad: 18, cupo_visitantes: 2, abierto: false, corte_mes: 12, corte_dia: 1, promocion_mes: 8, promocion_dia: 1 })).toMatchObject({
+      capacidad: 18, cupoVisitantes: 2, abierto: false, corteMes: 12, corteDia: 1, promocionMes: 8, promocionDia: 1,
+    })
+    const sin = aSalonSugerible(salones[1])
+    for (const k of ['capacidad', 'cupoVisitantes', 'abierto', 'corteMes', 'corteDia', 'promocionMes', 'promocionDia']) expect(sin).not.toHaveProperty(k)
   })
 
   it('maps a found child back into the edit form', () => {

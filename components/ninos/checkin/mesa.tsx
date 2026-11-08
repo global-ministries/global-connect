@@ -108,6 +108,8 @@ export function Mesa({ mesa, servicio, salones, ocupacion, panelAbierto, onCambi
             ingresados={mesa.ingresados}
             marcados={mesa.marcados}
             salonDe={mesa.salonDe}
+            estadoDe={mesa.estadoDe}
+            onUsarOtro={mesa.usarOtro}
             error={mesa.error}
             guardando={mesa.guardando}
             puedeRegistrar={Boolean(servicio.turnoId)}

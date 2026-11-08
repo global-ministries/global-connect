@@ -83,6 +83,30 @@ describe('POST /api/ninos/checkin', () => {
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana@example.test', idempotencyKey: 'ninos-ingreso-v1-p1' }))
   })
 
+  it('sends the forced children as p_forzados (T2d, S9.1) and nothing else changes', async () => {
+    setup({ ninos_checkin: { data: [] } })
+    expect((await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: [N1] }))).status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('ninos_checkin', { p_nino_ids: [N1], p_salon_ids: [S1], p_turno_id: T1, p_fecha: '2026-10-11', p_forzados: [N1] })
+  })
+
+  it('an empty or null forced list sends the same arguments as before', async () => {
+    setup({ ninos_checkin: { data: [] } })
+    await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: [] }))
+    await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: null }))
+    expect(rpc.mock.calls).toEqual([
+      ['ninos_checkin', { p_nino_ids: [N1], p_salon_ids: [S1], p_turno_id: T1, p_fecha: '2026-10-11' }],
+      ['ninos_checkin', { p_nino_ids: [N1], p_salon_ids: [S1], p_turno_id: T1, p_fecha: '2026-10-11' }],
+    ])
+  })
+
+  it('400 for a forced child that is not checked in by the call, nothing called', async () => {
+    setup({})
+    expect((await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: [S1] }))).status).toBe(400)
+    expect((await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: ['x'] }))).status).toBe(400)
+    expect((await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: N1 }))).status).toBe(400)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('passes the RPC error code through for the screen messages, no email', async () => {
     setup({ ninos_checkin: { error: { code: '23505', message: 'a child is already checked in' } } })
     const res = await checkin(req('checkin', cuerpoCheckin))
