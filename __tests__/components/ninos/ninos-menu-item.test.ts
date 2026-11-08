@@ -17,3 +17,22 @@ describe('getNinosNavItems reportes entry', () => {
     expect(ids({ ...base, puedeOperar: true })).not.toContain('ninos-reportes')
   })
 })
+
+describe('getNinosNavItems eventos entry', () => {
+  it('shows Eventos to configurers, right before Salones', () => {
+    expect(ids({ ...base, puedeOperar: true, puedeVerSalon: true, puedeConfigurar: true })).toEqual([
+      'ninos-checkin',
+      'ninos-familias',
+      'ninos-eventos',
+      'ninos-salon',
+      'ninos-cartel',
+      'ninos-reportes',
+    ])
+    const eventos = getNinosNavItems({ ...base, puedeConfigurar: true }).find((item) => item.id === 'ninos-eventos')
+    expect(eventos).toMatchObject({ label: 'Eventos', href: '/ninos/eventos' })
+  })
+
+  it('hides Eventos from operators, room viewers and volunteer markers', () => {
+    expect(ids({ ...base, puedeOperar: true, puedeVerSalon: true, puedeMarcarVoluntarios: true })).not.toContain('ninos-eventos')
+  })
+})

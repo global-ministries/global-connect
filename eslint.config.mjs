@@ -47,6 +47,9 @@ const migratedToDesignSystem = [
   'components/ninos/registro/**',
   'components/ninos/registro-rapido/**',
   'components/ninos/registrar-familia-form.tsx',
+  // Niños › Eventos (T1c of odd/tasks/ninos-checkin-pco.md), planning style from the start.
+  'app/(auth)/ninos/eventos/**',
+  'components/ninos/eventos/**',
 ]
 
 const legacyUiImports = {

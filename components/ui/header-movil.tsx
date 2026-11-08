@@ -47,6 +47,7 @@ const RUTAS_INTERNAS: [RegExp | string, string][] = [
   // Niños: the same titles as the desktop header (never the fallback "Global").
   [/^\/ninos\/checkin/, 'Check-in'],
   [/^\/ninos\/familias/, 'Familias'],
+  [/^\/ninos\/eventos/, 'Eventos'],
   [/^\/ninos\/salon/, 'Salones'],
   [/^\/ninos\/voluntarios/, 'Voluntarios'],
   [/^\/ninos\/cartel/, 'Cartel QR'],
