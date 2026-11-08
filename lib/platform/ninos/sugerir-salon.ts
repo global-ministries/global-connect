@@ -17,8 +17,9 @@
  *  - Capacity, only when `ocupados` says how many children are inside: a
  *    regular fits while there are fewer than `capacidad`; a visitor (S8.3)
  *    may also take the `cupoVisitantes` places on top.
- *  - Distribution per area (the carpeta): `en_orden` takes the lowest
- *    `orden` with room; `equilibrada` the one with fewest children.
+ * Among the rooms that fit, the lowest `orden` with room is taken. There is
+ * no balancing across rooms (S9.5, L34: the room goes by age and grade, it is
+ * not shared out evenly), so the carpeta "distribución" is not read.
  * The first step with rooms that fit the child decides: when all of them are
  * closed or full there is no suggestion (`explicarSalon` says why).
  */
@@ -46,7 +47,6 @@ export type SalonSugerible = {
 }
 
 export type AreaSalon = SalonSugerible['area']
-export type Distribucion = 'en_orden' | 'equilibrada'
 
 export type SugerirSalonInput<S extends SalonSugerible> = {
   /** YYYY-MM-DD */
@@ -61,8 +61,6 @@ export type SugerirSalonInput<S extends SalonSugerible> = {
   visitante?: boolean
   /** Children inside each room (by id); without it the capacity is not checked. */
   ocupados?: Readonly<Record<string, number>>
-  /** The carpeta's distribution per area; default `en_orden`. */
-  distribucion?: Partial<Record<AreaSalon, Distribucion>>
 }
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/
@@ -159,7 +157,6 @@ export interface ExplicacionSalon<S extends SalonSugerible> {
   readonly candidatos: readonly S[]
   /** The open candidates with room for this child. */
   readonly disponibles: readonly S[]
-  readonly distribucion: Distribucion
 }
 
 /** Whether the room has a place for this child (always, when the occupancy is unknown). */
@@ -180,15 +177,12 @@ export function explicarSalon<S extends SalonSugerible>(input: SugerirSalonInput
 
   const decidir = (criterio: CriterioSalon, encajan: readonly S[]): ExplicacionSalon<S> => {
     const candidatos = porOrden(encajan)
-    const distribucion = input.distribucion?.[candidatos[0].area] ?? 'en_orden'
     const abiertos = candidatos.filter((s) => s.abierto !== false)
     const ocupados = (s: S) => (input.ocupados ? (input.ocupados[s.id] ?? 0) : undefined)
     const disponibles = abiertos.filter((s) => tieneLugar(s, ocupados(s), input.visitante === true))
-    // Array.prototype.sort is stable: equal counts keep the `orden`.
-    const elegido =
-      distribucion === 'equilibrada' ? [...disponibles].sort((a, b) => (ocupados(a) ?? 0) - (ocupados(b) ?? 0))[0] : disponibles[0]
+    const elegido = disponibles[0]
     const estado: EstadoSugerencia = elegido ? 'asignado' : abiertos.length ? 'lleno' : 'cerrado'
-    return { salon: elegido ?? null, estado, criterio, candidatos, disponibles, distribucion }
+    return { salon: elegido ?? null, estado, criterio, candidatos, disponibles }
   }
 
   if (input.necesidadesEspeciales && activos.some(salonPorEdad)) {
@@ -207,9 +201,34 @@ export function explicarSalon<S extends SalonSugerible>(input: SugerirSalonInput
   const porEdad = activos.filter(salonPorEdad)
   if (porEdad.length) return decidir('edad', porEdad)
 
-  return { salon: null, estado: 'ninguno', criterio: null, candidatos: [], disponibles: [], distribucion: 'en_orden' }
+  return { salon: null, estado: 'ninguno', criterio: null, candidatos: [], disponibles: [] }
 }
 
 export function sugerirSalon<S extends SalonSugerible>(input: SugerirSalonInput<S>): S | null {
   return explicarSalon(input).salon
+}
+
+/** reglas: the rooms that admit the child; sin_datos: no age and no grade; ninguno: age or grade known but no room admits them. */
+export type MotivoSalones = 'reglas' | 'sin_datos' | 'ninguno'
+
+export interface SalonesDelNino<S extends SalonSugerible> {
+  /** Active rooms by `orden`; closed and full ones included (the caller marks them). */
+  readonly salones: readonly S[]
+  readonly motivo: MotivoSalones
+}
+
+/**
+ * The rooms a child may be placed in by hand (S9.5, L34: "no se puede colocar
+ * a alguien de maternal en un salon que no corresponda y viceversa"): the
+ * candidates of explicarSalon, by the same steps (necesidades › grado › edad).
+ * A child without age and grade cannot be checked against the rules, and a
+ * child no room admits must still go somewhere: both get every active room.
+ */
+export function salonesQueCorresponden<S extends SalonSugerible>(
+  input: Pick<SugerirSalonInput<S>, 'fechaNacimiento' | 'grado' | 'necesidadesEspeciales' | 'fechaServicio' | 'salones'>,
+): SalonesDelNino<S> {
+  const activos = porOrden(input.salones.filter((s) => s.activo))
+  if (edadEnMeses(input.fechaNacimiento, input.fechaServicio) === null && input.grado === null) return { salones: activos, motivo: 'sin_datos' }
+  const { candidatos } = explicarSalon(input)
+  return candidatos.length ? { salones: candidatos, motivo: 'reglas' } : { salones: activos, motivo: 'ninguno' }
 }

@@ -75,6 +75,19 @@ describe('salonDeHijoConReglas (rules into the suggestion)', () => {
     expect(r).toEqual({ salonId: 'u2', origen: 'sugerido' })
   })
 
+  // S9.5 preservation: a remembered room that corresponds, with the default rules, is used exactly as before.
+  it('a remembered room that corresponds to the child is kept, as before', () => {
+    expect(salonDeHijoConReglas(hijo({ salon_preferido_id: 'u23' }), salones, '2026-11-08', undefined, {})).toEqual({ salonId: 'u23', origen: 'elegido' })
+    expect(salonDeHijoConReglas(hijo({ salon_preferido_id: 'u23' }), salones, '2026-11-08', undefined, { visitas: { h1: 5 }, ocupacion: ocupacion({ u2: 3, u23: 4 }) })).toEqual({
+      salonId: 'u23',
+      origen: 'elegido',
+    })
+  })
+
+  it('a remembered room of another grade is ignored: the rules decide (S9.5)', () => {
+    expect(salonDeHijoConReglas(hijo({ grado: 3, salon_preferido_id: 'u2' }), salones, '2026-11-08', undefined, {})).toEqual({ salonId: 'u23', origen: 'sugerido' })
+  })
+
   it('a hand-picked room wins, as before', () => {
     expect(salonDeHijoConReglas(hijo(), salones, '2026-11-08', 'u23', {})).toEqual({ salonId: 'u23', origen: 'manual' })
   })
@@ -94,6 +107,15 @@ describe('estadoHijo («Salón lleno» and «Usar {otro}», S9.1)', () => {
   it('full with no other room: no «Usar», the desk may still force it', () => {
     const e = estadoHijo(hijo(), 'u2', salones, '2026-11-08', { visitas: { h1: 4 }, ocupacion: ocupacion({ u2: 20, u23: 20 }) })
     expect(e).toEqual({ visita: 'regular', lleno: true, otro: null })
+  })
+
+  // S9.5: «Usar {otro}» only offers a room that corresponds to the child, never one of another grade.
+  it('«Usar» never offers a room that does not correspond, even when it has room', () => {
+    const conOtroGrado: SalonFila[] = [...salones, { ...base, id: 'u5', nombre: 'UpStreet 5º', grado_min: 5, grado_max: 5, orden: 15, capacidad: 20 }]
+    const e = estadoHijo(hijo(), 'u2', conOtroGrado, '2026-11-08', { visitas: { h1: 4 }, ocupacion: ocupacion({ u2: 20, u23: 20, u5: 0 }) })
+    expect(e).toEqual({ visita: 'regular', lleno: true, otro: null })
+    const conLugar = estadoHijo(hijo(), 'u2', conOtroGrado, '2026-11-08', { visitas: { h1: 4 }, ocupacion: ocupacion({ u2: 20, u23: 3, u5: 0 }) })
+    expect(conLugar.otro?.id).toBe('u23')
   })
 
   it('without occupancy nothing is full', () => {

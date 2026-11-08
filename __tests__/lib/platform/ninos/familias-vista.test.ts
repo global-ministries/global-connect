@@ -1,7 +1,12 @@
+import { hijoVacio } from '@/lib/platform/ninos/familia'
 import {
   aSalonSugerible,
   hijoAForm,
+  NOTA_SIN_EDAD_NI_GRADO,
   parseFamilias,
+  preferidoCorresponde,
+  salonesDelHijo,
+  salonesParaNivel,
   salonParaHijo,
   type SalonFila,
 } from '@/lib/platform/ninos/familias-vista'
@@ -52,9 +57,33 @@ describe('salonParaHijo', () => {
     expect(r).toEqual({ tipo: 'ninguno' })
   })
 
-  it('a room picked by hand wins over the rule', () => {
-    const r = salonParaHijo({ ...hijoBase, salon_preferido_id: 'g1' }, salones, '2026-10-11')
-    expect(r).toEqual({ tipo: 'elegido', salon: expect.objectContaining({ id: 'g1' }) })
+  it('a room picked by hand that corresponds to the child wins over the rule', () => {
+    const dosMaternales: SalonFila[] = [...salones, { ...salones[0], id: 'matb', nombre: 'Maternal B', orden: 20 }]
+    const r = salonParaHijo({ ...hijoBase, salon_preferido_id: 'matb' }, dosMaternales, '2026-10-11')
+    expect(r).toEqual({ tipo: 'elegido', salon: expect.objectContaining({ id: 'matb' }) })
+  })
+
+  // S9.5 (L34): "no se puede colocar a alguien de maternal en un salon que no corresponda y viceversa".
+  it('ignores a remembered room that does not correspond to the child and falls back to the rules', () => {
+    expect(salonParaHijo({ ...hijoBase, salon_preferido_id: 'g1' }, salones, '2026-10-11')).toEqual({
+      tipo: 'sugerido',
+      salon: expect.objectContaining({ id: 'mat' }),
+    })
+    expect(salonParaHijo({ ...hijoBase, fecha_nacimiento: '2019-06-01', grado: 1, salon_preferido_id: 'mat' }, salones, '2026-10-11')).toEqual({
+      tipo: 'sugerido',
+      salon: expect.objectContaining({ id: 'g1' }),
+    })
+  })
+
+  it('keeps the remembered room while the child cannot be checked (no age and no grade) or no room admits them', () => {
+    expect(salonParaHijo({ ...hijoBase, fecha_nacimiento: null, salon_preferido_id: 'g1' }, salones, '2026-10-11')).toEqual({
+      tipo: 'elegido',
+      salon: expect.objectContaining({ id: 'g1' }),
+    })
+    expect(salonParaHijo({ ...hijoBase, fecha_nacimiento: '2015-01-01', salon_preferido_id: 'g1' }, salones, '2026-10-11')).toEqual({
+      tipo: 'elegido',
+      salon: expect.objectContaining({ id: 'g1' }),
+    })
   })
 
   // T2d preservation: the desk now loads the salón rules; at their defaults (open, no
@@ -85,6 +114,68 @@ describe('salonParaHijo', () => {
     const h = { ...hijoBase, grado: 1 }
     expect(salonParaHijo(h, dos, '2026-10-11')).toEqual({ tipo: 'sugerido', salon: expect.objectContaining({ id: 'g1b' }) })
     expect(salonParaHijo(h, dos, '2026-10-11', { ocupados: { g1b: 20 } })).toEqual({ tipo: 'sugerido', salon: expect.objectContaining({ id: 'g1c' }) })
+  })
+})
+
+describe('salonesDelHijo (S9.5: the desk «Cambiar salón» list)', () => {
+  const conCerrado: SalonFila[] = [
+    ...salones,
+    { ...salones[0], id: 'matb', nombre: 'Maternal B', orden: 20, abierto: false },
+    { ...salones[0], id: 'pre', nombre: 'Preescolar', edad_min_meses: 24, edad_max_meses: 47, orden: 30 },
+    { ...salones[0], id: 'viejo', nombre: 'Viejo', orden: 5, activo: false },
+  ]
+
+  it('only the salones that correspond, closed ones included, with no note', () => {
+    const r = salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2025-06-01' }, conCerrado, '2026-10-11')
+    expect(r.salones.map((s) => s.id)).toEqual(['mat', 'matb'])
+    expect(r.nota).toBeNull()
+    expect(salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2019-06-01', grado: 1 }, conCerrado, '2026-10-11').salones.map((s) => s.id)).toEqual(['g1'])
+  })
+
+  it('without age and grade: every active salón and the note', () => {
+    const r = salonesDelHijo({ ...hijoBase, fecha_nacimiento: null, grado: null }, conCerrado, '2026-10-11')
+    expect(r.salones.map((s) => s.id)).toEqual(['mat', 'matb', 'pre', 'g1'])
+    expect(r.nota).toBe('Sin edad ni grado: elige el salón a mano.')
+    expect(NOTA_SIN_EDAD_NI_GRADO).toBe('Sin edad ni grado: elige el salón a mano.')
+  })
+
+  it('with age but no salón that admits the child: every active salón (the desk is never stuck), no note', () => {
+    const r = salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2015-01-01' }, conCerrado, '2026-10-11')
+    expect(r.salones.map((s) => s.id)).toEqual(['mat', 'matb', 'pre', 'g1'])
+    expect(r.nota).toBeNull()
+  })
+})
+
+describe('ficha salón preferido (S9.5)', () => {
+  const nivel = [
+    aSalonSugerible(salones[0]),
+    aSalonSugerible({ ...salones[0], id: 'pre', nombre: 'Preescolar', edad_min_meses: 24, edad_max_meses: 47, orden: 30 }),
+    aSalonSugerible({ ...salones[0], id: 'plus', nombre: 'Plus', edad_min_meses: null, edad_max_meses: null, es_necesidades_especiales: true, orden: 50 }),
+    aSalonSugerible(salones[1]),
+  ]
+  const ficha = (h: Partial<ReturnType<typeof hijoVacio>>) => ({ ...hijoVacio(), ...h })
+
+  it('the «Nivel» offers only the Waumba salones of the age and needs; UpStreet (by grade) stays', () => {
+    expect(salonesParaNivel(ficha({ fechaNacimiento: '2025-06-01' }), nivel, '2026-10-11').map((s) => s.id)).toEqual(['mat', 'g1'])
+    expect(salonesParaNivel(ficha({ fechaNacimiento: '2024-01-01', necesidadesEspeciales: 'TEA' }), nivel, '2026-10-11').map((s) => s.id)).toEqual([
+      'plus',
+      'g1',
+    ])
+    // Older than every Waumba salón: only the grades.
+    expect(salonesParaNivel(ficha({ fechaNacimiento: '2018-01-01' }), nivel, '2026-10-11').map((s) => s.id)).toEqual(['g1'])
+  })
+
+  it('without a birth date every salón is offered', () => {
+    expect(salonesParaNivel(ficha({ fechaNacimiento: '' }), nivel, '2026-10-11').map((s) => s.id)).toEqual(['mat', 'pre', 'plus', 'g1'])
+  })
+
+  it('preferidoCorresponde: none, an unknown room, or one the rules admit', () => {
+    expect(preferidoCorresponde(ficha({ fechaNacimiento: '2025-06-01', salonPreferidoId: '' }), nivel, '2026-10-11')).toBe(true)
+    expect(preferidoCorresponde(ficha({ fechaNacimiento: '2025-06-01', salonPreferidoId: 'mat' }), nivel, '2026-10-11')).toBe(true)
+    expect(preferidoCorresponde(ficha({ fechaNacimiento: '2025-06-01', salonPreferidoId: 'pre' }), nivel, '2026-10-11')).toBe(false)
+    expect(preferidoCorresponde(ficha({ fechaNacimiento: '2025-06-01', salonPreferidoId: 'otro-campus' }), nivel, '2026-10-11')).toBe(true)
+    expect(preferidoCorresponde(ficha({ fechaNacimiento: '', salonPreferidoId: 'pre' }), nivel, '2026-10-11')).toBe(true)
+    expect(preferidoCorresponde(ficha({ fechaNacimiento: '2019-06-01', grado: '1', salonPreferidoId: 'g1' }), nivel, '2026-10-11')).toBe(true)
   })
 })
 

@@ -9,8 +9,11 @@
  *    screen edited them before, the Barquisimeto salones came from a seed).
  *  - Visitor quota, volunteers, open / closed, options, fecha de corte and
  *    promoción: ninos_salon_reglas_guardar, which replaces them all.
- *  - Distribution and "mantener a los regulares": ninos_carpeta_guardar per
- *    campus and area.
+ *  - "Mantener a los regulares": ninos_carpeta_guardar per campus and area.
+ *    The carpeta "distribución" (en orden / equilibrada) is gone (S9.5, L34:
+ *    a child goes to the salones of their age and grade, never balanced):
+ *    ninos_carpetas.distribucion stays in the table but is not read, and the
+ *    RPC, which still requires the argument, always gets 'en_orden'.
  * The new columns and RPCs are not in database.types.ts yet: rows are read by
  * hand and the calls go through an untyped client (as ./eventos.ts). Errors:
  * the RPC HINT as is (supabase/migrations/20261108100000_ninos_eventos.sql).
@@ -18,11 +21,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import type { Resultado } from './eventos'
-import { edadEnMeses, edadParaSalon, explicarSalon, fechaReferencia, type AreaSalon, type Distribucion, type SalonSugerible } from './sugerir-salon'
+import { edadEnMeses, edadParaSalon, explicarSalon, fechaReferencia, type AreaSalon, type SalonSugerible } from './sugerir-salon'
 
 export const AREAS: readonly AreaSalon[] = ['waumba', 'upstreet']
 export const NOMBRE_AREA: Record<AreaSalon, string> = { waumba: 'Waumba Land', upstreet: 'UpStreet' }
-export const DISTRIBUCIONES: readonly Distribucion[] = ['en_orden', 'equilibrada']
+/** ninos_carpeta_guardar still requires p_distribucion: always the table default (S9.5). */
+export const DISTRIBUCION_FIJA = 'en_orden'
 
 export interface ReglasSalon {
   readonly cupoVisitantes: number
@@ -61,7 +65,6 @@ export interface SalonAdmin extends DatosSalon, ReglasSalon {
 
 export interface CarpetaAdmin {
   readonly area: AreaSalon
-  readonly distribucion: Distribucion
   readonly mantenerRegulares: boolean
 }
 
@@ -130,14 +133,14 @@ export function leerCarpetas(data: unknown): CarpetaAdmin[] {
   if (!Array.isArray(data)) return []
   return data.flatMap((f): CarpetaAdmin[] =>
     esFila(f) && esArea(f.area)
-      ? [{ area: f.area, distribucion: f.distribucion === 'equilibrada' ? 'equilibrada' : 'en_orden', mantenerRegulares: f.mantener_regulares !== false }]
+      ? [{ area: f.area, mantenerRegulares: f.mantener_regulares !== false }]
       : [],
   )
 }
 
-/** The carpeta of an area; without a row, the table defaults (en orden, keep regulars). */
+/** The carpeta of an area; without a row, the table default (keep regulars). */
 export function carpetaDe(carpetas: readonly CarpetaAdmin[], area: AreaSalon): CarpetaAdmin {
-  return carpetas.find((c) => c.area === area) ?? { area, distribucion: 'en_orden', mantenerRegulares: true }
+  return carpetas.find((c) => c.area === area) ?? { area, mantenerRegulares: true }
 }
 
 export function reglasDe(s: SalonAdmin): ReglasSalon {
@@ -332,7 +335,6 @@ export interface ProbarReglasInput {
   readonly visitante: boolean
   readonly fechaServicio: string
   readonly salones: readonly SalonAdmin[]
-  readonly carpetas: readonly CarpetaAdmin[]
   /** Children inside each salón; without it the salones are empty. */
   readonly ocupados?: Readonly<Record<string, number>>
 }
@@ -355,8 +357,8 @@ const sugerible = (s: SalonAdmin): SalonSugerible => s
 /**
  * Where the desk would send a child and why: the rules of sugerirSalon
  * (age on the fecha de corte, grade, special needs, open, quota for regulars
- * or visitors, the carpeta's distribution) in plain Spanish. Pure: the
- * simulator never writes.
+ * or visitors, in order among the salones that fit) in plain Spanish. Pure:
+ * the simulator never writes.
  */
 export function probarReglas(input: ProbarReglasInput): ResultadoPrueba {
   const edadHoy = edadEnMeses(input.fechaNacimiento, input.fechaServicio)
@@ -366,7 +368,6 @@ export function probarReglas(input: ProbarReglasInput): ResultadoPrueba {
   }
 
   const activos = input.salones.filter((s) => s.activo)
-  const distribucion = Object.fromEntries(AREAS.map((a) => [a, carpetaDe(input.carpetas, a).distribucion])) as Record<AreaSalon, Distribucion>
   const r = explicarSalon({
     fechaNacimiento: edadHoy === null ? null : input.fechaNacimiento,
     grado: input.grado,
@@ -375,7 +376,6 @@ export function probarReglas(input: ProbarReglasInput): ResultadoPrueba {
     salones: activos.map(sugerible),
     visitante: input.visitante,
     ocupados: input.ocupados,
-    distribucion,
   })
   const porId = new Map(activos.map((s) => [s.id, s]))
   const salon = r.salon ? (porId.get(r.salon.id) ?? null) : null
@@ -389,7 +389,7 @@ export function probarReglas(input: ProbarReglasInput): ResultadoPrueba {
     if (candidatos.has(s.id)) {
       if (!s.abierto) return 'cerrado'
       if (!disponibles.has(s.id)) return `lleno, ${ocupados(s)} de ${limite(s)}`
-      return r.distribucion === 'equilibrada' ? `tiene más niños (${ocupados(s)})` : 'va después en el orden'
+      return 'va después en el orden'
     }
     if (s.esNecesidadesEspeciales) return 'solo por asignación del coordinador'
     if (s.edadMinMeses !== null || s.edadMaxMeses !== null) {
@@ -452,11 +452,7 @@ export function probarReglas(input: ProbarReglasInput): ResultadoPrueba {
   }
   const n = r.disponibles.length
   porque.push(
-    r.candidatos.length === 1
-      ? 'Es el único salón que le sirve'
-      : r.distribucion === 'equilibrada'
-        ? `Equilibrada: es el de menos niños de ${n} que le sirven`
-        : `En orden: es el primero con cupo de ${n} que le sirven`,
+    r.candidatos.length === 1 ? 'Es el único salón que le sirve' : `En orden: es el primero con cupo de ${n} que le sirven`,
   )
   return { ...base, estado: 'asignado', salon: elegido, titulo: `Va a ${elegido.nombre}`, porque, queHacer: null }
 }
@@ -485,12 +481,12 @@ export async function rpcGuardarReglas(cliente: Cliente, salonId: string, r: Reg
   return error ? fallo(error) : { ok: true, data: null }
 }
 
-/** ninos_carpeta_guardar: distribution and "mantener a los regulares" of an area in a campus. */
+/** ninos_carpeta_guardar: "mantener a los regulares" of an area in a campus (the distribution is fixed, S9.5). */
 export async function rpcGuardarCarpeta(cliente: Cliente, campusId: string, c: CarpetaAdmin): Promise<Resultado<null>> {
   const { error } = await (cliente as SupabaseClient).rpc('ninos_carpeta_guardar', {
     p_campus_id: campusId,
     p_area: c.area,
-    p_distribucion: c.distribucion,
+    p_distribucion: DISTRIBUCION_FIJA,
     p_mantener_regulares: c.mantenerRegulares,
   })
   return error ? fallo(error) : { ok: true, data: null }

@@ -3,7 +3,8 @@
 /**
  * Niños — server actions of /ninos/salones (odd/tasks/ninos-checkin-pco.md,
  * T1d, S5, S8.4): the rules of a salón, its name / quota / ranges, a new
- * salón and the carpeta of an area.
+ * salón and the carpeta of an area («mantener a los regulares»; the
+ * distribution is fixed to 'en_orden', S9.5).
  *
  * Gate: an authenticated session only. Who may write is checked again by the
  * database: ninos_salon_reglas_guardar and the ninos_salones RLS need
@@ -18,7 +19,6 @@ import { revalidatePath } from 'next/cache'
 import type { Resultado } from '@/lib/platform/ninos/eventos'
 import {
   AREAS,
-  DISTRIBUCIONES,
   actualizarDatosSalon,
   insertarSalon,
   rpcGuardarCarpeta,
@@ -106,20 +106,13 @@ export async function crearSalon(input: { campusId: string; area: AreaSalon; nom
   return despues(await insertarSalon(cliente, input))
 }
 
-/** Distribution and "mantener a los regulares" of an area in a campus. */
+/** "Mantener a los regulares" of an area in a campus. */
 export async function guardarCarpeta(input: { campusId: string } & CarpetaAdmin): Promise<Resultado<null>> {
   const cliente = await clienteConSesion()
   if (!cliente) return { ok: false, message: SIN_SESION }
-  if (
-    !esUuid(input?.campusId) ||
-    !esArea(input.area) ||
-    !DISTRIBUCIONES.includes(input.distribucion) ||
-    typeof input.mantenerRegulares !== 'boolean'
-  ) {
+  if (!esUuid(input?.campusId) || !esArea(input.area) || typeof input.mantenerRegulares !== 'boolean') {
     return { ok: false, message: DATOS_INVALIDOS }
   }
 
-  return despues(
-    await rpcGuardarCarpeta(cliente, input.campusId, { area: input.area, distribucion: input.distribucion, mantenerRegulares: input.mantenerRegulares }),
-  )
+  return despues(await rpcGuardarCarpeta(cliente, input.campusId, { area: input.area, mantenerRegulares: input.mantenerRegulares }))
 }

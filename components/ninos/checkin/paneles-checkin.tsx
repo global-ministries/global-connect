@@ -8,7 +8,8 @@
  *   the service's `turnoId` it offers "Registrar y dar ingreso · N" and shows
  *   the code here; "Solo registrar" opens the family at the mesa with its
  *   children already marked.
- * - Cambiar salón: the salones with occupancy (full warns, never blocks).
+ * - Cambiar salón: the salones that correspond to the child, with occupancy
+ *   (full warns, never blocks; S9.5).
  * - Completar ficha: the ficha form of a child linked without one.
  * - Agregar niño / Vincular hijo existente: an adult without children (N11).
  * The forms keep their behavior and API calls; Esc closes the panel.

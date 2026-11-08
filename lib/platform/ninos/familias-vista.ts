@@ -2,10 +2,11 @@
  * Read side of the Familias screen (odd/tasks/ninos-checkin.md, N3): parses
  * the ninos_buscar_familias jsonb and decides which room to show for a child.
  * D4: when the rule finds no room the result is 'ninguno' and the UI asks for
- * a manual choice; a room picked by hand (salon_preferido_id) wins.
+ * a manual choice; a room picked by hand (salon_preferido_id) wins while it
+ * corresponds to the child (S9.5, odd/tasks/ninos-checkin-pco.md T2f).
  */
 import type { HijoForm } from './familia'
-import { explicarSalon, type SalonSugerible } from './sugerir-salon'
+import { explicarSalon, salonesQueCorresponden, type SalonSugerible } from './sugerir-salon'
 
 export type AutorizadoEncontrado = { id: string; nombre: string; telefono: string | null; relacion: string | null }
 
@@ -224,9 +225,81 @@ export function aSalonSugerible(s: SalonFila): SalonVista {
   }
 }
 
+/** The desk note when the child cannot be checked against the salón rules (S9.5). */
+export const NOTA_SIN_EDAD_NI_GRADO = 'Sin edad ni grado: elige el salón a mano.'
+
 /**
- * The room for a child: the one remembered on the ficha while it is active
- * and open, else the suggestion by the salón rules. With `reglas` a full room
+ * The salones a child may be placed in by hand at the desk (S9.5): those
+ * that correspond by necesidades › grado › edad, closed and full ones
+ * included. Without age and grade every active salón, with `nota`; when no
+ * salón admits the child, every active one too (the desk is never stuck).
+ */
+export function salonesDelHijo(
+  hijo: Pick<HijoEncontrado, 'fecha_nacimiento' | 'grado' | 'necesidades_especiales'>,
+  salones: readonly SalonFila[],
+  fechaServicio: string,
+): { salones: SalonFila[]; nota: string | null } {
+  const r = salonesQueCorresponden({
+    fechaNacimiento: hijo.fecha_nacimiento,
+    grado: hijo.grado,
+    necesidadesEspeciales: Boolean(hijo.necesidades_especiales),
+    fechaServicio,
+    salones: salones.map(aSalonSugerible),
+  })
+  const porId = new Map(salones.map((s) => [s.id, s]))
+  return {
+    salones: r.salones.flatMap((s) => porId.get(s.id) ?? []),
+    nota: r.motivo === 'sin_datos' ? NOTA_SIN_EDAD_NI_GRADO : null,
+  }
+}
+
+type FichaNivel = Pick<HijoForm, 'fechaNacimiento' | 'grado' | 'necesidadesEspeciales' | 'salonPreferidoId'>
+
+const gradoDeFicha = (grado: string): number | null => (/^\d{1,2}$/.test(grado.trim()) ? Number(grado.trim()) : null)
+
+/**
+ * The rooms the ficha's «Nivel» may offer on `hoy` (S9.5). A Waumba room
+ * clears the grade, so only the Waumba rooms of the child's age and needs
+ * are offered (all of them while the birth date is unknown); the UpStreet
+ * rooms are reached by grade and stay.
+ */
+export function salonesParaNivel<S extends SalonSugerible>(
+  h: Pick<HijoForm, 'fechaNacimiento' | 'necesidadesEspeciales'>,
+  salones: readonly S[],
+  hoy: string,
+): S[] {
+  const r = salonesQueCorresponden({
+    fechaNacimiento: h.fechaNacimiento || null,
+    grado: null,
+    necesidadesEspeciales: h.necesidadesEspeciales.trim() !== '',
+    fechaServicio: hoy,
+    salones,
+  })
+  if (r.motivo === 'sin_datos') return [...salones]
+  const ids = new Set(r.motivo === 'reglas' ? r.salones.map((s) => s.id) : [])
+  return salones.filter((s) => s.area !== 'waumba' || ids.has(s.id))
+}
+
+/**
+ * Whether the ficha's salón preferido may stay on `hoy` (S9.5): none, a room
+ * not in `salones` (unknown here, left as is), or one of the desk's list for
+ * the child (salonesDelHijo).
+ */
+export function preferidoCorresponde<S extends SalonSugerible>(h: FichaNivel, salones: readonly S[], hoy: string): boolean {
+  if (!h.salonPreferidoId || !salones.some((s) => s.id === h.salonPreferidoId)) return true
+  return salonesQueCorresponden({
+    fechaNacimiento: h.fechaNacimiento || null,
+    grado: gradoDeFicha(h.grado),
+    necesidadesEspeciales: h.necesidadesEspeciales.trim() !== '',
+    fechaServicio: hoy,
+    salones,
+  }).salones.some((s) => s.id === h.salonPreferidoId)
+}
+
+/**
+ * The room for a child: the one remembered on the ficha while it is active,
+ * open and corresponds to the child (salonesDelHijo, S9.5), else the
+ * suggestion by the salón rules. With `reglas` a full room
  * is skipped for the next one with room (a visitor may use the visitor
  * places); when every room that fits is full the first open one is still
  * proposed, so the desk warns and offers another (S9.1). A closed room is
@@ -239,7 +312,8 @@ export function salonParaHijo(
   reglas: ReglasSugerencia = {},
 ): SalonParaHijo {
   const vistas = salones.map(aSalonSugerible)
-  const elegido = vistas.find((s) => s.id === hijo.salon_preferido_id && s.activo && s.abierto !== false)
+  const corresponden = new Set(salonesDelHijo(hijo, salones, fechaServicio).salones.map((s) => s.id))
+  const elegido = vistas.find((s) => s.id === hijo.salon_preferido_id && corresponden.has(s.id) && s.abierto !== false)
   if (elegido) return { tipo: 'elegido', salon: elegido }
   const explicacion = explicarSalon({
     fechaNacimiento: hijo.fecha_nacimiento,

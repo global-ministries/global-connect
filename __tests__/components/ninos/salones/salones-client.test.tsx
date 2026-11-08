@@ -76,7 +76,7 @@ function pintar(props: Partial<SalonesClientProps> = {}) {
       campus={[{ id: CAMPUS, nombre: 'Barquisimeto' }]}
       campusId={CAMPUS}
       salones={salones}
-      carpetas={[{ area: 'upstreet', distribucion: 'equilibrada', mantenerRegulares: false }]}
+      carpetas={[{ area: 'upstreet', mantenerRegulares: false }]}
       equiposEditables={[WAUMBA, UPSTREET]}
       ocupadosHoy={{ pre2: 14 }}
       fechaServicio="2026-11-08"
@@ -119,7 +119,12 @@ describe('reading', () => {
     const upstreet = screen.getByRole('region', { name: 'UpStreet' })
     expect(within(upstreet).getByText('5º a 6º grado')).toBeInTheDocument()
     expect(within(upstreet).getByText('Cerrado')).toBeInTheDocument()
-    expect(within(upstreet).getByRole('button', { name: 'Equilibrada' })).toHaveAttribute('aria-pressed', 'true')
+    // S9.5: no distribution per carpeta; each child only enters the salones of their age, grade or needs.
+    expect(screen.queryByText('Distribución')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Equilibrada|En orden/ })).not.toBeInTheDocument()
+    expect(within(upstreet).getByText(/cada niño entra solo a los salones de su edad, grado o necesidades/)).toHaveTextContent(
+      'En orden: cada niño entra solo a los salones de su edad, grado o necesidades; entre ellos se llena el primero hasta el cupo.',
+    )
     expect(within(upstreet).getByRole('switch', { name: /Mantener a los regulares/ })).toHaveAttribute('aria-checked', 'false')
     const tabs = screen.getByRole('navigation', { name: 'Administración del check-in' })
     expect(within(tabs).getByRole('link', { name: 'Salones' })).toHaveAttribute('aria-current', 'page')
@@ -147,7 +152,7 @@ describe('read-only', () => {
     expect(screen.getByText('Puedes cambiar los salones de Waumba Land; los demás son de solo lectura.')).toBeInTheDocument()
     const upstreet = screen.getByRole('region', { name: 'UpStreet' })
     expect(within(upstreet).queryByRole('switch')).not.toBeInTheDocument()
-    expect(within(upstreet).getByText('Equilibrada · no mantiene a los regulares')).toBeInTheDocument()
+    expect(within(upstreet).getByText('No mantiene a los regulares en su salón')).toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Waumba Land' })).getByRole('switch')).toBeInTheDocument()
 
     abrirSalon('1º grado')
@@ -245,18 +250,17 @@ describe('editing a salón', () => {
 })
 
 describe('carpetas', () => {
-  it('saves the distribution and keeping the regulars', async () => {
+  it('saves keeping the regulars (the only carpeta setting)', async () => {
     pintar()
-    const waumba = screen.getByRole('region', { name: 'Waumba Land' })
-    await act(async () => {
-      fireEvent.click(within(waumba).getByRole('button', { name: 'Equilibrada' }))
-    })
-    expect(guardarCarpeta).toHaveBeenCalledWith({ campusId: CAMPUS, area: 'waumba', distribucion: 'equilibrada', mantenerRegulares: true })
-    expect(screen.getByRole('status')).toHaveTextContent('Waumba Land: equilibrada, al salón de menos niños; mantiene a los regulares en su salón.')
     await act(async () => {
       fireEvent.click(within(screen.getByRole('region', { name: 'UpStreet' })).getByRole('switch'))
     })
-    expect(guardarCarpeta).toHaveBeenLastCalledWith({ campusId: CAMPUS, area: 'upstreet', distribucion: 'equilibrada', mantenerRegulares: true })
+    expect(guardarCarpeta).toHaveBeenCalledWith({ campusId: CAMPUS, area: 'upstreet', mantenerRegulares: true })
+    expect(screen.getByRole('status')).toHaveTextContent('UpStreet: mantiene a los regulares en su salón.')
+    await act(async () => {
+      fireEvent.click(within(screen.getByRole('region', { name: 'Waumba Land' })).getByRole('switch'))
+    })
+    expect(guardarCarpeta).toHaveBeenLastCalledWith({ campusId: CAMPUS, area: 'waumba', mantenerRegulares: false })
   })
 })
 

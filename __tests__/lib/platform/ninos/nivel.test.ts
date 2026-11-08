@@ -142,7 +142,7 @@ describe('the level in payloads and forms', () => {
 })
 
 describe('the check-in honors the preferred room before age', () => {
-  it('a Waumba level chosen by hand wins over the age suggestion', () => {
+  it('a Waumba level chosen by hand wins over the age suggestion while it corresponds to the child (S9.5)', () => {
     const fila = {
       id: 'pre1', nombre: 'Preescolar I', area: 'waumba' as const, edad_min_meses: 24, edad_max_meses: 35, grado_min: null,
       grado_max: null, es_necesidades_especiales: false, activo: true, orden: 20,
@@ -153,7 +153,10 @@ describe('the check-in honors the preferred room before age', () => {
       necesidades_especiales: null, habitos: null, notas: null, puede_comer: null, cambio_panal: null, autoriza_imagen: null,
       escolarizado: null, salon_preferido_id: 'pre1', es_vip_desde: null, tiene_ficha: true, autorizados: [],
     }
-    expect(salonParaHijo(hijo, [mat, fila], HOY)).toMatchObject({ tipo: 'elegido', salon: { id: 'pre1' } })
-    expect(salonParaHijo({ ...hijo, salon_preferido_id: null }, [mat, fila], HOY)).toMatchObject({ tipo: 'sugerido', salon: { id: 'mat' } })
+    const matB = { ...mat, id: 'matb', nombre: 'Maternal B', orden: 15 }
+    expect(salonParaHijo({ ...hijo, salon_preferido_id: 'matb' }, [mat, matB, fila], HOY)).toMatchObject({ tipo: 'elegido', salon: { id: 'matb' } })
+    expect(salonParaHijo({ ...hijo, salon_preferido_id: null }, [mat, matB, fila], HOY)).toMatchObject({ tipo: 'sugerido', salon: { id: 'mat' } })
+    // Preescolar I is not for a 1-year-old: the remembered level is ignored.
+    expect(salonParaHijo(hijo, [mat, fila], HOY)).toMatchObject({ tipo: 'sugerido', salon: { id: 'mat' } })
   })
 })

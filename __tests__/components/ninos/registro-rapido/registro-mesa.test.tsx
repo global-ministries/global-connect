@@ -66,6 +66,21 @@ describe('RegistroMesa', () => {
     expect(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' })).toBeInTheDocument()
   })
 
+  // S9.5: a room picked by hand that no longer fits the birth date gives way to the suggestion.
+  it('a hand-picked level that does not fit the new birth date is replaced by the suggested salón', () => {
+    const MATERNAL = '00000000-0000-4000-8000-000000000001'
+    const MATERNAL_B = '00000000-0000-4000-8000-000000000003'
+    const maternal = { ...salones[0], edadMinMeses: 0, edadMaxMeses: 23 }
+    const conMaternal: SalonNivel[] = [{ ...maternal, id: MATERNAL, nombre: 'Maternal', orden: 0 }, { ...maternal, id: MATERNAL_B, nombre: 'Maternal B', orden: 2 }, ...salones]
+    render(<RegistroMesa salones={conMaternal} ingreso={ingreso} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    escribir('Fecha de nacimiento del niño 1', '2025-09-01')
+    escribir('Nivel', `salon:${MATERNAL_B}`)
+    expect(screen.getByText('Maternal B', { selector: 'b' })).toBeInTheDocument()
+    escribir('Fecha de nacimiento del niño 1', '2022-02-09')
+    expect(screen.getByText('Preescolar', { selector: 'b' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nivel')).toHaveValue(`salon:${PREESCOLAR}`)
+  })
+
   it('"Registrar y dar ingreso" registers, checks the new children in and shows the code with the optional invitation', async () => {
     responder()
     ingresoOk()

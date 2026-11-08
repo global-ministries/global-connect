@@ -14,7 +14,7 @@ import { Check, FlaskConical, X } from 'lucide-react'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { Interruptor } from '@/components/ui/interruptor'
 import { InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
-import { probarReglas, type CarpetaAdmin, type SalonAdmin } from '@/lib/platform/ninos/salones-reglas'
+import { probarReglas, type SalonAdmin } from '@/lib/platform/ninos/salones-reglas'
 
 const GRADOS = [
   { valor: '', etiqueta: 'Sin grado' },
@@ -24,13 +24,11 @@ const GRADOS = [
 
 export function ProbarReglas({
   salones,
-  carpetas,
   fechaServicio,
   ocupadosHoy,
   onVerSalon,
 }: {
   readonly salones: readonly SalonAdmin[]
-  readonly carpetas: readonly CarpetaAdmin[]
   /** The default service date (today if Sunday, else the coming Sunday). */
   readonly fechaServicio: string
   /** Children inside each salón today. */
@@ -53,7 +51,6 @@ export function ProbarReglas({
     visitante: tipo === 'visitante',
     fechaServicio: servicio || fechaServicio,
     salones,
-    carpetas,
     ocupados: ocupacion === 'ahora' ? ocupadosHoy : undefined,
   })
 

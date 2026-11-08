@@ -68,7 +68,8 @@ export default async function NinosSalonesPage({ searchParams }: Props) {
 
   const [salonesR, carpetasR, adentroR] = await Promise.all([
     cliente.from('ninos_salones').select(COLUMNAS_SALON).eq('campus_id', actual.id).eq('activo', true).order('orden'),
-    cliente.from('ninos_carpetas').select('area, distribucion, mantener_regulares').eq('campus_id', actual.id),
+    // ninos_carpetas.distribucion is no longer read (S9.5): the salones that fit fill in order.
+    cliente.from('ninos_carpetas').select('area, mantener_regulares').eq('campus_id', actual.id),
     supabase.from('ninos_checkins').select('salon_id').eq('campus_id', actual.id).eq('fecha', hoy).is('salida_at', null),
   ])
   const salones = leerSalones(salonesR.data)

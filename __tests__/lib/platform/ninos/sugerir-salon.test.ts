@@ -1,4 +1,12 @@
-import { edadEnMeses, edadParaSalon, explicarSalon, fechaReferencia, sugerirSalon, type SalonSugerible } from '@/lib/platform/ninos/sugerir-salon'
+import {
+  edadEnMeses,
+  edadParaSalon,
+  explicarSalon,
+  fechaReferencia,
+  salonesQueCorresponden,
+  sugerirSalon,
+  type SalonSugerible,
+} from '@/lib/platform/ninos/sugerir-salon'
 
 function salon(overrides: Partial<SalonSugerible> & Pick<SalonSugerible, 'id' | 'area'>): SalonSugerible {
   return {
@@ -210,21 +218,21 @@ describe('sugerirSalon rules', () => {
     expect(explicar({ fechaNacimiento: '2024-10-11', salones }).salon?.id).toBe('a')
   })
 
-  it('distributes in order or balanced as the carpeta of the area says', () => {
+  // S9.5 (L34): placement is by age and grade, never balanced across salones; the
+  // carpeta "distribución" is gone and the salones that fit fill in order.
+  it('always fills in order: the lowest orden with room among the salones that fit', () => {
     const salones = [
       salon({ id: 'a', area: 'upstreet', gradoMin: 1, gradoMax: 1, orden: 10, capacidad: 20 }),
       salon({ id: 'b', area: 'upstreet', gradoMin: 1, gradoMax: 1, orden: 20, capacidad: 20 }),
       salon({ id: 'c', area: 'upstreet', gradoMin: 1, gradoMax: 1, orden: 30, capacidad: 20 }),
     ]
     const base = { grado: 1, salones, ocupados: { a: 9, b: 4, c: 4 } }
-    expect(explicar(base)).toMatchObject({ distribucion: 'en_orden', criterio: 'grado' })
-    expect(explicar(base).salon?.id).toBe('a')
-    expect(explicar({ ...base, distribucion: { upstreet: 'en_orden' } }).salon?.id).toBe('a')
-    const equilibrada = explicar({ ...base, distribucion: { upstreet: 'equilibrada' } })
-    expect(equilibrada).toMatchObject({ distribucion: 'equilibrada', estado: 'asignado' })
-    expect(equilibrada.salon?.id).toBe('b')
-    // The Waumba carpeta does not change UpStreet.
-    expect(explicar({ ...base, distribucion: { waumba: 'equilibrada' } }).salon?.id).toBe('a')
+    const r = explicar(base)
+    expect(r).toMatchObject({ estado: 'asignado', criterio: 'grado' })
+    expect(r.salon?.id).toBe('a')
+    expect(r).not.toHaveProperty('distribucion')
+    // An old caller that still sends a distribution is not balanced.
+    expect(explicar({ ...base, distribucion: { upstreet: 'equilibrada' } } as typeof base).salon?.id).toBe('a')
   })
 
   it('lists the open salones with room for the child', () => {
@@ -251,5 +259,53 @@ describe('edadParaSalon', () => {
     expect(edadParaSalon('2022-11-20', '2026-11-08', salon({ id: 'y', area: 'waumba' }))).toBe(47)
     expect(edadParaSalon(null, '2026-11-08', s)).toBeNull()
     expect(edadParaSalon('2027-01-01', '2026-11-08', s)).toBeNull()
+  })
+})
+
+describe('salonesQueCorresponden (S9.5: a child only goes to a salón that admits them)', () => {
+  const corresponden = (input: { fechaNacimiento?: string | null; grado?: number | null; necesidadesEspeciales?: boolean; salones?: SalonSugerible[] }) =>
+    salonesQueCorresponden({
+      fechaNacimiento: input.fechaNacimiento ?? null,
+      grado: input.grado ?? null,
+      necesidadesEspeciales: input.necesidadesEspeciales ?? false,
+      fechaServicio: SERVICIO,
+      salones: input.salones ?? SALONES,
+    })
+  const ids = (r: { salones: readonly SalonSugerible[] }) => r.salones.map((s) => s.id)
+
+  it('by age: only the Waumba salones of that age, never maternal for an older child or the reverse', () => {
+    expect(corresponden({ fechaNacimiento: '2025-06-01' })).toMatchObject({ motivo: 'reglas' })
+    expect(ids(corresponden({ fechaNacimiento: '2025-06-01' }))).toEqual(['maternal'])
+    expect(ids(corresponden({ fechaNacimiento: '2022-06-01' }))).toEqual(['pre3'])
+  })
+
+  it('by grade, and special needs go to the assignment salón, by the same steps as the suggestion', () => {
+    expect(ids(corresponden({ fechaNacimiento: '2019-06-01', grado: 1 }))).toEqual(['g1'])
+    expect(ids(corresponden({ fechaNacimiento: '2024-06-01', necesidadesEspeciales: true }))).toEqual(['plus'])
+  })
+
+  it('keeps closed and full salones that fit (the desk marks them) and drops inactive ones', () => {
+    const salones = [
+      salon({ id: 'm1', area: 'waumba', edadMinMeses: 0, edadMaxMeses: 23, orden: 20, abierto: false }),
+      salon({ id: 'm2', area: 'waumba', edadMinMeses: 0, edadMaxMeses: 23, orden: 10, capacidad: 1 }),
+      salon({ id: 'm3', area: 'waumba', edadMinMeses: 0, edadMaxMeses: 23, orden: 30, activo: false }),
+      salon({ id: 'p', area: 'waumba', edadMinMeses: 24, edadMaxMeses: 35, orden: 40 }),
+    ]
+    expect(ids(corresponden({ fechaNacimiento: '2025-06-01', salones }))).toEqual(['m2', 'm1'])
+  })
+
+  it('without birth date and grade the child cannot be checked: every active salón, by orden', () => {
+    const salones = [...SALONES, salon({ id: 'viejo', area: 'waumba', edadMinMeses: 0, edadMaxMeses: 23, orden: 5, activo: false })]
+    const r = corresponden({ fechaNacimiento: null, grado: null, salones })
+    expect(r.motivo).toBe('sin_datos')
+    expect(ids(r)).toEqual(SALONES.map((s) => s.id))
+    // A birth date after the service is no age either.
+    expect(corresponden({ fechaNacimiento: '2027-01-01' }).motivo).toBe('sin_datos')
+  })
+
+  it('with age or grade but no salón that admits the child: every active salón, so the desk is never stuck', () => {
+    const r = corresponden({ fechaNacimiento: '2015-01-01' })
+    expect(r.motivo).toBe('ninguno')
+    expect(ids(r)).toEqual(SALONES.map((s) => s.id))
   })
 })

@@ -116,10 +116,7 @@ export function SalonesClient({
     const nombre = NOMBRE_AREA[c.area]
     void guardado.guardar(
       () => guardarCarpeta({ campusId, ...c }),
-      () =>
-        `${nombre}: ${c.distribucion === 'en_orden' ? 'en orden, llena hasta el cupo' : 'equilibrada, al salón de menos niños'}; ${
-          c.mantenerRegulares ? 'mantiene a los regulares en su salón' : 'no mantiene a los regulares'
-        }.`,
+      () => `${nombre}: ${c.mantenerRegulares ? 'mantiene a los regulares en su salón' : 'no mantiene a los regulares'}.`,
     )
   }
 
@@ -152,7 +149,7 @@ export function SalonesClient({
     }
     return (
       <div className="grid min-w-0 gap-4">
-        <ProbarReglas salones={salones} carpetas={carpetas} fechaServicio={fechaServicio} ocupadosHoy={ocupadosHoy} onVerSalon={abrir} />
+        <ProbarReglas salones={salones} fechaServicio={fechaServicio} ocupadosHoy={ocupadosHoy} onVerSalon={abrir} />
         {areas.map((a) => (
           <CarpetaSalones
             key={a}

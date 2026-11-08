@@ -127,11 +127,11 @@ describe('leerSalones and leerCarpetas', () => {
     expect(leerSalones(null)).toEqual([])
   })
 
-  it('reads the carpetas and gives an area without a row the table defaults', () => {
+  it('reads the carpetas (only «mantener a los regulares», S9.5) and gives an area without a row the table default', () => {
     const carpetas = leerCarpetas([{ area: 'upstreet', distribucion: 'equilibrada', mantener_regulares: false }, { area: 'x' }])
-    expect(carpetas).toEqual([{ area: 'upstreet', distribucion: 'equilibrada', mantenerRegulares: false }])
-    expect(carpetaDe(carpetas, 'upstreet')).toEqual({ area: 'upstreet', distribucion: 'equilibrada', mantenerRegulares: false })
-    expect(carpetaDe(carpetas, 'waumba')).toEqual({ area: 'waumba', distribucion: 'en_orden', mantenerRegulares: true })
+    expect(carpetas).toEqual([{ area: 'upstreet', mantenerRegulares: false }])
+    expect(carpetaDe(carpetas, 'upstreet')).toEqual({ area: 'upstreet', mantenerRegulares: false })
+    expect(carpetaDe(carpetas, 'waumba')).toEqual({ area: 'waumba', mantenerRegulares: true })
   })
 })
 
@@ -255,7 +255,6 @@ describe('probarReglas', () => {
       visitante: false,
       fechaServicio: '2026-11-08',
       salones: SALONES,
-      carpetas: [],
       ...o,
     })
 
@@ -288,16 +287,11 @@ describe('probarReglas', () => {
     expect(r.porque).toContain('Visitante: puede usar los 2 puestos de visitantes además del cupo de 20')
   })
 
-  it('counts the children inside and follows the distribution of the carpeta', () => {
-    const base = { fechaNacimiento: '2019-06-01', grado: 1, ocupados: { g1: 12, g1b: 5 } }
-    const enOrden = probar(base)
-    expect(enOrden.salon?.id).toBe('g1')
-    expect(enOrden.porque).toEqual(['1º grado coincide', 'Hay 12 niños de 20 regulares', 'En orden: es el primero con cupo de 2 que le sirven'])
-    expect(enOrden.descartados).toEqual(['1º grado B: va después en el orden'])
-    const equilibrada = probar({ ...base, carpetas: [{ area: 'upstreet', distribucion: 'equilibrada', mantenerRegulares: true }] })
-    expect(equilibrada.salon?.id).toBe('g1b')
-    expect(equilibrada.porque).toEqual(['1º grado coincide', 'Hay 5 niños de 20 regulares', 'Equilibrada: es el de menos niños de 2 que le sirven'])
-    expect(equilibrada.descartados).toEqual(['1º grado: tiene más niños (12)'])
+  it('counts the children inside and fills the salones that fit in order (no balancing, S9.5)', () => {
+    const r = probar({ fechaNacimiento: '2019-06-01', grado: 1, ocupados: { g1: 12, g1b: 5 } })
+    expect(r.salon?.id).toBe('g1')
+    expect(r.porque).toEqual(['1º grado coincide', 'Hay 12 niños de 20 regulares', 'En orden: es el primero con cupo de 2 que le sirven'])
+    expect(r.descartados).toEqual(['1º grado B: va después en el orden'])
   })
 
   it('says when the salón that fits is closed or full', () => {
@@ -380,25 +374,25 @@ describe('guardarReglasSalon', () => {
 })
 
 describe('guardarCarpeta', () => {
-  it('saves the distribution of an area', async () => {
+  it('saves «mantener a los regulares» of an area; the distribution argument is always en_orden (S9.5)', async () => {
     rpc.mockResolvedValue({ data: 'c1', error: null })
-    expect(await guardarCarpeta({ campusId: CAMPUS, area: 'upstreet', distribucion: 'equilibrada', mantenerRegulares: false })).toEqual({ ok: true, data: null })
+    expect(await guardarCarpeta({ campusId: CAMPUS, area: 'upstreet', mantenerRegulares: false })).toEqual({ ok: true, data: null })
     expect(rpc).toHaveBeenCalledWith('ninos_carpeta_guardar', {
       p_campus_id: CAMPUS,
       p_area: 'upstreet',
-      p_distribucion: 'equilibrada',
+      p_distribucion: 'en_orden',
       p_mantener_regulares: false,
     })
     expect(revalidatePath).toHaveBeenCalledWith('/ninos/salones')
   })
 
   it('refuses bad input and shows the HINT', async () => {
-    expect(await guardarCarpeta({ campusId: CAMPUS, area: 'otra' as 'waumba', distribucion: 'en_orden', mantenerRegulares: true })).toEqual({
+    expect(await guardarCarpeta({ campusId: CAMPUS, area: 'otra' as 'waumba', mantenerRegulares: true })).toEqual({
       ok: false,
       message: 'Revisa los datos e inténtalo de nuevo.',
     })
     rpc.mockResolvedValue({ data: null, error: { message: 'sin_autoridad', hint: 'No tienes permiso para configurar esta área en este campus.' } })
-    expect(await guardarCarpeta({ campusId: CAMPUS, area: 'waumba', distribucion: 'en_orden', mantenerRegulares: true })).toEqual({
+    expect(await guardarCarpeta({ campusId: CAMPUS, area: 'waumba', mantenerRegulares: true })).toEqual({
       ok: false,
       message: 'No tienes permiso para configurar esta área en este campus.',
     })

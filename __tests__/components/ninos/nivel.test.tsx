@@ -49,8 +49,31 @@ describe('CamposNino — Nivel', () => {
   })
 
   it('shows the stored level when editing', () => {
-    render(<Campos inicial={{ ...hijoVacio(), fechaNacimiento: '2024-01-01', salonPreferidoId: 'plus' }} />)
+    render(<Campos inicial={{ ...hijoVacio(), fechaNacimiento: '2024-01-01', necesidadesEspeciales: 'TEA', salonPreferidoId: 'plus' }} />)
     expect(screen.getByLabelText('Nivel')).toHaveValue('salon:plus')
+  })
+
+  // S9.5 (L34): the ficha only offers the salones that correspond to the child today.
+  it('offers only the Waumba rooms of the child\'s age and needs; the grades stay', () => {
+    render(<Campos inicial={{ ...hijoVacio(), fechaNacimiento: '2025-10-01' }} />)
+    const select = screen.getByLabelText('Nivel')
+    expect(within(select).getByRole('group', { name: 'Waumba Land' })).toHaveTextContent(/^Maternal$/)
+    expect(within(select).getByRole('group', { name: 'UpStreet' })).toHaveTextContent('PreK1º grado')
+  })
+
+  it('a hand-picked room that no longer fits the new birth date gives way to the suggestion', () => {
+    render(<Campos inicial={{ ...hijoVacio(), fechaNacimiento: '2025-10-01', salonPreferidoId: 'mat' }} />)
+    expect(screen.getByLabelText('Nivel')).toHaveValue('salon:mat')
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2024-06-01' } })
+    expect(screen.getByLabelText('Nivel')).toHaveValue('salon:pre1')
+    expect(ultimo()).toMatchObject({ salonPreferidoId: 'pre1', grado: '' })
+  })
+
+  it('a hand-picked room that still fits is kept when the birth date changes', () => {
+    render(<Campos inicial={{ ...hijoVacio(), fechaNacimiento: '2024-06-01', necesidadesEspeciales: 'TEA', salonPreferidoId: 'plus' }} />)
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento del niño 1'), { target: { value: '2024-05-01' } })
+    expect(screen.getByLabelText('Nivel')).toHaveValue('salon:plus')
+    expect(ultimo()).toMatchObject({ salonPreferidoId: 'plus', fechaNacimiento: '2024-05-01' })
   })
 
   it('preselects the suggested level when the birth date is entered', () => {
