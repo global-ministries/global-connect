@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { ClipboardCheck, HeartHandshake, ListChecks, Network, Settings2, UserCheck, Users } from 'lucide-react'
+import { HeartHandshake, ListChecks, Network, UserCheck, Users } from 'lucide-react'
 
 import {
   getDreamTeamNavItems,
@@ -57,8 +57,6 @@ const DREAM_TEAM_CHILD_ICONS: Record<string, IconComponent> = {
   'dt-pendientes': ListChecks,
   'dt-servidores': UserCheck,
   'dt-estructura': Network,
-  'dt-dps-asistencia': ClipboardCheck,
-  'dt-dps-configuracion': Settings2,
 }
 
 const DREAM_TEAM_CHILD_DESCRIPTIONS: Record<string, string> = {
@@ -66,8 +64,6 @@ const DREAM_TEAM_CHILD_DESCRIPTIONS: Record<string, string> = {
   'dt-pendientes': 'Lo que falta en tu equipo, con su acción',
   'dt-servidores': 'Quién sirve, en qué etapa y dónde',
   'dt-estructura': 'Direcciones, áreas y equipos',
-  'dt-dps-asistencia': 'Quién llegó a servir en el plan de hoy',
-  'dt-dps-configuracion': 'Horarios, quién arma el plan y quién pasa asistencia',
 }
 
 /** The section for these items, or null when the session sees none of them. */
@@ -102,11 +98,11 @@ export function buildDreamTeamMenuItem(items: readonly DreamTeamNavItem[]): Drea
  */
 export function useDreamTeamMenuItem(platformSession: PlatformSession | null | undefined): DreamTeamMenuItem | null {
   const enabled = isDreamTeamEnabledClient()
-  // The volunteer coordinator's flag and the DPS facts come from the (auth) layout (hooks/useDreamTeamAcceso).
-  const { puedeRegistrar, dps } = useDreamTeamAcceso()
+  // The volunteer coordinator's flag comes from the (auth) layout (hooks/useDreamTeamAcceso).
+  const { puedeRegistrar } = useDreamTeamAcceso()
   const navItems = useMemo(
-    () => getDreamTeamNavItems(platformSession, enabled, { puedeRegistrar, dps }),
-    [platformSession, enabled, puedeRegistrar, dps],
+    () => getDreamTeamNavItems(platformSession, enabled, { puedeRegistrar }),
+    [platformSession, enabled, puedeRegistrar],
   )
   return useMemo(() => buildDreamTeamMenuItem(navItems), [navItems])
 }

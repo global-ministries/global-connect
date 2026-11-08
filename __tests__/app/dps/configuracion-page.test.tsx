@@ -1,5 +1,5 @@
 /**
- * /dream-team/dps/configuracion (RSC, odd/tasks/dps-asistencia-pco.md, T9):
+ * /dps/configuracion (RSC, odd/tasks/dps-asistencia-pco.md, T9):
  * reads dps_config_leer, which requires a planner; anyone else gets a 404.
  * Writes are checked by the database (configurators only), so the page hands
  * the island the configuration and nothing else. The island is mocked.
@@ -24,14 +24,14 @@ const rpc = jest.fn(async () => respuesta)
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({ auth: { getUser }, rpc }) }))
 
 const recibidas: unknown[] = []
-jest.mock('@/components/dream-team/dps/configuracion-client', () => ({
+jest.mock('@/components/dps/configuracion-client', () => ({
   ConfiguracionClient: (props: unknown) => {
     recibidas.push(props)
     return <div data-testid="isla" />
   },
 }))
 
-import DpsConfiguracionPage, { metadata } from '@/app/(auth)/dream-team/dps/configuracion/page'
+import DpsConfiguracionPage, { metadata } from '@/app/(auth)/dps/configuracion/page'
 
 const ultima = () => recibidas[recibidas.length - 1] as Record<string, unknown>
 
@@ -43,7 +43,7 @@ beforeEach(() => {
   respuesta = { data: { horarios: ['09:15'], llegada: '07:00', planificadores: [], pasan_asistencia: [] }, error: null }
 })
 
-describe('/dream-team/dps/configuracion', () => {
+describe('/dps/configuracion', () => {
   it('reads the configuration', async () => {
     render(await DpsConfiguracionPage())
     expect(metadata).toEqual({ title: 'Configuración — DPS' })

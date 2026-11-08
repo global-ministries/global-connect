@@ -28,12 +28,8 @@ jest.mock('@/lib/platform/dream-team/route-access', () => ({
 // dream_team_puede_registrar_persona answers mockPuedeRegistrar (`null` = an error).
 let mockRegistrables: { equipo_id: string }[] | null = null
 let mockPuedeRegistrar: boolean | null = false
-// dps_puede_ver / dps_puede_planificar (odd/tasks/dps-asistencia-pco.md, T9): false unless set.
-let mockDps: Record<string, boolean> = {}
 const rpc = jest.fn(async (nombre: string) =>
-  nombre.startsWith('dps_')
-    ? { data: mockDps[nombre] ?? false, error: null }
-    : nombre === 'dream_team_puede_registrar_persona'
+  nombre === 'dream_team_puede_registrar_persona'
     ? mockPuedeRegistrar === null
       ? { data: null, error: { code: 'XX000' } }
       : { data: mockPuedeRegistrar, error: null }
@@ -66,7 +62,6 @@ beforeEach(() => {
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
   mockRegistrables = null
   mockPuedeRegistrar = false
-  mockDps = {}
 })
 
 describe('/dream-team', () => {
@@ -99,17 +94,7 @@ describe('/dream-team', () => {
     expect(rpc.mock.calls.map(([nombre]) => nombre)).toEqual([
       'dream_team_equipos_registrables',
       'dream_team_puede_registrar_persona',
-      'dps_puede_ver',
-      'dps_puede_planificar',
     ])
-  })
-
-  it('opens for a DPS planner who opens no other Dream Team page (T9 of odd/tasks/dps-asistencia-pco.md)', async () => {
-    hasDreamTeamMiEquipoAccess.mockReturnValue(false)
-    mockRegistrables = []
-    mockDps = { dps_puede_ver: true, dps_puede_planificar: true }
-    await renderPagina()
-    expect(screen.getByTestId('accesos')).toHaveAttribute('data-seccion', 'dream-team')
   })
 
   it('is a 404 when the registrable lookup fails (fails closed)', async () => {

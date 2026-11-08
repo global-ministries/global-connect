@@ -1,6 +1,6 @@
 /**
- * DPS — loading skeleton for /dream-team/dps/asistencia. Keeps the frame of
- * the real screen (components/dream-team/dps/asistencia-client.tsx): the
+ * DPS — loading skeleton for /dps/asistencia. Keeps the frame of
+ * the real screen (components/dps/asistencia-client.tsx): the
  * plan header with its progress bar, the filter and the list
  * (docs/design-system/patterns.md#empty-and-loading-states).
  */

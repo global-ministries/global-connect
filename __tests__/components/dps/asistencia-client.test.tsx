@@ -12,9 +12,9 @@ import React from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { AsistenciaClient, type AsistenciaClientProps } from '@/components/dream-team/dps/asistencia-client'
+import { AsistenciaClient, type AsistenciaClientProps } from '@/components/dps/asistencia-client'
 import * as acciones from '@/lib/actions/dps-asistencia.actions'
-import { agregarLlegada, aplicarEstados, leerPlanes, leerPlanilla, type PlanillaDps } from '@/lib/platform/dream-team/dps/planilla'
+import { agregarLlegada, aplicarEstados, leerPlanes, leerPlanilla, type PlanillaDps } from '@/lib/platform/dps/planilla'
 
 jest.mock('@/lib/actions/dps-asistencia.actions', () => ({
   cargarPlanillaDps: jest.fn(),
@@ -30,7 +30,7 @@ jest.mock('@/hooks/use-notificaciones', () => ({
 const replace = jest.fn()
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace, refresh: jest.fn(), push: jest.fn() }),
-  usePathname: () => '/dream-team/dps/asistencia',
+  usePathname: () => '/dps/asistencia',
 }))
 
 jest.mock('@/components/ui/desktop-header', () => ({
@@ -110,6 +110,14 @@ beforeEach(() => {
 })
 
 describe('AsistenciaClient', () => {
+  it('reads "DPS › Asistencia" in the crumbs, DPS linking to its section (L29)', async () => {
+    render(<AsistenciaClient {...props()} />)
+    const migas = await screen.findByRole('navigation', { name: 'Ubicación' })
+    expect(migas).toHaveTextContent(/^DPS›Asistencia$/)
+    expect(within(migas).getByRole('link', { name: 'DPS' })).toHaveAttribute('href', '/dps')
+    expect(screen.queryByText('Dream Team')).not.toBeInTheDocument()
+  })
+
   it('shows the plan, "N de M llegaron", the times and the team sections', () => {
     render(<AsistenciaClient {...props()} />)
     expect(screen.getByRole('heading', { level: 1, name: 'Domingo 8 nov' })).toBeInTheDocument()
@@ -252,7 +260,7 @@ describe('AsistenciaClient', () => {
   it('switches plan through the URL', async () => {
     render(<AsistenciaClient {...props()} />)
     await userEvent.selectOptions(screen.getByLabelText('Plan'), 'plan0')
-    expect(replace).toHaveBeenCalledWith('/dream-team/dps/asistencia?plan=plan0', { scroll: false })
+    expect(replace).toHaveBeenCalledWith('/dps/asistencia?plan=plan0', { scroll: false })
   })
 
   it('explains a caller without teams to mark', () => {

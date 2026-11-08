@@ -15,7 +15,7 @@ import { Search } from 'lucide-react'
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { InputSistema } from '@/components/ui/sistema-diseno'
 import { AvatarIniciales } from '@/components/grupos-vida/planner/avatar-iniciales'
-import { nombreCompleto, type EquipoPlanilla, type OtroPlanilla } from '@/lib/platform/dream-team/dps/planilla'
+import { nombreCompleto, type EquipoPlanilla, type OtroPlanilla } from '@/lib/platform/dps/planilla'
 
 export interface HojaAgregarProps {
   readonly abierta: boolean

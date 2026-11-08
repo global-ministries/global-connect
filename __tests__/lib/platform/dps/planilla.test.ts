@@ -19,7 +19,7 @@ import {
   totalesPlanilla,
   visibleEnFiltro,
   type PlanillaDps,
-} from '@/lib/platform/dream-team/dps/planilla'
+} from '@/lib/platform/dps/planilla'
 
 const planJson = (parche: Record<string, unknown>) => ({
   id: 'p',

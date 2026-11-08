@@ -10,12 +10,13 @@ import { resolveCurrentUserSnapshot } from "@/lib/auth/currentUserSnapshot"
 import { DreamTeamAccesoProvider } from "@/hooks/useDreamTeamAcceso"
 import { NinosAccesoProvider } from "@/hooks/useNinosAcceso"
 import { EstudiantesAccesoProvider } from "@/hooks/useEstudiantesAcceso"
+import { DpsAccesoProvider } from "@/hooks/useDpsAcceso"
 import { UnoAUnoAccesoProvider } from "@/hooks/useUnoAUnoAcceso"
 import { parsearAccesoUnoAUno, SIN_ACCESO_UNO_A_UNO, type AccesoUnoAUno } from "@/lib/uno-a-uno/acceso"
 import { conVoluntarios, parsearAccesoEstudiantes, SIN_ACCESO_ESTUDIANTES, type AccesoEstudiantes } from "@/lib/platform/estudiantes/acceso"
 import { isDreamTeamEnabled } from "@/lib/platform/dream-team/route-access"
 import { puedeRegistrarParaNavegacion } from "@/lib/platform/dream-team/ficha-persona"
-import { resolverDpsAcceso } from "@/lib/platform/dream-team/dps/acceso"
+import { resolverDpsAcceso } from "@/lib/platform/dps/acceso"
 
 interface PropiedadesLayoutTablero {
   children: React.ReactNode
@@ -118,9 +119,9 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
   // The Dream Team sidebar links Mi equipo for the volunteer coordinator, whose
   // session carries no read capability, and for an area director who may
   // register people: the registrables lookup, then (if none) one boolean RPC;
-  // fails closed. The DPS planning entries (odd/tasks/dps-asistencia-pco.md,
-  // T9) need dps_puede_ver / dps_puede_planificar: two boolean RPCs in
-  // parallel with the rest; fail closed.
+  // fails closed. The DPS menu section (odd/tasks/dps-asistencia-pco.md, T9)
+  // needs dps_puede_ver / dps_puede_planificar: two boolean RPCs in parallel
+  // with the rest; fail closed.
   const [branding, initialCurrentUser, dreamTeamPuedeRegistrar, ninosAcceso, unoAUnoAcceso, estudiantesAcceso, dpsAcceso] = await Promise.all([
     supabase ? resolveBranding(supabase) : Promise.resolve(DEFAULT_BRANDING),
     resolveCurrentUserSnapshot(supabase ?? undefined),
@@ -140,10 +141,11 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
           to `undefined` here reproduces the pre-snapshot behaviour:
           loading starts true and the client fetch runs as a normal load. */}
       <CurrentUserProvider initial={initialCurrentUser ?? undefined}>
-        <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar} dps={dpsAcceso}>
+        <DreamTeamAccesoProvider puedeRegistrar={dreamTeamPuedeRegistrar}>
           <NinosAccesoProvider puedeOperar={ninosAcceso.puedeOperar} puedeVerSalon={ninosAcceso.puedeVerSalon}
             puedeConfigurar={ninosAcceso.puedeConfigurar} puedeMarcarVoluntarios={ninosAcceso.puedeMarcarVoluntarios}>
             <EstudiantesAccesoProvider acceso={estudiantesAcceso}>
+            <DpsAccesoProvider acceso={dpsAcceso}>
             <UnoAUnoAccesoProvider acceso={unoAUnoAcceso}>
             <CampusProvider>
               <div className="min-h-screen bg-[var(--surface-primary)]">
@@ -156,6 +158,7 @@ export default async function LayoutTablero({ children }: PropiedadesLayoutTable
               </div>
             </CampusProvider>
             </UnoAUnoAccesoProvider>
+            </DpsAccesoProvider>
             </EstudiantesAccesoProvider>
           </NinosAccesoProvider>
         </DreamTeamAccesoProvider>

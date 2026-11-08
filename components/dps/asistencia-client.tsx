@@ -1,12 +1,12 @@
 'use client'
 
 /**
- * DPS › Asistencia — client island of /dream-team/dps/asistencia, the Sunday
+ * DPS › Asistencia — client island of /dps/asistencia, the Sunday
  * attendance on the phone (T9 of odd/tasks/dps-asistencia-pco.md; S6.1, S7.4,
  * S2). Built on the attendance list of docs/design-system/mobile.md and the
  * artboard prototipos/planificacion-dps/05-asistencia-celular.html.
  *
- * Top to bottom: crumbs (phone: "‹ Dream Team"), the plan (series eyebrow,
+ * Top to bottom: crumbs (none on the phone: the section root), the plan (series eyebrow,
  * the date as title, "N de M llegaron · una marca vale para 9:15 y 11:15",
  * the progress bar), the plan picker when the window has more than one, the
  * autosave status, the Por llegar / Llegaron / Todos filter, one list grouped
@@ -26,7 +26,6 @@ import { useRouter } from 'next/navigation'
 import { CalendarDays, ChevronDown, CupSoda, Plus, UsersRound } from 'lucide-react'
 
 import { PaginaSistema, SelectSistema } from '@/components/ui/sistema-diseno'
-import { BotonAtrasMovil } from '@/components/ui/barra-navegacion-movil'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
@@ -52,7 +51,7 @@ import {
   type PersonaPlanilla,
   type PlanDps,
   type PlanillaDps,
-} from '@/lib/platform/dream-team/dps/planilla'
+} from '@/lib/platform/dps/planilla'
 import { cn } from '@/lib/utils'
 
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
@@ -70,7 +69,7 @@ export interface AsistenciaClientProps {
   readonly error: { readonly mensaje: string; readonly sinEquipos: boolean } | null
 }
 
-const RUTA = '/dream-team/dps/asistencia'
+const RUTA = '/dps/asistencia'
 
 // Under the app's fixed phone bar (app/(auth)/layout.tsx clears the same
 // height) and the sticky desktop header (min-h-16).
@@ -374,11 +373,6 @@ export function AsistenciaClient({ planes, plan, planilla: planillaInicial, erro
   }
 
   const migas = <MigasDps actual="Asistencia" />
-  const atras = (
-    <div className="-mx-2 -mt-2 mb-1 md:hidden">
-      <BotonAtrasMovil atras={{ etiqueta: 'Dream Team', href: '/dream-team' }} className="max-w-[75%]" />
-    </div>
-  )
 
   const selectorPlan =
     planes.length > 1 && plan ? (
@@ -395,7 +389,6 @@ export function AsistenciaClient({ planes, plan, planilla: planillaInicial, erro
   if (!plan) {
     return (
       <PaginaSistema breadcrumbs={migas}>
-        {atras}
         <h1 className="text-[28px] font-bold leading-[1.1] tracking-[-0.03em] md:text-2xl md:font-[650] md:tracking-[-0.02em]">Asistencia</h1>
         {error ? (
           <EstadoVacioSistema icono={CalendarDays} titulo="No se pudo cargar la asistencia" subtitulo={error.mensaje} />
@@ -416,7 +409,6 @@ export function AsistenciaClient({ planes, plan, planilla: planillaInicial, erro
   return (
     <PaginaSistema breadcrumbs={migas} className="pb-28 md:pb-0">
       <section aria-labelledby="dps-asistencia-titulo" className="space-y-1.5">
-        {atras}
         <p className="text-[13px] text-muted-foreground">{tituloPlan(plan)}</p>
         <h1
           id="dps-asistencia-titulo"

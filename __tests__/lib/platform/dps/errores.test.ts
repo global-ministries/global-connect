@@ -4,7 +4,7 @@
  * 20261108202000_dps_planificacion_convocados.sql); the screens show these
  * Spanish sentences instead (odd/tasks/dps-asistencia-pco.md, T9).
  */
-import { codigoErrorDps, mensajeErrorDps } from '@/lib/platform/dream-team/dps/errores'
+import { codigoErrorDps, mensajeErrorDps } from '@/lib/platform/dps/errores'
 
 const error = (message: string, code = '22023') => ({ code, message })
 

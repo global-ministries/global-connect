@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * DPS › Configuración — client island of /dream-team/dps/configuracion (T9
+ * DPS › Configuración — client island of /dps/configuracion (T9
  * of odd/tasks/dps-asistencia-pco.md; S6.2, S6.3): three sections, each saved
  * on its own.
  *
@@ -28,7 +28,6 @@ import {
   SeccionesSistema,
   TarjetaSistema,
 } from '@/components/ui/sistema-diseno'
-import { BotonAtrasMovil } from '@/components/ui/barra-navegacion-movil'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
@@ -47,8 +46,8 @@ import {
   validarLlegada,
   type ConfigDps,
   type PasanAsistenciaEquipo,
-} from '@/lib/platform/dream-team/dps/configuracion'
-import { horariosTexto } from '@/lib/platform/dream-team/dps/planilla'
+} from '@/lib/platform/dps/configuracion'
+import { horariosTexto } from '@/lib/platform/dps/planilla'
 
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
 import { MigasDps } from './migas-dps'
@@ -187,9 +186,6 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
   const migas = <MigasDps actual="Configuración" />
   const encabezado = (
     <div className="space-y-1.5">
-      <div className="-mx-2 -mt-2 mb-1 md:hidden">
-        <BotonAtrasMovil atras={{ etiqueta: 'Dream Team', href: '/dream-team' }} className="max-w-[75%]" />
-      </div>
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
         <h1 className="text-[28px] font-bold leading-[1.1] tracking-[-0.03em] md:text-2xl md:font-[650] md:tracking-[-0.02em]">Configuración de DPS</h1>
         <EstadoGuardado estado={guardado} />

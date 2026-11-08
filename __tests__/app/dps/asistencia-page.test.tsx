@@ -1,5 +1,5 @@
 /**
- * /dream-team/dps/asistencia (RSC, odd/tasks/dps-asistencia-pco.md, T9): the
+ * /dps/asistencia (RSC, odd/tasks/dps-asistencia-pco.md, T9): the
  * plans of the 14-day window (dps_planes_rango, which needs dps_puede_ver),
  * today's plan or the most recent one (?plan= picks another of the window),
  * and its sheet (dps_asistencia_planilla); a caller without teams gets the
@@ -26,14 +26,14 @@ const rpc = jest.fn(async (nombre: string) => respuestas[nombre] ?? { data: null
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({ auth: { getUser }, rpc }) }))
 
 const recibidas: unknown[] = []
-jest.mock('@/components/dream-team/dps/asistencia-client', () => ({
+jest.mock('@/components/dps/asistencia-client', () => ({
   AsistenciaClient: (props: unknown) => {
     recibidas.push(props)
     return <div data-testid="isla" />
   },
 }))
 
-import DpsAsistenciaPage, { metadata } from '@/app/(auth)/dream-team/dps/asistencia/page'
+import DpsAsistenciaPage, { metadata } from '@/app/(auth)/dps/asistencia/page'
 
 const plan = (id: string, fecha: string) => ({ id, fecha, tipo: 'domingo', titulo: null, semana: 1, serie: null, horarios: ['09:15', '11:15'], llegada: '07:00' })
 const PLANILLA = { plan_id: 'p2', fecha: '2026-11-08', tipo: 'domingo', hoy: '2026-11-08', editable: true, equipos: [] }
@@ -52,7 +52,7 @@ beforeEach(() => {
   }
 })
 
-describe('/dream-team/dps/asistencia', () => {
+describe('/dps/asistencia', () => {
   it("loads the window and today's plan sheet", async () => {
     await pagina()
     expect(metadata).toEqual({ title: 'Asistencia — DPS' })

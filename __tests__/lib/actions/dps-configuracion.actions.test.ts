@@ -1,5 +1,5 @@
 /**
- * Server actions of /dream-team/dps/configuracion (odd/tasks/dps-asistencia-pco.md,
+ * Server actions of /dps/configuracion (odd/tasks/dps-asistencia-pco.md,
  * T9; S6.3): horarios and llegada, planificadores and "Quién pasa
  * asistencia", through the dps_* RPCs with the session client. The database
  * decides who may write (configurators only, L17); a 'sin_autoridad' comes

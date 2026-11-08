@@ -1,7 +1,7 @@
 'use server'
 
 /**
- * DPS — server actions of the configuration (/dream-team/dps/configuracion,
+ * DPS — server actions of the configuration (/dps/configuracion,
  * T9 of odd/tasks/dps-asistencia-pco.md; S6.3): default horarios and
  * llegada, planificadores and "Quién pasa asistencia" per team.
  *
@@ -15,9 +15,9 @@
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { leerConfig, normalizarHorarios, validarLlegada, type ConfigDps } from '@/lib/platform/dream-team/dps/configuracion'
-import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ErrorRpc } from '@/lib/platform/dream-team/dps/errores'
-import { rpcDps } from '@/lib/platform/dream-team/dps/rpc'
+import { leerConfig, normalizarHorarios, validarLlegada, type ConfigDps } from '@/lib/platform/dps/configuracion'
+import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ErrorRpc } from '@/lib/platform/dps/errores'
+import { rpcDps } from '@/lib/platform/dps/rpc'
 import type { ResultadoDps } from './dps-asistencia.actions'
 
 const SIN_SESION = 'Tu sesión terminó. Vuelve a iniciar sesión.'

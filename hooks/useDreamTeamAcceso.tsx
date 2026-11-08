@@ -2,8 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { SIN_ACCESO_DPS, type DpsAcceso } from '@/lib/platform/dream-team/dps/acceso'
-
 /**
  * Dream Team access facts the client cannot derive from the session alone.
  *
@@ -20,14 +18,9 @@ import { SIN_ACCESO_DPS, type DpsAcceso } from '@/lib/platform/dream-team/dps/ac
  * for it (useUrgentesPendientes), so the layout never waits for it. `null`
  * until it arrives and on any error. The Pendientes page and the Mi equipo
  * strip hand it the fresh count they already read (useFijarUrgentesPendientes).
- *
- * `dps`: dps_puede_ver / dps_puede_planificar for the DPS planning entries
- * (odd/tasks/dps-asistencia-pco.md, T9), resolved by the same layout
- * (resolverDpsAcceso). Outside the provider, or when omitted, no access.
  */
 interface DreamTeamAcceso {
   readonly puedeRegistrar: boolean
-  readonly dps: DpsAcceso
   readonly urgentes: number | null
   readonly cargarUrgentes: () => void
   readonly fijarUrgentes: (urgentes: number | null) => void
@@ -36,7 +29,6 @@ interface DreamTeamAcceso {
 const sinEfecto = (): void => undefined
 const DreamTeamAccesoContext = createContext<DreamTeamAcceso>({
   puedeRegistrar: false,
-  dps: SIN_ACCESO_DPS,
   urgentes: null,
   cargarUrgentes: sinEfecto,
   fijarUrgentes: sinEfecto,
@@ -57,11 +49,9 @@ async function leerUrgentes(): Promise<number | null> {
 
 export function DreamTeamAccesoProvider({
   puedeRegistrar,
-  dps = SIN_ACCESO_DPS,
   children,
 }: {
   readonly puedeRegistrar: boolean
-  readonly dps?: DpsAcceso
   readonly children: ReactNode
 }) {
   const [urgentes, setUrgentes] = useState<number | null>(null)
@@ -87,11 +77,9 @@ export function DreamTeamAccesoProvider({
     setUrgentes(valor)
   }, [])
 
-  // A new object per render from the layout would re-render every consumer.
-  const { ver: dpsVer, planificar: dpsPlanificar } = dps
   const valor = useMemo(
-    () => ({ puedeRegistrar, dps: { ver: dpsVer, planificar: dpsPlanificar }, urgentes, cargarUrgentes, fijarUrgentes }),
-    [puedeRegistrar, dpsVer, dpsPlanificar, urgentes, cargarUrgentes, fijarUrgentes],
+    () => ({ puedeRegistrar, urgentes, cargarUrgentes, fijarUrgentes }),
+    [puedeRegistrar, urgentes, cargarUrgentes, fijarUrgentes],
   )
   return <DreamTeamAccesoContext.Provider value={valor}>{children}</DreamTeamAccesoContext.Provider>
 }

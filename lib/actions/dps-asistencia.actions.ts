@@ -1,7 +1,7 @@
 'use server'
 
 /**
- * DPS — server actions of the Sunday attendance (/dream-team/dps/asistencia,
+ * DPS — server actions of the Sunday attendance (/dps/asistencia,
  * T9 of odd/tasks/dps-asistencia-pco.md): reload the sheet of a plan, mark
  * people (llegó / avisó que no viene / clear) and "Marcar todo el equipo".
  * The client applies the marks in place, so nothing is revalidated.
@@ -10,13 +10,13 @@
  * and who belongs to each team are decided in the database
  * (supabase/migrations/20261108202000_dps_planificacion_convocados.sql),
  * which raises its code as the message; the Spanish texts are in
- * lib/platform/dream-team/dps/errores.ts.
+ * lib/platform/dps/errores.ts.
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ContextoErrorDps, type ErrorRpc } from '@/lib/platform/dream-team/dps/errores'
-import { leerPlanilla, type EstadoDps, type PlanillaDps } from '@/lib/platform/dream-team/dps/planilla'
-import { rpcDps } from '@/lib/platform/dream-team/dps/rpc'
+import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ContextoErrorDps, type ErrorRpc } from '@/lib/platform/dps/errores'
+import { leerPlanilla, type EstadoDps, type PlanillaDps } from '@/lib/platform/dps/planilla'
+import { rpcDps } from '@/lib/platform/dps/rpc'
 
 export type ResultadoDps<T> =
   | { readonly ok: true; readonly data: T }

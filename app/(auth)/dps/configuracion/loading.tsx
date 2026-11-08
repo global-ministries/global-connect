@@ -1,6 +1,6 @@
 /**
- * DPS — loading skeleton for /dream-team/dps/configuracion. Keeps the frame
- * of the real screen (components/dream-team/dps/configuracion-client.tsx):
+ * DPS — loading skeleton for /dps/configuracion. Keeps the frame
+ * of the real screen (components/dps/configuracion-client.tsx):
  * the title and its three section cards
  * (docs/design-system/patterns.md#empty-and-loading-states).
  */

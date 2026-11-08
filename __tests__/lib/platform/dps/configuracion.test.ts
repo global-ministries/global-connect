@@ -10,7 +10,7 @@ import {
   recalcularPasanAsistencia,
   validarLlegada,
   type ConfigDps,
-} from '@/lib/platform/dream-team/dps/configuracion'
+} from '@/lib/platform/dps/configuracion'
 
 const CONFIG_JSON = {
   horarios: ['09:15', '11:15'],

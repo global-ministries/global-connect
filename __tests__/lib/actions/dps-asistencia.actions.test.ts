@@ -1,5 +1,5 @@
 /**
- * Server actions of /dream-team/dps/asistencia (odd/tasks/dps-asistencia-pco.md,
+ * Server actions of /dps/asistencia (odd/tasks/dps-asistencia-pco.md,
  * T9): they call the dps_asistencia_* RPCs with the session client, check the
  * input before calling, never revalidate (the client applies the marks in
  * place) and return the RPC errors in Spanish with their code.

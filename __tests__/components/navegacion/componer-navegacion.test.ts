@@ -1,3 +1,4 @@
+import { buildDpsMenuItem, getDpsNavItems } from '@/components/dps/dps-menu-item'
 import { buildEstudiantesMenuItem, getEstudiantesNavItems } from '@/components/estudiantes/estudiantes-menu-item'
 import { buildNinosMenuItem, getNinosNavItems } from '@/components/ninos/ninos-menu-item'
 import { componerNavegacion, paginasTalleres } from '@/components/navegacion/componer-navegacion'
@@ -5,6 +6,7 @@ import { buildDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import { resolvePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
 import { buildUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import { getDreamTeamNavItems } from '@/lib/platform/dream-team/navigation'
+import { SIN_ACCESO_DPS, type DpsAcceso } from '@/lib/platform/dps/acceso'
 import type { PlatformSession, PlatformSessionCapability } from '@/lib/platform/session/types'
 import { SIN_ACCESO_ESTUDIANTES, type AccesoEstudiantes } from '@/lib/platform/estudiantes/acceso'
 import { SIN_ACCESO_UNO_A_UNO } from '@/lib/uno-a-uno/acceso'
@@ -54,7 +56,7 @@ function sesion(rol: Rol): PlatformSession {
   return { personaId: 'persona-1', subjectAuthId: 'auth-1', globalRoles: rol.roles, contexts: [], capabilities: rol.capabilities ?? [] }
 }
 
-async function navegacionDe(nombre: string, { plataforma = true } = {}) {
+async function navegacionDe(nombre: string, { plataforma = true, dps }: { plataforma?: boolean; dps?: DpsAcceso } = {}) {
   const rol = ROLES[nombre] ?? ROLES_ESTUDIANTES[nombre]
   const platformSession = sesion(rol)
   const items: PlatformNavigationViewItem[] = plataforma
@@ -70,6 +72,7 @@ async function navegacionDe(nombre: string, { plataforma = true } = {}) {
     estudiantes: buildEstudiantesMenuItem(getEstudiantesNavItems({ ...SIN_ACCESO_ESTUDIANTES, ...rol.estudiantes })),
     plataforma: items,
     talleres: paginasTalleres(platformSession.capabilities.map((capacidad) => capacidad.key)),
+    ...(dps ? { dps: buildDpsMenuItem(getDpsNavItems(dps, platformSession)) } : {}),
   })
 }
 
@@ -220,5 +223,50 @@ describe('the Estudiantes section (C4b)', () => {
     const lider = await navegacionDe('líder de GdV con Estudiantes')
     expect(lider.pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Talleres', 'Ayuda'])
     expect(lider.mas.subpaginas.map((bloque) => [bloque.grupo.label, bloque.paginas.map((pagina) => pagina.href)])).toEqual([['Estudiantes', ['/estudiantes']]])
+  })
+})
+
+// DPS (odd/tasks/dps-asistencia-pco.md, T9, L29): its own ministry, server-fed like Niños and Estudiantes.
+describe('the DPS section', () => {
+  const dpsDe = (acceso: DpsAcceso, capabilities: PlatformSessionCapability[] = []) =>
+    buildDpsMenuItem(getDpsNavItems(acceso, sesion({ roles: ['miembro'], capabilities })))
+
+  it('sits in Ministerios right after Estudiantes (else Niños), with its entries', async () => {
+    const conEstudiantes = await navegacionDe('admin con Estudiantes', { dps: { ver: true, planificar: true } })
+    const ministerios = conEstudiantes.secciones.find((grupo) => grupo.seccion === 'ministerios')!
+    expect(ids(ministerios.entradas)).toEqual(['grupos-vida', 'ninos', 'estudiantes', 'dps', 'platform-talleres_participation-taller-global'])
+    const dps = ministerios.entradas.find((entrada) => entrada.id === 'dps')!
+    expect(dps).toMatchObject({ label: 'DPS', href: '/dps/asistencia' })
+    expect((dps.children ?? []).map((hija) => [hija.label, hija.href])).toEqual([
+      ['Asistencia', '/dps/asistencia'],
+      ['Configuración', '/dps/configuracion'],
+    ])
+    expect(conEstudiantes.secciones.find((grupo) => grupo.seccion === 'dream-team')!.entradas[0].children?.map((hija) => hija.id)).toEqual([
+      'dt-mi-equipo', 'dt-pendientes', 'dt-servidores', 'dt-estructura',
+    ])
+    const sinEstudiantes = await navegacionDe('admin', { dps: { ver: true, planificar: true } })
+    expect(ids(sinEstudiantes.secciones.find((grupo) => grupo.seccion === 'ministerios')!.entradas).slice(0, 3)).toEqual(['grupos-vida', 'ninos', 'dps'])
+  })
+
+  it('gives a DPS coordinator only Asistencia, and a plain DPS servidor nothing', () => {
+    expect(dpsDe({ ver: true, planificar: false }, [cap('dream_team.coordinate')])?.children.map((hija) => hija.href)).toEqual(['/dps/asistencia'])
+    expect(dpsDe({ ver: true, planificar: false })).toBeNull()
+  })
+
+  it('leaves the navigation of a non-DPS user unchanged', async () => {
+    for (const nombre of [...Object.keys(ROLES), ...Object.keys(ROLES_ESTUDIANTES)]) {
+      const antes = await navegacionDe(nombre)
+      const despues = await navegacionDe(nombre, { dps: SIN_ACCESO_DPS })
+      expect(despues).toEqual(antes)
+      expect(ids(despues.principales)).not.toContain('dps')
+    }
+  })
+
+  it('is not a phone tab: it goes to "Más" as a block', async () => {
+    const { pestanas, mas } = await navegacionDe('admin', { dps: { ver: true, planificar: true } })
+    expect(pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Niños', 'Equipo'])
+    expect(mas.subpaginas.find((bloque) => bloque.grupo.label === 'DPS')?.paginas.map((pagina) => pagina.href)).toEqual([
+      '/dps/asistencia', '/dps/configuracion',
+    ])
   })
 })

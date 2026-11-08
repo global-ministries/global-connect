@@ -10,9 +10,9 @@ import React from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { ConfiguracionClient } from '@/components/dream-team/dps/configuracion-client'
+import { ConfiguracionClient } from '@/components/dps/configuracion-client'
 import * as acciones from '@/lib/actions/dps-configuracion.actions'
-import { leerConfig, type ConfigDps } from '@/lib/platform/dream-team/dps/configuracion'
+import { leerConfig, type ConfigDps } from '@/lib/platform/dps/configuracion'
 
 jest.mock('@/lib/actions/dps-configuracion.actions', () => ({
   guardarHorariosDps: jest.fn(),
@@ -69,6 +69,14 @@ beforeEach(() => {
 })
 
 describe('ConfiguracionClient', () => {
+  it('reads "DPS › Configuración" in the crumbs, DPS linking to its section (L29)', async () => {
+    render(<ConfiguracionClient config={CONFIG} error={null} />)
+    const migas = await screen.findByRole('navigation', { name: 'Ubicación' })
+    expect(migas).toHaveTextContent(/^DPS›Configuración$/)
+    expect(within(migas).getByRole('link', { name: 'DPS' })).toHaveAttribute('href', '/dps')
+    expect(screen.queryByText('Dream Team')).not.toBeInTheDocument()
+  })
+
   it('shows the horarios, the planners and who passes attendance', () => {
     render(<ConfiguracionClient config={CONFIG} error={null} />)
     expect(screen.getByRole('heading', { level: 1, name: 'Configuración de DPS' })).toBeInTheDocument()

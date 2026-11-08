@@ -1,5 +1,5 @@
 /**
- * DPS — /dream-team/dps/asistencia (RSC), the Sunday attendance on the phone
+ * DPS — /dps/asistencia (RSC), the Sunday attendance on the phone
  * (T9 of odd/tasks/dps-asistencia-pco.md; S6.1, S7.4, S2).
  *
  * For whoever sees DPS (dps_planes_rango requires dps_puede_ver); everyone
@@ -8,16 +8,16 @@
  * else the most recent one, and `?plan=` picks another of the window. Its
  * sheet (dps_asistencia_planilla) lists only the teams where the caller
  * passes attendance (planners: all of DPS); without any, the island says so.
- * The client island (components/dream-team/dps/asistencia-client.tsx) marks
+ * The client island (components/dps/asistencia-client.tsx) marks
  * through lib/actions/dps-asistencia.actions.ts; the RPCs decide who may mark
  * whom and the window.
  */
 import { notFound, redirect } from 'next/navigation'
 
-import { AsistenciaClient, type AsistenciaClientProps } from '@/components/dream-team/dps/asistencia-client'
-import { codigoErrorDps, mensajeErrorDps } from '@/lib/platform/dream-team/dps/errores'
-import { elegirPlan, leerPlanes, leerPlanilla, type PlanillaDps } from '@/lib/platform/dream-team/dps/planilla'
-import { rpcDps } from '@/lib/platform/dream-team/dps/rpc'
+import { AsistenciaClient, type AsistenciaClientProps } from '@/components/dps/asistencia-client'
+import { codigoErrorDps, mensajeErrorDps } from '@/lib/platform/dps/errores'
+import { elegirPlan, leerPlanes, leerPlanilla, type PlanillaDps } from '@/lib/platform/dps/planilla'
+import { rpcDps } from '@/lib/platform/dps/rpc'
 import { isDreamTeamEnabled } from '@/lib/platform/dream-team/route-access'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { createSupabaseServerClient } from '@/lib/supabase/server'

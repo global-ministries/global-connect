@@ -6,9 +6,7 @@
  * entries as the sidebar).
  *
  * Same guard as /dream-team/mi-equipo: whoever opens no Dream Team page —
- * no Mi equipo access and nowhere to register people — gets a 404. A DPS-only
- * user (odd/tasks/dps-asistencia-pco.md, T9), whose menu shows only the DPS
- * entries, opens it too; the same facts as the (auth) layout.
+ * no Mi equipo access and nowhere to register people — gets a 404.
  */
 import { notFound, redirect } from 'next/navigation'
 
@@ -19,8 +17,6 @@ import {
   requireDreamTeamSession,
 } from '@/lib/platform/dream-team/route-access'
 import { puedeRegistrarParaNavegacion } from '@/lib/platform/dream-team/ficha-persona'
-import { resolverDpsAcceso } from '@/lib/platform/dream-team/dps/acceso'
-import { getDreamTeamNavItems } from '@/lib/platform/dream-team/navigation'
 import { AccesosSeccion } from '@/components/navegacion/accesos-seccion'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
@@ -37,10 +33,7 @@ export default async function DreamTeamPage() {
   // registering somewhere, the same flag as the sidebar (fails closed).
   if (!hasDreamTeamMiEquipoAccess(session)) {
     const supabase = await createSupabaseServerClient()
-    if (!(await puedeRegistrarParaNavegacion(supabase, true))) {
-      const dps = await resolverDpsAcceso(supabase, true)
-      if (getDreamTeamNavItems(session, true, { dps }).length === 0) notFound()
-    }
+    if (!(await puedeRegistrarParaNavegacion(supabase, true))) notFound()
   }
 
   return (
