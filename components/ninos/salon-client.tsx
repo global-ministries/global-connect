@@ -9,11 +9,13 @@ import { cn } from '@/lib/utils'
 import type { Servicio, TurnoFila } from '@/lib/platform/ninos/checkin'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import { alertasDeLista, edadOGrado, type FilaLista } from '@/lib/platform/ninos/salon'
+import { cargarSalonVoluntarios, type SalonVoluntarios } from '@/lib/platform/ninos/salon-voluntarios'
 import { createClient } from '@/lib/supabase/client'
 
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
 import { RetiroPanel } from './retiro-panel'
+import { VoluntariosSalon } from './salon/voluntarios-salon'
 import { SelectorServicio } from './selector-servicio'
 import { useRefrescoVisible } from './use-refresco'
 
@@ -55,14 +57,21 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
   const [salonId, setSalonId] = useState<string | null>(salonInicial)
   const [filas, setFilas] = useState<FilaLista[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // Today's volunteers of the room (read-only); null hides the block, as before T2c.
+  const [voluntarios, setVoluntarios] = useState<SalonVoluntarios | null>(null)
 
   const cargar = useCallback(async () => {
     if (!servicio.turnoId || !salonId) return
-    const { data, error: err } = await createClient().rpc('ninos_lista_salon', {
-      p_salon_id: salonId,
-      p_fecha: servicio.fecha,
-      p_turno_id: servicio.turnoId,
-    })
+    const cliente = createClient()
+    const [{ data, error: err }, datosVoluntarios] = await Promise.all([
+      cliente.rpc('ninos_lista_salon', {
+        p_salon_id: salonId,
+        p_fecha: servicio.fecha,
+        p_turno_id: servicio.turnoId,
+      }),
+      cargarSalonVoluntarios(cliente, salonId, servicio.turnoId, servicio.fecha),
+    ])
+    setVoluntarios(datosVoluntarios)
     if (err) {
       setError('No se pudo cargar la lista del salón.')
       return
@@ -82,6 +91,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
     setServicio(s)
     setSalonId(salon)
     setFilas(null)
+    setVoluntarios(null)
     router.replace(urlSalon(s, salon))
   }
 
@@ -109,6 +119,7 @@ export function SalonClient({ salones, turnos, servicio: servicioInicial, salonI
             <TituloSistema nivel={3}>{titulo}</TituloSistema>
             {nombreSalon && <span className="text-sm text-muted-foreground">{nombreSalon}</span>}
           </div>
+          {filas && voluntarios && <VoluntariosSalon datos={voluntarios} ninos={filas.length} />}
           {error && (
             <p role="alert" className="text-sm text-danger-text">
               {error}
