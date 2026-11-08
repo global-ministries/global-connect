@@ -18,6 +18,9 @@ const migratedToDesignSystem = [
   'components/dream-team/pendientes/**',
   'app/(auth)/admin/dream-team/estructura/**',
   'components/dream-team/estructura/**',
+  // DPS planning (odd/tasks/dps-asistencia-pco.md, T9): Asistencia and Configuración.
+  'app/(auth)/dps/**',
+  'components/dps/**',
   'app/(auth)/estudiantes/**',
   'components/estudiantes/**',
   // Usuarios: list (T8-2), ficha (T8-3) and Editar persona (T10), which also

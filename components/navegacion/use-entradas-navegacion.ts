@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 
+import { useDpsMenuItem } from '@/components/dps/dps-menu-item'
 import { useEstudiantesMenuItem } from '@/components/estudiantes/estudiantes-menu-item'
 import { componerNavegacion, paginasTalleres, type EntradaMenu } from '@/components/navegacion/componer-navegacion'
 import { useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
@@ -44,6 +45,8 @@ export function useEntradasNavegacion() {
   const ninos = useNinosMenuItem()
   // Server-fed facts (hooks/useEstudiantesAcceso): Mi grupo · En vivo · Grupos.
   const estudiantes = useEstudiantesMenuItem()
+  // Server-fed facts (hooks/useDpsAcceso) and the session's grants: Asistencia · Configuración.
+  const dps = useDpsMenuItem(platformSession)
   // Server-fed flags (hooks/useUnoAUnoAcceso): whoever leads, supervises or takes part in a 1:1.
   const unoAUno = useUnoAUnoMenuItem()
   const talleres = useMemo(
@@ -52,8 +55,8 @@ export function useEntradasNavegacion() {
   )
 
   const navegacion = useMemo(
-    () => componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes, unoAUno, plataforma, talleres }),
-    [credenciales, dreamTeam, ninos, estudiantes, unoAUno, plataforma, talleres],
+    () => componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes, dps, unoAUno, plataforma, talleres }),
+    [credenciales, dreamTeam, ninos, estudiantes, dps, unoAUno, plataforma, talleres],
   )
 
   return { ...navegacion, platformSession }
