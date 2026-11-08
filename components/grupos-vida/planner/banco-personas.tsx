@@ -18,15 +18,26 @@
  *
  * On a phone (T8c) the bank is a bottom sheet (`enHoja`: no card frame, the
  * sheet's title names it) and rows are not dragged: "Ubicar" places them.
+ *
+ * Planning style (S25, the context sidebar of prototipos/planificacion-dps/01):
+ * no frame of its own (the board makes it a full-height sidebar with a left
+ * border, or a bordered box above Lado a lado); the head over a border, the
+ * sections with a sticky 12px uppercase heading, and person rows with the
+ * initials avatar, name 13px / 500 and 12px secondary lines split by light
+ * dividers. Next to the board the search and the Edad / Ciudad selects take
+ * the toolbar's 36px (44px on touch, and in the phone sheet); the quick
+ * filter pills keep PastillaFiltro's 44px, which has no compact size yet.
  */
 import { useMemo, useState, type ReactElement } from 'react'
-import { GripVertical, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { PastillaFiltro } from '@/components/ui/PastillasFiltro'
 import { nombrePersona, type PersonaBanco, type TemporadaPlanner } from '@/lib/platform/grupos-vida/planner'
 import { cn } from '@/lib/utils'
 
+import { AvatarIniciales } from './avatar-iniciales'
+import { CLASE_CONTROL_COMPACTO } from './estilo-planner'
 import { EtiquetaPlanner, MarcaSinGuardar } from './etiqueta'
 import {
   FILTROS_BANCO_INICIALES,
@@ -66,7 +77,7 @@ function NombreConEdad({ persona }: { readonly persona: PersonaBanco }): ReactEl
   )
 }
 
-function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly temporada: TemporadaPlanner }): ReactElement {
+function FilaPersona({ fila, temporada, enHoja }: { readonly fila: FilaBanco; readonly temporada: TemporadaPlanner; readonly enHoja: boolean }): ReactElement {
   const [una, otra] = fila.personas
   const { segmento, donde } = detalleFila(fila, temporada)
   const registro = fechaCorta(una.fecha_registro)
@@ -84,11 +95,15 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
       draggable={arrastre}
       onDragStart={arrastre ? (e) => pasos.arrastrar(carga, e) : undefined}
       onDragEnd={arrastre ? () => pasos.terminarArrastre() : undefined}
-      className={cn('flex min-w-0 items-start gap-2 border-b border-border px-1 py-2.5 last:border-b-0', arrastre && 'cursor-grab')}
+      className={cn(
+        'flex min-w-0 items-start gap-2.5 border-b border-border/60 py-2 last:border-b-0',
+        enHoja ? 'px-1' : 'pr-2 pl-4',
+        arrastre && 'cursor-grab',
+      )}
     >
-      {arrastre && <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />}
+      <AvatarIniciales nombres={fila.personas.map(nombrePersona)} className="mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p data-nombres className="break-words text-sm font-semibold leading-snug text-foreground">
+        <p data-nombres className="break-words text-[13px] font-medium leading-[18px] text-foreground">
           <NombreConEdad persona={una} />
           {otra && (
             <>
@@ -103,7 +118,7 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
           </p>
         )}
         {sinGuardar && <MarcaSinGuardar />}
-        <div className="mt-1 flex flex-wrap gap-1">
+        <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
           {nuevo && <EtiquetaPlanner tono="info">Nuevo · sin segmento</EtiquetaPlanner>}
           {marcas.map((m) => (
             <EtiquetaPlanner key={m.etiqueta} tono={m.tono}>
@@ -112,7 +127,7 @@ function FilaPersona({ fila, temporada }: { readonly fila: FilaBanco; readonly t
           ))}
         </div>
       </div>
-      <div className="flex shrink-0 flex-col items-end">
+      <div className="-my-0.5 flex shrink-0 flex-col items-end">
         <BotonSistema
           type="button"
           variante="ghost"
@@ -166,60 +181,70 @@ export function BancoPersonas({ id, banco, temporada, className, enHoja = false 
       id={id}
       aria-labelledby={`${id}-titulo`}
       {...zona.props}
-      className={cn('flex min-w-0 flex-col gap-3', !enHoja && 'rounded-2xl border border-border bg-card p-4', zona.sobre && 'ring-2 ring-brand', className)}
+      className={cn('flex min-w-0 flex-col', enHoja ? 'gap-3' : 'bg-card', zona.sobre && 'ring-2 ring-inset ring-brand', className)}
     >
-      <div className="space-y-0.5">
-        <h2 id={`${id}-titulo`} className={enHoja ? 'sr-only' : 'text-base font-semibold text-foreground'}>
-          Banco de personas
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          <strong className="font-semibold text-foreground">{modelo.sinUbicar}</strong> · {modelo.desglose}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Toda la iglesia, de cualquier segmento · <span className="font-mono tabular-nums">{formatearCantidad(modelo.total)}</span>
-        </p>
-      </div>
-      <InputSistema
-        type="search"
-        icono={Search}
-        value={filtros.busqueda}
-        onChange={(e) => cambiar({ busqueda: e.target.value })}
-        placeholder="Nombre, ciudad o grupo"
-        aria-label="Buscar en el banco por nombre, ciudad o grupo"
-        autoComplete="off"
-      />
-      <div role="group" aria-label="Filtros rápidos del banco" className="flex flex-wrap gap-2">
-        <PastillaFiltro etiqueta="Sin ubicar" cantidad={modelo.conteos.sinUbicar} activa={filtros.sinUbicar} onClick={() => cambiar({ sinUbicar: !filtros.sinUbicar })} />
-        <PastillaFiltro etiqueta="Matrimonios" cantidad={modelo.conteos.matrimonios} activa={filtros.matrimonios} onClick={() => cambiar({ matrimonios: !filtros.matrimonios })} />
-        <PastillaFiltro etiqueta="Sin segmento" cantidad={modelo.conteos.sinSegmento} activa={filtros.sinSegmento} onClick={() => cambiar({ sinSegmento: !filtros.sinSegmento })} />
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <SelectSistema
-          aria-label="Edad"
-          opciones={EDADES.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta }))}
-          value={filtros.edad}
-          onValueChange={(valor) => cambiar({ edad: valor as FiltroEdad })}
+      <div className={cn('flex flex-col gap-3', !enHoja && 'border-b border-border px-4 pt-3.5 pb-4')}>
+        <div className="space-y-0.5">
+          <h2 id={`${id}-titulo`} className={enHoja ? 'sr-only' : 'text-sm font-[650] text-foreground'}>
+            Banco de personas
+          </h2>
+          <p className="text-[13px] text-muted-foreground">
+            <strong className="font-semibold text-foreground">{modelo.sinUbicar}</strong> · {modelo.desglose}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Toda la iglesia, de cualquier segmento · <span className="font-mono tabular-nums">{formatearCantidad(modelo.total)}</span>
+          </p>
+        </div>
+        <InputSistema
+          type="search"
+          icono={Search}
+          value={filtros.busqueda}
+          onChange={(e) => cambiar({ busqueda: e.target.value })}
+          placeholder="Nombre, ciudad o grupo"
+          aria-label="Buscar en el banco por nombre, ciudad o grupo"
+          autoComplete="off"
+          className={enHoja ? undefined : CLASE_CONTROL_COMPACTO}
         />
-        <SelectSistema
-          aria-label="Ciudad donde vive"
-          opciones={[{ valor: '', etiqueta: 'Ciudad: todas' }, ...modelo.ciudades]}
-          value={filtros.ciudad}
-          onValueChange={(valor) => cambiar({ ciudad: valor })}
-        />
+        <div role="group" aria-label="Filtros rápidos del banco" className="flex flex-wrap gap-2">
+          <PastillaFiltro etiqueta="Sin ubicar" cantidad={modelo.conteos.sinUbicar} activa={filtros.sinUbicar} onClick={() => cambiar({ sinUbicar: !filtros.sinUbicar })} />
+          <PastillaFiltro etiqueta="Matrimonios" cantidad={modelo.conteos.matrimonios} activa={filtros.matrimonios} onClick={() => cambiar({ matrimonios: !filtros.matrimonios })} />
+          <PastillaFiltro etiqueta="Sin segmento" cantidad={modelo.conteos.sinSegmento} activa={filtros.sinSegmento} onClick={() => cambiar({ sinSegmento: !filtros.sinSegmento })} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <SelectSistema
+            className={enHoja ? undefined : CLASE_CONTROL_COMPACTO}
+            aria-label="Edad"
+            opciones={EDADES.map((e) => ({ valor: e.valor, etiqueta: e.etiqueta }))}
+            value={filtros.edad}
+            onValueChange={(valor) => cambiar({ edad: valor as FiltroEdad })}
+          />
+          <SelectSistema
+            className={enHoja ? undefined : CLASE_CONTROL_COMPACTO}
+            aria-label="Ciudad donde vive"
+            opciones={[{ valor: '', etiqueta: 'Ciudad: todas' }, ...modelo.ciudades]}
+            value={filtros.ciudad}
+            onValueChange={(valor) => cambiar({ ciudad: valor })}
+          />
+        </div>
       </div>
       {visibles.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted-foreground">Nadie coincide con estos filtros. Quita alguno.</p>
+        <p className="px-4 py-6 text-center text-[13px] text-muted-foreground">Nadie coincide con estos filtros. Quita alguno.</p>
       ) : (
-        <div className="space-y-3">
+        <div className={enHoja ? 'space-y-3' : undefined}>
           {visibles.map((seccion) => (
             <section key={seccion.id} aria-label={seccion.titulo}>
-              <h3 className="flex items-baseline justify-between gap-2 px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
+              <h3
+                className={cn(
+                  'flex items-baseline justify-between gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground',
+                  enHoja ? 'px-1' : 'sticky top-0 z-[1] border-b border-border/60 bg-card px-4 pt-3 pb-2',
+                )}
+              >
                 <span className="truncate">{seccion.titulo}</span>
                 <span className="font-mono tabular-nums">{formatearCantidad(seccion.cantidad)}</span>
               </h3>
               <ul>
                 {seccion.filas.map((fila) => (
-                  <FilaPersona key={fila.clave} fila={fila} temporada={temporada} />
+                  <FilaPersona key={fila.clave} fila={fila} temporada={temporada} enHoja={enHoja} />
                 ))}
               </ul>
             </section>
@@ -227,9 +252,11 @@ export function BancoPersonas({ id, banco, temporada, className, enHoja = false 
         </div>
       )}
       {faltan > 0 && (
-        <BotonSistema type="button" variante="outline" tamaño="sm" onClick={() => setLimite((l) => l + TAMANO_PAGINA_BANCO)}>
-          Ver {Math.min(faltan, TAMANO_PAGINA_BANCO)} más · quedan {formatearCantidad(faltan)}
-        </BotonSistema>
+        <div className={cn(!enHoja && 'border-t border-border/60 p-3')}>
+          <BotonSistema type="button" variante="outline" tamaño="sm" onClick={() => setLimite((l) => l + TAMANO_PAGINA_BANCO)} className="w-full">
+            Ver {Math.min(faltan, TAMANO_PAGINA_BANCO)} más · quedan {formatearCantidad(faltan)}
+          </BotonSistema>
+        </div>
       )}
     </aside>
   )

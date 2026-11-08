@@ -20,6 +20,12 @@
  * Every action adds to the session draft (S24, pasos-planner.tsx); the
  * panes show it at once with the "Sin guardar" marks of the board. Only the
  * groups of the segments the actor edits are offered as destination (S10).
+ *
+ * Planning style (S25, the team columns of prototipos/planificacion-dps/01):
+ * each pane is one flat `rounded-md` column; its head (12px uppercase label,
+ * the group select, the summary) sits over a border, then the group's head
+ * and its roles as `bg-muted` header rows with 32px person rows, as in the
+ * Tablero cards (estilo-planner.ts).
  */
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import { ArrowLeft, ArrowRight, Copy, SkipForward } from 'lucide-react'
@@ -29,6 +35,7 @@ import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import {
   etiquetaGrupo,
+  nombrePersona,
   normalizar,
   personasDelGrupo,
   type GrupoTablero,
@@ -39,7 +46,16 @@ import {
 } from '@/lib/platform/grupos-vida/planner'
 import { cn } from '@/lib/utils'
 
+import { AvatarIniciales } from './avatar-iniciales'
 import { EtiquetaPlanner, MarcaSinGuardar, type TonoEtiqueta } from './etiqueta'
+import {
+  CLASE_CABEZA_ROL,
+  CLASE_CUENTA_ROL,
+  CLASE_FILA_PERSONA,
+  CLASE_NOMBRE_FILA,
+  CLASE_ROL_VACIO,
+  CLASE_SOBRE_DENTRO,
+} from './estilo-planner'
 import { filasDelRol, nombresFila, rolesGrupo, textoLideres, type RolDestino } from './modelo'
 import {
   ROL_DE_LISTA,
@@ -80,8 +96,6 @@ export interface LadoALadoProps {
 }
 
 type Modo = 'origen' | 'dos'
-
-const SOBRE = 'ring-2 ring-brand ring-offset-2 ring-offset-background'
 
 const porSegmentoYNombre = (a: GrupoTablero, b: GrupoTablero): number =>
   a.segmento_nombre.localeCompare(b.segmento_nombre, 'es') || a.nombre.localeCompare(b.nombre, 'es')
@@ -128,10 +142,11 @@ function FilaLado({
       draggable={arrastrable}
       onDragStart={arrastrable ? (e) => pasos.arrastrar(carga, e) : undefined}
       onDragEnd={arrastrable ? () => pasos.terminarArrastre() : undefined}
-      className={cn('flex min-w-0 items-start gap-2 rounded-xl bg-card px-2 py-2', arrastrable && 'cursor-grab')}
+      className={cn(CLASE_FILA_PERSONA, arrastrable && 'cursor-grab')}
     >
-      <div className="min-w-0 flex-1">
-        <p data-nombres className="break-words text-[13px] font-medium leading-snug text-foreground">
+      <AvatarIniciales nombres={personas.map(nombrePersona)} className="mt-px" />
+      <div className="min-w-0 flex-1 py-[3px]">
+        <p data-nombres className={CLASE_NOMBRE_FILA}>
           {nombre}
         </p>
         {datos && <p className="break-words text-xs text-muted-foreground">{datos}</p>}
@@ -153,7 +168,7 @@ function FilaLado({
           tamaño="sm"
           aria-label={pasar.etiqueta}
           onClick={pasar.onClick}
-          className="shrink-0"
+          className="-my-0.5"
         >
           {pasar.direccion === 'izquierda' && <ArrowLeft aria-hidden="true" className="size-4" />}
           Pasar
@@ -184,16 +199,16 @@ function SeccionRol({
   const zona = useZonaSoltar(grupo, rol)
   const props = grupo ? zona.props : {}
   return (
-    <section aria-label={titulo} {...props} className={cn('-mx-1 space-y-1.5 rounded-xl px-1 pb-1', grupo && zona.sobre && SOBRE)}>
-      <h4 className={cn('text-xs font-medium uppercase tracking-[0.08em]', falta ? 'text-danger-text' : 'text-muted-foreground')}>
-        {titulo} <span className="font-mono tabular-nums">{cantidad}</span>
+    <section aria-label={titulo} {...props} className={cn('pb-0.5', grupo && zona.sobre && CLASE_SOBRE_DENTRO)}>
+      <h4 className={cn(CLASE_CABEZA_ROL, falta ? 'text-danger-text' : 'text-foreground')}>
+        {titulo} <span className={CLASE_CUENTA_ROL}>{cantidad}</span>
       </h4>
       {cantidad === 0 ? (
-        <p className={cn('text-xs', falta ? 'text-danger-text' : 'text-muted-foreground')}>
+        <p className={cn(CLASE_ROL_VACIO, falta ? 'font-medium text-danger-text' : 'text-muted-foreground')}>
           {falta ? 'Falta el Líder' : grupo ? 'Nadie todavía · arrastra aquí' : 'Nadie'}
         </p>
       ) : (
-        <ul className="space-y-1.5">{children}</ul>
+        <ul>{children}</ul>
       )}
     </section>
   )
@@ -205,8 +220,8 @@ function CabeceraGrupo({ grupo }: { readonly grupo: GrupoTablero }): ReactElemen
   const etiqueta = etiquetaGrupo(grupo)
   const cantidad = personasDelGrupo(grupo).length
   return (
-    <header className="space-y-1 rounded-2xl border border-border bg-card p-3">
-      <h3 className="break-words text-[15px] font-semibold leading-snug text-foreground">
+    <header className="space-y-0.5 px-3 pt-2.5 pb-2">
+      <h3 className="break-words text-sm font-[650] leading-[18px] text-foreground">
         {pasos ? (
           <button type="button" onClick={() => pasos.abrirGrupo(grupo.grupo_id)} className="focus-ring rounded-md text-left transition-colors hover:text-brand-text">
             {grupo.nombre.trim() || etiqueta}
@@ -218,7 +233,7 @@ function CabeceraGrupo({ grupo }: { readonly grupo: GrupoTablero }): ReactElemen
       <p title={etiqueta} className={cn('truncate text-xs', grupo.localidad_id ? 'text-muted-foreground' : 'text-danger-text')}>
         {etiqueta}
       </p>
-      <p className="font-mono text-sm font-semibold tabular-nums text-foreground">
+      <p className="font-mono text-[13px] font-semibold tabular-nums tracking-[-0.02em] text-foreground">
         {cantidad}
         {grupo.capacidad_maxima !== null && <small className="font-normal text-muted-foreground"> / {grupo.capacidad_maxima}</small>}
       </p>
@@ -245,7 +260,7 @@ function RolesGrupo({
   const editable = pasos !== null && pasos.editable(grupo.segmento_id)
   const puedePasar = editable && pasarA !== null && pasos.editable(pasarA.segmento_id)
   return (
-    <div className="space-y-3">
+    <div>
       {rolesGrupo(grupo).map((rol) => (
         <SeccionRol
           key={rol.id}
@@ -283,14 +298,31 @@ function RolesGrupo({
   )
 }
 
-const Panel = ({ etiqueta, idEtiqueta, children }: { readonly etiqueta: string; readonly idEtiqueta: string; readonly children: ReactNode }): ReactElement => (
-  <section aria-labelledby={idEtiqueta} className="min-w-0 space-y-3 rounded-2xl border border-border bg-muted/40 p-3">
-    <span id={idEtiqueta} className="block truncate text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-      {etiqueta}
-    </span>
+/** One pane: a flat column whose head (label, `cabeza`) sits over a border, then the body. */
+const Panel = ({
+  etiqueta,
+  idEtiqueta,
+  cabeza,
+  children,
+}: {
+  readonly etiqueta: string
+  readonly idEtiqueta: string
+  readonly cabeza: ReactNode
+  readonly children: ReactNode
+}): ReactElement => (
+  <section aria-labelledby={idEtiqueta} className="min-w-0 overflow-hidden rounded-md border border-border bg-card">
+    <div className="space-y-2 border-b border-border px-3 pt-2.5 pb-3">
+      <span id={idEtiqueta} className="block truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {etiqueta}
+      </span>
+      {cabeza}
+    </div>
     {children}
   </section>
 )
+
+/** A dashed note inside a pane's body (no group chosen, none to copy). */
+const CLASE_NOTA_PANEL = 'm-3 space-y-3 rounded-md border border-dashed border-border p-4'
 
 function etiquetasOrigen(fila: FilaOrigen): Etiqueta[] {
   return [
@@ -334,7 +366,7 @@ function ModoOrigen({
 
   if (!origen) {
     return (
-      <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+      <p className="rounded-md border border-dashed border-border bg-card p-4 text-[13px] text-muted-foreground">
         No ves ningún grupo de {nombreOrigen}. Usa «Dos grupos de {temporada.nombre}».
       </p>
     )
@@ -367,14 +399,21 @@ function ModoOrigen({
         </BotonSistema>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <Panel etiqueta={`Origen · ${nombreOrigen}`} idEtiqueta="lado-origen">
-          <SelectSistema aria-label={`Grupo de ${nombreOrigen}`} opciones={opcionesOrigen} value={origen.grupo_id} onValueChange={setOrigenId} />
-          <p className="text-[13px] text-muted-foreground">
-            {resumen.personas} {resumen.personas === 1 ? 'persona' : 'personas'} · {resumen.ubicadas} ya {resumen.ubicadas === 1 ? 'ubicada' : 'ubicadas'} en{' '}
-            {temporada.nombre} · <strong className="font-semibold text-foreground">{resumen.sinUbicar} sin ubicar</strong>. Solo se copia desde aquí: la
-            temporada pasada no cambia.
-          </p>
-          <div className="space-y-3">
+        <Panel
+          etiqueta={`Origen · ${nombreOrigen}`}
+          idEtiqueta="lado-origen"
+          cabeza={
+            <>
+              <SelectSistema aria-label={`Grupo de ${nombreOrigen}`} opciones={opcionesOrigen} value={origen.grupo_id} onValueChange={setOrigenId} />
+              <p className="text-[13px] text-muted-foreground">
+                {resumen.personas} {resumen.personas === 1 ? 'persona' : 'personas'} · {resumen.ubicadas} ya {resumen.ubicadas === 1 ? 'ubicada' : 'ubicadas'} en{' '}
+                {temporada.nombre} · <strong className="font-semibold text-foreground">{resumen.sinUbicar} sin ubicar</strong>. Solo se copia desde aquí: la
+                temporada pasada no cambia.
+              </p>
+            </>
+          }
+        >
+          <div>
             {roles.map((rol) => (
               <SeccionRol
                 key={rol.id}
@@ -410,34 +449,41 @@ function ModoOrigen({
             ))}
           </div>
           {puedePasar && destino && resumen.sinUbicar > 0 && (
-            <BotonSistema
-              type="button"
-              variante="outline"
-              tamaño="sm"
-              className="w-full"
-              onClick={() => acciones.pasarVarios(pendientes.map((f) => ({ carga: cargaDe(f), rol: f.rol })), destino, origen)}
-            >
-              {resumen.sinUbicar === 1 ? 'Pasar la persona sin ubicar' : `Pasar las ${resumen.sinUbicar} sin ubicar`} a {destino.nombre}
-              <ArrowRight aria-hidden="true" className="size-4" />
-            </BotonSistema>
+            <div className="border-t border-border p-3">
+              <BotonSistema
+                type="button"
+                variante="outline"
+                tamaño="sm"
+                className="w-full"
+                onClick={() => acciones.pasarVarios(pendientes.map((f) => ({ carga: cargaDe(f), rol: f.rol })), destino, origen)}
+              >
+                {resumen.sinUbicar === 1 ? 'Pasar la persona sin ubicar' : `Pasar las ${resumen.sinUbicar} sin ubicar`} a {destino.nombre}
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </BotonSistema>
+            </div>
           )}
         </Panel>
-        <Panel etiqueta={`Destino · ${temporada.nombre} (planificando)`} idEtiqueta="lado-destino">
-          <SelectSistema
-            aria-label={`Grupo de ${temporada.nombre}`}
-            opciones={opcionesDe(destinos)}
-            placeholder="Elige un grupo"
-            value={destino?.grupo_id ?? ''}
-            onValueChange={elegir}
-          />
+        <Panel
+          etiqueta={`Destino · ${temporada.nombre} (planificando)`}
+          idEtiqueta="lado-destino"
+          cabeza={
+            <SelectSistema
+              aria-label={`Grupo de ${temporada.nombre}`}
+              opciones={opcionesDe(destinos)}
+              placeholder="Elige un grupo"
+              value={destino?.grupo_id ?? ''}
+              onValueChange={elegir}
+            />
+          }
+        >
           {destino ? (
             <>
               <CabeceraGrupo grupo={destino} />
               <RolesGrupo grupo={destino} fichas={fichas} pasarA={null} direccion="derecha" acciones={acciones} />
             </>
           ) : (
-            <div className="space-y-3 rounded-2xl border border-dashed border-border p-4">
-              <p className="text-sm text-foreground">
+            <div className={CLASE_NOTA_PANEL}>
+              <p className="text-[13px] text-foreground">
                 Ningún grupo de {temporada.nombre} tiene a los líderes de {origen.nombre.trim() || 'este grupo'}.
               </p>
               {puedeCopiar ? (
@@ -494,21 +540,27 @@ function ModoDos({
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {lados.map((lado) => (
-        <Panel key={lado.id} etiqueta={`${lado.etiqueta} · ${temporada.nombre}`} idEtiqueta={`lado-${lado.id}`}>
-          <SelectSistema
-            aria-label={`Grupo de la ${lado.id}`}
-            opciones={opcionesDe(destinos.filter((g) => g.grupo_id !== lado.otro?.grupo_id))}
-            placeholder="Elige un grupo"
-            value={lado.grupo?.grupo_id ?? ''}
-            onValueChange={lado.cambiar}
-          />
+        <Panel
+          key={lado.id}
+          etiqueta={`${lado.etiqueta} · ${temporada.nombre}`}
+          idEtiqueta={`lado-${lado.id}`}
+          cabeza={
+            <SelectSistema
+              aria-label={`Grupo de la ${lado.id}`}
+              opciones={opcionesDe(destinos.filter((g) => g.grupo_id !== lado.otro?.grupo_id))}
+              placeholder="Elige un grupo"
+              value={lado.grupo?.grupo_id ?? ''}
+              onValueChange={lado.cambiar}
+            />
+          }
+        >
           {lado.grupo ? (
             <>
               <CabeceraGrupo grupo={lado.grupo} />
               <RolesGrupo grupo={lado.grupo} fichas={fichas} pasarA={lado.otro} direccion={lado.direccion} acciones={acciones} />
             </>
           ) : (
-            <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">Elige un grupo de {temporada.nombre}.</p>
+            <p className={cn(CLASE_NOTA_PANEL, 'text-[13px] text-muted-foreground')}>Elige un grupo de {temporada.nombre}.</p>
           )}
         </Panel>
       ))}
@@ -544,7 +596,7 @@ export function LadoALado({ temporada, capacidades, grupos, fichas, origen, onRe
       {modo === 'dos' ? (
         <ModoDos temporada={temporada} destinos={destinos} fichas={fichas} acciones={acciones} />
       ) : origen.tipo === 'cargando' ? (
-        <p role="status" className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+        <p role="status" className="rounded-md border border-dashed border-border bg-card p-4 text-[13px] text-muted-foreground">
           Cargando los grupos de {temporada.origen_nombre}…
         </p>
       ) : origen.tipo === 'error' ? (

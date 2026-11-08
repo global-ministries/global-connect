@@ -10,6 +10,13 @@
  * group panel, a bottom sheet on the phone, where "Mover" and the role
  * change live. In a segment the actor edits the section carries "Terminé mi
  * segmento" (S14) and ends with "Nuevo grupo".
+ *
+ * Planning style (S25, the phone task list of
+ * prototipos/planificacion-dps/05 and mobile.md › Attendance list): under
+ * the segment's title one full-bleed list (card fill, `border-y`, no inset);
+ * each localidad is a sticky 36px `bg-muted` band under the app's top bar
+ * (13px / 650, the count in mono); rows are at least 56px with the name 15px
+ * / 600, 13px secondary lines and hairlines inset 16px.
  */
 import { useMemo, type ReactElement } from 'react'
 import { ChevronRight, Plus, UsersRound } from 'lucide-react'
@@ -24,8 +31,12 @@ import { MarcaSegmento } from './marca-segmento'
 import { formatearCantidad, insigniasGrupo, textoLideres, type Carril } from './modelo'
 import { usePasos } from './contexto-pasos'
 
-// Hairline between rows, inset from the text (docs/design-system/mobile.md#inset-grouped-lists).
-const CLASE_LINEA = 'before:absolute before:top-0 before:right-0 before:left-3.5 before:h-px before:bg-border/60 first:before:hidden'
+// Hairline between rows, inset from the text (docs/design-system/mobile.md#attendance-list-planning-style).
+const CLASE_LINEA = 'before:absolute before:top-0 before:right-0 before:left-4 before:h-px before:bg-border/60 first:before:hidden'
+
+// Under the app's fixed top bar (app/(auth)/layout.tsx clears the same height).
+const CLASE_BANDA =
+  'sticky top-[calc(max(env(safe-area-inset-top),12px)+3.25rem)] z-[2] flex min-h-9 items-center justify-between gap-2 border-b border-border bg-muted px-4 text-[13px] font-[650]'
 
 export interface ListaPlannerProps {
   readonly carriles: readonly Carril[]
@@ -57,10 +68,10 @@ function FilaGrupo({
         type="button"
         disabled={!pasos}
         onClick={() => pasos?.abrirGrupo(grupo.grupo_id)}
-        className="focus-ring flex min-h-16 w-full min-w-0 items-start gap-3 px-3.5 py-3 text-left touch-manipulation transition-colors active:bg-accent"
+        className="focus-ring flex min-h-14 w-full min-w-0 items-start gap-3 py-2.5 pr-2 pl-4 text-left touch-manipulation transition-colors active:bg-accent"
       >
         <span className="min-w-0 flex-1">
-          <span className="block break-words text-base font-semibold leading-snug text-foreground">{grupo.nombre.trim() || etiqueta}</span>
+          <span className="block break-words text-[15px] font-semibold leading-snug text-foreground">{grupo.nombre.trim() || etiqueta}</span>
           <span className={cn('block break-words text-[13px]', grupo.localidad_id ? 'text-muted-foreground' : 'text-danger-text')}>{etiqueta}</span>
           <span className={cn('mt-0.5 block break-words text-[13px]', lideres ? 'text-foreground' : 'font-medium text-danger-text')}>
             {lideres ?? 'Falta el Líder'}
@@ -81,7 +92,7 @@ function FilaGrupo({
           )}
         </span>
         <span className="flex shrink-0 items-center gap-1 self-center">
-          <span className="font-mono text-sm font-semibold tabular-nums text-foreground">
+          <span className="font-mono text-sm font-semibold tabular-nums tracking-[-0.02em] text-foreground">
             {cantidad}
             {grupo.capacidad_maxima !== null && <small className="font-normal text-muted-foreground"> / {grupo.capacidad_maxima}</small>}
           </span>
@@ -112,7 +123,7 @@ function SeccionSegmento({
     <section aria-labelledby={idTitulo} className="min-w-0 space-y-3">
       <div className="space-y-1">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <h2 id={idTitulo} className="text-lg font-semibold text-foreground">
+          <h2 id={idTitulo} className="text-lg font-[650] tracking-[-0.01em] text-foreground">
             {segmento.nombre}
           </h2>
           <span className="text-[13px] text-muted-foreground">
@@ -122,19 +133,25 @@ function SeccionSegmento({
         </div>
         {publicacion && <MarcaSegmento segmento={publicacion} />}
       </div>
-      {carril.bloques.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay grupos de {segmento.nombre} en esta temporada.</p>}
-      {carril.bloques.map((bloque) => (
-        <div key={bloque.id} className="space-y-1.5">
-          <h3 className={cn('px-1 text-xs font-medium uppercase tracking-[0.08em]', bloque.falta ? 'text-danger-text' : 'text-muted-foreground')}>
-            {bloque.titulo} <span className="font-mono tabular-nums">· {bloque.grupos.length}</span>
-          </h3>
-          <ul aria-label={`${segmento.nombre}, ${bloque.titulo}`} className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card">
-            {bloque.grupos.map((grupo) => (
-              <FilaGrupo key={grupo.grupo_id} grupo={grupo} bloqueos={bloqueos} avisos={avisos} fichas={fichas} />
-            ))}
-          </ul>
+      {carril.bloques.length === 0 && <p className="text-[13px] text-muted-foreground">Todavía no hay grupos de {segmento.nombre} en esta temporada.</p>}
+      {carril.bloques.length > 0 && (
+        // Full bleed: past the 16px page gutters of the phone.
+        <div className="-mx-4 border-y border-border bg-card">
+          {carril.bloques.map((bloque) => (
+            <div key={bloque.id} className="[&+&>h3]:border-t">
+              <h3 className={cn(CLASE_BANDA, bloque.falta ? 'text-danger-text' : 'text-foreground')}>
+                <span className="min-w-0 truncate">{bloque.titulo}</span>
+                <span className="shrink-0 font-mono text-xs font-medium tabular-nums text-muted-foreground">{bloque.grupos.length}</span>
+              </h3>
+              <ul aria-label={`${segmento.nombre}, ${bloque.titulo}`} className="min-w-0">
+                {bloque.grupos.map((grupo) => (
+                  <FilaGrupo key={grupo.grupo_id} grupo={grupo} bloqueos={bloqueos} avisos={avisos} fichas={fichas} />
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
       {editable && (
         <BotonSistema
           type="button"

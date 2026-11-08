@@ -12,8 +12,9 @@
  * último guardado" and undoes the actor's latest saved step. When it cannot,
  * the button says why (description and toast) instead of failing silently.
  *
- * Phone (`compacta`, T8c): the counter chip, "Deshacer" as an icon and
- * "Guardar"; "Descartar" lives in the pending list it opens.
+ * "Deshacer" is an icon button named by its text (title: what it undoes).
+ * Phone (`compacta`, T8c): the counter chip, "Deshacer" and "Guardar";
+ * "Descartar" lives in the pending list it opens.
  */
 import { useId, type ReactElement } from 'react'
 import { Undo2 } from 'lucide-react'
@@ -33,7 +34,7 @@ export interface BarraGuardadoProps {
   readonly onAbrirLista: () => void
   readonly onDescartar: () => void
   readonly onGuardar: () => void
-  /** Phone layout: no "Descartar" (it is in the pending list), "Deshacer" icon-only. */
+  /** Phone layout: no "Descartar" (it is in the pending list). */
   readonly compacta?: boolean
 }
 
@@ -54,33 +55,19 @@ export function BarraGuardado({ cambios, guardando, conError, deshacer, onAbrirL
           <PuntoEstado tono="success" etiqueta="Todo guardado" />
         </span>
       )}
-      {compacta ? (
-        <BotonSistema
-          type="button"
-          variante="ghost"
-          tamaño="sm"
-          soloIcono
-          icono={Undo2}
-          aria-label={textoDeshacer}
-          aria-disabled={deshacer.motivo !== null}
-          aria-describedby={idDescripcion}
-          title={descripcion}
-          onClick={deshacer.ejecutar}
-        />
-      ) : (
-        <BotonSistema
-          type="button"
-          variante="ghost"
-          tamaño="sm"
-          icono={Undo2}
-          aria-disabled={deshacer.motivo !== null}
-          aria-describedby={idDescripcion}
-          title={descripcion}
-          onClick={deshacer.ejecutar}
-        >
-          {textoDeshacer}
-        </BotonSistema>
-      )}
+      {/* Icon-only at every width (artboard 01 of design/planner-gdv, L28): the name and the title say what it undoes. */}
+      <BotonSistema
+        type="button"
+        variante="ghost"
+        tamaño="sm"
+        soloIcono
+        icono={Undo2}
+        aria-label={textoDeshacer}
+        aria-disabled={deshacer.motivo !== null}
+        aria-describedby={idDescripcion}
+        title={descripcion || textoDeshacer}
+        onClick={deshacer.ejecutar}
+      />
       <span id={idDescripcion} hidden>
         {descripcion}
       </span>

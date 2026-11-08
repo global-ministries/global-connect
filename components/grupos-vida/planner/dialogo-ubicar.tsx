@@ -8,7 +8,8 @@
  * together, elsewhere a couple row asks who goes and the note says where the
  * spouse stays (mensajeConyugeQueSeQueda). The dialog traps the focus and
  * returns it to the button that opened it. On a phone (T8c) it is a bottom
- * sheet: the touch path, since nothing is dragged there.
+ * sheet: the touch path, since nothing is dragged there. Planning style
+ * (S25): the 420px dialog with the 17px title; its fields keep 44px.
  */
 import { useId, useState, type FormEvent, type ReactElement } from 'react'
 
@@ -20,6 +21,7 @@ import { useEsEscritorio } from '@/components/ui/detalle-responsivo'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { esMatrimonios, etiquetaGrupo, nombrePersona, personasDelGrupo, type GrupoTablero, type PersonaBanco } from '@/lib/platform/grupos-vida/planner'
 
+import { CLASE_DIALOGO, CLASE_TITULO_DIALOGO } from './estilo-planner'
 import { ETIQUETA_ROL, planearMovimiento, type RolDestino } from './modelo'
 import type { PeticionUbicar } from './contexto-pasos'
 
@@ -87,8 +89,9 @@ function Formulario({
   return (
     <>
       {!enHoja && (
-        <DialogHeader>
-          <DialogTitle>{tituloDe(peticion)}</DialogTitle>
+        // Clear of the dialog's 44px close button.
+        <DialogHeader className="pr-9">
+          <DialogTitle className={CLASE_TITULO_DIALOGO}>{tituloDe(peticion)}</DialogTitle>
           <DialogDescription>{DESCRIPCION}</DialogDescription>
         </DialogHeader>
       )}
@@ -137,7 +140,7 @@ export function DialogoUbicar(props: DialogoUbicarProps): ReactElement {
   }
   return (
     <Dialog open={peticion !== null} onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <DialogContent>
+      <DialogContent className={CLASE_DIALOGO}>
         {/* Keyed so every request starts from its own group and role. */}
         {peticion && <Formulario key={`${peticion.carga.ids.join('|')}:${peticion.grupoId ?? ''}`} {...props} peticion={peticion} />}
       </DialogContent>

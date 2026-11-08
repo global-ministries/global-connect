@@ -37,6 +37,15 @@
  * Tablero view: `?vista=lado` says it needs a big screen. Every panel is a
  * bottom sheet there (DetalleResponsivo). The server renders the desktop
  * tree; the phone tree replaces it after hydration (useEsEscritorio).
+ *
+ * Desktop and tablet use the planning style's wide layout (S25,
+ * docs/design-system/layout.md › Wide layout; prototipos/planificacion-dps):
+ * the view fills the height under the app header, past the page gutters; the
+ * header band and the toolbar stay put with 24px gutters and only the data
+ * region scrolls. With the bank next to it (Tablero from 1024 px, Lado a lado
+ * from 1280 px) the bank is a full-height sidebar with its own scroll; below
+ * that the region scrolls as one, with the bank under the lanes (Tablero) or
+ * above the panes (Lado a lado).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -59,6 +68,7 @@ import { DialogoUbicar } from './dialogo-ubicar'
 import { LadoALado, type EstadoOrigen } from './lado-a-lado'
 import { ListaPlanner } from './lista-planner'
 import { BarraGuardado } from './estado-guardado'
+import { CLASE_CONTROL_COMPACTO } from './estilo-planner'
 import { MigasPlanner } from './migas-planner'
 import { avisosDelAlcance, carriles, contarPersonas, modeloBanco, FILTROS_BANCO_INICIALES, seccionesAvisos, seccionesBloqueos, segmentosDelAlcance, type Agrupar } from './modelo'
 import { PanelAlertas } from './panel-alertas'
@@ -223,6 +233,45 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
     setVista(siguiente)
     escribirVista(siguiente)
   }
+  // Where the bank goes next to the data region (its own full-height column); null: hidden.
+  const junto = bancoVisible ? (lado ? 'xl' : 'lg') : null
+
+  const cabecera = (
+    <CabeceraTemporada
+      temporada={temporada}
+      temporadas={capacidades.temporadas}
+      segmentosAlcance={segmentosDelAlcance(capacidades)}
+      grupos={grupos.length}
+      personas={contarPersonas(grupos)}
+      bloqueos={bloqueos.length}
+      avisos={avisos.length}
+      onAbrirAlertas={() => setAlertasAbiertas(true)}
+      alertasAbiertas={alertasAbiertas}
+      onAbrirHistorial={() => setHistorialAbierto(true)}
+      historialAbierto={historialAbierto}
+      publicar={publicar}
+      puedeCrearTemporada={capacidades.puede_crear_temporada}
+      cambiosSinGuardar={borrador.cambios.length}
+      compacta={telefono}
+      guardado={
+        <BarraGuardado
+          cambios={borrador.cambios.length}
+          guardando={borrador.guardando}
+          conError={borrador.error !== null}
+          deshacer={control.deshacer}
+          onAbrirLista={borrador.abrirLista}
+          onDescartar={() => setDescartando(true)}
+          onGuardar={borrador.guardar}
+          compacta={telefono}
+        />
+      }
+    />
+  )
+  const avisoLocalidades = faltantes.includes('localidades') && (
+    <AvisoFormulario tono="info" role="note" className="py-3">
+      No se pudieron leer las localidades: por ahora los grupos sin localidad no muestran sugerencia.
+    </AvisoFormulario>
+  )
 
   return (
     <PasosPlannerProvider value={contexto}>
@@ -232,44 +281,10 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
           the viewport and, placed at the end of the long board, they make
           the document scroll past the shell into an empty area. */}
       <PaginaSistema breadcrumbs={<MigasPlanner actual={temporada.nombre} />} className="relative">
-        <CabeceraTemporada
-          temporada={temporada}
-          temporadas={capacidades.temporadas}
-          segmentosAlcance={segmentosDelAlcance(capacidades)}
-          grupos={grupos.length}
-          personas={contarPersonas(grupos)}
-          bloqueos={bloqueos.length}
-          avisos={avisos.length}
-          onAbrirAlertas={() => setAlertasAbiertas(true)}
-          alertasAbiertas={alertasAbiertas}
-          onAbrirHistorial={() => setHistorialAbierto(true)}
-          historialAbierto={historialAbierto}
-          publicar={publicar}
-          puedeCrearTemporada={capacidades.puede_crear_temporada}
-          cambiosSinGuardar={borrador.cambios.length}
-          compacta={telefono}
-          guardado={
-            <BarraGuardado
-              cambios={borrador.cambios.length}
-              guardando={borrador.guardando}
-              conError={borrador.error !== null}
-              deshacer={control.deshacer}
-              onAbrirLista={borrador.abrirLista}
-              onDescartar={() => setDescartando(true)}
-              onGuardar={borrador.guardar}
-              compacta={telefono}
-            />
-          }
-        />
-
-        {faltantes.includes('localidades') && (
-          <AvisoFormulario tono="info" role="note" className="py-3">
-            No se pudieron leer las localidades: por ahora los grupos sin localidad no muestran sugerencia.
-          </AvisoFormulario>
-        )}
-
         {telefono ? (
           <>
+            {cabecera}
+            {avisoLocalidades}
             {vista === 'lado' && (
               <AvisoFormulario tono="info" role="note" className="py-3">
                 Lado a lado está disponible en pantalla grande.
@@ -295,8 +310,11 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
             </HojaInferior>
           </>
         ) : (
-          <>
-            <section aria-label="Vista, buscar y agrupar" className="flex flex-wrap items-center gap-2">
+          // Past the page gutters of PaginaSistema (p-4 sm:p-6 lg:px-12 lg:py-8), under the 64px app header.
+          <div className="-m-4 flex h-[calc(100dvh-4rem)] min-h-[32rem] flex-col sm:-m-6 lg:-mx-12 lg:-my-8">
+            {cabecera}
+            {avisoLocalidades && <div className="px-6 pt-3">{avisoLocalidades}</div>}
+            <section aria-label="Vista, buscar y agrupar" className="flex flex-wrap items-center gap-3 px-6 py-3">
               <ControlSegmentado<Vista>
                 etiqueta="Vista"
                 opciones={[
@@ -306,7 +324,7 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
                 valor={vista}
                 onCambio={cambiarVista}
               />
-              <div className="min-w-[14rem] flex-1">
+              <div className="min-w-[10rem] flex-1">
                 <InputSistema
                   type="search"
                   icono={Search}
@@ -315,10 +333,12 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
                   placeholder="Buscar grupo o persona"
                   aria-label="Buscar grupo, líder o persona"
                   autoComplete="off"
+                  className={CLASE_CONTROL_COMPACTO}
                 />
               </div>
               <div className="w-52" hidden={lado}>
                 <SelectSistema
+                  className={CLASE_CONTROL_COMPACTO}
                   aria-label="Agrupar por"
                   opciones={[
                     { valor: 'localidad', etiqueta: 'Agrupar: localidad' },
@@ -347,31 +367,43 @@ export function PlannerClient({ datos, pasos = null, vistaInicial = 'tablero', a
             </section>
 
             {/* Lado a lado: the two panes need 1280 px next to the bank; below it the bank sits above them (07). */}
-            <div className={cn('grid items-start gap-6', bancoVisible && (lado ? 'xl:grid-cols-[minmax(0,1fr)_20rem]' : 'lg:grid-cols-[minmax(0,1fr)_20rem]'))}>
-              {lado ? (
-                <LadoALado
-                  temporada={temporada}
-                  capacidades={capacidades}
-                  grupos={grupos}
-                  fichas={control.fichas}
-                  origen={estadoOrigen}
-                  onReintentar={origen.reintentar}
-                  busqueda={busqueda}
-                  acciones={{ pasar: control.pasar, pasarVarios: control.pasarVarios, crearCopia: control.crearCopia }}
-                />
-              ) : (
-                <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
+            <div
+              className={cn(
+                'flex min-h-0 flex-1 flex-col overflow-y-auto',
+                junto === 'lg' && 'lg:grid lg:grid-cols-[minmax(0,1fr)_22rem] lg:overflow-hidden',
+                junto === 'xl' && 'xl:grid xl:grid-cols-[minmax(0,1fr)_22rem] xl:overflow-hidden',
               )}
-              <div hidden={!bancoVisible} className={cn('min-w-0', lado ? 'order-first xl:order-none xl:sticky xl:top-24' : 'lg:sticky lg:top-24')}>
+            >
+              <div className={cn('min-w-0 px-6 pt-1 pb-8', junto === 'lg' && 'lg:h-full lg:overflow-y-auto', junto === 'xl' && 'xl:h-full xl:overflow-y-auto')}>
+                {lado ? (
+                  <LadoALado
+                    temporada={temporada}
+                    capacidades={capacidades}
+                    grupos={grupos}
+                    fichas={control.fichas}
+                    origen={estadoOrigen}
+                    onReintentar={origen.reintentar}
+                    busqueda={busqueda}
+                    acciones={{ pasar: control.pasar, pasarVarios: control.pasarVarios, crearCopia: control.crearCopia }}
+                  />
+                ) : (
+                  <TableroPlanner carriles={lanes} bloqueos={bloqueos} avisos={avisos} banco={banco} localidades={localidades} busqueda={busqueda} />
+                )}
+              </div>
+              <div hidden={!bancoVisible} className={cn('min-w-0', lado ? 'order-first mx-6 mb-4 xl:order-none xl:m-0 xl:min-h-0' : 'mx-6 mb-6 lg:m-0 lg:min-h-0')}>
                 <BancoPersonas
                   id={ID_BANCO}
                   banco={banco}
                   temporada={temporada}
-                  className={lado ? 'max-h-[380px] overflow-y-auto xl:max-h-[calc(100dvh-7rem)]' : 'lg:max-h-[calc(100dvh-7rem)] lg:overflow-y-auto'}
+                  className={
+                    lado
+                      ? 'max-h-[380px] overflow-y-auto rounded-md border border-border xl:h-full xl:max-h-none xl:rounded-none xl:border-0 xl:border-l'
+                      : 'rounded-md border border-border lg:h-full lg:overflow-y-auto lg:rounded-none lg:border-0 lg:border-l'
+                  }
                 />
               </div>
             </div>
-          </>
+          </div>
         )}
 
         <PanelAlertas

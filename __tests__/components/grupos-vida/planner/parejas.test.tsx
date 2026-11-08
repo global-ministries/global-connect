@@ -139,6 +139,8 @@ async function expandir(nombre: string) {
 }
 
 async function abrirPanel(nombre: string) {
+  // "Abrir" lives in the column's options menu ("⋮").
+  await userEvent.click(within(tarjeta(nombre)).getByRole('button', { name: `Opciones de ${nombre}` }))
   await userEvent.click(within(tarjeta(nombre)).getByRole('button', { name: `Abrir ${nombre}` }))
   return within(screen.getByRole('dialog', { name: nombre })).getByRole('region', { name: 'Integrantes' })
 }
