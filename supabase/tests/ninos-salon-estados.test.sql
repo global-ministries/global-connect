@@ -17,7 +17,8 @@
 --      is this one (preferred salón, special needs, grade, age; not the
 --      cancelled, the already inside, another turno, an inactive salón);
 --      Retirados with hour and who; destinations (active, same campus, the
---      caller operates them) with occupancy; puede_operar / puede_llegar
+--      caller operates them) with occupancy; destinos_por_nino (T2f, S9.5:
+--      per child inside, the destinos that correspond); puede_operar / puede_llegar
 --      (true for whoever reads it, L32); a volunteer only assigned to the
 --      salón in the planilla cannot read it.
 --   d. ninos_mover_salon: same check-in, code and visit, new salón, one audit
@@ -59,7 +60,9 @@
 --   28 pre-check T2                        → not on T1
 --   29 no pre-check                        → «Llegó» refused
 --   30 in S1, picked up 9:08 by Ana        → Retirados S1
---   31, 32 inside S1, one visit and code   → the move cases
+--   31, 32 inside S1, one visit and code   → the move cases (T2f, S9.5: a move
+--      only goes to a salón that corresponds, so 31 is 48 months → Sala B
+--      and 32 has special needs → Plus; ninos-mover-corresponde covers the rule)
 
 BEGIN;
 
@@ -227,7 +230,7 @@ SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Se', 'U' || n, 'se-' || n |
   FROM generate_series(1, 9) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, fecha_nacimiento)
 SELECT pg_temp.id('us', n), 'ZZ Se Niño', 'N' || n, 'No especificado', 'Otro',
-       (pg_temp.f() - CASE WHEN n = 22 THEN interval '48 months 3 days' WHEN n = 24 THEN interval '80 months'
+       (pg_temp.f() - CASE WHEN n IN (22, 31) THEN interval '48 months 3 days' WHEN n = 24 THEN interval '80 months'
                            ELSE interval '12 months 3 days' END)::date
   FROM generate_series(21, 32) AS n;
 
@@ -281,7 +284,7 @@ INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, exp
   (pg_temp.id('us', 4), 'dream_team.coordinate', 'dream_team', 'equipo', pg_temp.id('eq', 6)::text);
 
 INSERT INTO public.ninos_fichas (usuario_id, grado, necesidades_especiales, alergias, cambio_panal, salon_preferido_id)
-SELECT pg_temp.id('us', n), CASE WHEN n = 24 THEN 1 END, CASE WHEN n = 25 THEN 'ZZ TEA' END,
+SELECT pg_temp.id('us', n), CASE WHEN n = 24 THEN 1 END, CASE WHEN n IN (25, 32) THEN 'ZZ TEA' END,
        CASE WHEN n = 21 THEN 'ZZ Maní' END, n = 21, CASE WHEN n = 23 THEN pg_temp.id('sa', 2) END
   FROM generate_series(21, 32) AS n;
 
@@ -388,6 +391,12 @@ SELECT pg_temp.assert_eq('c: the coordinator operates S1; destinations S2, S6 wi
                          FROM jsonb_array_elements(r -> 'destinos') d)
               FROM (SELECT (%s) AS r) x$q$, pg_temp.estado(1)),
   'true/true/ZZ Se Plus:0:10,ZZ Se Sala B:0:20');
+SELECT pg_temp.assert_eq('c: destinos_por_nino: each child inside S1 with the destinos that correspond (T2f, S9.5)',
+  format($q$SELECT string_agg(u.apellido || '=' || (SELECT coalesce(string_agg(s.nombre, '+' ORDER BY s.nombre), '')
+                                                    FROM jsonb_array_elements_text(e.v) x JOIN public.ninos_salones s ON s.id = x::uuid),
+                              ',' ORDER BY u.apellido)
+              FROM jsonb_each((%s) -> 'destinos_por_nino') e(k, v) JOIN public.usuarios u ON u.id = e.k::uuid$q$, pg_temp.estado(1)),
+  'N27=,N31=ZZ Se Sala B,N32=ZZ Se Plus');
 SELECT pg_temp.assert_eq('c: a past date has no esperados', pg_temp.nombres(1, 'esperados', 1, pg_temp.f() - 7), '');
 SELECT pg_temp.assert_eq('c: another turno of the day does not list T1 pre-checks (28 is T2)', pg_temp.nombres(1, 'esperados', 2), 'N28');
 SELECT pg_temp.assert_raises('c: a turno of another campus', pg_temp.estado(1, 3), '22023', 'turno_invalido',
