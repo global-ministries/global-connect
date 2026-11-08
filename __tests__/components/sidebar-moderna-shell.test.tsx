@@ -346,4 +346,14 @@ describe('shell skip link', () => {
     // It is the first stop of the keyboard in the shell.
     expect(document.body.querySelector('a, button')).toBe(saltar)
   })
+
+  it('contains the absolute descendants of every page in its only scroller', () => {
+    render(<DashboardLayout><p>Contenido</p></DashboardLayout>)
+
+    // Positioned, so sr-only text and other absolute children cannot take the
+    // viewport as containing block and stretch the document under the shell
+    // (a dark band at the bottom and a second scrollbar).
+    const principal = screen.getByRole('main')
+    expect(principal).toHaveClass('relative', 'overflow-auto')
+  })
 })
