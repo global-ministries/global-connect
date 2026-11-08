@@ -259,7 +259,11 @@ SELECT pg_temp.assert_eq('a5: anon executes no dps_* function',
         AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('public', p.oid, 'EXECUTE'))$q$, '-');
 SELECT pg_temp.assert_eq('a6: authenticated executes exactly the public dps_* functions',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname LIKE 'dps\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')$q$,
+      WHERE n.nspname = 'public' AND p.proname LIKE 'dps\_%' AND has_function_privilege('authenticated', p.oid, 'EXECUTE')
+        -- T8b (20261108102000) functions are checked by its own suite.
+        AND p.proname NOT IN ('dps_convocar', 'dps_desconvocar', 'dps_copiar_plan', 'dps_plan_anterior', 'dps_candidatos_puesto',
+                              'dps_plan_equipos', 'dps_asistencia_planilla', 'dps_asistencia_marcar',
+                              'dps_asistencia_marcar_equipo', 'dps_historial_persona')$q$,
   'dps_config_guardar,dps_config_leer,dps_pasan_asistencia_guardar,dps_plan_campo,dps_plan_crear,dps_plan_leer,'
   || 'dps_planes_rango,dps_planificador_agregar,dps_planificador_quitar,dps_puede_pasar_asistencia,dps_puede_planificar,'
   || 'dps_puede_ver,dps_puesto_desactivar,dps_puesto_guardar,dps_puestos_listar,dps_serie_actualizar,dps_serie_crear,'
@@ -268,7 +272,8 @@ SELECT pg_temp.assert_eq('a7: the tables have RLS on and no policies',
   $q$SELECT string_agg(c.relname || ':' || c.relrowsecurity || ':' || (SELECT count(*) FROM pg_policy po WHERE po.polrelid = c.oid),
                        ',' ORDER BY c.relname COLLATE "C")
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'dps\_%'$q$,
+      WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'dps\_%'
+        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias')$q$,
   'dps_config:true:0,dps_pasan_asistencia:true:0,dps_planes:true:0,dps_planificadores:true:0,dps_puestos:true:0,dps_series:true:0');
 
 SET LOCAL ROLE authenticated;
