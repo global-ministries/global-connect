@@ -20,10 +20,15 @@ import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import { CodigoRetiro, type ResultadoIngreso } from '../checkin/codigo-retiro'
 import type { ResultadoMesa } from './use-registro-mesa'
 
-/** Optional email invitation for the new parent (G5; the server accepts it from the registering operator only). */
-export function InvitarCuenta({ padreId }: { padreId: string }) {
+/**
+ * Optional email invitation for a parent without an account (G5, T2k): right
+ * after registering or from the family card; the server accepts it from the
+ * anfitriones and coordinación of the family's campus. `emailInicial`: the
+ * email already on the ficha, to confirm with the parent.
+ */
+export function InvitarCuenta({ padreId, emailInicial = '' }: { padreId: string; emailInicial?: string }) {
   const [abierta, setAbierta] = useState(false)
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(emailInicial)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [enviada, setEnviada] = useState<string | null>(null)

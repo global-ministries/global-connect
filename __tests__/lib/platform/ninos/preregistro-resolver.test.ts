@@ -72,7 +72,7 @@ describe('resolverPreregistro — resend the invitation', () => {
     const r = await resolverPreregistro(d, ID, { accion: 'invitar', email: 'ana@example.test' })
     expect(r.status).toBe(403)
     expect(r.body).toMatchObject({ invitacion: 'fallo', codigo: 'sin_autoridad' })
-    expect(String(r.body.error)).toMatch(/Ya no se puede reenviar/)
+    expect(r.body.error).toBe('Ya no se puede reenviar desde aquí. Busca la familia en la mesa y usa «Invitar a crear su cuenta».')
   })
 
   it('a parent who already has an account needs no invitation', async () => {
@@ -111,6 +111,33 @@ describe('resolverPreregistro', () => {
     expect(d.enviarBienvenida).not.toHaveBeenCalled()
     await despuesDeResponder()
     expect(d.enviarBienvenida).toHaveBeenCalledWith({ to: 'ana@example.test', nombre: 'Ana', idempotencyKey: `ninos-bienvenida-${ID}` })
+  })
+
+  it('an email the database did not store (it belongs to someone else) is not invited', async () => {
+    const d = deps({
+      rpcUsuario: jest.fn().mockResolvedValue({
+        data: { padre_id: 'p1', padre_nuevo: true, email_guardado: false, estado: 'confirmado' },
+        error: null,
+      }),
+    })
+    const r = await resolverPreregistro(d, ID, { accion: 'confirmar', payload, email: 'ana@example.test' })
+    expect(d.invitar).not.toHaveBeenCalled()
+    expect(r).toEqual({
+      status: 200,
+      body: { ok: true, estado: 'confirmado', padreId: 'p1', correo: 'programado', invitacion: 'correo_en_uso' },
+    })
+  })
+
+  it('a stored email is invited automatically', async () => {
+    const d = deps({
+      rpcUsuario: jest.fn().mockResolvedValue({
+        data: { padre_id: 'p1', padre_nuevo: true, email_guardado: true, estado: 'confirmado' },
+        error: null,
+      }),
+    })
+    const r = await resolverPreregistro(d, ID, { accion: 'confirmar', payload, email: 'ana@example.test' })
+    expect(d.invitar).toHaveBeenCalledWith('ana@example.test')
+    expect(r.body).toMatchObject({ invitacion: 'enviada' })
   })
 
   it('without email sends nothing', async () => {

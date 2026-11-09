@@ -205,7 +205,7 @@ describe('PreregistrosPendientes', () => {
     })
     render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
     await confirmarConGenero()
-    expect(await screen.findByText(/No se pudo enviar la invitación para crear la cuenta\./)).toBeInTheDocument()
+    expect(await screen.findByText(/No pudimos enviar la invitación; puedes reenviarla desde la familia\./)).toBeInTheDocument()
 
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true, invitacion: 'enviada' }) })
     fireEvent.click(screen.getByRole('button', { name: 'Reenviar invitación' }))
@@ -213,6 +213,17 @@ describe('PreregistrosPendientes', () => {
     const [url, init] = fetchMock.mock.calls[1]
     expect(url).toBe('/api/ninos/preregistro/pr1')
     expect(JSON.parse(init.body)).toEqual({ accion: 'invitar', email: 'ana@example.test' })
+    expect(screen.queryByRole('button', { name: 'Reenviar invitación' })).not.toBeInTheDocument()
+  })
+
+  it('an email that belongs to someone else is not stored nor invited, and says so', async () => {
+    responder()
+    fetchMock.mockResolvedValueOnce({
+      ok: true, status: 200, json: async () => ({ ok: true, padreId: 'p1', correo: 'programado', invitacion: 'correo_en_uso' }),
+    })
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    await confirmarConGenero()
+    expect(await screen.findByText(/Ese correo ya es de otra persona: no lo guardamos ni enviamos la invitación\./)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reenviar invitación' })).not.toBeInTheDocument()
   })
 

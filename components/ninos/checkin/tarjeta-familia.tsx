@@ -3,8 +3,9 @@
 /**
  * Niños › Check-in — the family at the mesa (prototype 01 `.familia`):
  * parents, the children already marked with their salón, who may pick up,
- * and "Registrar ingreso · N niños". Nothing marked disables the button
- * ("Marca al menos un niño").
+ * «Sin cuenta» with the account invitation (T2k, S9.9) and "Registrar
+ * ingreso · N niños". Nothing marked disables the button ("Marca al menos un
+ * niño").
  */
 import type { ReactElement, Ref } from 'react'
 
@@ -14,6 +15,7 @@ import { quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo 
 import type { FamiliaEncontrada, HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
 import type { EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
 
+import { CuentaFamilia } from './cuenta-familia'
 import { FilaHijo } from './fila-hijo'
 import { Avatar, PistaTecla, PuedenRetirar } from './partes'
 
@@ -100,6 +102,8 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
       )}
 
       <PuedenRetirar personas={retiran} />
+
+      <CuentaFamilia padreId={familia.id} />
 
       {p.error && (
         <p role="alert" className="text-sm text-danger-text">

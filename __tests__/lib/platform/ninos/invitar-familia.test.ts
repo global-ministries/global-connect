@@ -1,12 +1,13 @@
 /**
  * @jest-environment node
  *
- * G5 (odd/tasks/ninos-cobertura.md) — inviting the new adult of a family
- * registered at the table: the shared invitation flow, with the
- * table-bound RPC deciding who may invite and until when.
+ * G5 (odd/tasks/ninos-cobertura.md) and T2k (odd/tasks/ninos-checkin-pco.md,
+ * S9.9) — inviting the parent of a family without an account from the desk,
+ * right after registering it or at any later visit: the shared invitation
+ * flow, with the campus-bound RPC deciding who may invite and how often.
  */
 import type { DependenciasInvitacion } from '@/lib/platform/cuentas/invitacion-cuenta'
-import { invitarFamiliaNueva } from '@/lib/platform/ninos/invitar-familia'
+import { cargarCuentaFamilia, invitarFamiliaNueva } from '@/lib/platform/ninos/invitar-familia'
 
 const PADRE = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
@@ -42,12 +43,27 @@ describe('invitarFamiliaNueva', () => {
     expect(d.enviarCorreo).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana@example.test', idempotencyKey: 'invitacion-cuenta-inv1' }))
   })
 
-  it('after the hour, or for someone else, explains where to invite instead', async () => {
+  it('outside the campus of the family explains who can invite', async () => {
     const rpc = jest.fn().mockResolvedValue({ data: null, error: { code: '42501', message: 'sin_autoridad' } })
-    const r = await invitarFamiliaNueva(deps(rpc), PADRE, { email: 'ana@example.test' })
-    expect(r.status).toBe(403)
-    expect(r.body).toMatchObject({ codigo: 'sin_autoridad' })
-    expect(String(r.body.error)).toMatch(/Un coordinador puede invitarla desde su ficha/)
+    const d = deps(rpc)
+    const r = await invitarFamiliaNueva(d, PADRE, { email: 'ana@example.test' })
+    expect(r).toEqual({
+      status: 403,
+      body: { error: 'Solo el equipo de la mesa del campus de esta familia puede invitarla.', codigo: 'sin_autoridad' },
+    })
+    expect(d.enviarCorreo).not.toHaveBeenCalled()
+  })
+
+  it('a second invitation of the same family within minutes waits (cooldown)', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { code: '22023', message: 'invitacion_reciente' } })
+    const d = deps(rpc)
+    const r = await invitarFamiliaNueva(d, PADRE, { email: 'ana@example.test' })
+    expect(r).toEqual({
+      status: 429,
+      body: { error: 'Ya le enviamos una invitación hace poco. Espera unos minutos para reenviarla.', codigo: 'invitacion_reciente' },
+    })
+    expect(d.admin.generarEnlace).not.toHaveBeenCalled()
+    expect(d.enviarCorreo).not.toHaveBeenCalled()
   })
 
   it('passes the safety refusals through with their message', async () => {
@@ -64,5 +80,34 @@ describe('invitarFamiliaNueva', () => {
     expect(r).toEqual({ status: 502, body: { error: 'No se pudo enviar el correo. Puedes reenviarlo.' } })
     expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
     log.mockRestore()
+  })
+})
+
+describe('cargarCuentaFamilia', () => {
+  it('reads «Sin cuenta», the email of the ficha and the last invitation for that parent', async () => {
+    const rpc = jest.fn().mockResolvedValue({
+      data: {
+        sin_cuenta: true,
+        email_ficha: 'ana@example.test',
+        invitacion: { estado: 'enviada', email: 'ana@example.test', created_at: '2026-11-08T10:00:00Z' },
+      },
+      error: null,
+    })
+    expect(await cargarCuentaFamilia({ rpc }, PADRE)).toEqual({
+      sinCuenta: true,
+      emailFicha: 'ana@example.test',
+      invitacion: { estado: 'enviada', email: 'ana@example.test', enviadaEl: '2026-11-08T10:00:00Z' },
+    })
+    expect(rpc).toHaveBeenCalledWith('ninos_familia_cuenta', { p_padre_id: PADRE })
+  })
+
+  it('a parent with an account', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: { sin_cuenta: false }, error: null })
+    expect(await cargarCuentaFamilia({ rpc }, PADRE)).toEqual({ sinCuenta: false, emailFicha: null, invitacion: null })
+  })
+
+  it('null when the database refuses or answers nothing (nothing is shown)', async () => {
+    expect(await cargarCuentaFamilia({ rpc: jest.fn().mockResolvedValue({ data: null, error: { code: '42501', message: 'sin_autoridad' } }) }, PADRE)).toBeNull()
+    expect(await cargarCuentaFamilia({ rpc: jest.fn().mockResolvedValue({ data: null, error: null }) }, PADRE)).toBeNull()
   })
 })

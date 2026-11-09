@@ -140,6 +140,16 @@ describe('CheckinClient', () => {
     expect(screen.getByTestId('resumen-checkin')).toHaveTextContent('Barquisimeto · 3 niños adentro · 0 salones llenos · 0 familias en camino')
   })
 
+  it('the family card says «Sin cuenta» and offers the invitation (T2k, S9.9)', async () => {
+    responder({ ninos_familia_cuenta: { data: { sin_cuenta: true, email_ficha: null, invitacion: null }, error: null } })
+    render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
+    await buscarFamilia()
+    const tarjeta = screen.getByRole('region', { name: 'Familia de Ana Pérez' })
+    expect(await within(tarjeta).findByText('Sin cuenta')).toBeInTheDocument()
+    expect(within(tarjeta).getByRole('button', { name: 'Invitar a crear su cuenta' })).toBeInTheDocument()
+    expect(rpc).toHaveBeenCalledWith('ninos_familia_cuenta', { p_padre_id: 'p1' })
+  })
+
   it('keeps the service in the URL', async () => {
     responder()
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)

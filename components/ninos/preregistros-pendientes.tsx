@@ -49,7 +49,8 @@ const AVISO_CORREO: Record<string, string> = {
 
 const AVISO_INVITACION: Record<string, string> = {
   enviada: 'Le enviamos una invitación para crear su cuenta.',
-  fallo: 'No se pudo enviar la invitación para crear la cuenta.',
+  fallo: 'No pudimos enviar la invitación; puedes reenviarla desde la familia.',
+  correo_en_uso: 'Ese correo ya es de otra persona: no lo guardamos ni enviamos la invitación.',
 }
 
 async function resolver(id: string, body: unknown): Promise<{ ok: boolean; datos: Record<string, unknown> }> {
