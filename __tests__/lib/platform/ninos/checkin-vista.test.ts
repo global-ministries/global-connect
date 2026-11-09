@@ -60,8 +60,12 @@ describe('salón of a child', () => {
     expect(salonDeHijo(hijo({ id: 'h1' }), salones, fecha)).toEqual({ salonId: 's1', origen: 'sugerido' })
   })
 
-  it('the salón remembered on the ficha wins over the suggestion', () => {
-    expect(salonDeHijo(hijo({ id: 'h1', salon_preferido_id: 's2' }), salones, fecha)).toEqual({ salonId: 's2', origen: 'elegido' })
+  it('the salón remembered on the ficha wins over the suggestion while it corresponds to the child (S9.5)', () => {
+    expect(salonDeHijo(hijo({ id: 'h1', fecha_nacimiento: '2019-06-01', grado: 1, salon_preferido_id: 's2' }), salones, fecha)).toEqual({
+      salonId: 's2',
+      origen: 'elegido',
+    })
+    expect(salonDeHijo(hijo({ id: 'h1', salon_preferido_id: 's2' }), salones, fecha)).toEqual({ salonId: 's1', origen: 'sugerido' })
   })
 
   it('a salón picked by hand wins, and an empty pick falls back to the suggestion', () => {

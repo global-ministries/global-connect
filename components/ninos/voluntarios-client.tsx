@@ -31,6 +31,12 @@ import {
   type Planilla,
   type TurnoVoluntarios,
 } from '@/lib/platform/ninos/voluntarios'
+import {
+  asignarSalonVoluntario,
+  cargarSalonesPlanilla,
+  type AsignacionSalon,
+  type SalonesPlanilla,
+} from '@/lib/platform/ninos/salon-voluntarios'
 import { createClient } from '@/lib/supabase/client'
 
 import { EncabezadoNinos } from './encabezado-ninos'
@@ -40,6 +46,7 @@ import { useRefrescoVisible } from './use-refresco'
 import { ContadoresVoluntarios } from './voluntarios-contadores'
 import { TarjetasEquiposVoluntarios } from './voluntarios-equipos'
 import { FilaVoluntarioItem } from './voluntarios-fila'
+import { FilaConSalon } from './voluntarios/salon-voluntario'
 
 type Props = {
   turnos: TurnoVoluntarios[]
@@ -93,6 +100,11 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
   // null = automatic: "Sin turno asignado" opens on its own when nobody is expected.
   const [abiertos, setAbiertos] = useState<{ otros: boolean; sinTurno: boolean | null }>({ otros: false, sinTurno: null })
   const [confirmando, setConfirmando] = useState<string | null>(null)
+  // The salón of each volunteer (L27); null hides the selects, as before T2c.
+  const [salones, setSalones] = useState<SalonesPlanilla | null>(null)
+  // «Solo hoy» ticked without a write yet: the next salón chosen is for this service.
+  const [soloHoyMarcado, setSoloHoyMarcado] = useState<ReadonlySet<string>>(new Set())
+  const salonEnVueloRef = useRef(0)
 
   // A load answers only if it is the latest one. A background refresh is
   // dropped while marks are in flight or were made after it started, so it
@@ -108,11 +120,17 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
       if (!servicio.turnoId) return
       const carga = ++cargaRef.current
       const version = versionRef.current
-      const { data, error: err } = await createClient().rpc('ninos_voluntarios_planilla', {
-        p_turno_id: servicio.turnoId,
-        p_fecha: servicio.fecha,
-      })
+      const cliente = createClient()
+      const [{ data, error: err }, datosSalones] = await Promise.all([
+        cliente.rpc('ninos_voluntarios_planilla', {
+          p_turno_id: servicio.turnoId,
+          p_fecha: servicio.fecha,
+        }),
+        cargarSalonesPlanilla(cliente, servicio.turnoId, servicio.fecha),
+      ])
       if (carga !== cargaRef.current) return
+      // A salón change in flight wins over a background refresh.
+      if (!refresco || salonEnVueloRef.current === 0) setSalones(datosSalones)
       if (refresco && (version !== versionRef.current || enVueloRef.current > 0)) return
       if (err) {
         setError(mensajeErrorPlanilla(err))
@@ -153,6 +171,8 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
     setError(null)
     setConfirmando(null)
     setEquipoElegido(TODOS_LOS_EQUIPOS)
+    setSalones(null)
+    setSoloHoyMarcado(new Set())
     router.replace(urlVoluntarios(ajustado, areaId))
   }
 
@@ -203,6 +223,69 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
   }
 
   const onMarcar = (f: FilaVoluntario, e: EstadoAsistencia) => void marcar([f], siguienteEstado(f.estado, e))
+
+  function ponerAsignacion(servicioId: string, a: AsignacionSalon | undefined) {
+    setSalones((s) => {
+      if (!s) return s
+      const porServicio = new Map(s.porServicio)
+      if (a) porServicio.set(servicioId, a)
+      else porServicio.delete(servicioId)
+      return { ...s, porServicio }
+    })
+  }
+
+  // Habitual salón, or (soloHoy) the salón of this service; optimistic, rolled back on error.
+  async function asignarSalon(servicioId: string, salonId: string | null, soloHoy: boolean) {
+    if (!servicio.turnoId || !salones) return
+    const previa = salones.porServicio.get(servicioId)
+    const habitualId = previa?.habitualId ?? null
+    ponerAsignacion(
+      servicioId,
+      soloHoy ? { salonId, habitualId, esDelDia: salonId !== habitualId } : { salonId, habitualId: salonId, esDelDia: false },
+    )
+    salonEnVueloRef.current += 1
+    const r = await asignarSalonVoluntario(
+      createClient(),
+      soloHoy ? { servicioId, salonId, turnoId: servicio.turnoId, fecha: servicio.fecha } : { servicioId, salonId },
+    )
+    salonEnVueloRef.current -= 1
+    if (!r.ok) {
+      ponerAsignacion(servicioId, previa)
+      toast.error(r.message)
+    }
+  }
+
+  function alternarSoloHoy(servicioId: string, activo: boolean) {
+    setSoloHoyMarcado((m) => {
+      const n = new Set(m)
+      if (activo) n.add(servicioId)
+      else n.delete(servicioId)
+      return n
+    })
+    const a = salones?.porServicio.get(servicioId)
+    // Unchecking a salón set only for today goes back to the habitual one.
+    if (!activo && a?.esDelDia) void asignarSalon(servicioId, a.habitualId, true)
+  }
+
+  function filaVoluntario(f: FilaVoluntario, mostrarEquipo = false) {
+    const item = <FilaVoluntarioItem key={f.servicio_id} fila={f} editable={editable} mostrarEquipo={mostrarEquipo} onMarcar={onMarcar} />
+    if (!salones || salones.salones.length === 0) return item
+    const a = salones.porServicio.get(f.servicio_id)
+    return (
+      <FilaConSalon
+        key={f.servicio_id}
+        servicioId={f.servicio_id}
+        asignacion={a}
+        salones={salones.salones}
+        editableHoy={editable}
+        soloHoy={Boolean(a?.esDelDia) || soloHoyMarcado.has(f.servicio_id)}
+        onSoloHoy={(activo) => alternarSoloHoy(f.servicio_id, activo)}
+        onCambiar={(salonId, soloHoy) => void asignarSalon(f.servicio_id, salonId, soloHoy)}
+      >
+        {item}
+      </FilaConSalon>
+    )
+  }
 
   return (
     <>
@@ -294,9 +377,7 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
                       </span>
                     </div>
                     <ul className="divide-y divide-border">
-                      {g.filas.map((f) => (
-                        <FilaVoluntarioItem key={f.servicio_id} fila={f} editable={editable} onMarcar={onMarcar} />
-                      ))}
+                      {g.filas.map((f) => filaVoluntario(f))}
                     </ul>
                     {editable && pendientes > 0 && (
                       <div className="flex flex-wrap items-center gap-2 pt-2">
@@ -333,11 +414,7 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
                   <TarjetaSistema className="p-4">
                     <p className="text-sm text-muted-foreground">Tienen otro turno o no les toca este día. Márcalos si sirvieron.</p>
                     <ul className="divide-y divide-border">
-                      {agruparPorEquipo(otros).flatMap((g) =>
-                        g.filas.map((f) => (
-                          <FilaVoluntarioItem key={f.servicio_id} fila={f} editable={editable} mostrarEquipo onMarcar={onMarcar} />
-                        )),
-                      )}
+                      {agruparPorEquipo(otros).flatMap((g) => g.filas.map((f) => filaVoluntario(f, true)))}
                     </ul>
                   </TarjetaSistema>
                 </Desplegable>
@@ -353,11 +430,7 @@ export function VoluntariosClient({ turnos, servicio: servicioInicial, areaId: a
                   <TarjetaSistema className="p-4">
                     <p className="text-sm text-muted-foreground">Aún no tienen turno. No cuentan como esperados.</p>
                     <ul className="divide-y divide-border">
-                      {agruparPorEquipo(sinTurno).flatMap((g) =>
-                        g.filas.map((f) => (
-                          <FilaVoluntarioItem key={f.servicio_id} fila={f} editable={editable} mostrarEquipo onMarcar={onMarcar} />
-                        )),
-                      )}
+                      {agruparPorEquipo(sinTurno).flatMap((g) => g.filas.map((f) => filaVoluntario(f, true)))}
                     </ul>
                   </TarjetaSistema>
                 </Desplegable>

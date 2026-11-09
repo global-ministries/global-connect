@@ -1,25 +1,40 @@
 'use client'
 
-import { useState } from 'react'
-import { Phone, RotateCcw, Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { RotateCcw } from 'lucide-react'
 
-import { BadgeSistema, BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import type { Servicio } from '@/lib/platform/ninos/checkin'
+import { avisosPorPersona } from '@/lib/platform/ninos/custodia'
 import {
   agruparRetiro,
-  MAX_MOTIVO_RETIRO,
+  cargarOpcionesRetiro,
+  cargarRetirosRecientes,
+  listaNatural,
+  marcadosIniciales,
   mensajeDeErrorRetiro,
-  parseOpcionesRetiro,
-  textoRetirado,
+  ninoIdsParaRetiro,
+  resumenRetiro,
+  textoBotonRetiro,
+  textoQuedan,
   validarCodigo,
+  validarMarcados,
   validarRetiro,
   type FilaCodigo,
+  type FilaRetirada,
   type OpcionRetiro,
   type Retiro,
+  type RetirosRecientes,
 } from '@/lib/platform/ninos/retiro'
 import { createClient } from '@/lib/supabase/client'
 
 import { registrarRetiroApi } from './api-visita'
+import { AvisoCustodia } from './custodia/aviso-custodia'
+import { useCustodia } from './custodia/use-custodia'
+import { NinosDelCodigo } from './retiro/ninos-del-codigo'
+import { OTRA, QuienRetira } from './retiro/quien-retira'
+import { RetiroHecho } from './retiro/retiro-hecho'
+import { UltimosRetiros } from './retiro/ultimos-retiros'
 
 type Props = {
   servicio: Servicio
@@ -27,17 +42,25 @@ type Props = {
   onRetirado?: () => void
 }
 
-/** The "Otra persona" choice (anyone outside the list, with a reason). */
-const OTRA = '__otra__'
+type Hecho = { titulo: string; detalle: string }
 
 /**
- * Check-out by code: type the code, see the children, pick who picks up from their list, confirm.
- * Design-system v2 surfaces and tokens (odd/tasks/ninos-v2.md, N2b); the behavior is unchanged.
+ * Check-out by code, per child (odd/tasks/ninos-checkin-pco.md T2a, artboard
+ * 07-retiro-celular): the code searches at its 4th digit, the anfitrión marks
+ * which children leave and who picks up from their list (or another person
+ * with a reason); the success says who is still inside with the same code.
+ * While no code is open it shows the service's last pickups.
+ *
+ * Custody (T2e, S9.2): a child of the code with an active restriction shows
+ * the red banner «No entregar a {persona} — {respaldo}» with the protocol and
+ * «Avisa a coordinación»; that person is not offered and the database refuses
+ * them (custodia_restringida, its HINT shown as is).
  */
 export function RetiroPanel({ servicio, onRetirado }: Props) {
   const [texto, setTexto] = useState('')
   const [codigo, setCodigo] = useState<string | null>(null)
   const [retiro, setRetiro] = useState<Retiro | null>(null)
+  const [marcados, setMarcados] = useState<string[]>([])
   const [opciones, setOpciones] = useState<OpcionRetiro[]>([])
   /** The chosen option's name, OTRA, or null. */
   const [eleccion, setEleccion] = useState<string | null>(null)
@@ -45,9 +68,43 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(false)
-  const [hecho, setHecho] = useState<string | null>(null)
+  const [hecho, setHecho] = useState<Hecho | null>(null)
+  const [recientes, setRecientes] = useState<RetirosRecientes | null>(null)
+  /** Only the answer to the last options request counts. */
+  const pedidoOpciones = useRef(0)
+  const idsAdentro = useMemo(() => (retiro ? retiro.adentro.map((f) => f.nino_id) : []), [retiro])
+  const custodia = useCustodia(idsAdentro)
+  const avisosCustodia = avisosPorPersona(custodia, idsAdentro)
 
-  async function buscar(c: string) {
+  const cargarRecientes = useCallback(async () => {
+    if (!servicio.turnoId) return
+    setRecientes(await cargarRetirosRecientes(createClient(), servicio.turnoId, servicio.fecha))
+  }, [servicio.turnoId, servicio.fecha])
+
+  useEffect(() => {
+    // Fetch on mount and on service change; state is set after the await.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void cargarRecientes()
+  }, [cargarRecientes])
+
+  /** Who may pick up the marked children (none marked or all of them = the whole code, as before). */
+  async function cargarOpciones(c: string, adentro: readonly FilaCodigo[], elegidos: readonly string[]) {
+    if (!servicio.turnoId || adentro.length === 0) return
+    const pedido = ++pedidoOpciones.current
+    const lista = await cargarOpcionesRetiro(createClient(), {
+      codigo: c,
+      turnoId: servicio.turnoId,
+      fecha: servicio.fecha,
+      ninoIds: ninoIdsParaRetiro(elegidos, adentro),
+    })
+    if (pedido !== pedidoOpciones.current) return
+    // Without the list, "Otra persona" with a reason still works.
+    setOpciones(lista)
+    setEleccion((e) => (e === OTRA || lista.some((o) => o.nombre === e) ? e : null))
+  }
+
+  /** Looks the code up; `elegidos` are marked when still inside (else the only child inside). */
+  async function buscar(c: string, elegidos?: readonly string[]) {
     if (!servicio.turnoId) return
     setCargando(true)
     const { data, error: err } = await createClient().rpc('ninos_buscar_codigo', {
@@ -67,39 +124,61 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
       return
     }
     const agrupado = agruparRetiro(filas)
-    let lista: OpcionRetiro[] = []
-    if (agrupado.adentro.length > 0) {
-      const r = await createClient().rpc('ninos_retiro_opciones', {
-        p_codigo: c,
-        p_turno_id: servicio.turnoId,
-        p_fecha: servicio.fecha,
-      })
-      // Without the list, "Otra persona" with a reason still works.
-      lista = r.error ? [] : parseOpcionesRetiro(r.data)
-    }
+    const adentroIds = agrupado.adentro.map((f) => f.nino_id)
+    const iniciales = elegidos ? elegidos.filter((id) => adentroIds.includes(id)) : marcadosIniciales(agrupado.adentro)
     setCodigo(c)
     setRetiro(agrupado)
-    setOpciones(lista)
+    setMarcados(iniciales)
+    setOpciones([])
     setEleccion(null)
     setOtraNombre('')
     setMotivo('')
+    await cargarOpciones(c, agrupado.adentro, iniciales)
   }
 
-  function onBuscar(e: React.FormEvent) {
-    e.preventDefault()
+  function onCodigo(valor: string) {
+    const digitos = valor.replace(/\D/g, '').slice(0, 4)
+    setTexto(digitos)
     setHecho(null)
     setError(null)
+    if (digitos.length < 4) {
+      setCodigo(null)
+      setRetiro(null)
+      return
+    }
+    const v = validarCodigo(digitos)
+    if (v.ok) void buscar(v.codigo)
+  }
+
+  function onEnviarCodigo(e: React.FormEvent) {
+    e.preventDefault()
     const v = validarCodigo(texto)
     if (!v.ok) {
-      setRetiro(null)
       setError(v.error)
       return
     }
+    setError(null)
     void buscar(v.codigo)
   }
 
+  function marcar(ninoId: string) {
+    if (!retiro || !codigo) return
+    const siguientes = marcados.includes(ninoId) ? marcados.filter((id) => id !== ninoId) : [...marcados, ninoId]
+    setMarcados(siguientes)
+    setError(null)
+    void cargarOpciones(codigo, retiro.adentro, siguientes)
+  }
+
+  const quien = eleccion === OTRA ? otraNombre : eleccion
+  const filasMarcadas = retiro ? retiro.adentro.filter((f) => marcados.includes(f.nino_id)) : []
+
   async function confirmar() {
-    if (!codigo || !servicio.turnoId) return
+    if (!codigo || !retiro || !servicio.turnoId) return
+    const m = validarMarcados(filasMarcadas.map((f) => f.nino_id))
+    if (!m.ok) {
+      setError(m.error)
+      return
+    }
     const v = validarRetiro(
       eleccion === OTRA ? { tipo: 'otra', nombre: otraNombre, motivo } : eleccion ? { tipo: 'lista', nombre: eleccion } : null,
     )
@@ -109,50 +188,79 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
     }
     setError(null)
     setCargando(true)
+    const ninoIds = ninoIdsParaRetiro(marcados, retiro.adentro)
     const { data, error: err } = await registrarRetiroApi({
       codigo,
       turnoId: servicio.turnoId,
       fecha: servicio.fecha,
       retiradoPor: v.retiradoPor,
       motivoOtra: v.motivoOtra,
+      ...(ninoIds ? { ninoIds } : {}),
     })
     setCargando(false)
     if (err) {
       setError(mensajeDeErrorRetiro(err))
       return
     }
-    setHecho(`Retiro registrado: ${(data ?? []).length} niño(s) con el código ${codigo}.`)
+    setHecho(resumenRetiro((data ?? []) as FilaRetirada[], retiro.adentro, v.retiradoPor))
     onRetirado?.()
-    await buscar(codigo)
+    void cargarRecientes()
+    await buscar(codigo, [])
   }
 
-  function otroCodigo() {
+  function siguienteCodigo() {
     setTexto('')
     setCodigo(null)
     setRetiro(null)
+    setMarcados([])
     setHecho(null)
     setError(null)
   }
 
+  function retirarQuedan() {
+    if (!retiro || !codigo) return
+    const todos = retiro.adentro.map((f) => f.nino_id)
+    setHecho(null)
+    setMarcados(todos)
+    setEleccion(null)
+    void cargarOpciones(codigo, retiro.adentro, todos)
+  }
+
+  if (hecho && codigo) {
+    return (
+      <section className="space-y-4" aria-label="Retiro">
+        <RetiroHecho
+          titulo={hecho.titulo}
+          detalle={hecho.detalle}
+          codigo={codigo}
+          quedan={retiro?.adentro ?? []}
+          onRetirarQuedan={retirarQuedan}
+          onSiguiente={siguienteCodigo}
+        />
+      </section>
+    )
+  }
+
+  const listo = filasMarcadas.length > 0 && Boolean(quien?.trim())
+
   return (
     <section className="space-y-4" aria-label="Retiro">
-      <form className="flex items-end gap-2" onSubmit={onBuscar}>
-        <div className="min-w-0 flex-1">
-          <InputSistema
-            id="retiro-codigo"
-            label="Código de seguridad"
-            inputMode="numeric"
-            autoComplete="off"
-            maxLength={4}
-            placeholder="1234"
-            className="font-mono text-2xl tracking-widest tabular-nums"
-            value={texto}
-            onChange={(e) => setTexto(e.target.value.replace(/\D/g, ''))}
-          />
-        </div>
-        <BotonSistema type="submit" icono={Search} disabled={cargando || !servicio.turnoId}>
-          Buscar
-        </BotonSistema>
+      <form className="space-y-1.5" onSubmit={onEnviarCodigo}>
+        <InputSistema
+          id="retiro-codigo"
+          label="Código de seguridad"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={4}
+          placeholder="1234"
+          className="font-mono text-2xl tracking-widest tabular-nums"
+          value={texto}
+          disabled={!servicio.turnoId}
+          onChange={(e) => onCodigo(e.target.value)}
+        />
+        {texto.length < 4 && (
+          <p className="text-xs text-muted-foreground">Escribe el código de la etiqueta del adulto. Busca solo al 4.º dígito.</p>
+        )}
       </form>
 
       {error && (
@@ -160,114 +268,61 @@ export function RetiroPanel({ servicio, onRetirado }: Props) {
           {error}
         </p>
       )}
-      {hecho && (
-        <p role="status" className="rounded-xl border border-success/20 bg-success/10 p-3 text-sm font-medium text-success-text">
-          {hecho}
-        </p>
-      )}
 
-      {retiro && (
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
-          <ul className="divide-y divide-border" aria-label="Niños con este código">
-            {retiro.adentro.map((f) => (
-              <li key={f.checkin_id} className="flex flex-wrap items-center justify-between gap-2 py-2 font-medium text-foreground">
-                <span>
-                  {f.nombre} {f.apellido}
-                </span>
-                <span className="text-sm font-normal text-muted-foreground">— {f.salon}</span>
-              </li>
-            ))}
-            {retiro.retirados.map((f) => (
-              <li key={f.checkin_id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-muted-foreground">
-                <span>
-                  {f.nombre} {f.apellido}
-                </span>
-                <BadgeSistema variante="default" tamaño="sm">
-                  {textoRetirado(f)}
-                </BadgeSistema>
-              </li>
-            ))}
-          </ul>
+      {!retiro && recientes && <UltimosRetiros recientes={recientes} />}
+
+      {retiro && codigo && (
+        <div className="space-y-4">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-sm text-muted-foreground">
+              Código <b className="font-mono tabular-nums text-foreground">{codigo}</b> ·{' '}
+              <span className="font-mono tabular-nums">{retiro.adentro.length}</span> adentro
+            </p>
+            <BotonSistema type="button" variante="ghost" tamaño="sm" icono={RotateCcw} onClick={siguienteCodigo}>
+              Otro código
+            </BotonSistema>
+          </div>
+
+          {avisosCustodia.map((a) => (
+            <AvisoCustodia
+              key={a.persona}
+              persona={a.persona}
+              respaldo={a.respaldo}
+              notas={a.notas}
+              ninos={listaNatural(
+                retiro.adentro.filter((f) => a.ninoIds.includes(f.nino_id)).map((f) => f.nombre.trim().split(/\s+/)[0] ?? ''),
+              )}
+              conCoordinacion
+            />
+          ))}
+
+          <NinosDelCodigo retiro={retiro} marcados={marcados} onMarcar={marcar} />
 
           {retiro.adentro.length > 0 && (
             <>
-              <fieldset className="space-y-2">
-                <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">¿Quién retira?</legend>
-                {opciones.length === 0 && (
-                  <BadgeSistema variante="warning" tamaño="sm">
-                    Sin personas autorizadas ni representantes registrados.
-                  </BadgeSistema>
-                )}
-                {opciones.map((o) => (
-                  <div
-                    key={o.nombre}
-                    className="flex flex-wrap items-center gap-x-3 rounded-xl border border-border px-3 transition-colors has-[:checked]:border-brand has-[:checked]:bg-brand-tint"
-                  >
-                    <label className="flex min-h-[44px] flex-1 cursor-pointer items-center gap-3 text-sm">
-                      <input
-                        type="radio"
-                        name="retiro-quien"
-                        value={o.nombre}
-                        checked={eleccion === o.nombre}
-                        onChange={() => setEleccion(o.nombre)}
-                        className="size-5 accent-[var(--brand-strong)]"
-                      />
-                      <span>
-                        <span className="font-medium text-foreground">{o.nombre}</span>
-                        {o.relacion && <span className="text-muted-foreground"> ({o.relacion})</span>}
-                      </span>
-                    </label>
-                    {o.telefono && (
-                      <a href={`tel:${o.telefono}`} className="focus-ring inline-flex min-h-[44px] items-center gap-1 rounded-md font-mono text-sm tabular-nums text-brand-text hover:underline">
-                        <Phone className="h-3 w-3" aria-hidden />
-                        {o.telefono}
-                      </a>
-                    )}
-                  </div>
-                ))}
-                <div className="rounded-xl border border-dashed border-border px-3 has-[:checked]:border-warning/40 has-[:checked]:bg-warning/10">
-                  <label className="flex min-h-[44px] cursor-pointer items-center gap-3 text-sm">
-                    <input
-                      type="radio"
-                      name="retiro-quien"
-                      value={OTRA}
-                      checked={eleccion === OTRA}
-                      onChange={() => setEleccion(OTRA)}
-                      className="size-5 accent-[var(--brand-strong)]"
-                    />
-                    <span className="font-medium text-foreground">Otra persona</span>
-                  </label>
-                  {eleccion === OTRA && (
-                    <div className="space-y-3 pb-3">
-                      <p className="text-xs text-muted-foreground">No está en la lista: queda registrado con el motivo.</p>
-                      <InputSistema
-                        id="retiro-otra-nombre"
-                        label="Nombre de quien retira"
-                        autoComplete="off"
-                        maxLength={200}
-                        value={otraNombre}
-                        onChange={(e) => setOtraNombre(e.target.value)}
-                      />
-                      <InputSistema
-                        id="retiro-motivo"
-                        label="Motivo"
-                        placeholder="Ej.: la mamá avisó por teléfono"
-                        maxLength={MAX_MOTIVO_RETIRO}
-                        value={motivo}
-                        onChange={(e) => setMotivo(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-              </fieldset>
-              <BotonSistema type="button" tamaño="lg" className="w-full" disabled={cargando} onClick={() => void confirmar()}>
-                {cargando ? 'Registrando…' : 'Confirmar retiro'}
-              </BotonSistema>
+              <QuienRetira
+                opciones={opciones}
+                eleccion={eleccion}
+                onElegir={setEleccion}
+                otraNombre={otraNombre}
+                onOtraNombre={setOtraNombre}
+                motivo={motivo}
+                onMotivo={setMotivo}
+              />
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  {listo
+                    ? textoQuedan(retiro.adentro, marcados)
+                    : filasMarcadas.length === 0
+                      ? 'Marca al menos un niño.'
+                      : 'Elige quién retira.'}
+                </p>
+                <BotonSistema type="button" tamaño="lg" className="w-full" disabled={cargando} onClick={() => void confirmar()}>
+                  {cargando ? 'Registrando…' : textoBotonRetiro(filasMarcadas, quien)}
+                </BotonSistema>
+              </div>
             </>
           )}
-          <BotonSistema type="button" variante="ghost" tamaño="sm" icono={RotateCcw} onClick={otroCodigo}>
-            Otro código
-          </BotonSistema>
         </div>
       )}
     </section>

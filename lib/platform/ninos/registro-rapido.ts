@@ -6,8 +6,16 @@
  * its state shape, what is missing per section (keys are the DOM ids, so the
  * form can focus the first one), folding, the default pickup person and the
  * payloads of both modes. The server validates again.
+ *
+ * Full salón at «Registrar y dar ingreso» (odd/tasks/ninos-checkin-pco.md,
+ * T2j, S9.1): with today's occupancy the new children are placed as at the
+ * main desk — a new child is in its first visit (S9.3), so it may also take
+ * the visitor places; a room full for it warns, offers the next one with room
+ * (today only, the ficha keeps its salón) and may still go in: the forced
+ * children travel as forzadoIds. Never blocks.
  */
 import type { Seleccion } from './checkin'
+import type { OcupacionSalon } from './checkin-vista'
 import {
   EDAD_MAXIMA_NINOS_ANOS,
   GENEROS,
@@ -19,14 +27,20 @@ import {
   type FamiliaForm,
   type HijoForm,
 } from './familia'
+import { salonLleno } from './mesa-reglas'
 import { aplicarNivel, nivelSugerido, valorNivel, type SalonNivel } from './nivel'
-import { erroresPadrePreregistro } from './preregistro'
-import { edadEnMeses, sugerirSalon, type SalonSugerible } from './sugerir-salon'
+import { erroresPadrePreregistro, esRelacionPadre, etiquetaRelacion, generoDeRelacion } from './preregistro'
+import { datoFaltante, edadEnMeses, explicarSalon, type SalonSugerible } from './sugerir-salon'
 
 export type ModoRegistro = 'publico' | 'mesa'
 export type SeccionRegistro = 'tu' | 'ninos' | 'retiran' | 'despues'
 
-export type PadreRapido = { nombre: string; apellido: string; telefono: string; genero: string; cedula: string; email: string }
+/**
+ * `relacion` (S9.8): a RELACIONES_PADRE value or ''. The public page asks it;
+ * the desk only shows it, from a pre-registro under review (T2i), and keeps
+ * asking the género.
+ */
+export type PadreRapido = { nombre: string; apellido: string; telefono: string; genero: string; relacion: string; cedula: string; email: string }
 
 export type HijoRapido = HijoForm & {
   /** Explicit Sí / No; null = not answered (required on the public page only). */
@@ -45,7 +59,7 @@ export type DatosRapido = { campusId: string; padre: PadreRapido; hijos: HijoRap
  */
 export type ContextoRegistro = { modo: ModoRegistro; hoy: string; campusIds?: readonly string[]; padreConocido?: boolean; padreNombre?: string }
 
-type CampoHijo = 'nombre' | 'apellido' | 'nacimiento' | 'genero' | 'tiene-alergias' | 'alergias' | 'tiene-nee' | 'nee'
+type CampoHijo = 'nombre' | 'apellido' | 'nacimiento' | 'genero' | 'grado' | 'tiene-alergias' | 'alergias' | 'tiene-nee' | 'nee'
 
 export const idRapido = {
   campus: 'rr-campus',
@@ -64,11 +78,11 @@ export function hijoRapidoDesde(h: HijoForm): HijoRapido {
   return { ...h, tieneAlergias: h.alergias.trim() ? true : null, tieneNecesidades: h.necesidadesEspeciales.trim() ? true : null, nivelAuto: '' }
 }
 
-export function datosIniciales({ campusId = '', form, email = '' }: { campusId?: string; form?: FamiliaForm; email?: string } = {}): DatosRapido {
+export function datosIniciales({ campusId = '', form, email = '', relacion = '' }: { campusId?: string; form?: FamiliaForm; email?: string; relacion?: string } = {}): DatosRapido {
   const p = form?.padre
   return {
     campusId,
-    padre: { nombre: p?.nombre ?? '', apellido: p?.apellido ?? '', telefono: p?.telefono ?? '', cedula: p?.cedula ?? '', genero: p?.genero ?? '', email },
+    padre: { nombre: p?.nombre ?? '', apellido: p?.apellido ?? '', telefono: p?.telefono ?? '', cedula: p?.cedula ?? '', genero: p?.genero ?? '', relacion, email },
     hijos: form?.hijos.length ? form.hijos.map(hijoRapidoDesde) : [hijoRapidoVacio()],
     autorizados: form?.autorizados ?? [],
     fotos: null,
@@ -78,6 +92,28 @@ export function datosIniciales({ campusId = '', form, email = '' }: { campusId?:
 export const autorizadoEnBlanco = (a: AutorizadoForm) => !a.nombre.trim() && !a.telefono.trim() && !a.relacion.trim()
 
 const esGenero = (g: string) => (GENEROS as readonly string[]).includes(g)
+
+/** A new relationship sets the género it implies; tutor / otro clear it, so «¿Hombre o mujer?» is answered again. */
+export function conRelacion(padre: PadreRapido, relacion: string): PadreRapido {
+  return { ...padre, relacion, genero: generoDeRelacion(relacion) ?? '' }
+}
+
+/** Desk: a relationship other than mamá / papá, so the género is asked as Mujer / Hombre (T2i). */
+export const relacionNoPadre = (relacion: string) => esRelacionPadre(relacion) && relacion !== 'mama' && relacion !== 'papa'
+
+/** Tutor / otro (and nothing chosen yet) do not imply a género. */
+export const relacionPideGenero = (relacion: string) => esRelacionPadre(relacion) && generoDeRelacion(relacion) === null
+
+/** «¿En qué grado está?» only from 5 years (60 months) with a valid birth date in range (S9.8). */
+export function pideGrado(fechaNacimiento: string, hoy: string): boolean {
+  if (!fechaPasadaValida(fechaNacimiento, hoy) || !enRangoNinos(fechaNacimiento, hoy)) return false
+  return (edadEnMeses(fechaNacimiento, hoy) ?? 0) >= 60
+}
+
+/** Public page: a new birth date under 5 drops the grade, as its question hides. */
+export function conFechaPublica(h: HijoRapido, fechaNacimiento: string, hoy: string): HijoRapido {
+  return { ...h, fechaNacimiento, grado: pideGrado(fechaNacimiento, hoy) ? h.grado : '' }
+}
 
 export type Faltante = { id: string; seccion: SeccionRegistro; etiqueta: string; mensaje: string }
 
@@ -96,13 +132,19 @@ export function faltantes(d: DatosRapido, ctx: ContextoRegistro): Faltante[] {
   if (pub && ctx.campusIds && !ctx.campusIds.includes(d.campusId)) add(idRapido.campus, 'tu', 'Tu campus', 'Elige tu campus.')
   if (!ctx.padreConocido) {
     const e = erroresPadrePreregistro(d.padre)
-    const [nom, ape, tel, gen] = pub
-      ? ['Tu nombre', 'Tu apellido', 'Tu teléfono', 'Si eres mamá o papá']
-      : ['Nombre del representante', 'Apellido del representante', 'Teléfono del representante', 'Género del representante']
+    const [nom, ape, tel] = pub
+      ? ['Tu nombre', 'Tu apellido', 'Tu teléfono']
+      : ['Nombre del representante', 'Apellido del representante', 'Teléfono del representante']
     if (e.nombre) add(idRapido.padre('nombre'), 'tu', nom, pub ? e.nombre : 'Escribe el nombre.')
     if (e.apellido) add(idRapido.padre('apellido'), 'tu', ape, pub ? e.apellido : 'Escribe el apellido.')
     if (e.telefono) add(idRapido.padre('telefono'), 'tu', tel, e.telefono)
-    if (!esGenero(d.padre.genero)) add(idRapido.padre('genero'), 'tu', gen, 'Elige mamá o papá.')
+    if (!pub) {
+      if (!esGenero(d.padre.genero)) add(idRapido.padre('genero'), 'tu', 'Género del representante', relacionNoPadre(d.padre.relacion) ? 'Elige mujer u hombre.' : 'Elige mamá o papá.')
+    } else if (!esRelacionPadre(d.padre.relacion)) {
+      add(idRapido.padre('relacion'), 'tu', 'Tu relación con los niños', 'Elige tu relación con los niños.')
+    } else if (!esGenero(d.padre.genero)) {
+      add(idRapido.padre('genero'), 'tu', '¿Hombre o mujer?', 'Elige hombre o mujer.')
+    }
   }
   if (d.hijos.length === 0) add(idRapido.agregarHijo, 'ninos', 'Un niño', 'Agrega al menos un niño.')
   d.hijos.forEach((h, i) => {
@@ -157,7 +199,9 @@ function edadHijo(fecha: string, hoy: string): string | null {
 /** The one line of a folded section; `numero` is shown in mono. */
 export function resumenSeccion(d: DatosRapido, s: SeccionRegistro, ctx: ContextoRegistro): { texto: string; numero?: string } {
   if (s === 'tu') {
-    const rol = d.padre.genero === 'Femenino' ? 'mamá' : d.padre.genero === 'Masculino' ? 'papá' : ''
+    // «otro» says nothing about the adult, so only the name is shown (T2i).
+    const relacion = d.padre.relacion === 'otro' ? '' : etiquetaRelacion(d.padre.relacion)?.toLowerCase()
+    const rol = esRelacionPadre(d.padre.relacion) ? relacion : d.padre.genero === 'Femenino' ? 'mamá' : d.padre.genero === 'Masculino' ? 'papá' : ''
     return { texto: [`${d.padre.nombre.trim()} ${d.padre.apellido.trim()}`.trim(), rol].filter(Boolean).join(' · '), numero: d.padre.telefono.trim() }
   }
   if (s === 'ninos') {
@@ -194,7 +238,7 @@ export function aHijoForm(h: HijoRapido, fotos?: boolean | null): HijoForm {
   }
 }
 
-/** The POST /api/ninos/preregistro body (same shape as the old wizard, plus the parent género). */
+/** The POST /api/ninos/preregistro body (same shape as the old wizard, plus the parent género and relationship). */
 export function cuerpoPublico(d: DatosRapido, sitioWeb: string) {
   const autorizados = d.autorizados.filter((a) => !autorizadoEnBlanco(a))
   return { campusId: d.campusId, padre: { ...d.padre }, hijos: d.hijos.map((h) => aHijoForm(h, d.fotos)), autorizados, sitioWeb }
@@ -217,26 +261,87 @@ export function conFechaNacimiento(h: HijoRapido, fechaNacimiento: string, salon
 
 type HijoParaSalon = { fechaNacimiento: string; grado: string; salonPreferidoId: string; necesidadesEspeciales: string }
 
-/** The salón a child goes to, as the check-in decides it (hand-picked room, else the rule); null when none fits. */
-export function salonVivo<S extends SalonSugerible>(h: HijoParaSalon, salones: readonly S[], hoy: string): S | null {
-  const elegido = salones.find((s) => s.id === h.salonPreferidoId && s.activo)
-  if (elegido) return elegido
+/** Desk: today's occupancy by salón id (ninos_ocupacion). */
+export type OcupacionMesa = ReadonlyMap<string, OcupacionSalon>
+
+const ocupadosDe = (ocupacion?: OcupacionMesa) => (ocupacion?.size ? Object.fromEntries([...ocupacion].map(([id, o]) => [id, o.presentes])) : undefined)
+
+function explicarHijo<S extends SalonSugerible>(h: HijoParaSalon, salones: readonly S[], hoy: string, ocupacion?: OcupacionMesa) {
   const grado = parseGrado(h.grado)
-  return sugerirSalon({
+  return explicarSalon({
     fechaNacimiento: h.fechaNacimiento || null,
     grado: typeof grado === 'number' ? grado : null,
     necesidadesEspeciales: h.necesidadesEspeciales.trim() !== '',
     fechaServicio: hoy,
     salones,
+    // A new child is in its first visit (S9.3).
+    visitante: true,
+    ocupados: ocupadosDe(ocupacion),
   })
+}
+
+/**
+ * The salón a child goes to, as the check-in decides it (hand-picked room, else the rule); null when none fits.
+ * With `ocupacion` the first room with a place is taken; when all are full, the first open one (S9.1: never blocks).
+ */
+export function salonVivo<S extends SalonSugerible>(h: HijoParaSalon, salones: readonly S[], hoy: string, ocupacion?: OcupacionMesa): S | null {
+  const elegido = salones.find((s) => s.id === h.salonPreferidoId && s.activo)
+  if (elegido) return elegido
+  const e = explicarHijo(h, salones, hoy, ocupacion)
+  return e.salon ?? (e.estado === 'lleno' ? (e.candidatos.find((s) => s.abierto !== false) ?? null) : null)
+}
+
+/** Whether the room has no place for a new child: its quota plus the visitor places. */
+export function llenoParaNuevo(salon: SalonSugerible | undefined, ocupacion?: OcupacionMesa): boolean {
+  return salon !== undefined && salonLleno({ cupo_visitantes: salon.cupoVisitantes }, ocupacion?.get(salon.id), true)
+}
+
+/** A child of the form whose room is full today, with the next room that fits and has a place («Usar {otro}»). */
+export type LlenoAlIngresar<S> = { indice: number; nombre: string; salon: S; ocupacion: OcupacionSalon; otro: S | null }
+
+/** The children of the form that would go in over their room's quota; empty without the occupancy. */
+export function llenosDeIngreso<S extends SalonSugerible>(
+  hijos: readonly (HijoParaSalon & { nombre: string })[],
+  salones: readonly S[],
+  hoy: string,
+  ocupacion?: OcupacionMesa,
+): LlenoAlIngresar<S>[] {
+  return hijos.flatMap((h, indice) => {
+    const salon = salonVivo(h, salones, hoy, ocupacion)
+    const cupo = salon ? ocupacion?.get(salon.id) : undefined
+    if (!salon || !cupo || !llenoParaNuevo(salon, ocupacion)) return []
+    const otro = explicarHijo(h, salones, hoy, ocupacion).disponibles.find((s) => s.id !== salon.id) ?? null
+    return [{ indice, nombre: h.nombre.trim(), salon, ocupacion: cupo, otro }]
+  })
+}
+
+/** The children of the check-in that go in over their room's quota: ninos_checkin's p_forzados. */
+export function forzadosIngreso(seleccion: readonly { ninoId: string; salonId: string | null }[], salones: readonly SalonSugerible[], ocupacion?: OcupacionMesa): string[] {
+  return seleccion.filter((s) => llenoParaNuevo(salones.find((x) => x.id === s.salonId), ocupacion)).map((s) => s.ninoId)
 }
 
 type HijoRegistrado = { nombre: string; fecha_nacimiento: string; grado: number | null; salon_preferido_id: string | null; necesidades_especiales: string | null }
 
-/** The children just registered (ids in payload order) with their salón, for ninos_checkin. */
-export function seleccionIngreso(hijos: readonly HijoRegistrado[], ids: readonly string[], salones: readonly SalonSugerible[], fecha: string): Seleccion[] {
+/**
+ * The children just registered (ids in payload order) with their salón, for ninos_checkin.
+ * `salonHoy`: «Usar {otro}» by payload index, for this check-in only (S9.1).
+ */
+export function seleccionIngreso(
+  hijos: readonly HijoRegistrado[],
+  ids: readonly string[],
+  salones: readonly SalonSugerible[],
+  fecha: string,
+  ocupacion?: OcupacionMesa,
+  salonHoy?: Readonly<Record<number, string>>,
+): Seleccion[] {
   return hijos.map((h, i) => {
     const comoForm = { fechaNacimiento: h.fecha_nacimiento, grado: h.grado === null ? '' : String(h.grado), salonPreferidoId: h.salon_preferido_id ?? '', necesidadesEspeciales: h.necesidades_especiales ?? '' }
-    return { ninoId: ids[i], salonId: salonVivo(comoForm, salones, fecha)?.id ?? null, nombre: h.nombre }
+    const salonId = salonHoy?.[i] ?? salonVivo(comoForm, salones, fecha, ocupacion)?.id ?? null
+    if (salonId) return { ninoId: ids[i], salonId, nombre: h.nombre }
+    // The engine's reason: closed or full salones, else the data that keeps the child out (T2i).
+    const input = { fechaNacimiento: h.fecha_nacimiento || null, grado: h.grado, necesidadesEspeciales: comoForm.necesidadesEspeciales.trim() !== '', fechaServicio: fecha, salones, visitante: true, ocupados: ocupadosDe(ocupacion) }
+    const { estado } = explicarSalon(input)
+    const motivo = estado === 'cerrado' || estado === 'lleno' ? estado : datoFaltante(input)
+    return { ninoId: ids[i], salonId, nombre: h.nombre, motivo }
   })
 }

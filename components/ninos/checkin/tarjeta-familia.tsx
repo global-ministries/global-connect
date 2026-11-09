@@ -3,15 +3,19 @@
 /**
  * Niños › Check-in — the family at the mesa (prototype 01 `.familia`):
  * parents, the children already marked with their salón, who may pick up,
- * and "Registrar ingreso · N niños". Nothing marked disables the button
- * ("Marca al menos un niño").
+ * «Sin cuenta» with the account invitation (T2k, S9.9) and "Registrar
+ * ingreso · N niños". Nothing marked disables the button ("Marca al menos un
+ * niño").
  */
 import type { ReactElement, Ref } from 'react'
 
 import { BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
 import { quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaEncontrada, HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
+import type { EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
 
+import { CuentaFamilia } from './cuenta-familia'
 import { FilaHijo } from './fila-hijo'
 import { Avatar, PistaTecla, PuedenRetirar } from './partes'
 
@@ -22,9 +26,17 @@ export interface TarjetaFamiliaProps {
   readonly fecha: string
   readonly salones: readonly SalonFila[]
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
+  /** Active custody restrictions by child (T2e): the «Custodia» chip. */
+  readonly custodia?: CustodiaPorNino
   readonly ingresados: Ingresados
   readonly marcados: ReadonlySet<string>
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
+  /** Visit badge, full room and the other room (T2d); without it nothing is flagged. */
+  readonly estadoDe?: (h: HijoEncontrado) => EstadoHijoMesa
+  /** «Usar {otro}» on a full room. */
+  readonly onUsarOtro?: (hijoId: string, salonId: string) => void
+  /** A child's missing grade or birth date was saved (S9.6). */
+  readonly onDatoGuardado?: () => void
   readonly error: string | null
   readonly guardando: boolean
   readonly puedeRegistrar: boolean
@@ -74,18 +86,24 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
               fecha={p.fecha}
               salones={p.salones}
               salon={p.salonDe(h)}
+              estado={p.estadoDe?.(h)}
+              onUsarOtro={p.onUsarOtro ? (salonId) => p.onUsarOtro?.(h.id, salonId) : undefined}
               ocupacion={p.ocupacion}
+              custodia={p.custodia?.[h.id]}
               codigo={p.ingresados[h.id]}
               marcado={p.marcados.has(h.id)}
               onMarcar={(v) => p.onMarcar(h.id, v)}
               onCambiarSalon={() => p.onCambiarSalon(h)}
               onCompletar={() => p.onCompletar(h)}
+              onDatoGuardado={p.onDatoGuardado}
             />
           ))}
         </ul>
       )}
 
       <PuedenRetirar personas={retiran} />
+
+      <CuentaFamilia padreId={familia.id} />
 
       {p.error && (
         <p role="alert" className="text-sm text-danger-text">

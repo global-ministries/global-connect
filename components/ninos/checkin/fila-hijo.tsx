@@ -7,6 +7,20 @@
  * "Cambiar salón" panel. A full salón warns, never blocks.
  * A child without a ficha offers "Completar ficha"; one already in shows its
  * code.
+ *
+ * Desk rules (odd/tasks/ninos-checkin-pco.md, T2d; artboard 05 `.lleno`):
+ * «Primera vez» / «Visitante» (S9.3), and a room full for this child (its
+ * quota, plus the visitor places for a visitor) shows «{salón} está lleno»
+ * with «Usar {otro salón}»; registering it anyway is allowed and recorded as
+ * forced (S9.1).
+ *
+ * No salón (T2g, S9.6, L38 "Pide completar el dato que falta"): a child
+ * the rules place nowhere is not marked; the row says what is missing
+ * («Falta el grado») with the fields to fix it, and once saved the family
+ * reloads with its salón. The rest of the family goes in meanwhile.
+ *
+ * Custody (T2e, S9.2; artboard 05 `.q-al`): an active restriction adds the
+ * «Custodia» chip, which expands to «No entregar a {persona} — {respaldo}».
  */
 import type { ReactElement } from 'react'
 import { AlertTriangle, ClipboardPlus } from 'lucide-react'
@@ -14,9 +28,13 @@ import { AlertTriangle, ClipboardPlus } from 'lucide-react'
 import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
 import { edadCorta, estadoCupo, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
+import type { RestriccionCustodia } from '@/lib/platform/ninos/custodia'
 import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { ETIQUETA_VISITA, faltaDeHijo, type EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
 import { cn } from '@/lib/utils'
 
+import { ChipCustodia } from '../custodia/chip-custodia'
+import { CompletarDatoSalon } from '../salon-sugerido'
 import { Alertas } from './alertas'
 import { CupoSalon, EtiquetaLleno } from './partes'
 
@@ -33,6 +51,14 @@ export interface FilaHijoProps {
   /** Opens the "Cambiar salón" panel for this child. */
   readonly onCambiarSalon: () => void
   readonly onCompletar: () => void
+  /** Visit badge and full room by the desk rules (T2d); without it the room is full at its quota. */
+  readonly estado?: EstadoHijoMesa
+  /** «Usar {otro salón}». */
+  readonly onUsarOtro?: (salonId: string) => void
+  /** Active custody restrictions of the child (T2e). */
+  readonly custodia?: readonly RestriccionCustodia[]
+  /** After the missing grade or birth date is saved (S9.6): reload the family. */
+  readonly onDatoGuardado?: () => void
 }
 
 export function FilaHijo(p: FilaHijoProps): ReactElement {
@@ -40,10 +66,15 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
   const nombre = `${h.nombre} ${h.apellido}`
   const edad = edadCorta(h.fecha_nacimiento, p.fecha)
   const cupo = salon.salonId ? p.ocupacion.get(salon.salonId) : undefined
-  const lleno = cupo !== undefined && estadoCupo(cupo.presentes, cupo.capacidad) === 'lleno'
+  const lleno = p.estado ? p.estado.lleno : cupo !== undefined && estadoCupo(cupo.presentes, cupo.capacidad) === 'lleno'
+  const visita = p.estado?.visita
+  const etiquetaVisita = visita && visita !== 'regular' ? ETIQUETA_VISITA[visita] : null
+  const otro = p.estado?.otro ?? null
+  const cupoOtro = otro ? p.ocupacion.get(otro.id) : undefined
   const nombreSalon = p.salones.find((s) => s.id === salon.salonId)?.nombre ?? 'salón'
   const idSalon = `salon-${h.id}`
-  const marcable = h.tiene_ficha && !p.codigo
+  const falta = h.tiene_ficha && !p.codigo && !salon.salonId ? faltaDeHijo(h, p.salones, p.fecha) : null
+  const marcable = h.tiene_ficha && !p.codigo && falta === null
 
   const nombreYEdad = (
     <span className="flex min-h-11 min-w-0 items-center gap-2 text-base font-semibold text-foreground">
@@ -106,7 +137,7 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
           <BadgeSistema variante="success" tamaño="sm">
             Ya ingresó (código <span className="font-mono tabular-nums">{p.codigo}</span>)
           </BadgeSistema>
-        ) : salon.salonId ? (
+        ) : falta ? null : salon.salonId ? (
           <>
             <span id={idSalon} className="min-w-0">
               <CupoSalon nombre={nombreSalon} ocupacion={cupo} />
@@ -128,7 +159,7 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
           <>
             <span id={idSalon} className="flex items-center gap-2 text-sm font-medium text-warning-text">
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
-              Sin salón sugerido: asígnalo manualmente
+              Su salón está cerrado hoy: elige uno
             </span>
             <BotonSistema
               type="button"
@@ -145,8 +176,62 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
         )}
       </div>
 
-      {(h.es_vip_desde || h.desde_casa || alertasDeHijo(h).length > 0) && (
+      {falta && (
+        <div className="col-start-2 mt-1 min-w-0">
+          <CompletarDatoSalon hijo={h} falta={falta} onGuardado={() => p.onDatoGuardado?.()} />
+        </div>
+      )}
+
+      {marcable && p.estado && lleno && salon.salonId && cupo && (
+        <div role="alert" className="col-start-2 mt-1 grid min-w-0 gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-[13px]">
+          <div className="flex min-w-0 items-start gap-2">
+            <AlertTriangle aria-hidden="true" className="mt-px size-4 shrink-0 text-warning-text" />
+            <div className="min-w-0">
+              <p className="text-foreground">
+                <b className="font-semibold">
+                  {nombreSalon} está lleno (<span className="font-mono tabular-nums">{cupo.presentes}/{cupo.capacidad}</span>).
+                </b>{' '}
+                {otro ? (
+                  <>
+                    El siguiente que le sirve es <b className="font-semibold">{otro.nombre}</b>
+                    {cupoOtro && (
+                      <>
+                        {' · '}
+                        <span className="font-mono tabular-nums">
+                          {cupoOtro.presentes}/{cupoOtro.capacidad}
+                        </span>
+                      </>
+                    )}
+                    .
+                  </>
+                ) : (
+                  'No hay otro salón con lugar que le sirva.'
+                )}
+              </p>
+              <p className="mt-0.5 text-muted-foreground">Si lo registras aquí, queda anotado que forzaste el cupo.</p>
+            </div>
+          </div>
+          {otro && p.onUsarOtro && (
+            <BotonSistema
+              type="button"
+              tamaño="sm"
+              className="justify-self-start pointer-coarse:min-h-11"
+              onClick={() => p.onUsarOtro?.(otro.id)}
+            >
+              Usar {otro.nombre}
+            </BotonSistema>
+          )}
+        </div>
+      )}
+
+      {(h.es_vip_desde || h.desde_casa || etiquetaVisita || alertasDeHijo(h).length > 0 || (p.custodia?.length ?? 0) > 0) && (
         <div className="col-start-2 flex min-w-0 flex-wrap gap-1.5 pt-1">
+          <ChipCustodia restricciones={p.custodia ?? []} />
+          {etiquetaVisita && (
+            <BadgeSistema variante="info" tamaño="sm">
+              {etiquetaVisita}
+            </BadgeSistema>
+          )}
           {h.es_vip_desde && (
             <BadgeSistema variante="warning" tamaño="sm">
               VIP

@@ -108,7 +108,10 @@ async function opcionesCompletas(supabase: Supabase): Promise<Opciones> {
 /** The Sunday turnos the caller marks volunteers in, and their campuses (volunteer-only viewers). */
 async function opcionesDeVoluntarios(supabase: Supabase): Promise<Opciones> {
   const { data } = await supabase.rpc('ninos_voluntarios_turnos')
-  const domingos = (data ?? []).filter((t) => t.dia_semana === 0)
+  // Dated event turnos (tipo 'fechas') carry dia_semana only as a reference.
+  const domingos = (data ?? []).filter(
+    (t) => t.dia_semana === 0 && (t as { tipo?: string }).tipo !== 'fechas'
+  )
   const campus = new Map(domingos.map((t) => [t.campus_id, { id: t.campus_id, nombre: t.campus }]))
   return {
     campus: [...campus.values()],

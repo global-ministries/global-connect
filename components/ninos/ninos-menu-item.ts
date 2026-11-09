@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import type { ComponentType } from 'react'
-import { Baby, ChartColumn, ClipboardCheck, House, QrCode, UserCheck, UsersRound } from 'lucide-react'
+import { Baby, CalendarClock, ChartColumn, ClipboardCheck, DoorOpen, House, QrCode, UserCheck, UsersRound } from 'lucide-react'
 
 import { useNinosAcceso, type NinosAcceso } from '@/hooks/useNinosAcceso'
 
@@ -32,6 +32,13 @@ export function getNinosNavItems(acceso: NinosAcceso): NinosMenuChild[] {
   if (acceso.puedeOperar) {
     items.push({ id: 'ninos-checkin', label: 'Check-in', href: '/ninos/checkin', icon: ClipboardCheck })
     items.push({ id: 'ninos-familias', label: 'Familias', href: '/ninos/familias', icon: UsersRound })
+  }
+  // Same gate as /ninos/eventos and /ninos/salones: ninos_puede_configurar_algun_area()
+  // (the pages then check the campus with ninos_puede_configurar_algun_area_campus).
+  // "Salones de check-in" (the rules) is not "Salones" (/ninos/salon, the roster).
+  if (acceso.puedeConfigurar) {
+    items.push({ id: 'ninos-eventos', label: 'Eventos', href: '/ninos/eventos', icon: CalendarClock })
+    items.push({ id: 'ninos-salones', label: 'Salones de check-in', href: '/ninos/salones', icon: DoorOpen })
   }
   if (acceso.puedeVerSalon || acceso.puedeOperar) {
     items.push({ id: 'ninos-salon', label: 'Salones', href: '/ninos/salon', icon: House })

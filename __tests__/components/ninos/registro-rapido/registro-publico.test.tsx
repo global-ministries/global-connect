@@ -28,7 +28,7 @@ function llenarPadre() {
   escribir('Tu nombre', 'Ana')
   escribir('Tu apellido', 'Prueba')
   escribir('Teléfono', '04140000000')
-  elegir('Eres mamá o papá', 'Mamá')
+  escribir('Tu relación con los niños', 'mama')
 }
 
 function llenarHijo(n = 1, nombre = 'Sol') {
@@ -68,7 +68,7 @@ describe('RegistroPublico', () => {
     expect(Object.keys(body).sort()).toEqual(['autorizados', 'campusId', 'hijos', 'padre', 'sitioWeb'])
     expect(body).toMatchObject({
       campusId: campus[0].id,
-      padre: { nombre: 'Ana', apellido: 'Prueba', telefono: '04140000000', genero: 'Femenino', email: '', cedula: '' },
+      padre: { nombre: 'Ana', apellido: 'Prueba', telefono: '04140000000', genero: 'Femenino', relacion: 'mama', email: '', cedula: '' },
       autorizados: [],
       sitioWeb: '',
     })
@@ -94,6 +94,74 @@ describe('RegistroPublico', () => {
     expect(resumen).toHaveTextContent('Revisa 4 datos antes de enviar')
     fireEvent.click(within(resumen).getByRole('link', { name: 'Alergias de Sol' }))
     expect(document.getElementById('rr-nino-1-tiene-alergias')).toHaveFocus()
+  })
+
+  it('the adult picks their relationship from the 8 options; mamá… imply the género', async () => {
+    fetchMock.mockResolvedValue(ok)
+    render(<RegistroPublico campus={campus} />)
+    const opciones = within(screen.getByLabelText('Tu relación con los niños')).getAllByRole('option').map((o) => o.textContent)
+    expect(opciones).toEqual(['Elige…', 'Mamá', 'Papá', 'Abuela', 'Abuelo', 'Tía', 'Tío', 'Tutor o tutora', 'Otro'])
+    expect(screen.queryByRole('group', { name: 'Eres mamá o papá' })).not.toBeInTheDocument()
+    llenarTodo()
+    escribir('Tu relación con los niños', 'abuelo')
+    expect(screen.queryByRole('group', { name: '¿Hombre o mujer?' })).not.toBeInTheDocument()
+    enviar()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(cuerpo().padre).toMatchObject({ relacion: 'abuelo', genero: 'Masculino' })
+  })
+
+  it('without a relationship it asks for one', () => {
+    render(<RegistroPublico campus={campus} />)
+    llenarTodo()
+    escribir('Tu relación con los niños', '')
+    enviar()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByText('Elige tu relación con los niños.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Tu relación con los niños')).toHaveFocus()
+  })
+
+  it('tutor or otro asks «¿Hombre o mujer?» and requires it', async () => {
+    fetchMock.mockResolvedValue(ok)
+    render(<RegistroPublico campus={campus} />)
+    llenarTodo()
+    escribir('Tu relación con los niños', 'tutor')
+    enviar()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(screen.getByText('Elige hombre o mujer.')).toBeInTheDocument()
+    elegir('¿Hombre o mujer?', 'Mujer')
+    enviar()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(cuerpo().padre).toMatchObject({ relacion: 'tutor', genero: 'Femenino' })
+  })
+
+  it('asks the grade only from 5 years, optional, and sends it', async () => {
+    fetchMock.mockResolvedValue(ok)
+    render(<RegistroPublico campus={campus} />)
+    llenarTodo()
+    escribir('Fecha de nacimiento del niño 1', '2024-01-10')
+    expect(screen.queryByLabelText('¿En qué grado está el niño 1?')).not.toBeInTheDocument()
+    escribir('Fecha de nacimiento del niño 1', '2019-05-01')
+    expect(screen.getByText('¿En qué grado está?')).toBeInTheDocument()
+    const opciones = within(screen.getByLabelText('¿En qué grado está el niño 1?')).getAllByRole('option').map((o) => o.textContent)
+    expect(opciones[0]).toBe('No sé / todavía no va a la escuela')
+    expect(opciones).toContain('2º grado')
+    escribir('¿En qué grado está el niño 1?', '2')
+    enviar()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(cuerpo().hijos[0]).toMatchObject({ fechaNacimiento: '2019-05-01', grado: '2' })
+  })
+
+  it('a birth date changed to under 5 hides and clears the grade', async () => {
+    fetchMock.mockResolvedValue(ok)
+    render(<RegistroPublico campus={campus} />)
+    llenarTodo()
+    escribir('Fecha de nacimiento del niño 1', '2019-05-01')
+    escribir('¿En qué grado está el niño 1?', '1')
+    escribir('Fecha de nacimiento del niño 1', '2024-01-10')
+    expect(screen.queryByLabelText('¿En qué grado está el niño 1?')).not.toBeInTheDocument()
+    enviar()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+    expect(cuerpo().hijos[0].grado).toBe('')
   })
 
   it('shows the under-13 rule on the child card and does not send', () => {

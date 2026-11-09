@@ -2,15 +2,19 @@
 
 /**
  * Niños › Check-in — body of the "Cambiar salón" panel (prototype 01/05
- * `tpl-salon`): every salón with who it is for and its occupancy; the
- * suggested one is marked. A full salón can still be chosen (warns, never
- * blocks). One tap picks it and closes the panel; a salón other than the
- * suggestion is remembered on the ficha for next Sunday (as before).
+ * `tpl-salon`): the salones that correspond to the child (S9.5, T2f: by
+ * needs, grade or age, as the suggestion) with who each is for and its
+ * occupancy; the suggested one is marked. A child without age and grade
+ * child that fits no salón gets no list, only what is missing (S9.6). A
+ * full salón can still be chosen (warns, never blocks). One tap picks it and
+ * closes the panel; a salón other than the suggestion is remembered on the
+ * ficha for next Sunday (as before). A closed salón (T2d) reads «cerrado»:
+ * never suggested, still selectable.
  */
 import type { ReactElement } from 'react'
 
 import { edadCorta, estadoCupo, rangoSalon, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
-import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { salonesDelHijo, TEXTO_FALTA, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { cn } from '@/lib/utils'
 
 import { EtiquetaLleno } from './partes'
@@ -30,6 +34,15 @@ export interface SelectorSalonProps {
 export function SelectorSalon({ hijo, fecha, salones, ocupacion, actualId, sugeridoId, onElegir }: SelectorSalonProps): ReactElement {
   const edad = edadCorta(hijo.fecha_nacimiento, fecha)
   const sugerido = salones.find((s) => s.id === sugeridoId)
+  const lista = salonesDelHijo(hijo, salones, fecha)
+  if (lista.falta) {
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        {hijo.nombre} {hijo.apellido}
+        {edad && ` · ${edad}`}. <b className="font-semibold text-foreground">{TEXTO_FALTA[lista.falta]}</b>: complétalo en su fila de la mesa.
+      </p>
+    )
+  }
   return (
     <div className="grid min-w-0 gap-3.5">
       <p className="text-[13px] text-muted-foreground">
@@ -44,10 +57,10 @@ export function SelectorSalon({ hijo, fecha, salones, ocupacion, actualId, suger
         )}
       </p>
       <ul aria-label={`Salones para ${hijo.nombre}`} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
-        {salones.map((s) => {
+        {lista.salones.map((s) => {
           const cupo = ocupacion.get(s.id)
           const lleno = cupo !== undefined && estadoCupo(cupo.presentes, cupo.capacidad) === 'lleno'
-          const detalle = [rangoSalon(s), s.id === sugeridoId ? 'sugerido' : null].filter(Boolean).join(' · ')
+          const detalle = [rangoSalon(s), s.abierto === false ? 'cerrado' : null, s.id === sugeridoId ? 'sugerido' : null].filter(Boolean).join(' · ')
           return (
             <li key={s.id} className="[&+li]:border-t [&+li]:border-border/60">
               <button

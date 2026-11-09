@@ -1,7 +1,9 @@
 /**
  * POST /api/ninos/checkin — N4 check-in moved behind a route for N9 emails.
  *
- * { ninoIds, salonIds, turnoId, fecha } → { filas } (the ninos_checkin rows).
+ * { ninoIds, salonIds, turnoId, fecha, forzadoIds? } → { filas } (the ninos_checkin rows).
+ * forzadoIds (T2d, S9.1): the children whose full salón the desk forced; it
+ * travels as p_forzados only when present, so a call without it is unchanged.
  * The RPC runs AS THE USER, so the authority stays in SQL. Then the parents
  * with an email get one email per family visit, sent after the response with
  * after() (best effort: a failure is logged without personal data and the
@@ -28,6 +30,7 @@ export async function POST(req: NextRequest) {
       p_salon_ids: e.salonIds,
       p_turno_id: e.turnoId,
       p_fecha: e.fecha,
+      ...(e.forzadoIds && { p_forzados: e.forzadoIds }),
     })
     if (error) return NextResponse.json({ error: { code: error.code } }, { status: statusDeError(error.code) })
 

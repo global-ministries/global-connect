@@ -1,9 +1,13 @@
 /**
  * POST /api/ninos/checkout — N5 check-out moved behind a route for N9 emails.
  *
- * { codigo, turnoId, fecha, retiradoPor, motivoOtra? } → { filas } (children
- * released). Without motivoOtra the database requires retiradoPor to be on
- * the list of every child (ninos_checkout, 20261012130100).
+ * { codigo, turnoId, fecha, retiradoPor, motivoOtra?, ninoIds? } → { filas }
+ * (children released). Without ninoIds every child inside with the code
+ * leaves; with them, only those (T2a, 20261108120000). Without motivoOtra
+ * the database requires retiradoPor to be on the list of every child
+ * released (ninos_checkout, 20261012130100). A person with an active custody
+ * restriction for a child released is refused (custodia_restringida, 403,
+ * with its HINT; T2e, 20261108170000).
  * The RPC runs AS THE USER (authority in SQL); then one email per family
  * visit to the parents with an email (best effort, never fails the call).
  */
@@ -29,8 +33,17 @@ export async function POST(req: NextRequest) {
       p_fecha: e.fecha,
       p_retirado_por: e.retiradoPor,
       p_motivo_otra: e.motivoOtra,
+      ...(e.ninoIds ? { p_nino_ids: e.ninoIds } : {}),
     })
-    if (error) return NextResponse.json({ error: errorPublico(error) }, { status: statusDeError(error.code) })
+    if (error) {
+      // A custody refusal (T2e, 20261108170000) is a fixed code with a fixed Spanish HINT: both travel as is.
+      // (The untyped RPC helper does not declare the HINT that PostgREST sends.)
+      const publico =
+        error.message === 'custodia_restringida'
+          ? { code: error.code, message: error.message, hint: (error as { hint?: string | null }).hint ?? null }
+          : errorPublico(error)
+      return NextResponse.json({ error: publico }, { status: statusDeError(error.code) })
+    }
 
     const filas = Array.isArray(data) ? (data as { nino_id: string }[]) : []
     if (filas.length > 0) {

@@ -8,7 +8,8 @@
  *   the service's `turnoId` it offers "Registrar y dar ingreso · N" and shows
  *   the code here; "Solo registrar" opens the family at the mesa with its
  *   children already marked.
- * - Cambiar salón: the salones with occupancy (full warns, never blocks).
+ * - Cambiar salón: the salones that correspond to the child, with occupancy
+ *   (full warns, never blocks; S9.5).
  * - Completar ficha: the ficha form of a child linked without one.
  * - Agregar niño / Vincular hijo existente: an adult without children (N11).
  * The forms keep their behavior and API calls; Esc closes the panel.
@@ -44,6 +45,8 @@ export interface PanelesCheckinProps {
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
   /** The salón a child of the mesa goes to now (hand-picked included). */
   readonly salonDe: (h: HijoEncontrado) => SalonDeHijo
+  /** The salón the rules suggest, ignoring a hand pick (T2d); default: by age and grade only. */
+  readonly sugeridoDe?: (h: HijoEncontrado) => SalonDeHijo
   readonly onElegirSalon: (hijoId: string, salonId: string) => void
   /** Opens a family at the mesa (search by `consulta`, select `padreId`). */
   readonly onAbrirFamilia: (padreId: string, consulta?: string) => void
@@ -110,7 +113,7 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
           salones={props.salones}
           ocupacion={props.ocupacion}
           actualId={props.salonDe(panel.hijo).salonId}
-          sugeridoId={salonDeHijo(panel.hijo, props.salones, props.fecha).salonId}
+          sugeridoId={(props.sugeridoDe?.(panel.hijo) ?? salonDeHijo(panel.hijo, props.salones, props.fecha)).salonId}
           onElegir={(salonId) => {
             props.onElegirSalon(panel.hijo.id, salonId)
             onCerrar()

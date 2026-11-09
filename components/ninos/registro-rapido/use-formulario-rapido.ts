@@ -10,9 +10,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { AutorizadoForm } from '@/lib/platform/ninos/familia'
+import { preferidoCorresponde } from '@/lib/platform/ninos/familias-vista'
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import {
   conFechaNacimiento,
+  conFechaPublica,
+  conRelacion,
   debePlegarse,
   estadoBarra,
   faltantes,
@@ -62,15 +65,19 @@ export function useFormularioRapido(inicial: () => DatosRapido, ctx: ContextoReg
     setDatos((d) => {
       // The children's surname follows the parent's until it is edited by hand.
       const hijos = campo === 'apellido' ? d.hijos.map((h) => (h.apellido === d.padre.apellido ? { ...h, apellido: valor } : h)) : d.hijos
-      return { ...d, padre: { ...d.padre, [campo]: valor }, hijos }
+      // A relationship (public page) also sets the género it implies.
+      return { ...d, padre: campo === 'relacion' ? conRelacion(d.padre, valor) : { ...d.padre, [campo]: valor }, hijos }
     })
   const setHijo = (i: number, cambios: Partial<HijoRapido>) =>
     setDatos((d) => ({ ...d, hijos: d.hijos.map((h, j) => (j === i ? { ...h, ...cambios } : h)) }))
+  // S9.5: a room picked by hand that no longer fits the new birth date is dropped, so the suggestion replaces it.
+  const sinPreferidoCaduco = (h: HijoRapido, fecha: string): HijoRapido =>
+    preferidoCorresponde({ ...h, fechaNacimiento: fecha }, salones, hoy) ? h : { ...h, salonPreferidoId: '', nivelAuto: '' }
   const setFecha = (i: number, fecha: string) =>
     setDatos((d) => ({
       ...d,
-      // The desk preselects the suggested level (as the old desk form); the public page never stores one.
-      hijos: d.hijos.map((h, j) => (j !== i ? h : modo === 'mesa' ? conFechaNacimiento(h, fecha, salones, hoy) : { ...h, fechaNacimiento: fecha })),
+      // The desk preselects the suggested level (as the old desk form); the public page never stores one and drops the grade under 5.
+      hijos: d.hijos.map((h, j) => (j !== i ? h : modo === 'mesa' ? conFechaNacimiento(sinPreferidoCaduco(h, fecha), fecha, salones, hoy) : conFechaPublica(h, fecha, hoy))),
     }))
   const agregarHijo = () =>
     setDatos((d) => ({ ...d, hijos: [...d.hijos, hijoRapidoVacio(d.padre.apellido.trim() || d.hijos[0]?.apellido || '')] }))

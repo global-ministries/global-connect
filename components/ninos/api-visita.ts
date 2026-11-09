@@ -18,8 +18,14 @@ async function postear<T>(ruta: string, body: unknown): Promise<Resultado<T>> {
 
 export type FilaIngreso = { nino_id: string; salon_id: string; codigo: string; ocupacion: number; capacidad: number; sobre_capacidad: boolean }
 
-export const registrarIngresoApi = (body: { ninoIds: string[]; salonIds: string[]; turnoId: string; fecha: string }) =>
-  postear<FilaIngreso>('/api/ninos/checkin', body)
+export const registrarIngresoApi = (body: {
+  ninoIds: string[]
+  salonIds: string[]
+  turnoId: string
+  fecha: string
+  /** Children forced into a full salón (T2d, S9.1); omitted when none. */
+  forzadoIds?: string[]
+}) => postear<FilaIngreso>('/api/ninos/checkin', body)
 
 export const registrarRetiroApi = (body: {
   codigo: string
@@ -27,5 +33,7 @@ export const registrarRetiroApi = (body: {
   fecha: string
   retiradoPor: string
   motivoOtra: string | null
+  /** Only the marked children (T2a); omitted = every child inside with the code. */
+  ninoIds?: string[]
 }) =>
   postear<{ nino_id: string; salon_id: string; salida_at: string }>('/api/ninos/checkout', body)

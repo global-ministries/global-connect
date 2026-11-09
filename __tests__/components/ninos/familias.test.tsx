@@ -15,18 +15,76 @@ const salones: SalonFila[] = [
 beforeEach(() => rpc.mockReset())
 
 describe('SalonSugerido', () => {
+  const eva = { id: 'h2', nombre: 'Eva', fecha_nacimiento: '2015-01-01', grado: null }
+
   it('shows the suggested room', () => {
-    render(<SalonSugerido resultado={{ tipo: 'sugerido', salon: { ...salones[0], id: 's1', nombre: 'Maternal' } as never }} salones={salones} onElegir={jest.fn()} />)
+    render(<SalonSugerido hijo={eva} resultado={{ tipo: 'sugerido', salon: { ...salones[0], id: 's1', nombre: 'Maternal' } as never }} onGuardado={jest.fn()} />)
     expect(screen.getByText(/Maternal/)).toBeInTheDocument()
-    expect(screen.queryByText(/Sin salón sugerido/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Falta/)).not.toBeInTheDocument()
   })
 
-  it('without a suggestion it says so and asks for a manual room', () => {
-    const onElegir = jest.fn()
-    render(<SalonSugerido resultado={{ tipo: 'ninguno' }} salones={salones} onElegir={onElegir} />)
-    expect(screen.getByText('Sin salón sugerido: asígnalo manualmente')).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Asignar salón'), { target: { value: 's2' } })
-    expect(onElegir).toHaveBeenCalledWith('s2')
+  // S9.6 (L38): "Pide completar el dato que falta" — never a list of every salón.
+  it('«Falta el grado»: no salón to pick; the grade is saved to the ficha and the screen recomputes', async () => {
+    rpc.mockResolvedValue({ data: null, error: null })
+    const onGuardado = jest.fn()
+    render(<SalonSugerido hijo={eva} resultado={{ tipo: 'ninguno', falta: 'grado' }} onGuardado={onGuardado} />)
+    expect(screen.getByText('Falta el grado')).toBeInTheDocument()
+    expect(screen.getByText('Sin este dato no puede ingresar a un salón.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Asignar salón')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Fecha de nacimiento de Eva')).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '1º grado' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Sin grado (no escolarizado)' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Elige el grado.')
+    expect(rpc).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Grado de Eva'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1))
+    expect(rpc).toHaveBeenCalledWith('ninos_actualizar_nino', { p_nino_id: 'h2', p: { grado: 1 } })
+  })
+
+  it('«Falta la fecha de nacimiento o el grado»: one of the two is enough; a future date is refused', async () => {
+    rpc.mockResolvedValue({ data: null, error: null })
+    const onGuardado = jest.fn()
+    render(<SalonSugerido hijo={{ ...eva, fecha_nacimiento: null }} resultado={{ tipo: 'ninguno', falta: 'fecha_o_grado' }} onGuardado={onGuardado} />)
+    expect(screen.getByText('Falta la fecha de nacimiento o el grado')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Completa la fecha de nacimiento o el grado.')
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento de Eva'), { target: { value: '2999-01-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('La fecha de nacimiento no es válida.')
+    expect(rpc).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Fecha de nacimiento de Eva'), { target: { value: '2019-06-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledTimes(1))
+    expect(rpc).toHaveBeenCalledWith('ninos_actualizar_nino', { p_nino_id: 'h2', p: { fecha_nacimiento: '2019-06-01' } })
+  })
+
+  it('«Revisa…»: shows the current data to correct; a refused save stays on screen', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'datos_invalidos' } })
+    const onGuardado = jest.fn()
+    render(<SalonSugerido hijo={{ ...eva, fecha_nacimiento: '2021-06-01', grado: 0 }} resultado={{ tipo: 'ninguno', falta: 'revisar' }} onGuardado={onGuardado} />)
+    expect(screen.getByText('Revisa la fecha de nacimiento o el grado: no corresponde a ningún salón')).toBeInTheDocument()
+    expect(screen.getByLabelText('Fecha de nacimiento de Eva')).toHaveValue('2021-06-01')
+    expect(screen.getByLabelText('Grado de Eva')).toHaveValue('0')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Cambia la fecha de nacimiento o el grado.')
+    fireEvent.change(screen.getByLabelText('Grado de Eva'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Revisa los datos: hay campos inválidos.'))
+    expect(rpc).toHaveBeenCalledWith('ninos_actualizar_nino', { p_nino_id: 'h2', p: { grado: 1 } })
+    expect(onGuardado).not.toHaveBeenCalled()
+  })
+
+  it('when its salones are only closed it says so and offers no other', () => {
+    render(<SalonSugerido hijo={eva} resultado={{ tipo: 'ninguno', falta: null }} onGuardado={jest.fn()} />)
+    expect(screen.getByText('Su salón está cerrado hoy.')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
   })
 })
 

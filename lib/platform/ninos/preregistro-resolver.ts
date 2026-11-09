@@ -8,8 +8,12 @@
  * so an existing parent is reused only when the anfitrión chose it (padre.id).
  * Afterwards, when the family gave an email: a welcome email and, if the
  * parent has no account, an account invitation (ninos_preregistro_invitar +
- * the shared invitation flow). Email problems never undo the confirmation;
- * a failed invitation can be resent with { accion: 'invitar', email }.
+ * the shared invitation flow). The database stores that email on a NEW
+ * parent (email_guardado, T2k of odd/tasks/ninos-checkin-pco.md, S9.9); one
+ * it did not store because it belongs to someone else is not invited
+ * ('correo_en_uso'). Email problems never undo the confirmation; a failed
+ * invitation can be resent with { accion: 'invitar', email } or later from
+ * the family at the desk.
  */
 import { mensajeDeErrorFamilia, type FamiliaPayload } from './familia'
 
@@ -86,7 +90,7 @@ async function reenviarInvitacion(deps: DependenciasResolver, id: string, email:
     return {
       status: 403,
       body: {
-        error: 'Ya no se puede reenviar desde aquí (pasó más de una hora o la confirmó otra persona). Un coordinador puede invitarla desde su ficha.',
+        error: 'Ya no se puede reenviar desde aquí. Busca la familia en la mesa y usa «Invitar a crear su cuenta».',
         invitacion: 'fallo',
         codigo: inv.codigo,
       },
@@ -118,9 +122,10 @@ export async function resolverPreregistro(deps: DependenciasResolver, id: string
   })
   if (error) return errorRpc(error)
   const padreId = esObjeto(data) && typeof data.padre_id === 'string' ? data.padre_id : null
+  const emailNoGuardado = esObjeto(data) && data.email_guardado === false
 
   let correo: 'programado' | 'sin_correo' = 'sin_correo'
-  let invitacion: 'enviada' | 'no' | 'fallo' = 'no'
+  let invitacion: 'enviada' | 'no' | 'fallo' | 'correo_en_uso' = 'no'
   if (r.email) {
     const nombre = 'nombre' in r.payload.padre ? r.payload.padre.nombre : ''
     const to = r.email
@@ -134,13 +139,17 @@ export async function resolverPreregistro(deps: DependenciasResolver, id: string
       if (!ok) console.error('[ninos/preregistro] bienvenida falló:', id)
     })
     correo = 'programado'
-    try {
-      const inv = await deps.invitar(r.email)
-      invitacion = inv.ok ? 'enviada' : inv.codigo === 'ya_tiene_cuenta' || inv.codigo === 'email_distinto' ? 'no' : 'fallo'
-    } catch {
-      invitacion = 'fallo'
+    if (emailNoGuardado) {
+      invitacion = 'correo_en_uso'
+    } else {
+      try {
+        const inv = await deps.invitar(r.email)
+        invitacion = inv.ok ? 'enviada' : inv.codigo === 'ya_tiene_cuenta' || inv.codigo === 'email_distinto' ? 'no' : 'fallo'
+      } catch {
+        invitacion = 'fallo'
+      }
+      if (invitacion === 'fallo') console.error('[ninos/preregistro] invitación falló:', id)
     }
-    if (invitacion === 'fallo') console.error('[ninos/preregistro] invitación falló:', id)
   }
 
   return { status: 200, body: { ok: true, estado: 'confirmado', padreId, correo, invitacion } }

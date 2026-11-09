@@ -4,44 +4,64 @@
  * capacity warnings read back from it.
  */
 import { fechaServicioPorDefecto } from './fecha'
+import { TEXTO_FALTA } from './familias-vista'
+import type { DatoFaltante } from './sugerir-salon'
 
 export { fechaServicioPorDefecto }
 
-/** A dream_team_turnos row as selected by the screen. */
-export type TurnoFila = { id: string; nombre: string; hora: string; orden: number }
+/**
+ * A dream_team_turnos row as selected by the screen. `tipo: 'fechas'` marks a
+ * dated turno of a Niños event (T1b, S8.1); the Sunday turnos carry no tipo.
+ */
+export type TurnoFila = { id: string; nombre: string; hora: string; orden: number; tipo?: 'semanal' | 'fechas' }
 
 export type Servicio = { turnoId: string | null; fecha: string }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
-function esFechaValida(value: string | undefined): value is string {
+export function esFechaValida(value: string | undefined): value is string {
   if (!value || !ISO_DATE.test(value)) return false
   const d = new Date(`${value}T00:00:00Z`)
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value
 }
 
-/** The service from the query (?turno=&fecha=), falling back to defaults. */
+/**
+ * The service from the query (?turno=&fecha=), falling back to defaults. Off
+ * Sunday the default turno is a dated one when listed: the event of that day.
+ */
 export function resolverServicio(
   query: { turno?: string; fecha?: string },
   turnos: readonly TurnoFila[],
   hoy: string,
 ): Servicio {
   const ordenados = [...turnos].sort((a, b) => a.orden - b.orden || a.hora.localeCompare(b.hora))
-  const turno = ordenados.find((t) => t.id === query.turno) ?? ordenados[0] ?? null
-  return {
-    turnoId: turno?.id ?? null,
-    fecha: esFechaValida(query.fecha) ? query.fecha : fechaServicioPorDefecto(hoy),
-  }
+  const fecha = esFechaValida(query.fecha) ? query.fecha : fechaServicioPorDefecto(hoy)
+  const delDia = new Date(`${fecha}T00:00:00Z`).getUTCDay() === 0 ? undefined : ordenados.find((t) => t.tipo === 'fechas')
+  const turno = ordenados.find((t) => t.id === query.turno) ?? delDia ?? ordenados[0] ?? null
+  return { turnoId: turno?.id ?? null, fecha }
 }
 
-export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string }
+/** Why a child has no salón: its salones are closed or full (explicarSalon), or the data that is missing (datoFaltante). */
+export type MotivoSinSalon = 'cerrado' | 'lleno' | DatoFaltante
+
+/** `motivo`: why the child has no salón, for the desk message; null or absent when unknown. */
+export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string; motivo?: MotivoSinSalon | null }
+
+/** The desk message for a child without a salón, in plain words (S9.8, T2i). */
+function mensajeSinSalonMesa(nombre: string, motivo: MotivoSinSalon | null | undefined): string {
+  if (motivo === 'cerrado') return `${nombre} no tiene salón abierto hoy: abre su salón o registra a los demás.`
+  if (motivo === 'lleno') return `${nombre}: su salón está lleno. Dale ingreso desde la mesa o registra a los demás.`
+  if (motivo === 'revisar') return `${nombre} no corresponde a ningún salón: revisa su fecha de nacimiento o grado, o registra a los demás.`
+  if (motivo) return `${nombre} todavía no tiene salón: ${TEXTO_FALTA[motivo].toLowerCase()}. Completa el dato o registra a los demás.`
+  return `${nombre} todavía no tiene salón. Revisa sus datos o registra a los demás.`
+}
 
 export function armarCheckin(
   seleccion: readonly Seleccion[],
 ): { ok: true; ninoIds: string[]; salonIds: string[] } | { ok: false; error: string } {
   if (seleccion.length === 0) return { ok: false, error: 'Elige al menos un niño.' }
   const sinSalon = seleccion.find((s) => !s.salonId)
-  if (sinSalon) return { ok: false, error: `${sinSalon.nombre ?? 'Un niño'} no tiene salón: asígnalo antes de registrar.` }
+  if (sinSalon) return { ok: false, error: mensajeSinSalonMesa(sinSalon.nombre ?? 'Un niño', sinSalon.motivo) }
   return { ok: true, ninoIds: seleccion.map((s) => s.ninoId), salonIds: seleccion.map((s) => s.salonId as string) }
 }
 

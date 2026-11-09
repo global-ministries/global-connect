@@ -27,7 +27,7 @@ function enviarRegistro() {
   escribir('Tu nombre', 'Ana')
   escribir('Tu apellido', 'Prueba')
   escribir('Teléfono', '04140000000')
-  elegir('Eres mamá o papá', 'Mamá')
+  escribir('Tu relación con los niños', 'mama')
   escribir('Nombre del niño 1', 'Sol')
   escribir('Fecha de nacimiento del niño 1', '2021-03-04')
   elegir('Género del niño 1', 'Niña')

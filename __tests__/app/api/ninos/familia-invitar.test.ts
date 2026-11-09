@@ -1,9 +1,9 @@
 /**
  * @jest-environment node
  *
- * G5 — POST /api/ninos/familia/[id]/invitar: the invitation of the new adult
- * registered at the table goes through ninos_familia_invitar (as the caller),
- * bound to the ficha of the URL.
+ * G5, T2k — POST /api/ninos/familia/[id]/invitar: the invitation of a parent
+ * without an account, from the desk at any visit, goes through
+ * ninos_familia_cuenta_invitar (as the caller), bound to the ficha of the URL.
  */
 import { NextRequest } from 'next/server'
 
@@ -54,13 +54,13 @@ describe('POST /api/ninos/familia/[id]/invitar', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('invites through the table-bound RPC for exactly the ficha of the URL', async () => {
+  it('invites through the campus-bound RPC for exactly the ficha of the URL', async () => {
     setup()
     const res = await post({ email: 'ana@example.test' })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true, email: 'ana@example.test' })
     expect(rpc).toHaveBeenCalledTimes(1)
-    expect(rpc).toHaveBeenCalledWith('ninos_familia_invitar', { p_padre_id: ID, p_email: 'ana@example.test' })
+    expect(rpc).toHaveBeenCalledWith('ninos_familia_cuenta_invitar', { p_padre_id: ID, p_email: 'ana@example.test' })
     expect(adminRpc).toHaveBeenCalledWith('invitacion_cuenta_registrar_envio', { p_id: 'inv1', p_auth_user_id: 'au-n' })
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'ana@example.test', subject: 'Te invitamos a GlobalConnect' }))
   })
@@ -70,6 +70,15 @@ describe('POST /api/ninos/familia/[id]/invitar', () => {
     rpc.mockResolvedValue({ data: null, error: { code: '42501', message: 'sin_autoridad' } })
     const res = await post({ email: 'ana@example.test' })
     expect(res.status).toBe(403)
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('the cooldown of the family comes back as 429 without sending anything', async () => {
+    setup()
+    rpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'invitacion_reciente' } })
+    const res = await post({ email: 'ana@example.test' })
+    expect(res.status).toBe(429)
+    expect(await res.json()).toMatchObject({ codigo: 'invitacion_reciente' })
     expect(sendEmail).not.toHaveBeenCalled()
   })
 })
