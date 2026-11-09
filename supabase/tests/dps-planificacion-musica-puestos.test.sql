@@ -13,7 +13,11 @@
 --       root were retired by 20261108204000_dps_directores_automaticos.sql
 --       (S8: one director puesto per dirección replaces them), so p1 no
 --       longer counts them; dps-planificacion-directores.test.sql a7 checks
---       that none is left active without convocados.
+--       that none is left active without convocados. Since
+--       20261109200000_dps_listas_posicion.sql (S12.1) «Líder de alabanza»
+--       and the four instruments live in the Global Music sub-equipos
+--       Cantantes, Piano, Bajo, Batería and Guitarra eléctrica (the same
+--       rows, moved), so p1 reads them there.
 --
 -- Run against STAGING inside a transaction that is discarded; the last
 -- statement raises SUITE_RESULT with the failures or ALL OK.
@@ -96,8 +100,9 @@ SELECT pg_temp.assert_eq('p1: the 29 seeded puestos below the DPS root and in Gl
         ('DPS › Producción Creativa', 'Productor'), ('DPS › Producción Creativa', 'Asistente de producción'),
         ('DPS › Producción Creativa', 'Comunicador de bienvenida'), ('DPS › Producción Creativa', 'Comunicador de mensaje'),
         ('DPS › Producción Creativa', 'Opening'),
-        ('Global Music', 'Líder de alabanza'), ('Global Music', 'Líder de banda'), ('Global Music', 'Piano'), ('Global Music', 'Bajo'),
-        ('Global Music', 'Batería'), ('Global Music', 'Guitarra eléctrica'), ('Global Music', 'Asistente técnico'))$q$,
+        ('Global Music › Cantantes', 'Líder de alabanza'), ('Global Music', 'Líder de banda'), ('Global Music › Piano', 'Piano'),
+        ('Global Music › Bajo', 'Bajo'), ('Global Music › Batería', 'Batería'),
+        ('Global Music › Guitarra eléctrica', 'Guitarra eléctrica'), ('Global Music', 'Asistente técnico'))$q$,
   '29|35');
 
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)

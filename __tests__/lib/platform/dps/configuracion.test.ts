@@ -49,10 +49,11 @@ describe('normalizarHorarios', () => {
     expect(normalizarHorarios(['9:15'])).toEqual({ ok: true, horarios: ['09:15'] })
   })
 
-  it('rejects a bad time, none or more than six', () => {
-    expect(normalizarHorarios(['25:00'])).toEqual({ ok: false, mensaje: 'Revisa los horarios: de 1 a 6, con el formato 09:15.' })
+  it('rejects a bad time, none or more than four (as dps_plan_horarios_guardar, T13c)', () => {
+    expect(normalizarHorarios(['25:00'])).toEqual({ ok: false, mensaje: 'Revisa los horarios: de 1 a 4, con el formato 09:15.' })
     expect(normalizarHorarios([])).toMatchObject({ ok: false })
-    expect(normalizarHorarios(['07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00'])).toMatchObject({ ok: false })
+    expect(normalizarHorarios(['07:00', '08:00', '09:00', '10:00'])).toEqual({ ok: true, horarios: ['07:00', '08:00', '09:00', '10:00'] })
+    expect(normalizarHorarios(['07:00', '08:00', '09:00', '10:00', '11:00'])).toMatchObject({ ok: false })
   })
 })
 
@@ -60,6 +61,11 @@ describe('validarLlegada', () => {
   it('pads and checks the arrival time', () => {
     expect(validarLlegada('7:00')).toEqual({ ok: true, llegada: '07:00' })
     expect(validarLlegada('07:60')).toEqual({ ok: false, mensaje: 'Revisa la hora de llegada, con el formato 07:00.' })
+  })
+
+  it('refuses a llegada after the first horario (T13c); at it is fine', () => {
+    expect(validarLlegada('09:16', '09:15')).toEqual({ ok: false, mensaje: 'La llegada no puede ser después del primer horario.' })
+    expect(validarLlegada('9:15', '09:15')).toEqual({ ok: true, llegada: '09:15' })
   })
 })
 

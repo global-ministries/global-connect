@@ -30,11 +30,15 @@
  * the cell saves. The editor is a text area that grows with its text, so it
  * shows all of it (the cell grows with it; the brand outline marks it).
  * Read-only (aria-readonly): the same moves, no edits.
- * Productor, Host and Comunicador (T11c, S11) edit in a combobox
- * (celda-persona.tsx) that searches people of the system: Enter or Tab with
- * a person highlighted links them (onElegirPersona), without one they save
- * the written name; a linked person reads with a person mark and «(con
- * ficha)» for screen readers, a written name with a «Sin cuenta» tag.
+ * Productor, Host, Comunicador and Cantantes (T11c, T14b; S11, S12.3,
+ * S12.4) hold several people: they edit in celda-persona.tsx, chips plus a
+ * combobox that suggests only the column's list. Enter, F2 or a typed
+ * character open it with the people already there (a typed character
+ * starts a new name, it does not replace them); Enter or Tab add the person
+ * highlighted, or the typed name «Sin cuenta», and save the whole cell;
+ * Delete clears it. A linked person reads with a person mark and «(con
+ * ficha)» for screen readers, a written name with a «Sin cuenta» tag, all
+ * comma separated and wrapping like any cell.
  * The parent saves and decides what changed.
  */
 import { Fragment, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactElement } from 'react'
@@ -44,10 +48,14 @@ import { CalendarClock, MoreHorizontal, Trash2, UserRound } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { CLASE_ACCION_FILA } from '@/components/grupos-vida/planner/estilo-planner'
 import { EtiquetaPlanner } from '@/components/grupos-vida/planner/etiqueta'
+import type { ListasDps } from '@/lib/platform/dps/listas'
+import { LISTA_DE_COLUMNA, LISTAS_DPS } from '@/lib/platform/dps/listas'
 import type { PersonaBuscada } from '@/lib/platform/dps/personas'
 import { horariosTexto } from '@/lib/platform/dps/planilla'
 import {
+  esColumnaPersona,
   fechaCorta,
+  MAX_PERSONAS,
   nombreEspecial,
   nombreMes,
   partesFecha,
@@ -55,6 +63,7 @@ import {
   type ColumnaHoja,
   type ColumnaPersona,
   type DefColumna,
+  type EntradaPersona,
   type FilaHoja,
   type PlanHoja,
 } from '@/lib/platform/dps/programacion'
@@ -82,6 +91,8 @@ interface Edicion {
   readonly original: string
   /** Enter / F2 selects the text; a typed character keeps the caret at the end. */
   readonly seleccionar: boolean
+  /** A cell of people: who is in it now (the typed text is the next one). */
+  readonly entradas: readonly EntradaPersona[]
 }
 
 const RAYA: Readonly<Record<string, string>> = {
@@ -123,17 +134,19 @@ export interface HojaProgramacionProps {
   readonly valor: (fila: FilaDomingo, columna: ColumnaHoja) => string
   /** A finished edit whose text differs from the one it started with. */
   readonly onGuardar: (fila: FilaDomingo, columna: ColumnaHoja, texto: string) => void
-  /** Whether a Productor / Host / Comunicador cell is a linked person now (S11). */
-  readonly conFicha?: (fila: FilaDomingo, columna: ColumnaPersona) => boolean
-  /** A person of the system picked in Productor / Host / Comunicador (S11). */
-  readonly onElegirPersona?: (fila: FilaDomingo, columna: ColumnaPersona, persona: PersonaBuscada) => void
+  /** The people of a Productor / Host / Comunicador / Cantantes cell now (S12.4). */
+  readonly personas: (fila: FilaDomingo, columna: ColumnaPersona) => readonly EntradaPersona[]
+  /** A finished edit of a cell of people whose people changed. */
+  readonly onGuardarPersonas: (fila: FilaDomingo, columna: ColumnaPersona, entradas: readonly EntradaPersona[]) => void
+  /** The lists by position: each cell of people suggests its own (S12.3). */
+  readonly listas: ListasDps
   /** «Mover fecha…» of a special row (editable only). */
   readonly onMover?: (plan: PlanHoja) => void
   /** «Eliminar evento» of a special row (editable only). */
   readonly onEliminar?: (plan: PlanHoja) => void
 }
 
-const esColumnaPersona = (columna: Columna): columna is ColumnaPersona => columna === 'productor' || columna === 'host' || columna === 'comunicador'
+const clavePersonas = (entradas: readonly EntradaPersona[]): string => entradas.map((e) => e.personaId ?? `texto:${e.nombre}`).join('|')
 
 /** The text area grows with its text: the whole value shows while editing. */
 function ajustarAlto(el: HTMLTextAreaElement): void {
@@ -151,8 +164,9 @@ export function HojaProgramacion({
   proximo,
   valor,
   onGuardar,
-  conFicha,
-  onElegirPersona,
+  personas,
+  onGuardarPersonas,
+  listas,
   onMover,
   onEliminar,
 }: HojaProgramacionProps): ReactElement {
@@ -202,38 +216,52 @@ export function HojaProgramacion({
 
   function empezarEdicion(fila: FilaDomingo, columna: ColumnaHoja, semilla: string | null): void {
     if (!editable) return
-    const original = valor(fila, columna)
-    const nueva: Edicion = { fecha: fila.fecha, columna, valor: semilla ?? original, original, seleccionar: semilla === null }
+    // A cell of people opens with them as chips and the text for the next one.
+    const entradas = esColumnaPersona(columna) ? personas(fila, columna) : []
+    const original = esColumnaPersona(columna) ? clavePersonas(entradas) : valor(fila, columna)
+    const texto = semilla ?? (esColumnaPersona(columna) ? '' : original)
+    const nueva: Edicion = { fecha: fila.fecha, columna, valor: texto, original, seleccionar: semilla === null, entradas }
     edicionRef.current = nueva
     setFoco({ fecha: fila.fecha, columna })
     setEdicion(nueva)
   }
 
-  /** Ends the edit once (Enter, Tab, Escape and leaving the cell may all try). */
-  function terminarEdicion(guardar: boolean): Edicion | null {
+  function cambiarEdicion(cambio: Partial<Pick<Edicion, 'valor' | 'entradas'>>): void {
+    if (!edicionRef.current) return
+    const siguiente = { ...edicionRef.current, ...cambio }
+    edicionRef.current = siguiente
+    setEdicion(siguiente)
+  }
+
+  /**
+   * Ends the edit once (Enter, Tab, Escape and leaving the cell may all
+   * try). A cell of people adds the person highlighted, or the typed name
+   * as written, and saves the whole cell when it changed.
+   */
+  function terminarEdicion(guardar: boolean, persona: PersonaBuscada | null = null): Edicion | null {
     const actual = edicionRef.current
     if (!actual) return null
     edicionRef.current = null
     setEdicion(null)
     const fila = domingos.find((f) => f.fecha === actual.fecha)
-    if (guardar && fila && actual.valor !== actual.original) onGuardar(fila, actual.columna, actual.valor)
+    if (!guardar || !fila) return actual
+    if (esColumnaPersona(actual.columna)) {
+      const escrito = actual.valor.trim()
+      const nueva: EntradaPersona | null = persona ? { personaId: persona.personaId, nombre: persona.nombre } : escrito ? { personaId: null, nombre: escrito } : null
+      const entradas = nueva ? [...actual.entradas, nueva] : actual.entradas
+      if (clavePersonas(entradas) !== actual.original) onGuardarPersonas(fila, actual.columna, entradas)
+    } else if (actual.valor !== actual.original) {
+      onGuardar(fila, actual.columna, actual.valor)
+    }
     return actual
   }
 
-  /** Ends the edit of a person cell with the person picked instead of its text (S11). */
-  function elegirPersona(persona: PersonaBuscada): Edicion | null {
-    const actual = terminarEdicion(false)
-    const fila = actual && domingos.find((f) => f.fecha === actual.fecha)
-    if (actual && fila && esColumnaPersona(actual.columna)) onElegirPersona?.(fila, actual.columna, persona)
-    return actual
-  }
-
-  /** Enter, Tab and Escape while editing; a person cell hands the person highlighted in its list (null: its text). */
+  /** Enter, Tab and Escape while editing; a cell of people hands the person highlighted in its list (null: its text). */
   function teclaEdicion(e: KeyboardEvent<HTMLElement>, persona: PersonaBuscada | null = null): void {
     const actual = edicionRef.current
     if (!actual) return
     const desde: Foco = { fecha: actual.fecha, columna: actual.columna }
-    const terminar = () => (persona ? elegirPersona(persona) : terminarEdicion(true))
+    const terminar = () => terminarEdicion(true, persona)
     if (e.key === 'Enter') {
       e.preventDefault()
       terminar()
@@ -269,7 +297,9 @@ export function HojaProgramacion({
       empezarEdicion(fila, columna, null)
     } else if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault()
-      if (valor(fila, columna) !== '') onGuardar(fila, columna, '')
+      if (esColumnaPersona(columna)) {
+        if (personas(fila, columna).length > 0) onGuardarPersonas(fila, columna, [])
+      } else if (valor(fila, columna) !== '') onGuardar(fila, columna, '')
     } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
       e.preventDefault()
       empezarEdicion(fila, columna, e.key)
@@ -448,6 +478,7 @@ export function HojaProgramacion({
                   const texto = valor(fila, c.id)
                   const editando = edicion?.fecha === fila.fecha && edicion.columna === c.id
                   const persona = esColumnaPersona(c.id) ? c.id : null
+                  const lista = persona ? LISTAS_DPS.find((l) => l.id === LISTA_DE_COLUMNA[persona]) : null
                   return (
                     <td
                       key={c.id}
@@ -479,19 +510,22 @@ export function HojaProgramacion({
                         <CeldaPersona
                           etiqueta={`${c.etiqueta}, ${fechaCorta(fila.fecha)}`}
                           columna={c.etiqueta}
+                          nombreLista={lista?.etiqueta ?? c.etiqueta}
+                          entradas={edicion.entradas}
                           valor={edicion.valor}
-                          seleccionar={edicion.seleccionar}
+                          maximo={MAX_PERSONAS[persona]}
+                          sugeridas={listas[LISTA_DE_COLUMNA[persona]].personas}
                           condensado={densidad === 'condensado'}
-                          onCambio={(v) => {
-                            if (!edicionRef.current) return
-                            const siguiente = { ...edicionRef.current, valor: v }
-                            edicionRef.current = siguiente
-                            setEdicion(siguiente)
+                          onCambio={(v) => cambiarEdicion({ valor: v })}
+                          onAgregar={(p) => {
+                            const actual = edicionRef.current
+                            if (actual) cambiarEdicion({ entradas: [...actual.entradas, { personaId: p.personaId, nombre: p.nombre }], valor: '' })
+                          }}
+                          onQuitar={(i) => {
+                            const actual = edicionRef.current
+                            if (actual) cambiarEdicion({ entradas: actual.entradas.filter((_, j) => j !== i) })
                           }}
                           onTecla={teclaEdicion}
-                          onElegir={(p) => {
-                            if (elegirPersona(p)) mover({ fecha: fila.fecha, columna: c.id })
-                          }}
                           onSalir={() => terminarEdicion(true)}
                         />
                       ) : editando ? (
@@ -509,10 +543,7 @@ export function HojaProgramacion({
                           }}
                           onChange={(e) => {
                             ajustarAlto(e.target)
-                            if (!edicionRef.current) return
-                            const siguiente = { ...edicionRef.current, valor: e.target.value }
-                            edicionRef.current = siguiente
-                            setEdicion(siguiente)
+                            cambiarEdicion({ valor: e.target.value })
                           }}
                           onKeyDown={teclaEdicion}
                           onBlur={() => terminarEdicion(true)}
@@ -521,21 +552,26 @@ export function HojaProgramacion({
                             densidad === 'condensado' ? 'py-[5px] leading-5' : 'py-2 leading-5',
                           )}
                         />
-                      ) : persona && texto ? (
-                        conFicha?.(fila, persona) ? (
-                          <>
-                            <UserRound aria-hidden="true" className="mr-1 inline size-3.5 -translate-y-px text-brand-text" />
-                            {texto}
-                            <span className="sr-only"> (con ficha)</span>
-                          </>
-                        ) : (
-                          <>
-                            {texto}{' '}
-                            <span className="inline-block align-top">
-                              <EtiquetaPlanner tono="neutro">Sin cuenta</EtiquetaPlanner>
-                            </span>
-                          </>
-                        )
+                      ) : persona ? (
+                        personas(fila, persona).map((e, i) => (
+                          <Fragment key={`${e.personaId ?? e.nombre}-${i}`}>
+                            {i > 0 && ', '}
+                            {e.personaId ? (
+                              <>
+                                <UserRound aria-hidden="true" className="mr-1 inline size-3.5 -translate-y-px text-brand-text" />
+                                {e.nombre}
+                                <span className="sr-only"> (con ficha)</span>
+                              </>
+                            ) : (
+                              <>
+                                {e.nombre}{' '}
+                                <span className="inline-block align-top">
+                                  <EtiquetaPlanner tono="neutro">Sin cuenta</EtiquetaPlanner>
+                                </span>
+                              </>
+                            )}
+                          </Fragment>
+                        ))
                       ) : (
                         texto
                       )}

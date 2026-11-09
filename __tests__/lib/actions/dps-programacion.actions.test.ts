@@ -20,7 +20,6 @@ jest.mock('@/lib/supabase/server', () => ({
 }))
 
 import {
-  buscarPersonasProgramacionDps,
   cargarProgramacionDps,
   crearEventoDps,
   crearSerieDps,
@@ -296,61 +295,81 @@ describe('eliminarPlanDps (S9)', () => {
   })
 })
 
-describe('guardarCeldaDps with a persona of the system (S11)', () => {
-  it('links the person as {"persona_id"} and returns the plan with their name', async () => {
-    respuestas({ dps_plan_campo: { data: planJson({ host: { persona_id: PERSONA, texto: null, nombre: 'Ana Pérez' } }), error: null } })
-    const r = await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personaId: PERSONA })
+describe('guardarCeldaDps with the people of a cell (S11, S12.3, S12.4)', () => {
+  const OTRA = '22222222-2222-4222-8222-222222222222'
+
+  it('sends the people in order, {"persona_id"} or {"texto"}, and returns the plan with them', async () => {
+    respuestas({
+      dps_plan_campo: {
+        data: planJson({
+          personas: {
+            productor: [],
+            host: [
+              { persona_id: PERSONA, texto: null, nombre: 'Ana Pérez' },
+              { persona_id: null, texto: 'Ps. Olmedo', nombre: 'Ps. Olmedo' },
+            ],
+            comunicador: [],
+            cantantes: [],
+          },
+        }),
+        error: null,
+      },
+    })
+    const r = await guardarCeldaDps({
+      planId: PLAN,
+      fecha: '2026-11-15',
+      columna: 'host',
+      valor: 'Ana Pérez, Ps. Olmedo',
+      personas: [
+        { personaId: PERSONA, nombre: 'Ana Pérez' },
+        { personaId: null, nombre: 'Ps. Olmedo' },
+      ],
+    })
     expect(rpc).toHaveBeenCalledTimes(1)
-    expect(rpc).toHaveBeenCalledWith('dps_plan_campo', { p_plan_id: PLAN, p_campo: 'host', p_valor: { persona_id: PERSONA } })
-    expect(r.ok && [r.data.valores.host, r.data.personaIds.host]).toEqual(['Ana Pérez', PERSONA])
+    expect(rpc).toHaveBeenCalledWith('dps_plan_campo', { p_plan_id: PLAN, p_campo: 'host', p_valor: [{ persona_id: PERSONA }, { texto: 'Ps. Olmedo' }] })
+    expect(r.ok && [r.data.valores.host, r.data.personas.host]).toEqual([
+      'Ana Pérez, Ps. Olmedo',
+      [
+        { personaId: PERSONA, nombre: 'Ana Pérez' },
+        { personaId: null, nombre: 'Ps. Olmedo' },
+      ],
+    ])
   })
 
-  it('creates the Sunday plan first when the Sunday has none', async () => {
+  it('clears with no people, and creates the Sunday plan first when the Sunday has none', async () => {
     respuestas({ dps_plan_crear: { data: PLAN, error: null }, dps_plan_campo: { data: planJson(), error: null } })
-    await guardarCeldaDps({ planId: null, fecha: '2026-11-15', columna: 'productor', valor: 'Ana Pérez', personaId: PERSONA })
-    expect(rpc).toHaveBeenLastCalledWith('dps_plan_campo', { p_plan_id: PLAN, p_campo: 'productor', p_valor: { persona_id: PERSONA } })
+    await guardarCeldaDps({ planId: null, fecha: '2026-11-15', columna: 'cantantes', valor: '', personas: [] })
+    expect(rpc).toHaveBeenLastCalledWith('dps_plan_campo', { p_plan_id: PLAN, p_campo: 'cantantes', p_valor: null })
   })
 
-  it('refuses a persona on a creative column or a bad id, without calling', async () => {
-    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'opener', valor: 'Ana Pérez', personaId: PERSONA })).toEqual(DATOS_INVALIDOS)
-    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personaId: 'nope' })).toEqual(DATOS_INVALIDOS)
+  it('refuses people on a creative column, a bad id or too many people, without calling', async () => {
+    const una = [{ personaId: PERSONA, nombre: 'Ana Pérez' }]
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'opener', valor: 'Ana Pérez', personas: una })).toEqual(DATOS_INVALIDOS)
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'X', personas: [{ personaId: 'nope', nombre: 'X' }] })).toMatchObject({
+      ok: false,
+    })
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'X', personas: 'x' as never })).toEqual(DATOS_INVALIDOS)
+    const cuatro = [PERSONA, OTRA, '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'].map((personaId) => ({ personaId, nombre: 'X' }))
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'X', personas: cuatro })).toEqual({
+      ok: false,
+      message: 'Máximo 3 personas en Host.',
+      codigo: 'valor_invalido',
+    })
     expect(rpc).not.toHaveBeenCalled()
   })
 
-  it('says when the person is gone', async () => {
+  it('explains a person off the column\'s list and one who is gone', async () => {
+    respuestas({ dps_plan_campo: { data: null, error: { code: '22023', message: 'persona_fuera_de_lista' } } })
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'productor', valor: 'Ana Pérez', personas: [{ personaId: PERSONA, nombre: 'Ana Pérez' }] })).toEqual({
+      ok: false,
+      message: 'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.',
+      codigo: 'persona_fuera_de_lista',
+    })
     respuestas({ dps_plan_campo: { data: null, error: { code: '22023', message: 'persona_invalida' } } })
-    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personaId: PERSONA })).toEqual({
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personas: [{ personaId: PERSONA, nombre: 'Ana Pérez' }] })).toEqual({
       ok: false,
       message: 'Esa persona ya no está en la plataforma. Búscala de nuevo.',
       codigo: 'persona_invalida',
-    })
-  })
-})
-
-describe('buscarPersonasProgramacionDps', () => {
-  it('searches people by name (dps_buscar_personas) and reads id, name and initials', async () => {
-    respuestas({ dps_buscar_personas: { data: [{ id: PERSONA, nombre: 'Ana', apellido: 'Pérez', iniciales: 'AP' }], error: null } })
-    const r = await buscarPersonasProgramacionDps({ texto: '  ana p ' })
-    expect(rpc).toHaveBeenCalledWith('dps_buscar_personas', { p_texto: 'ana p', p_limite: 8 })
-    expect(r).toEqual({ ok: true, data: [{ personaId: PERSONA, nombre: 'Ana Pérez', iniciales: 'AP' }] })
-  })
-
-  it('does not call for fewer than 2 or more than 100 characters', async () => {
-    expect(await buscarPersonasProgramacionDps({ texto: 'a' })).toEqual({ ok: true, data: [] })
-    expect(await buscarPersonasProgramacionDps({ texto: 'a'.repeat(101) })).toEqual({ ok: true, data: [] })
-    expect(await buscarPersonasProgramacionDps({ texto: 3 as never })).toEqual(DATOS_INVALIDOS)
-    expect(rpc).not.toHaveBeenCalled()
-  })
-
-  it('maps no session and the refusal of someone who does not plan', async () => {
-    getUser.mockResolvedValue({ data: { user: null } })
-    expect(await buscarPersonasProgramacionDps({ texto: 'Ana' })).toEqual(SIN_SESION)
-    getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
-    respuestas({ dps_buscar_personas: { data: null, error: { code: '42501', message: 'sin_autoridad' } } })
-    expect(await buscarPersonasProgramacionDps({ texto: 'Ana' })).toEqual({
-      ok: false,
-      message: 'Solo quienes arman el plan pueden cambiar la programación.',
-      codigo: 'sin_autoridad',
     })
   })
 })

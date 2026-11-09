@@ -13,8 +13,11 @@ jest.mock('@/lib/supabase/server', () => ({
 }))
 
 import {
+  agregarAListaDps,
   agregarPlanificadorDps,
   buscarPersonasDps,
+  buscarPersonasListaDps,
+  quitarDeListaDps,
   guardarHorariosDps,
   guardarPasanAsistenciaDps,
   quitarPlanificadorDps,
@@ -47,10 +50,17 @@ describe('guardarHorariosDps', () => {
   it('rejects bad times before calling', async () => {
     expect(await guardarHorariosDps({ horarios: ['25:00'], llegada: '07:00' })).toEqual({
       ok: false,
-      message: 'Revisa los horarios: de 1 a 6, con el formato 09:15.',
+      message: 'Revisa los horarios: de 1 a 4, con el formato 09:15.',
       codigo: 'horarios_invalidos',
     })
     expect(await guardarHorariosDps({ horarios: ['09:15'], llegada: 'x' })).toMatchObject({ ok: false, codigo: 'llegada_invalida' })
+    // T13c: a llegada after the first horario, or five horarios.
+    expect(await guardarHorariosDps({ horarios: ['09:15'], llegada: '09:30' })).toEqual({
+      ok: false,
+      message: 'La llegada no puede ser después del primer horario.',
+      codigo: 'llegada_invalida',
+    })
+    expect(await guardarHorariosDps({ horarios: ['08:00', '09:00', '10:00', '11:00', '12:00'], llegada: '07:00' })).toMatchObject({ codigo: 'horarios_invalidos' })
     expect(rpc).not.toHaveBeenCalled()
   })
 
@@ -112,5 +122,48 @@ describe('buscarPersonasDps', () => {
     expect(rpc).not.toHaveBeenCalled()
     rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'sin_autoridad_para_buscar' } })
     expect(await buscarPersonasDps({ q: 'ana' })).toEqual({ ok: false, message: 'No tienes permiso para buscar personas.', codigo: 'sin_autoridad' })
+  })
+})
+
+describe('the lists by position (S12.2)', () => {
+  const LISTA = { lista: 'hosts', puede_editar: true, personas: [{ persona_id: P1, nombre: 'Ana Rivas', iniciales: 'AR' }] }
+
+  it('adds and removes a person, returning the list', async () => {
+    rpc.mockResolvedValue({ data: LISTA, error: null })
+    expect(await agregarAListaDps({ lista: 'hosts', personaId: P1 })).toEqual({
+      ok: true,
+      data: { lista: 'hosts', puedeEditar: true, personas: [{ personaId: P1, nombre: 'Ana Rivas', iniciales: 'AR' }] },
+    })
+    expect(await quitarDeListaDps({ lista: 'comunicadores', personaId: P1 })).toMatchObject({ ok: true })
+    expect(rpc.mock.calls).toEqual([
+      ['dps_lista_agregar', { p_lista: 'hosts', p_persona_id: P1 }],
+      ['dps_lista_quitar', { p_lista: 'comunicadores', p_persona_id: P1 }],
+    ])
+  })
+
+  it('refuses Productores, Cantantes (Dream Team, L59), an unknown list or a bad id without calling', async () => {
+    expect(await agregarAListaDps({ lista: 'productores' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+    expect(await quitarDeListaDps({ lista: 'productores' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+    expect(await agregarAListaDps({ lista: 'cantantes' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+    expect(await agregarAListaDps({ lista: 'bajistas' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+    expect(await quitarDeListaDps({ lista: 'hosts', personaId: 'x' })).toMatchObject({ ok: false, codigo: null })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('explains who may change the list', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: SIN_AUTORIDAD })
+    expect(await agregarAListaDps({ lista: 'hosts', personaId: P1 })).toEqual({
+      ok: false,
+      message: 'No tienes permiso para cambiar esta lista.',
+      codigo: 'sin_autoridad',
+    })
+  })
+
+  it('searches people for a list with dps_buscar_personas', async () => {
+    rpc.mockResolvedValueOnce({ data: [{ id: P1, nombre: 'Ana', apellido: 'Rivas', iniciales: 'AR' }], error: null })
+    expect(await buscarPersonasListaDps({ texto: ' ana ' })).toEqual({ ok: true, data: [{ personaId: P1, nombre: 'Ana Rivas', iniciales: 'AR' }] })
+    expect(rpc).toHaveBeenCalledWith('dps_buscar_personas', { p_texto: 'ana', p_limite: 10 })
+    expect(await buscarPersonasListaDps({ texto: 'a' })).toEqual({ ok: true, data: [] })
+    expect(rpc).toHaveBeenCalledTimes(1)
   })
 })

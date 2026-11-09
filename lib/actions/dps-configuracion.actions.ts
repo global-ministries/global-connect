@@ -12,11 +12,18 @@
  * 'sin_autoridad' comes back with its code so the screen turns read-only.
  * The person search reuses talleres_buscar_personas, the Dream Team
  * assigner's search (app/api/dream-team/usuarios/buscar/route.ts).
+ *
+ * S12.2: the lists by position (dps_lista_agregar / dps_lista_quitar in
+ * supabase/migrations/20261109200000_dps_listas_posicion.sql; who edits each
+ * list is the database's call) and their person search, dps_buscar_personas
+ * (planners only, as the page).
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { leerConfig, normalizarHorarios, validarLlegada, type ConfigDps } from '@/lib/platform/dps/configuracion'
 import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ErrorRpc } from '@/lib/platform/dps/errores'
+import { esListaEditableDps, leerListaDps, type ListaEditableDps, type ListaPersonasDps } from '@/lib/platform/dps/listas'
+import { leerPersonasBuscadas, textoParaBuscar, type PersonaBuscada } from '@/lib/platform/dps/personas'
 import { rpcDps } from '@/lib/platform/dps/rpc'
 import type { ResultadoDps } from './dps-asistencia.actions'
 
@@ -31,6 +38,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const esUuid = (valor: unknown): valor is string => typeof valor === 'string' && UUID_RE.test(valor)
 const fallo = (message: string, codigo: CodigoErrorDps | null = null) => ({ ok: false, message, codigo }) as const
 const falloRpc = (error: ErrorRpc) => fallo(mensajeErrorDps(error, 'configuracion'), codigoErrorDps(error))
+const falloLista = (error: ErrorRpc) => fallo(mensajeErrorDps(error, 'listas'), codigoErrorDps(error))
 
 async function rpcConSesion() {
   const cliente = await createSupabaseServerClient()
@@ -47,7 +55,7 @@ export async function guardarHorariosDps(input: {
   if (!Array.isArray(input?.horarios) || typeof input.llegada !== 'string') return fallo(DATOS_INVALIDOS)
   const horarios = normalizarHorarios(input.horarios)
   if (!horarios.ok) return fallo(horarios.mensaje, 'horarios_invalidos')
-  const llegada = validarLlegada(input.llegada)
+  const llegada = validarLlegada(input.llegada, horarios.horarios[0])
   if (!llegada.ok) return fallo(llegada.mensaje, 'llegada_invalida')
   const rpc = await rpcConSesion()
   if (!rpc) return fallo(SIN_SESION)
@@ -119,4 +127,42 @@ export async function buscarPersonasDps(input: { readonly q: string }): Promise<
         nombre: [f.nombre, f.apellido].filter((x): x is string => typeof x === 'string' && x.trim() !== '').join(' '),
       })),
   }
+}
+
+/** Adds a person to Productores, Hosts or Comunicadores and returns the list. */
+export async function agregarAListaDps(input: { readonly lista: ListaEditableDps; readonly personaId: string }): Promise<ResultadoDps<ListaPersonasDps>> {
+  return cambiarLista('dps_lista_agregar', input)
+}
+
+/** Takes a person off Productores, Hosts or Comunicadores and returns the list (the plans keep them). */
+export async function quitarDeListaDps(input: { readonly lista: ListaEditableDps; readonly personaId: string }): Promise<ResultadoDps<ListaPersonasDps>> {
+  return cambiarLista('dps_lista_quitar', input)
+}
+
+async function cambiarLista(
+  nombre: 'dps_lista_agregar' | 'dps_lista_quitar',
+  input: { readonly lista: ListaEditableDps; readonly personaId: string },
+): Promise<ResultadoDps<ListaPersonasDps>> {
+  // Only Hosts and Comunicadores are kept here; Productores and Cantantes are managed in Dream Team (L59).
+  if (!esListaEditableDps(input?.lista) || !esUuid(input.personaId)) return fallo(DATOS_INVALIDOS)
+  const rpc = await rpcConSesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc(nombre, { p_lista: input.lista, p_persona_id: input.personaId })
+  if (error) return falloLista(error)
+  const lista = leerListaDps(data)
+  return lista ? { ok: true, data: lista } : falloLista({ message: null })
+}
+
+/** People to add to a list (dps_buscar_personas): id, name and initials only. */
+export async function buscarPersonasListaDps(input: { readonly texto: string }): Promise<ResultadoDps<PersonaBuscada[]>> {
+  if (typeof input?.texto !== 'string') return fallo(DATOS_INVALIDOS)
+  const texto = textoParaBuscar(input.texto)
+  if (texto === null) return { ok: true, data: [] }
+  const rpc = await rpcConSesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc('dps_buscar_personas', { p_texto: texto, p_limite: 10 })
+  if (error) return falloLista(error)
+  return { ok: true, data: leerPersonasBuscadas(data) }
 }

@@ -33,7 +33,11 @@
 --      and shrinks (trailing plans detached, kept); cover path rules.
 --   i. dps_plan_campo: persona or text (S7.3, also enforced by the table),
 --      creative campos, canciones, titulo, llegada, horarios, whitelist,
---      unknown plan, only planners; updated_by is the caller.
+--      unknown plan, only planners; updated_by is the caller. Since
+--      20261109200000_dps_listas_posicion.sql (S12.3) a persona must be on
+--      the column's list, so the fixture gives 9 an active servicio in the
+--      Productores sub-equipo (L59) and puts 10 on comunicadores; the lists
+--      themselves are in dps-planificacion-listas.
 --   j. Reads: dps_planes_rango (order, range limits, permissions) and
 --      dps_plan_leer (puede_editar, unknown plan, permissions).
 --
@@ -205,6 +209,19 @@ SELECT u.id, (SELECT c.id FROM public.campus c ORDER BY c.id LIMIT 1), true
  WHERE u.id::text LIKE 'd9500000-%'
    AND NOT EXISTS (SELECT 1 FROM public.usuario_campus x WHERE x.usuario_id = u.id AND x.es_campus_principal);
 
+-- S12.3 (20261109200000): a persona of the system must be on the column's list;
+-- productores are the servicios of DPS › Producción Creativa › Productores (L59).
+INSERT INTO public.dps_listas_personas (lista, persona_id) VALUES ('comunicadores', pg_temp.id('us', 10));
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
+SELECT pg_temp.id('se', 9), pg_temp.id('us', 9), r.equipo_id, r.id, 'activo', now() - interval '30 days', 'admin_asignacion'
+  FROM public.dream_team_equipos pr
+  JOIN public.dream_team_equipos pc ON pc.id = pr.parent_equipo_id
+  JOIN public.dream_team_roles r ON r.equipo_id = pr.id AND r.label = 'voluntario'
+ WHERE pc.parent_equipo_id = pg_temp.ctx('raiz')::uuid AND pc.label = 'Producción Creativa' AND pc.activo
+   AND pr.label = 'Productores' AND pr.activo
+ ORDER BY pr.created_at, pr.id
+ LIMIT 1;
+
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'dps',                  pg_temp.ctx('raiz')::uuid, 'ZZ Dp PT',       true),
   (pg_temp.id('eq', 2), 'dps',                  pg_temp.id('eq', 1),       'ZZ Dp Camaras',  true),
@@ -270,7 +287,9 @@ SELECT pg_temp.assert_eq('a6: authenticated executes exactly the public dps_* fu
                               'dps_buscar_personas',
                               -- T13 (20261108208000), in dps-planificacion-orden.test.sql.
                               'dps_plan_horarios_guardar', 'dps_orden_leer', 'dps_orden_plantilla', 'dps_orden_agregar',
-                              'dps_orden_item_guardar', 'dps_orden_mover', 'dps_orden_eliminar', 'dps_orden_copiar')$q$,
+                              'dps_orden_item_guardar', 'dps_orden_mover', 'dps_orden_eliminar', 'dps_orden_copiar',
+                              -- T14b (20261109200000), in dps-planificacion-listas.test.sql.
+                              'dps_lista_leer', 'dps_lista_agregar', 'dps_lista_quitar', 'dps_lista_puede_editar')$q$,
   'dps_config_guardar,dps_config_leer,dps_pasan_asistencia_guardar,dps_plan_campo,dps_plan_crear,dps_plan_leer,'
   || 'dps_planes_rango,dps_planificador_agregar,dps_planificador_quitar,dps_puede_pasar_asistencia,dps_puede_planificar,'
   || 'dps_puede_ver,dps_puesto_desactivar,dps_puesto_guardar,dps_puestos_listar,dps_serie_actualizar,dps_serie_crear,'
@@ -280,7 +299,7 @@ SELECT pg_temp.assert_eq('a7: the tables have RLS on and no policies',
                        ',' ORDER BY c.relname COLLATE "C")
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'dps\_%'
-        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias', 'dps_orden_items')$q$,
+        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias', 'dps_orden_items', 'dps_listas_personas', 'dps_plan_personas')$q$,
   'dps_config:true:0,dps_pasan_asistencia:true:0,dps_planes:true:0,dps_planificadores:true:0,dps_puestos:true:0,dps_series:true:0');
 
 SET LOCAL ROLE authenticated;

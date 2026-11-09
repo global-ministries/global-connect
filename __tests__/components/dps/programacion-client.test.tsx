@@ -22,7 +22,6 @@ jest.mock('@/lib/actions/dps-programacion.actions', () => ({
   cargarProgramacionDps: jest.fn(),
   guardarCeldaDps: jest.fn(),
   crearSerieDps: jest.fn(),
-  buscarPersonasProgramacionDps: jest.fn().mockResolvedValue({ ok: true, data: [] }),
 }))
 jest.mock('@/lib/actions/dps-plan.actions', () => ({ cambiarPortadaDps: jest.fn() }))
 
@@ -72,7 +71,7 @@ const json = (id: string, fecha: string, parche: Record<string, unknown> = {}) =
 const PLANES = [
   json('p1', '2026-11-01', { serie: SERIE, semana: 2, productor: { persona_id: null, texto: 'Ximena Rangel', nombre: 'Ximena Rangel' }, campos: { opener: 'Video: sala llena' } }),
   json('cena', '2026-11-03', { tipo: 'cena_del_senor', horarios: ['18:45'] }),
-  json('p8', '2026-11-08', { serie: SERIE, semana: 3, host: { persona_id: 'u1', texto: null, nombre: 'Andrés Valero' } }),
+  json('p8', '2026-11-08', { serie: SERIE, semana: 3, host: { persona_id: '22222222-2222-4222-8222-222222222222', texto: null, nombre: 'Andrés Valero' } }),
   json('p15', '2026-11-15', { serie: SERIE, semana: 4 }),
 ]
 
@@ -148,7 +147,13 @@ describe('editing a cell', () => {
     await user.keyboard('{Enter}')
     await user.type(screen.getByRole('combobox', { name: 'Comunicador, 8 de noviembre' }), 'Ps. Olmedo')
     await user.keyboard('{Tab}')
-    expect(guardar).toHaveBeenCalledWith({ planId: 'p8', fecha: '2026-11-08', columna: 'comunicador', valor: 'Ps. Olmedo' })
+    expect(guardar).toHaveBeenCalledWith({
+      planId: 'p8',
+      fecha: '2026-11-08',
+      columna: 'comunicador',
+      valor: 'Ps. Olmedo',
+      personas: [{ personaId: null, nombre: 'Ps. Olmedo' }],
+    })
     expect(celda('2026-11-08', 'opener')).toHaveFocus()
     await user.keyboard('{Shift>}{Tab}{/Shift}')
     expect(celda('2026-11-08', 'comunicador')).toHaveFocus()
@@ -184,7 +189,7 @@ describe('editing a cell', () => {
     expect(guardar).toHaveBeenLastCalledWith({ planId: 'p8', fecha: '2026-11-08', columna: 'anuncios', valor: 'Bautizos' })
     act(() => celda('2026-11-01', 'productor').focus())
     await user.keyboard('{Delete}')
-    expect(guardar).toHaveBeenLastCalledWith({ planId: 'p1', fecha: '2026-11-01', columna: 'productor', valor: '' })
+    expect(guardar).toHaveBeenLastCalledWith({ planId: 'p1', fecha: '2026-11-01', columna: 'productor', valor: '', personas: [] })
   })
 
   it('rolls back and explains when the save fails', async () => {
@@ -209,7 +214,7 @@ describe('editing a cell', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Host, 8 de noviembre' }), { target: { value: 'x'.repeat(121) } })
     await user.keyboard('{Enter}')
     expect(guardar).not.toHaveBeenCalled()
-    expect(toast.error).toHaveBeenCalledWith('Máximo 120 caracteres.')
+    expect(toast.error).toHaveBeenCalledWith('Máximo 120 caracteres por nombre.')
     expect(celda('2026-11-08', 'host')).toHaveTextContent('Andrés Valero')
   })
 
