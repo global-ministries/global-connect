@@ -209,8 +209,9 @@ SELECT pg_temp.assert_eq('b0: the admin plans without any grant',
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('b1: by nombre', $q$SELECT pg_temp.nombres('ZZ Bqana')$q$, 'ZZ Bqana Pérez');
+-- «zz bq» keeps real people named Pérez in a loaded database out of the limit.
 SELECT pg_temp.assert_eq('b2: by apellido, ignoring case, ordered by nombre',
-  $q$SELECT pg_temp.nombres('pÉREZ')$q$, 'ZZ Bqana Pérez,ZZ Bqandrés Pérez_x');
+  $q$SELECT pg_temp.nombres('pÉREZ zz bQ')$q$, 'ZZ Bqana Pérez,ZZ Bqandrés Pérez_x');
 SELECT pg_temp.assert_eq('b3: by «nombre apellido»', $q$SELECT pg_temp.nombres('Bqana Pérez')$q$, 'ZZ Bqana Pérez');
 SELECT pg_temp.assert_eq('b4: the words in any order', $q$SELECT pg_temp.nombres('  pérez   bqana ')$q$, 'ZZ Bqana Pérez');
 SELECT pg_temp.assert_eq('b5: one row carries id, nombre, apellido and iniciales',
