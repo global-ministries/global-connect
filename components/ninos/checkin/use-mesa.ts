@@ -19,6 +19,9 @@
  * No salón (T2g, S9.6): a child the rules place nowhere is not marked (the
  * row asks for the missing data), so the rest of the family can go in;
  * «Llegaron» with such a child opens the family here.
+ *
+ * Print station (T3b, S10): with `estacionId` the check-in body carries it and
+ * the server queues the labels there; without it the body is unchanged.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
@@ -60,7 +63,13 @@ export type ReglasDeMesa = {
 const SIN_REGLAS: ReglasDeMesa = { visitas: {}, ocupacion: new Map(), cargarVisitas: () => {} }
 
 /** `alIngresar` runs after every saved check-in (occupancy and queue reload). */
-export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIngresar: () => void, reglas: ReglasDeMesa = SIN_REGLAS) {
+export function useMesa(
+  salones: readonly SalonFila[],
+  servicio: Servicio,
+  alIngresar: () => void,
+  reglas: ReglasDeMesa = SIN_REGLAS,
+  estacionId: string | null = null,
+) {
   const { visitas, ocupacion, cargarVisitas } = reglas
   const busqueda = useBuscarFamilias()
   const { buscar, limpiar } = busqueda
@@ -242,7 +251,7 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     return null
   }
 
-  /** The body of /api/ninos/checkin; forzadoIds only when a room is full for a child (else as before). */
+  /** The body of /api/ninos/checkin; forzadoIds only when a room is full for a child, estacionId only with a station (else as before). */
   function cuerpoIngreso(armado: { ninoIds: string[]; salonIds: string[] }, hijos: readonly HijoEncontrado[], turnoId: string) {
     const forzadoIds = forzadosDe(
       armado.ninoIds.map((ninoId, i) => ({ ninoId, salonId: armado.salonIds[i] })),
@@ -250,7 +259,14 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
       salones,
       reglasHijo,
     )
-    return { ninoIds: armado.ninoIds, salonIds: armado.salonIds, turnoId, fecha: servicio.fecha, ...(forzadoIds.length > 0 && { forzadoIds }) }
+    return {
+      ninoIds: armado.ninoIds,
+      salonIds: armado.salonIds,
+      turnoId,
+      fecha: servicio.fecha,
+      ...(forzadoIds.length > 0 && { forzadoIds }),
+      ...(estacionId && { estacionId }),
+    }
   }
 
   function siguienteFamilia() {

@@ -12,6 +12,8 @@
  *   (full warns, never blocks; S9.5).
  * - Completar ficha: the ficha form of a child linked without one.
  * - Agregar niño / Vincular hijo existente: an adult without children (N11).
+ * - Reimprimir (T3b, S10): labels and/or the receipt of a código, with a reason,
+ *   to the desk's print station.
  * The forms keep their behavior and API calls; Esc closes the panel.
  */
 import { useState, type ReactElement } from 'react'
@@ -24,6 +26,7 @@ import type { SalonNivel } from '@/lib/platform/ninos/nivel'
 import { EditarNinoForm } from '../editar-nino-form'
 import { RegistroMesa } from '../registro-rapido/registro-mesa'
 import { VincularHijoForm } from '../vincular-hijo-form'
+import { ReimprimirEtiquetas } from './reimprimir-etiquetas'
 import { SelectorSalon } from './selector-salon'
 
 export type PanelCheckin =
@@ -31,6 +34,7 @@ export type PanelCheckin =
   | { tipo: 'salon'; hijo: HijoEncontrado }
   | { tipo: 'ficha'; hijo: HijoEncontrado }
   | { tipo: 'agregar' | 'vincular'; id: string; nombre: string }
+  | { tipo: 'reimprimir'; codigo: string; ninos: { id: string; nombre: string }[] }
 
 export interface PanelesCheckinProps {
   readonly panel: PanelCheckin | null
@@ -52,10 +56,18 @@ export interface PanelesCheckinProps {
   readonly onAbrirFamilia: (padreId: string, consulta?: string) => void
   /** After a ficha is saved: reload the family at the mesa. */
   readonly onFichaGuardada: () => void
+  /** The desk's print station (T3b): where «Reimprimir» and «Registrar y dar ingreso» send the labels. */
+  readonly estacion?: { readonly id: string; readonly nombre: string } | null
 }
 
-function encabezado(p: PanelCheckin): { titulo: string; descripcion?: string; ancho: 'md' | 'lg' } {
+function encabezado(p: PanelCheckin, estacion: string | null): { titulo: string; descripcion?: string; ancho: 'md' | 'lg' } {
   switch (p.tipo) {
+    case 'reimprimir':
+      return {
+        titulo: 'Reimprimir',
+        descripcion: estacion ? `Código ${p.codigo} · sale por «${estacion}».` : `Código ${p.codigo}.`,
+        ancho: 'md',
+      }
     case 'nueva':
       return { titulo: 'Nueva familia', descripcion: 'Al guardar, la familia se abre lista para el ingreso.', ancho: 'lg' }
     case 'salon':
@@ -75,13 +87,13 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
   const [visto, setVisto] = useState<PanelCheckin | null>(panel)
   if (panel && panel !== visto) setVisto(panel)
   const actual = panel ?? visto
-  const cabecera = actual ? encabezado(actual) : { titulo: '', ancho: 'md' as const }
+  const cabecera = actual ? encabezado(actual, props.estacion?.nombre ?? null) : { titulo: '', ancho: 'md' as const }
 
   const abrirFamilia = (padreId: string, consulta?: string) => {
     onCerrar()
     props.onAbrirFamilia(padreId, consulta)
   }
-  const ingreso = props.turnoId ? { turnoId: props.turnoId, fecha: props.fecha } : undefined
+  const ingreso = props.turnoId ? { turnoId: props.turnoId, fecha: props.fecha, estacionId: props.estacion?.id ?? null } : undefined
   const ingresado = () => {
     onCerrar()
     props.onIngresado?.()
@@ -145,6 +157,20 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
           onAbrirFamilia={abrirFamilia}
         />
       )}
+      {panel?.tipo === 'reimprimir' &&
+        (props.estacion && props.turnoId ? (
+          <ReimprimirEtiquetas
+            key={panel.codigo}
+            estacion={props.estacion}
+            turnoId={props.turnoId}
+            fecha={props.fecha}
+            codigo={panel.codigo}
+            ninos={panel.ninos}
+            onCerrar={onCerrar}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">Elige la impresora de esta mesa para reimprimir.</p>
+        ))}
       {panel?.tipo === 'vincular' && (
         <VincularHijoForm
           key={panel.id}

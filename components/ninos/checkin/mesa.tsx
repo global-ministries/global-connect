@@ -42,12 +42,29 @@ export interface MesaProps {
   /** A child's missing grade or birth date was saved at the mesa (S9.6): reload the family. */
   readonly onDatoGuardado?: () => void
   readonly onParaAdulto: (tipo: 'agregar' | 'vincular', adulto: FamiliaEncontrada) => void
+  /** The desk's print station name (T3b); null = write the code on the labels. */
+  readonly estacion?: string | null
+  /** «Reimprimir» on the code or on a checked-in family; only with a print station. */
+  readonly onReimprimir?: (codigo: string, ninos: { id: string; nombre: string }[]) => void
 }
 
 const esCampo = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.isContentEditable || Boolean(t.closest('input, select, textarea, [contenteditable="true"]')))
 
-export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbierto, onCambiarSalon, onCompletar, onDatoGuardado, onParaAdulto }: MesaProps): ReactElement {
+export function Mesa({
+  mesa,
+  servicio,
+  salones,
+  ocupacion,
+  custodia,
+  panelAbierto,
+  onCambiarSalon,
+  onCompletar,
+  onDatoGuardado,
+  onParaAdulto,
+  estacion = null,
+  onReimprimir,
+}: MesaProps): ReactElement {
   const { busqueda, familia, resultado, foco } = mesa
   const varias = (busqueda.familias?.length ?? 0) > 1
   const refBuscar = useRef<HTMLInputElement>(null)
@@ -90,7 +107,13 @@ export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbiert
       <MarcoMesa abierto={resultado !== null} titulo="Ingreso registrado" onCerrar={mesa.siguienteFamilia}>
         {resultado && (
           <div className="min-w-0 md:rounded-2xl md:border md:border-border md:bg-card md:p-4 lg:p-5">
-            <CodigoRetiro resultado={resultado} onSiguiente={mesa.siguienteFamilia} refSiguiente={refSiguiente} />
+            <CodigoRetiro
+              resultado={resultado}
+              onSiguiente={mesa.siguienteFamilia}
+              refSiguiente={refSiguiente}
+              estacion={estacion}
+              onReimprimir={onReimprimir ? () => onReimprimir(resultado.codigo, resultado.lineas.map((l) => ({ id: l.ninoId, nombre: l.nombre }))) : undefined}
+            />
           </div>
         )}
       </MarcoMesa>
@@ -126,6 +149,7 @@ export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbiert
             onDatoGuardado={onDatoGuardado}
             onRegistrar={() => void mesa.registrarIngreso()}
             refRegistrar={refRegistrar}
+            onReimprimir={onReimprimir}
           />
         ) : null}
       </MarcoMesa>

@@ -3,9 +3,12 @@
  * (prototype 01 `.codigo`): the code very large, one line per child with its
  * salón, the "Salón lleno" warnings (the check-in is already saved: warn,
  * never block), who may pick up, and "Siguiente familia".
+ * With a print station at the desk (T3b, S10) the labels come out there: the
+ * line says so and «Reimprimir» opens the reprint panel; without one the
+ * screen is exactly as before (write the code on the labels).
  */
 import type { ReactElement, Ref } from 'react'
-import { AlertTriangle, Check } from 'lucide-react'
+import { AlertTriangle, Check, Printer } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import type { PersonaRetiro } from '@/lib/platform/ninos/checkin-vista'
@@ -24,17 +27,28 @@ export interface CodigoRetiroProps {
   readonly onSiguiente: () => void
   /** "Siguiente familia", focused when the code shows (desktop keyboard flow). */
   readonly refSiguiente?: Ref<HTMLButtonElement>
+  /** The desk's print station name (T3b): the labels come out there. */
+  readonly estacion?: string | null
+  /** «Reimprimir»: only with a print station. */
+  readonly onReimprimir?: () => void
 }
 
-export function CodigoRetiro({ resultado, onSiguiente, refSiguiente }: CodigoRetiroProps): ReactElement {
+export function CodigoRetiro({ resultado, onSiguiente, refSiguiente, estacion = null, onReimprimir }: CodigoRetiroProps): ReactElement {
   return (
     <div role="region" aria-label="Ingreso registrado" aria-live="polite" className="grid min-w-0 gap-3.5 text-center">
       <div className="grid gap-2 rounded-2xl border-2 border-brand bg-[var(--brand-accent)] px-3 py-4.5">
         <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Código de retiro</p>
         <p className="break-all font-mono text-7xl font-bold lg:text-[88px] leading-none tracking-[0.08em] tabular-nums text-foreground">{resultado.codigo}</p>
-        <p className="text-[15px] text-muted-foreground">
-          Escríbelo en las <b className="font-semibold text-foreground">dos etiquetas</b>: la del niño y la del representante.
-        </p>
+        {estacion ? (
+          <p className="text-[15px] text-muted-foreground">
+            Las etiquetas salen por <b className="font-semibold text-foreground">«{estacion}»</b>: pega la del niño en su espalda y entrega el
+            recibo al representante.
+          </p>
+        ) : (
+          <p className="text-[15px] text-muted-foreground">
+            Escríbelo en las <b className="font-semibold text-foreground">dos etiquetas</b>: la del niño y la del representante.
+          </p>
+        )}
       </div>
 
       <ul aria-label="Niños registrados" className="min-w-0 rounded-xl border border-border text-left">
@@ -61,6 +75,11 @@ export function CodigoRetiro({ resultado, onSiguiente, refSiguiente }: CodigoRet
 
       <PuedenRetirar personas={resultado.retiran} />
 
+      {onReimprimir && (
+        <BotonSistema type="button" variante="outline" icono={Printer} className="w-full" aria-haspopup="dialog" onClick={onReimprimir}>
+          Reimprimir
+        </BotonSistema>
+      )}
       <BotonSistema ref={refSiguiente} type="button" tamaño="lg" className="w-full" onClick={onSiguiente}>
         Siguiente familia
       </BotonSistema>

@@ -1,8 +1,8 @@
 /**
  * Niños › check-in administration — the tabs of the artboards
- * (design/ninos-checkin-pco/01 and 02, `.seg` nav): Eventos · Salones, links
- * with `aria-current`, the look of the shared tabs. The campus travels along.
- * Etiquetas and En vivo join when their screens exist (T3, T5).
+ * (design/ninos-checkin-pco/01–03, `.seg` nav): Eventos · Salones · Etiquetas,
+ * links with `aria-current`, the look of the shared tabs. The campus travels
+ * along. En vivo joins when its screen exists (T5).
  */
 import Link from 'next/link'
 import type { ReactElement } from 'react'
@@ -12,6 +12,7 @@ import { clasePestana, LISTA_PESTANAS } from '@/components/ninos/pestanas-sistem
 const PESTANAS = [
   { id: 'eventos', etiqueta: 'Eventos', href: '/ninos/eventos' },
   { id: 'salones', etiqueta: 'Salones', href: '/ninos/salones' },
+  { id: 'etiquetas', etiqueta: 'Etiquetas', href: '/ninos/etiquetas' },
 ] as const
 
 export type PestanaAdmin = (typeof PESTANAS)[number]['id']

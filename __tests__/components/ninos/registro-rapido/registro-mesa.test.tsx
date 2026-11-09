@@ -282,6 +282,29 @@ describe('PanelesCheckin: Nueva familia', () => {
     expect(onIngresado).toHaveBeenCalled()
   })
 
+  // T3b, S10: new families get labels too, from the desk's chosen station (as the main desk).
+  it('"Registrar y dar ingreso" sends the desk\'s print station', async () => {
+    responder()
+    ingresoOk()
+    render(<PanelesCheckin {...base} panel={{ tipo: 'nueva' }} turnoId="t9" estacion={{ id: 'e1', nombre: 'Mesa 1' }} />)
+    const panel = await screen.findByRole('dialog', { name: 'Nueva familia' })
+    llenar()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR], turnoId: 't9', fecha: '2026-11-01', estacionId: 'e1' })
+  })
+
+  it('without a print station the check-in body is unchanged', async () => {
+    responder()
+    ingresoOk()
+    render(<PanelesCheckin {...base} panel={{ tipo: 'nueva' }} turnoId="t9" estacion={null} />)
+    const panel = await screen.findByRole('dialog', { name: 'Nueva familia' })
+    llenar()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR], turnoId: 't9', fecha: '2026-11-01' })
+  })
+
   it('without the service it keeps "Registrar familia"', async () => {
     render(<PanelesCheckin {...base} panel={{ tipo: 'nueva' }} />)
     const panel = await screen.findByRole('dialog', { name: 'Nueva familia' })

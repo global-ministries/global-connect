@@ -5,9 +5,12 @@
  * parents, the children already marked with their salón, who may pick up,
  * «Sin cuenta» with the account invitation (T2k, S9.9) and "Registrar
  * ingreso · N niños". Nothing marked disables the button ("Marca al menos un
- * niño").
+ * niño"). Children already in today can get their labels again with
+ * «Reimprimir etiquetas · código» (T3b, S10), only when the desk has a print
+ * station.
  */
 import type { ReactElement, Ref } from 'react'
+import { Printer } from 'lucide-react'
 
 import { BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
@@ -48,6 +51,8 @@ export interface TarjetaFamiliaProps {
   readonly onRegistrar: () => void
   /** "Registrar ingreso", focused when the family opens (desktop keyboard flow). */
   readonly refRegistrar?: Ref<HTMLButtonElement>
+  /** Reprint the labels of a código already checked in (only with a print station). */
+  readonly onReimprimir?: (codigo: string, ninos: { id: string; nombre: string }[]) => void
 }
 
 export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): ReactElement {
@@ -55,6 +60,11 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
   const n = p.marcados.size
   const retiran = quienesRetiran(familia.padres, familia.hijos)
   const titulo = familia.padres.map((x) => `${x.nombre} ${x.apellido}`).join(' · ') || `${familia.nombre} ${familia.apellido}`
+  const porCodigo = new Map<string, { id: string; nombre: string }[]>()
+  for (const h of familia.hijos) {
+    const codigo = p.ingresados[h.id]
+    if (codigo) porCodigo.set(codigo, [...(porCodigo.get(codigo) ?? []), { id: h.id, nombre: `${h.nombre} ${h.apellido}` }])
+  }
 
   return (
     <TarjetaSistema className="grid min-w-0 gap-3.5 p-4 md:p-5" aria-label={`Familia de ${titulo}`} role="region">
@@ -99,6 +109,26 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
             />
           ))}
         </ul>
+      )}
+
+      {p.onReimprimir && porCodigo.size > 0 && (
+        <div className="flex min-w-0 flex-wrap gap-2">
+          {[...porCodigo].map(([codigo, ninos]) => (
+            <BotonSistema
+              key={codigo}
+              type="button"
+              variante="outline"
+              tamaño="sm"
+              icono={Printer}
+              aria-haspopup="dialog"
+              aria-label={`Reimprimir etiquetas del código ${codigo}`}
+              className="pointer-coarse:min-h-11"
+              onClick={() => p.onReimprimir?.(codigo, ninos)}
+            >
+              Reimprimir etiquetas · <span className="font-mono tabular-nums">{codigo}</span>
+            </BotonSistema>
+          ))}
+        </div>
       )}
 
       <PuedenRetirar personas={retiran} />

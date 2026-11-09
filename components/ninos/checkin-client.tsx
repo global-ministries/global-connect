@@ -22,6 +22,12 @@
  *
  * Custody (T2e, S9.2): a child of the queue or the mesa with an active
  * restriction carries the «Custodia» chip (useCustodia); never the label.
+ *
+ * Labels (T3b, S10; artboard design/ninos-checkin-pco/05): the desk picks its
+ * print station under the service (remembered on this device per campus);
+ * the check-in sends it and the code offers «Reimprimir». No station or an
+ * offline one only shows a small notice; a campus without stations shows
+ * nothing and the desk works as before.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -41,10 +47,12 @@ import { ColaLlegando } from './checkin/cola-llegando'
 import { ColumnaSalones } from './checkin/columna-salones'
 import { useCustodia } from './custodia/use-custodia'
 import { EncabezadoCheckin, MigasCheckin } from './checkin/encabezado-checkin'
+import { EstacionMesa } from './checkin/estacion-mesa'
 import { Mesa } from './checkin/mesa'
 import { PanelesCheckin, type PanelCheckin } from './checkin/paneles-checkin'
 import { SalonesOcupacion } from './checkin/salones-ocupacion'
 import { useColaLlegando } from './checkin/use-cola-llegando'
+import { useEstacionMesa } from './checkin/use-estacion-mesa'
 import { useMesa } from './checkin/use-mesa'
 import { useVisitas } from './checkin/use-visitas'
 import { VentanaHorario } from './checkin/ventana-horario'
@@ -65,9 +73,13 @@ type Props = {
   padreInicial?: string
   /** Event and window of each turno with a Niños horario (T2d); a turno without one uses 120 / 120. */
   horarios?: Readonly<Record<string, HorarioMesa>>
+  /** Campuses of the desk's salones: the print stations to offer and the key of the remembered one (T3b). */
+  campusIds?: readonly string[]
 }
 
 type Pestana = 'ingreso' | 'retiro'
+
+const SIN_CAMPUS: readonly string[] = []
 
 const PESTANAS = [
   { valor: 'ingreso', etiqueta: 'Ingreso' },
@@ -78,7 +90,16 @@ function urlCheckin(s: Servicio): string {
   return `/ninos/checkin?turno=${encodeURIComponent(s.turnoId ?? '')}&fecha=${encodeURIComponent(s.fecha)}`
 }
 
-export function CheckinClient({ salones, turnos, servicio: servicioInicial, campus = null, consultaInicial, padreInicial, horarios = {} }: Props) {
+export function CheckinClient({
+  salones,
+  turnos,
+  servicio: servicioInicial,
+  campus = null,
+  consultaInicial,
+  padreInicial,
+  horarios = {},
+  campusIds = SIN_CAMPUS,
+}: Props) {
   const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [servicio, setServicio] = useState<Servicio>(servicioInicial)
@@ -103,6 +124,8 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
   const { cola, recargar: recargarCola } = useColaLlegando(servicio)
   const porSalon = useMemo(() => new Map((ocupacion ?? []).map((o) => [o.salon_id, o])), [ocupacion])
   const { visitas, cargar: cargarVisitas } = useVisitas(servicio.fecha)
+  const impresora = useEstacionMesa(campusIds)
+  const estacion = impresora.elegida
   useEffect(() => {
     cargarVisitas(cola.flatMap((i) => (i.tipo === 'familia' ? i.familia.hijos.map((h) => h.id) : [])))
   }, [cola, cargarVisitas])
@@ -114,6 +137,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
       void recargarCola()
     },
     { visitas, ocupacion: porSalon, cargarVisitas },
+    estacion?.id ?? null,
   )
   const { busqueda, buscarYElegir } = mesa
   const idsCustodia = useMemo(
@@ -184,6 +208,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
               fecha={servicio.fecha}
               horario={servicio.turnoId ? horarios[servicio.turnoId] : undefined}
             />
+            <EstacionMesa estado={impresora} />
           </div>
           <ControlSegmentado
             etiqueta="Ingreso o retiro"
@@ -245,6 +270,8 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
             onCompletar={(hijo) => setPanel({ tipo: 'ficha', hijo })}
             onDatoGuardado={recargarFamilia}
             onParaAdulto={(tipo, a) => setPanel({ tipo, id: a.id, nombre: `${a.nombre} ${a.apellido}` })}
+            estacion={estacion?.nombre ?? null}
+            onReimprimir={estacion ? (codigo, ninos) => setPanel({ tipo: 'reimprimir', codigo, ninos }) : undefined}
           />
           <div className="hidden min-w-0 lg:block">
             <ColumnaSalones ocupacion={ocupacion} adentro={resumen.adentro} />
@@ -271,6 +298,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
         onElegirSalon={mesa.elegirSalon}
         onAbrirFamilia={(padreId, consulta) => abrirFamilia(padreId, consulta)}
         onFichaGuardada={recargarFamilia}
+        estacion={estacion ? { id: estacion.id, nombre: estacion.nombre } : null}
       />
     </PaginaSistema>
   )

@@ -14,6 +14,9 @@
  * occupancy the children go in as at the main desk; «Usar {otro}» travels as
  * `salonHoy` (this check-in only) and a child still over its room's quota
  * travels as forzadoIds, so ninos_checkin records who forced it.
+ *
+ * Print station (T3b, S10): with the desk's `estacionId` the check-in body
+ * carries it, so new families get labels too; without it the body is unchanged.
  */
 import { useEffect, useRef, useState } from 'react'
 
@@ -37,8 +40,8 @@ import { createClient } from '@/lib/supabase/client'
 
 import { registrarIngresoApi, type FilaIngreso } from '../api-visita'
 
-/** The service the new children go in to (check-in desk only). */
-export type IngresoMesa = { turnoId: string; fecha: string }
+/** The service the new children go in to (check-in desk only); `estacionId`: the desk's print station. */
+export type IngresoMesa = { turnoId: string; fecha: string; estacionId?: string | null }
 
 export type Guardar = (payload: FamiliaPayload) => Promise<{ padreId: string } | { error: string }>
 
@@ -133,6 +136,7 @@ export function useRegistroMesa({ padreExistente, guardar, ingreso, salones, ocu
       turnoId: ingreso!.turnoId,
       fecha: ingreso!.fecha,
       ...(forzadoIds.length > 0 && { forzadoIds }),
+      ...(ingreso!.estacionId && { estacionId: ingreso!.estacionId }),
     })
     if (error || !data || data.length === 0) return setResultado({ ...base, errorIngreso: prefijo + mensajeDeErrorCheckin(error) })
     setResultado({ ...base, ingreso: { payload, ids, filas: data } })
