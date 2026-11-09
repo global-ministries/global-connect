@@ -209,14 +209,40 @@ describe('calcularVistaVoluntarios', () => {
     expect(vista({ equipo: 'zz' }).equipoId).toBe('todos')
   })
 
-  it('filters by the pressed metric and by name', () => {
+  it('filters by the pressed metric and by name; «Sin marcar» shows every unmarked row (S6)', () => {
     const sinMarcar = vista({ metrica: 'sin-marcar' })
     expect(sinMarcar.metricas[0].activa).toBe(true)
     expect(sinMarcar.esperados.flatMap((g) => g.filas.map((f) => f.nombre))).toEqual(['Bruno'])
     expect(sinMarcar.otros).toEqual([])
+    expect(sinMarcar.sinTurno.map((f) => f.nombre)).toEqual(['Elena'])
+    expect(sinMarcar.visibles).toBe(2)
     expect(vista({ metrica: 'presentes' }).visibles).toBe(2)
     expect(vista({ q: 'elena' }).sinTurno.map((f) => f.nombre)).toEqual(['Elena'])
     expect(vista({ q: 'elena' }).visibles).toBe(1)
+  })
+
+  it('each filter count is the rows that filter shows, with the equipo and the search of the moment (S6)', () => {
+    const filtros = ['sin-marcar', 'presentes', 'avisos', 'faltas'] as const
+    for (const parche of [{}, { equipo: 'prod' }, { q: 'elena' }, { q: 'zz' }]) {
+      const v = vista(parche)
+      expect(v.cuentas.todos).toBe(v.visibles)
+      for (const metrica of filtros) expect(v.cuentas[metrica]).toBe(vista({ ...parche, metrica }).visibles)
+    }
+    expect(vista().cuentas).toEqual({ todos: 5, 'sin-marcar': 2, presentes: 2, avisos: 0, faltas: 1 })
+    expect(vista({ metrica: 'faltas' }).cuentas).toEqual({ todos: 5, 'sin-marcar': 2, presentes: 2, avisos: 0, faltas: 1 })
+  })
+
+  it('the summary counts the expected volunteers: «N esperados sin marcar · K de M marcados»', () => {
+    expect(vista().progreso).toEqual({ sinMarcar: 1, marcados: 2, esperados: 3 })
+    expect(vista({ equipo: 'prod', q: 'zz' }).progreso).toEqual({ sinMarcar: 1, marcados: 2, esperados: 3 })
+  })
+
+  it('the Equipos bar gives each equipo its expected volunteers marked, of all, and the unmarked', () => {
+    expect(vista().barraEquipos).toEqual([
+      { equipoId: 'todos', equipo: 'Todos los equipos', marcados: 2, esperados: 3, sinMarcar: 1 },
+      { equipoId: 'log', equipo: 'Logística', marcados: 1, esperados: 2, sinMarcar: 1 },
+      { equipoId: 'prod', equipo: 'Producción', marcados: 1, esperados: 1, sinMarcar: 0 },
+    ])
   })
 
   it('keeps the pending volunteers of an equipo even when a filter hides them', () => {

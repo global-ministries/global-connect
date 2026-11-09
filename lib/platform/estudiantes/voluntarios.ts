@@ -12,8 +12,10 @@
  *   dated one must be planned.
  * - The roster has the shape of the Niños one ('areas' are the ámbitos), so
  *   its row rules are shared from lib/platform/ninos/voluntarios.ts. Here: the
- *   ámbito, the equipo cards, the metrics that filter (Sin marcar, Presentes,
- *   Avisó, Faltó over the expected volunteers) and the search.
+ *   ámbito, the Equipos bar, the filters Sin marcar · Presentes · Avisó ·
+ *   Faltó (each count is the rows it shows with the equipo and the search of
+ *   the moment, estudiantes-estilo-dps S6), the summary over the expected
+ *   volunteers and the search.
  *
  * The server decides who may mark whom, who was expected and the marking
  * window (today or up to 14 days back).
@@ -171,6 +173,15 @@ export interface MetricaVistaVoluntarios {
   readonly activa: boolean
 }
 
+/** One line of the Equipos bar: the expected volunteers marked, of all, and the unmarked ones. */
+export interface EquipoBarra {
+  readonly equipoId: string
+  readonly equipo: string
+  readonly marcados: number
+  readonly esperados: number
+  readonly sinMarcar: number
+}
+
 /** The expected volunteers of one equipo on screen, with the equipo's totals. */
 export interface GrupoVistaVoluntarios {
   readonly equipoId: string
@@ -192,6 +203,12 @@ export interface VistaVoluntarios {
   /** Every volunteer of the ámbito. */
   readonly totalAmbito: number
   readonly metricas: readonly MetricaVistaVoluntarios[]
+  /** Rows each filter shows (Todos and the four metrics), with the equipo and the search of the moment. */
+  readonly cuentas: Readonly<Record<'todos' | MetricaVoluntarios, number>>
+  /** The summary of the ámbito: "N esperados sin marcar · K de M marcados". */
+  readonly progreso: { readonly sinMarcar: number; readonly marcados: number; readonly esperados: number }
+  /** "Todos los equipos" first, then each equipo. */
+  readonly barraEquipos: readonly EquipoBarra[]
   readonly esperados: readonly GrupoVistaVoluntarios[]
   /** Assigned to another turno or not due that day. */
   readonly otros: readonly FilaVoluntario[]
@@ -208,7 +225,7 @@ export function coincideMetrica(fila: FilaVoluntario, metrica: MetricaVoluntario
     case null:
       return true
     case 'sin-marcar':
-      return fila.esperado && fila.estado === null
+      return fila.estado === null
     case 'presentes':
       return fila.estado === 'presente'
     case 'avisos':
@@ -227,7 +244,14 @@ export function calcularVistaVoluntarios(planilla: Planilla, filtros: FiltrosVol
   const equipos = resumirEquipos(filasAmbito)
   const equipoId = equipos.some((e) => e.equipoId === filtros.equipo) ? filtros.equipo : TODOS_LOS_EQUIPOS
   const filasEquipo = filtrarPorEquipo(filasAmbito, equipoId)
-  const filtradas = filtrarPorNombre(filasEquipo, filtros.q).filter((f) => coincideMetrica(f, filtros.metrica))
+  const buscadas = filtrarPorNombre(filasEquipo, filtros.q)
+  const filtradas = buscadas.filter((f) => coincideMetrica(f, filtros.metrica))
+  const cuenta = (metrica: MetricaVoluntarios) => buscadas.filter((f) => coincideMetrica(f, metrica)).length
+  const barra = (equipoId: string, equipo: string, filas: readonly FilaVoluntario[]): EquipoBarra => {
+    const esperadas = filas.filter((f) => f.esperado)
+    const sinMarcar = esperadas.filter((f) => f.estado === null).length
+    return { equipoId, equipo, marcados: esperadas.length - sinMarcar, esperados: esperadas.length, sinMarcar }
+  }
   const { esperados, otros, sinTurno } = separarPlanilla(filtradas)
 
   const de = `de ${contadores.esperados} ${palabra(contadores.esperados, 'esperado', 'esperados')}`
@@ -253,6 +277,18 @@ export function calcularVistaVoluntarios(planilla: Planilla, filtros: FiltrosVol
       metrica('presentes', 'Presentes', contadores.presentes, 'success', contadores.extras > 0 ? `${contadores.extras} sin turno ese día` : de),
       metrica('avisos', 'Avisó', contadores.avisos, 'info'),
       metrica('faltas', 'Faltó', contadores.faltas, 'danger'),
+    ],
+    cuentas: {
+      todos: buscadas.length,
+      'sin-marcar': cuenta('sin-marcar'),
+      presentes: cuenta('presentes'),
+      avisos: cuenta('avisos'),
+      faltas: cuenta('faltas'),
+    },
+    progreso: { sinMarcar: contadores.sinMarcar, marcados: contadores.esperados - contadores.sinMarcar, esperados: contadores.esperados },
+    barraEquipos: [
+      barra(TODOS_LOS_EQUIPOS, 'Todos los equipos', filasAmbito),
+      ...equipos.map((e) => barra(e.equipoId, e.equipo, filasAmbito.filter((f) => f.equipo_id === e.equipoId))),
     ],
     esperados: agruparPorEquipo(esperados).map((g) => {
       const delEquipo = filasAmbito.filter((f) => f.equipo_id === g.equipoId && f.esperado)
