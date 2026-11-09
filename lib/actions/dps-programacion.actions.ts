@@ -23,6 +23,11 @@
  * fecha" (dps_plan_mover) and "Eliminar evento" (dps_plan_eliminar), in
  * supabase/migrations/20261108206000_dps_eventos_especiales.sql. The client
  * reloads the year afterwards, so «Día N de M» is renumbered by the database.
+ *
+ * T11c (S11): Productor, Host and Comunicador link a persona of the system
+ * (guardarCeldaDps with personaId: {"persona_id"} through dps_plan_campo)
+ * found with buscarPersonasProgramacionDps (dps_buscar_personas, planners
+ * only, in supabase/migrations/20261108207000_dps_buscar_personas.sql).
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -41,6 +46,7 @@ import {
   type ColumnaHoja,
   type PlanHoja,
 } from '@/lib/platform/dps/programacion'
+import { leerPersonasBuscadas, textoParaBuscar, type PersonaBuscada } from '@/lib/platform/dps/personas'
 import { rpcDps, type RpcDps } from '@/lib/platform/dps/rpc'
 
 import type { ResultadoDps } from './dps-asistencia.actions'
@@ -49,6 +55,8 @@ const SIN_SESION = 'Tu sesión terminó. Vuelve a iniciar sesión.'
 const DATOS_INVALIDOS = 'Revisa los datos e inténtalo de nuevo.'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLORES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5']
+/** The cell's list stays short. */
+const MAX_PERSONAS = 8
 
 const esUuid = (valor: unknown): valor is string => typeof valor === 'string' && UUID_RE.test(valor)
 const fallo = (message: string, codigo: CodigoErrorDps | null = null) => ({ ok: false, message, codigo }) as const
@@ -83,6 +91,8 @@ export interface GuardarCeldaInput {
   readonly columna: ColumnaHoja
   /** What the cell reads; '' clears it. */
   readonly valor: string
+  /** Productor, host or comunicador: the persona picked (S11); `valor` is then only their name. */
+  readonly personaId?: string
 }
 
 /** The id of the Sunday plan of the date, creating it when there is none. */
@@ -101,7 +111,9 @@ export async function guardarCeldaDps(input: GuardarCeldaInput): Promise<Resulta
   const columna = input?.columna
   if (!COLUMNAS_HOJA.some((c) => c.id === columna) || typeof input.valor !== 'string') return fallo(DATOS_INVALIDOS)
   if (input.planId === null ? !esDomingo(input.fecha) : !esUuid(input.planId)) return fallo(DATOS_INVALIDOS)
-  const valor = valorParaRpc(columna, input.valor)
+  const conPersona = input.personaId !== undefined
+  if (conPersona && (!esUuid(input.personaId) || COLUMNAS_HOJA.find((c) => c.id === columna)?.tipo !== 'persona')) return fallo(DATOS_INVALIDOS)
+  const valor = conPersona ? ({ ok: true, valor: { persona_id: input.personaId } } as const) : valorParaRpc(columna, input.valor)
   if (!valor.ok) return fallo(valor.mensaje, 'valor_invalido')
   const rpc = await sesion()
   if (!rpc) return fallo(SIN_SESION)
@@ -116,6 +128,19 @@ export async function guardarCeldaDps(input: GuardarCeldaInput): Promise<Resulta
   if (error) return falloRpc(error)
   const plan = leerPlanHoja(data)
   return plan ? { ok: true, data: plan } : falloRpc({ message: null })
+}
+
+/** People of the system for Productor, Host and Comunicador (S11): id, name and initials only. */
+export async function buscarPersonasProgramacionDps(input: { readonly texto: string }): Promise<ResultadoDps<PersonaBuscada[]>> {
+  if (typeof input?.texto !== 'string') return fallo(DATOS_INVALIDOS)
+  const texto = textoParaBuscar(input.texto)
+  if (texto === null) return { ok: true, data: [] }
+  const rpc = await sesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc('dps_buscar_personas', { p_texto: texto, p_limite: MAX_PERSONAS })
+  if (error) return falloRpc(error)
+  return { ok: true, data: leerPersonasBuscadas(data) }
 }
 
 export interface CrearSerieInput {

@@ -28,8 +28,10 @@
  * event of one or several days (one plan per day, shown together as
  * «Título · Día N de M»), and the menu of a special row moves it to another
  * date or deletes it (dialogos-evento.tsx); each reloads the year (T11b,
- * S9). Everyone else who sees DPS reads the same sheet (S6). The database
- * decides.
+ * S9). Productor, Host and Comunicador link a person of the system or keep
+ * a written name (T11c, S11): a pick is saved like any cell, with the
+ * person's id. Everyone else who sees DPS reads the same sheet (S6). The
+ * database decides.
  */
 import { useMemo, useRef, useState, type ReactElement } from 'react'
 import Link from 'next/link'
@@ -57,8 +59,10 @@ import {
   semanaSerie,
   valorParaRpc,
   type ColumnaHoja,
+  type ColumnaPersona,
   type PlanHoja,
 } from '@/lib/platform/dps/programacion'
+import type { PersonaBuscada } from '@/lib/platform/dps/personas'
 
 import { DialogoNuevaSerie } from './dialogo-nueva-serie'
 import { DialogoNuevoEvento } from './dialogo-nuevo-evento'
@@ -88,6 +92,8 @@ const DENSIDADES = [
 
 interface CambioEnVuelo {
   readonly valor: string
+  /** Productor / host / comunicador: the person linked (null: a written name). */
+  readonly personaId: string | null
   /** Which edit of the cell this is: only the latest one clears it. */
   readonly turno: number
 }
@@ -135,6 +141,10 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
   const anios = [...new Set([anioHoy - 1, anioHoy, anioHoy + 1, anio])].sort((a, b) => a - b)
 
   const valor = (fila: FilaDomingo, columna: ColumnaHoja): string => cambios[`${fila.fecha}|${columna}`]?.valor ?? fila.plan?.valores[columna] ?? ''
+  const personaDe = (fila: FilaDomingo, columna: ColumnaPersona): string | null => {
+    const cambio = cambios[`${fila.fecha}|${columna}`]
+    return cambio ? cambio.personaId : (fila.plan?.personaIds[columna] ?? null)
+  }
 
   function empezar(frase: string): void {
     enVueloRef.current += 1
@@ -153,22 +163,31 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
     }
   }
 
-  async function guardarCelda(fila: FilaDomingo, columna: ColumnaHoja, texto: string): Promise<void> {
-    const revisado = valorParaRpc(columna, texto)
-    if (!revisado.ok) {
-      toast.error(revisado.mensaje)
-      return
+  /** A written value; for Productor / Host / Comunicador, `persona` links a person of the system instead (S11). */
+  async function guardarCelda(fila: FilaDomingo, columna: ColumnaHoja, texto: string, persona?: PersonaBuscada): Promise<void> {
+    let nuevo = persona?.nombre ?? ''
+    if (persona) {
+      if (personaDe(fila, columna as ColumnaPersona) === persona.personaId) return
+    } else {
+      const revisado = valorParaRpc(columna, texto)
+      if (!revisado.ok) {
+        toast.error(revisado.mensaje)
+        return
+      }
+      nuevo = normalizarCelda(columna, texto)
+      if (nuevo === valor(fila, columna)) return
     }
-    const nuevo = normalizarCelda(columna, texto)
-    if (nuevo === valor(fila, columna)) return
     const clave = `${fila.fecha}|${columna}`
     turnoRef.current += 1
     const turno = turnoRef.current
     const etiqueta = COLUMNAS_HOJA.find((c) => c.id === columna)?.etiqueta ?? columna
-    setCambios((c) => ({ ...c, [clave]: { valor: nuevo, turno } }))
+    setCambios((c) => ({ ...c, [clave]: { valor: nuevo, personaId: persona?.personaId ?? null, turno } }))
     empezar(`${etiqueta} del ${fechaCorta(fila.fecha)}: ${nuevo || 'vacío'}.`)
 
-    const r = await guardarCeldaDps({ planId: fila.plan?.id ?? null, fecha: fila.fecha, columna, valor: texto })
+    const planId = fila.plan?.id ?? null
+    const r = await guardarCeldaDps(
+      persona ? { planId, fecha: fila.fecha, columna, valor: persona.nombre, personaId: persona.personaId } : { planId, fecha: fila.fecha, columna, valor: texto },
+    )
     if (r.ok) setPlanes((ps) => [...ps.filter((p) => p.id !== r.data.id), r.data])
     setCambios((c) => {
       if (c[clave]?.turno !== turno) return c
@@ -297,6 +316,8 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
                 proximo={proximo}
                 valor={valor}
                 onGuardar={(fila, columna, texto) => void guardarCelda(fila, columna, texto)}
+                conFicha={(fila, columna) => personaDe(fila, columna) !== null}
+                onElegirPersona={(fila, columna, persona) => void guardarCelda(fila, columna, persona.nombre, persona)}
                 onMover={(plan) => setAccion({ tipo: 'mover', plan })}
                 onEliminar={(plan) => setAccion({ tipo: 'eliminar', plan })}
               />
@@ -314,6 +335,7 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
                     <kbd className="rounded-md border border-border bg-card px-1 font-mono text-[11px] text-foreground">Esc</kbd> cancela
                   </span>
                   <span>Escribe sobre una celda para reemplazarla</span>
+                  <span>En Productor, Host y Comunicador, ↑ ↓ eligen a una persona de la plataforma</span>
                 </>
               )}
               <span>Flechas para moverte</span>

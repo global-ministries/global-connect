@@ -22,6 +22,7 @@ jest.mock('@/lib/actions/dps-programacion.actions', () => ({
   cargarProgramacionDps: jest.fn(),
   guardarCeldaDps: jest.fn(),
   crearSerieDps: jest.fn(),
+  buscarPersonasProgramacionDps: jest.fn().mockResolvedValue({ ok: true, data: [] }),
 }))
 jest.mock('@/lib/actions/dps-plan.actions', () => ({ cambiarPortadaDps: jest.fn() }))
 
@@ -145,7 +146,7 @@ describe('editing a cell', () => {
     render(<ProgramacionClient {...props()} />)
     act(() => celda('2026-11-08', 'comunicador').focus())
     await user.keyboard('{Enter}')
-    await user.type(screen.getByRole('textbox', { name: 'Comunicador, 8 de noviembre' }), 'Ps. Olmedo')
+    await user.type(screen.getByRole('combobox', { name: 'Comunicador, 8 de noviembre' }), 'Ps. Olmedo')
     await user.keyboard('{Tab}')
     expect(guardar).toHaveBeenCalledWith({ planId: 'p8', fecha: '2026-11-08', columna: 'comunicador', valor: 'Ps. Olmedo' })
     expect(celda('2026-11-08', 'opener')).toHaveFocus()
@@ -205,7 +206,7 @@ describe('editing a cell', () => {
     expect(guardar).not.toHaveBeenCalled()
     act(() => celda('2026-11-08', 'host').focus())
     await user.keyboard('{Enter}')
-    fireEvent.change(screen.getByRole('textbox', { name: 'Host, 8 de noviembre' }), { target: { value: 'x'.repeat(121) } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Host, 8 de noviembre' }), { target: { value: 'x'.repeat(121) } })
     await user.keyboard('{Enter}')
     expect(guardar).not.toHaveBeenCalled()
     expect(toast.error).toHaveBeenCalledWith('Máximo 120 caracteres.')
