@@ -4,7 +4,9 @@ import { HECHOS_VACIOS } from '@/lib/inicio/hechos'
 const adminFrom = jest.fn()
 const obtenerCasasRevisionPendiente = jest.fn()
 const obtenerGruposSinCasaAnfitriona = jest.fn()
+const cargarPendientesCargo = jest.fn()
 
+jest.mock('@/lib/inicio/cargar-pendientes', () => ({ cargarPendientesCargo: (...a: unknown[]) => cargarPendientesCargo(...a) }))
 jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: () => ({ from: adminFrom }) }))
 jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({
   obtenerCasasRevisionPendiente: () => obtenerCasasRevisionPendiente(),
@@ -73,6 +75,7 @@ describe('cargarHechosInicio', () => {
     consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     obtenerCasasRevisionPendiente.mockResolvedValue({ success: true, data: [{}, {}, {}] })
     obtenerGruposSinCasaAnfitriona.mockResolvedValue({ success: true, data: [{}] })
+    cargarPendientesCargo.mockResolvedValue({ reportesSinCargar: 0, lideresSinReporte: 0, marcarProximoPaso: 0 })
   })
 
   afterEach(() => consoleError.mockRestore())
@@ -127,6 +130,31 @@ describe('cargarHechosInicio', () => {
     expect(hechos.serviciosActivos).toHaveLength(2)
     expect(hechos.pendientes.solicitudesGrupo).toBe(2)
     expect(consoleError).toHaveBeenCalledTimes(4)
+  })
+
+  it('cuenta los pendientes de lo que tiene a cargo', async () => {
+    cargarPendientesCargo.mockResolvedValue({ reportesSinCargar: 1, lideresSinReporte: 4, marcarProximoPaso: 3 })
+    const cliente = preparar()
+
+    const hechos = await cargar(cliente)
+
+    expect(cargarPendientesCargo).toHaveBeenCalledWith(cliente, {
+      usuarioId: 'u-1',
+      hoy: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      gruposLider: ['g-1'],
+      etapas: ['sl-1'],
+      segmentos: ['seg-1'],
+      areas: ['eq-ninos'],
+    })
+    expect(hechos.pendientes).toMatchObject({ reportesSinCargar: 1, lideresSinReporte: 4, marcarProximoPaso: 3, solicitudesGrupo: 2 })
+  })
+
+  it('sin cargos no busca pendientes de cargo', async () => {
+    const cliente = preparar({ tablas: { grupo_miembros: ok([]), segmento_lideres: ok([]), director_general_segmentos: ok([]), dream_team_servicios: ok([]) } })
+
+    await cargar(cliente)
+
+    expect(cargarPendientesCargo).not.toHaveBeenCalled()
   })
 
   it('marca el perfil incompleto sin teléfono o fecha de nacimiento', async () => {
