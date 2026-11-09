@@ -135,8 +135,10 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
 SELECT pg_temp.id('us', x.n), CASE WHEN x.n <= 4 THEN pg_temp.id('au', x.n) END, x.nombre, x.apellido,
        'bq-' || x.n || '@example.test', 'Soltero', 'Femenino'
   FROM (VALUES (1, 'ZZ Bqadmin', 'U1'), (2, 'ZZ Bqplan', 'U2'), (3, 'ZZ Bqvol', 'U3'), (4, 'ZZ Bqrandom', 'U4'),
-               (5, 'ZZ Bqana', 'Pérez'), (6, 'ZZ Bqandrés', 'Pérez_x')) AS x(n, nombre, apellido)
-UNION ALL
+               (5, 'ZZ Bqana', 'Pérez'), (6, 'ZZ Bqandrés', 'Pérez_x')) AS x(n, nombre, apellido);
+-- A separate INSERT: in a UNION the literals would resolve to text and not
+-- cast to the estado_civil / genero enums of a real database.
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), NULL, 'ZZ Bqlote', lpad(n::text, 2, '0'), 'bq-' || n || '@example.test', 'Soltero', 'Femenino'
   FROM generate_series(7, 31) AS n;
 -- Staging validates a servicio against the person's principal campus.
