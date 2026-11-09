@@ -3,13 +3,15 @@
  * (odd/tasks/dps-asistencia-pco.md, T9; T10 adds the plan del domingo:
  * convocados, copy and the series cover; S8 the automatic directors; T11
  * the annual programming sheet and "Nueva serie"; S9 "Nuevo evento",
- * "Mover fecha" and "Eliminar evento"). The
+ * "Mover fecha" and "Eliminar evento"; T13 the order of the service and
+ * each plan's horarios, S10). The
  * RPCs raise their code as the message ('sin_autoridad' 42501, the rest
  * 22023; see the headers of
  * supabase/migrations/20261108201000_dps_planificacion_rpcs.sql,
  * 20261108202000_dps_planificacion_convocados.sql and
  * 20261108204000_dps_directores_automaticos.sql; T11b the special events,
- * moving and deleting a plan: 20261108206000_dps_eventos_especiales.sql).
+ * moving and deleting a plan: 20261108206000_dps_eventos_especiales.sql;
+ * T13 the order and the horarios: 20261108208000_dps_orden_servicio.sql).
  * Pure: safe on the client.
  */
 
@@ -21,7 +23,17 @@ export interface ErrorRpc {
 }
 
 /** Where the error happened: the same code reads differently per screen. */
-export type ContextoErrorDps = 'planilla' | 'asistencia' | 'configuracion' | 'plan' | 'equipos' | 'portada' | 'programacion' | 'evento'
+export type ContextoErrorDps =
+  | 'planilla'
+  | 'asistencia'
+  | 'configuracion'
+  | 'plan'
+  | 'equipos'
+  | 'portada'
+  | 'programacion'
+  | 'evento'
+  | 'orden'
+  | 'horarios'
 
 const CODIGOS = [
   'sin_autoridad',
@@ -55,6 +67,12 @@ const CODIGOS = [
   'plan_pasado',
   'fecha_pasada',
   'plan_con_asistencia',
+  'item_invalido',
+  'duracion_invalida',
+  'fase_invalida',
+  'posicion_invalida',
+  'orden_lleno',
+  'destino_con_orden',
 ] as const
 
 export type CodigoErrorDps = (typeof CODIGOS)[number]
@@ -73,10 +91,15 @@ const GENERICO: Record<ContextoErrorDps, string> = {
   portada: 'No se pudo cambiar la portada. Intenta de nuevo.',
   programacion: 'No se pudo guardar la programación. Intenta de nuevo.',
   evento: 'No se pudo guardar el evento. Intenta de nuevo.',
+  orden: 'No se pudo guardar el orden. Intenta de nuevo.',
+  horarios: 'No se pudieron guardar los horarios. Intenta de nuevo.',
 }
 
 export const MENSAJE_HORARIOS = 'Revisa los horarios: de 1 a 6, con el formato 09:15.'
 export const MENSAJE_LLEGADA = 'Revisa la hora de llegada, con el formato 07:00.'
+/** A plan's own horarios (dps_plan_horarios_guardar, S10): 1 to 4, ascending, llegada first. */
+export const MENSAJE_HORARIOS_PLAN = 'Revisa los servicios: de 1 a 4, cada uno después del anterior, con el formato 09:15.'
+export const MENSAJE_LLEGADA_PLAN = 'La llegada del equipo tiene que ser antes del primer servicio.'
 /** The dps-series bucket: jpeg, png or webp up to 5 MB (also checked by the server action before uploading). */
 export const MENSAJE_IMAGEN = 'La imagen debe ser JPG, PNG o WebP de hasta 5 MB.'
 
@@ -90,6 +113,8 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       if (contexto === 'portada') return 'Solo quienes arman el plan pueden cambiar la portada.'
       if (contexto === 'programacion') return 'Solo quienes arman el plan pueden cambiar la programación.'
       if (contexto === 'evento') return 'Solo quienes arman el plan pueden crear, mover o eliminar eventos.'
+      if (contexto === 'orden') return 'Solo quienes arman el plan pueden cambiar el orden del servicio.'
+      if (contexto === 'horarios') return 'Solo quienes arman el plan pueden cambiar los horarios.'
       return 'No tienes permiso para pasar asistencia en este equipo.'
     case 'fecha_invalida':
       if (contexto === 'programacion') return 'El primer domingo tiene que caer en domingo.'
@@ -108,9 +133,9 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
     case 'rango_invalido':
       return contexto === 'evento' ? 'Un evento dura de 1 a 14 días. Revisa las fechas.' : 'Revisa las fechas e inténtalo de nuevo.'
     case 'horarios_invalidos':
-      return MENSAJE_HORARIOS
+      return contexto === 'horarios' ? MENSAJE_HORARIOS_PLAN : MENSAJE_HORARIOS
     case 'llegada_invalida':
-      return MENSAJE_LLEGADA
+      return contexto === 'horarios' ? MENSAJE_LLEGADA_PLAN : MENSAJE_LLEGADA
     case 'servicio_invalido':
       return 'Esa persona ya no sirve en este equipo. Busca de nuevo.'
     case 'puesto_invalido':
@@ -133,8 +158,11 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       return 'Las semanas van de 1 a 52.'
     case 'titulo_invalido':
       if (contexto === 'evento') return 'Escribe el título del evento (máximo 120 caracteres).'
+      if (contexto === 'orden') return 'Escribe el título (máximo 120 caracteres).'
       return 'Ese valor es muy largo o no es válido.'
     case 'valor_invalido':
+      if (contexto === 'orden') return 'Las notas van hasta 500 caracteres y el responsable hasta 80.'
+      return 'Ese valor es muy largo o no es válido.'
     case 'persona_o_texto':
       return 'Ese valor es muy largo o no es válido.'
     case 'plan_duplicado':
@@ -150,6 +178,18 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       return 'Elige una fecha de hoy en adelante.'
     case 'plan_con_asistencia':
       return 'Ya tiene asistencia marcada: no se puede mover ni eliminar.'
+    case 'item_invalido':
+      return 'Ese elemento ya no está en el orden. Actualiza la página.'
+    case 'duracion_invalida':
+      return 'Escribe la duración como minutos:segundos, por ejemplo 4:30 (máximo 240 minutos).'
+    case 'fase_invalida':
+      return 'Elige antes, en o después del servicio.'
+    case 'posicion_invalida':
+      return 'No se pudo mover el elemento. Actualiza la página.'
+    case 'orden_lleno':
+      return 'El orden llegó al máximo de 150 filas.'
+    case 'destino_con_orden':
+      return 'Este plan ya tiene orden. Elige si quieres reemplazarlo.'
     default:
       return GENERICO[contexto]
   }

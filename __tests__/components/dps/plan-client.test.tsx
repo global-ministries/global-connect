@@ -6,7 +6,7 @@
  * "Falta" rows, convocar from the popover (search, conflict flag, rollback),
  * quitar, "Copiar del domingo anterior" with the replace confirmation, the
  * cover, the read-only plan and the empty / error states. Every person is
- * fictitious.
+ * fictitious. The «Orden» tab (T13) is in orden-servicio.test.tsx.
  */
 import React from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -159,13 +159,15 @@ describe('the header', () => {
     expect(screen.getByRole('link', { name: 'Matriz' })).toHaveAttribute('href', '/dps/matriz?desde=2026-11-08')
   })
 
-  it('has Equipos as the current tab and Orden coming later', () => {
+  it('has Equipos as the current tab, Orden next to it (T13) and Ensayo coming later', () => {
     render(<PlanClient {...props()} />)
     const pestanas = screen.getByRole('navigation', { name: 'Secciones del plan' })
-    expect(within(pestanas).getByText('Equipos').closest('[aria-current]')).toHaveAttribute('aria-current', 'page')
-    const orden = within(pestanas).getByText('Orden').closest('[aria-disabled]')
-    expect(orden).toHaveAttribute('aria-disabled', 'true')
-    expect(orden).toHaveTextContent('pronto')
+    expect(within(pestanas).getByRole('link', { name: 'Equipos' })).toHaveAttribute('aria-current', 'page')
+    expect(within(pestanas).getByRole('link', { name: 'Orden' })).toHaveAttribute('href', '/dps/plan?plan=plan8&vista=orden')
+    expect(within(pestanas).getByRole('link', { name: 'Orden' })).not.toHaveAttribute('aria-current')
+    const ensayo = within(pestanas).getByText('Ensayo').closest('[aria-disabled]')
+    expect(ensayo).toHaveAttribute('aria-disabled', 'true')
+    expect(ensayo).toHaveTextContent('pronto')
   })
 })
 

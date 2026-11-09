@@ -1,21 +1,29 @@
 'use client'
 
 /**
- * DPS › Plan — client island of /dps/plan, Plan del domingo · Equipos
- * (T10 of odd/tasks/dps-asistencia-pco.md; S6.2, S6.4, S6.5, S7.1, S7.4).
- * Built on the wide layout of docs/design-system/layout.md and the artboard
- * prototipos/planificacion-dps/01-plan-domingo-equipos.html.
+ * DPS › Plan — client island of /dps/plan, Plan del domingo · Orden and
+ * Equipos (T10 and T13 of odd/tasks/dps-asistencia-pco.md; S6.2, S6.4,
+ * S6.5, S7.1, S7.4, S10). Built on the wide layout of
+ * docs/design-system/layout.md and the artboards
+ * prototipos/planificacion-dps/01-plan-domingo-equipos.html and
+ * 02-plan-domingo-orden.html.
  *
  * Top to bottom: crumbs "DPS › Plan"; the header band (encabezado-plan.tsx:
  * series cover, title, date pill to the previous / next plan, horarios and
  * llegada; «Matriz» to the matrix of Sundays of that week (T12, from md);
- * "Acciones ▾" for whoever edits: "Copiar del domingo anterior" and the
- * series cover); the toolbar (tabs "Orden pronto" · "Equipos", the
- * summary "N convocados en M equipos · F puestos sin cubrir" and the
- * autosave status); the team columns (columnas-equipos.tsx). From md the
- * view fills the viewport under the desktop header: the band and the toolbar
- * stay put and only the columns scroll (layout.md › Wide layout), so their
- * horizontal scrollbar is always in view. On a phone the page scrolls.
+ * "Acciones ▾" for whoever edits: "Copiar del domingo anterior", «Copiar
+ * orden del domingo anterior» and the series cover); the toolbar (tabs
+ * «Orden» · «Equipos» · «Ensayo pronto», the summary and the autosave
+ * status); then the tab. «Equipos»: "N convocados en M equipos · F puestos
+ * sin cubrir" and the team columns (columnas-equipos.tsx). «Orden» (T13):
+ * the context sidebar with the plan's own horarios (S10, orden-barra.tsx,
+ * horarios-plan.tsx), «Servicio 1 h 07 min · termina 10:22 y 12:22» and
+ * the order of the service (orden-servicio.tsx). The tabs are links
+ * (`?vista=orden`) that switch in place and keep the URL in step. From md
+ * the view fills the viewport under the desktop header: the band and the
+ * toolbar stay put and only the columns or the order scroll (layout.md ›
+ * Wide layout), so their scrollbars are always in view. On a phone the page
+ * scrolls; the toolbar, the horarios and the order stack in that order.
  *
  * The page column is `relative`: its `sr-only` text (absolutely positioned)
  * would otherwise take the viewport as containing block, escape the clipping
@@ -27,13 +35,14 @@
  * server action; a failure rolls it back and explains why. The copy confirms
  * first (and asks to replace when the plan already has people convocados by
  * hand; the automatic directors of S8 stay), then
- * reloads the teams and says how many were copied. Everyone else reads the
- * same plan without controls. The database decides who edits and who may be
- * convocado where.
+ * reloads the teams and says how many were copied. The horarios and the
+ * order save the same way (lib/actions/dps-orden.actions.ts). Everyone else
+ * reads the same plan without controls. The database decides who edits and
+ * who may be convocado where.
  */
-import { useMemo, useRef, useState, type ChangeEvent, type ReactElement } from 'react'
+import { useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type ReactElement } from 'react'
 import Link from 'next/link'
-import { CalendarDays, ChevronDown, Copy, Grid3x3, ImageMinus, ImageUp, UsersRound } from 'lucide-react'
+import { CalendarDays, ChevronDown, Copy, Grid3x3, ImageMinus, ImageUp, ListOrdered, UsersRound } from 'lucide-react'
 
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -42,8 +51,10 @@ import { CLASE_TITULO_PAGINA } from '@/components/grupos-vida/planner/marco-plan
 import { LISTA_PESTANAS, clasePestana } from '@/components/ninos/pestanas-sistema'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { cambiarPortadaDps, cargarEquiposDps, convocarDps, copiarPlanDps, desconvocarDps, planAnteriorDps, quitarPortadaDps } from '@/lib/actions/dps-plan.actions'
+import { cargarOrdenDps, copiarOrdenDps, guardarHorariosDps } from '@/lib/actions/dps-orden.actions'
 import { MENSAJE_IMAGEN } from '@/lib/platform/dps/errores'
 import { domingoAnterior, hrefMatriz } from '@/lib/platform/dps/matriz'
+import { calcularOrden, cronogramaPlan, duracionLarga, type OrdenPlan } from '@/lib/platform/dps/orden'
 import {
   confirmarConvocado,
   convocadosManuales,
@@ -63,9 +74,14 @@ import { cn } from '@/lib/utils'
 
 import { ColumnasEquipos } from './columnas-equipos'
 import { DialogoCopiar } from './dialogo-copiar'
-import { EncabezadoPlan } from './encabezado-plan'
+import { EncabezadoPlan, hrefPlan } from './encabezado-plan'
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
 import { MigasDps } from './migas-dps'
+import { OrdenBarra } from './orden-barra'
+import { OrdenDialogoCopiar } from './orden-dialogo-copiar'
+import { OrdenServicio, type SeguimientoGuardado } from './orden-servicio'
+
+export type VistaPlan = 'equipos' | 'orden'
 
 export interface PlanClientProps {
   readonly plan: PlanCabecera | null
@@ -77,6 +93,11 @@ export interface PlanClientProps {
   /** Why there is no plan: none yet, or ?plan= points at nothing. */
   readonly motivo: 'sin_planes' | 'plan_invalido' | null
   readonly error: string | null
+  /** dps_orden_leer (T13); null when it failed (`ordenError`). */
+  readonly orden?: OrdenPlan | null
+  readonly ordenError?: string | null
+  /** The tab it opens on (`?vista=orden`); Equipos by default. */
+  readonly vista?: VistaPlan
 }
 
 /** The dps-series bucket (jpeg / png / webp, 5 MB); the server action checks again, by the bytes. */
@@ -90,6 +111,23 @@ interface EstadoCopia {
   readonly reemplazar: boolean
   readonly enviando: boolean
   readonly error: string | null
+}
+
+const horaCorta = (hora: string): string => hora.replace(/^0(\d)/, '$1')
+
+/** "9:26", "9:26 y 11:26", "8:20, 10:20 y 12:20". */
+function enumerar(partes: readonly string[]): ReactElement[] {
+  return partes.map((p, i) => (
+    <span key={i}>
+      {i > 0 && (i === partes.length - 1 ? ' y ' : ', ')}
+      <strong className="font-mono font-semibold tabular-nums text-foreground">{p}</strong>
+    </span>
+  ))
+}
+
+function textoCopiaOrden(copiados: number): string {
+  if (copiados === 0) return 'El plan anterior no tiene orden para copiar.'
+  return copiados === 1 ? 'Se copió 1 fila del orden.' : `Se copiaron ${copiados} filas del orden.`
 }
 
 function SinPlan({ motivo, error }: { readonly motivo: PlanClientProps['motivo']; readonly error: string | null }): ReactElement {
@@ -120,8 +158,23 @@ function SinPlan({ motivo, error }: { readonly motivo: PlanClientProps['motivo']
   )
 }
 
-export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciales, portadaUrl, motivo, error }: PlanClientProps): ReactElement {
+export function PlanClient({
+  plan: planInicial,
+  anterior,
+  siguiente,
+  equipos: equiposIniciales,
+  portadaUrl,
+  motivo,
+  error,
+  orden: ordenInicial = null,
+  ordenError = null,
+  vista: vistaInicial = 'equipos',
+}: PlanClientProps): ReactElement {
   const toast = useNotificaciones()
+  const [plan, setPlan] = useState<PlanCabecera | null>(planInicial)
+  const [vista, setVista] = useState<VistaPlan>(vistaInicial)
+  const [orden, setOrden] = useState<OrdenPlan | null>(ordenInicial)
+  const [copiaOrden, setCopiaOrden] = useState<EstadoCopia | null>(null)
   const [equipos, setEquipos] = useState<EquiposPlan | null>(equiposIniciales)
   const [portada, setPortada] = useState<string | null>(portadaUrl)
   const [abierto, setAbierto] = useState<string | null>(null)
@@ -135,12 +188,16 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
   const totales = useMemo(() => (equipos ? totalesPlan(equipos) : null), [equipos])
   // The copy replaces only the people convocados by hand; the automatic directors stay (S8).
   const manuales = useMemo(() => (equipos ? convocadosManuales(equipos) : 0), [equipos])
+  const calculo = useMemo(() => (plan ? calcularOrden(orden?.filas ?? [], plan.horarios, plan.llegada) : null), [orden, plan])
 
-  if (!plan) return <SinPlan motivo={motivo} error={error} />
+  if (!plan || !calculo) return <SinPlan motivo={motivo} error={error} />
 
   const planId = plan.id
   const editable = equipos?.puedeEditar === true
+  const ordenEditable = orden?.puedeEditar === true
   const horarios = horariosTexto(plan.horarios)
+  const enOrden = vista === 'orden'
+  const hrefVista = (v: VistaPlan): string => `${hrefPlan(planId)}${v === 'orden' ? '&vista=orden' : ''}`
 
   function empezar(frase: string): void {
     enVueloRef.current += 1
@@ -157,6 +214,58 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
     } else if (enVueloRef.current === 0) {
       setGuardado((g) => (g === 'error' ? g : 'guardado'))
     }
+  }
+
+  const seguimiento: SeguimientoGuardado = { empezar, terminar, anunciar: setAviso }
+
+  function cambiarVista(e: MouseEvent<HTMLAnchorElement>, v: VistaPlan): void {
+    e.preventDefault()
+    setVista(v)
+    window.history.replaceState(window.history.state, '', hrefVista(v))
+  }
+
+  async function guardarHorarios(nuevos: readonly string[], llegada: string): Promise<void> {
+    const antes = plan
+    setPlan((p) => p && { ...p, horarios: [...nuevos], llegada })
+    empezar(`Horarios: ${horariosTexto(nuevos)}, llegada ${horaCorta(llegada)}. Horas recalculadas.`)
+    const r = await guardarHorariosDps({ planId, horarios: nuevos, llegada })
+    if (!r.ok) {
+      setPlan(antes)
+      terminar(false, r.message)
+      return
+    }
+    terminar(true)
+  }
+
+  async function abrirCopiaOrden(): Promise<void> {
+    const r = await planAnteriorDps({ planId })
+    if (!r.ok) {
+      toast.error(r.message)
+      return
+    }
+    if (!r.data) {
+      toast.info('No hay un plan anterior del mismo tipo para copiar.')
+      return
+    }
+    setCopiaOrden({ origen: r.data, reemplazar: (orden?.filas.length ?? 0) > 0, enviando: false, error: null })
+  }
+
+  async function confirmarCopiaOrden(): Promise<void> {
+    if (!copiaOrden) return
+    setCopiaOrden({ ...copiaOrden, enviando: true, error: null })
+    const r = await copiarOrdenDps({ origenId: copiaOrden.origen.id, destinoId: planId, reemplazar: copiaOrden.reemplazar })
+    if (!r.ok) {
+      // Someone added rows meanwhile: the copy can only replace now.
+      setCopiaOrden({ ...copiaOrden, enviando: false, error: r.message, reemplazar: copiaOrden.reemplazar || r.codigo === 'destino_con_orden' })
+      return
+    }
+    setCopiaOrden(null)
+    const frase = textoCopiaOrden(r.data.copiados)
+    setAviso(frase)
+    toast.success(frase)
+    const recarga = await cargarOrdenDps({ planId })
+    if (recarga.ok) setOrden(recarga.data)
+    else toast.error(recarga.message)
   }
 
   async function elegir(_equipo: EquipoPlan, puesto: PuestoPlan, candidato: CandidatoPuesto): Promise<void> {
@@ -262,7 +371,7 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
       <Link href={hrefMatriz(domingoAnterior(plan.fecha))}>Matriz</Link>
     </BotonSistema>
   )
-  const acciones = editable ? (
+  const acciones = editable || ordenEditable ? (
     <>
       {matriz}
       {conSerie && (
@@ -283,11 +392,19 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
           </BotonSistema>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" aria-label="Acciones del plan" className="min-w-60 bg-card shadow-sheet">
-          <DropdownMenuItem className={CLASE_ITEM} onSelect={() => void abrirCopia()}>
-            <Copy aria-hidden="true" />
-            {plan.tipo === 'domingo' ? 'Copiar del domingo anterior' : 'Copiar del plan anterior'}
-          </DropdownMenuItem>
-          {conSerie && (
+          {editable && (
+            <DropdownMenuItem className={CLASE_ITEM} onSelect={() => void abrirCopia()}>
+              <Copy aria-hidden="true" />
+              {plan.tipo === 'domingo' ? 'Copiar del domingo anterior' : 'Copiar del plan anterior'}
+            </DropdownMenuItem>
+          )}
+          {ordenEditable && (
+            <DropdownMenuItem className={CLASE_ITEM} onSelect={() => void abrirCopiaOrden()}>
+              <ListOrdered aria-hidden="true" />
+              {plan.tipo === 'domingo' ? 'Copiar orden del domingo anterior' : 'Copiar orden del plan anterior'}
+            </DropdownMenuItem>
+          )}
+          {conSerie && editable && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem className={CLASE_ITEM} onSelect={() => archivoRef.current?.click()}>
@@ -309,6 +426,13 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
     matriz
   )
 
+  const pestana = (v: VistaPlan, texto: string): ReactElement => (
+    <Link href={hrefVista(v)} aria-current={vista === v ? 'page' : undefined} onClick={(e) => cambiarVista(e, v)} className={clasePestana(vista === v)}>
+      {texto}
+    </Link>
+  )
+  const soloLectura = enOrden ? orden !== null && !ordenEditable : equipos !== null && !editable
+
   return (
     <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />} className="relative">
       {/* Past the page gutters of PaginaSistema (p-4 sm:p-6 lg:px-12 lg:py-8), as components/grupos-vida/planner/marco-planner.tsx.
@@ -316,51 +440,77 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
       <div data-testid="marco-plan" className="-m-4 sm:-m-6 md:flex md:h-[calc(100dvh-4rem)] md:min-h-[32rem] md:flex-col lg:-mx-12 lg:-my-8">
         <EncabezadoPlan plan={plan} anterior={anterior} siguiente={siguiente} portadaUrl={portada} acciones={acciones} />
 
-        <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-6">
-          <nav aria-label="Secciones del plan" className={LISTA_PESTANAS}>
-            <span aria-disabled="true" title="Llega en una fase posterior" className={cn(clasePestana(false), 'cursor-default gap-1.5 opacity-60 hover:text-muted-foreground')}>
-              Orden <small className="text-[11px]">pronto</small>
-            </span>
-            <span aria-current="page" className={clasePestana(true)}>
-              Equipos
-            </span>
-          </nav>
-          {totales && (
-            <p data-testid="resumen-plan" className="text-[13px] text-muted-foreground">
-              <strong className="font-mono font-semibold tabular-nums text-foreground">{totales.convocados}</strong>{' '}
-              {totales.convocados === 1 ? 'convocado' : 'convocados'} en <span className="font-mono tabular-nums">{totales.equipos}</span>{' '}
-              {totales.equipos === 1 ? 'equipo' : 'equipos'} ·{' '}
-              {totales.falta > 0 ? (
-                <span className="font-semibold text-danger-text">
-                  <span className="font-mono tabular-nums">{totales.falta}</span> {totales.falta === 1 ? 'puesto sin cubrir' : 'puestos sin cubrir'}
+        {/* From md: [context sidebar | toolbar over the tab]. On a phone the main column dissolves (`contents`)
+            so the toolbar, the sidebar and the tab stack in that order. */}
+        <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
+          {enOrden && (
+            <OrdenBarra
+              className="order-2 md:order-none"
+              horarios={plan.horarios}
+              llegada={plan.llegada}
+              cronograma={cronogramaPlan(calculo, plan.llegada)}
+              editable={ordenEditable}
+              equipos={equipos}
+              onGuardarHorarios={(h, l) => void guardarHorarios(h, l)}
+              onVerEquipos={() => {
+                setVista('equipos')
+                window.history.replaceState(window.history.state, '', hrefVista('equipos'))
+              }}
+            />
+          )}
+          <div className="contents md:flex md:min-w-0 md:flex-1 md:flex-col">
+            <div className="order-1 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-4 pt-4 pb-3 sm:px-6 md:order-none">
+              <nav aria-label="Secciones del plan" className={LISTA_PESTANAS}>
+                {pestana('orden', 'Orden')}
+                {pestana('equipos', 'Equipos')}
+                <span aria-disabled="true" title="Llega en una fase posterior" className={cn(clasePestana(false), 'cursor-default gap-1.5 opacity-60 hover:text-muted-foreground')}>
+                  Ensayo <small className="text-[11px]">pronto</small>
                 </span>
-              ) : (
-                'todo cubierto'
+              </nav>
+              {!enOrden && totales && (
+                <p data-testid="resumen-plan" className="text-[13px] text-muted-foreground">
+                  <strong className="font-mono font-semibold tabular-nums text-foreground">{totales.convocados}</strong>{' '}
+                  {totales.convocados === 1 ? 'convocado' : 'convocados'} en <span className="font-mono tabular-nums">{totales.equipos}</span>{' '}
+                  {totales.equipos === 1 ? 'equipo' : 'equipos'} ·{' '}
+                  {totales.falta > 0 ? (
+                    <span className="font-semibold text-danger-text">
+                      <span className="font-mono tabular-nums">{totales.falta}</span> {totales.falta === 1 ? 'puesto sin cubrir' : 'puestos sin cubrir'}
+                    </span>
+                  ) : (
+                    'todo cubierto'
+                  )}
+                </p>
               )}
-            </p>
-          )}
-          {equipos && !editable && (
-            <p className="text-[13px] text-muted-foreground">Solo lectura: el plan lo arman la dirección de DPS y quienes ella agrega.</p>
-          )}
-          {editable && <EstadoGuardado estado={guardado} className="ml-auto" />}
-        </div>
+              {enOrden && calculo.filas.length > 0 && (
+                <p data-testid="resumen-orden" className="text-[13px] text-muted-foreground">
+                  Servicio <strong className="font-mono font-semibold tabular-nums text-foreground">{duracionLarga(calculo.servicioSeg)}</strong> · termina{' '}
+                  {enumerar(calculo.fines)}
+                </p>
+              )}
+              {soloLectura && <p className="text-[13px] text-muted-foreground">Solo lectura: el plan lo arman la dirección de DPS y quienes ella agrega.</p>}
+              {(enOrden ? ordenEditable : editable) && <EstadoGuardado estado={guardado} className="ml-auto" />}
+            </div>
 
-        <div className="px-4 pb-8 sm:px-6 md:flex md:min-h-0 md:flex-1 md:flex-col md:pb-4">
-          {!equipos ? (
-            <EstadoVacioSistema icono={UsersRound} titulo="No se pudo cargar el plan" subtitulo={error ?? 'Actualiza la página.'} />
-          ) : equipos.equipos.length === 0 ? (
-            <EstadoVacioSistema
-              icono={UsersRound}
-              titulo="Sin puestos en este plan"
-              subtitulo="Los puestos de cada equipo de DPS se configuran una vez y aparecen en todos los planes."
-            />
-          ) : (
-            <ColumnasEquipos
-              className="md:min-h-0 md:flex-1"
-              equipos={equipos.equipos}
-              acciones={{ planId, horarios, editable, abierto, onAbrir: setAbierto, onElegir: (e, p, c) => void elegir(e, p, c), onQuitar: (e, p, c) => void quitar(e, p, c) }}
-            />
-          )}
+            <div className="order-3 px-4 pb-8 sm:px-6 md:order-none md:flex md:min-h-0 md:flex-1 md:flex-col md:pb-4">
+              {enOrden ? (
+                <OrdenServicio plan={plan} orden={orden} error={ordenError} calculo={calculo} onOrden={setOrden} seguimiento={seguimiento} />
+              ) : !equipos ? (
+                <EstadoVacioSistema icono={UsersRound} titulo="No se pudo cargar el plan" subtitulo={error ?? 'Actualiza la página.'} />
+              ) : equipos.equipos.length === 0 ? (
+                <EstadoVacioSistema
+                  icono={UsersRound}
+                  titulo="Sin puestos en este plan"
+                  subtitulo="Los puestos de cada equipo de DPS se configuran una vez y aparecen en todos los planes."
+                />
+              ) : (
+                <ColumnasEquipos
+                  className="md:min-h-0 md:flex-1"
+                  equipos={equipos.equipos}
+                  acciones={{ planId, horarios, editable, abierto, onAbrir: setAbierto, onElegir: (e, p, c) => void elegir(e, p, c), onQuitar: (e, p, c) => void quitar(e, p, c) }}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -377,6 +527,17 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
           error={copia?.error ?? null}
           onCerrar={() => setCopia(null)}
           onConfirmar={() => void confirmarCopia()}
+        />
+      )}
+      {ordenEditable && (
+        <OrdenDialogoCopiar
+          origen={copiaOrden?.origen ?? null}
+          filas={orden?.filas.length ?? 0}
+          reemplazar={copiaOrden?.reemplazar ?? false}
+          enviando={copiaOrden?.enviando ?? false}
+          error={copiaOrden?.error ?? null}
+          onCerrar={() => setCopiaOrden(null)}
+          onConfirmar={() => void confirmarCopiaOrden()}
         />
       )}
     </PaginaSistema>
