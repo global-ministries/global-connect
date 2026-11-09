@@ -1,7 +1,8 @@
 /**
  * Estudiantes — /estudiantes/promocion (RSC), "Promover temporada" (C6b3 of
  * odd/tasks/estudiantes-fase-b.md, S11–S15; artboards 09 / 10 of
- * design/estudiantes-asistencia).
+ * design/estudiantes-asistencia), in the planning style of
+ * odd/tasks/estudiantes-estilo-dps.md (S7; design/estudiantes-dps 13 / 14).
  *
  * Campus: the ones where the caller manages a Transit / Inside Out sub-área
  * (estudiantes_subareas_gestionables, as /estudiantes/grupos), kept to those

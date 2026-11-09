@@ -2,7 +2,10 @@
  * `<PromocionClient>` — /estudiantes/promocion (C6b3 of
  * odd/tasks/estudiantes-fase-b.md, artboards 09 / 10). The server action is
  * mocked; each flow checks what the screen sends and shows. Without
- * matchMedia the drawer is the desktop side panel. Every person is fictitious.
+ * matchMedia the screen renders its desktop tree (S7 of
+ * odd/tasks/estudiantes-estilo-dps.md: the «barra de alcance», the dense
+ * table, the footer) and the panel is the overlay side panel. Every person
+ * is fictitious.
  */
 import React from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -144,18 +147,19 @@ beforeEach(() => {
 const promover = () => screen.getAllByRole('button', { name: 'Promover temporada' })[0]
 
 describe('the preview', () => {
-  it('shows the hero, the metrics, one decision per 3er año group and keeps "Promover temporada" disabled', () => {
+  it('shows the header band, the metrics, one decision per 3er año group and keeps "Promover temporada" disabled', () => {
     render(<PromocionClient {...props()} />)
     expect(screen.getByRole('heading', { level: 1, name: 'Promover temporada' })).toBeInTheDocument()
     expect(screen.getByText('Se aplica una vez al año y no se puede deshacer desde la app.')).toBeInTheDocument()
-    const metricas = screen.getByRole('group', { name: 'Resumen de la promoción' })
+    const metricas = screen.getByRole('group', { name: 'Resumen' })
     expect(within(metricas).getAllByRole('button')).toHaveLength(4)
     expect(screen.getAllByRole('group', { name: '¿Qué pasa con este grupo?' })).toHaveLength(2)
     expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getByRole('radio', { name: /Pasan las chicas/ })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /Pasan los chicos/ })).toBeInTheDocument()
     expect(promover()).toBeDisabled()
-    expect(screen.getByRole('status')).toHaveTextContent('Falta decidir 2 grupos de 3er año: 3er año · Chicas y 3er año · Chicos.')
+    // S7: the footer says how many decisions are missing.
+    expect(screen.getByRole('status')).toHaveTextContent('Faltan 2 decisiones: 3er año · Chicas y 3er año · Chicos.')
     expect(screen.getByText('Adriana Belisario')).toBeInTheDocument()
   })
 
@@ -165,6 +169,7 @@ describe('the preview', () => {
     expect(screen.getByText('→ Inside Out · 4to año · Chicas (grupo nuevo, sin líder)')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Abrir 4to año · Chicas B (grupo nuevo)' })).toBeInTheDocument()
     expect(promover()).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent('Falta 1 decisión: 3er año · Chicos.')
     const chicos = screen.getAllByRole('radio', { name: /Pasa el grupo con su líder/ })[1]
     await user.click(chicos)
     expect(screen.getByText(/Diego Carrasco deja de servir en Transit · Grupos de Chicos/)).toBeInTheDocument()
@@ -175,7 +180,7 @@ describe('the preview', () => {
 
   it('filters by a metric and writes it in the URL', async () => {
     render(<PromocionClient {...props()} />)
-    await user.click(within(screen.getByRole('group', { name: 'Resumen de la promoción' })).getByRole('button', { name: /Quedan vacíos/ }))
+    await user.click(within(screen.getByRole('group', { name: 'Resumen' })).getByRole('button', { name: /Quedan vacíos/ }))
     expect(screen.getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Abrir 6to año · Chicas'])
     expect(replaceState).toHaveBeenLastCalledWith(null, '', '/estudiantes/promocion?metrica=vacios')
   })
@@ -250,5 +255,30 @@ describe('other states', () => {
     render(<PromocionClient {...props({ campus: [{ id: CAMPUS, nombre: 'Campus Norte' }, { id: otro, nombre: 'Campus Oeste' }] })} />)
     await user.selectOptions(screen.getByLabelText('Campus'), otro)
     expect(push).toHaveBeenCalledWith(`/estudiantes/promocion?campus=${otro}`)
+  })
+})
+
+describe('on a phone (artboard 14)', () => {
+  const original = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockImplementation((consulta: string) => ({
+      matches: false,
+      media: consulta,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    window.matchMedia = original
+  })
+
+  it('keeps the metrics 2 × 2, the cards and the footer with how many decisions are missing', async () => {
+    render(<PromocionClient {...props()} />)
+    expect(screen.queryByRole('complementary', { name: 'Resumen y filtros' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Resumen' })).getAllByRole('button')).toHaveLength(4)
+    expect(screen.getByRole('status')).toHaveTextContent('Faltan 2 decisiones: 3er año · Chicas y 3er año · Chicos.')
+    await user.click(screen.getByRole('radio', { name: /Pasan las chicas/ }))
+    expect(screen.getByRole('status')).toHaveTextContent('Falta 1 decisión: 3er año · Chicos.')
+    expect(screen.getByRole('button', { name: 'Abrir 4to año · Chicas B (grupo nuevo)' })).toBeInTheDocument()
   })
 })
