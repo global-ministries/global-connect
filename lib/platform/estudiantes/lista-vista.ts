@@ -11,10 +11,14 @@
  *   before (Q7, A16).
  * - The row state: presente, ausente, sin marcar, or "nueva" for a visitor
  *   registered at this very meeting (Q4: "Nueva hoy" replaces the marks).
- * - Filters Todos / Sin marcar / Presentes / Ausentes / Visitantes (single
- *   choice, a second tap goes back to Todos) and the search; the title counts
- *   split the list (presentes + ausentes + sin marcar + nuevos = todos).
- * - The "Historial" dots, the toast text and the back control (`?desde=`).
+ * - Filters Todos / Sin marcar / Presentes / Ausentes (single choice; the
+ *   visitors are a section of their own) and the search; the title counts
+ *   split the list (presentes + ausentes + sin marcar + nuevos = todos) and
+ *   "N de M marcados" leaves out the visitors registered at this meeting.
+ * - The date pill (‹ the older meeting, › the newer one) and who «Marcar
+ *   todos» marks (estudiantes-estilo-dps S5, S6).
+ * - The "Historial" dots, the announcement of a mark and the back control
+ *   (`?desde=`).
  */
 import type { Experiencia } from './grupos-datos'
 import type { GrupoMio, Historial, Marca, PersonaLista, Sesion } from './lista-datos'
@@ -86,6 +90,45 @@ export interface PastillaReunion {
   readonly etiqueta: string
 }
 
+export interface PasoReunion extends SesionElegida {
+  /** "Domingo 18 oct", plus the hour when the date has two meetings. */
+  readonly etiqueta: string
+}
+
+/**
+ * The ‹ › of the date pill: the older and the newer meeting. Transit / Inside
+ * Out step through their meetings (newest first); The Living Room through the
+ * three of its pills, also from a date picked elsewhere.
+ */
+export function pasosReunion({
+  sesiones,
+  actual,
+  experiencia,
+  hoy,
+}: {
+  readonly sesiones: readonly Sesion[]
+  readonly actual: SesionElegida
+  readonly experiencia: Experiencia
+  readonly hoy: string
+}): { readonly anterior: PasoReunion | null; readonly siguiente: PasoReunion | null } {
+  const porFecha = new Map<string, number>()
+  for (const s of sesiones) porFecha.set(s.fecha, (porFecha.get(s.fecha) ?? 0) + 1)
+  const pasos: PasoReunion[] =
+    experiencia === 'the_living_room'
+      ? pastillasReunion(sesiones, hoy).map((p) => ({ fecha: p.fecha, turnoId: null, etiqueta: fechaLarga(p.fecha) }))
+      : sesiones.map((s) => ({
+          fecha: s.fecha,
+          turnoId: s.turnoId,
+          etiqueta: [fechaLarga(s.fecha), (porFecha.get(s.fecha) ?? 0) > 1 ? horaCorta(s.hora) : null].filter(Boolean).join(' · '),
+        }))
+  const i = pasos.findIndex((p) => p.fecha === actual.fecha && p.turnoId === actual.turnoId)
+  if (i >= 0) return { anterior: pasos[i + 1] ?? null, siguiente: pasos[i - 1] ?? null }
+  return {
+    anterior: pasos.find((p) => p.fecha < actual.fecha) ?? null,
+    siguiente: [...pasos].reverse().find((p) => p.fecha > actual.fecha) ?? null,
+  }
+}
+
 /** The Living Room: this week's meeting and the two before ("Jue 29 oct · hoy"). */
 export function pastillasReunion(sesiones: readonly Sesion[], hoy: string): PastillaReunion[] {
   const fechas = [...new Set(sesiones.map((s) => s.fecha))].slice(0, 3)
@@ -117,12 +160,12 @@ export interface FilaVista {
 
 export type FiltroLista = 'todos' | 'sin' | 'presentes' | 'ausentes' | 'visitantes'
 
-export const FILTROS_LISTA: readonly { readonly id: FiltroLista; readonly etiqueta: string }[] = [
+/** The segmented filter of the list; the visitors are a section, not a filter (S6). */
+export const FILTROS_LISTA: readonly { readonly id: Exclude<FiltroLista, 'visitantes'>; readonly etiqueta: string }[] = [
   { id: 'todos', etiqueta: 'Todos' },
   { id: 'sin', etiqueta: 'Sin marcar' },
   { id: 'presentes', etiqueta: 'Presentes' },
   { id: 'ausentes', etiqueta: 'Ausentes' },
-  { id: 'visitantes', etiqueta: 'Visitantes' },
 ]
 
 export interface CuentasLista {
@@ -146,6 +189,16 @@ export function contarLista(filas: readonly FilaVista[]): CuentasLista {
     visitantes: contar((f) => f.persona.estado === 'visitante'),
     nuevas: contar((f) => f.estado === 'nueva'),
   }
+}
+
+/** "N de M marcados": every mark of the list, out of everyone but the visitors registered at this meeting. */
+export function progresoLista(cuentas: CuentasLista): { readonly marcados: number; readonly total: number } {
+  return { marcados: cuentas.presentes + cuentas.ausentes, total: cuentas.todos - cuentas.nuevas }
+}
+
+/** «Marcar todos»: the members still unmarked; an «Ausente» stays and the visitors are marked one by one. */
+export function pendientesMarcarTodos(filas: readonly FilaVista[]): FilaVista[] {
+  return filas.filter((f) => f.persona.estado === 'miembro' && f.estado === 'sin')
 }
 
 export const cantidadFiltro = (cuentas: CuentasLista, filtro: FiltroLista): number => cuentas[filtro]
