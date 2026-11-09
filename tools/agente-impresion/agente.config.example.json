@@ -1,0 +1,8 @@
+{
+  "servidor": "https://tu-app.ejemplo.org",
+  "token": "PEGA_AQUI_EL_TOKEN_DE_LA_ESTACION_64_CARACTERES",
+  "impresora": "Nombre_de_la_cola",
+  "intervaloMs": 2000,
+  "modo": "tspl",
+  "gapMm": 2
+}
