@@ -40,14 +40,24 @@
  * ficha)» for screen readers, a written name with a «Sin cuenta» tag, all
  * comma separated and wrapping like any cell.
  * The parent saves and decides what changed.
+ *
+ * Service notices (T15b; S13.2, S13.3; design/dps-avisos/03), for whoever
+ * plans once the states are read (`avisos`, by plan): a person of those
+ * cells reads with a 16px state mark (✓ confirmó, clock pendiente, ✕ no
+ * puede, dot sin avisar) instead of the person mark, the state for screen
+ * readers and a tooltip with the motivo; a written name keeps its neutral
+ * «Sin cuenta» tag, without a mark. An «Avisos» column after Serie says per
+ * row «N sin avisar», «N no puede», «N pendientes», «Todos confirmaron» or
+ * «Ya pasó»; it is read-only and part of the arrow keys' path.
  */
 import { Fragment, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactElement } from 'react'
 import Link from 'next/link'
-import { CalendarClock, MoreHorizontal, Trash2, UserRound } from 'lucide-react'
+import { CalendarClock, Check, Clock, MoreHorizontal, Trash2, UserRound, X } from 'lucide-react'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { CLASE_ACCION_FILA } from '@/components/grupos-vida/planner/estilo-planner'
 import { EtiquetaPlanner } from '@/components/grupos-vida/planner/etiqueta'
+import type { PersonaEstadoAviso, PlanEstadoAvisos } from '@/lib/platform/dps/avisos'
 import type { ListasDps } from '@/lib/platform/dps/listas'
 import { LISTA_DE_COLUMNA, LISTAS_DPS } from '@/lib/platform/dps/listas'
 import type { PersonaBuscada } from '@/lib/platform/dps/personas'
@@ -69,6 +79,7 @@ import {
 } from '@/lib/platform/dps/programacion'
 import { cn } from '@/lib/utils'
 
+import { ESTILO_ESTADO, MarcaEstadoAviso, textoEstadoPersona } from './avisos-estado'
 import { CeldaPersona } from './celda-persona'
 import { hrefPlan } from './encabezado-plan'
 
@@ -77,7 +88,10 @@ export type FilaDomingo = Extract<FilaHoja, { clase: 'domingo' }>
 
 /** The Fecha link is the first stop of a row. */
 const FECHA = 'fecha'
-type Columna = ColumnaHoja | typeof FECHA
+/** The read-only «Avisos» column of the notices (T15b). */
+const AVISOS = 'avisos'
+const ANCHO_AVISOS = 168
+type Columna = ColumnaHoja | typeof FECHA | typeof AVISOS
 
 interface Foco {
   readonly fecha: string
@@ -144,6 +158,67 @@ export interface HojaProgramacionProps {
   readonly onMover?: (plan: PlanHoja) => void
   /** «Eliminar evento» of a special row (editable only). */
   readonly onEliminar?: (plan: PlanHoja) => void
+  /** The states of the notices by plan id (whoever plans, once read); null hides the marks and the «Avisos» column. */
+  readonly avisos?: ReadonlyMap<string, PlanEstadoAvisos> | null
+}
+
+const CLASE_INDICADOR = 'inline-flex h-6 items-center gap-1.5 rounded-full text-xs font-medium whitespace-nowrap tabular-nums'
+
+/** The «Avisos» cell of a row (`.ind` of design/dps-avisos/03). */
+function IndicadorAvisos({ estado, pasado }: { readonly estado: PlanEstadoAvisos | null; readonly pasado: boolean }): ReactElement | null {
+  if (pasado) return <span className={cn(CLASE_INDICADOR, 'text-muted-foreground')}>Ya pasó</span>
+  if (!estado) return null
+  const r = estado.resumen
+  const sinAvisar = r.sinAvisar + r.quitado
+  const partes: ReactElement[] = []
+  if (sinAvisar > 0) {
+    partes.push(
+      <span
+        key="sin"
+        title={r.quitado > 0 ? `Incluye ${r.quitado} «Ya no estás programado»` : 'Listos para enviar'}
+        className={cn(CLASE_INDICADOR, 'border border-dashed border-muted-foreground px-2 text-foreground')}
+      >
+        <MarcaEstadoAviso estado="sin_avisar" className="size-3 border-0" />
+        {`${sinAvisar} sin avisar`}
+      </span>,
+    )
+  }
+  if (r.noPuede > 0) {
+    partes.push(
+      <span key="no" className={cn(CLASE_INDICADOR, 'px-0.5 text-danger-text')}>
+        <X aria-hidden="true" className="size-3 stroke-[2.4]" />
+        {`${r.noPuede} no puede`}
+      </span>,
+    )
+  }
+  if (partes.length === 0 && r.pendiente > 0) {
+    partes.push(
+      <span key="pen" className={cn(CLASE_INDICADOR, 'px-0.5 text-muted-foreground')}>
+        <Clock aria-hidden="true" className="size-3 stroke-[2.4]" />
+        {`${r.pendiente} ${r.pendiente === 1 ? 'pendiente' : 'pendientes'}`}
+      </span>,
+    )
+  }
+  if (partes.length === 0 && r.confirmo > 0) {
+    partes.push(
+      <span key="ok" className={cn(CLASE_INDICADOR, 'px-0.5 text-success-text')}>
+        <Check aria-hidden="true" className="size-3 stroke-[2.4]" />
+        Todos confirmaron
+      </span>,
+    )
+  }
+  return partes.length > 0 ? <span className="inline-flex flex-wrap gap-x-1.5">{partes}</span> : null
+}
+
+/** A person of a cell of people with their state (S13.2): mark, name, the state for screen readers, tooltip. */
+function PersonaConEstado({ nombre, estado }: { readonly nombre: string; readonly estado: PersonaEstadoAviso }): ReactElement {
+  return (
+    <span title={textoEstadoPersona(nombre, estado)}>
+      <MarcaEstadoAviso estado={estado.estado} className="mr-1" />
+      {nombre}
+      <span className="sr-only">, {ESTILO_ESTADO[estado.estado].minuscula}</span>
+    </span>
+  )
 }
 
 const clavePersonas = (entradas: readonly EntradaPersona[]): string => entradas.map((e) => e.personaId ?? `texto:${e.nombre}`).join('|')
@@ -169,6 +244,7 @@ export function HojaProgramacion({
   listas,
   onMover,
   onEliminar,
+  avisos = null,
 }: HojaProgramacionProps): ReactElement {
   const tablaRef = useRef<HTMLTableElement>(null)
   const [foco, setFoco] = useState<Foco | null>(null)
@@ -177,7 +253,8 @@ export function HojaProgramacion({
   const enfocarRef = useRef(false)
 
   const domingos = filas.filter((f): f is FilaDomingo => f.clase === 'domingo')
-  const ordenColumnas: Columna[] = [FECHA, ...columnas.map((c) => c.id)]
+  const columnaAvisos: Columna[] = avisos ? [AVISOS] : []
+  const ordenColumnas: Columna[] = [FECHA, ...columnaAvisos, ...columnas.map((c) => c.id)]
   const porMes = new Map<number, number>()
   for (const f of domingos) porMes.set(f.mes, (porMes.get(f.mes) ?? 0) + 1)
 
@@ -291,7 +368,7 @@ export function HojaProgramacion({
       mover(paso(desde, 0, e.shiftKey ? -1 : 1, true))
       return
     }
-    if (columna === FECHA || !editable) return
+    if (columna === FECHA || columna === AVISOS || !editable) return
     if (e.key === 'Enter' || e.key === 'F2') {
       e.preventDefault()
       empezarEdicion(fila, columna, null)
@@ -316,8 +393,8 @@ export function HojaProgramacion({
 
   // A table cell's height is its minimum: the row grows with wrapped text.
   const alto = densidad === 'condensado' ? 'h-[30px] py-[5px] leading-5' : 'h-9 py-2 leading-5'
-  const totalColumnas = columnas.length + 2
-  const ancho = ANCHO_F1 + ANCHO_F2 + columnas.reduce((n, c) => n + c.ancho, 0)
+  const totalColumnas = columnas.length + 2 + (avisos ? 1 : 0)
+  const ancho = ANCHO_F1 + ANCHO_F2 + (avisos ? ANCHO_AVISOS : 0) + columnas.reduce((n, c) => n + c.ancho, 0)
 
   return (
     <table
@@ -334,6 +411,7 @@ export function HojaProgramacion({
       <colgroup>
         <col style={{ width: ANCHO_F1 }} />
         <col style={{ width: ANCHO_F2 }} />
+        {avisos && <col style={{ width: ANCHO_AVISOS }} />}
         {columnas.map((c) => (
           <col key={c.id} style={{ width: c.ancho }} />
         ))}
@@ -346,6 +424,11 @@ export function HojaProgramacion({
           <th scope="col" className={cn(CLASE_BORDE, CLASE_F2, 'top-0 z-[4] h-[34px] border-b-border text-left text-xs font-semibold whitespace-nowrap text-muted-foreground')}>
             Serie · semana
           </th>
+          {avisos && (
+            <th scope="col" className={cn(CLASE_BORDE, 'sticky top-0 z-[3] h-[34px] border-b-border bg-card px-2.5 text-left text-xs font-semibold whitespace-nowrap text-muted-foreground')}>
+              Avisos
+            </th>
+          )}
           {columnas.map((c) => (
             <th
               key={c.id}
@@ -433,6 +516,8 @@ export function HojaProgramacion({
 
           const plan = fila.plan
           const semana = plan ? semanaSerie(plan) : ''
+          const estadoPlan = plan ? (avisos?.get(plan.id) ?? null) : null
+          const estadoDe = (personaId: string | null) => (personaId ? (estadoPlan?.personas.find((p) => p.personaId === personaId) ?? null) : null)
           const esParada = (columna: Columna) => parada?.fecha === fila.fecha && parada.columna === columna
           return (
             <Fragment key={fila.fecha}>
@@ -474,6 +559,20 @@ export function HojaProgramacion({
                     <span className="text-muted-foreground">Sin serie</span>
                   )}
                 </td>
+                {avisos && (
+                  <td
+                    role="gridcell"
+                    aria-readonly="true"
+                    data-fecha={fila.fecha}
+                    data-columna={AVISOS}
+                    tabIndex={esParada(AVISOS) ? 0 : -1}
+                    onKeyDown={(e) => teclaCelda(e, fila, AVISOS)}
+                    onClick={() => mover({ fecha: fila.fecha, columna: AVISOS })}
+                    className={cn(CLASE_BORDE, alto, CLASE_AJUSTE, 'px-2.5 outline-none focus:outline-2 focus:-outline-offset-2 focus:outline-[var(--brand-primary)]')}
+                  >
+                    {plan && <IndicadorAvisos estado={avisos.get(plan.id) ?? null} pasado={pasado} />}
+                  </td>
+                )}
                 {columnas.map((c) => {
                   const texto = valor(fila, c.id)
                   const editando = edicion?.fecha === fila.fecha && edicion.columna === c.id
@@ -556,7 +655,9 @@ export function HojaProgramacion({
                         personas(fila, persona).map((e, i) => (
                           <Fragment key={`${e.personaId ?? e.nombre}-${i}`}>
                             {i > 0 && ', '}
-                            {e.personaId ? (
+                            {estadoDe(e.personaId) ? (
+                              <PersonaConEstado nombre={e.nombre} estado={estadoDe(e.personaId)!} />
+                            ) : e.personaId ? (
                               <>
                                 <UserRound aria-hidden="true" className="mr-1 inline size-3.5 -translate-y-px text-brand-text" />
                                 {e.nombre}

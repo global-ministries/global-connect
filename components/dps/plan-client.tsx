@@ -39,8 +39,20 @@
  * order save the same way (lib/actions/dps-orden.actions.ts). Everyone else
  * reads the same plan without controls. The database decides who edits and
  * who may be convocado where.
+ *
+ * Service notices (T15b; S13.2-S13.4, S13.6; design/dps-avisos/01, 02),
+ * for whoever edits: the plan reads each person's state
+ * (cargarEstadoAvisosDps) and who blocked its date
+ * (cargarPersonasBloqueadasDps) once it opens, and the states again after
+ * every convocar, quitar, copy, change of horarios and send. The header
+ * sums the answers; the columns show a chip per person and «Buscar
+ * reemplazo» on «No puede» (the pick convoca the new person and takes out
+ * the one who could not); a bar «N avisos sin enviar» with «Enviar avisos»
+ * shows while something is pending and the plan is not past, and opens the
+ * review panel (avisos-panel.tsx). Nothing is notified on its own. A failed
+ * read of the states keeps what is shown (none at first).
  */
-import { useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type ReactElement } from 'react'
 import Link from 'next/link'
 import { CalendarDays, ChevronDown, Copy, Grid3x3, ImageMinus, ImageUp, ListOrdered, UsersRound } from 'lucide-react'
 
@@ -52,6 +64,8 @@ import { LISTA_PESTANAS, clasePestana } from '@/components/ninos/pestanas-sistem
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { cambiarPortadaDps, cargarEquiposDps, convocarDps, copiarPlanDps, desconvocarDps, planAnteriorDps, quitarPortadaDps } from '@/lib/actions/dps-plan.actions'
 import { cargarOrdenDps, copiarOrdenDps, guardarHorariosDps } from '@/lib/actions/dps-orden.actions'
+import { cargarEstadoAvisosDps, cargarPersonasBloqueadasDps } from '@/lib/actions/dps-avisos.actions'
+import type { EnvioAvisos, PlanEstadoAvisos } from '@/lib/platform/dps/avisos'
 import { MENSAJE_IMAGEN } from '@/lib/platform/dps/errores'
 import { domingoAnterior, hrefMatriz } from '@/lib/platform/dps/matriz'
 import { calcularOrden, cronogramaPlan, duracionLarga, type OrdenPlan } from '@/lib/platform/dps/orden'
@@ -59,8 +73,10 @@ import {
   confirmarConvocado,
   convocadosManuales,
   convocarEnPlan,
+  etiquetaFechaPlan,
   quitarDePlan,
   textoCopia,
+  tituloCabecera,
   totalesPlan,
   type CandidatoPuesto,
   type ConvocadoPlan,
@@ -72,7 +88,9 @@ import {
 import { horariosTexto, nombreCompleto } from '@/lib/platform/dps/planilla'
 import { cn } from '@/lib/utils'
 
-import { ColumnasEquipos } from './columnas-equipos'
+import { BarraAvisos, ResumenRespuestas, detalleAvisos } from './avisos-estado'
+import { PanelAvisos, textoEnvio } from './avisos-panel'
+import { ColumnasEquipos, type AvisosColumnas } from './columnas-equipos'
 import { DialogoCopiar } from './dialogo-copiar'
 import { EncabezadoPlan, hrefPlan } from './encabezado-plan'
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
@@ -114,6 +132,29 @@ interface EstadoCopia {
 }
 
 const horaCorta = (hora: string): string => hora.replace(/^0(\d)/, '$1')
+
+/** The states of the plan's notices; undefined when they could not be read (keep what is shown). */
+async function leerEstadoAvisos(planId: string): Promise<PlanEstadoAvisos | null | undefined> {
+  try {
+    const r = await cargarEstadoAvisosDps({ planIds: [planId] })
+    if (!r?.ok) return undefined
+    return r.data.planes.find((p) => p.planId === planId) ?? null
+  } catch {
+    return undefined
+  }
+}
+
+/** Who blocked the plan's date, with their nota (S13.6); null when it could not be read. */
+async function leerBloqueados(planId: string): Promise<ReadonlyMap<string, string | null> | null> {
+  try {
+    const r = await cargarPersonasBloqueadasDps({ planId })
+    return r?.ok ? new Map(r.data.map((b) => [b.personaId, b.nota])) : null
+  } catch {
+    return null
+  }
+}
+
+const SIN_BLOQUEOS: ReadonlyMap<string, string | null> = new Map()
 
 /** "9:26", "9:26 y 11:26", "8:20, 10:20 y 12:20". */
 function enumerar(partes: readonly string[]): ReactElement[] {
@@ -184,6 +225,24 @@ export function PlanClient({
   const [subiendo, setSubiendo] = useState(false)
   const enVueloRef = useRef(0)
   const archivoRef = useRef<HTMLInputElement>(null)
+  const [estadoAvisos, setEstadoAvisos] = useState<PlanEstadoAvisos | null>(null)
+  const [bloqueados, setBloqueados] = useState<ReadonlyMap<string, string | null>>(SIN_BLOQUEOS)
+  const [reemplazo, setReemplazo] = useState<{ readonly puestoId: string; readonly personaId: string; readonly nombre: string } | null>(null)
+  const [enviarAbierto, setEnviarAbierto] = useState(false)
+  const pedidoAvisosRef = useRef(0)
+  // Only whoever edits reads the notices (the database refuses the rest).
+  const idAvisos = equiposIniciales?.puedeEditar === true ? (planInicial?.id ?? null) : null
+
+  useEffect(() => {
+    if (!idAvisos) return
+    const pedido = ++pedidoAvisosRef.current
+    void leerEstadoAvisos(idAvisos).then((e) => {
+      if (pedido === pedidoAvisosRef.current && e !== undefined) setEstadoAvisos(e)
+    })
+    void leerBloqueados(idAvisos).then((b) => {
+      if (b) setBloqueados(b)
+    })
+  }, [idAvisos])
 
   const totales = useMemo(() => (equipos ? totalesPlan(equipos) : null), [equipos])
   // The copy replaces only the people convocados by hand; the automatic directors stay (S8).
@@ -218,6 +277,24 @@ export function PlanClient({
 
   const seguimiento: SeguimientoGuardado = { empezar, terminar, anunciar: setAviso }
 
+  /** Reads the states again after a change; the latest read wins. */
+  function recargarAvisos(): void {
+    if (!idAvisos) return
+    const pedido = ++pedidoAvisosRef.current
+    void leerEstadoAvisos(idAvisos).then((e) => {
+      if (pedido === pedidoAvisosRef.current && e !== undefined) setEstadoAvisos(e)
+    })
+  }
+
+  function alEnviar(envio: EnvioAvisos): void {
+    setEnviarAbierto(false)
+    const frase = textoEnvio(envio)
+    setAviso(frase)
+    if (envio.enviados > 0) toast.success(frase)
+    else toast.info(frase)
+    recargarAvisos()
+  }
+
   function cambiarVista(e: MouseEvent<HTMLAnchorElement>, v: VistaPlan): void {
     e.preventDefault()
     setVista(v)
@@ -235,6 +312,7 @@ export function PlanClient({
       return
     }
     terminar(true)
+    recargarAvisos()
   }
 
   async function abrirCopiaOrden(): Promise<void> {
@@ -270,11 +348,19 @@ export function PlanClient({
 
   async function elegir(_equipo: EquipoPlan, puesto: PuestoPlan, candidato: CandidatoPuesto): Promise<void> {
     setAbierto(null)
+    // «Buscar reemplazo»: the pick takes the place of who said «No puede».
+    const reemplazado = reemplazo?.puestoId === puesto.puestoId ? reemplazo : null
+    setReemplazo(null)
     if (puesto.convocados.some((c) => c.personaId === candidato.personaId)) return
     const nombre = nombreCompleto(candidato)
     const temporal: ConvocadoPlan = { convocadoId: '', personaId: candidato.personaId, servicioId: candidato.servicioId, nombre, automatico: false }
     setEquipos((e) => e && convocarEnPlan(e, puesto.puestoId, temporal))
-    empezar(`Convocaste a ${nombre} para ${puesto.nombre}.`)
+    const bloqueo = bloqueados.has(candidato.personaId) ? ' Ojo: bloqueó esta fecha.' : ''
+    empezar(
+      reemplazado
+        ? `${nombre} reemplaza a ${reemplazado.nombre} en ${puesto.nombre}. Queda sin avisar.${bloqueo}`
+        : `Convocaste a ${nombre} para ${puesto.nombre}.${bloqueo}`,
+    )
 
     const r = await convocarDps({ planId, puestoId: puesto.puestoId, servicioId: candidato.servicioId })
     if (!r.ok) {
@@ -283,7 +369,19 @@ export function PlanClient({
       return
     }
     setEquipos((e) => e && confirmarConvocado(e, puesto.puestoId, candidato.personaId, r.data.convocadoId))
+    const saliente = reemplazado ? puesto.convocados.find((c) => c.personaId === reemplazado.personaId) : undefined
+    if (saliente) {
+      setEquipos((e) => e && quitarDePlan(e, puesto.puestoId, saliente.personaId))
+      const q = await desconvocarDps({ planId, puestoId: puesto.puestoId, personaId: saliente.personaId })
+      if (!q.ok) {
+        setEquipos((e) => e && convocarEnPlan(e, puesto.puestoId, saliente))
+        terminar(false, q.message)
+        recargarAvisos()
+        return
+      }
+    }
     terminar(true)
+    recargarAvisos()
   }
 
   async function quitar(_equipo: EquipoPlan, puesto: PuestoPlan, convocado: ConvocadoPlan): Promise<void> {
@@ -297,6 +395,7 @@ export function PlanClient({
       return
     }
     terminar(true)
+    recargarAvisos()
   }
 
   async function abrirCopia(): Promise<void> {
@@ -328,6 +427,7 @@ export function PlanClient({
     const recarga = await cargarEquiposDps({ planId })
     if (recarga.ok) setEquipos(recarga.data)
     else toast.error(recarga.message)
+    recargarAvisos()
   }
 
   async function alElegirArchivo(e: ChangeEvent<HTMLInputElement>): Promise<void> {
@@ -432,13 +532,34 @@ export function PlanClient({
     </Link>
   )
   const soloLectura = enOrden ? orden !== null && !ordenEditable : equipos !== null && !editable
+  const conAvisos = editable && estadoAvisos !== null
+  const avisosColumnas: AvisosColumnas | null =
+    editable && estadoAvisos
+      ? {
+          personas: new Map(estadoAvisos.personas.map((p) => [p.personaId, p])),
+          bloqueados,
+          reemplazo,
+          onReemplazo: (puesto, convocado) => {
+            setReemplazo({ puestoId: puesto.puestoId, personaId: convocado.personaId, nombre: convocado.nombre })
+            setAbierto(puesto.puestoId)
+          },
+        }
+      : null
+  const barraAvisos = conAvisos && !enOrden && !estadoAvisos.pasado && estadoAvisos.porEnviar > 0
 
   return (
     <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />} className="relative">
       {/* Past the page gutters of PaginaSistema (p-4 sm:p-6 lg:px-12 lg:py-8), as components/grupos-vida/planner/marco-planner.tsx.
           From md, exactly the viewport under the 64px desktop header (at least 32rem on very short windows). */}
       <div data-testid="marco-plan" className="-m-4 sm:-m-6 md:flex md:h-[calc(100dvh-4rem)] md:min-h-[32rem] md:flex-col lg:-mx-12 lg:-my-8">
-        <EncabezadoPlan plan={plan} anterior={anterior} siguiente={siguiente} portadaUrl={portada} acciones={acciones} />
+        <EncabezadoPlan
+          plan={plan}
+          anterior={anterior}
+          siguiente={siguiente}
+          portadaUrl={portada}
+          acciones={acciones}
+          resumen={conAvisos ? <ResumenRespuestas resumen={estadoAvisos.resumen} /> : null}
+        />
 
         {/* From md: [context sidebar | toolbar over the tab]. On a phone the main column dissolves (`contents`)
             so the toolbar, the sidebar and the tab stack in that order. */}
@@ -506,10 +627,32 @@ export function PlanClient({
                 <ColumnasEquipos
                   className="md:min-h-0 md:flex-1"
                   equipos={equipos.equipos}
-                  acciones={{ planId, horarios, editable, abierto, onAbrir: setAbierto, onElegir: (e, p, c) => void elegir(e, p, c), onQuitar: (e, p, c) => void quitar(e, p, c) }}
+                  acciones={{
+                    planId,
+                    horarios,
+                    editable,
+                    abierto,
+                    onAbrir: (id) => {
+                      setAbierto(id)
+                      if (id === null) setReemplazo(null)
+                    },
+                    onElegir: (e, p, c) => void elegir(e, p, c),
+                    onQuitar: (e, p, c) => void quitar(e, p, c),
+                    avisos: avisosColumnas,
+                  }}
                 />
               )}
             </div>
+            {barraAvisos && (
+              <div className="order-2 shrink-0 px-4 pb-3 sm:px-6 md:order-none md:pb-4">
+                <BarraAvisos
+                  porEnviar={estadoAvisos.porEnviar}
+                  detalle={detalleAvisos(estadoAvisos.personas)}
+                  nota="Puedes cambiar a alguien las veces que quieras: solo sale el último cambio."
+                  onEnviar={() => setEnviarAbierto(true)}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -527,6 +670,15 @@ export function PlanClient({
           error={copia?.error ?? null}
           onCerrar={() => setCopia(null)}
           onConfirmar={() => void confirmarCopia()}
+        />
+      )}
+      {editable && enviarAbierto && (
+        <PanelAvisos
+          abierto
+          onCerrar={() => setEnviarAbierto(false)}
+          planIds={[planId]}
+          descripcion={`${etiquetaFechaPlan(plan.fecha)} · ${tituloCabecera(plan)}`}
+          onEnviado={alEnviar}
         />
       )}
       {ordenEditable && (

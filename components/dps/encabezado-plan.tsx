@@ -9,7 +9,8 @@
  * the date pill "‹ Domingo 8 nov 2026 ›" stepping to the plans that exist
  * and the meta line "9:15 y 11:15 · llegada 7:00"; the 36px actions at the
  * right. On a phone the title is the large title (28px / 700) and the cover
- * shrinks. Server-safe.
+ * shrinks. Under the meta line, the answers of the convocados when the plan
+ * reads its notices (`resumen`, design/dps-avisos/01 `.est`). Server-safe.
  */
 import type { ReactElement, ReactNode } from 'react'
 import Image from 'next/image'
@@ -69,9 +70,11 @@ export interface EncabezadoPlanProps {
   readonly portadaUrl: string | null
   /** 36px actions at the right ("Acciones ▾"). */
   readonly acciones?: ReactNode
+  /** The answers of the convocados (avisos-estado.tsx, ResumenRespuestas). */
+  readonly resumen?: ReactNode
 }
 
-export function EncabezadoPlan({ plan, anterior, siguiente, portadaUrl, acciones }: EncabezadoPlanProps): ReactElement {
+export function EncabezadoPlan({ plan, anterior, siguiente, portadaUrl, acciones, resumen }: EncabezadoPlanProps): ReactElement {
   return (
     <header className="flex flex-wrap items-center gap-x-5 gap-y-3 px-4 pt-4 sm:px-6 md:border-b md:border-border md:bg-card md:py-4">
       {plan.serie && <PortadaSerie nombre={plan.serie.nombre} url={portadaUrl} />}
@@ -89,6 +92,7 @@ export function EncabezadoPlan({ plan, anterior, siguiente, portadaUrl, acciones
           </p>
           {plan.serie && plan.titulo && <p className="text-[13px] text-muted-foreground">{plan.titulo}</p>}
         </div>
+        {resumen}
       </div>
       {acciones && <div className="flex flex-wrap items-center gap-2">{acciones}</div>}
     </header>
