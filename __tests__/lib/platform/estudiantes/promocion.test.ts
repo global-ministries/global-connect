@@ -404,15 +404,18 @@ describe('calcularPromocion · 3er año decisions', () => {
 })
 
 describe('calcularPromocion · confirm', () => {
-  it('keeps "Promover temporada" disabled with a status line until every 3er año group is decided', () => {
+  it('keeps "Promover temporada" disabled with a footer that says how many decisions are missing (S7)', () => {
     const r = calcular({ [G_T3]: 'pasa_grupo' })
     expect(r.puedeConfirmar).toBe(false)
-    expect(r.estadoPie).toBe('Falta decidir 1 grupo de 3er año: 3er año · Chicos.')
-    expect(calcular().estadoPie).toBe('Falta decidir 2 grupos de 3er año: 3er año · Chicas y 3er año · Chicos.')
+    expect(r.estadoPie).toBe('Falta 1 decisión: 3er año · Chicos.')
+    expect(r.estado).toEqual({ listo: false, destacado: 'Falta 1 decisión:', texto: '3er año · Chicos.' })
+    expect(calcular().estadoPie).toBe('Faltan 2 decisiones: 3er año · Chicas y 3er año · Chicos.')
+    expect(calcular().estado).toEqual({ listo: false, destacado: 'Faltan 2 decisiones:', texto: '3er año · Chicas y 3er año · Chicos.' })
     expect(calcular().pistaDecisiones).toBe('2 por decidir · obligatorio para confirmar')
     const listo = calcular(AMBAS)
     expect(listo.puedeConfirmar).toBe(true)
     expect(listo.estadoPie).toBe('Todo listo. Al confirmar verás el resumen antes de aplicar.')
+    expect(listo.estado).toEqual({ listo: true, destacado: 'Todo listo.', texto: 'Al confirmar verás el resumen antes de aplicar.' })
     expect(listo.pistaDecisiones).toBe('Todo decidido')
   })
 

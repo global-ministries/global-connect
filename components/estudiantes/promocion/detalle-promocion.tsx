@@ -1,9 +1,9 @@
 'use client'
 
 /**
- * Estudiantes › Promover temporada — the read-only group drawer (artboards
- * 09 / 10 `#grupo=`): one `DetalleResponsivo` (side panel from md, bottom
- * sheet below). A pending 3er año group gets the warning and "Ir a la
+ * Estudiantes › Promover temporada — the read-only group panel (artboards
+ * 13 / 14 of design/estudiantes-dps, C22): one `PanelAcoplado` (docked from
+ * 1280px, overlay side panel from md, bottom sheet below). A pending 3er año group gets the warning and "Ir a la
  * decisión"; the new group of option (a) gets "Este grupo no tiene líder".
  * Then Hoy · Después · Integrantes · Egresan (or Llegan de), the "Queda como"
  * card, and the members and visitors (G6 rows) with their year change or
@@ -12,9 +12,9 @@
 import type { ReactElement } from 'react'
 
 import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
-import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import type { DetallePromocion as Detalle } from '@/lib/platform/estudiantes/promocion'
 
+import { PanelAcoplado } from '../alcance/panel-acoplado'
 import { FilaInset, ListaInset, TituloSeccion } from '../filas-inset'
 import { AvatarIniciales } from '../vivo/franja-visitantes'
 import { AvisoPromocion } from './partes-promocion'
@@ -56,7 +56,7 @@ function Personas({ id, titulo, personas }: { readonly id: string; readonly titu
 export function DetallePromocion({ detalle, abierto, onCambioAbierto, onIrADecision }: DetallePromocionProps): ReactElement | null {
   if (!detalle) return null
   return (
-    <DetalleResponsivo abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={detalle.titulo} descripcion={detalle.meta}>
+    <PanelAcoplado abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={detalle.titulo} contexto={detalle.meta}>
       <div className="space-y-5">
         {detalle.pendiente && detalle.grupoDecision && (
           <AvisoPromocion tono="warning" titulo="Falta decidir qué pasa con este grupo">
@@ -72,11 +72,11 @@ export function DetallePromocion({ detalle, abierto, onCambioAbierto, onIrADecis
           </AvisoPromocion>
         )}
 
-        <dl className="grid grid-cols-2 gap-2.5">
+        <dl className="grid grid-cols-2 overflow-hidden rounded-md border border-border @md:grid-cols-4">
           {detalle.datos.map((dato) => (
-            <div key={dato.etiqueta} className="min-w-0 rounded-xl border border-border/60 bg-card px-3.5 py-3">
+            <div key={dato.etiqueta} className="-mr-px -mb-px min-w-0 px-2.5 py-2 shadow-[inset_-1px_-1px_0_var(--border)]">
               <dt className="text-xs text-muted-foreground">{dato.etiqueta}</dt>
-              <dd className={typeof dato.valor === 'number' ? 'mt-0.5 font-mono text-xl tabular-nums text-foreground' : 'mt-0.5 truncate text-[15px] font-semibold text-foreground'}>
+              <dd className={typeof dato.valor === 'number' ? 'mt-px font-mono text-sm font-semibold tabular-nums text-foreground' : 'mt-px truncate text-sm font-semibold text-foreground'}>
                 {dato.valor}
               </dd>
             </div>
@@ -84,9 +84,9 @@ export function DetallePromocion({ detalle, abierto, onCambioAbierto, onIrADecis
         </dl>
 
         {detalle.quedaComo && (
-          <div className="rounded-2xl border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">Queda como</p>
-            <p className="mt-1 text-[17px] font-semibold text-foreground">{detalle.quedaComo.nombre}</p>
+          <div className="rounded-md border border-border bg-card p-3">
+            <p className="text-xs text-muted-foreground">Queda como</p>
+            <p className="mt-0.5 text-[15px] font-[650] text-foreground">{detalle.quedaComo.nombre}</p>
             <p className="mt-0.5 text-[13px] text-muted-foreground">{detalle.quedaComo.detalle}</p>
             <p className="mt-2 text-sm text-foreground">{detalle.quedaComo.nota}</p>
           </div>
@@ -95,6 +95,6 @@ export function DetallePromocion({ detalle, abierto, onCambioAbierto, onIrADecis
         <Personas id="promocion-detalle-integrantes" titulo="Integrantes" personas={detalle.integrantes} />
         <Personas id="promocion-detalle-visitantes" titulo="Visitantes" personas={detalle.visitantes} />
       </div>
-    </DetalleResponsivo>
+    </PanelAcoplado>
   )
 }
