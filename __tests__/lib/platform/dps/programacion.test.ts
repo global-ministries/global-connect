@@ -76,6 +76,7 @@ describe('leerPlanHoja', () => {
       notas: 'Bautizos',
     })
     expect(p.conFicha).toEqual({ productor: true, host: false, comunicador: false })
+    expect(p.personaIds).toEqual({ productor: 'u1', host: null, comunicador: null })
   })
 
   it('reads a song list stored as text as it is, and drops rows without id or fecha', () => {
@@ -245,5 +246,10 @@ describe('mensajeErrorProgramacion', () => {
     expect(mensajeErrorProgramacion({ message: 'persona_o_texto' })).toBe('Ese valor es muy largo o no es válido.')
     expect(mensajeErrorProgramacion({ message: 'plan_invalido' })).toBe('Ese plan ya no existe. Actualiza la página.')
     expect(mensajeErrorProgramacion({ message: 'boom' })).toBe('No se pudo guardar la programación. Intenta de nuevo.')
+  })
+
+  it('says a picked person is gone and maps the search errors (S11)', () => {
+    expect(mensajeErrorProgramacion({ message: 'persona_invalida' })).toBe('Esa persona ya no está en la plataforma. Búscala de nuevo.')
+    expect(mensajeErrorProgramacion({ message: 'busqueda_invalida' })).toBe('La búsqueda es muy larga (máximo 100 caracteres).')
   })
 })
