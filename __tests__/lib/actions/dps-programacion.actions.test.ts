@@ -6,7 +6,9 @@
  * (odd/tasks/dps-asistencia-pco.md, T11; S6.4, S7.3): reload a year
  * (dps_planes_rango), save one cell (dps_plan_campo; a Sunday without a plan
  * gets it first with dps_plan_crear) and "Nueva serie" (dps_serie_crear,
- * which creates or attaches its Sundays). Every RPC goes through the session
+ * which creates or attaches its Sundays); T11b (S9): "Nuevo evento"
+ * (dps_evento_crear), moving a plan (dps_plan_mover) and deleting one
+ * (dps_plan_eliminar). Every RPC goes through the session
  * client, so the database decides who edits; the Spanish messages come from
  * lib/platform/dps/programacion.ts.
  */
@@ -17,7 +19,7 @@ jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({ auth: { getUser }, rpc }),
 }))
 
-import { cargarProgramacionDps, crearSerieDps, guardarCeldaDps } from '@/lib/actions/dps-programacion.actions'
+import { cargarProgramacionDps, crearEventoDps, crearSerieDps, eliminarPlanDps, guardarCeldaDps, moverPlanDps } from '@/lib/actions/dps-programacion.actions'
 
 const PLAN = '66666666-6666-4666-8666-666666666666'
 const SERIE = '99999999-9999-4999-8999-999999999999'
@@ -182,6 +184,105 @@ describe('crearSerieDps', () => {
       ok: false,
       message: 'El domingo 10 de enero ya es de otra serie. Elige otro primer domingo o menos semanas.',
       codigo: 'domingo_ocupado',
+    })
+  })
+})
+
+describe('crearEventoDps (S9)', () => {
+  const entrada = { tipo: 'especial', titulo: ' Conferencia Familias ', desde: '2026-11-20', hasta: '2026-11-22' }
+
+  it('creates one plan per day and returns them', async () => {
+    respuestas({
+      dps_evento_crear: {
+        data: { evento_id: SERIE, planes: [planJson({ fecha: '2026-11-20', tipo: 'especial', titulo: 'Conferencia Familias', evento: { id: SERIE, dia: 1, dias: 3 } })] },
+        error: null,
+      },
+    })
+    const r = await crearEventoDps(entrada)
+    expect(rpc).toHaveBeenCalledWith('dps_evento_crear', { p_tipo: 'especial', p_titulo: 'Conferencia Familias', p_desde: '2026-11-20', p_hasta: '2026-11-22' })
+    expect(r.ok && r.data.eventoId).toBe(SERIE)
+    expect(r.ok && r.data.planes.map((p) => p.evento)).toEqual([{ id: SERIE, dia: 1, dias: 3 }])
+  })
+
+  it('sends a one-day event with p_hasta null', async () => {
+    respuestas({ dps_evento_crear: { data: { evento_id: SERIE, planes: [] }, error: null } })
+    await crearEventoDps({ ...entrada, tipo: 'cena_del_senor', hasta: null })
+    expect(rpc).toHaveBeenCalledWith('dps_evento_crear', { p_tipo: 'cena_del_senor', p_titulo: 'Conferencia Familias', p_desde: '2026-11-20', p_hasta: null })
+  })
+
+  it('refuses a bad tipo, an empty or long título, bad dates and more than 14 days without calling', async () => {
+    for (const malo of [
+      { ...entrada, tipo: 'domingo' },
+      { ...entrada, tipo: 'libre' },
+      { ...entrada, titulo: '   ' },
+      { ...entrada, titulo: 'x'.repeat(121) },
+      { ...entrada, desde: '2026-02-30' },
+      { ...entrada, hasta: '2026-11-19' },
+      { ...entrada, hasta: '2026-12-04' },
+    ]) {
+      expect(await crearEventoDps(malo)).toEqual(DATOS_INVALIDOS)
+    }
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('names the day that clashes and maps no session', async () => {
+    respuestas({ dps_evento_crear: { data: null, error: { code: '22023', message: 'plan_duplicado', details: '2026-11-21' } } })
+    expect(await crearEventoDps(entrada)).toEqual({
+      ok: false,
+      message: 'Ya hay un evento de ese tipo con ese título el 21 de noviembre.',
+      codigo: 'plan_duplicado',
+    })
+    getUser.mockResolvedValue({ data: { user: null } })
+    expect(await crearEventoDps(entrada)).toEqual(SIN_SESION)
+  })
+})
+
+describe('moverPlanDps (S9)', () => {
+  it('moves the plan and returns it on its new date', async () => {
+    respuestas({ dps_plan_mover: { data: planJson({ fecha: '2026-11-25', tipo: 'cena_del_senor' }), error: null } })
+    const r = await moverPlanDps({ planId: PLAN, fecha: '2026-11-25' })
+    expect(rpc).toHaveBeenCalledWith('dps_plan_mover', { p_plan_id: PLAN, p_fecha: '2026-11-25' })
+    expect(r.ok && r.data.fecha).toBe('2026-11-25')
+  })
+
+  it('refuses a bad plan or date without calling', async () => {
+    expect(await moverPlanDps({ planId: 'nope', fecha: '2026-11-25' })).toEqual(DATOS_INVALIDOS)
+    expect(await moverPlanDps({ planId: PLAN, fecha: '25/11/2026' })).toEqual(DATOS_INVALIDOS)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('explains each refusal', async () => {
+    for (const [codigo, mensaje] of [
+      ['plan_pasado', 'Este día ya pasó: no se puede mover.'],
+      ['fecha_pasada', 'Elige una fecha de hoy en adelante.'],
+      ['plan_con_asistencia', 'Ya tiene asistencia marcada: no se puede mover ni eliminar.'],
+      ['plan_domingo', 'Los domingos de la programación no se mueven ni se eliminan.'],
+    ]) {
+      respuestas({ dps_plan_mover: { data: null, error: { code: '22023', message: codigo } } })
+      expect(await moverPlanDps({ planId: PLAN, fecha: '2026-11-25' })).toEqual({ ok: false, message: mensaje, codigo })
+    }
+  })
+})
+
+describe('eliminarPlanDps (S9)', () => {
+  it('deletes one day, or the whole event', async () => {
+    respuestas({ dps_plan_eliminar: [{ data: 1, error: null }, { data: 3, error: null }] })
+    expect(await eliminarPlanDps({ planId: PLAN, todoElEvento: false })).toEqual({ ok: true, data: { eliminados: 1 } })
+    expect(await eliminarPlanDps({ planId: PLAN, todoElEvento: true })).toEqual({ ok: true, data: { eliminados: 3 } })
+    expect(rpc.mock.calls).toEqual([
+      ['dps_plan_eliminar', { p_plan_id: PLAN, p_todo_el_evento: false }],
+      ['dps_plan_eliminar', { p_plan_id: PLAN, p_todo_el_evento: true }],
+    ])
+  })
+
+  it('refuses a bad plan without calling and explains a plan with attendance', async () => {
+    expect(await eliminarPlanDps({ planId: 'nope', todoElEvento: false })).toEqual(DATOS_INVALIDOS)
+    expect(rpc).not.toHaveBeenCalled()
+    respuestas({ dps_plan_eliminar: { data: null, error: { code: '22023', message: 'plan_con_asistencia' } } })
+    expect(await eliminarPlanDps({ planId: PLAN, todoElEvento: false })).toEqual({
+      ok: false,
+      message: 'Ya tiene asistencia marcada: no se puede mover ni eliminar.',
+      codigo: 'plan_con_asistencia',
     })
   })
 })

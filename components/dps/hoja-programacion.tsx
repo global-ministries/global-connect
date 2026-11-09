@@ -6,13 +6,20 @@
  * `HojaCalculo` of docs/design-system/components.md#planning-style-components,
  * local here until it moves to components/ui). One row per Sunday of the
  * year, the special days as hatched full rows with a tag (never edited
- * here; their date opens their plan), and a month separator row
+ * here; their date opens their plan; a day of a multi-day event reads
+ * «Título · Día N de M»; whoever plans gets a row menu with «Mover fecha…»
+ * and «Eliminar evento», S9), and a month separator row
  * ("NOVIEMBRE 2026 · 5 domingos") whose label sticks to the top and to the
  * left. Frozen Fecha (146px, the link to the plan, "Próximo") and Serie
  * (250px, the 4px `chart-*` stripe and "n/m") columns ending in a 2px
- * border; sticky 34px header; 36px rows (30px condensed, 48px on touch);
- * 13px cells truncated with the full text in `title`; past dates muted;
- * empty cells read "Agregar" on hover when editable.
+ * border; sticky 34px header. Every column has one fixed width in a
+ * `<colgroup>` (`table-layout: fixed`), so the header, the month separators
+ * and every row share it and each cell sits exactly under its header, also
+ * while scrolling (S9.6). No text is cut (S9.5): cells wrap like Excel's
+ * «Ajustar texto» and the row grows downward; the density only sets the
+ * minimum row height (a table cell's `height` is a minimum: 36px, 30px
+ * condensed, 48px on touch). 13px cells; past dates muted; empty cells read
+ * "Agregar" on hover when editable.
  *
  * Keyboard (docs/design-system/patterns.md#spreadsheet-keyboard), roving
  * tabindex over the Sunday rows (the Fecha link is the first stop of a row):
@@ -20,13 +27,17 @@
  * edits with the text selected; any character replaces the cell and keeps
  * typing; Delete / Backspace clears it. While editing: Enter saves and moves
  * down, Tab saves and moves right (left with Shift), Escape cancels, leaving
- * the cell saves. The edited cell keeps its size (the input fills it with
- * the brand outline). Read-only (aria-readonly): the same moves, no edits.
+ * the cell saves. The editor is a text area that grows with its text, so it
+ * shows all of it (the cell grows with it; the brand outline marks it).
+ * Read-only (aria-readonly): the same moves, no edits.
  * The parent saves and decides what changed.
  */
 import { Fragment, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactElement } from 'react'
 import Link from 'next/link'
+import { CalendarClock, MoreHorizontal, Trash2 } from 'lucide-react'
 
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { CLASE_ACCION_FILA } from '@/components/grupos-vida/planner/estilo-planner'
 import { EtiquetaPlanner } from '@/components/grupos-vida/planner/etiqueta'
 import { horariosTexto } from '@/lib/platform/dps/planilla'
 import {
@@ -38,6 +49,7 @@ import {
   type ColumnaHoja,
   type DefColumna,
   type FilaHoja,
+  type PlanHoja,
 } from '@/lib/platform/dps/programacion'
 import { cn } from '@/lib/utils'
 
@@ -72,9 +84,18 @@ const RAYA: Readonly<Record<string, string>> = {
   'chart-5': 'bg-chart-5',
 }
 
+/** The frozen columns: their widths are the `<col>`s and the `left` of Serie is Fecha's width. */
+const ANCHO_F1 = 146
+const ANCHO_F2 = 250
 const CLASE_BORDE = 'border-r border-b border-border/70'
-const CLASE_F1 = 'sticky left-0 w-[146px] min-w-[146px] max-w-[146px] bg-card'
-const CLASE_F2 = 'sticky left-[146px] w-[250px] min-w-[250px] max-w-[250px] border-r-2 border-r-border bg-card pl-3.5'
+// Sticky, never relative (tailwind-merge keeps only the last `position`): a
+// relative Serie cell kept its `left` and slid over Productor (L46). Sticky
+// is already the containing block of the series stripe.
+const CLASE_F1 = 'sticky left-0 w-[146px] min-w-[146px] max-w-[146px] overflow-hidden bg-card'
+const CLASE_F2 = 'sticky left-[146px] w-[250px] min-w-[250px] max-w-[250px] overflow-hidden border-r-2 border-r-border bg-card pl-3.5'
+/** Body text wraps and the row grows (S9.5). */
+const CLASE_AJUSTE = 'whitespace-normal break-words align-top'
+const CLASE_MENU = 'min-h-9 gap-2.5 text-sm pointer-coarse:min-h-11'
 const CLASE_RAYADO =
   'bg-[repeating-linear-gradient(135deg,var(--card)_0_7px,color-mix(in_oklab,var(--border)_45%,var(--card))_7px_8px)]'
 
@@ -93,9 +114,19 @@ export interface HojaProgramacionProps {
   readonly valor: (fila: FilaDomingo, columna: ColumnaHoja) => string
   /** A finished edit whose text differs from the one it started with. */
   readonly onGuardar: (fila: FilaDomingo, columna: ColumnaHoja, texto: string) => void
+  /** «Mover fecha…» of a special row (editable only). */
+  readonly onMover?: (plan: PlanHoja) => void
+  /** «Eliminar evento» of a special row (editable only). */
+  readonly onEliminar?: (plan: PlanHoja) => void
 }
 
-export function HojaProgramacion({ anio, filas, columnas, editable, densidad, hoy, proximo, valor, onGuardar }: HojaProgramacionProps): ReactElement {
+/** The text area grows with its text: the whole value shows while editing. */
+function ajustarAlto(el: HTMLTextAreaElement): void {
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+
+export function HojaProgramacion({ anio, filas, columnas, editable, densidad, hoy, proximo, valor, onGuardar, onMover, onEliminar }: HojaProgramacionProps): ReactElement {
   const tablaRef = useRef<HTMLTableElement>(null)
   const [foco, setFoco] = useState<Foco | null>(null)
   const [edicion, setEdicion] = useState<Edicion | null>(null)
@@ -160,7 +191,7 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
     return actual
   }
 
-  function teclaEdicion(e: KeyboardEvent<HTMLInputElement>): void {
+  function teclaEdicion(e: KeyboardEvent<HTMLTextAreaElement>): void {
     const actual = edicionRef.current
     if (!actual) return
     const desde: Foco = { fecha: actual.fecha, columna: actual.columna }
@@ -214,8 +245,10 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
     if (foco?.fecha !== fecha || foco?.columna !== columna) setFoco({ fecha, columna })
   }
 
-  const alto = densidad === 'condensado' ? 'h-[30px]' : 'h-9'
+  // A table cell's height is its minimum: the row grows with wrapped text.
+  const alto = densidad === 'condensado' ? 'h-[30px] py-[5px] leading-5' : 'h-9 py-2 leading-5'
   const totalColumnas = columnas.length + 2
+  const ancho = ANCHO_F1 + ANCHO_F2 + columnas.reduce((n, c) => n + c.ancho, 0)
 
   return (
     <table
@@ -226,22 +259,29 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
       aria-describedby="ayuda-hoja"
       data-densidad={densidad}
       onFocus={alEnfocar}
-      className={cn('w-max min-w-full border-separate border-spacing-0', densidad === 'condensado' ? 'text-xs' : 'text-[13px]')}
+      style={{ width: ancho }}
+      className={cn('table-fixed border-separate border-spacing-0', densidad === 'condensado' ? 'text-xs' : 'text-[13px]')}
     >
+      <colgroup>
+        <col style={{ width: ANCHO_F1 }} />
+        <col style={{ width: ANCHO_F2 }} />
+        {columnas.map((c) => (
+          <col key={c.id} style={{ width: c.ancho }} />
+        ))}
+      </colgroup>
       <thead>
         <tr>
-          <th scope="col" className={cn(CLASE_F1, CLASE_BORDE, 'top-0 z-[4] h-[34px] border-b-border px-2.5 text-left text-xs font-semibold text-muted-foreground')}>
+          <th scope="col" className={cn(CLASE_BORDE, CLASE_F1, 'top-0 z-[4] h-[34px] border-b-border px-2.5 text-left text-xs font-semibold whitespace-nowrap text-muted-foreground')}>
             Fecha
           </th>
-          <th scope="col" className={cn(CLASE_F2, CLASE_BORDE, 'top-0 z-[4] h-[34px] border-b-border text-left text-xs font-semibold text-muted-foreground')}>
+          <th scope="col" className={cn(CLASE_BORDE, CLASE_F2, 'top-0 z-[4] h-[34px] border-b-border text-left text-xs font-semibold whitespace-nowrap text-muted-foreground')}>
             Serie · semana
           </th>
           {columnas.map((c) => (
             <th
               key={c.id}
               scope="col"
-              style={{ minWidth: c.ancho }}
-              className={cn(CLASE_BORDE, 'sticky top-0 z-[3] h-[34px] border-b-border bg-card px-2.5 text-left text-xs font-semibold text-muted-foreground')}
+              className={cn(CLASE_BORDE, 'sticky top-0 z-[3] h-[34px] border-b-border bg-card px-2.5 text-left text-xs font-semibold whitespace-nowrap text-muted-foreground')}
             >
               {c.etiqueta}
             </th>
@@ -275,22 +315,46 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
           )
 
           if (fila.clase === 'especial') {
+            const nombre = nombreEspecial(fila.plan)
+            const plan = fila.plan
             return (
               <Fragment key={fila.clave}>
                 {separador}
-                <tr>
-                  <th scope="row" className={cn(CLASE_F1, CLASE_BORDE, CLASE_RAYADO, alto, 'z-[2] px-2.5 text-left font-medium')}>
-                    <Link href={hrefPlan(fila.plan.id)} tabIndex={-1} className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[var(--brand-primary)]">
+                <tr className="group/fila">
+                  <th scope="row" className={cn(CLASE_BORDE, CLASE_F1, CLASE_RAYADO, alto, CLASE_AJUSTE, 'z-[2] px-2.5 text-left font-medium')}>
+                    <Link href={hrefPlan(plan.id)} tabIndex={-1} className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-[var(--brand-primary)]">
                       {textoFecha}
                     </Link>
                   </th>
-                  <td className={cn(CLASE_F2, CLASE_BORDE, CLASE_RAYADO, alto, 'z-[2] truncate italic')}>
-                    <span className="mr-2 not-italic">
-                      <EtiquetaPlanner tono="info">{fila.plan.tipo === 'libre' ? 'Libre' : 'Especial'}</EtiquetaPlanner>
-                    </span>
-                    {nombreEspecial(fila.plan)}
+                  <td className={cn(CLASE_BORDE, CLASE_F2, CLASE_RAYADO, alto, CLASE_AJUSTE, 'z-[2] pr-1.5')}>
+                    {/* Tag and name on one line: the tag is as tall as a text line. */}
+                    <div className="flex items-start gap-2">
+                      <span className="shrink-0">
+                        <EtiquetaPlanner tono="info">{plan.tipo === 'libre' ? 'Libre' : 'Especial'}</EtiquetaPlanner>
+                      </span>
+                      <span className="min-w-0 flex-1 italic">{nombre}</span>
+                      {editable && onMover && onEliminar && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" aria-label={`Acciones de ${nombre}`} className={cn(CLASE_ACCION_FILA, '-my-1 data-[state=open]:opacity-100')}>
+                              <MoreHorizontal aria-hidden="true" className="size-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" aria-label={`Acciones de ${nombre}`} className="min-w-52 bg-card shadow-sheet">
+                            <DropdownMenuItem className={CLASE_MENU} onSelect={() => onMover(plan)}>
+                              <CalendarClock aria-hidden="true" />
+                              Mover fecha…
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className={CLASE_MENU} onSelect={() => onEliminar(plan)}>
+                              <Trash2 aria-hidden="true" />
+                              Eliminar evento
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </td>
-                  <td colSpan={totalColumnas - 2} className={cn(CLASE_BORDE, CLASE_RAYADO, alto, 'px-2.5 text-muted-foreground')}>
+                  <td colSpan={totalColumnas - 2} className={cn(CLASE_BORDE, CLASE_RAYADO, alto, CLASE_AJUSTE, 'px-2.5 text-muted-foreground')}>
                     <span className="font-mono tabular-nums">{horariosTexto(fila.plan.horarios)}</span>
                   </td>
                 </tr>
@@ -305,7 +369,7 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
             <Fragment key={fila.fecha}>
               {separador}
               <tr className="group/fila">
-                <th scope="row" className={cn(CLASE_F1, CLASE_BORDE, alto, 'z-[2] px-2.5 text-left font-medium', editable && 'pointer-coarse:h-12', pasado && 'text-muted-foreground')}>
+                <th scope="row" className={cn(CLASE_BORDE, CLASE_F1, alto, CLASE_AJUSTE, 'z-[2] px-2.5 text-left font-medium', editable && 'pointer-coarse:h-12', pasado && 'text-muted-foreground')}>
                   {plan ? (
                     <Link
                       href={hrefPlan(plan.id)}
@@ -330,7 +394,7 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                   )}
                   {fila.clave === proximo && <span className="ml-1 rounded-sm bg-brand-tint px-1.5 text-[11px] font-semibold text-brand-text">Próximo</span>}
                 </th>
-                <td className={cn(CLASE_F2, CLASE_BORDE, alto, 'relative z-[2] truncate')}>
+                <td className={cn(CLASE_BORDE, CLASE_F2, alto, CLASE_AJUSTE, 'z-[2]')}>
                   {plan?.serie && <span aria-hidden="true" className={cn('absolute inset-y-0 left-0 w-1', RAYA[plan.serie.color] ?? 'bg-chart-1')} />}
                   {plan?.serie ? (
                     <>
@@ -351,8 +415,6 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                       data-fecha={fila.fecha}
                       data-columna={c.id}
                       tabIndex={editando ? -1 : esParada(c.id) ? 0 : -1}
-                      title={texto && !editando ? texto : undefined}
-                      style={{ maxWidth: c.ancho, minWidth: c.ancho }}
                       onKeyDown={(e) => {
                         if (e.target === e.currentTarget) teclaCelda(e, fila, c.id)
                       }}
@@ -363,7 +425,8 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                       className={cn(
                         CLASE_BORDE,
                         alto,
-                        'truncate px-2.5 outline-none',
+                        CLASE_AJUSTE,
+                        'px-2.5 outline-none',
                         editable && 'cursor-cell pointer-coarse:h-12 hover:bg-accent',
                         // The selected cell always shows (a click selects it too), as `td:focus` of the artboard.
                         'focus:outline-2 focus:-outline-offset-2 focus:outline-[var(--brand-primary)]',
@@ -373,16 +436,20 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                       )}
                     >
                       {editando ? (
-                        <input
+                        <textarea
                           aria-label={`${c.etiqueta}, ${fechaCorta(fila.fecha)}`}
                           value={edicion.valor}
+                          rows={1}
                           ref={(el) => {
-                            if (!el || el === document.activeElement) return
+                            if (!el) return
+                            ajustarAlto(el)
+                            if (el === document.activeElement) return
                             el.focus()
                             if (edicion.seleccionar) el.select()
                             else el.setSelectionRange(el.value.length, el.value.length)
                           }}
                           onChange={(e) => {
+                            ajustarAlto(e.target)
                             if (!edicionRef.current) return
                             const siguiente = { ...edicionRef.current, valor: e.target.value }
                             edicionRef.current = siguiente
@@ -390,7 +457,10 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                           }}
                           onKeyDown={teclaEdicion}
                           onBlur={() => terminarEdicion(true)}
-                          className="h-full w-full border-0 bg-background px-[9px] text-[length:inherit] shadow-[inset_0_0_0_3px_color-mix(in_oklab,var(--brand-primary)_20%,transparent)] outline-none"
+                          className={cn(
+                            'block min-h-full w-full resize-none overflow-hidden border-0 bg-background px-[9px] text-[length:inherit] shadow-[inset_0_0_0_3px_color-mix(in_oklab,var(--brand-primary)_20%,transparent)] outline-none',
+                            densidad === 'condensado' ? 'py-[5px] leading-5' : 'py-2 leading-5',
+                          )}
                         />
                       ) : (
                         texto
