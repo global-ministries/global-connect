@@ -9,6 +9,8 @@ import { redirect } from 'next/navigation'
 
 import { TarjetaMisHijosDashboard } from '@/components/dashboard/TarjetaMisHijosDashboard'
 import { PantallaInicio } from '@/components/inicio/pantalla-inicio'
+import { cargarMisServiciosPanel } from '@/components/mis-servicios/cargar-mis-servicios'
+import { TarjetaMisServicios } from '@/components/mis-servicios/tarjeta-mis-servicios'
 import { MigasInicio } from '@/components/inicio/partes-inicio'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { cargarACargo, type DatosCargo } from '@/lib/inicio/cargar-a-cargo'
@@ -38,6 +40,8 @@ async function leerNombre(authId: string): Promise<string | null> {
 export default async function PaginaInicio() {
   // Started first so it runs alongside the facts; shown only when «Mis hijos» is decided.
   const misHijosPromesa = cargarMisHijosDashboard()
+  // «Mis servicios» (S2, feat/dps-avisos #696): null without services or unseen notices.
+  const misServiciosPromesa = cargarMisServiciosPanel()
   const supabase = await createSupabaseServerClient()
   const {
     data: { user },
@@ -45,7 +49,15 @@ export default async function PaginaInicio() {
   if (!user) redirect('/login')
 
   const hoy = hoyEnCaracas()
-  const [hechos, nombre] = await Promise.all([cargarHechosInicio(supabase, user), leerNombre(user.id)])
+  const [hechosBase, nombre, misServicios] = await Promise.all([
+    cargarHechosInicio(supabase, user),
+    leerNombre(user.id),
+    misServiciosPromesa,
+  ])
+  // DPS convocations and answers come from «Mis servicios»: it decides the section and the jump row.
+  const hechos = misServicios
+    ? { ...hechosBase, convocadoEnDps: true, serviciosPorConfirmar: misServicios.porResponder }
+    : hechosBase
   const secciones = decidirSecciones(hechos)
 
   const grupos = secciones.flatMap((s) => (s.id === 'grupo-miembro' ? [{ grupoId: s.grupoId, nombre: s.nombre }] : []))
@@ -73,9 +85,7 @@ export default async function PaginaInicio() {
         hoy={hoy}
         secciones={secciones}
         gruposMiembro={gruposMiembro}
-        // «Mis servicios» (S2) mounts here when feat/dps-avisos is merged: add cargarMisServiciosPanel()
-        // to the Promise.all above when the section is present, then
-        // misServicios={misServicios && <TarjetaMisServicios inicial={misServicios} hoy={hoy} />}
+        misServicios={misServicios && <TarjetaMisServicios inicial={misServicios} hoy={hoy} />}
         misHijos={misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
         aCargo={cargos}
         visionGeneral={visionGeneral}

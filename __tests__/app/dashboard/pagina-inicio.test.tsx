@@ -13,6 +13,7 @@ const cargarTablero = jest.fn()
 const cargarVisionGeneral = jest.fn()
 const cargarACargo = jest.fn()
 const cargarMisHijosDashboard = jest.fn()
+const cargarMisServiciosPanel = jest.fn()
 const getUser = jest.fn()
 const supabase = { auth: { getUser } }
 const redirect = jest.fn((ruta: string) => {
@@ -34,6 +35,10 @@ jest.mock('@/app/(auth)/dashboard/tablero', () => ({
 }))
 jest.mock('@/lib/inicio/cargar-a-cargo', () => ({ ...jest.requireActual('@/lib/inicio/cargar-a-cargo'), cargarACargo: (...a: unknown[]) => cargarACargo(...a) }))
 jest.mock('@/app/(auth)/dashboard/mis-hijos-dashboard', () => ({ cargarMisHijosDashboard: () => cargarMisHijosDashboard() }))
+jest.mock('@/components/mis-servicios/cargar-mis-servicios', () => ({ cargarMisServiciosPanel: () => cargarMisServiciosPanel() }))
+jest.mock('@/components/mis-servicios/tarjeta-mis-servicios', () => ({
+  TarjetaMisServicios: ({ inicial }: { inicial: { porResponder: number } }) => <h2>Mis servicios · {inicial.porResponder}</h2>,
+}))
 jest.mock('@/components/dashboard/TarjetaMisHijosDashboard', () => ({ TarjetaMisHijosDashboard: () => <h2>Mis hijos</h2> }))
 jest.mock('@/components/ui/sistema-diseno', () => ({
   ...jest.requireActual('@/components/ui/sistema-diseno'),
@@ -53,6 +58,7 @@ describe('PaginaInicio', () => {
     cargarVisionGeneral.mockResolvedValue(null)
     cargarACargo.mockResolvedValue([])
     cargarMisHijosDashboard.mockResolvedValue(null)
+    cargarMisServiciosPanel.mockResolvedValue(null)
   })
 
   it('miembro de un grupo: carga su grupo y no el tablero', async () => {
@@ -119,6 +125,25 @@ describe('PaginaInicio', () => {
     render(await PaginaInicio())
 
     expect(screen.getByRole('heading', { level: 2, name: 'Mis hijos' })).toBeInTheDocument()
+  })
+
+  it('convocado en DPS: muestra Mis servicios en su lugar y lo suma a Para responder (S2)', async () => {
+    cargarMisServiciosPanel.mockResolvedValue({ servicios: [{}], avisos: [], porResponder: 2, fechasBloqueadas: 0 })
+    cargarHechosInicio.mockResolvedValue(hechos({ pendientes: { ...HECHOS_VACIOS.pendientes, solicitudesGrupo: 1 } }))
+
+    const { container } = render(await PaginaInicio())
+
+    const ranura = container.querySelector('#mis-servicios') as HTMLElement
+    expect(within(ranura).getByRole('heading', { level: 2, name: 'Mis servicios · 2' })).toBeInTheDocument()
+    expect(container.querySelector('a[href="#mis-servicios"]')).not.toBeNull()
+  })
+
+  it('sin servicios ni avisos no muestra Mis servicios', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({}))
+
+    render(await PaginaInicio())
+
+    expect(screen.queryByRole('heading', { name: /Mis servicios/ })).toBeNull()
   })
 
   it('sin sesión va al login', async () => {
