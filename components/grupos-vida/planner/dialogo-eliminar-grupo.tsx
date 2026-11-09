@@ -4,7 +4,8 @@
  * Planner — confirm deleting a group (S22). Only offered for a group that has
  * not started (puedeEliminarGrupo); the server refuses one that already
  * meets. Its people go back to the bank. Like every board change it waits
- * for "Guardar" (S24) and "Deshacer" takes it back until then.
+ * for "Guardar" (S24) and "Deshacer" takes it back until then. Planning
+ * style (S25): the 420px dialog with the 17px title.
  */
 import type { ReactElement } from 'react'
 
@@ -19,6 +20,8 @@ import {
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { contar, personasDelGrupo, type GrupoTablero } from '@/lib/platform/grupos-vida/planner'
 
+import { CLASE_DIALOGO, CLASE_TITULO_DIALOGO } from './estilo-planner'
+
 export interface DialogoEliminarGrupoProps {
   readonly grupo: GrupoTablero | null
   readonly onCerrar: () => void
@@ -29,9 +32,9 @@ export function DialogoEliminarGrupo({ grupo, onCerrar, onConfirmar }: DialogoEl
   const personas = grupo ? personasDelGrupo(grupo).length : 0
   return (
     <AlertDialog open={grupo !== null} onOpenChange={(abierto) => !abierto && onCerrar()}>
-      <AlertDialogContent>
+      <AlertDialogContent className={CLASE_DIALOGO}>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Eliminar {grupo?.nombre}?</AlertDialogTitle>
+          <AlertDialogTitle className={CLASE_TITULO_DIALOGO}>¿Eliminar {grupo?.nombre}?</AlertDialogTitle>
           <AlertDialogDescription>
             {personas > 0 ? `${contar(personas, 'persona vuelve', 'personas vuelven')} al banco. ` : ''}
             Se aplica al guardar; hasta entonces puedes quitarlo con «Deshacer».

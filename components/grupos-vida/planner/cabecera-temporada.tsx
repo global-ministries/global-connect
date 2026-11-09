@@ -20,8 +20,20 @@
  * actions are one wrapping row: the compact save bar, the alerts chip
  * "● N · ● M" and "Más acciones" (Historial and, for whoever publishes, the
  * publish link with its state).
+ *
+ * Desktop and tablet, planning style (S25, the header band of
+ * prototipos/planificacion-dps/01): a `bg-card` band with a bottom border and
+ * 24px gutters, the h1 at 24px / 650 with the summary under it and the 36px
+ * actions at the right; menus are flat `rounded-md` popovers with 36px items
+ * (44px on touch). The band is one row: the title block keeps at least
+ * 18rem and the actions take the rest, aligned right; when they do not fit
+ * in one line (the save bar with pending changes next to an expanded app
+ * sidebar) they wrap into a second line, still at the right. Only when not
+ * even 28rem are left (tablets) do they drop under the title. Nothing
+ * overflows. On a phone the season is the large title (28px / 700,
+ * mobile.md).
  */
-import { useEffect, useId, useMemo, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode, type RefObject } from 'react'
+import { useId, useMemo, useRef, useState, type MouseEvent as ClicReact, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ChevronDown, History, MoreHorizontal } from 'lucide-react'
 
@@ -32,6 +44,7 @@ import { contar, enLista, type BotonPublicar, type SegmentoPlanner, type Tempora
 import { sugerirSiguienteTemporada } from '@/lib/platform/grupos-vida/planner/temporada-nueva'
 import { cn } from '@/lib/utils'
 
+import { CLASE_ITEM_MENU, CLASE_MENU, useCerrarMenu } from './menu-planner'
 import { estadoTemporada, formatearCantidad } from './modelo'
 
 export const RUTA_PLANIFICAR = '/grupos-vida/planificar'
@@ -63,30 +76,6 @@ export interface CabeceraTemporadaProps {
   readonly compacta?: boolean
 }
 
-/** Closes a popover menu on a click outside it or on Escape (focus back to its button). */
-function useCerrarMenu(abierto: boolean, cerrar: () => void, contenedor: RefObject<HTMLDivElement | null>, boton: RefObject<HTMLButtonElement | null>) {
-  useEffect(() => {
-    if (!abierto) return
-    const alPulsar = (e: MouseEvent) => {
-      if (!contenedor.current?.contains(e.target as Node)) cerrar()
-    }
-    const alTeclear = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      cerrar()
-      boton.current?.focus()
-    }
-    document.addEventListener('mousedown', alPulsar)
-    document.addEventListener('keydown', alTeclear)
-    return () => {
-      document.removeEventListener('mousedown', alPulsar)
-      document.removeEventListener('keydown', alTeclear)
-    }
-  }, [abierto, cerrar, contenedor, boton])
-}
-
-const CLASE_MENU = 'absolute top-full z-20 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-card p-2 shadow-sheet'
-const CLASE_ITEM_MENU = 'focus-ring flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors hover:bg-accent'
-
 function SelectorTemporada({
   temporada,
   temporadas,
@@ -116,7 +105,12 @@ function SelectorTemporada({
 
   return (
     <div ref={contenedor} className="relative">
-      <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">
+      <h1
+        className={cn(
+          'leading-[1.15] text-foreground',
+          compacta ? 'text-[28px] font-bold tracking-[-0.03em]' : 'text-2xl font-[650] tracking-[-0.02em]',
+        )}
+      >
         <button
           ref={boton}
           type="button"
@@ -124,7 +118,7 @@ function SelectorTemporada({
           aria-controls={idMenu}
           aria-label={`Temporada ${temporada.nombre}, cambiar de temporada`}
           onClick={() => setAbierto((a) => !a)}
-          className="focus-ring -mx-2 inline-flex min-h-11 items-center gap-1.5 rounded-xl px-2 transition-colors hover:bg-accent"
+          className="focus-ring -mx-2 inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 transition-colors hover:bg-accent pointer-coarse:min-h-11"
         >
           {compacta ? temporada.nombre : `Temporada ${temporada.nombre}`}
           <ChevronDown aria-hidden="true" className={cn('size-5 text-muted-foreground transition-transform', abierto && 'rotate-180')} />
@@ -145,7 +139,7 @@ function SelectorTemporada({
                   aria-current={actual ? 'page' : undefined}
                   onClick={(e) => salir(e, actual)}
                   className={cn(
-                    'focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-accent',
+                    'focus-ring flex min-h-9 items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors hover:bg-accent pointer-coarse:min-h-11',
                     actual && 'bg-brand-tint text-brand-text',
                   )}
                 >
@@ -158,14 +152,14 @@ function SelectorTemporada({
         </ul>
         {(puedeCrearTemporada || temporada.origen_id) && (
           <>
-            <hr className="my-2 border-border" />
+            <hr className="my-1 border-border" />
             <ul aria-label="Más de la temporada">
               {temporada.origen_id && (
                 <li>
                   <Link
                     href={`${RUTA_PLANIFICAR}/diagnostico?temporada=${encodeURIComponent(temporada.id)}`}
                     onClick={(e) => salir(e, false)}
-                    className="focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                    className={CLASE_ITEM_MENU}
                   >
                     <span>Diagnóstico de cierre</span>
                     <span className="truncate text-xs font-normal text-muted-foreground">{temporada.origen_nombre}</span>
@@ -177,7 +171,7 @@ function SelectorTemporada({
                   <Link
                     href={`${RUTA_PLANIFICAR}/nueva`}
                     onClick={(e) => salir(e, false)}
-                    className="focus-ring flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-accent"
+                    className={CLASE_ITEM_MENU}
                   >
                     <span>Nueva temporada</span>
                     <span className="truncate text-xs font-normal text-muted-foreground">{siguiente}</span>
@@ -281,9 +275,12 @@ export function CabeceraTemporada({
   const textoAvisos = contar(avisos, 'aviso', 'avisos')
 
   return (
-    <div className="space-y-4">
-      <section aria-labelledby="planner-temporada" className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-        <div id="planner-temporada" className="min-w-0 space-y-1">
+    <div className={compacta ? 'space-y-4' : 'space-y-3 border-b border-border bg-card px-6 pt-4 pb-3.5'}>
+      <section
+        aria-labelledby="planner-temporada"
+        className={cn('flex flex-wrap justify-between gap-y-3', compacta ? 'items-start gap-x-6' : 'items-center gap-x-4')}
+      >
+        <div id="planner-temporada" className={cn('min-w-0 space-y-1', !compacta && 'flex-[1_1_18rem]')}>
           {compacta ? (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <SelectorTemporada temporada={temporada} temporadas={temporadas} puedeCrearTemporada={puedeCrearTemporada} cambiosSinGuardar={cambiosSinGuardar} compacta />
@@ -295,14 +292,19 @@ export function CabeceraTemporada({
           <p className="text-[15px] text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
             {!compacta && <PuntoEstado tono={estado.tono} etiqueta={estado.etiqueta} className="align-middle text-[15px]" />}
             {nombresAlcance && <span>{`${compacta ? '' : ' · '}${nombresAlcance}`}</span>}
-            <span>
-              {!compacta || nombresAlcance ? ' · ' : ''}
+            {!compacta || nombresAlcance ? ' · ' : ''}
+            {/* The counts stay on one line: the summary wraps after the "·" before them, never inside. */}
+            <span className="whitespace-nowrap">
               <strong className="font-mono tabular-nums">{formatearCantidad(grupos)}</strong> {grupos === 1 ? 'grupo' : 'grupos'} ·{' '}
               <strong className="font-mono tabular-nums">{formatearCantidad(personas)}</strong> {personas === 1 ? 'persona' : 'personas'}
             </span>
           </p>
         </div>
-        <div role="group" aria-label="Acciones de la temporada" className={cn('flex flex-wrap items-center gap-2', compacta && 'relative')}>
+        <div
+          role="group"
+          aria-label="Acciones de la temporada"
+          className={cn('flex flex-wrap items-center gap-2', compacta ? 'relative' : 'min-w-[min(100%,28rem)] flex-[999_1_0%] justify-end')}
+        >
           {guardado}
           {onAbrirHistorial && !compacta && (
             <BotonSistema

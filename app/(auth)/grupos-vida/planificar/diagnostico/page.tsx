@@ -10,7 +10,8 @@
  * (cargarDiagnostico): planner_tablero scopes the groups of a director de
  * etapa to their segments (S10), so their diagnosis is of their segments.
  * `?temporada=<id>` diagnoses that season; without it, the most recent in
- * planning.
+ * planning. Planning style (S25): the planner's page frame (header band with
+ * "Volver al tablero" at the right, 24px gutters).
  */
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -19,10 +20,11 @@ import { CalendarX } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUserWithRoles } from '@/lib/getUserWithRoles'
 import { cargarDiagnostico, comoClientePlanner } from '@/lib/platform/grupos-vida/planner/datos'
-import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { hrefTemporada } from '@/components/grupos-vida/planner/cabecera-temporada'
 import { DiagnosticoCierreVista } from '@/components/grupos-vida/planner/diagnostico-cierre'
+import { CLASE_RESUMEN_PAGINA, CLASE_TITULO_PAGINA, MarcoPlanner } from '@/components/grupos-vida/planner/marco-planner'
 import { MigasPlanner } from '@/components/grupos-vida/planner/migas-planner'
 import { PlannerError, PlannerSinTemporada } from '@/components/grupos-vida/planner/estado-planner'
 
@@ -56,13 +58,11 @@ export default async function DiagnosticoCierrePage({ searchParams }: Diagnostic
       <Link href={hrefTemporada(temporada.id)}>Volver al tablero</Link>
     </BotonSistema>
   )
-  return (
-    <PaginaSistema
-      breadcrumbs={<MigasPlanner actual="Diagnóstico de cierre" temporada={{ nombre: temporada.nombre, href: hrefTemporada(temporada.id) }} />}
-      acciones={volver}
-    >
-      {resultado.tipo === 'sin_origen' ? (
-        <div className="rounded-2xl border border-border bg-card py-6">
+  const migas = <MigasPlanner actual="Diagnóstico de cierre" temporada={{ nombre: temporada.nombre, href: hrefTemporada(temporada.id) }} />
+  if (resultado.tipo === 'sin_origen') {
+    return (
+      <MarcoPlanner migas={migas} encabezado={<h1 className={CLASE_TITULO_PAGINA}>Diagnóstico de cierre</h1>} acciones={volver}>
+        <div className="rounded-md border border-border bg-card py-6">
           <EstadoVacioSistema
             icono={CalendarX}
             titulo={`${temporada.nombre} no cierra ninguna temporada`}
@@ -70,15 +70,21 @@ export default async function DiagnosticoCierrePage({ searchParams }: Diagnostic
             accion={volver}
           />
         </div>
-      ) : (
+      </MarcoPlanner>
+    )
+  }
+  return (
+    <MarcoPlanner
+      migas={migas}
+      acciones={volver}
+      encabezado={
         <>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">Cómo termina {resultado.origen.nombre}</h1>
-            <p className="text-[15px] text-muted-foreground">La temporada que se cierra cuando publiques {temporada.nombre}. Es el mismo diagnóstico del asistente de nueva temporada.</p>
-          </div>
-          <DiagnosticoCierreVista diagnostico={resultado.diagnostico} origen={resultado.origen.nombre} destino={temporada.nombre} />
+          <h1 className={CLASE_TITULO_PAGINA}>Cómo termina {resultado.origen.nombre}</h1>
+          <p className={CLASE_RESUMEN_PAGINA}>La temporada que se cierra cuando publiques {temporada.nombre}. Es el mismo diagnóstico del asistente de nueva temporada.</p>
         </>
-      )}
-    </PaginaSistema>
+      }
+    >
+      <DiagnosticoCierreVista diagnostico={resultado.diagnostico} origen={resultado.origen.nombre} destino={temporada.nombre} />
+    </MarcoPlanner>
   )
 }

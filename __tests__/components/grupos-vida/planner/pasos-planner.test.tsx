@@ -672,10 +672,12 @@ describe('groups (S3, S4, S22)', () => {
     const iniciado = { ...VALIENTES, activo: true }
     render(<PlannerClient datos={datos({ grupos: [TORREALBA, iniciado] })} pasos={[]} />)
 
-    await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: /integrantes/ }))
+    // "Eliminar grupo" lives in the column's options menu ("⋮"), next to "Abrir".
+    await userEvent.click(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: 'Opciones de Mujeres Valientes' }))
+    expect(within(tarjeta('Mujeres Valientes')).getByRole('button', { name: 'Abrir Mujeres Valientes' })).toBeInTheDocument()
     expect(within(tarjeta('Mujeres Valientes')).queryByRole('button', { name: 'Eliminar grupo' })).not.toBeInTheDocument()
 
-    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: /integrantes/ }))
+    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Opciones de Grupo #9 Familia Torrealba' }))
     await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Eliminar grupo' }))
     const confirmar = screen.getByRole('alertdialog', { name: '¿Eliminar Grupo #9 Familia Torrealba?' })
     await userEvent.click(within(confirmar).getByRole('button', { name: 'Eliminar' }))
@@ -684,10 +686,25 @@ describe('groups (S3, S4, S22)', () => {
     expect(await guardar()).toEqual([{ tipo: 'eliminar', grupo: 'g-torrealba' }])
   })
 
+  it('keeps the group actions in the column options menu, which closes with Escape back on its button', async () => {
+    render(<PlannerClient datos={datos()} pasos={[]} />)
+
+    const opciones = within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Opciones de Grupo #9 Familia Torrealba' })
+    expect(within(tarjeta('Grupo #9 Familia Torrealba')).queryByRole('button', { name: 'Eliminar grupo' })).not.toBeInTheDocument()
+    await userEvent.click(opciones)
+    expect(opciones).toHaveAttribute('aria-expanded', 'true')
+    expect(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('list', { name: 'Opciones de Grupo #9 Familia Torrealba' })).toBeVisible()
+
+    await userEvent.keyboard('{Escape}')
+    expect(opciones).toHaveAttribute('aria-expanded', 'false')
+    expect(opciones).toHaveFocus()
+    expect(within(tarjeta('Grupo #9 Familia Torrealba')).queryByRole('button', { name: 'Eliminar grupo' })).not.toBeInTheDocument()
+  })
+
   it('does not delete a group whose cycle is active', async () => {
     render(<PlannerClient datos={datos({ grupos: [{ ...TORREALBA, estado_ciclo: 'activo' }, VALIENTES] })} pasos={[]} />)
 
-    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: /integrantes/ }))
+    await userEvent.click(within(tarjeta('Grupo #9 Familia Torrealba')).getByRole('button', { name: 'Opciones de Grupo #9 Familia Torrealba' }))
     expect(within(tarjeta('Grupo #9 Familia Torrealba')).queryByRole('button', { name: 'Eliminar grupo' })).not.toBeInTheDocument()
   })
 })

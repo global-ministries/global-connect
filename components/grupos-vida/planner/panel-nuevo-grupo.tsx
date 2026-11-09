@@ -10,6 +10,9 @@
  * group joins the session draft (S24) and shows on the board at once; it is
  * created on "Guardar". A refusal (a used name, a bad field) stays in the
  * form.
+ *
+ * Planning style (S25): the fields keep the form's 44px; the segment and the
+ * directores de etapa read under the 12px uppercase heading.
  */
 import { useId, useState, type FormEvent, type ReactElement } from 'react'
 
@@ -28,6 +31,7 @@ import {
 } from '@/lib/platform/grupos-vida/planner'
 import { DIAS_REUNION, MAXIMO_DIRECTORES, type DatosGrupo, type ResultadoAccion } from '@/lib/platform/grupos-vida/planner/acciones'
 
+import { CLASE_TITULO_SECCION } from './estilo-planner'
 import { directoresElegibles } from './modelo'
 
 export interface PanelNuevoGrupoProps {
@@ -120,9 +124,10 @@ function Formulario({
           Se verá como <span className={localidad ? 'text-foreground' : 'text-danger-text'}>{etiqueta}</span>
         </p>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Segmento: <strong className="font-medium text-foreground">{segmento.nombre}</strong>
-      </p>
+      <div className="space-y-1">
+        <p className={CLASE_TITULO_SECCION}>Segmento</p>
+        <p className="text-sm font-medium text-foreground">{segmento.nombre}</p>
+      </div>
       <div className="space-y-1">
         <SelectSistema
           label="Localidad"
@@ -143,7 +148,7 @@ function Formulario({
         <InputSistema label="Capacidad" type="number" inputMode="numeric" min={1} step={1} value={capacidad} onChange={(e) => setCapacidad(e.target.value)} className="font-mono tabular-nums" />
       </div>
       <div className="space-y-2">
-        <p className="text-sm font-medium text-foreground">Director de etapa</p>
+        <p className={CLASE_TITULO_SECCION}>Director de etapa</p>
         {elegibles.length > 0 ? (
           <div role="group" aria-label="Directores de etapa" className="flex flex-wrap gap-2">
             {elegibles.map((d) => (
