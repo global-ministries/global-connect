@@ -1,9 +1,12 @@
 'use client'
 
 /**
- * Estudiantes › Grupos — the group drawer (artboards 06 / 07): one
- * `DetalleResponsivo` (side panel from md, bottom sheet below) that swaps
- * views inside instead of stacking sheets (gap G8): the group, a member,
+ * Estudiantes › Grupos — the group panel (artboards 11 / 12 of
+ * design/estudiantes-dps, C7, C8, C13): one `PanelAcoplado` (docked from
+ * 1280px, D3; overlay side panel from md, bottom sheet below) that swaps
+ * views inside instead of stacking sheets (gap G8): the group with its
+ * tabs Integrantes | Líderes | Ajustes (D4; the tab stays when an inner
+ * view goes back), a member,
  * "Agregar integrante", "Registrar nuevo" (the visitor form of the leader
  * list, artboard 02: the person joins as visitante of the group's newest
  * meeting) and "Líderes de …". Every inner view starts with
@@ -14,21 +17,22 @@
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
-import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonAtrasMovil } from '@/components/ui/barra-navegacion-movil'
 import { SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { sesionReciente } from '@/lib/actions/estudiantes-lista.actions'
 import type { GradoEscala, GrupoGestion, SubareaGestionable } from '@/lib/platform/estudiantes/grupos-datos'
+import { lideresTexto } from '@/lib/platform/estudiantes/grupos-vista'
 import { fechaCorta } from '@/lib/platform/estudiantes/lista-vista'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 
 import { ContenidoVisitante, PieVisitante } from '../visitante/flujo-visitante'
 import { useFlujoVisitante, type GrupoVisitante, type SesionVisitante } from '../visitante/use-flujo-visitante'
 
+import { PanelAcoplado } from '../alcance/panel-acoplado'
 import { useAccionGrupo } from './use-accion-grupo'
 import { VistaAgregar } from './vista-agregar'
-import { VistaGrupo } from './vista-grupo'
+import { VistaGrupo, type PestanaGrupo } from './vista-grupo'
 import { VistaIntegrante } from './vista-integrante'
 import { FORM_LIDERES, VistaLideres } from './vista-lideres'
 
@@ -55,9 +59,11 @@ export interface DetalleGrupoProps {
   readonly onEditar: (grupoId: string) => void
 }
 
-function descripcionGrupo(grupo: GrupoGestion): string {
-  const detalle = grupo.anioEtiqueta ?? grupo.zona
-  return [grupo.subarea, grupo.ambito, detalle].filter(Boolean).join(' · ')
+/** The leaders under the group's name, or "Sin líder" in warning text. */
+function lideresGrupo(grupo: GrupoGestion): ReactNode {
+  if (!grupo.activo) return 'Desactivado'
+  if (grupo.lideres.length === 0) return <span className="font-semibold text-warning-text">Sin líder</span>
+  return lideresTexto(grupo)
 }
 
 /** Focuses the inner view when it opens (G8: focus moves with the view). */
@@ -75,6 +81,7 @@ function VistaEnfocada({ clave, children }: { readonly clave: string; readonly c
 
 export function DetalleGrupo({ grupo, grupos, subareas, escalas = {}, abierto, onCambioAbierto, onEditar }: DetalleGrupoProps): ReactElement | null {
   const [vista, setVista] = useState<VistaDetalle>({ tipo: 'grupo' })
+  const [pestana, setPestana] = useState<PestanaGrupo>('integrantes')
   const [sesionRegistro, setSesionRegistro] = useState<SesionRegistro>({ tipo: 'cargando' })
   const accion = useAccionGrupo()
   const volver = (): void => setVista({ tipo: 'grupo' })
@@ -105,13 +112,13 @@ export function DetalleGrupo({ grupo, grupos, subareas, escalas = {}, abierto, o
   const actual: VistaDetalle = vista.tipo === 'integrante' && !integrante ? { tipo: 'grupo' } : vista
 
   let titulo = grupo.nombre
-  let descripcion: string | undefined = descripcionGrupo(grupo)
+  let descripcion: ReactNode = lideresGrupo(grupo)
   let pie: ReactNode
   let contenido: ReactNode
   switch (actual.tipo) {
     case 'integrante':
       titulo = integrante?.nombre ?? grupo.nombre
-      descripcion = undefined
+      descripcion = `Integrante de ${grupo.nombre}`
       contenido = integrante && <VistaIntegrante grupo={grupo} integrante={integrante} grupos={grupos} accion={accion} onVolver={volver} />
       break
     case 'agregar':
@@ -173,6 +180,8 @@ export function DetalleGrupo({ grupo, grupos, subareas, escalas = {}, abierto, o
           grupo={grupo}
           subareas={subareas}
           accion={accion}
+          pestana={pestana}
+          onPestana={setPestana}
           onIntegrante={(personaId) => setVista({ tipo: 'integrante', personaId })}
           onAgregar={() => setVista({ tipo: 'agregar' })}
           onLideres={() => setVista({ tipo: 'lideres' })}
@@ -184,11 +193,11 @@ export function DetalleGrupo({ grupo, grupos, subareas, escalas = {}, abierto, o
   const clave = actual.tipo === 'integrante' ? `integrante:${actual.personaId}` : actual.tipo
 
   return (
-    <DetalleResponsivo abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={titulo} descripcion={descripcion} pie={pie}>
+    <PanelAcoplado abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={titulo} contexto={`${grupo.ambito} · ${grupo.subarea}`} descripcion={descripcion} pie={pie}>
       <VistaEnfocada key={clave} clave={clave}>
         {actual.tipo !== 'grupo' && <BotonAtrasMovil atras={{ etiqueta: grupo.nombre, onClick: volver }} className="-ml-2 max-w-full" />}
         {contenido}
       </VistaEnfocada>
-    </DetalleResponsivo>
+    </PanelAcoplado>
   )
 }
