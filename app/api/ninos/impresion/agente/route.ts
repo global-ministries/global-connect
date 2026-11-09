@@ -1,6 +1,6 @@
 /**
- * /api/ninos/impresion/agente — the print agent's API (odd/tasks/ninos-v2.md,
- * S10, N6b; contract in docs/ninos/impresion.md).
+ * /api/ninos/impresion/agente — the print agent's API
+ * (odd/tasks/ninos-checkin-pco.md, S10, T3a; contract in docs/ninos/impresion.md).
  *
  * No session: the agent sends `Authorization: Bearer <station token>`. The
  * token is hashed here (sha256) and only the hash reaches the database,

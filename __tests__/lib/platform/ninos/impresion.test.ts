@@ -1,14 +1,16 @@
 /**
  * @jest-environment node
  *
- * N6b (odd/tasks/ninos-v2.md, S10) — print queue helpers: the agent's
- * Bearer token, its sha256, the bodies of the agent and reprint routes, the
- * desk station of a check-in and the best-effort enqueue.
+ * T3a (odd/tasks/ninos-checkin-pco.md, S10, S6) — print queue helpers: the
+ * agent's Bearer token, its sha256, the bodies of the agent and reprint routes
+ * (a reprint needs a reason), the desk station of a check-in and the
+ * best-effort enqueue.
  */
 import { createHash } from 'node:crypto'
 
 import {
   ERRORES_IMPRESION,
+  MOTIVOS_REIMPRESION,
   encolarEtiquetas,
   errorImpresion,
   estacionDeCheckin,
@@ -96,17 +98,36 @@ describe('parseReporte', () => {
 })
 
 describe('parseReimpresion', () => {
-  const base = { estacionId: E1, turnoId: T1, fecha: '2026-11-08', codigo: '4821' }
+  const base = { estacionId: E1, turnoId: T1, fecha: '2026-11-08', codigo: '4821', motivo: 'se_trabo' }
+  const leido = { estacionId: E1, turnoId: T1, fecha: '2026-11-08', codigo: '4821', motivo: 'se_trabo', nota: null }
 
   it('reads the three kinds', () => {
-    expect(parseReimpresion({ ...base, tipo: 'todas' })).toEqual({ ...base, tipo: 'todas', ninoId: null })
-    expect(parseReimpresion({ ...base, tipo: 'representante' })).toEqual({ ...base, tipo: 'representante', ninoId: null })
-    expect(parseReimpresion({ ...base, tipo: 'nino', ninoId: N1 })).toEqual({ ...base, tipo: 'nino', ninoId: N1 })
+    expect(parseReimpresion({ ...base, tipo: 'todas' })).toEqual({ ...leido, tipo: 'todas', ninoId: null })
+    expect(parseReimpresion({ ...base, tipo: 'representante' })).toEqual({ ...leido, tipo: 'representante', ninoId: null })
+    expect(parseReimpresion({ ...base, tipo: 'nino', ninoId: N1 })).toEqual({ ...leido, tipo: 'nino', ninoId: N1 })
   })
 
   it('a child reprint needs the child, the others do not take one', () => {
     expect(parseReimpresion({ ...base, tipo: 'nino' })).toBeNull()
     expect(parseReimpresion({ ...base, tipo: 'todas', ninoId: N1 })).toBeNull()
+  })
+
+  it('S10: the reason is one of se_trabo, se_perdio, otro', () => {
+    expect(MOTIVOS_REIMPRESION).toEqual(['se_trabo', 'se_perdio', 'otro'])
+    expect(parseReimpresion({ ...base, tipo: 'todas', motivo: 'se_perdio' })?.motivo).toBe('se_perdio')
+    expect(parseReimpresion({ ...base, tipo: 'todas', motivo: undefined })).toBeNull()
+    expect(parseReimpresion({ ...base, tipo: 'todas', motivo: 'porque_si' })).toBeNull()
+  })
+
+  it('the note is optional and trimmed, required for otro, at most 200 characters', () => {
+    expect(parseReimpresion({ ...base, tipo: 'todas', nota: '  se mojó  ' })?.nota).toBe('se mojó')
+    expect(parseReimpresion({ ...base, tipo: 'todas', nota: '   ' })?.nota).toBeNull()
+    expect(parseReimpresion({ ...base, tipo: 'todas', motivo: 'otro', nota: 'Se mojó el papel' })?.nota).toBe('Se mojó el papel')
+    expect(parseReimpresion({ ...base, tipo: 'todas', motivo: 'otro' })).toBeNull()
+    expect(parseReimpresion({ ...base, tipo: 'todas', motivo: 'otro', nota: '  ' })).toBeNull()
+    expect(parseReimpresion({ ...base, tipo: 'todas', nota: 'x'.repeat(200) })?.nota).toHaveLength(200)
+    expect(parseReimpresion({ ...base, tipo: 'todas', nota: 'x'.repeat(201) })).toBeNull()
+    expect(parseReimpresion({ ...base, tipo: 'todas', nota: 5 })).toBeNull()
   })
 
   it('is null for a malformed body', () => {

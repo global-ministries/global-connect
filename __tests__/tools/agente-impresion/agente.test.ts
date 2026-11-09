@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  *
- * N6c (odd/tasks/ninos-v2.md, S10): the print agent's loop with injected
+ * T3a (odd/tasks/ninos-checkin-pco.md, S10): the print agent's loop with injected
  * fetch and printer fakes. Contract: docs/ninos/impresion.md (Agent API).
  */
 import { crearAgente, esperaTrasError, etiquetasDePrueba, leerConfig } from '@/tools/agente-impresion/agente'
@@ -84,17 +84,25 @@ describe('crearAgente().ciclo', () => {
     expect(reportes(llamadas)).toEqual([{ id: ID1, estado: 'error', error: 'lp_salida_1: lp: The printer or class does not exist.' }])
   })
 
-  it('reports every job as medidas_sin_configurar and prints nothing while the size is null', async () => {
+  it('S10: prints at 102 × 51 mm while the station has no size, and says so once', async () => {
     const { fetch, llamadas } = fakeFetch({ status: 200, body: { estacion: estacion(null, null), trabajos: [trabajo(ID1), trabajo(ID2)] } })
     const imprimir = jest.fn(async () => {})
-    const { a } = agente(fetch, imprimir)
+    const { a, lineas } = agente(fetch, imprimir)
 
-    expect(await a.ciclo()).toEqual({ estado: 'ok', reclamados: 2, impresas: 0, errores: 2 })
-    expect(imprimir).not.toHaveBeenCalled()
-    expect(reportes(llamadas)).toEqual([
-      { id: ID1, estado: 'error', error: 'medidas_sin_configurar' },
-      { id: ID2, estado: 'error', error: 'medidas_sin_configurar' },
-    ])
+    expect(await a.ciclo()).toEqual({ estado: 'ok', reclamados: 2, impresas: 2, errores: 0 })
+    await a.ciclo()
+    const [bytes] = imprimir.mock.calls[0] as unknown as [Buffer]
+    expect(bytes.toString('latin1').startsWith('SIZE 102 mm,51 mm\r\n')).toBe(true)
+    expect(reportes(llamadas).slice(0, 2)).toEqual([{ id: ID1, estado: 'impresa' }, { id: ID2, estado: 'impresa' }])
+    expect(lineas.filter((l) => l.includes('102 × 51 mm') && /sin medidas/i.test(l))).toHaveLength(1)
+  })
+
+  it('prints at the station size when it has one', async () => {
+    const { fetch } = fakeFetch({ status: 200, body: { estacion: estacion(57, 32), trabajos: [trabajo(ID1)] } })
+    const imprimir = jest.fn(async () => {})
+    await agente(fetch, imprimir).a.ciclo()
+    const [bytes] = imprimir.mock.calls[0] as unknown as [Buffer]
+    expect(bytes.toString('latin1').startsWith('SIZE 57 mm,32 mm\r\n')).toBe(true)
   })
 
   it('returns no_autorizado on 401 and prints nothing', async () => {
@@ -191,5 +199,10 @@ describe('etiquetasDePrueba', () => {
     expect(ts.map((t: { tipo: string }) => t.tipo)).toEqual(['nino', 'nino', 'representante'])
     expect(ts.some((t) => (t.payload as { alergias?: boolean }).alergias === true)).toBe(true)
     expect(JSON.stringify(ts)).toMatch(/ñ/)
+  })
+
+  it('shows both visit marks (S9.3)', () => {
+    const visitas = etiquetasDePrueba('2026-11-08').map((t) => (t.payload as { visita?: string | null }).visita ?? null)
+    expect(visitas).toEqual(['primera', 'visitante', null])
   })
 })

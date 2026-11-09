@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  *
- * N6c (odd/tasks/ninos-v2.md, S10): raw send to the CUPS queue with `lp`.
+ * T3a (odd/tasks/ninos-checkin-pco.md, S10): raw send to the CUPS queue with `lp`.
  */
 import { EventEmitter } from 'node:events'
 

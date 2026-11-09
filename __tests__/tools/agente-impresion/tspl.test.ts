@@ -1,13 +1,14 @@
 /**
  * @jest-environment node
  *
- * N6c (odd/tasks/ninos-v2.md, S10): the print agent's TSPL renderer. Labels
- * follow design/ninos-etiquetas (01–03) proportionally between 50×30 and
- * 102×51 mm, and the text goes to the printer as windows-1252 bytes.
+ * T3a (odd/tasks/ninos-checkin-pco.md, S10, S9.2, S9.3): the print agent's
+ * TSPL renderer. Labels follow design/ninos-checkin-pco/03 proportionally to
+ * the station's size (102×51 mm when it has none), and the text goes to the
+ * printer as windows-1252 bytes.
  */
 import { aWindows1252 } from '@/tools/agente-impresion/cp1252'
 import { bmpAMatriz, matrizAMapa } from '@/tools/agente-impresion/logos'
-import { componerEtiqueta as componerJs, renderizarEtiqueta } from '@/tools/agente-impresion/tspl'
+import { componerEtiqueta as componerJs, medidasDe, renderizarEtiqueta } from '@/tools/agente-impresion/tspl'
 
 type Elemento = { tipo: string; x: number; y: number; ancho: number; alto: number; texto?: string; contenido?: string; fuente?: string }
 type Etiqueta = { ancho: number; alto: number; elementos: Elemento[] }
@@ -15,6 +16,10 @@ const componerEtiqueta = (...args: Parameters<typeof componerJs>) => componerJs(
 
 const M102 = { ancho_mm: 102, alto_mm: 51, dpi: 203 }
 const M50 = { ancho_mm: 50, alto_mm: 30, dpi: 203 }
+const M57 = { ancho_mm: 57, alto_mm: 32, dpi: 203 } // 2.25" × 1.25"
+const M76 = { ancho_mm: 76, alto_mm: 51, dpi: 203 }
+const MEDIDAS = [M102, M57, M76, M50, { ancho_mm: 76, alto_mm: 40, dpi: 203 }, { ancho_mm: 102, alto_mm: 51, dpi: 300 }]
+const LARGO = { nombre: 'María Fernanda de los Ángeles', apellido: 'Hernández Villalobos de la Santísima Trinidad', salon: '6.º grado sección B turno mañana' }
 
 const nino = (p: Record<string, unknown> = {}) => ({
   id: 'n1',
@@ -23,7 +28,7 @@ const nino = (p: Record<string, unknown> = {}) => ({
   created_at: '2026-11-08T13:05:00Z',
   payload: {
     nombre: 'Valentina', apellido: 'Rodríguez Peña', codigo: '4827', salon: 'Salón 3 años',
-    area: 'waumba', alergias: true, fecha: '2026-11-08', servicio: 'Segundo servicio', hora: '11:00',
+    area: 'waumba', alergias: true, visita: null, fecha: '2026-11-08', servicio: 'Segundo servicio', hora: '11:00',
     ...p,
   },
 })
@@ -41,6 +46,9 @@ const representante = (p: Record<string, unknown> = {}) => ({
 })
 
 const texto = (b: Buffer) => b.toString('latin1')
+const choca = (a: Elemento, b: Elemento) => a.x < b.x + b.ancho && b.x < a.x + a.ancho && a.y < b.y + b.alto && b.y < a.y + a.alto
+const contiene = (fuera: Elemento, dentro: Elemento) =>
+  dentro.x >= fuera.x && dentro.y >= fuera.y && dentro.x + dentro.ancho <= fuera.x + fuera.ancho && dentro.y + dentro.alto <= fuera.y + fuera.alto
 const textos = (els: Elemento[]) => els.filter((e) => e.tipo === 'texto').map((e) => e.texto)
 
 function dentro(et: { ancho: number; alto: number; elementos: Elemento[] }) {
@@ -71,15 +79,31 @@ describe('aWindows1252', () => {
   })
 })
 
+describe('medidasDe', () => {
+  it('reads the station size', () => {
+    expect(medidasDe(M57)).toEqual({ anchoMm: 57, altoMm: 32, dpi: 203, porDefecto: false })
+    expect(medidasDe({ ancho_mm: '76.0', alto_mm: '51.0', dpi: 300 })).toEqual({ anchoMm: 76, altoMm: 51, dpi: 300, porDefecto: false })
+  })
+
+  it('S10: a station with no size yet prints at 102 × 51 mm, 203 dpi', () => {
+    const defecto = { anchoMm: 102, altoMm: 51, dpi: 203, porDefecto: true }
+    expect(medidasDe({ ancho_mm: null, alto_mm: null, dpi: 203 })).toEqual(defecto)
+    expect(medidasDe({ ancho_mm: 102, alto_mm: null, dpi: 203 })).toEqual(defecto)
+    expect(medidasDe({ ancho_mm: 0, alto_mm: -3 })).toEqual(defecto)
+    expect(medidasDe(undefined)).toEqual(defecto)
+  })
+})
+
 describe('renderizarEtiqueta', () => {
-  it('returns null and prints nothing while the label size is not configured', () => {
-    expect(renderizarEtiqueta(nino(), { ancho_mm: null, alto_mm: 51, dpi: 203 })).toBeNull()
-    expect(renderizarEtiqueta(nino(), { ancho_mm: 102, alto_mm: null, dpi: 203 })).toBeNull()
-    expect(componerEtiqueta(representante(), { ancho_mm: null, alto_mm: null, dpi: 203 })).toBeNull()
+  it('prints at 102 × 51 mm while the station has no size', () => {
+    expect(texto(renderizarEtiqueta(nino(), { ancho_mm: null, alto_mm: null, dpi: 203 })).split('\r\n')[0]).toBe('SIZE 102 mm,51 mm')
+    expect(texto(renderizarEtiqueta(representante(), { ancho_mm: 57, alto_mm: null, dpi: 203 })).split('\r\n')[0]).toBe('SIZE 102 mm,51 mm')
   })
 
   it.each([
     [M102, 'SIZE 102 mm,51 mm'],
+    [M57, 'SIZE 57 mm,32 mm'],
+    [M76, 'SIZE 76 mm,51 mm'],
     [M50, 'SIZE 50 mm,30 mm'],
   ])('builds a TSPL job for %o', (medidas, size) => {
     const t = texto(renderizarEtiqueta(nino(), medidas) as Buffer)
@@ -91,7 +115,7 @@ describe('renderizarEtiqueta', () => {
     expect(lineas.filter((l) => l.startsWith('TEXT ')).length).toBeGreaterThan(3)
   })
 
-  it.each([M102, M50])('draws the black ALERGIA block only when alergias is true (%o)', (medidas) => {
+  it.each([M102, M57, M76, M50])('draws the black ALERGIA block only when alergias is true (%o)', (medidas) => {
     const con = componerEtiqueta(nino({ alergias: true }), medidas)!
     const sin = componerEtiqueta(nino({ alergias: false }), medidas)!
     expect(textos(con.elementos)).toContain('ALERGIA')
@@ -102,25 +126,57 @@ describe('renderizarEtiqueta', () => {
     expect(texto(renderizarEtiqueta(nino({ alergias: false }), medidas)!)).not.toMatch(/ALERGIA|REVERSE/)
   })
 
-  it.each([M102, M50, { ancho_mm: 76, alto_mm: 40, dpi: 203 }, { ancho_mm: 102, alto_mm: 51, dpi: 300 }])(
-    'keeps every element inside the label (%o)',
-    (medidas) => {
-      for (const t of [nino(), nino({ alergias: false }), representante(), representante({ ninos: ['A', 'B', 'C', 'D'] })]) {
-        dentro(componerEtiqueta(t, medidas)!)
-      }
-      dentro(componerEtiqueta(nino({ nombre: 'María Fernanda de los Ángeles', apellido: 'Hernández Villalobos de la Santísima Trinidad' }), medidas)!)
-    },
-  )
+  it.each(MEDIDAS)('keeps every element inside the label (%o)', (medidas) => {
+    for (const t of [
+      nino(), nino({ alergias: false }), nino({ visita: 'primera' }), nino({ visita: 'visitante', alergias: false }),
+      nino({ ...LARGO, visita: 'primera' }), representante(), representante({ ninos: ['A', 'B', 'C', 'D'] }),
+    ]) {
+      dentro(componerEtiqueta(t, medidas)!)
+    }
+  })
 
-  it.each([M102, M50, { ancho_mm: 76, alto_mm: 40, dpi: 203 }])('never overlaps two texts, nor a text with a rule (%o)', (medidas) => {
-    const choca = (a: Elemento, b: Elemento) =>
-      a.x < b.x + b.ancho && b.x < a.x + a.ancho && a.y < b.y + b.alto && b.y < a.y + a.alto
-    const largo = { nombre: 'María Fernanda de los Ángeles', apellido: 'Hernández Villalobos de la Santísima Trinidad', salon: '6.º grado sección B turno mañana' }
-    for (const t of [nino(largo), representante({ ninos: ['Matías', 'Daniela', 'Andrés', 'Luis'], areas: ['upstreet', 'waumba'] })]) {
+  it.each(MEDIDAS)('never overlaps two texts, a text with a rule, nor a mark with another text (%o)', (medidas) => {
+    for (const t of [
+      nino({ ...LARGO, visita: 'primera' }), nino({ ...LARGO, visita: 'visitante' }), nino({ ...LARGO, alergias: false, visita: 'primera' }),
+      representante({ ninos: ['Matías', 'Daniela', 'Andrés', 'Luis'], areas: ['upstreet', 'waumba'] }),
+    ]) {
       const els = componerEtiqueta(t, medidas)!.elementos
       const planos = els.filter((e) => e.tipo === 'texto' || e.tipo === 'barra' || e.tipo === 'qr')
       planos.forEach((a, i) => planos.slice(i + 1).forEach((b) => expect([a, b, choca(a, b)]).toEqual([a, b, false])))
+      // A framed or reversed block holds only its own text and never touches another block.
+      const bloques = els.filter((e) => e.tipo === 'caja' || e.tipo === 'invertir')
+      for (const b of bloques) {
+        for (const e of els.filter((x) => x.tipo === 'texto' && choca(x, b))) expect([b, e, contiene(b, e)]).toEqual([b, e, true])
+      }
+      bloques.forEach((a, i) => bloques.slice(i + 1).forEach((b) => expect([a, b, choca(a, b)]).toEqual([a, b, false])))
     }
+  })
+
+  it.each(MEDIDAS)('S9.3: «PRIMERA VEZ» / «VISITANTE» in a frame, nothing for a regular (%o)', (medidas) => {
+    const marca = (visita: unknown, alergias = true) => {
+      const els = componerEtiqueta(nino({ ...LARGO, visita, alergias }), medidas)!.elementos
+      return textos(els).filter((t) => /VEZ|VISITA/.test(t ?? ''))
+    }
+    expect(['PRIMERA VEZ', '1.ª VEZ']).toContain(marca('primera')[0])
+    expect(['VISITANTE', 'VISITA']).toContain(marca('visitante')[0])
+    expect(['PRIMERA VEZ', '1.ª VEZ']).toContain(marca('primera', false)[0])
+    expect(marca(null)).toEqual([])
+    expect(marca(undefined)).toEqual([])
+    expect(marca('otra cosa')).toEqual([])
+    // Reversed black stays only for the allergy.
+    const els = componerEtiqueta(nino({ visita: 'primera', alergias: false }), medidas)!.elementos
+    expect(els.some((e) => e.tipo === 'invertir')).toBe(false)
+    expect(els.filter((e) => e.tipo === 'caja')).toHaveLength(2) // código + mark
+  })
+
+  it('prints the full mark when there is room (102 × 51)', () => {
+    expect(textos(componerEtiqueta(nino({ visita: 'primera' }), M102)!.elementos)).toEqual(expect.arrayContaining(['ALERGIA', 'PRIMERA VEZ']))
+    expect(textos(componerEtiqueta(nino({ visita: 'visitante' }), M102)!.elementos)).toContain('VISITANTE')
+  })
+
+  it('S9.2: never prints custody nor medical text, even if a payload carried them', () => {
+    const t = texto(renderizarEtiqueta(nino({ custodia: 'No entregar a Pedro', alergias_texto: 'Maní', telefono: '0414-5551234' }), M102)!)
+    expect(t).not.toMatch(/Pedro|Maní|0414/)
   })
 
   it('uses the larger built-in fonts rather than blowing up font 1', () => {
@@ -165,10 +221,16 @@ describe('renderizarEtiqueta', () => {
     const et = componerEtiqueta(representante({ ninos: ['María Fernanda', 'Jesús Alejandro'] }), M102)!
     const qr = et.elementos.find((e: Elemento) => e.tipo === 'qr')!
     expect(qr.contenido).toBe('4827')
-    expect(textos(et.elementos)).toEqual(expect.arrayContaining(['4827', 'María · Jesús', 'Presenta esta etiqueta para retirar']))
+    expect(textos(et.elementos)).toEqual(expect.arrayContaining(['4827', 'María · Jesús', 'Presenta este recibo para retirar']))
     expect(texto(renderizarEtiqueta(representante({ qr: 'tok-abc' }), M102)!)).toMatch(/QRCODE \d+,\d+,M,\d+,A,0,"tok-abc"/)
     const cuatro = textos(componerEtiqueta(representante({ ninos: ['Matías', 'Daniela', 'Andrés', 'Luis'] }), M102)!.elementos)
     expect(cuatro.join(' ')).toContain('Matías, Daniela, Andrés y 1 más')
+  })
+
+  it.each([M102, M57, M76])('the receipt never prints a salón nor a phone (%o)', (medidas) => {
+    const t = texto(renderizarEtiqueta(representante({ salon: 'Salón 3 años', salones: ['Salón 3 años'], telefono: '0414-5551234' }), medidas)!)
+    expect(t).not.toMatch(/Salón|0414/)
+    expect(t).toContain('4827')
   })
 
   it('parent label with children in two areas uses the neutral header', () => {

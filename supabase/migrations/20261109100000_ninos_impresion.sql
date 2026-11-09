@@ -1,25 +1,39 @@
 -- noqa: insert-into (every INSERT lives inside a function body; no data is written here)
--- Niños: print queue for the check-in labels (odd/tasks/ninos-v2.md, S10, task N6b).
+-- noqa: drop-function (only the never-deployed signatures of this same file's first draft, 20261103100000)
+-- Niños T3a (odd/tasks/ninos-checkin-pco.md, S10, S6, S9.2, S9.3): print queue
+-- for the check-in labels.
 --
--- Any device at the desk confirms the ingreso; the server queues the labels;
--- a print agent on the computer that has the printer claims them and prints
--- them with no dialog (tools/agente-impresion/, N6c). Flow and agent API:
--- docs/ninos/impresion.md.
+-- S10 "Laptop de la mesa con el agente": any device at the desk confirms the
+-- ingreso; the server queues the labels; a print agent on the desk computer
+-- that has the printer (tools/agente-impresion/) claims them and prints them
+-- with no dialog. Printing never blocks the check-in. Flow and agent API:
+-- docs/ninos/impresion.md. First drafted as 20261103100000 (never applied to
+-- production); renamed so it runs after phases A and B (20261108*).
 --
 -- What:
 --   1. ninos_estaciones_impresion: one per desk printer. campus, nombre, label
---      size in mm (ancho_mm / alto_mm, both NULL until the roll is measured),
---      dpi (203 or 300), activa, ultima_conexion. The agent authenticates with
---      a per-station secret token (64 hex chars from gen_random_bytes(32)),
---      returned once by crear / rotar_token and stored only as its sha256 hex.
+--      size in mm (ancho_mm / alto_mm, both NULL until the roll is measured;
+--      the agent then prints at 102 × 51 mm), dpi (203 or 300), activa,
+--      ultima_conexion. The agent authenticates with a per-station secret
+--      token (64 hex chars from gen_random_bytes(32)), returned once by
+--      crear / rotar_token and stored only as its sha256 hex.
 --   2. ninos_impresiones: the jobs. One 'nino' label per child check-in and
---      one 'representante' label per family visit (código). The payload is
---      built here from the database, never from client text:
---        nino:          nombre, apellido, codigo, salon, area, alergias (bool),
---                       fecha, servicio (turno nombre), hora
+--      one 'representante' receipt per family visit (visita_id, one código).
+--      The payload is built here from the database, never from client text
+--      (S10 "Niño + recibo del representante"):
+--        nino:          nombre, apellido, codigo, salon, area, alergias (bool,
+--                       only the mark), visita ('primera' with no prior
+--                       check-in date, 'visitante' with 1–2, NULL from the 4th
+--                       visit: S9.3 / ninos_es_visitante), fecha, servicio
+--                       (turno nombre), hora (ninos_turno_hora_en: the planned
+--                       hour of a dated turno on that date, else the turno's)
 --        representante: codigo, ninos (first names), areas, fecha, servicio, hora
---      No phone, cédula, allergy text or medical notes. estado pendiente →
---      impresa | error; intentos counts claims.
+--      Never a phone, cédula, allergy text, medical notes, custody
+--      restrictions (S9.2), nor the salón on the receipt. estado pendiente →
+--      impresa | error; intentos counts claims. A reprint stores its reason
+--      (motivo se_trabo | se_perdio | otro) and optional nota (≤ 200, required
+--      for otro); created_by / created_at say who and when (S10 / S6
+--      "reprint with audit"). Original labels have motivo NULL.
 --   3. RLS on both with no policies and no table privileges for anon or
 --      authenticated: everything goes through the definer RPCs below.
 --   4. People (authenticated):
@@ -29,10 +43,11 @@
 --        ninos_impresion_estacion_rotar_token(uuid)      } on a room of the campus (the
 --        ninos_impresion_estacion_actualizar(...)        } authority that manages salones)
 --        ninos_impresion_encolar(estacion, turno, fecha, ninos)   after ninos_checkin
---        ninos_impresion_reimprimir(estacion, turno, fecha, codigo, tipo, nino)
+--        ninos_impresion_reimprimir(estacion, turno, fecha, codigo, tipo, nino, motivo, nota)
 --      Enqueue / reprint need ninos_puede_operar on the room of every check-in
---      (same as ninos_checkin) and a station of the same campus; only open
---      check-ins (salida_at IS NULL) get labels.
+--      (same as ninos_checkin: anfitriones and coordinación of that salón) and
+--      a station of the same campus; only open check-ins (salida_at IS NULL)
+--      get labels. Nothing here writes ninos_checkins: the código never changes.
 --   5. Agent (service_role only; the route handler hashes the Bearer token):
 --        ninos_impresion_agente_estacion(token_hash)    active station + size,
 --                                                       touches ultima_conexion
@@ -47,13 +62,16 @@
 -- estacion_inactiva, checkin_no_encontrado, trabajo_no_encontrado (22023).
 -- A station or check-in outside the caller's scope is "no encontrada".
 --
+-- Blast radius: new tables and functions only. ninos_checkin and the other
+-- phase A/B functions are read, never replaced.
+--
 -- Rollback:
 --   DROP FUNCTION IF EXISTS public.ninos_impresion_agente_reportar(uuid, uuid, text, text),
 --     public.ninos_impresion_agente_reclamar(uuid, integer),
 --     public.ninos_impresion_agente_estacion(text),
---     public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid),
+--     public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid, text, text),
 --     public.ninos_impresion_encolar(uuid, uuid, date, uuid[]),
---     public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean),
+--     public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean, text, text),
 --     public.ninos_impresion_estacion_actualizar(uuid, text, numeric, numeric, integer, boolean),
 --     public.ninos_impresion_estacion_rotar_token(uuid),
 --     public.ninos_impresion_estacion_crear(uuid, text, numeric, numeric, integer),
@@ -104,6 +122,24 @@ CREATE INDEX IF NOT EXISTS ninos_impresiones_pendientes_idx
   ON public.ninos_impresiones (estacion_id, created_at) WHERE estado = 'pendiente';
 CREATE INDEX IF NOT EXISTS ninos_impresiones_checkin_idx ON public.ninos_impresiones (checkin_id);
 CREATE INDEX IF NOT EXISTS ninos_impresiones_created_by_idx ON public.ninos_impresiones (created_by);
+
+-- S10 reprint reason (NULL on the labels of the check-in itself).
+ALTER TABLE public.ninos_impresiones
+  ADD COLUMN IF NOT EXISTS motivo text CHECK (motivo IN ('se_trabo', 'se_perdio', 'otro')),
+  ADD COLUMN IF NOT EXISTS nota text CHECK (btrim(nota) <> '' AND char_length(nota) <= 200);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ninos_impresiones_motivo_nota'
+                   AND conrelid = 'public.ninos_impresiones'::regclass) THEN
+    ALTER TABLE public.ninos_impresiones ADD CONSTRAINT ninos_impresiones_motivo_nota
+      CHECK ((motivo IS NOT NULL OR nota IS NULL) AND (motivo IS DISTINCT FROM 'otro' OR nota IS NOT NULL));
+  END IF;
+END;
+$$;
+
+COMMENT ON COLUMN public.ninos_impresiones.motivo IS
+  'Reprint reason (S10): se_trabo, se_perdio or otro; NULL for the labels of the check-in. created_by / created_at say who and when.';
+COMMENT ON COLUMN public.ninos_impresiones.nota IS 'Optional reprint note, up to 200 characters; required when motivo = otro.';
 
 -- ── 3. RLS and privileges ────────────────────────────────────────────
 
@@ -198,10 +234,13 @@ AS $$
 $$;
 
 -- Queues the labels of open check-ins on a station: one 'nino' per check-in
--- (p_ninos) and one 'representante' per family visit (p_representantes).
--- Callers validate the station first; the checks are repeated here.
+-- (p_ninos) and one 'representante' per family visit (p_representantes),
+-- with the reprint reason when there is one. Callers validate the station
+-- and the reason first; the station checks are repeated here.
+DROP FUNCTION IF EXISTS public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean);
 CREATE OR REPLACE FUNCTION public.ninos_impresion_insertar(
-  p_estacion_id uuid, p_checkin_ids uuid[], p_ninos boolean, p_representantes boolean
+  p_estacion_id uuid, p_checkin_ids uuid[], p_ninos boolean, p_representantes boolean,
+  p_motivo text DEFAULT NULL, p_nota text DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
@@ -227,31 +266,36 @@ BEGIN
   END IF;
 
   IF p_ninos THEN
-    INSERT INTO public.ninos_impresiones (estacion_id, checkin_id, tipo, payload, created_by)
+    INSERT INTO public.ninos_impresiones (estacion_id, checkin_id, tipo, payload, created_by, motivo, nota)
     SELECT p_estacion_id, c.id, 'nino',
            jsonb_build_object('nombre', u.nombre, 'apellido', coalesce(u.apellido, ''), 'codigo', c.codigo,
                               'salon', s.nombre, 'area', s.area,
                               'alergias', coalesce(btrim(f.alergias), '') <> '',
-                              'fecha', c.fecha, 'servicio', t.nombre, 'hora', to_char(t.hora, 'HH24:MI')),
-           v_actor
+                              -- S9.3 / ninos_es_visitante: prior distinct check-in dates.
+                              'visita', CASE WHEN v.previas = 0 THEN 'primera' WHEN v.previas < 3 THEN 'visitante' END,
+                              'fecha', c.fecha, 'servicio', t.nombre,
+                              'hora', to_char(public.ninos_turno_hora_en(c.turno_id, c.fecha), 'HH24:MI')),
+           v_actor, p_motivo, p_nota
       FROM public.ninos_checkins c
       JOIN public.usuarios u ON u.id = c.nino_id
       JOIN public.ninos_salones s ON s.id = c.salon_id
       JOIN public.dream_team_turnos t ON t.id = c.turno_id
       LEFT JOIN public.ninos_fichas f ON f.usuario_id = c.nino_id
+     CROSS JOIN LATERAL (SELECT count(DISTINCT p.fecha) AS previas FROM public.ninos_checkins p
+                          WHERE p.nino_id = c.nino_id AND p.fecha < c.fecha) v
      WHERE c.id = ANY (p_checkin_ids);
     GET DIAGNOSTICS v_ninos = ROW_COUNT;
   END IF;
 
   IF p_representantes THEN
-    INSERT INTO public.ninos_impresiones (estacion_id, checkin_id, tipo, payload, created_by)
+    INSERT INTO public.ninos_impresiones (estacion_id, checkin_id, tipo, payload, created_by, motivo, nota)
     SELECT p_estacion_id, (array_agg(c.id ORDER BY u.nombre, c.id))[1], 'representante',
            jsonb_build_object('codigo', min(c.codigo),
                               'ninos', jsonb_agg(u.nombre ORDER BY u.nombre, c.id),
                               'areas', jsonb_agg(DISTINCT s.area ORDER BY s.area),
                               'fecha', min(c.fecha), 'servicio', min(t.nombre),
-                              'hora', to_char(min(t.hora), 'HH24:MI')),
-           v_actor
+                              'hora', to_char(min(public.ninos_turno_hora_en(c.turno_id, c.fecha)), 'HH24:MI')),
+           v_actor, p_motivo, p_nota
       FROM public.ninos_checkins c
       JOIN public.usuarios u ON u.id = c.nino_id
       JOIN public.ninos_salones s ON s.id = c.salon_id
@@ -271,7 +315,7 @@ REVOKE ALL ON FUNCTION public.ninos_impresion_puede_administrar(uuid) FROM PUBLI
 REVOKE ALL ON FUNCTION public.ninos_impresion_estacion_operable(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.ninos_impresion_medidas_validas(numeric, numeric, integer) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.ninos_impresion_estacion_fila(public.ninos_estaciones_impresion) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean, text, text) FROM PUBLIC, anon, authenticated;
 
 -- ── 4. people: stations ──────────────────────────────────────────────
 
@@ -416,35 +460,45 @@ BEGIN
 END;
 $$;
 
--- Reprint for an open family visit (código of the service):
+-- Reprint for an open family visit (código of the service), S10 "Anfitriones
+-- y coordinación, con motivo":
 --   'todas'          every child label + the parent label
 --   'representante'  the parent label
 --   'nino'           the label of p_nino_id
+-- p_motivo: se_trabo | se_perdio | otro; p_nota optional (trimmed, ≤ 200),
+-- required for otro. The same código: nothing here writes the check-in.
+DROP FUNCTION IF EXISTS public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid);
 CREATE OR REPLACE FUNCTION public.ninos_impresion_reimprimir(
-  p_estacion_id uuid, p_turno_id uuid, p_fecha date, p_codigo text, p_tipo text, p_nino_id uuid DEFAULT NULL
+  p_estacion_id uuid, p_turno_id uuid, p_fecha date, p_codigo text, p_tipo text, p_nino_id uuid,
+  p_motivo text, p_nota text DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path TO ''
 AS $$
 DECLARE
+  v_campus uuid := public.ninos_impresion_estacion_operable(p_estacion_id);
+  v_nota text := nullif(btrim(coalesce(p_nota, '')), '');
   v_ids uuid[];
 BEGIN
-  PERFORM public.ninos_impresion_estacion_operable(p_estacion_id);
   IF p_tipo IS NULL OR p_tipo NOT IN ('todas', 'representante', 'nino') OR (p_tipo = 'nino') <> (p_nino_id IS NOT NULL)
-     OR p_codigo IS NULL OR p_codigo !~ '^[0-9]{3,4}$' OR p_turno_id IS NULL OR p_fecha IS NULL THEN
+     OR p_codigo IS NULL OR p_codigo !~ '^[0-9]{3,4}$' OR p_turno_id IS NULL OR p_fecha IS NULL
+     OR p_motivo IS NULL OR p_motivo NOT IN ('se_trabo', 'se_perdio', 'otro')
+     OR (p_motivo = 'otro' AND v_nota IS NULL) OR coalesce(char_length(v_nota), 0) > 200 THEN
     RAISE EXCEPTION 'datos_invalidos' USING ERRCODE = '22023';
   END IF;
 
   SELECT array_agg(c.id) INTO v_ids
     FROM public.ninos_checkins c
    WHERE c.codigo = p_codigo AND c.turno_id = p_turno_id AND c.fecha = p_fecha AND c.salida_at IS NULL
+     AND c.campus_id = v_campus
      AND (p_nino_id IS NULL OR c.nino_id = p_nino_id);
   IF v_ids IS NULL THEN
     RAISE EXCEPTION 'checkin_no_encontrado' USING ERRCODE = '22023';
   END IF;
 
-  RETURN public.ninos_impresion_insertar(p_estacion_id, v_ids, p_tipo IN ('todas', 'nino'), p_tipo IN ('todas', 'representante'));
+  RETURN public.ninos_impresion_insertar(p_estacion_id, v_ids, p_tipo IN ('todas', 'nino'), p_tipo IN ('todas', 'representante'),
+                                         p_motivo, v_nota);
 END;
 $$;
 
@@ -453,13 +507,13 @@ REVOKE ALL ON FUNCTION public.ninos_impresion_estacion_crear(uuid, text, numeric
 REVOKE ALL ON FUNCTION public.ninos_impresion_estacion_rotar_token(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.ninos_impresion_estacion_actualizar(uuid, text, numeric, numeric, integer, boolean) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.ninos_impresion_encolar(uuid, uuid, date, uuid[]) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.ninos_impresion_estaciones() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ninos_impresion_estacion_crear(uuid, text, numeric, numeric, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ninos_impresion_estacion_rotar_token(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ninos_impresion_estacion_actualizar(uuid, text, numeric, numeric, integer, boolean) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.ninos_impresion_encolar(uuid, uuid, date, uuid[]) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid, text, text) TO authenticated;
 
 -- ── 5. agent (service_role) ──────────────────────────────────────────
 

@@ -112,7 +112,7 @@ const eslintConfig = [
     },
   },
   // The Niños print agent is a plain CommonJS Node script with no build step
-  // (odd/tasks/ninos-v2.md S10, N6c).
+  // (odd/tasks/ninos-checkin-pco.md S10, T3a).
   {
     files: ['tools/agente-impresion/**/*.js'],
     rules: {

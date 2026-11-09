@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  *
- * N6b (odd/tasks/ninos-v2.md, S10) — /api/ninos/impresion/agente: the print
+ * T3a (odd/tasks/ninos-checkin-pco.md, S10) — /api/ninos/impresion/agente: the print
  * agent authenticates with its station token (Bearer), hashed and looked up
  * with the service client; GET claims jobs, POST reports one.
  */

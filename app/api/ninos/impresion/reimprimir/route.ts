@@ -1,12 +1,15 @@
 /**
  * POST /api/ninos/impresion/reimprimir — the desk re-queues the labels of an
- * open visit (odd/tasks/ninos-v2.md, S10, N6b; the desk UI is N6d).
+ * open visit (odd/tasks/ninos-checkin-pco.md, S10 "Anfitriones y
+ * coordinación, con motivo", S6; the desk UI is T3b).
  *
- * { estacionId, turnoId, fecha, codigo, tipo: 'todas' | 'representante' | 'nino', ninoId? }
+ * { estacionId, turnoId, fecha, codigo, tipo: 'todas' | 'representante' | 'nino', ninoId?,
+ *   motivo: 'se_trabo' | 'se_perdio' | 'otro', nota? (≤ 200, required for otro) }
  *   → { ninos, representantes } (labels queued).
  * The RPC runs AS THE USER, so the authority stays in SQL (the same as the
- * check-in: operate the room of every child, a station of that campus). Only
- * the error code travels back, plus the message when it is a fixed code.
+ * check-in: operate the room of every child, a station of that campus) and it
+ * records who and when. The pickup código never changes. Only the error code
+ * travels back, plus the message when it is a fixed code.
  */
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -31,6 +34,8 @@ export async function POST(req: NextRequest) {
       p_codigo: e.codigo,
       p_tipo: e.tipo,
       p_nino_id: e.ninoId,
+      p_motivo: e.motivo,
+      p_nota: e.nota,
     })
     if (error) return NextResponse.json({ error: errorImpresion(error) }, { status: statusDeError(error.code) })
     return NextResponse.json(data)

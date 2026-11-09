@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 'use strict'
 /**
- * Niños print agent (odd/tasks/ninos-v2.md S10, N6c; API contract in
- * docs/ninos/impresion.md). Runs on the computer that has the label printer:
- * claims the station's pending labels, renders them to TSPL with the
- * station's label size and sends them raw to the printer, then reports each
- * one as `impresa` or `error`. No dependencies: Node 18+ (built-in fetch).
+ * Niños print agent (odd/tasks/ninos-checkin-pco.md S10, T3a; API contract
+ * in docs/ninos/impresion.md). Runs on the desk computer that has the label
+ * printer: claims the station's pending labels, renders them to TSPL with the
+ * station's label size (102 × 51 mm while it has none) and sends them raw to
+ * the printer, then reports each one as `impresa` or `error`. No
+ * dependencies: Node 18+ (built-in fetch).
  *
  *   node tools/agente-impresion/agente.js                 run the loop
  *   node tools/agente-impresion/agente.js --prueba        print sample labels, no server
@@ -130,7 +131,9 @@ function crearAgente({ config, fetch: pedir = globalThis.fetch, imprimir = crear
     const medidas = medidasDe(estacion)
     if (!estacionAnunciada) {
       estacionAnunciada = true
-      log(`[agente] conectado a la estación «${estacion.nombre ?? '?'}»: ${medidas ? `etiqueta de ${medidas.anchoMm} × ${medidas.altoMm} mm` : 'SIN medidas de etiqueta (configúralas en la estación)'}`)
+      log(`[agente] conectado a la estación «${estacion.nombre ?? '?'}»: ${medidas.porDefecto
+        ? `sin medidas de etiqueta: imprimo a ${medidas.anchoMm} × ${medidas.altoMm} mm (configúralas en la estación)`
+        : `etiqueta de ${medidas.anchoMm} × ${medidas.altoMm} mm`}`)
     }
     resultado.reclamados = trabajos.length
 
@@ -138,8 +141,6 @@ function crearAgente({ config, fetch: pedir = globalThis.fetch, imprimir = crear
       let reporte
       if (impresas.has(t.id)) {
         reporte = { id: t.id, estado: 'impresa' } // already printed; its report was lost
-      } else if (!medidas) {
-        reporte = { id: t.id, estado: 'error', error: 'medidas_sin_configurar' }
       } else {
         let bytes = null
         try { bytes = renderizarEtiqueta(t, estacion, { logos, gapMm: config.gapMm }) } catch { bytes = null }
@@ -203,12 +204,12 @@ function crearAgente({ config, fetch: pedir = globalThis.fetch, imprimir = crear
   return agente
 }
 
-/** Sample labels for `--prueba`: fake names, an allergy, ñ and accents, two areas. */
+/** Sample labels for `--prueba`: fake names, an allergy, both visit marks, ñ and accents, two areas. */
 function etiquetasDePrueba(fecha = fechaLocal()) {
   const comun = { codigo: '4827', fecha, servicio: 'Segundo servicio', hora: '11:00' }
   return [
-    { id: 'prueba-1', tipo: 'nino', intentos: 1, created_at: '', payload: { ...comun, nombre: 'Valentina', apellido: 'Rodríguez Peña', salon: 'Salón 3 años', area: 'waumba', alergias: true } },
-    { id: 'prueba-2', tipo: 'nino', intentos: 1, created_at: '', payload: { ...comun, nombre: 'José Ángel', apellido: 'Muñoz Briceño', salon: '4.º grado', area: 'upstreet', alergias: false } },
+    { id: 'prueba-1', tipo: 'nino', intentos: 1, created_at: '', payload: { ...comun, nombre: 'Valentina', apellido: 'Rodríguez Peña', salon: 'Salón 3 años', area: 'waumba', alergias: true, visita: 'primera' } },
+    { id: 'prueba-2', tipo: 'nino', intentos: 1, created_at: '', payload: { ...comun, nombre: 'José Ángel', apellido: 'Muñoz Briceño', salon: '4.º grado', area: 'upstreet', alergias: false, visita: 'visitante' } },
     { id: 'prueba-3', tipo: 'representante', intentos: 1, created_at: '', payload: { ...comun, ninos: ['Valentina', 'José Ángel'], areas: ['upstreet', 'waumba'] } },
   ]
 }
@@ -272,7 +273,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     const impresora = args.impresora || env.GC_AGENTE_IMPRESORA || archivo.impresora || ''
     if (!args.guardar && !impresora) throw new Error('Falta la impresora: usa --impresora <cola> (míralas con --impresoras) o --guardar <archivo>.')
     const medidas = { ancho_mm: args.ancho, alto_mm: args.alto, dpi: 203 }
-    if (!medidasDe(medidas)) throw new Error('--ancho y --alto deben ser números en mm.')
+    if (medidasDe(medidas).porDefecto) throw new Error('--ancho y --alto deben ser números en mm.')
     const gapMm = Number(env.GC_AGENTE_GAP_MM ?? archivo.gapMm ?? 2)
     const imprimir = destino(args.guardar)
     for (const t of etiquetasDePrueba()) await imprimir(renderizarEtiqueta(t, medidas, { logos, gapMm }), impresora)

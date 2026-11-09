@@ -1,15 +1,18 @@
 'use strict'
 /**
- * TSPL renderer for the Niños labels (odd/tasks/ninos-v2.md S9–S10, design in
- * design/ninos-etiquetas 01–03). Pure: a print job (docs/ninos/impresion.md)
- * plus the station's label size go in, the printer bytes come out.
+ * TSPL renderer for the Niños labels (odd/tasks/ninos-checkin-pco.md S10,
+ * S9.2, S9.3; design in design/ninos-checkin-pco/03). Pure: a print job
+ * (docs/ninos/impresion.md) plus the station's label size go in, the printer
+ * bytes come out.
  *
  * `componerEtiqueta` lays the label out as a list of elements in printer dots
  * (each with its box, so tests can check that everything fits); `aTspl`
  * serializes them. The layout is the 102 × 51 mm prototype scaled to the
- * label, with the 50 × 30 mm prototype values as the smallest sizes. Text uses
- * the printer's built-in fixed-pitch fonts 1–5 with integer multipliers and
- * goes out as windows-1252 (`CODEPAGE 1252`).
+ * label, with the 50 × 30 mm prototype values as the smallest sizes; a station
+ * with no size prints at 102 × 51 mm, 203 dpi. Text uses the printer's
+ * built-in fixed-pitch fonts 1–5 with integer multipliers and goes out as
+ * windows-1252 (`CODEPAGE 1252`). Only the fields below are read: custody,
+ * phone or medical text never reach a label, whatever the payload carries.
  */
 const { aWindows1252 } = require('./cp1252')
 const { matrizAMapa } = require('./logos')
@@ -32,20 +35,24 @@ const AREAS = { waumba: 'WAUMBA LAND', upstreet: 'UPSTREET' }
 const NEUTRO = 'NIÑOS · GLOBAL'
 const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-const INSTRUCCION = 'Presenta esta etiqueta para retirar'
+const INSTRUCCION = 'Presenta este recibo para retirar'
+/** S9.3 mark of the child label: full text, and a short one for narrow labels. */
+const VISITAS = { primera: ['PRIMERA VEZ', '1.ª VEZ'], visitante: ['VISITANTE', 'VISITA'] }
+/** S10: the size of a station that has none yet. */
+const POR_DEFECTO = { anchoMm: 102, altoMm: 51, dpi: 203 }
 /** QR byte capacity per version at ECC level M (versions 1–10). */
 const CAPACIDAD_QR_M = [14, 26, 42, 62, 84, 106, 122, 152, 180, 213]
 
 const largo = (t) => [...t].length
 const anchoTexto = (t, e) => largo(t) * e.w
 
-/** Label size of the station, or null while it is not configured. */
+/** Label size of the station; 102 × 51 mm at 203 dpi (`porDefecto`) while it has none. */
 function medidasDe(m) {
   const ancho = Number(m?.ancho_mm)
   const alto = Number(m?.alto_mm)
-  if (m?.ancho_mm == null || m?.alto_mm == null || !(ancho > 0) || !(alto > 0)) return null
+  if (m?.ancho_mm == null || m?.alto_mm == null || !(ancho > 0) || !(alto > 0)) return { ...POR_DEFECTO, porDefecto: true }
   const dpi = Number(m.dpi) > 0 ? Number(m.dpi) : 203
-  return { anchoMm: ancho, altoMm: alto, dpi }
+  return { anchoMm: ancho, altoMm: alto, dpi, porDefecto: false }
 }
 
 /** Among near-equal heights (sorted tallest first) the larger base font: less blocky. */
@@ -125,14 +132,13 @@ function versionQr(contenido) {
 }
 
 /**
- * Lays out a print job. Returns null while the label size is not configured.
+ * Lays out a print job at the station's size (102 × 51 mm when it has none).
  * @param {{ tipo: 'nino' | 'representante', payload: Record<string, unknown> }} trabajo
  * @param {{ ancho_mm: number | null, alto_mm: number | null, dpi?: number }} medidas
  * @param {{ logos?: Record<string, boolean[][]> }} [opciones]
  */
 function componerEtiqueta(trabajo, medidas, opciones = {}) {
   const m = medidasDe(medidas)
-  if (!m) return null
   const k = m.dpi / 25.4
   const W = Math.round(m.anchoMm * k)
   const H = Math.round(m.altoMm * k)
@@ -226,13 +232,32 @@ function componerEtiqueta(trabajo, medidas, opciones = {}) {
     const salon = String(p.salon ?? '').trim()
     if (salon) texto(cortar(salon, eSal, anchoDatos), pad, y, eSal)
 
+    // Marks in a row at the bottom left: ALERGIA reversed first, at its own
+    // size (only the mark, never the text), then the S9.3 visit framed in the
+    // largest size that fits the rest (short text on narrow labels).
+    const pv = Math.round(gap * 0.7)
+    const objetivoMarca = d('alerta') * 1.15
+    let mx = pad
+    const marca = (t, e, tipo) => {
+      const b = { ancho: anchoTexto(t, e) + 2 * padH, alto: e.h + 2 * pv }
+      const by = abajo - b.alto
+      texto(t, mx + padH, by + pv, e)
+      if (tipo === 'invertir') elementos.push({ tipo, x: mx, y: by, ancho: b.ancho, alto: b.alto })
+      else elementos.push({ tipo, x: mx, y: by, ancho: b.ancho, alto: b.alto, grosor: Math.max(1, Math.round(marco / 2)) })
+      mx += b.ancho + gap
+    }
     if (p.alergias === true) {
-      const eAl = estiloQueCabe('ALERGIA', d('alerta') * 1.15, 1, anchoDatos - 2 * padH) ?? ESTILOS[ESTILOS.length - 1]
-      const pv = Math.round(gap * 0.7)
-      const bloqueAl = { ancho: anchoTexto('ALERGIA', eAl) + 2 * padH, alto: eAl.h + 2 * pv }
-      const by = abajo - bloqueAl.alto
-      texto('ALERGIA', pad + padH, by + pv, eAl)
-      elementos.push({ tipo: 'invertir', x: pad, y: by, ancho: bloqueAl.ancho, alto: bloqueAl.alto })
+      marca('ALERGIA', estiloQueCabe('ALERGIA', objetivoMarca, 1, anchoDatos - 2 * padH) ?? ESTILOS[ESTILOS.length - 1], 'invertir')
+    }
+    const visita = VISITAS[p.visita]
+    if (visita) {
+      const resto = pad + anchoDatos - mx - 2 * padH
+      const opciones = visita.map((t) => ({ t, e: estiloQueCabe(t, objetivoMarca, 1, resto) })).filter((o) => o.e)
+      // The full text while it stays near the target size, else the larger one.
+      const [completa, corta] = [opciones.find((o) => o.t === visita[0]), opciones.find((o) => o.t === visita[1])]
+      const elegida = completa && (completa.e.h >= objetivoMarca * 0.6 || !corta || completa.e.h >= corta.e.h) ? completa : corta
+      const o = elegida ?? { t: visita[visita.length - 1], e: ESTILOS[ESTILOS.length - 1] }
+      marca(o.t, o.e, 'caja')
     }
   }
 
@@ -297,10 +322,9 @@ function aTspl(etiqueta, { gapMm = 2 } = {}) {
   return Buffer.concat(partes)
 }
 
-/** TSPL bytes of a print job, or null while the label size is not configured. */
+/** TSPL bytes of a print job at the station's size. */
 function renderizarEtiqueta(trabajo, medidas, opciones = {}) {
-  const etiqueta = componerEtiqueta(trabajo, medidas, opciones)
-  return etiqueta ? aTspl(etiqueta, opciones) : null
+  return aTspl(componerEtiqueta(trabajo, medidas, opciones), opciones)
 }
 
 module.exports = { componerEtiqueta, aTspl, renderizarEtiqueta, medidasDe }

@@ -75,8 +75,9 @@ node tools/agente-impresion/agente.js --prueba --guardar /tmp/prueba.tspl
    momento. Si se pierde, se genera uno nuevo y el anterior deja de
    funcionar.
 2. **Medidas de la etiqueta.** Mide el rollo (ancho × alto de una etiqueta, en
-   mm) y guárdalo en la estación. Sin medidas, el agente no imprime: marca cada
-   etiqueta con el error `medidas_sin_configurar`.
+   mm) y guárdalo en la estación. Las etiquetas se acomodan a esa medida. Sin
+   medidas, el agente imprime a 102 × 51 mm y 203 dpi (el rollo de la
+   4B-2054N) y lo avisa al conectarse.
 
 ## 6. Configura el agente
 
@@ -120,7 +121,7 @@ imprime dos veces.
 |---|---|
 | `El servidor rechazó el token (401)` | El token está mal copiado, se generó uno nuevo o la estación está desactivada. Pide el token actual. |
 | `sin conexión con el servidor` | Revisa el internet y la dirección en `servidor`. El agente sigue intentando. |
-| `SIN medidas de etiqueta` / `medidas_sin_configurar` | Guarda el ancho y el alto de la etiqueta en la estación. |
+| `sin medidas de etiqueta: imprimo a 102 × 51 mm` | La estación no tiene medidas. Si tu rollo es de otra medida, guarda su ancho y alto en la estación. |
 | `lp_salida_1: … does not exist` | El nombre de `impresora` no coincide con la cola. Revísalo con `--impresoras`. |
 | La etiqueta sale en blanco | El papel térmico está al revés: la cara que imprime va hacia el cabezal. |
 

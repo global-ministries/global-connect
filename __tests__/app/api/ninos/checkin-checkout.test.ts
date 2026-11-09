@@ -128,7 +128,7 @@ describe('POST /api/ninos/checkin', () => {
   })
 })
 
-describe('POST /api/ninos/checkin — labels (N6b)', () => {
+describe('POST /api/ninos/checkin — labels (T3a, S10: printing never blocks the check-in)', () => {
   const E1 = '55555555-5555-4555-8555-555555555555'
   const filas = [{ nino_id: N1, salon_id: S1, codigo: '4821', ocupacion: 3, capacidad: 20, sobre_capacidad: false }]
 
@@ -174,6 +174,15 @@ describe('POST /api/ninos/checkin — labels (N6b)', () => {
     expect(otra.status).toBe(200)
     await expect(despuesDeResponder()).resolves.toBeUndefined()
     log.mockRestore()
+  })
+
+  it('with forzadoIds and estacionId: p_forzados still travels (T2d) and the labels are queued', async () => {
+    setup({ ninos_checkin: { data: filas }, ninos_correos_visita: { data: [] }, ninos_impresion_encolar: { data: { ninos: 1, representantes: 1 } } })
+    const res = await checkin(req('checkin', { ...cuerpoCheckin, forzadoIds: [N1], estacionId: E1 }))
+    expect(res.status).toBe(200)
+    expect(rpc).toHaveBeenCalledWith('ninos_checkin', { p_nino_ids: [N1], p_salon_ids: [S1], p_turno_id: T1, p_fecha: '2026-10-11', p_forzados: [N1] })
+    await despuesDeResponder()
+    expect(rpc).toHaveBeenCalledWith('ninos_impresion_encolar', { p_estacion_id: E1, p_turno_id: T1, p_fecha: '2026-10-11', p_nino_ids: [N1] })
   })
 
   it('a malformed estacionId never fails the check-in: it just does not print', async () => {

@@ -9,10 +9,10 @@
  * after() (best effort: a failure is logged without personal data and the
  * check-in still succeeds).
  *
- * An optional `estacionId` (the desk's print station, N6b) queues the labels
- * after the response too, as the user (ninos_impresion_encolar). Best effort:
- * a missing or malformed station, or a failed enqueue, never changes the
- * response nor its status.
+ * An optional `estacionId` (the desk's print station, T3a, S10) queues the
+ * labels after the response too, as the user (ninos_impresion_encolar). Best
+ * effort: a missing or malformed station, or a failed enqueue, never changes
+ * the response nor its status (printing never blocks the check-in).
  */
 import { after, NextRequest, NextResponse } from 'next/server'
 

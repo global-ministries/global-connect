@@ -1,9 +1,9 @@
 /**
  * @jest-environment node
  *
- * N6b (odd/tasks/ninos-v2.md, S10) — POST /api/ninos/impresion/reimprimir:
- * the desk re-queues the labels of an open visit, as the user (the authority
- * stays in SQL).
+ * T3a (odd/tasks/ninos-checkin-pco.md, S10, S6) — POST
+ * /api/ninos/impresion/reimprimir: the desk re-queues the labels of an open
+ * visit with a reason, as the user (the authority stays in SQL).
  */
 import { NextRequest } from 'next/server'
 
@@ -16,7 +16,7 @@ const createClient = jest.requireMock('@/lib/supabase/server').createSupabaseSer
 const E1 = '11111111-1111-4111-8111-111111111111'
 const T1 = '33333333-3333-4333-8333-333333333333'
 const N1 = '44444444-4444-4444-8444-444444444444'
-const cuerpo = { estacionId: E1, turnoId: T1, fecha: '2026-11-08', codigo: '4821', tipo: 'nino', ninoId: N1 }
+const cuerpo = { estacionId: E1, turnoId: T1, fecha: '2026-11-08', codigo: '4821', tipo: 'nino', ninoId: N1, motivo: 'se_trabo' }
 let rpc: jest.Mock
 
 function setup(respuesta: { data?: unknown; error?: unknown }, user: object | null = { id: 'auth-1' }) {
@@ -40,6 +40,8 @@ describe('POST /api/ninos/impresion/reimprimir', () => {
     setup({})
     expect((await POST(req({ ...cuerpo, ninoId: undefined }))).status).toBe(400)
     expect((await POST(req({ ...cuerpo, codigo: 'x' }))).status).toBe(400)
+    expect((await POST(req({ ...cuerpo, motivo: undefined }))).status).toBe(400)
+    expect((await POST(req({ ...cuerpo, motivo: 'otro' }))).status).toBe(400)
     expect((await POST(req('{x'))).status).toBe(400)
     expect(rpc).not.toHaveBeenCalled()
   })
@@ -51,6 +53,7 @@ describe('POST /api/ninos/impresion/reimprimir', () => {
     expect(await res.json()).toEqual({ ninos: 1, representantes: 0 })
     expect(rpc).toHaveBeenCalledWith('ninos_impresion_reimprimir', {
       p_estacion_id: E1, p_turno_id: T1, p_fecha: '2026-11-08', p_codigo: '4821', p_tipo: 'nino', p_nino_id: N1,
+      p_motivo: 'se_trabo', p_nota: null,
     })
   })
 
@@ -58,6 +61,12 @@ describe('POST /api/ninos/impresion/reimprimir', () => {
     setup({ data: { ninos: 2, representantes: 1 } })
     await POST(req({ ...cuerpo, tipo: 'todas', ninoId: null }))
     expect(rpc).toHaveBeenCalledWith('ninos_impresion_reimprimir', expect.objectContaining({ p_tipo: 'todas', p_nino_id: null }))
+  })
+
+  it('S10: the reason and the trimmed note travel to the RPC', async () => {
+    setup({ data: { ninos: 2, representantes: 1 } })
+    await POST(req({ ...cuerpo, tipo: 'todas', ninoId: null, motivo: 'otro', nota: '  Se mojó el papel ' }))
+    expect(rpc).toHaveBeenCalledWith('ninos_impresion_reimprimir', expect.objectContaining({ p_motivo: 'otro', p_nota: 'Se mojó el papel' }))
   })
 
   it('fixed RPC codes pass through, any other message does not', async () => {

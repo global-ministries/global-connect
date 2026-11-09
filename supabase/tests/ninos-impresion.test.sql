@@ -1,5 +1,5 @@
--- N6b (odd/tasks/ninos-v2.md, S10) — print queue for the check-in labels
--- (20261103100000_ninos_impresion.sql).
+-- T3a (odd/tasks/ninos-checkin-pco.md, S10, S6, S9.2, S9.3) — print queue
+-- for the check-in labels (20261109100000_ninos_impresion.sql).
 --
 -- Covers:
 --   a. Permissions: anon and a random user are refused; the agent RPCs are
@@ -12,8 +12,15 @@
 --   c. Listing: the campuses where I operate, with puede_administrar.
 --   d. Enqueue after a check-in: one child label per child + one parent label
 --      per código, payload built from the DB with exactly the S10 keys (no
---      phone, cédula or allergy text); refusals store nothing.
---   e. Reprint: todas / representante / nino.
+--      phone, cédula, allergy text, salón on the receipt, nor custody);
+--      visita 'primera' / 'visitante' / null from the prior check-in dates
+--      (S9.3); the hour of a dated turno comes from its planned date;
+--      refusals store nothing.
+--   e. Reprint (S10 "Anfitriones y coordinación, con motivo"): todas /
+--      representante / nino with a reason se_trabo / se_perdio / otro (otro
+--      needs a note, at most 200); who and when are stored; the código never
+--      changes; the coordinator may reprint; a child of a salón the caller does
+--      not operate is not found.
 --   f. Agent: token lookup + heartbeat, claim without double claim, retry of a
 --      stale claim, max attempts → sin_respuesta, old job → vencida, report
 --      transitions (first result wins), scoped to the station.
@@ -23,8 +30,9 @@
 -- last statement is a SELECT of the failing cases ('all cases ok' when none).
 --
 -- Identities (usuario n = auth n): 1 ANFITRION, 2 COORDINADOR (coordinate on
--- W), 3 RANDOM. Tree: R → W → Anfitriones. Room S1 (waumba) and S2 (upstreet)
--- in W on the Barquisimeto campus. Station E3 lives on another campus.
+-- W), 3 RANDOM. Tree: R → W → Anfitriones; R → U. Room S1 (waumba) and S2
+-- (upstreet) in W, S3 in U (nobody here operates it), all on the Barquisimeto
+-- campus. Station E3 lives on another campus.
 
 BEGIN;
 
@@ -122,7 +130,8 @@ SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Im', 'U' || n, 'im-' || n |
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'ninos', NULL, 'ZZ Im R', true),
   (pg_temp.id('eq', 2), 'ninos', pg_temp.id('eq', 1), 'ZZ Im W', true),
-  (pg_temp.id('eq', 3), 'ninos', pg_temp.id('eq', 2), 'Anfitriones', true);
+  (pg_temp.id('eq', 3), 'ninos', pg_temp.id('eq', 2), 'Anfitriones', true),
+  (pg_temp.id('eq', 4), 'ninos', pg_temp.id('eq', 1), 'ZZ Im U', true);
 INSERT INTO public.dream_team_roles (id, equipo_id, label, activo) VALUES
   (pg_temp.id('ro', 1), pg_temp.id('eq', 3), 'voluntario', true);
 INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual) VALUES
@@ -134,7 +143,8 @@ INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, exp
 
 INSERT INTO public.ninos_salones (id, campus_id, equipo_id, area, nombre, capacidad, grado_min, grado_max, orden) VALUES
   (pg_temp.id('sa', 1), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'waumba', 'ZZ Im S1', 20, 0, 1, -100),
-  (pg_temp.id('sa', 2), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'upstreet', 'ZZ Im S2', 20, 2, 5, -99);
+  (pg_temp.id('sa', 2), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 2), 'upstreet', 'ZZ Im S2', 20, 2, 5, -99),
+  (pg_temp.id('sa', 3), pg_temp.ctx('campus')::uuid, pg_temp.id('eq', 4), 'upstreet', 'ZZ Im S3', 20, 0, 5, -98);
 
 -- A station on another campus (nobody here operates it) and an inactive one here.
 INSERT INTO public.ninos_estaciones_impresion (id, campus_id, nombre, token_hash) VALUES
@@ -170,11 +180,31 @@ INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero, fecha_n
 VALUES (pg_temp.id('us', 9), 'ZZ Im Fuera', 'Prueba', 'No especificado', 'Masculino', DATE '2019-01-01');
 INSERT INTO public.ninos_fichas (usuario_id, grado) VALUES (pg_temp.id('us', 9), 1);
 
+-- S9.3: Dos came once before (visitante); Uno never (primera vez).
+INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo, salida_at)
+VALUES (pg_temp.ctx('n2')::uuid, pg_temp.id('sa', 2), pg_temp.ctx('turno')::uuid, pg_temp.ctx('campus')::uuid,
+        pg_temp.fecha() - 7, gen_random_uuid(), '1111', now());
+-- S9.2: a custody restriction on Uno never reaches a label.
+INSERT INTO public.ninos_custodia_restricciones (nino_id, persona_nombre, relacion, respaldo)
+VALUES (pg_temp.ctx('n1')::uuid, 'ZZ Im Restringido', 'padre', 'ZZ Im orden del tribunal');
+
+-- A dated turno (S8.1) planned on the fixture date at 18:30, not at its own hour.
+INSERT INTO public.dream_team_turnos (id, campus_id, nombre, dia_semana, hora, tipo)
+VALUES (pg_temp.id('sa', 20), pg_temp.ctx('campus')::uuid, 'ZZ Im Retiro', 6, '08:00', 'fechas');
+INSERT INTO public.dream_team_turno_fechas (turno_id, fecha, hora) VALUES (pg_temp.id('sa', 20), pg_temp.fecha(), '18:30');
+INSERT INTO public.ninos_eventos (id, campus_id, nombre, tipo, fecha_inicio)
+VALUES (pg_temp.id('sa', 21), pg_temp.ctx('campus')::uuid, 'ZZ Im Retiro', 'unico', pg_temp.fecha());
+INSERT INTO public.ninos_evento_horarios (evento_id, turno_id, turno_creado)
+VALUES (pg_temp.id('sa', 21), pg_temp.id('sa', 20), true);
+
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user(1);
 INSERT INTO t_im_ctx (k, v)
 SELECT 'codigo', min(codigo) FROM public.ninos_checkin(ARRAY[pg_temp.ctx('n1')::uuid, pg_temp.ctx('n2')::uuid],
   pg_temp.ctx('turno')::uuid, pg_temp.fecha(), ARRAY[pg_temp.id('sa', 1), pg_temp.id('sa', 2)]);
+INSERT INTO t_im_ctx (k, v)
+SELECT 'codigo_retiro', min(codigo) FROM public.ninos_checkin(ARRAY[pg_temp.id('us', 9)],
+  pg_temp.id('sa', 20), pg_temp.fecha(), ARRAY[pg_temp.id('sa', 1)]);
 RESET ROLE;
 
 -- ── a. permissions ───────────────────────────────────────────────────
@@ -188,11 +218,11 @@ SELECT pg_temp.assert_eq('a: who may execute each RPC (anon / authenticated)',
          'public.ninos_impresion_estacion_rotar_token(uuid)',
          'public.ninos_impresion_estacion_actualizar(uuid, text, numeric, numeric, integer, boolean)',
          'public.ninos_impresion_encolar(uuid, uuid, date, uuid[])',
-         'public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid)',
+         'public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid, text, text)',
          'public.ninos_impresion_agente_estacion(text)',
          'public.ninos_impresion_agente_reclamar(uuid, integer)',
          'public.ninos_impresion_agente_reportar(uuid, uuid, text, text)',
-         'public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean)',
+         'public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean, text, text)',
          'public.ninos_impresion_estacion_operable(uuid)',
          'public.ninos_impresion_nuevo_token()']) AS f$q$,
   'public.ninos_impresion_agente_estacion(text)=false/false,'
@@ -204,9 +234,12 @@ SELECT pg_temp.assert_eq('a: who may execute each RPC (anon / authenticated)',
   'public.ninos_impresion_estacion_operable(uuid)=false/false,'
   'public.ninos_impresion_estacion_rotar_token(uuid)=false/true,'
   'public.ninos_impresion_estaciones()=false/true,'
-  'public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean)=false/false,'
+  'public.ninos_impresion_insertar(uuid, uuid[], boolean, boolean, text, text)=false/false,'
   'public.ninos_impresion_nuevo_token()=false/false,'
-  'public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid)=false/true');
+  'public.ninos_impresion_reimprimir(uuid, uuid, date, text, text, uuid, text, text)=false/true');
+SELECT pg_temp.assert_eq('a: the old reprint and insert signatures are gone',
+  $q$SELECT count(*)::text FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname IN ('ninos_impresion_reimprimir', 'ninos_impresion_insertar')$q$, '2');
 SELECT pg_temp.assert_eq('a: service_role executes the three agent RPCs',
   $q$SELECT bool_and(has_function_privilege('service_role', f, 'EXECUTE'))::text
        FROM unnest(ARRAY['public.ninos_impresion_agente_estacion(text)', 'public.ninos_impresion_agente_reclamar(uuid, integer)',
@@ -373,7 +406,7 @@ SELECT pg_temp.assert_eq('d: stored as pendiente, never claimed, by the anfitri�
 SELECT pg_temp.assert_eq('d: the child label carries exactly the S10 keys',
   $q$SELECT string_agg(DISTINCT k, ',' ORDER BY k) FROM public.ninos_impresiones i, jsonb_object_keys(i.payload) k
       WHERE i.estacion_id = pg_temp.ctx('e1')::uuid AND i.tipo = 'nino'$q$,
-  'alergias,apellido,area,codigo,fecha,hora,nombre,salon,servicio');
+  'alergias,apellido,area,codigo,fecha,hora,nombre,salon,servicio,visita');
 SELECT pg_temp.assert_eq('d: the parent label carries exactly the S10 keys',
   $q$SELECT string_agg(DISTINCT k, ',' ORDER BY k) FROM public.ninos_impresiones i, jsonb_object_keys(i.payload) k
       WHERE i.estacion_id = pg_temp.ctx('e1')::uuid AND i.tipo = 'representante'$q$,
@@ -384,6 +417,13 @@ SELECT pg_temp.assert_eq('d: child labels: name, room, area, allergy flag, códi
        FROM (SELECT i.payload AS p FROM public.ninos_impresiones i
               WHERE i.estacion_id = pg_temp.ctx('e1')::uuid AND i.tipo = 'nino') x$q$,
   'ZZ Im Dos|Prueba|ZZ Im S2|upstreet|false|true|2099-03-07,ZZ Im Uno|Prueba|ZZ Im S1|waumba|true|true|2099-03-07');
+SELECT pg_temp.assert_eq('d: visita from the prior dates (S9.3): Uno primera, Dos visitante',
+  $q$SELECT string_agg(i.payload ->> 'nombre' || '=' || coalesce(i.payload ->> 'visita', 'null'), ',' ORDER BY i.payload ->> 'nombre')
+       FROM public.ninos_impresiones i WHERE i.estacion_id = pg_temp.ctx('e1')::uuid AND i.tipo = 'nino'$q$,
+  'ZZ Im Dos=visitante,ZZ Im Uno=primera');
+SELECT pg_temp.assert_eq('d: the original labels have no reprint reason',
+  $q$SELECT count(*)::text FROM public.ninos_impresiones i
+      WHERE i.estacion_id = pg_temp.ctx('e1')::uuid AND (i.motivo IS NOT NULL OR i.nota IS NOT NULL)$q$, '0');
 SELECT pg_temp.assert_eq('d: the service name and hour come from the turno',
   $q$SELECT bool_and(i.payload ->> 'servicio' = t.nombre AND i.payload ->> 'hora' = to_char(t.hora, 'HH24:MI'))::text
        FROM public.ninos_impresiones i, public.dream_team_turnos t
@@ -396,47 +436,119 @@ SELECT pg_temp.assert_eq('d: parent label: código, both first names, both areas
 SELECT pg_temp.assert_eq('d: no phone, allergy text or parent name in any payload',
   $q$SELECT count(*)::text FROM public.ninos_impresiones i
       WHERE i.estacion_id = pg_temp.ctx('e1')::uuid
-        AND (i.payload::text LIKE '%0414%' OR i.payload::text LIKE '%Maní%' OR i.payload::text LIKE '%Mamá%')$q$, '0');
-
--- ── e. reprint ───────────────────────────────────────────────────────
+        AND (i.payload::text LIKE '%0414%' OR i.payload::text LIKE '%Maní%' OR i.payload::text LIKE '%Mamá%'
+             OR i.payload::text LIKE '%Restringido%' OR i.payload::text LIKE '%tribunal%')$q$, '0');
+SELECT pg_temp.assert_eq('d: the receipt never carries a salón',
+  $q$SELECT count(*)::text FROM public.ninos_impresiones i
+      WHERE i.estacion_id = pg_temp.ctx('e1')::uuid AND i.tipo = 'representante' AND i.payload::text LIKE '%ZZ Im S%'$q$, '0');
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user(1);
-SELECT pg_temp.assert_eq('e: reprint the parent label only',
+SELECT pg_temp.assert_eq('d: a dated turno enqueues on another station',
+  $q$SELECT public.ninos_impresion_encolar(pg_temp.ctx('e2')::uuid, pg_temp.id('sa', 20), pg_temp.fecha(),
+       ARRAY[pg_temp.id('us', 9)])::text$q$, '{"ninos": 1, "representantes": 1}');
+RESET ROLE;
+SELECT pg_temp.assert_eq('d: its labels carry the planned hour of that date and the turno name; the first visit',
+  $q$SELECT string_agg(i.tipo || ':' || (i.payload ->> 'servicio') || ':' || (i.payload ->> 'hora')
+                         || ':' || coalesce(i.payload ->> 'visita', '-'), ',' ORDER BY i.tipo)
+       FROM public.ninos_impresiones i WHERE i.estacion_id = pg_temp.ctx('e2')::uuid$q$,
+  'nino:ZZ Im Retiro:18:30:primera,representante:ZZ Im Retiro:18:30:-');
+DELETE FROM public.ninos_impresiones WHERE estacion_id = pg_temp.ctx('e2')::uuid;
+
+-- ── e. reprint ───────────────────────────────────────────────────────
+
+-- Fuera is also checked in in S3 (room U) in the Sunday service, with its own código.
+INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo)
+VALUES (pg_temp.id('us', 9), pg_temp.id('sa', 3), pg_temp.ctx('turno')::uuid, pg_temp.ctx('campus')::uuid,
+        pg_temp.fecha(), gen_random_uuid(), '0003');
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_user(1);
+SELECT pg_temp.assert_eq('e: reprint the parent label only (se_perdio)',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'representante', NULL)::text$q$, '{"ninos": 0, "representantes": 1}');
-SELECT pg_temp.assert_eq('e: reprint one child label',
+       pg_temp.ctx('codigo'), 'representante', NULL, 'se_perdio', NULL)::text$q$, '{"ninos": 0, "representantes": 1}');
+SELECT pg_temp.assert_eq('e: reprint one child label (se_trabo)',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'nino', pg_temp.ctx('n1')::uuid)::text$q$, '{"ninos": 1, "representantes": 0}');
-SELECT pg_temp.assert_eq('e: reprint everything of the visit',
+       pg_temp.ctx('codigo'), 'nino', pg_temp.ctx('n1')::uuid, 'se_trabo', NULL)::text$q$, '{"ninos": 1, "representantes": 0}');
+SELECT pg_temp.as_user(2);
+SELECT pg_temp.assert_eq('e: coordination reprints everything of the visit (otro with a note)',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'todas', NULL)::text$q$, '{"ninos": 2, "representantes": 1}');
+       pg_temp.ctx('codigo'), 'todas', NULL, 'otro', '  Se mojó el papel  ')::text$q$, '{"ninos": 2, "representantes": 1}');
+SELECT pg_temp.as_user(1);
+SELECT pg_temp.assert_raises('e: a reason is required',
+  $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
+       pg_temp.ctx('codigo'), 'todas', NULL, NULL, NULL)$q$, '22023', 'datos_invalidos');
+SELECT pg_temp.assert_raises('e: a reason outside the list is refused',
+  $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
+       pg_temp.ctx('codigo'), 'todas', NULL, 'porque_si', NULL)$q$, '22023', 'datos_invalidos');
+SELECT pg_temp.assert_raises('e: otro needs a note',
+  $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
+       pg_temp.ctx('codigo'), 'todas', NULL, 'otro', '   ')$q$, '22023', 'datos_invalidos');
+SELECT pg_temp.assert_raises('e: a note over 200 characters is refused',
+  $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
+       pg_temp.ctx('codigo'), 'todas', NULL, 'se_trabo', repeat('x', 201))$q$, '22023', 'datos_invalidos');
 SELECT pg_temp.assert_raises('e: a child reprint needs the child',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'nino', NULL)$q$, '22023', 'datos_invalidos');
+       pg_temp.ctx('codigo'), 'nino', NULL, 'se_trabo', NULL)$q$, '22023', 'datos_invalidos');
 SELECT pg_temp.assert_raises('e: an unknown kind is refused',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'otra', NULL)$q$, '22023', 'datos_invalidos');
+       pg_temp.ctx('codigo'), 'otra', NULL, 'se_trabo', NULL)$q$, '22023', 'datos_invalidos');
 SELECT pg_temp.assert_raises('e: a código never issued is not found',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       '0000', 'todas', NULL)$q$, '22023', 'checkin_no_encontrado');
+       '0000', 'todas', NULL, 'se_trabo', NULL)$q$, '22023', 'checkin_no_encontrado');
+SELECT pg_temp.assert_raises('e: a child of a salón the anfitrión does not operate is not found',
+  $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
+       '0003', 'todas', NULL, 'se_perdio', NULL)$q$, '22023', 'checkin_no_encontrado');
 SELECT pg_temp.as_user(3);
 SELECT pg_temp.assert_raises('e: a random user cannot reprint',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'todas', NULL)$q$, '42501', 'sin_autoridad');
+       pg_temp.ctx('codigo'), 'todas', NULL, 'se_trabo', NULL)$q$, '42501', 'sin_autoridad');
 RESET ROLE;
 SELECT pg_temp.assert_eq('e: station 2 holds the 6 reprinted labels',
   $q$SELECT string_agg(i.tipo || '=' || n, ',' ORDER BY i.tipo) FROM (
        SELECT i.tipo, count(*) AS n FROM public.ninos_impresiones i WHERE i.estacion_id = pg_temp.ctx('e2')::uuid GROUP BY i.tipo) i$q$,
   'nino=3,representante=2');
+SELECT pg_temp.assert_eq('e: each reprint stores its reason, the trimmed note, who and when',
+  $q$SELECT string_agg(DISTINCT i.motivo || ':' || coalesce(i.nota, '-') || ':'
+                         || CASE i.created_by WHEN pg_temp.id('us', 1) THEN 'anfitrion' WHEN pg_temp.id('us', 2) THEN 'coordinador' END
+                         || ':' || (i.created_at IS NOT NULL)::text, ',')
+       FROM public.ninos_impresiones i WHERE i.estacion_id = pg_temp.ctx('e2')::uuid$q$,
+  'otro:Se mojó el papel:coordinador:true,se_perdio:-:anfitrion:true,se_trabo:-:anfitrion:true');
+SELECT pg_temp.assert_eq('e: the pickup código never changes: same check-ins, same código on every label',
+  $q$SELECT (SELECT string_agg(DISTINCT c.codigo, ',') FROM public.ninos_checkins c
+              WHERE c.nino_id IN (pg_temp.ctx('n1')::uuid, pg_temp.ctx('n2')::uuid) AND c.fecha = pg_temp.fecha())
+         || '|' || (SELECT string_agg(DISTINCT i.payload ->> 'codigo', ',') FROM public.ninos_impresiones i
+                     WHERE i.estacion_id = pg_temp.ctx('e2')::uuid)
+         || '|' || (pg_temp.ctx('codigo') IS NOT NULL)::text$q$,
+  (SELECT pg_temp.ctx('codigo') || '|' || pg_temp.ctx('codigo') || '|true'));
+
+-- A later date makes Dos regular: the reprint recomputes visita from the DB.
+INSERT INTO public.ninos_checkins (nino_id, salon_id, turno_id, campus_id, fecha, visita_id, codigo, salida_at)
+SELECT pg_temp.ctx('n2')::uuid, pg_temp.id('sa', 2), pg_temp.ctx('turno')::uuid, pg_temp.ctx('campus')::uuid,
+       pg_temp.fecha() - d, gen_random_uuid(), '1111', now()
+  FROM unnest(ARRAY[14, 21]) AS d;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_user(1);
+SELECT pg_temp.assert_eq('e: setup reprint Dos as a regular',
+  $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
+       pg_temp.ctx('codigo'), 'nino', pg_temp.ctx('n2')::uuid, 'se_trabo', NULL) ->> 'ninos'$q$, '1');
+RESET ROLE;
+SELECT pg_temp.assert_eq('e: a regular (3 prior dates) has no visita mark',
+  $q$SELECT coalesce(i.payload ->> 'visita', 'null') FROM public.ninos_impresiones i
+      WHERE i.estacion_id = pg_temp.ctx('e2')::uuid AND i.tipo = 'nino' AND i.payload ->> 'nombre' = 'ZZ Im Dos'
+      ORDER BY i.created_at DESC, i.id LIMIT 1$q$, 'null');
+DELETE FROM public.ninos_impresiones i
+ WHERE i.estacion_id = pg_temp.ctx('e2')::uuid AND i.id = (
+   SELECT x.id FROM public.ninos_impresiones x
+    WHERE x.estacion_id = pg_temp.ctx('e2')::uuid AND x.tipo = 'nino' AND x.payload ->> 'nombre' = 'ZZ Im Dos' AND x.payload ->> 'visita' IS NULL);
 
 -- ── f. agent ─────────────────────────────────────────────────────────
 
 SET LOCAL ROLE service_role;
 SELECT pg_temp.as_nobody();
 SELECT pg_temp.assert_eq('f: the token hash finds its active station with the label size, no secret beyond the hash',
-  $q$SELECT concat_ws('|', r ->> 'id' = pg_temp.ctx('e1'), r ->> 'ancho_mm', r ->> 'alto_mm', r ->> 'dpi',
-                       r ->> 'token_hash' = pg_temp.h(pg_temp.ctx('token1b')))
+  $q$SELECT concat_ws('|', (r ->> 'id' = pg_temp.ctx('e1'))::text, r ->> 'ancho_mm', r ->> 'alto_mm', r ->> 'dpi',
+                       (r ->> 'token_hash' = pg_temp.h(pg_temp.ctx('token1b')))::text)
        FROM public.ninos_impresion_agente_estacion(pg_temp.h(pg_temp.ctx('token1b'))) AS t(r)$q$, 'true|50.0|30.0|203|true');
 SELECT pg_temp.assert_eq('f: a rotated-out token finds nothing',
   $q$SELECT coalesce(public.ninos_impresion_agente_estacion(pg_temp.h(pg_temp.ctx('token1')))::text, 'null')$q$, 'null');
@@ -506,7 +618,7 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_user(1);
 SELECT pg_temp.assert_eq('f: setup a fresh parent label',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e1')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
-       pg_temp.ctx('codigo'), 'representante', NULL) ->> 'representantes'$q$, '1');
+       pg_temp.ctx('codigo'), 'representante', NULL, 'se_perdio', NULL) ->> 'representantes'$q$, '1');
 RESET ROLE;
 INSERT INTO t_im_ctx (k, v)
 SELECT 'job_nuevo', i.id::text FROM public.ninos_impresiones i
