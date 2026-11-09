@@ -7,6 +7,7 @@
 import {
   LIMITES_PREREGISTRO,
   conExistentes,
+  etiquetaRelacion,
   formDesdePreregistro,
   parseCuentasPreregistro,
   parsePreregistro,
@@ -41,7 +42,7 @@ describe('parsePreregistro', () => {
       honeypot: false,
       campusId: CAMPUS,
       payload: {
-        padre: { nombre: 'Ana', apellido: 'Pérez', telefono: '0414-555-1234', email: 'ana@example.test', cedula: null, genero: null },
+        padre: { nombre: 'Ana', apellido: 'Pérez', telefono: '0414-555-1234', email: 'ana@example.test', cedula: null, genero: null, relacion: null },
         hijos: [
           {
             nombre: 'Sofía', apellido: 'Pérez', fecha_nacimiento: '2021-03-04', genero: 'Femenino', grado: null,
@@ -220,6 +221,24 @@ describe('crearPreregistro', () => {
   })
 })
 
+describe('relación del padre (S9.8)', () => {
+  const padre = { nombre: 'Rosa', apellido: 'Pérez', telefono: '04145551234' }
+  it('keeps a known relationship in the payload', () => {
+    const r = parsePreregistro(cuerpo({ padre: { ...padre, relacion: 'abuela', genero: 'Femenino' } }), HOY)
+    expect(r.ok && r.payload.padre).toMatchObject({ relacion: 'abuela', genero: 'Femenino' })
+  })
+  it('an unknown relationship is stored as null', () => {
+    const r = parsePreregistro(cuerpo({ padre: { ...padre, relacion: '<b>x</b>' } }), HOY)
+    expect(r.ok && r.payload.padre.relacion).toBeNull()
+  })
+  it('mamá / papá / abuela … fill a missing género; tutor does not', () => {
+    const tio = parsePreregistro(cuerpo({ padre: { ...padre, relacion: 'tio' } }), HOY)
+    expect(tio.ok && tio.payload.padre.genero).toBe('Masculino')
+    const tutor = parsePreregistro(cuerpo({ padre: { ...padre, relacion: 'tutor' } }), HOY)
+    expect(tutor.ok && tutor.payload.padre.genero).toBeNull()
+  })
+})
+
 describe('formDesdePreregistro', () => {
   it('turns a stored payload into the review form (email kept apart)', () => {
     const r = parsePreregistro(cuerpo(), HOY)
@@ -230,6 +249,22 @@ describe('formDesdePreregistro', () => {
     expect(formDesdePreregistro({ ...r.payload, padre: { ...r.payload.padre, genero: 'Femenino' } }).form.padre.genero).toBe('Femenino')
     expect(form.hijos[0]).toMatchObject({ nombre: 'Sofía', fechaNacimiento: '2021-03-04', alergias: 'Maní', puedeComer: true, grado: '' })
     expect(form.autorizados).toEqual([{ nombre: 'Abuela Rosa', telefono: '04141112233', relacion: 'Abuela' }])
+  })
+
+  it('an old payload without relacion still loads (relacion null)', () => {
+    const viejo = { padre: { nombre: 'Ana', apellido: 'Pérez', telefono: '0414', email: null, cedula: null, genero: 'Femenino' }, hijos: [], autorizados: [] }
+    const r = formDesdePreregistro(viejo as never)
+    expect(r.relacion).toBeNull()
+    expect(r.form.padre).toMatchObject({ nombre: 'Ana', genero: 'Femenino' })
+  })
+
+  it('exposes the stored relationship of the parent', () => {
+    const r = parsePreregistro(cuerpo({ padre: { nombre: 'Rosa', apellido: 'Pérez', telefono: '04145551234', relacion: 'abuela', genero: 'Femenino' } }), HOY)
+    if (!r.ok) throw new Error('fixture')
+    expect(formDesdePreregistro(r.payload).relacion).toBe('abuela')
+    expect(etiquetaRelacion('abuela')).toBe('Abuela')
+    expect(etiquetaRelacion('tutor')).toBe('Tutor o tutora')
+    expect(etiquetaRelacion('vecina')).toBeNull()
   })
 
   it('tolerates a damaged payload', () => {

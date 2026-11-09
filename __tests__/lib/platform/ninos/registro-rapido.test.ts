@@ -5,6 +5,8 @@
  */
 import {
   conFechaNacimiento,
+  conFechaPublica,
+  conRelacion,
   cuerpoPublico,
   datosIniciales,
   debePlegarse,
@@ -14,6 +16,7 @@ import {
   hijoRapidoVacio,
   idRapido,
   personasRetiran,
+  pideGrado,
   resumenSeccion,
   salonVivo,
   seccionCompleta,
@@ -35,7 +38,7 @@ const salones: SalonNivel[] = [
 
 function completos(): DatosRapido {
   const d = datosIniciales({ campusId: CAMPUS })
-  d.padre = { nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', cedula: '', email: '' }
+  d.padre = { nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', relacion: 'mama', cedula: '', email: '' }
   d.hijos = [{ ...hijoRapidoVacio('Linárez'), nombre: 'Camila', fechaNacimiento: '2022-02-09', genero: 'Femenino', tieneAlergias: false, tieneNecesidades: false }]
   return d
 }
@@ -56,7 +59,7 @@ describe('faltantes', () => {
       idRapido.padre('nombre'),
       idRapido.padre('apellido'),
       idRapido.padre('telefono'),
-      idRapido.padre('genero'),
+      idRapido.padre('relacion'),
       idRapido.hijo(0, 'nombre'),
       idRapido.hijo(0, 'apellido'),
       idRapido.hijo(0, 'nacimiento'),
@@ -65,13 +68,12 @@ describe('faltantes', () => {
       idRapido.hijo(0, 'tiene-nee'),
     ])
     expect(f[1]).toEqual({ id: 'rr-padre-nombre', seccion: 'tu', etiqueta: 'Tu nombre', mensaje: 'Escribe tu nombre.' })
-    expect(f[4].mensaje).toBe('Elige mamá o papá.')
+    expect(f[4]).toEqual({ id: 'rr-padre-relacion', seccion: 'tu', etiqueta: 'Tu relación con los niños', mensaje: 'Elige tu relación con los niños.' })
   })
 
-  it('the parent género is required in both modes', () => {
+  it('the desk still asks for the parent género (no relationship there)', () => {
     const d = completos()
-    d.padre.genero = ''
-    expect(faltantes(d, publico).map((x) => x.id)).toEqual([idRapido.padre('genero')])
+    d.padre = { ...d.padre, genero: '', relacion: '' }
     expect(faltantes(d, mesa)).toEqual([
       { id: 'rr-padre-genero', seccion: 'tu', etiqueta: 'Género del representante', mensaje: 'Elige mamá o papá.' },
     ])
@@ -79,7 +81,7 @@ describe('faltantes', () => {
 
   it('a known parent (existing or confirmed) skips the parent fields', () => {
     const d = completos()
-    d.padre = { nombre: '', apellido: '', telefono: '', genero: '', cedula: '', email: '' }
+    d.padre = { nombre: '', apellido: '', telefono: '', genero: '', relacion: '', cedula: '', email: '' }
     expect(faltantes(d, { ...mesa, padreConocido: true })).toEqual([])
   })
 
@@ -192,7 +194,7 @@ describe('payloads', () => {
     d.autorizados = [{ nombre: 'Abuela', telefono: '0424', relacion: '' }, { nombre: '', telefono: '', relacion: '' }]
     const body = cuerpoPublico(d, '')
     expect(Object.keys(body).sort()).toEqual(['autorizados', 'campusId', 'hijos', 'padre', 'sitioWeb'])
-    expect(body.padre).toEqual({ nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', cedula: '', email: '' })
+    expect(body.padre).toEqual({ nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', relacion: 'mama', cedula: '', email: '' })
     expect(body.autorizados).toEqual([{ nombre: 'Abuela', telefono: '0424', relacion: '' }])
     expect(body.hijos).toEqual([
       {
@@ -220,7 +222,7 @@ describe('payloads', () => {
       },
       email: 'a@b.co',
     })
-    expect(d.padre).toEqual({ nombre: 'Ana', apellido: 'P', telefono: '0414', cedula: '1', genero: '', email: 'a@b.co' })
+    expect(d.padre).toEqual({ nombre: 'Ana', apellido: 'P', telefono: '0414', cedula: '1', genero: '', relacion: '', email: 'a@b.co' })
     expect(d.hijos[0]).toMatchObject({ nombre: 'Sol', alergias: 'Maní', tieneAlergias: true, tieneNecesidades: null })
   })
 })
@@ -243,6 +245,77 @@ describe('salón', () => {
   it('pairs the registered children with their ids and salón for the check-in', () => {
     const hijos = familiaMesa(completos()).hijos.map((h) => ({ nombre: h.nombre, apellido: h.apellido, fecha_nacimiento: h.fechaNacimiento, grado: null, salon_preferido_id: null, necesidades_especiales: null }))
     expect(seleccionIngreso(hijos, ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: PREESCOLAR, nombre: 'Camila' }])
-    expect(seleccionIngreso([{ ...hijos[0], fecha_nacimiento: '2010-01-01' }], ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila' }])
+    expect(seleccionIngreso([{ ...hijos[0], fecha_nacimiento: '2010-01-01' }], ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', falta: 'revisar' }])
+  })
+})
+
+describe('relación con los niños (S9.8)', () => {
+  it('mamá, papá, abuela, abuelo, tía and tío set the género; tutor and otro clear it', () => {
+    const p = completos().padre
+    expect(conRelacion(p, 'abuela')).toMatchObject({ relacion: 'abuela', genero: 'Femenino' })
+    expect(conRelacion(p, 'tia')).toMatchObject({ relacion: 'tia', genero: 'Femenino' })
+    expect(conRelacion(p, 'papa')).toMatchObject({ relacion: 'papa', genero: 'Masculino' })
+    expect(conRelacion(p, 'abuelo')).toMatchObject({ relacion: 'abuelo', genero: 'Masculino' })
+    expect(conRelacion(p, 'tio')).toMatchObject({ relacion: 'tio', genero: 'Masculino' })
+    expect(conRelacion(p, 'tutor')).toMatchObject({ relacion: 'tutor', genero: '' })
+    expect(conRelacion({ ...p, genero: 'Masculino' }, 'otro')).toMatchObject({ relacion: 'otro', genero: '' })
+  })
+
+  it('tutor or otro asks hombre o mujer on the public page', () => {
+    const d = completos()
+    d.padre = conRelacion(d.padre, 'tutor')
+    expect(faltantes(d, publico)).toEqual([
+      { id: 'rr-padre-genero', seccion: 'tu', etiqueta: '¿Hombre o mujer?', mensaje: 'Elige hombre o mujer.' },
+    ])
+    d.padre.genero = 'Masculino'
+    expect(faltantes(d, publico)).toEqual([])
+  })
+
+  it('an unknown relationship is missing on the public page', () => {
+    const d = completos()
+    d.padre.relacion = 'vecina'
+    expect(faltantes(d, publico).map((x) => x.id)).toEqual(['rr-padre-relacion'])
+  })
+
+  it('the folded line shows the relationship', () => {
+    const d = completos()
+    d.padre = conRelacion(d.padre, 'abuela')
+    expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez · abuela')
+    d.padre = { ...conRelacion(d.padre, 'tutor'), genero: 'Femenino' }
+    expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez · tutor o tutora')
+  })
+
+  it('the public body carries the relationship and the derived género', () => {
+    const d = completos()
+    d.padre = conRelacion(d.padre, 'abuelo')
+    expect(cuerpoPublico(d, '').padre).toMatchObject({ relacion: 'abuelo', genero: 'Masculino' })
+  })
+
+  it('the desk form never carries the relationship', () => {
+    const d = completos()
+    expect(familiaMesa(d).padre).not.toHaveProperty('relacion')
+  })
+})
+
+describe('grado para 5 años o más (S9.8)', () => {
+  it('asks the grade only from 5 years (60 months) with a valid birth date', () => {
+    expect(pideGrado('2021-11-01', HOY)).toBe(true)
+    expect(pideGrado('2021-11-02', HOY)).toBe(false)
+    expect(pideGrado('2022-02-09', HOY)).toBe(false)
+    expect(pideGrado('', HOY)).toBe(false)
+    expect(pideGrado('2099-01-01', HOY)).toBe(false)
+    expect(pideGrado('2010-01-01', HOY)).toBe(false)
+  })
+
+  it('the grade is optional: a 5+ child without grade misses nothing', () => {
+    const d = completos()
+    d.hijos[0].fechaNacimiento = '2019-05-01'
+    expect(faltantes(d, publico)).toEqual([])
+  })
+
+  it('a new birth date under 5 clears the grade; 5+ keeps it', () => {
+    const h = { ...hijoRapidoVacio(), fechaNacimiento: '2019-05-01', grado: '2' }
+    expect(conFechaPublica(h, '2018-01-01', HOY)).toMatchObject({ fechaNacimiento: '2018-01-01', grado: '2' })
+    expect(conFechaPublica(h, '2023-01-01', HOY)).toMatchObject({ fechaNacimiento: '2023-01-01', grado: '' })
   })
 })

@@ -4,6 +4,8 @@
  * capacity warnings read back from it.
  */
 import { fechaServicioPorDefecto } from './fecha'
+import { TEXTO_FALTA } from './familias-vista'
+import type { DatoFaltante } from './sugerir-salon'
 
 export { fechaServicioPorDefecto }
 
@@ -39,14 +41,18 @@ export function resolverServicio(
   return { turnoId: turno?.id ?? null, fecha }
 }
 
-export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string }
+/** `falta`: why a child has no salón (datoFaltante), for the desk message; null or absent when unknown. */
+export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string; falta?: DatoFaltante | null }
 
 export function armarCheckin(
   seleccion: readonly Seleccion[],
 ): { ok: true; ninoIds: string[]; salonIds: string[] } | { ok: false; error: string } {
   if (seleccion.length === 0) return { ok: false, error: 'Elige al menos un niño.' }
   const sinSalon = seleccion.find((s) => !s.salonId)
-  if (sinSalon) return { ok: false, error: `${sinSalon.nombre ?? 'Un niño'} no tiene salón: asígnalo antes de registrar.` }
+  if (sinSalon) {
+    const falta = sinSalon.falta ? TEXTO_FALTA[sinSalon.falta].toLowerCase() : 'falta un dato para ubicarlo'
+    return { ok: false, error: `${sinSalon.nombre ?? 'Un niño'} todavía no tiene salón: ${falta}. Completa el dato o registra a los demás.` }
+  }
   return { ok: true, ninoIds: seleccion.map((s) => s.ninoId), salonIds: seleccion.map((s) => s.salonId as string) }
 }
 

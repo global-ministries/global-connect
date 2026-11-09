@@ -45,6 +45,19 @@ describe('PreregistrosPendientes', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
+  it('shows the relationship next to the parent; an old payload shows only the name (S9.8)', async () => {
+    const abuela = { ...pendiente, id: 'pr2', payload: { ...pendiente.payload, padre: { ...pendiente.payload.padre, nombre: 'María', apellido: 'González', relacion: 'abuela' } } }
+    rpc.mockImplementation((nombre: string) =>
+      Promise.resolve({ data: nombre === 'ninos_preregistros_pendientes' ? [pendiente, abuela] : null, error: null }),
+    )
+    const { unmount } = render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    expect(await screen.findByText('María González · Abuela')).toBeInTheDocument()
+    expect(screen.getByText('Ana Pérez')).toBeInTheDocument()
+    unmount()
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} variante="seccion" />)
+    expect(await screen.findByText('María González · Abuela')).toBeInTheDocument()
+  })
+
   it('reviews, requires the parent gender and confirms with the edited payload', async () => {
     responder()
     const onConfirmado = jest.fn()

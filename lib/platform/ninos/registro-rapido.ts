@@ -20,13 +20,14 @@ import {
   type HijoForm,
 } from './familia'
 import { aplicarNivel, nivelSugerido, valorNivel, type SalonNivel } from './nivel'
-import { erroresPadrePreregistro } from './preregistro'
-import { edadEnMeses, sugerirSalon, type SalonSugerible } from './sugerir-salon'
+import { erroresPadrePreregistro, esRelacionPadre, etiquetaRelacion, generoDeRelacion } from './preregistro'
+import { datoFaltante, edadEnMeses, sugerirSalon, type SalonSugerible } from './sugerir-salon'
 
 export type ModoRegistro = 'publico' | 'mesa'
 export type SeccionRegistro = 'tu' | 'ninos' | 'retiran' | 'despues'
 
-export type PadreRapido = { nombre: string; apellido: string; telefono: string; genero: string; cedula: string; email: string }
+/** `relacion` (public page only, S9.8): a RELACIONES_PADRE value or ''; the desk keeps asking the género. */
+export type PadreRapido = { nombre: string; apellido: string; telefono: string; genero: string; relacion: string; cedula: string; email: string }
 
 export type HijoRapido = HijoForm & {
   /** Explicit Sí / No; null = not answered (required on the public page only). */
@@ -45,7 +46,7 @@ export type DatosRapido = { campusId: string; padre: PadreRapido; hijos: HijoRap
  */
 export type ContextoRegistro = { modo: ModoRegistro; hoy: string; campusIds?: readonly string[]; padreConocido?: boolean; padreNombre?: string }
 
-type CampoHijo = 'nombre' | 'apellido' | 'nacimiento' | 'genero' | 'tiene-alergias' | 'alergias' | 'tiene-nee' | 'nee'
+type CampoHijo = 'nombre' | 'apellido' | 'nacimiento' | 'genero' | 'grado' | 'tiene-alergias' | 'alergias' | 'tiene-nee' | 'nee'
 
 export const idRapido = {
   campus: 'rr-campus',
@@ -68,7 +69,7 @@ export function datosIniciales({ campusId = '', form, email = '' }: { campusId?:
   const p = form?.padre
   return {
     campusId,
-    padre: { nombre: p?.nombre ?? '', apellido: p?.apellido ?? '', telefono: p?.telefono ?? '', cedula: p?.cedula ?? '', genero: p?.genero ?? '', email },
+    padre: { nombre: p?.nombre ?? '', apellido: p?.apellido ?? '', telefono: p?.telefono ?? '', cedula: p?.cedula ?? '', genero: p?.genero ?? '', relacion: '', email },
     hijos: form?.hijos.length ? form.hijos.map(hijoRapidoDesde) : [hijoRapidoVacio()],
     autorizados: form?.autorizados ?? [],
     fotos: null,
@@ -78,6 +79,25 @@ export function datosIniciales({ campusId = '', form, email = '' }: { campusId?:
 export const autorizadoEnBlanco = (a: AutorizadoForm) => !a.nombre.trim() && !a.telefono.trim() && !a.relacion.trim()
 
 const esGenero = (g: string) => (GENEROS as readonly string[]).includes(g)
+
+/** A new relationship sets the género it implies; tutor / otro clear it, so «¿Hombre o mujer?» is answered again. */
+export function conRelacion(padre: PadreRapido, relacion: string): PadreRapido {
+  return { ...padre, relacion, genero: generoDeRelacion(relacion) ?? '' }
+}
+
+/** Tutor / otro (and nothing chosen yet) do not imply a género. */
+export const relacionPideGenero = (relacion: string) => esRelacionPadre(relacion) && generoDeRelacion(relacion) === null
+
+/** «¿En qué grado está?» only from 5 years (60 months) with a valid birth date in range (S9.8). */
+export function pideGrado(fechaNacimiento: string, hoy: string): boolean {
+  if (!fechaPasadaValida(fechaNacimiento, hoy) || !enRangoNinos(fechaNacimiento, hoy)) return false
+  return (edadEnMeses(fechaNacimiento, hoy) ?? 0) >= 60
+}
+
+/** Public page: a new birth date under 5 drops the grade, as its question hides. */
+export function conFechaPublica(h: HijoRapido, fechaNacimiento: string, hoy: string): HijoRapido {
+  return { ...h, fechaNacimiento, grado: pideGrado(fechaNacimiento, hoy) ? h.grado : '' }
+}
 
 export type Faltante = { id: string; seccion: SeccionRegistro; etiqueta: string; mensaje: string }
 
@@ -96,13 +116,19 @@ export function faltantes(d: DatosRapido, ctx: ContextoRegistro): Faltante[] {
   if (pub && ctx.campusIds && !ctx.campusIds.includes(d.campusId)) add(idRapido.campus, 'tu', 'Tu campus', 'Elige tu campus.')
   if (!ctx.padreConocido) {
     const e = erroresPadrePreregistro(d.padre)
-    const [nom, ape, tel, gen] = pub
-      ? ['Tu nombre', 'Tu apellido', 'Tu teléfono', 'Si eres mamá o papá']
-      : ['Nombre del representante', 'Apellido del representante', 'Teléfono del representante', 'Género del representante']
+    const [nom, ape, tel] = pub
+      ? ['Tu nombre', 'Tu apellido', 'Tu teléfono']
+      : ['Nombre del representante', 'Apellido del representante', 'Teléfono del representante']
     if (e.nombre) add(idRapido.padre('nombre'), 'tu', nom, pub ? e.nombre : 'Escribe el nombre.')
     if (e.apellido) add(idRapido.padre('apellido'), 'tu', ape, pub ? e.apellido : 'Escribe el apellido.')
     if (e.telefono) add(idRapido.padre('telefono'), 'tu', tel, e.telefono)
-    if (!esGenero(d.padre.genero)) add(idRapido.padre('genero'), 'tu', gen, 'Elige mamá o papá.')
+    if (!pub) {
+      if (!esGenero(d.padre.genero)) add(idRapido.padre('genero'), 'tu', 'Género del representante', 'Elige mamá o papá.')
+    } else if (!esRelacionPadre(d.padre.relacion)) {
+      add(idRapido.padre('relacion'), 'tu', 'Tu relación con los niños', 'Elige tu relación con los niños.')
+    } else if (!esGenero(d.padre.genero)) {
+      add(idRapido.padre('genero'), 'tu', '¿Hombre o mujer?', 'Elige hombre o mujer.')
+    }
   }
   if (d.hijos.length === 0) add(idRapido.agregarHijo, 'ninos', 'Un niño', 'Agrega al menos un niño.')
   d.hijos.forEach((h, i) => {
@@ -157,7 +183,8 @@ function edadHijo(fecha: string, hoy: string): string | null {
 /** The one line of a folded section; `numero` is shown in mono. */
 export function resumenSeccion(d: DatosRapido, s: SeccionRegistro, ctx: ContextoRegistro): { texto: string; numero?: string } {
   if (s === 'tu') {
-    const rol = d.padre.genero === 'Femenino' ? 'mamá' : d.padre.genero === 'Masculino' ? 'papá' : ''
+    const relacion = ctx.modo === 'publico' ? etiquetaRelacion(d.padre.relacion) : null
+    const rol = relacion ? relacion.toLowerCase() : d.padre.genero === 'Femenino' ? 'mamá' : d.padre.genero === 'Masculino' ? 'papá' : ''
     return { texto: [`${d.padre.nombre.trim()} ${d.padre.apellido.trim()}`.trim(), rol].filter(Boolean).join(' · '), numero: d.padre.telefono.trim() }
   }
   if (s === 'ninos') {
@@ -194,7 +221,7 @@ export function aHijoForm(h: HijoRapido, fotos?: boolean | null): HijoForm {
   }
 }
 
-/** The POST /api/ninos/preregistro body (same shape as the old wizard, plus the parent género). */
+/** The POST /api/ninos/preregistro body (same shape as the old wizard, plus the parent género and relationship). */
 export function cuerpoPublico(d: DatosRapido, sitioWeb: string) {
   const autorizados = d.autorizados.filter((a) => !autorizadoEnBlanco(a))
   return { campusId: d.campusId, padre: { ...d.padre }, hijos: d.hijos.map((h) => aHijoForm(h, d.fotos)), autorizados, sitioWeb }
@@ -237,6 +264,9 @@ type HijoRegistrado = { nombre: string; fecha_nacimiento: string; grado: number 
 export function seleccionIngreso(hijos: readonly HijoRegistrado[], ids: readonly string[], salones: readonly SalonSugerible[], fecha: string): Seleccion[] {
   return hijos.map((h, i) => {
     const comoForm = { fechaNacimiento: h.fecha_nacimiento, grado: h.grado === null ? '' : String(h.grado), salonPreferidoId: h.salon_preferido_id ?? '', necesidadesEspeciales: h.necesidades_especiales ?? '' }
-    return { ninoId: ids[i], salonId: salonVivo(comoForm, salones, fecha)?.id ?? null, nombre: h.nombre }
+    const salonId = salonVivo(comoForm, salones, fecha)?.id ?? null
+    if (salonId) return { ninoId: ids[i], salonId, nombre: h.nombre }
+    const falta = datoFaltante({ fechaNacimiento: h.fecha_nacimiento || null, grado: h.grado, necesidadesEspeciales: comoForm.necesidadesEspeciales.trim() !== '', fechaServicio: fecha, salones })
+    return { ninoId: ids[i], salonId, nombre: h.nombre, falta }
   })
 }

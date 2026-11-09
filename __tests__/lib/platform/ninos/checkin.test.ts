@@ -64,10 +64,17 @@ describe('armarCheckin', () => {
   it('refuses an empty selection', () => {
     expect(armarCheckin([])).toEqual({ ok: false, error: 'Elige al menos un niño.' })
   })
-  it('refuses a child without a room (D4)', () => {
+  it('refuses a child without a room with the missing data in plain words (D4, S9.8)', () => {
     expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis' }])).toEqual({
       ok: false,
-      error: 'Luis no tiene salón: asígnalo antes de registrar.',
+      error: 'Luis todavía no tiene salón: falta un dato para ubicarlo. Completa el dato o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', falta: 'grado' }])).toEqual({
+      ok: false,
+      error: 'Luis todavía no tiene salón: falta el grado. Completa el dato o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', falta: 'revisar' }])).toMatchObject({
+      error: 'Luis todavía no tiene salón: revisa la fecha de nacimiento o el grado: no corresponde a ningún salón. Completa el dato o registra a los demás.',
     })
   })
 })

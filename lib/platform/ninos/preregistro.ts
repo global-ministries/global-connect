@@ -28,6 +28,34 @@ export const LIMITES_PREREGISTRO = {
   texto: 500,
 } as const
 
+/**
+ * Who the registering adult is to the children (S9.8, L40). Stable values in
+ * the stored payload; `genero` is implied, except for tutor / otro, where the
+ * adult says it («¿Hombre o mujer?»). The RPC ignores the key.
+ */
+export const RELACIONES_PADRE = [
+  { valor: 'mama', etiqueta: 'Mamá', genero: 'Femenino' },
+  { valor: 'papa', etiqueta: 'Papá', genero: 'Masculino' },
+  { valor: 'abuela', etiqueta: 'Abuela', genero: 'Femenino' },
+  { valor: 'abuelo', etiqueta: 'Abuelo', genero: 'Masculino' },
+  { valor: 'tia', etiqueta: 'Tía', genero: 'Femenino' },
+  { valor: 'tio', etiqueta: 'Tío', genero: 'Masculino' },
+  { valor: 'tutor', etiqueta: 'Tutor o tutora', genero: null },
+  { valor: 'otro', etiqueta: 'Otro', genero: null },
+] as const satisfies readonly { valor: string; etiqueta: string; genero: Genero | null }[]
+
+export type RelacionPadre = (typeof RELACIONES_PADRE)[number]['valor']
+
+const relacionDe = (v: unknown) => RELACIONES_PADRE.find((r) => r.valor === v)
+
+export const esRelacionPadre = (v: unknown): v is RelacionPadre => relacionDe(v) !== undefined
+
+/** «Abuela», «Tutor o tutora»…; null for a value that is not a known relationship. */
+export const etiquetaRelacion = (v: unknown): string | null => relacionDe(v)?.etiqueta ?? null
+
+/** The género a relationship implies; null for tutor / otro (and unknown values). */
+export const generoDeRelacion = (v: unknown): Genero | null => relacionDe(v)?.genero ?? null
+
 export type PadrePreregistro = {
   nombre: string
   apellido: string
@@ -36,6 +64,8 @@ export type PadrePreregistro = {
   cedula: string | null
   /** Optional on the public form (S6); when null the anfitrión picks it when confirming. */
   genero: Genero | null
+  /** S9.8; null when not given or unknown (and in payloads stored before it). */
+  relacion: RelacionPadre | null
 }
 
 export type PreregistroPayload = {
@@ -152,6 +182,7 @@ export function parsePreregistro(body: unknown, hoy: string): ResultadoPreregist
   const email = cadena(padre, 'email').trim().toLowerCase()
   const cedula = cadena(padre, 'cedula').trim()
   const genero = generoPadre(padre)
+  const relacion = cadena(padre, 'relacion')
   errores.push(...Object.values(erroresPadrePreregistro(padre)))
 
   // Children and pickup people: the same rules as the table form. The parent
@@ -172,7 +203,7 @@ export function parsePreregistro(body: unknown, hoy: string): ResultadoPreregist
     honeypot,
     campusId,
     payload: {
-      padre: { nombre, apellido, telefono, email: email || null, cedula: cedula || null, genero: genero || null },
+      padre: { nombre, apellido, telefono, email: email || null, cedula: cedula || null, genero: genero || generoDeRelacion(relacion), relacion: esRelacionPadre(relacion) ? relacion : null },
       hijos: familia.payload.hijos,
       autorizados: familia.payload.autorizados,
     },
@@ -187,8 +218,8 @@ function booleano(v: unknown): boolean | null {
   return typeof v === 'boolean' ? v : null
 }
 
-/** The review form at the table, prefilled from a stored payload (defensive: it is jsonb). */
-export function formDesdePreregistro(payload: PreregistroPayload): { form: FamiliaForm; email: string } {
+/** The review form at the table, prefilled from a stored payload (defensive: it is jsonb), plus the email and the parent's relationship. */
+export function formDesdePreregistro(payload: PreregistroPayload): { form: FamiliaForm; email: string; relacion: RelacionPadre | null } {
   const p: Objeto = esObjeto(payload) ? (payload as unknown as Objeto) : {}
   const padre: Objeto = esObjeto(p.padre) ? p.padre : {}
   const hijos = (Array.isArray(p.hijos) ? p.hijos : []).filter(esObjeto)
@@ -219,7 +250,7 @@ export function formDesdePreregistro(payload: PreregistroPayload): { form: Famil
     })),
     autorizados: autorizados.map((a) => ({ nombre: texto(a.nombre), telefono: texto(a.telefono), relacion: texto(a.relacion) })),
   }
-  return { form, email: texto(padre.email) }
+  return { form, email: texto(padre.email), relacion: esRelacionPadre(padre.relacion) ? padre.relacion : null }
 }
 
 /** A person that looks like child `indice` of a request made from an account (same name key and birth date). */

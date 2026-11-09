@@ -8,6 +8,7 @@ import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema,
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
 import {
   conExistentes,
+  etiquetaRelacion,
   formDesdePreregistro,
   parseCuentasPreregistro,
   type CuentaPreregistro,
@@ -81,6 +82,12 @@ async function leerPendientes(): Promise<Lista> {
 }
 
 const nombreCompleto = (p: { nombre: string; apellido: string }) => `${p.nombre} ${p.apellido}`.trim()
+
+/** «María González · Abuela» when the QR form said the relationship (S9.8). */
+const conRelacion = (nombre: string, relacion: string | null) => {
+  const etiqueta = etiquetaRelacion(relacion)
+  return etiqueta ? `${nombre} · ${etiqueta}` : nombre
+}
 
 /** "Pre-registros pendientes" of the caller's campuses (N8), shown at check-in and Familias. */
 export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, onAbrirAtendido, variante = 'tarjeta', ocultarIds = [] }: Props) {
@@ -307,7 +314,7 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
         {visibles.length > 0 && (
           <ListaInset etiqueta="Pre-registros por QR">
             {visibles.map((p) => {
-              const { form } = formDesdePreregistro(p.payload)
+              const { form, relacion } = formDesdePreregistro(p.payload)
               const cuenta = cuentas[p.id]
               const padre = cuenta ? cuenta.solicitante : form.padre
               const nombre = nombreCompleto(padre)
@@ -316,7 +323,7 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
                 <li key={p.id} className={`${CLASE_LINEA_INSET} flex min-h-16 min-w-0 items-center gap-3 px-3.5 py-2.5`}>
                   <Avatar nombre={padre.nombre} apellido={padre.apellido} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-base font-semibold text-foreground">{nombre}</span>
+                    <span className="block truncate text-base font-semibold text-foreground">{conRelacion(nombre, relacion)}</span>
                     <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
                       {n} {n === 1 ? 'niño' : 'niños'} · <span className="font-mono tabular-nums">{horaEnCaracas(p.created_at)}</span>
                       {cuenta && ' · desde su cuenta'}
@@ -352,7 +359,7 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
       {avisos}
       <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
         {lista.map((p) => {
-          const { form } = formDesdePreregistro(p.payload)
+          const { form, relacion } = formDesdePreregistro(p.payload)
           const cuenta = cuentas[p.id]
           return (
             <li key={p.id}>
@@ -362,7 +369,7 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
                 className="flex min-h-[44px] w-full flex-col rounded-xl border border-border bg-card/50 p-3 text-left transition-colors hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/40"
               >
                 <span className="font-medium text-foreground">
-                  {cuenta ? nombreCompleto(cuenta.solicitante) : `${form.padre.nombre} ${form.padre.apellido}`}
+                  {conRelacion(cuenta ? nombreCompleto(cuenta.solicitante) : `${form.padre.nombre} ${form.padre.apellido}`, relacion)}
                 </span>
                 {cuenta && (
                   <span className="flex items-center gap-1 text-xs font-medium text-[var(--brand-primary)]">

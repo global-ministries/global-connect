@@ -137,8 +137,21 @@ describe('RegistroMesa', () => {
     render(<RegistroMesa salones={[]} ingreso={ingreso} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
     llenar()
     fireEvent.click(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
-    expect(await screen.findByText('La familia quedó registrada, pero no se pudo dar ingreso: Camila no tiene salón: asígnalo antes de registrar.')).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        'La familia quedó registrada, pero no se pudo dar ingreso: Camila todavía no tiene salón: revisa la fecha de nacimiento o el grado: no corresponde a ningún salón. Completa el dato o registra a los demás.',
+      ),
+    ).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps «Género del representante» (no relationship) and the grade only in the ficha (S9.8)', () => {
+    render(<RegistroMesa salones={salones} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    expect(screen.getByRole('group', { name: 'Género del representante' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Tu relación con los niños')).not.toBeInTheDocument()
+    escribir('Fecha de nacimiento del niño 1', '2019-05-01')
+    expect(screen.queryByText('¿En qué grado está?')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('¿En qué grado está el niño 1?')).not.toBeInTheDocument()
   })
 
   it('"Solo registrar" registers without the check-in', async () => {

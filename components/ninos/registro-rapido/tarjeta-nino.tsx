@@ -10,11 +10,11 @@
 import { AlertTriangle, X } from 'lucide-react'
 
 import { PuntoEstado } from '@/components/ui/punto-estado'
-import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { estadoCupo, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
-import { enRangoNinos, fechaPasadaValida, type Genero } from '@/lib/platform/ninos/familia'
+import { GRADOS, enRangoNinos, fechaPasadaValida, type Genero } from '@/lib/platform/ninos/familia'
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
-import { avisoFueraDeRango, idRapido, salonVivo, type HijoRapido, type ModoRegistro } from '@/lib/platform/ninos/registro-rapido'
+import { avisoFueraDeRango, idRapido, pideGrado, salonVivo, type HijoRapido, type ModoRegistro } from '@/lib/platform/ninos/registro-rapido'
 
 import { Eleccion, SI_NO, siNoValor } from './piezas'
 
@@ -22,6 +22,9 @@ const GENEROS_HIJO: readonly { valor: Genero; etiqueta: string }[] = [
   { valor: 'Masculino', etiqueta: 'Niño' },
   { valor: 'Femenino', etiqueta: 'Niña' },
 ]
+
+// S9.8: the parent may not know the school's name for "no grade".
+const OPCIONES_GRADO = GRADOS.map((g) => ({ valor: g.valor, etiqueta: g.valor === '' ? 'No sé / todavía no va a la escuela' : g.label }))
 
 const TONO_CUPO = { libre: 'success', casi: 'warning', lleno: 'danger' } as const
 
@@ -141,6 +144,18 @@ export function TarjetaNino({ indice, hijo, modo, hoy, errores, salones, ocupaci
             error={errores[id('genero')]}
           />
         </div>
+        {modo === 'publico' && pideGrado(hijo.fechaNacimiento, hoy) && (
+          <div className="grid min-w-0 gap-2 sm:max-w-sm">
+            <SelectSistema
+              id={id('grado')}
+              label="¿En qué grado está?"
+              aria-label={`¿En qué grado está el niño ${n}?`}
+              opciones={OPCIONES_GRADO}
+              value={hijo.grado}
+              onValueChange={(grado) => onCambiar({ grado })}
+            />
+          </div>
+        )}
         <SalonEnVivo hijo={hijo} modo={modo} hoy={hoy} salones={salones} ocupacion={ocupacion} />
         <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <Eleccion
