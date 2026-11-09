@@ -3,22 +3,30 @@
 /**
  * Estudiantes › En vivo — "Visitantes de hoy" (gap G2 of
  * design/estudiantes-asistencia, `FranjaVisitantes` under "Planned
- * components" in docs/design-system/components.md; Q5): the visitors present
- * at this meeting, newest first, as inset rows on every width (avatar
- * initials, name, "Nuevo" for a first visit, group and año, who registered
- * them and when). Phones show three and "Ver los N visitantes"; the rest are
- * hidden with CSS, so desktop always shows them all. A row opens its group's
- * detail. Not a live region: new visitors are announced by the toast.
+ * components" in docs/design-system/components.md; Q5), in the planning
+ * style of artboards 04 / 05 of design/estudiantes-dps (B23, B27; S6): the
+ * visitors present at this meeting, newest first (avatar, name, "Nuevo" for
+ * a first visit, group and año, who registered them and when). A row opens
+ * its group's detail. Not a live region: new visitors are announced by the
+ * toast.
+ *
+ * - `VisitantesBarra`: the compact list of the side bar (from md).
+ * - `VisitantesSeccion`: the phone section before the groups, under a
+ *   sticky band: three rows and "Ver los N visitantes" (S6).
+ *
+ * `AvatarIniciales` (40px, brand tint) stays here for the other Estudiantes
+ * drawers that use it.
  */
 import { useState, type ReactElement } from 'react'
 import { ChevronRight } from 'lucide-react'
 
 import { BadgeSistema } from '@/components/ui/sistema-diseno'
+import { AvatarIniciales as AvatarPlan } from '@/components/grupos-vida/planner/avatar-iniciales'
 import type { VisitanteHoy } from '@/lib/platform/estudiantes/vivo-datos'
 import { lineaVisitante } from '@/lib/platform/estudiantes/vivo-vista'
 import { cn } from '@/lib/utils'
 
-import { ListaInset, TituloSeccion } from '../filas-inset'
+import { BandaSeccion, CLASE_LINEA, TablaPlanificacion } from '../planificacion/region-datos'
 
 /** Rows shown on phones before "Ver los N visitantes". */
 export const CORTE_VISITANTES_MOVIL = 3
@@ -45,75 +53,97 @@ export function AvatarIniciales({ nombre }: { readonly nombre: string }): ReactE
   )
 }
 
-export interface FranjaVisitantesProps {
+const claveVisitante = (v: VisitanteHoy): string => `${v.personaId}|${v.grupoId ?? ''}`
+
+const etiquetaVisitante = (v: VisitanteHoy): string => [v.nombre, v.esNuevo ? 'primera vez' : null, grupoYAnio(v), lineaVisitante(v)].filter(Boolean).join(', ')
+
+function Contenido({ visitante: v }: { readonly visitante: VisitanteHoy }): ReactElement {
+  const detalle = grupoYAnio(v)
+  const linea = lineaVisitante(v)
+  return (
+    <span className="min-w-0 flex-1" aria-hidden="true">
+      <span className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate text-[15px] font-semibold text-foreground md:text-[13px]">{v.nombre}</span>
+        {v.esNuevo && (
+          <BadgeSistema variante="info" tamaño="sm" className="shrink-0">
+            Nuevo
+          </BadgeSistema>
+        )}
+      </span>
+      {detalle && <span className="block truncate text-[13px] text-muted-foreground md:text-xs">{detalle}</span>}
+      {linea && <span className="block truncate text-[13px] text-muted-foreground md:text-xs">{linea}</span>}
+    </span>
+  )
+}
+
+export interface VisitantesHoyProps {
   readonly visitantes: readonly VisitanteHoy[]
   readonly onAbrirGrupo: (grupoId: string) => void
 }
 
-export function FranjaVisitantes({ visitantes, onAbrirGrupo }: FranjaVisitantesProps): ReactElement {
+const VACIO = 'Todavía no hay visitantes. Aparecen aquí cuando un líder registra a alguien nuevo.'
+
+export function VisitantesBarra({ visitantes, onAbrirGrupo }: VisitantesHoyProps): ReactElement {
+  return (
+    <>
+      <ul aria-label="Visitantes de hoy" className="[&>li+li]:border-t [&>li+li]:border-border/60">
+        {visitantes.length === 0 && <li className="py-1.5 text-[13px] text-muted-foreground">{VACIO}</li>}
+        {visitantes.map((v) => (
+          <li key={claveVisitante(v)}>
+            <button
+              type="button"
+              disabled={!v.grupoId}
+              onClick={() => v.grupoId && onAbrirGrupo(v.grupoId)}
+              aria-label={etiquetaVisitante(v)}
+              className="focus-ring flex w-full min-w-0 items-start gap-2.5 rounded-md px-1 py-1.5 text-left transition-colors hover:bg-accent disabled:cursor-default disabled:hover:bg-transparent"
+            >
+              <AvatarPlan nombres={[v.nombre]} className="mt-0.5" />
+              <Contenido visitante={v} />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-xs text-muted-foreground">El más nuevo primero · se actualiza solo</p>
+    </>
+  )
+}
+
+export function VisitantesSeccion({ visitantes, onAbrirGrupo }: VisitantesHoyProps): ReactElement {
   const [todas, setTodas] = useState(false)
-  const ocultas = todas ? 0 : Math.max(0, visitantes.length - CORTE_VISITANTES_MOVIL)
+  const visibles = todas ? visitantes : visitantes.slice(0, CORTE_VISITANTES_MOVIL)
 
   return (
-    <section aria-labelledby="vivo-visitantes" className="space-y-3">
-      <div className="px-1 md:px-0">
-        <TituloSeccion id="vivo-visitantes" texto="Visitantes de hoy" cantidad={visitantes.length} pista={<span className="hidden md:inline">El más nuevo primero · se actualiza solo</span>} />
-      </div>
-      <ListaInset etiqueta="Visitantes de hoy">
-        {visitantes.length === 0 && (
-          <li className="px-3.5 py-3">
-            <p className="text-[15px] font-semibold text-foreground">Todavía no hay visitantes</p>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">Aparecen aquí cuando un líder registra a alguien nuevo.</p>
-          </li>
-        )}
-        {visitantes.map((v, i) => {
-          const detalle = grupoYAnio(v)
-          const linea = lineaVisitante(v)
-          return (
-            <li
-              key={`${v.personaId}|${v.grupoId ?? ''}`}
-              className={cn(
-                'relative before:absolute before:top-0 before:right-0 before:left-[66px] before:h-px before:bg-border/60 first:before:hidden',
-                !todas && i >= CORTE_VISITANTES_MOVIL && 'max-md:hidden',
-              )}
-            >
+    <TablaPlanificacion>
+      <section aria-labelledby="vivo-visitantes-movil">
+        <BandaSeccion id="vivo-visitantes-movil" titulo="Visitantes de hoy" cuenta={visitantes.length} />
+        <ul aria-label="Visitantes de hoy">
+          {visitantes.length === 0 && <li className="px-4 py-3.5 text-[13px] text-muted-foreground">{VACIO}</li>}
+          {visibles.map((v) => (
+            <li key={claveVisitante(v)} className={CLASE_LINEA}>
               <button
                 type="button"
                 disabled={!v.grupoId}
                 onClick={() => v.grupoId && onAbrirGrupo(v.grupoId)}
-                aria-label={[v.nombre, v.esNuevo ? 'primera vez' : null, detalle, linea].filter(Boolean).join(', ')}
-                className="focus-ring relative flex min-h-[64px] w-full min-w-0 touch-manipulation items-center gap-3 px-3.5 py-2 text-left transition-colors active:bg-accent disabled:cursor-default md:hover:bg-accent/50"
+                aria-label={etiquetaVisitante(v)}
+                className="focus-ring flex min-h-16 w-full min-w-0 touch-manipulation items-center gap-3 py-2 pr-2 pl-4 text-left transition-colors active:bg-accent disabled:cursor-default"
               >
-                <AvatarIniciales nombre={v.nombre} />
-                <span className="min-w-0 flex-1" aria-hidden="true">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate text-[15px] font-semibold text-foreground">{v.nombre}</span>
-                    {v.esNuevo && (
-                      <BadgeSistema variante="info" tamaño="sm" className="shrink-0">
-                        Nuevo
-                      </BadgeSistema>
-                    )}
-                  </span>
-                  {detalle && <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">{detalle}</span>}
-                  {linea && <span className="block truncate text-[13px] text-muted-foreground">{linea}</span>}
-                </span>
+                <AvatarPlan nombres={[v.nombre]} className="size-8 text-xs" />
+                <Contenido visitante={v} />
                 {v.grupoId && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
               </button>
             </li>
-          )
-        })}
-        {ocultas > 0 && (
-          <li className="relative before:absolute before:top-0 before:right-0 before:left-3.5 before:h-px before:bg-border/60 md:hidden">
-            <button
-              type="button"
-              onClick={() => setTodas(true)}
-              className="focus-ring flex min-h-[52px] w-full touch-manipulation items-center px-3.5 text-left text-[15px] font-semibold text-brand-text transition-colors active:bg-accent"
-            >
-              {`Ver los ${visitantes.length} visitantes`}
-            </button>
-          </li>
+          ))}
+        </ul>
+        {!todas && visitantes.length > CORTE_VISITANTES_MOVIL && (
+          <button
+            type="button"
+            onClick={() => setTodas(true)}
+            className={cn('focus-ring flex min-h-[52px] w-full touch-manipulation items-center border-t border-border/60 px-4 text-left text-[15px] font-semibold text-brand-text transition-colors active:bg-accent')}
+          >
+            {`Ver los ${visitantes.length} visitantes`}
+          </button>
         )}
-      </ListaInset>
-    </section>
+      </section>
+    </TablaPlanificacion>
   )
 }

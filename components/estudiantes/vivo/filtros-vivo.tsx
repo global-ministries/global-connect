@@ -1,34 +1,31 @@
 'use client'
 
 /**
- * Estudiantes › En vivo — the filters sheet (artboards 03 / 04, `#filtros`):
- * the canonical `HojaFiltros` with Estado del grupo (Todos / Sin marcar /
- * Faltan / Completo, with counts; single choice) and Ordenar por. Filters
- * apply live; "Limpiar" resets both, "Ver N grupos" only closes.
+ * Estudiantes › En vivo — the phone filters sheet (artboard 05 of
+ * design/estudiantes-dps, `#filtros`; B27): the canonical `HojaFiltros` with
+ * Ámbito (only with more than one), Área (Todas and each sub-área, only with
+ * more than one) and Ordenar por. Estado del grupo lives in the toolbar and
+ * «Grupos sin marcar» in its metric (S6). Filters apply live; "Limpiar"
+ * resets Área and Ordenar por, "Ver N grupos" only closes.
  */
 import type { ReactElement } from 'react'
 
 import { GrupoFiltro, HojaFiltros } from '@/components/ui/hoja-filtros'
 import { GrupoPastillas, PastillaFiltro } from '@/components/ui/PastillasFiltro'
-import {
-  ESTADOS_FILTRO,
-  ETIQUETA_ESTADO_FILTRO,
-  ETIQUETA_ORDEN_VIVO,
-  LIMPIAR_HOJA_VIVO,
-  ORDENES_VIVO,
-  type FiltrosVivo,
-  type VistaVivo,
-} from '@/lib/platform/estudiantes/vivo-vista'
+import { ETIQUETA_ORDEN_VIVO, LIMPIAR_HOJA_VIVO, ORDENES_VIVO, type FiltrosVivo, type OpcionSelector, type VistaVivo } from '@/lib/platform/estudiantes/vivo-vista'
 
 export interface HojaFiltrosVivoProps {
   readonly vista: VistaVivo
+  readonly ambitos: readonly OpcionSelector[]
+  readonly ambito: string
+  readonly onAmbito: (valor: string) => void
   readonly abierta: boolean
   readonly onCambioAbierta: (abierta: boolean) => void
   readonly onCambio: (parche: Partial<FiltrosVivo>) => void
 }
 
-export function HojaFiltrosVivo({ vista, abierta, onCambioAbierta, onCambio }: HojaFiltrosVivoProps): ReactElement {
-  const { filtros, cuentasEstado } = vista
+export function HojaFiltrosVivo({ vista, ambitos, ambito, onAmbito, abierta, onCambioAbierta, onCambio }: HojaFiltrosVivoProps): ReactElement {
+  const { filtros } = vista
   return (
     <HojaFiltros
       abierta={abierta}
@@ -37,19 +34,26 @@ export function HojaFiltrosVivo({ vista, abierta, onCambioAbierta, onCambio }: H
       unidad={{ singular: 'grupo', plural: 'grupos' }}
       onLimpiar={() => onCambio(LIMPIAR_HOJA_VIVO)}
     >
-      <GrupoFiltro titulo="Estado del grupo">
-        <GrupoPastillas etiqueta="Filtrar por estado del grupo">
-          {ESTADOS_FILTRO.map((estado) => (
-            <PastillaFiltro
-              key={estado}
-              etiqueta={ETIQUETA_ESTADO_FILTRO[estado]}
-              cantidad={cuentasEstado[estado]}
-              activa={filtros.estado === estado}
-              onClick={() => onCambio({ estado })}
-            />
-          ))}
-        </GrupoPastillas>
-      </GrupoFiltro>
+      {ambitos.length > 1 && (
+        <GrupoFiltro titulo="Ámbito">
+          <GrupoPastillas etiqueta="Ámbito">
+            {ambitos.map((a) => (
+              <PastillaFiltro key={a.valor} etiqueta={a.etiqueta} activa={a.valor === ambito} onClick={() => a.valor !== ambito && onAmbito(a.valor)} />
+            ))}
+          </GrupoPastillas>
+        </GrupoFiltro>
+      )}
+
+      {vista.subareas.length > 1 && (
+        <GrupoFiltro titulo="Área">
+          <GrupoPastillas etiqueta="Área">
+            <PastillaFiltro etiqueta="Todas" activa={filtros.area === null} onClick={() => onCambio({ area: null })} />
+            {vista.subareas.map((area) => (
+              <PastillaFiltro key={area} etiqueta={area} activa={filtros.area === area} onClick={() => onCambio({ area })} />
+            ))}
+          </GrupoPastillas>
+        </GrupoFiltro>
+      )}
 
       <GrupoFiltro titulo="Ordenar por">
         <GrupoPastillas etiqueta="Ordenar la lista">
