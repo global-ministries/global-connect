@@ -39,7 +39,7 @@ export function MetricasVivo({ metricas, onAlternar }: { readonly metricas: read
         >
           <span className="flex min-w-0 items-center gap-1.5 text-[13px] font-medium text-muted-foreground md:text-foreground">
             <span aria-hidden="true" className={cn('size-2 shrink-0 rounded-full', FONDO_TONO[m.tono])} />
-            <span className="truncate">{m.etiqueta}</span>
+            <span className="min-w-0 break-words">{m.etiqueta}</span>
           </span>
           <span className="col-span-2 row-start-2 font-mono text-xl font-semibold tabular-nums text-foreground md:col-span-1 md:col-start-2 md:row-start-1 md:text-sm">
             {m.valor}
@@ -54,7 +54,7 @@ export function MetricasVivo({ metricas, onAlternar }: { readonly metricas: read
 
 export function AreasVivo({ areas, onElegir }: { readonly areas: readonly AreaVivo[]; readonly onElegir: (id: string) => void }): ReactElement {
   return (
-    <div className="grid grid-cols-2 gap-2 min-[1100px]:grid-cols-1">
+    <div className="grid gap-2 max-[1099px]:grid-cols-2">
       {areas.map((a) => {
         const ancho = (n: number): string => `${a.inscritos > 0 ? (n / a.inscritos) * 100 : 0}%`
         return (

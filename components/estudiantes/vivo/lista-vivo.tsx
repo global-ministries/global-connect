@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 
 import { BandaSeccion, CLASE_AVATAR_FILA, CLASE_FILA, CLASE_LINEA, CabeceraColumnas, TablaPlanificacion } from '../planificacion/region-datos'
 
-const COLUMNAS = 'md:grid-cols-[minmax(0,1.4fr)_150px_80px_120px_16px] min-[1100px]:grid-cols-[minmax(0,1.6fr)_180px_90px_130px_16px]'
+const COLUMNAS = 'md:max-[1099px]:grid-cols-[minmax(0,1.4fr)_150px_80px_120px_16px] min-[1100px]:grid-cols-[minmax(0,1.6fr)_180px_90px_130px_16px]'
 
 export const lideresTexto = (g: GrupoVivo): string => (g.lideres.length > 0 ? g.lideres.join(', ') : 'Sin líder')
 

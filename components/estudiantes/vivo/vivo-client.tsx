@@ -245,8 +245,8 @@ function VivoReunion({ opciones, opcion, datos: datosIniciales, error, filtrosIn
         <aside
           aria-label="Resumen de la reunión"
           className={cn(
-            'px-4 pb-3 sm:px-6 md:grid md:grid-cols-2 md:border-b md:border-border md:bg-card md:p-0',
-            'min-[1100px]:sticky min-[1100px]:top-16 min-[1100px]:block min-[1100px]:max-h-[calc(100dvh-4rem)] min-[1100px]:min-h-[calc(100dvh-9rem)] min-[1100px]:overflow-auto min-[1100px]:border-r min-[1100px]:border-b-0',
+            'px-4 pb-3 sm:px-6 md:border-b md:border-border md:bg-card md:p-0 md:max-[1099px]:grid md:max-[1099px]:grid-cols-2',
+            'min-[1100px]:sticky min-[1100px]:top-16 min-[1100px]:max-h-[calc(100dvh-4rem)] min-[1100px]:min-h-[calc(100dvh-9rem)] min-[1100px]:overflow-auto min-[1100px]:border-r min-[1100px]:border-b-0',
           )}
         >
           <section aria-labelledby="vivo-resumen" className="md:px-4 md:pt-2.5 md:pb-3 min-[1100px]:pr-3">
@@ -257,7 +257,7 @@ function VivoReunion({ opciones, opcion, datos: datosIniciales, error, filtrosIn
           </section>
           <section
             aria-labelledby="vivo-visitantes"
-            className="hidden md:block md:border-l md:border-border md:px-4 md:pt-2.5 md:pb-3 min-[1100px]:border-t min-[1100px]:border-l-0 min-[1100px]:pr-3"
+            className="hidden md:block md:border-border md:px-4 md:pt-2.5 md:pb-3 md:max-[1099px]:border-l min-[1100px]:border-t min-[1100px]:pr-3"
           >
             <h2 id="vivo-visitantes" className={CLASE_TITULO_BARRA}>
               <span>
@@ -269,7 +269,7 @@ function VivoReunion({ opciones, opcion, datos: datosIniciales, error, filtrosIn
           {vista.areas.length > 0 && (
             <section
               aria-labelledby="vivo-areas"
-              className="hidden md:col-span-2 md:block md:border-t md:border-border md:px-4 md:pt-2.5 md:pb-3 min-[1100px]:pr-3"
+              className="hidden md:block md:border-t md:border-border md:px-4 md:pt-2.5 md:pb-3 md:max-[1099px]:col-span-2 min-[1100px]:pr-3"
             >
               <h2 id="vivo-areas" className={CLASE_TITULO_BARRA}>
                 Áreas <span className="font-normal normal-case tracking-normal">Toca para entrar</span>
