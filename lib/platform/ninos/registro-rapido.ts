@@ -6,8 +6,16 @@
  * its state shape, what is missing per section (keys are the DOM ids, so the
  * form can focus the first one), folding, the default pickup person and the
  * payloads of both modes. The server validates again.
+ *
+ * Full salón at «Registrar y dar ingreso» (odd/tasks/ninos-checkin-pco.md,
+ * T2j, S9.1): with today's occupancy the new children are placed as at the
+ * main desk — a new child is in its first visit (S9.3), so it may also take
+ * the visitor places; a room full for it warns, offers the next one with room
+ * (today only, the ficha keeps its salón) and may still go in: the forced
+ * children travel as forzadoIds. Never blocks.
  */
 import type { Seleccion } from './checkin'
+import type { OcupacionSalon } from './checkin-vista'
 import {
   EDAD_MAXIMA_NINOS_ANOS,
   GENEROS,
@@ -19,9 +27,10 @@ import {
   type FamiliaForm,
   type HijoForm,
 } from './familia'
+import { salonLleno } from './mesa-reglas'
 import { aplicarNivel, nivelSugerido, valorNivel, type SalonNivel } from './nivel'
 import { erroresPadrePreregistro, esRelacionPadre, etiquetaRelacion, generoDeRelacion } from './preregistro'
-import { datoFaltante, edadEnMeses, explicarSalon, sugerirSalon, type SalonSugerible } from './sugerir-salon'
+import { datoFaltante, edadEnMeses, explicarSalon, type SalonSugerible } from './sugerir-salon'
 
 export type ModoRegistro = 'publico' | 'mesa'
 export type SeccionRegistro = 'tu' | 'ninos' | 'retiran' | 'despues'
@@ -252,30 +261,85 @@ export function conFechaNacimiento(h: HijoRapido, fechaNacimiento: string, salon
 
 type HijoParaSalon = { fechaNacimiento: string; grado: string; salonPreferidoId: string; necesidadesEspeciales: string }
 
-/** The salón a child goes to, as the check-in decides it (hand-picked room, else the rule); null when none fits. */
-export function salonVivo<S extends SalonSugerible>(h: HijoParaSalon, salones: readonly S[], hoy: string): S | null {
-  const elegido = salones.find((s) => s.id === h.salonPreferidoId && s.activo)
-  if (elegido) return elegido
+/** Desk: today's occupancy by salón id (ninos_ocupacion). */
+export type OcupacionMesa = ReadonlyMap<string, OcupacionSalon>
+
+const ocupadosDe = (ocupacion?: OcupacionMesa) => (ocupacion?.size ? Object.fromEntries([...ocupacion].map(([id, o]) => [id, o.presentes])) : undefined)
+
+function explicarHijo<S extends SalonSugerible>(h: HijoParaSalon, salones: readonly S[], hoy: string, ocupacion?: OcupacionMesa) {
   const grado = parseGrado(h.grado)
-  return sugerirSalon({
+  return explicarSalon({
     fechaNacimiento: h.fechaNacimiento || null,
     grado: typeof grado === 'number' ? grado : null,
     necesidadesEspeciales: h.necesidadesEspeciales.trim() !== '',
     fechaServicio: hoy,
     salones,
+    // A new child is in its first visit (S9.3).
+    visitante: true,
+    ocupados: ocupadosDe(ocupacion),
   })
+}
+
+/**
+ * The salón a child goes to, as the check-in decides it (hand-picked room, else the rule); null when none fits.
+ * With `ocupacion` the first room with a place is taken; when all are full, the first open one (S9.1: never blocks).
+ */
+export function salonVivo<S extends SalonSugerible>(h: HijoParaSalon, salones: readonly S[], hoy: string, ocupacion?: OcupacionMesa): S | null {
+  const elegido = salones.find((s) => s.id === h.salonPreferidoId && s.activo)
+  if (elegido) return elegido
+  const e = explicarHijo(h, salones, hoy, ocupacion)
+  return e.salon ?? (e.estado === 'lleno' ? (e.candidatos.find((s) => s.abierto !== false) ?? null) : null)
+}
+
+/** Whether the room has no place for a new child: its quota plus the visitor places. */
+export function llenoParaNuevo(salon: SalonSugerible | undefined, ocupacion?: OcupacionMesa): boolean {
+  return salon !== undefined && salonLleno({ cupo_visitantes: salon.cupoVisitantes }, ocupacion?.get(salon.id), true)
+}
+
+/** A child of the form whose room is full today, with the next room that fits and has a place («Usar {otro}»). */
+export type LlenoAlIngresar<S> = { indice: number; nombre: string; salon: S; ocupacion: OcupacionSalon; otro: S | null }
+
+/** The children of the form that would go in over their room's quota; empty without the occupancy. */
+export function llenosDeIngreso<S extends SalonSugerible>(
+  hijos: readonly (HijoParaSalon & { nombre: string })[],
+  salones: readonly S[],
+  hoy: string,
+  ocupacion?: OcupacionMesa,
+): LlenoAlIngresar<S>[] {
+  return hijos.flatMap((h, indice) => {
+    const salon = salonVivo(h, salones, hoy, ocupacion)
+    const cupo = salon ? ocupacion?.get(salon.id) : undefined
+    if (!salon || !cupo || !llenoParaNuevo(salon, ocupacion)) return []
+    const otro = explicarHijo(h, salones, hoy, ocupacion).disponibles.find((s) => s.id !== salon.id) ?? null
+    return [{ indice, nombre: h.nombre.trim(), salon, ocupacion: cupo, otro }]
+  })
+}
+
+/** The children of the check-in that go in over their room's quota: ninos_checkin's p_forzados. */
+export function forzadosIngreso(seleccion: readonly { ninoId: string; salonId: string | null }[], salones: readonly SalonSugerible[], ocupacion?: OcupacionMesa): string[] {
+  return seleccion.filter((s) => llenoParaNuevo(salones.find((x) => x.id === s.salonId), ocupacion)).map((s) => s.ninoId)
 }
 
 type HijoRegistrado = { nombre: string; fecha_nacimiento: string; grado: number | null; salon_preferido_id: string | null; necesidades_especiales: string | null }
 
-/** The children just registered (ids in payload order) with their salón, for ninos_checkin. */
-export function seleccionIngreso(hijos: readonly HijoRegistrado[], ids: readonly string[], salones: readonly SalonSugerible[], fecha: string): Seleccion[] {
+/**
+ * The children just registered (ids in payload order) with their salón, for ninos_checkin.
+ * `salonHoy`: «Usar {otro}» by payload index, for this check-in only (S9.1).
+ */
+export function seleccionIngreso(
+  hijos: readonly HijoRegistrado[],
+  ids: readonly string[],
+  salones: readonly SalonSugerible[],
+  fecha: string,
+  ocupacion?: OcupacionMesa,
+  salonHoy?: Readonly<Record<number, string>>,
+): Seleccion[] {
   return hijos.map((h, i) => {
     const comoForm = { fechaNacimiento: h.fecha_nacimiento, grado: h.grado === null ? '' : String(h.grado), salonPreferidoId: h.salon_preferido_id ?? '', necesidadesEspeciales: h.necesidades_especiales ?? '' }
-    const salonId = salonVivo(comoForm, salones, fecha)?.id ?? null
+    const salonId = salonHoy?.[i] ?? salonVivo(comoForm, salones, fecha, ocupacion)?.id ?? null
     if (salonId) return { ninoId: ids[i], salonId, nombre: h.nombre }
     // The engine's reason: closed or full salones, else the data that keeps the child out (T2i).
-    const input = { fechaNacimiento: h.fecha_nacimiento || null, grado: h.grado, necesidadesEspeciales: comoForm.necesidadesEspeciales.trim() !== '', fechaServicio: fecha, salones }
+    const input = { fechaNacimiento: h.fecha_nacimiento || null, grado: h.grado, necesidadesEspeciales: comoForm.necesidadesEspeciales.trim() !== '', fechaServicio: fecha, salones, visitante: true, ocupados: ocupadosDe(ocupacion) }
     const { estado } = explicarSalon(input)
     const motivo = estado === 'cerrado' || estado === 'lleno' ? estado : datoFaltante(input)
     return { ninoId: ids[i], salonId, nombre: h.nombre, motivo }

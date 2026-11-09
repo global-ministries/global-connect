@@ -9,6 +9,11 @@
  * is secondary; without one it is "Registrar familia" / "Agregar niño" as
  * before. Every check of the former desk form stays (use-registro-mesa); the
  * ficha extras live in "Para después".
+ *
+ * Full salón (odd/tasks/ninos-checkin-pco.md, T2j, S9.1): with today's
+ * occupancy, "Registrar y dar ingreso" first asks «{salón} está lleno (n/cap).
+ * ¿Dar ingreso igual?» with «Usar {otro}» (today only); forced children are
+ * recorded through forzadoIds. A salón with room registers as before.
  */
 import { useState } from 'react'
 
@@ -18,10 +23,10 @@ import type { OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaForm } from '@/lib/platform/ninos/familia'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
-import { datosIniciales, familiaMesa, idRapido } from '@/lib/platform/ninos/registro-rapido'
+import { datosIniciales, familiaMesa, idRapido, llenosDeIngreso, type LlenoAlIngresar } from '@/lib/platform/ninos/registro-rapido'
 
 import { CamposNino } from '../campos-nino'
-import { CasillaConyuge, CoincidenciasPadre, HijosRepetidos, RepresentanteConocido } from './avisos-mesa'
+import { CasillaConyuge, CoincidenciasPadre, CupoLleno, HijosRepetidos, RepresentanteConocido } from './avisos-mesa'
 import { ResumenFaltantes } from './piezas'
 import { ResultadoMesaVista } from './resultado-mesa'
 import { SeccionesRegistro } from './secciones-registro'
@@ -56,7 +61,9 @@ export type RegistroMesaProps = {
 export function RegistroMesa(props: RegistroMesaProps) {
   const { padreExistente, onRegistrada, onCancelar, guardar, salones = [], ingreso } = props
   const [hoy] = useState(hoyEnCaracas)
-  const mesa = useRegistroMesa({ padreExistente, guardar, ingreso, salones, onRegistrada })
+  const mesa = useRegistroMesa({ padreExistente, guardar, ingreso, salones, ocupacion: props.ocupacion, onRegistrada })
+  /** The full salones waiting for «Dar ingreso igual» / «Usar {otro}», with the rooms already changed. */
+  const [porConfirmar, setPorConfirmar] = useState<{ llenos: LlenoAlIngresar<SalonNivel>[]; hoy: Record<number, string> } | null>(null)
   const confirmado = mesa.padreConfirmado
   const padreNombre = padreExistente?.nombre ?? (confirmado ? `${confirmado.nombre} ${confirmado.apellido}`.trim() : undefined)
   const form = useFormularioRapido(
@@ -68,9 +75,23 @@ export function RegistroMesa(props: RegistroMesaProps) {
   const n = datos.hijos.length
   const conIngreso = Boolean(ingreso) && !guardar
 
-  function enviar(ingresar: boolean) {
+  function enviar(ingresar: boolean, hoy?: Record<number, string>) {
     if (mesa.guardando || !form.intentar()) return
-    void mesa.enviar(familiaMesa(datos, padreExistente?.id ?? confirmado?.id), ingresar)
+    if (ingresar && ingreso && !hoy) {
+      const llenos = llenosDeIngreso(datos.hijos, salones, ingreso.fecha, props.ocupacion)
+      if (llenos.length > 0) return setPorConfirmar({ llenos, hoy: {} })
+    }
+    setPorConfirmar(null)
+    void mesa.enviar(familiaMesa(datos, padreExistente?.id ?? confirmado?.id), ingresar, hoy)
+  }
+
+  /** «Usar {otro}»: that child goes there today; once no full salón is left, the check-in goes on. */
+  function usarOtro(indice: number, salonId: string) {
+    if (!porConfirmar) return
+    const hoy = { ...porConfirmar.hoy, [indice]: salonId }
+    const llenos = porConfirmar.llenos.filter((l) => !(l.indice in hoy))
+    if (llenos.length > 0) setPorConfirmar({ llenos, hoy })
+    else enviar(true, hoy)
   }
 
   if (mesa.resultado) {
@@ -149,6 +170,17 @@ export function RegistroMesa(props: RegistroMesaProps) {
         }
       />
 
+      {porConfirmar && (
+        <CupoLleno
+          llenos={porConfirmar.llenos}
+          ocupacion={props.ocupacion}
+          conNombre={n > 1}
+          guardando={mesa.guardando}
+          onUsarOtro={usarOtro}
+          onDarIngreso={() => enviar(true, porConfirmar.hoy)}
+          onVolver={() => setPorConfirmar(null)}
+        />
+      )}
       {mesa.repetidos && (
         <HijosRepetidos
           lista={mesa.repetidos.lista}

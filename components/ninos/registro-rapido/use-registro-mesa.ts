@@ -9,8 +9,13 @@
  * through ninos_registrar_familia_mesa — plus "Registrar y dar ingreso": the
  * existing check-in (/api/ninos/checkin) chained right after. When the
  * check-in fails the family stays registered and the error says so.
+ *
+ * Full salón (odd/tasks/ninos-checkin-pco.md, T2j, S9.1): with today's
+ * occupancy the children go in as at the main desk; «Usar {otro}» travels as
+ * `salonHoy` (this check-in only) and a child still over its room's quota
+ * travels as forzadoIds, so ninos_checkin records who forced it.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { armarCheckin, mensajeDeErrorCheckin } from '@/lib/platform/ninos/checkin'
 import {
@@ -26,7 +31,7 @@ import {
   type PadreCoincidencia,
 } from '@/lib/platform/ninos/familia'
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
-import { seleccionIngreso } from '@/lib/platform/ninos/registro-rapido'
+import { forzadosIngreso, seleccionIngreso, type OcupacionMesa } from '@/lib/platform/ninos/registro-rapido'
 import type { Json } from '@/lib/supabase/database.types'
 import { createClient } from '@/lib/supabase/client'
 
@@ -79,10 +84,12 @@ type Opciones = {
   guardar?: Guardar
   ingreso?: IngresoMesa
   salones: readonly SalonNivel[]
+  /** Today's occupancy by salón id (check-in desk only). */
+  ocupacion?: OcupacionMesa
   onRegistrada: (padreId: string, consulta: string) => void
 }
 
-export function useRegistroMesa({ padreExistente, guardar, ingreso, salones, onRegistrada }: Opciones) {
+export function useRegistroMesa({ padreExistente, guardar, ingreso, salones, ocupacion, onRegistrada }: Opciones) {
   const [errores, setErrores] = useState<string[]>([])
   const [guardando, setGuardando] = useState(false)
   const [coincidencias, setCoincidencias] = useState<PadreCoincidencia[]>([])
@@ -94,6 +101,8 @@ export function useRegistroMesa({ padreExistente, guardar, ingreso, salones, onR
   const [repetidos, setRepetidos] = useState<{ payload: FamiliaPayload; lista: HijoCoincidencia[] } | null>(null)
   /** The action the anfitrión chose, kept while a duplicate check waits. */
   const [conIngreso, setConIngreso] = useState(false)
+  /** «Usar {otro}» by child index, kept with the action (read in the same send, so a ref). */
+  const salonHoy = useRef<Readonly<Record<number, string>>>({})
   const [resultado, setResultado] = useState<ResultadoMesa | null>(null)
 
   const padreExistenteId = padreExistente?.id
@@ -110,10 +119,21 @@ export function useRegistroMesa({ padreExistente, guardar, ingreso, salones, onR
 
   async function darIngreso(payload: FamiliaPayload, padreId: string, ids: string[], padreNuevo: boolean) {
     const base = { padreId, consulta: consultaDe(payload), padreNuevo }
-    const armado = armarCheckin(seleccionIngreso(payload.hijos, ids, salones, ingreso!.fecha))
+    const armado = armarCheckin(seleccionIngreso(payload.hijos, ids, salones, ingreso!.fecha, ocupacion, salonHoy.current))
     const prefijo = 'La familia quedó registrada, pero no se pudo dar ingreso: '
     if (!armado.ok) return setResultado({ ...base, errorIngreso: prefijo + armado.error })
-    const { data, error } = await registrarIngresoApi({ ninoIds: armado.ninoIds, salonIds: armado.salonIds, turnoId: ingreso!.turnoId, fecha: ingreso!.fecha })
+    const forzadoIds = forzadosIngreso(
+      armado.ninoIds.map((ninoId, i) => ({ ninoId, salonId: armado.salonIds[i] })),
+      salones,
+      ocupacion,
+    )
+    const { data, error } = await registrarIngresoApi({
+      ninoIds: armado.ninoIds,
+      salonIds: armado.salonIds,
+      turnoId: ingreso!.turnoId,
+      fecha: ingreso!.fecha,
+      ...(forzadoIds.length > 0 && { forzadoIds }),
+    })
     if (error || !data || data.length === 0) return setResultado({ ...base, errorIngreso: prefijo + mensajeDeErrorCheckin(error) })
     setResultado({ ...base, ingreso: { payload, ids, filas: data } })
   }
@@ -157,9 +177,10 @@ export function useRegistroMesa({ padreExistente, guardar, ingreso, salones, onR
     await registrar(payload, ingresar)
   }
 
-  /** `form` already passed the one-screen checks; `ingresar`: "Registrar y dar ingreso". */
-  async function enviar(form: FamiliaForm, ingresar: boolean) {
+  /** `form` already passed the one-screen checks; `ingresar`: "Registrar y dar ingreso"; `hoy`: «Usar {otro}» by child index. */
+  async function enviar(form: FamiliaForm, ingresar: boolean, hoy: Readonly<Record<number, string>> = {}) {
     setConIngreso(ingresar)
+    salonHoy.current = hoy
     const r = validarFamilia(form)
     if (!r.ok) return setErrores(r.errores)
     setErrores([])

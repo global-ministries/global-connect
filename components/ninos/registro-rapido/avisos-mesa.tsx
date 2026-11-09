@@ -4,12 +4,17 @@
  * Desk notices of the one-screen registration, unchanged in behavior from the
  * former desk form (prototype 04, state B): the phone / cédula match to
  * confirm, the confirmed or known representative, the spouse checkbox and the
- * child already registered in another family.
+ * child already registered in another family. Plus the full salón at
+ * «Registrar y dar ingreso» (T2j, S9.1), worded as the main desk row: offers
+ * «Usar {otro}» and lets the anfitrión force it (recorded).
  */
 import { AlertTriangle } from 'lucide-react'
 
 import { BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import type { OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import { avisoHijoCoincidencia, rolDeConyuge, type Conyuge, type HijoCoincidencia, type PadreCoincidencia } from '@/lib/platform/ninos/familia'
+import type { SalonNivel } from '@/lib/platform/ninos/nivel'
+import type { LlenoAlIngresar } from '@/lib/platform/ninos/registro-rapido'
 
 const CAJA_AVISO = 'grid min-w-0 gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4'
 const FILA = 'grid min-w-0 gap-3 rounded-xl border border-border bg-card p-3 text-foreground'
@@ -146,6 +151,82 @@ export function HijosRepetidos({ lista, guardando, onAbrirFamilia, onRegistrarIg
         </BotonSistema>
         <BotonSistema type="button" variante="outline" className="flex-1" onClick={onCorregir}>
           Corregir datos
+        </BotonSistema>
+      </div>
+    </div>
+  )
+}
+
+const Cupo = ({ o }: { o: OcupacionSalon }) => (
+  <span className="font-mono tabular-nums">
+    {o.presentes}/{o.capacidad}
+  </span>
+)
+
+type CupoLlenoProps = {
+  llenos: readonly LlenoAlIngresar<SalonNivel>[]
+  ocupacion?: ReadonlyMap<string, OcupacionSalon>
+  /** Prefix each line with the child's name (more than one child in the form). */
+  conNombre: boolean
+  guardando: boolean
+  onUsarOtro: (indice: number, salonId: string) => void
+  onDarIngreso: () => void
+  onVolver: () => void
+}
+
+/** «{salón} está lleno (18/18). ¿Dar ingreso igual?» before the check-in (S9.1): never blocks. */
+export function CupoLleno({ llenos, ocupacion, conNombre, guardando, onUsarOtro, onDarIngreso, onVolver }: CupoLlenoProps) {
+  return (
+    <div role="alert" aria-labelledby="rr-cupo-lleno" className={CAJA_AVISO}>
+      <ul className="grid gap-2">
+        {llenos.map((l) => {
+          const cupoOtro = l.otro ? ocupacion?.get(l.otro.id) : undefined
+          return (
+            <li key={l.indice} className="grid min-w-0 gap-2 text-sm text-foreground">
+              <p className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-text" aria-hidden />
+                <span>
+                  {conNombre && l.nombre && `${l.nombre}: `}
+                  <b className="font-semibold">
+                    {l.salon.nombre} está lleno (<Cupo o={l.ocupacion} />
+                    ).
+                  </b>
+                  {l.otro && (
+                    <>
+                      {' '}
+                      El siguiente con lugar que le sirve es <b className="font-semibold">{l.otro.nombre}</b>
+                      {cupoOtro && (
+                        <>
+                          {' '}
+                          (<Cupo o={cupoOtro} />)
+                        </>
+                      )}
+                      .
+                    </>
+                  )}
+                </span>
+              </p>
+              {l.otro && (
+                <BotonSistema type="button" variante="outline" className="justify-self-start" disabled={guardando} onClick={() => onUsarOtro(l.indice, l.otro!.id)}>
+                  Usar {l.otro.nombre}
+                </BotonSistema>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+      <p id="rr-cupo-lleno" className="text-sm font-medium text-warning-text">
+        ¿Dar ingreso igual?
+      </p>
+      <TextoSistema variante="sutil" tamaño="sm">
+        Queda anotado que forzaste el cupo.
+      </TextoSistema>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <BotonSistema type="button" className="flex-1" disabled={guardando} onClick={onDarIngreso}>
+          Dar ingreso igual
+        </BotonSistema>
+        <BotonSistema type="button" variante="outline" className="flex-1" onClick={onVolver}>
+          Volver
         </BotonSistema>
       </div>
     </div>

@@ -94,7 +94,7 @@ export function mensajeSinSalon(nombre: string): string {
 }
 
 /** Whether the room has no place for this child: the regulars' quota, plus the visitor places for a visitor. */
-export function salonLleno(salon: SalonFila | undefined, cupo: OcupacionSalon | undefined, visitante: boolean): boolean {
+export function salonLleno(salon: Pick<SalonFila, 'cupo_visitantes'> | undefined, cupo: OcupacionSalon | undefined, visitante: boolean): boolean {
   if (!cupo) return false
   const extra = visitante ? (salon?.cupo_visitantes ?? 0) : 0
   return cupo.presentes >= cupo.capacidad + extra

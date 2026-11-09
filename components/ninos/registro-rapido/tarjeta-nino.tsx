@@ -14,7 +14,9 @@ import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/siste
 import { estadoCupo, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import { GRADOS, enRangoNinos, fechaPasadaValida, type Genero } from '@/lib/platform/ninos/familia'
 import type { SalonNivel } from '@/lib/platform/ninos/nivel'
-import { avisoFueraDeRango, idRapido, pideGrado, salonVivo, type HijoRapido, type ModoRegistro } from '@/lib/platform/ninos/registro-rapido'
+import { avisoFueraDeRango, idRapido, llenoParaNuevo, pideGrado, salonVivo, type HijoRapido, type ModoRegistro } from '@/lib/platform/ninos/registro-rapido'
+
+import { EtiquetaLleno } from '../checkin/partes'
 
 import { Eleccion, SI_NO, siNoValor } from './piezas'
 
@@ -45,7 +47,8 @@ type Props = {
 
 function SalonEnVivo({ hijo, modo, hoy, salones, ocupacion }: Pick<Props, 'hijo' | 'modo' | 'hoy' | 'salones' | 'ocupacion'>) {
   if (!fechaPasadaValida(hijo.fechaNacimiento, hoy) || !enRangoNinos(hijo.fechaNacimiento, hoy)) return null
-  const salon = salonVivo(hijo, salones, hoy)
+  // The same room «Registrar y dar ingreso» uses (T2j, S9.1): with today's occupancy, the next one with room.
+  const salon = salonVivo(hijo, salones, hoy, ocupacion)
   if (!salon) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -66,6 +69,7 @@ function SalonEnVivo({ hijo, modo, hoy, salones, ocupacion }: Pick<Props, 'hijo'
           {o.presentes}/{o.capacidad}
         </span>
       )}
+      {o && llenoParaNuevo(salon, ocupacion) && <EtiquetaLleno ocupacion={o} />}
     </p>
   )
 }

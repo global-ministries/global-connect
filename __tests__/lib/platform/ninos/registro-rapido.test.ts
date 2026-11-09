@@ -13,8 +13,10 @@ import {
   estadoBarra,
   faltantes,
   familiaMesa,
+  forzadosIngreso,
   hijoRapidoVacio,
   idRapido,
+  llenosDeIngreso,
   personasRetiran,
   pideGrado,
   resumenSeccion,
@@ -250,6 +252,58 @@ describe('salón', () => {
     const cerrados = salones.map((s) => ({ ...s, abierto: false }))
     expect(seleccionIngreso(hijos, ['n1'], cerrados, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'cerrado' }])
     expect(seleccionIngreso(hijos, ['n1'], [], HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'revisar' }])
+  })
+})
+
+// T2j, S9.1: «Avisa y ofrece otro salón, pero deja forzar» in the desk «Nueva familia» path.
+describe('salón lleno al dar ingreso (S9.1)', () => {
+  const PREESCOLAR_B = '00000000-0000-4000-8000-000000000003'
+  // As the check-in page loads them: with the regulars' quota.
+  const conB: SalonNivel[] = [...salones, { ...salones[1], id: PREESCOLAR_B, nombre: 'Preescolar B', orden: 3 }].map((s) => ({ ...s, capacidad: 18 }))
+  const cupo = (id: string, presentes: number, capacidad = 18) => [id, { salon_id: id, nombre: id, presentes, capacidad }] as const
+  const lleno = new Map([cupo(PREESCOLAR, 18)])
+  const ambosLlenos = new Map([cupo(PREESCOLAR, 18), cupo(PREESCOLAR_B, 18)])
+  const hijo = { nombre: 'Camila', apellido: 'Linárez', fecha_nacimiento: '2022-02-09', grado: null, salon_preferido_id: null, necesidades_especiales: null }
+
+  it('the live salón takes the next one with room, keeps a hand-picked one and never leaves a full child without salón', () => {
+    const camila = { ...hijoRapidoVacio(), fechaNacimiento: '2022-02-09' }
+    expect(salonVivo(camila, conB, HOY, lleno)?.id).toBe(PREESCOLAR_B)
+    expect(salonVivo({ ...camila, salonPreferidoId: PREESCOLAR }, conB, HOY, lleno)?.id).toBe(PREESCOLAR)
+    expect(salonVivo(camila, conB, HOY, ambosLlenos)?.id).toBe(PREESCOLAR)
+    expect(salonVivo(camila, conB, HOY)?.id).toBe(PREESCOLAR)
+  })
+
+  it('a full salón goes in with its room (no blocking «lleno» reason) and «Usar otro» applies for today only', () => {
+    expect(seleccionIngreso([hijo], ['n1'], conB, HOY, ambosLlenos)).toEqual([{ ninoId: 'n1', salonId: PREESCOLAR, nombre: 'Camila' }])
+    expect(seleccionIngreso([{ ...hijo, salon_preferido_id: PREESCOLAR }], ['n1'], conB, HOY, lleno, { 0: PREESCOLAR_B })).toEqual([
+      { ninoId: 'n1', salonId: PREESCOLAR_B, nombre: 'Camila' },
+    ])
+  })
+
+  it('forced: only the children whose salón has no place for a first visit (quota + visitor places)', () => {
+    const sel = [
+      { ninoId: 'n1', salonId: PREESCOLAR },
+      { ninoId: 'n2', salonId: MATERNAL },
+    ]
+    expect(forzadosIngreso(sel, salones, new Map([cupo(PREESCOLAR, 18), cupo(MATERNAL, 3, 10)]))).toEqual(['n1'])
+    const conVisitantes = salones.map((s) => ({ ...s, cupoVisitantes: 2 }))
+    expect(forzadosIngreso(sel, conVisitantes, new Map([cupo(PREESCOLAR, 19)]))).toEqual([])
+    expect(forzadosIngreso(sel, conVisitantes, new Map([cupo(PREESCOLAR, 20)]))).toEqual(['n1'])
+    expect(forzadosIngreso(sel, salones, undefined)).toEqual([])
+    expect(forzadosIngreso(sel, salones, new Map())).toEqual([])
+  })
+
+  it('lists the full salones of the form with the next one that has room', () => {
+    const camila = { ...hijoRapidoVacio(), nombre: 'Camila ', fechaNacimiento: '2022-02-09', salonPreferidoId: PREESCOLAR }
+    const bebe = { ...hijoRapidoVacio(), nombre: 'Luis', fechaNacimiento: '2024-07-21' }
+    expect(llenosDeIngreso([camila, bebe], conB, HOY, lleno)).toEqual([
+      { indice: 0, nombre: 'Camila', salon: conB[1], ocupacion: lleno.get(PREESCOLAR), otro: conB[2] },
+    ])
+    expect(llenosDeIngreso([camila], conB, HOY, ambosLlenos)).toEqual([
+      { indice: 0, nombre: 'Camila', salon: conB[1], ocupacion: ambosLlenos.get(PREESCOLAR), otro: null },
+    ])
+    expect(llenosDeIngreso([camila, bebe], conB, HOY, new Map([cupo(PREESCOLAR, 17)]))).toEqual([])
+    expect(llenosDeIngreso([camila], conB, HOY, undefined)).toEqual([])
   })
 })
 
