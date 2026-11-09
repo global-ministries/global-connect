@@ -180,7 +180,7 @@ SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('a: the owner reads their own mark',
   $q$SELECT concat_ws('|', fuente, marcado_por::text = pg_temp.id('us', 2)::text, nota, marcado_en IS NOT NULL)
        FROM public.personas_proximo_paso WHERE usuario_id = pg_temp.id('us', 1)$q$,
-  'marcado|true|Vino en octubre|true');
+  'marcado|t|Vino en octubre|t');
 SELECT pg_temp.assert_eq('a: hizo_proximo_paso is true through the mark',
   $q$SELECT public.hizo_proximo_paso(pg_temp.id('us', 1))::text$q$, 'true');
 
@@ -283,7 +283,7 @@ SELECT pg_temp.assert_eq('c: the refused calls left no mark on 5 or 10 and 1 unc
   $q$SELECT concat_ws('|',
        (SELECT count(*) FROM public.personas_proximo_paso WHERE usuario_id IN (pg_temp.id('us', 5), pg_temp.id('us', 10))),
        (SELECT marcado_por = pg_temp.id('us', 2) FROM public.personas_proximo_paso WHERE usuario_id = pg_temp.id('us', 1)))$q$,
-  '0|true');
+  '0|t');
 SELECT pg_temp.assert_eq('e: no certificate was deleted or revoked',
   $q$SELECT string_agg(id::text || '=' || (revocado_at IS NULL)::text, ',' ORDER BY id)
        FROM public.taller_certificados WHERE id IN (pg_temp.id('ce', 1), pg_temp.id('ce', 2), pg_temp.id('ce', 3))$q$,
