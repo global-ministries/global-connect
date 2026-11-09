@@ -116,8 +116,11 @@ SELECT 'turno', t.id::text FROM public.dream_team_turnos t JOIN public.campus c 
  ORDER BY t.hora, t.id LIMIT 1;
 INSERT INTO t_im_ctx (k, v)
 SELECT 'campus', t.campus_id::text FROM public.dream_team_turnos t WHERE t.id = pg_temp.ctx('turno')::uuid;
+-- Its own second campus: staging may have only one.
+INSERT INTO public.campus (id, nombre, codigo)
+VALUES ('f9c60000-0000-4000-9c68-000000000001', 'ZZ Im Otro campus', 'ZZIMO');
 INSERT INTO t_im_ctx (k, v)
-SELECT 'otro_campus', c.id::text FROM public.campus c WHERE c.id <> pg_temp.ctx('campus')::uuid ORDER BY c.nombre, c.id LIMIT 1;
+SELECT 'otro_campus', 'f9c60000-0000-4000-9c68-000000000001';
 
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'im-' || n || '@example.test', now(),
