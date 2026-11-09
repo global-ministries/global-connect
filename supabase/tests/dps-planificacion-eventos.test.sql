@@ -351,7 +351,12 @@ SELECT pg_temp.assert_eq('c4b: moves only that day',
 SELECT pg_temp.assert_eq('c5: the numbering follows the dates',
   $q$SELECT pg_temp.rango(202, 205, 'ZZ Ev Conferencia')$q$, '203:1/3,204:2/3,205:3/3');
 
-SELECT pg_temp.put('domingo', $q$SELECT public.dps_plan_crear(pg_temp.ctx('hoy')::date + 200 + ((7 - extract(dow FROM pg_temp.h(200))::int) % 7), 'domingo', NULL)::text$q$);
+-- A database with real Sundays loaded (staging, production) may already have
+-- that Sunday's plan: reuse it instead of creating a duplicate.
+SELECT pg_temp.put('domingo', $q$SELECT coalesce(
+           (SELECT p.id FROM public.dps_planes p
+             WHERE p.tipo = 'domingo' AND p.fecha = pg_temp.ctx('hoy')::date + 200 + ((7 - extract(dow FROM pg_temp.h(200))::int) % 7)),
+           public.dps_plan_crear(pg_temp.ctx('hoy')::date + 200 + ((7 - extract(dow FROM pg_temp.h(200))::int) % 7), 'domingo', NULL))::text$q$);
 SELECT pg_temp.put('ayer', $q$SELECT public.dps_plan_crear(pg_temp.h(-1), 'especial', 'ZZ Ev Ayer')::text$q$);
 SELECT pg_temp.put('ev_hoy', $q$SELECT public.dps_evento_crear('especial', 'ZZ Ev Hoy', pg_temp.h(0), NULL)::text$q$);
 SELECT pg_temp.put('ev_hoy2', $q$SELECT public.dps_evento_crear('especial', 'ZZ Ev Hoy Dos', pg_temp.h(0), NULL)::text$q$);
