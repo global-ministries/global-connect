@@ -56,7 +56,7 @@ export interface PanelesCheckinProps {
   readonly onAbrirFamilia: (padreId: string, consulta?: string) => void
   /** After a ficha is saved: reload the family at the mesa. */
   readonly onFichaGuardada: () => void
-  /** The desk's print station (T3b): where «Reimprimir» sends the labels. */
+  /** The desk's print station (T3b): where «Reimprimir» and «Registrar y dar ingreso» send the labels. */
   readonly estacion?: { readonly id: string; readonly nombre: string } | null
 }
 
@@ -93,7 +93,7 @@ export function PanelesCheckin(props: PanelesCheckinProps): ReactElement {
     onCerrar()
     props.onAbrirFamilia(padreId, consulta)
   }
-  const ingreso = props.turnoId ? { turnoId: props.turnoId, fecha: props.fecha } : undefined
+  const ingreso = props.turnoId ? { turnoId: props.turnoId, fecha: props.fecha, estacionId: props.estacion?.id ?? null } : undefined
   const ingresado = () => {
     onCerrar()
     props.onIngresado?.()

@@ -69,11 +69,16 @@ node tools/agente-impresion/agente.js --prueba --guardar /tmp/prueba.tspl
 
 ## 5. Prepara la estación en la app
 
-1. **Token.** La estación de impresión y su token se crean en la app. La
-   pantalla para hacerlo está por llegar; mientras tanto, pídele el token a
-   quien administra la app. El token se muestra una sola vez: cópialo al
-   momento. Si se pierde, se genera uno nuevo y el anterior deja de
-   funcionar.
+1. **Token.** La estación de impresión y su token se crean en la app:
+   1. Entra a **Niños › Salones de check-in** y abre la pestaña
+      **Etiquetas**.
+   2. Toca **Agregar estación**, ponle el nombre de esta mesa (por ejemplo,
+      «Mesa principal») y toca **Crear estación**. La app te muestra su
+      token.
+   3. Copia el token y pégalo en `agente.config.json` (paso 6).
+
+   El token se muestra una sola vez: cópialo al momento. Si se pierde, abre
+   la estación y toca **Crear token nuevo**; el anterior deja de funcionar.
 2. **Medidas de la etiqueta.** Mide el rollo (ancho × alto de una etiqueta, en
    mm) y guárdalo en la estación. Las etiquetas se acomodan a esa medida. Sin
    medidas, el agente imprime a 102 × 51 mm y 203 dpi (el rollo de la

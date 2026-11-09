@@ -533,14 +533,18 @@ SELECT pg_temp.assert_eq('e: setup reprint Dos as a regular',
   $q$SELECT public.ninos_impresion_reimprimir(pg_temp.ctx('e2')::uuid, pg_temp.ctx('turno')::uuid, pg_temp.fecha(),
        pg_temp.ctx('codigo'), 'nino', pg_temp.ctx('n2')::uuid, 'se_trabo', NULL) ->> 'ninos'$q$, '1');
 RESET ROLE;
+-- Every label of this transaction shares created_at (now()), so the reprint under
+-- test is picked explicitly: Dos's label on today's check-in with motivo se_trabo
+-- (the 'todas' reprint above is motivo otro). string_agg also catches a duplicate.
 SELECT pg_temp.assert_eq('e: a regular (3 prior dates) has no visita mark',
-  $q$SELECT coalesce(i.payload ->> 'visita', 'null') FROM public.ninos_impresiones i
-      WHERE i.estacion_id = pg_temp.ctx('e2')::uuid AND i.tipo = 'nino' AND i.payload ->> 'nombre' = 'ZZ Im Dos'
-      ORDER BY i.created_at DESC, i.id LIMIT 1$q$, 'null');
+  $q$SELECT string_agg(coalesce(i.payload ->> 'visita', 'null'), ',') FROM public.ninos_impresiones i
+       JOIN public.ninos_checkins c ON c.id = i.checkin_id
+      WHERE i.estacion_id = pg_temp.ctx('e2')::uuid AND i.tipo = 'nino' AND i.motivo = 'se_trabo'
+        AND c.nino_id = pg_temp.ctx('n2')::uuid AND c.fecha = pg_temp.fecha()$q$, 'null');
 DELETE FROM public.ninos_impresiones i
- WHERE i.estacion_id = pg_temp.ctx('e2')::uuid AND i.id = (
-   SELECT x.id FROM public.ninos_impresiones x
-    WHERE x.estacion_id = pg_temp.ctx('e2')::uuid AND x.tipo = 'nino' AND x.payload ->> 'nombre' = 'ZZ Im Dos' AND x.payload ->> 'visita' IS NULL);
+ USING public.ninos_checkins c
+ WHERE c.id = i.checkin_id AND i.estacion_id = pg_temp.ctx('e2')::uuid AND i.tipo = 'nino' AND i.motivo = 'se_trabo'
+   AND c.nino_id = pg_temp.ctx('n2')::uuid AND c.fecha = pg_temp.fecha();
 
 -- ── f. agent ─────────────────────────────────────────────────────────
 
