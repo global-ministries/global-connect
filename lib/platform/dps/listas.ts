@@ -1,10 +1,11 @@
 /**
  * DPS planning — the lists by position (odd/tasks/dps-asistencia-pco.md,
- * T14b; S12.2, S12.3; L56, L57): who may be picked in the Productor, Host,
- * Comunicador and Cantantes columns of the programming sheet.
- * Productores, hosts and comunicadores are kept in Configuración › Listas
- * (dps_lista_agregar / dps_lista_quitar); Cantantes are the people serving
- * in the «Cantantes» sub-equipo of Global Music, managed in Dream Team. The
+ * T14b; S12.2 as amended by L59, S12.3; L56, L57): who may be picked in the
+ * Productor, Host, Comunicador and Cantantes columns of the programming
+ * sheet. Hosts and comunicadores are kept in Configuración › Listas
+ * (dps_lista_agregar / dps_lista_quitar); Productores and Cantantes are the
+ * people serving in the «Productores» sub-equipo of Producción Creativa and
+ * the «Cantantes» sub-equipo of Global Music, managed in Dream Team. The
  * database says who edits each list (dps_lista_puede_editar, in
  * supabase/migrations/20261109200000_dps_listas_posicion.sql); these
  * helpers read dps_lista_leer. Pure: safe on the client.
@@ -13,6 +14,8 @@ import { leerPersonasBuscadas, type PersonaBuscada } from './personas'
 import type { ColumnaPersona } from './programacion'
 
 export type ListaDps = 'productores' | 'hosts' | 'comunicadores' | 'cantantes'
+/** The lists kept in Configuración; the others come from Dream Team. */
+export type ListaEditableDps = 'hosts' | 'comunicadores'
 
 export interface DefListaDps {
   readonly id: ListaDps
@@ -21,19 +24,36 @@ export interface DefListaDps {
   readonly columna: ColumnaPersona
   /** Who keeps it, as the screen says it. */
   readonly quienEdita: string
+  /** Kept in Configuración (else read-only: managed in Dream Team). */
+  readonly editable: boolean
 }
 
 export const LISTAS_DPS: readonly DefListaDps[] = [
-  { id: 'productores', etiqueta: 'Productores', columna: 'productor', quienEdita: 'La arman la dirección de DPS y la de Producción Creativa.' },
-  { id: 'hosts', etiqueta: 'Hosts', columna: 'host', quienEdita: 'La arma la dirección de DPS.' },
+  {
+    id: 'productores',
+    etiqueta: 'Productores',
+    columna: 'productor',
+    quienEdita: 'Se gestionan en Dream Team › DPS › Producción Creativa › Productores: son quienes sirven ahí.',
+    editable: false,
+  },
+  { id: 'hosts', etiqueta: 'Hosts', columna: 'host', quienEdita: 'La arma la dirección de DPS.', editable: true },
   {
     id: 'comunicadores',
     etiqueta: 'Comunicadores',
     columna: 'comunicador',
     quienEdita: 'La arma la dirección de DPS. Un comunicador no tiene que servir en DPS.',
+    editable: true,
   },
-  { id: 'cantantes', etiqueta: 'Cantantes', columna: 'cantantes', quienEdita: 'Se gestionan en Dream Team › Global Music › Cantantes: son quienes sirven ahí.' },
+  {
+    id: 'cantantes',
+    etiqueta: 'Cantantes',
+    columna: 'cantantes',
+    quienEdita: 'Se gestionan en Dream Team › Global Music › Cantantes: son quienes sirven ahí.',
+    editable: false,
+  },
 ]
+
+export const LISTAS_EDITABLES_DPS: readonly ListaEditableDps[] = ['hosts', 'comunicadores']
 
 export const LISTA_DE_COLUMNA: Readonly<Record<ColumnaPersona, ListaDps>> = {
   productor: 'productores',
@@ -44,7 +64,7 @@ export const LISTA_DE_COLUMNA: Readonly<Record<ColumnaPersona, ListaDps>> = {
 
 export interface ListaPersonasDps {
   readonly lista: ListaDps
-  /** dps_lista_puede_editar for the caller (never for Cantantes). */
+  /** dps_lista_puede_editar for the caller (never for Productores or Cantantes). */
   readonly puedeEditar: boolean
   readonly personas: readonly PersonaBuscada[]
 }
@@ -52,6 +72,7 @@ export interface ListaPersonasDps {
 export type ListasDps = Readonly<Record<ListaDps, ListaPersonasDps>>
 
 export const esListaDps = (v: unknown): v is ListaDps => LISTAS_DPS.some((l) => l.id === v)
+export const esListaEditableDps = (v: unknown): v is ListaEditableDps => LISTAS_EDITABLES_DPS.some((l) => l === v)
 
 /** Reads dps_lista_leer; null for an unknown list or a bad answer. */
 export function leerListaDps(data: unknown): ListaPersonasDps | null {

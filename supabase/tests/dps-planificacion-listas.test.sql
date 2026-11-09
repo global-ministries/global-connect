@@ -1,5 +1,6 @@
--- S12 (odd/tasks/dps-asistencia-pco.md, L56, L57; T14a, T14b) and T13c (L55)
--- — Global Music sub-equipos, lists by position, several people per cell and
+-- S12 (odd/tasks/dps-asistencia-pco.md, L56, L57, S12.2 as amended by L59;
+-- T14a, T14b) and T13c (L55) — Global Music sub-equipos, the Productores
+-- sub-equipo of Producción Creativa, lists by position, several people per cell and
 -- the unified horarios / order checks (20261109200000_dps_listas_posicion.sql).
 -- Needs the earlier DPS migrations; the fixture is its own (runs alone).
 --
@@ -21,19 +22,25 @@
 --      on Global Music is not for a DPS puesto; a servicio on a DPS parent is
 --      still not for a puesto of its child (the rule is only inside Global
 --      Music); Líder de banda still takes the Global Music servidor.
---   l. Lists (S12.2): who edits each (admin, DPS director: all three;
---      Producción Creativa director: productores only; an added planner and
---      a servidor: none; cantantes: nobody through the RPCs); dps_lista_leer
---      for whoever sees DPS (names by nombre, iniciales, puede_editar), not
---      for a random user; cantantes = the active servicios of Cantantes and
---      below (not a paused one, not someone on Global Music); agregar is
---      idempotent, quitar removes; lista_invalida, persona_invalida,
---      sin_autoridad.
+--   p. L59 (S12.2 amended): Producción Creativa has the active sub-equipo
+--      Productores with its experiencia and the roles coordinador /
+--      entrenador / voluntario; dps_equipo_productores finds it.
+--   l. Lists (S12.2, L59): who edits each (admin, DPS director: hosts and
+--      comunicadores; the Producción Creativa director, an added planner and
+--      a servidor: none; productores and cantantes: nobody through the RPCs);
+--      dps_lista_leer for whoever sees DPS (names by nombre, iniciales,
+--      puede_editar), not for a random user; productores = the active
+--      servicios of Productores and below (not a paused one, not someone
+--      only on Producción Creativa), cantantes = the same for Cantantes (not
+--      someone on Global Music); agregar is idempotent, quitar removes;
+--      lista_invalida (also agregar / quitar productores and cantantes),
+--      persona_invalida, sin_autoridad.
 --   c. Cells (S12.3, S12.4): several people (list members and written
 --      names) in order, the old key keeps the first; the limits 3 and 8
 --      (demasiadas_personas); a persona off the list is
---      persona_fuera_de_lista, a written name is always fine; someone
---      already in the cell stays after leaving the list; repeats kept once;
+--      persona_fuera_de_lista (also a paused productor), a written name is
+--      always fine; someone already in the cell stays after their Productores
+--      servicio is paused; repeats kept once;
 --      [] and null clear (old columns too); Cantantes from the Cantantes
 --      servicios, the plain string still works, campos.cantantes follows
 --      the names; shape errors; a rejected write leaves the cell as it was.
@@ -64,11 +71,15 @@
 --   8 CANT     active servicio in Cantantes
 --   9 CORO     active servicio in ZZ Dlx Coro (child of Cantantes)
 --   10 PAUSA   servicio en_pausa in Cantantes
---   11 PROD1, 12 PROD2, 13 HOST1, 14 COMU1, 15 FUERA (no list), 16 PADRE
---      (active servicio on ZZ Dlx Padre, a DPS equipo), 17..24 active in
---      Cantantes (with 8 and 9: ten cantantes).
+--   11 PROD1, 12 PROD2 (active in Productores), 13 HOST1, 14 COMU1, 15 FUERA
+--      (no list), 16 PADRE (active servicio on ZZ Dlx Padre, a DPS equipo),
+--      17..24 active in Cantantes (with 8 and 9: ten cantantes), 25 PPAUSA
+--      (servicio en_pausa in Productores), 26 PHIJA (active in ZZ Dlx
+--      Productora, child of Productores), 27 PCSERV (active servicio on
+--      Producción Creativa itself).
 -- Equipos: 1 ZZ Dlx Padre (dps, under DPS) › 2 ZZ Dlx Hijo; 3 ZZ Dlx Coro
--- (global_music, under Cantantes).
+-- (global_music, under Cantantes); 4 ZZ Dlx Productora (dps, under
+-- Productores).
 
 SET LOCAL search_path TO pg_temp, public;
 -- The helpers name new functions: without this the RED run would abort early.
@@ -209,6 +220,10 @@ SELECT 'pc', e.id::text FROM public.dream_team_equipos e
  ORDER BY e.created_at, e.id LIMIT 1;
 -- The sub-equipos read directly (NULL in the RED run).
 INSERT INTO t_dl_ctx (k, v)
+SELECT 'sub_productores', e.id::text FROM public.dream_team_equipos e
+ WHERE e.parent_equipo_id = pg_temp.ctx('pc')::uuid AND e.label = 'Productores' AND e.activo
+ ORDER BY e.created_at, e.id LIMIT 1;
+INSERT INTO t_dl_ctx (k, v)
 SELECT 'sub_' || lower(translate(e.label, 'íé ', 'ie_')), e.id::text
   FROM public.dream_team_equipos e
  WHERE e.parent_equipo_id = pg_temp.ctx('musica')::uuid AND e.activo
@@ -221,7 +236,7 @@ SELECT pg_temp.id('au', n), 'authenticated', 'authenticated', 'dl-' || n || '@ex
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
 SELECT pg_temp.id('us', n), CASE WHEN n <= 10 THEN pg_temp.id('au', n) END, 'ZZ Dlx', 'U' || lpad(n::text, 2, '0'),
        'dl-' || n || '@example.test', 'Soltero', 'Femenino'
-  FROM generate_series(1, 24) AS n;
+  FROM generate_series(1, 27) AS n;
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT pg_temp.id('us', 1), rs.id FROM public.roles_sistema rs WHERE rs.nombre_interno = 'admin';
 -- Staging validates a servicio against the person's principal campus.
@@ -238,12 +253,20 @@ INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label,
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
 SELECT pg_temp.id('eq', 3), 'global_music', pg_temp.ctx('sub_cantantes')::uuid, 'ZZ Dlx Coro', true
  WHERE pg_temp.ctx('sub_cantantes') IS NOT NULL;
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
+SELECT pg_temp.id('eq', 4), 'dps', pg_temp.ctx('sub_productores')::uuid, 'ZZ Dlx Productora', true
+ WHERE pg_temp.ctx('sub_productores') IS NOT NULL;
 INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo) VALUES
   (pg_temp.id('ro', 1), pg_temp.ctx('musica')::uuid, 'ZZ Dlx voluntario', 'voluntario', true),
   (pg_temp.id('ro', 2), pg_temp.id('eq', 1), 'ZZ Dlx voluntario', 'voluntario', true);
 INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo)
 SELECT pg_temp.id('ro', 3), pg_temp.id('eq', 3), 'ZZ Dlx voluntario', 'voluntario', true
  WHERE pg_temp.ctx('sub_cantantes') IS NOT NULL;
+INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo)
+SELECT pg_temp.id('ro', 4), pg_temp.id('eq', 4), 'ZZ Dlx voluntario', 'voluntario', true
+ WHERE pg_temp.ctx('sub_productores') IS NOT NULL;
+INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo) VALUES
+  (pg_temp.id('ro', 5), pg_temp.ctx('pc')::uuid, 'ZZ Dlx voluntario', 'voluntario', true);
 
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual) VALUES
   (pg_temp.id('se', 6), pg_temp.id('us', 6), pg_temp.ctx('musica')::uuid, pg_temp.id('ro', 1), 'activo', now() - interval '30 days', 'admin_asignacion'),
@@ -252,7 +275,9 @@ INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, esta
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
 SELECT pg_temp.id('se', x.n), pg_temp.id('us', x.n), x.equipo, r.id, x.estado::public.dream_team_estado, now() - interval '30 days', 'admin_asignacion'
   FROM (VALUES (7, pg_temp.ctx('sub_bajo')::uuid, 'activo'), (8, pg_temp.ctx('sub_cantantes')::uuid, 'activo'),
-               (10, pg_temp.ctx('sub_cantantes')::uuid, 'en_pausa')) AS x(n, equipo, estado)
+               (10, pg_temp.ctx('sub_cantantes')::uuid, 'en_pausa'), (11, pg_temp.ctx('sub_productores')::uuid, 'activo'),
+               (12, pg_temp.ctx('sub_productores')::uuid, 'activo'), (25, pg_temp.ctx('sub_productores')::uuid, 'en_pausa'))
+       AS x(n, equipo, estado)
   JOIN public.dream_team_roles r ON r.equipo_id = x.equipo AND r.label = 'voluntario';
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
 SELECT pg_temp.id('se', n), pg_temp.id('us', n), r.equipo_id, r.id, 'activo', now() - interval '30 days', 'admin_asignacion'
@@ -261,9 +286,14 @@ SELECT pg_temp.id('se', n), pg_temp.id('us', n), r.equipo_id, r.id, 'activo', no
 INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
 SELECT pg_temp.id('se', 9), pg_temp.id('us', 9), pg_temp.id('eq', 3), pg_temp.id('ro', 3), 'activo', now() - interval '30 days', 'admin_asignacion'
  WHERE pg_temp.ctx('sub_cantantes') IS NOT NULL;
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
+SELECT pg_temp.id('se', 26), pg_temp.id('us', 26), pg_temp.id('eq', 4), pg_temp.id('ro', 4), 'activo', now() - interval '30 days', 'admin_asignacion'
+ WHERE pg_temp.ctx('sub_productores') IS NOT NULL;
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual) VALUES
+  (pg_temp.id('se', 27), pg_temp.id('us', 27), pg_temp.ctx('pc')::uuid, pg_temp.id('ro', 5), 'activo', now() - interval '30 days', 'admin_asignacion');
 
 DELETE FROM public.dream_team_capability_grants
- WHERE persona_id IN (SELECT pg_temp.id('us', n) FROM generate_series(1, 24) n);
+ WHERE persona_id IN (SELECT pg_temp.id('us', n) FROM generate_series(1, 27) n);
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id, source) VALUES
   (pg_temp.id('us', 2), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.ctx('raiz'), 'zz-test'),
   (pg_temp.id('us', 3), 'dream_team.direct', 'dream_team', 'equipo', pg_temp.ctx('pc'),   'zz-test'),
@@ -300,13 +330,15 @@ SELECT pg_temp.assert_eq('a2: the new functions are SECURITY DEFINER with an emp
   $q$SELECT count(*) || '|' || count(*) FILTER (WHERE NOT (p.prosecdef AND coalesce(p.proconfig, '{}') @> ARRAY['search_path=""']))
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname IN (
-        'dps_es_configurador', 'dps_equipo_cantantes', 'dps_equipo_produccion_creativa', 'dps_equipos_para_puesto',
-        'dps_lista_tiene', 'dps_lista_puede_editar', 'dps_lista_leer', 'dps_lista_agregar', 'dps_lista_quitar')$q$, '9|0');
+        'dps_es_configurador', 'dps_equipo_cantantes', 'dps_equipo_produccion_creativa', 'dps_equipo_productores',
+        'dps_equipos_para_puesto', 'dps_lista_equipo', 'dps_lista_tiene', 'dps_lista_puede_editar', 'dps_lista_leer',
+        'dps_lista_agregar', 'dps_lista_quitar')$q$, '11|0');
 SELECT pg_temp.assert_eq('a3: authenticated executes exactly the public new functions',
   $q$SELECT string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C") FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND has_function_privilege('authenticated', p.oid, 'EXECUTE') AND p.proname IN (
-        'dps_es_configurador', 'dps_equipo_cantantes', 'dps_equipo_produccion_creativa', 'dps_equipos_para_puesto',
-        'dps_lista_tiene', 'dps_lista_puede_editar', 'dps_lista_leer', 'dps_lista_agregar', 'dps_lista_quitar')$q$,
+        'dps_es_configurador', 'dps_equipo_cantantes', 'dps_equipo_produccion_creativa', 'dps_equipo_productores',
+        'dps_equipos_para_puesto', 'dps_lista_equipo', 'dps_lista_tiene', 'dps_lista_puede_editar', 'dps_lista_leer',
+        'dps_lista_agregar', 'dps_lista_quitar')$q$,
   'dps_lista_agregar,dps_lista_leer,dps_lista_puede_editar,dps_lista_quitar');
 SELECT pg_temp.assert_eq('a4: anon executes no dps_* function',
   $q$SELECT coalesce(string_agg(p.proname, ',' ORDER BY p.proname COLLATE "C"), '-') FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -318,6 +350,10 @@ SELECT pg_temp.assert_raises('a5: authenticated cannot read dps_listas_personas'
 SELECT pg_temp.assert_raises('a5: authenticated cannot read dps_plan_personas', $q$SELECT count(*) FROM public.dps_plan_personas$q$, '42501');
 SELECT pg_temp.assert_raises('a6: authenticated cannot execute dps_equipos_para_puesto',
   $q$SELECT count(*) FROM public.dps_equipos_para_puesto(gen_random_uuid())$q$, '42501');
+SELECT pg_temp.assert_raises('a6: authenticated cannot execute dps_equipo_productores',
+  $q$SELECT public.dps_equipo_productores()$q$, '42501');
+SELECT pg_temp.assert_raises('a6: authenticated cannot execute dps_lista_equipo',
+  $q$SELECT public.dps_lista_equipo('productores')$q$, '42501');
 SELECT pg_temp.assert_raises('a6: authenticated cannot execute dps_lista_tiene',
   $q$SELECT public.dps_lista_tiene('hosts', gen_random_uuid())$q$, '42501');
 RESET ROLE;
@@ -348,6 +384,24 @@ SELECT pg_temp.assert_eq('g3: the puestos sit in their sub-equipos; Líder de ba
 SELECT pg_temp.assert_eq('g4: dps_equipo_cantantes and dps_equipo_produccion_creativa find them',
   $q$SELECT (public.dps_equipo_cantantes()::text = pg_temp.ctx('sub_cantantes')) || '|' || (public.dps_equipo_produccion_creativa()::text = pg_temp.ctx('pc'))$q$,
   'true|true');
+
+-- ── p. the Productores sub-equipo (L59) ──────────────────────────────
+
+SELECT pg_temp.assert_eq('p1: Producción Creativa has one active Productores sub-equipo with its experiencia',
+  $q$SELECT count(*) || '|' || bool_and(e.experiencia = pc.experiencia)
+       FROM public.dream_team_equipos e JOIN public.dream_team_equipos pc ON pc.id = e.parent_equipo_id
+      WHERE pc.id = pg_temp.ctx('pc')::uuid AND e.label = 'Productores' AND e.activo$q$, '1|true');
+SELECT pg_temp.assert_eq('p2: it has coordinador, entrenador and voluntario with their nivel',
+  $q$SELECT string_agg(r.label || ':' || r.nivel, ',' ORDER BY r.label)
+       FROM public.dream_team_roles r
+      WHERE r.equipo_id = pg_temp.ctx('sub_productores')::uuid AND r.activo
+        AND r.label IN ('coordinador', 'entrenador', 'voluntario')$q$,
+  'coordinador:coordinador,entrenador:lider,voluntario:voluntario');
+SELECT pg_temp.assert_eq('p3: dps_equipo_productores finds it',
+  $q$SELECT (public.dps_equipo_productores()::text = pg_temp.ctx('sub_productores'))::text$q$, 'true');
+SELECT pg_temp.assert_eq('p4: it is a DPS equipo (dps_equipos), so its people serve in DPS',
+  $q$SELECT d.ruta FROM public.dps_equipos() d WHERE d.equipo_id = pg_temp.ctx('sub_productores')::uuid$q$,
+  'DPS › Producción Creativa › Productores');
 
 -- ── t. the transition (S12.1) ────────────────────────────────────────
 
@@ -385,11 +439,13 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
-SELECT pg_temp.assert_eq('l1: the admin edits the three lists, not cantantes', $q$SELECT pg_temp.editables()$q$, 'true,true,true,false');
+SELECT pg_temp.assert_eq('l1: the admin edits hosts and comunicadores, not productores nor cantantes',
+  $q$SELECT pg_temp.editables()$q$, 'false,true,true,false');
 SELECT pg_temp.as_persona(2);
-SELECT pg_temp.assert_eq('l2: the DPS director edits the three lists', $q$SELECT pg_temp.editables()$q$, 'true,true,true,false');
+SELECT pg_temp.assert_eq('l2: the DPS director edits hosts and comunicadores', $q$SELECT pg_temp.editables()$q$, 'false,true,true,false');
 SELECT pg_temp.as_persona(3);
-SELECT pg_temp.assert_eq('l3: the Producción Creativa director edits productores only', $q$SELECT pg_temp.editables()$q$, 'true,false,false,false');
+SELECT pg_temp.assert_eq('l3: the Producción Creativa director edits none (productores are placed in Dream Team)',
+  $q$SELECT pg_temp.editables()$q$, 'false,false,false,false');
 SELECT pg_temp.as_persona(4);
 SELECT pg_temp.assert_eq('l4: an added planner edits none', $q$SELECT pg_temp.editables()$q$, 'false,false,false,false');
 SELECT pg_temp.as_persona(6);
@@ -400,26 +456,37 @@ SELECT pg_temp.assert_eq('l6: without a session, none', $q$SELECT pg_temp.editab
 SELECT pg_temp.as_persona(2);
 SELECT pg_temp.assert_eq('l7: agregar returns the list with the person',
   $q$SELECT (SELECT p ->> 'nombre' || ':' || (p ->> 'iniciales') FROM jsonb_array_elements(r -> 'personas') p
-              WHERE p ->> 'persona_id' = pg_temp.id('us', 12)::text) || '|' || (r ->> 'lista') || '|' || (r ->> 'puede_editar')
-       FROM public.dps_lista_agregar('productores', pg_temp.id('us', 12)) r$q$, 'ZZ Dlx U12:ZU|productores|true');
+              WHERE p ->> 'persona_id' = pg_temp.id('us', 13)::text) || '|' || (r ->> 'lista') || '|' || (r ->> 'puede_editar')
+       FROM public.dps_lista_agregar('hosts', pg_temp.id('us', 13)) r$q$, 'ZZ Dlx U13:ZU|hosts|true');
 SELECT pg_temp.assert_eq('l8: twice is the same row',
-  $q$SELECT pg_temp.lista('productores') || '|' || pg_temp.lista('productores')
-       FROM public.dps_lista_agregar('productores', pg_temp.id('us', 12)) r$q$, 'ZZ Dlx U12|ZZ Dlx U12');
-SELECT pg_temp.assert_eq('l9: hosts and comunicadores',
-  $q$SELECT (public.dps_lista_agregar('hosts', pg_temp.id('us', 13)) ->> 'lista') || '|'
-            || (public.dps_lista_agregar('comunicadores', pg_temp.id('us', 14)) ->> 'lista') || '|'
-            || pg_temp.lista('hosts') || '|' || pg_temp.lista('comunicadores')$q$, 'hosts|comunicadores|ZZ Dlx U13|ZZ Dlx U14');
+  $q$SELECT pg_temp.lista('hosts') || '|' || pg_temp.lista('hosts')
+       FROM public.dps_lista_agregar('hosts', pg_temp.id('us', 13)) r$q$, 'ZZ Dlx U13|ZZ Dlx U13');
+SELECT pg_temp.assert_eq('l9: comunicadores, sorted by name',
+  $q$SELECT (public.dps_lista_agregar('comunicadores', pg_temp.id('us', 14)) ->> 'lista') || '|'
+            || (public.dps_lista_agregar('comunicadores', pg_temp.id('us', 15)) IS NOT NULL) || '|' || pg_temp.lista('comunicadores')$q$,
+  'comunicadores|true|ZZ Dlx U14,ZZ Dlx U15');
+SELECT pg_temp.assert_eq('l9: quitar removes',
+  $q$SELECT pg_temp.lista('comunicadores') FROM public.dps_lista_quitar('comunicadores', pg_temp.id('us', 15)) r$q$, 'ZZ Dlx U14');
+SELECT pg_temp.assert_eq('l10: productores = the active servicios of Productores and below, not paused, not only on Producción Creativa',
+  $q$SELECT pg_temp.lista('productores') || '|' || (public.dps_lista_leer('productores') ->> 'puede_editar')$q$,
+  'ZZ Dlx U11,ZZ Dlx U12,ZZ Dlx U26|false');
+SELECT pg_temp.assert_raises('l10: productores are not added here',
+  $q$SELECT public.dps_lista_agregar('productores', pg_temp.id('us', 15))$q$, '22023', 'lista_invalida');
+SELECT pg_temp.assert_raises('l10: nor removed',
+  $q$SELECT public.dps_lista_quitar('productores', pg_temp.id('us', 11))$q$, '22023', 'lista_invalida');
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('l10: not even by the admin',
+  $q$SELECT public.dps_lista_agregar('productores', pg_temp.id('us', 15))$q$, '22023', 'lista_invalida');
 SELECT pg_temp.as_persona(3);
-SELECT pg_temp.assert_eq('l10: the Producción Creativa director adds a productor, sorted by name',
-  $q$SELECT (public.dps_lista_agregar('productores', pg_temp.id('us', 11)) IS NOT NULL) || '|' || pg_temp.lista('productores')$q$,
-  'true|ZZ Dlx U11,ZZ Dlx U12');
-SELECT pg_temp.assert_raises('l11: but not a host',
+SELECT pg_temp.assert_raises('l11: the Producción Creativa director cannot add a host',
   $q$SELECT public.dps_lista_agregar('hosts', pg_temp.id('us', 15))$q$, '42501', 'sin_autoridad');
-SELECT pg_temp.assert_raises('l11: nor removes a comunicador',
+SELECT pg_temp.assert_raises('l11: nor remove a comunicador',
   $q$SELECT public.dps_lista_quitar('comunicadores', pg_temp.id('us', 14))$q$, '42501', 'sin_autoridad');
+SELECT pg_temp.assert_raises('l11: nor add a productor',
+  $q$SELECT public.dps_lista_agregar('productores', pg_temp.id('us', 15))$q$, '22023', 'lista_invalida');
 SELECT pg_temp.as_persona(4);
 SELECT pg_temp.assert_raises('l12: an added planner cannot add',
-  $q$SELECT public.dps_lista_agregar('productores', pg_temp.id('us', 15))$q$, '42501', 'sin_autoridad');
+  $q$SELECT public.dps_lista_agregar('hosts', pg_temp.id('us', 15))$q$, '42501', 'sin_autoridad');
 SELECT pg_temp.assert_eq('l13: but reads the lists, not editable',
   $q$SELECT pg_temp.lista('hosts') || '|' || (public.dps_lista_leer('hosts') ->> 'puede_editar')$q$, 'ZZ Dlx U13|false');
 SELECT pg_temp.as_persona(5);
@@ -440,6 +507,10 @@ SELECT pg_temp.assert_eq('l18: cantantes = the active servicios of Cantantes and
   'ZZ Dlx U08,ZZ Dlx U09,ZZ Dlx U17,ZZ Dlx U18,ZZ Dlx U19,ZZ Dlx U20,ZZ Dlx U21,ZZ Dlx U22,ZZ Dlx U23,ZZ Dlx U24|false');
 SELECT pg_temp.as_persona(6);
 SELECT pg_temp.assert_eq('l19: a servidor reads a list', $q$SELECT pg_temp.lista('comunicadores')$q$, 'ZZ Dlx U14');
+RESET ROLE;
+SELECT pg_temp.assert_raises('l21: the table only takes hosts and comunicadores',
+  $q$INSERT INTO public.dps_listas_personas (lista, persona_id) VALUES ('productores', pg_temp.id('us', 15))$q$, '23514');
+SET LOCAL ROLE authenticated;
 
 -- ── c. cells (S12.3, S12.4) ──────────────────────────────────────────
 
@@ -455,6 +526,12 @@ SELECT pg_temp.assert_raises('c2: four productores is demasiadas_personas',
 SELECT pg_temp.assert_raises('c3: a persona off the productores list is persona_fuera_de_lista',
   $q$SELECT pg_temp.campo('pl_a', 'productor', jsonb_build_array(jsonb_build_object('persona_id', pg_temp.id('us', 15))))$q$,
   '22023', 'persona_fuera_de_lista');
+SELECT pg_temp.assert_raises('c3: a paused productor is off the list',
+  $q$SELECT pg_temp.campo('pl_a', 'productor', jsonb_build_object('persona_id', pg_temp.id('us', 25)))$q$, '22023', 'persona_fuera_de_lista');
+SELECT pg_temp.assert_raises('c3: someone only on Producción Creativa is not a productor',
+  $q$SELECT pg_temp.campo('pl_a', 'productor', jsonb_build_object('persona_id', pg_temp.id('us', 27)))$q$, '22023', 'persona_fuera_de_lista');
+SELECT pg_temp.assert_eq('c3: someone below Productores is',
+  $q$SELECT pg_temp.celda(pg_temp.campo('pl_b', 'productor', jsonb_build_object('persona_id', pg_temp.id('us', 26))), 'productor')$q$, 'ZZ Dlx U26');
 SELECT pg_temp.assert_raises('c3: a host is not a productor',
   $q$SELECT pg_temp.campo('pl_a', 'productor', jsonb_build_object('persona_id', pg_temp.id('us', 13)))$q$, '22023', 'persona_fuera_de_lista');
 SELECT pg_temp.assert_eq('c4: the rejected writes left the cell as it was',
@@ -468,10 +545,11 @@ SELECT pg_temp.assert_eq('c5: repeats are kept once (the same persona, the same 
 SELECT pg_temp.assert_eq('c6: a written name is always fine (no list needed), one object as before',
   $q$SELECT pg_temp.celda(p, 'comunicador') || '|' || (p -> 'comunicador' ->> 'texto')
        FROM pg_temp.campo('pl_a', 'comunicador', '{"texto": "Pastor invitado"}') p$q$, 'Pastor invitado*|Pastor invitado');
-SELECT pg_temp.as_persona(2);
-SELECT pg_temp.assert_eq('l20: quitar takes U11 off the productores list',
-  $q$SELECT pg_temp.lista('productores') FROM public.dps_lista_quitar('productores', pg_temp.id('us', 11)) r$q$, 'ZZ Dlx U12');
-SELECT pg_temp.as_persona(4);
+RESET ROLE;
+UPDATE public.dream_team_servicios SET estado = 'en_pausa' WHERE id = pg_temp.id('se', 11);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.assert_eq('l20: pausing U11 in Productores takes them off the list',
+  $q$SELECT pg_temp.lista('productores')$q$, 'ZZ Dlx U12,ZZ Dlx U26');
 SELECT pg_temp.assert_eq('c7: someone already in the cell stays after leaving the list',
   $q$SELECT pg_temp.celda(pg_temp.campo('pl_a', 'productor', jsonb_build_array(jsonb_build_object('persona_id', pg_temp.id('us', 11)),
                                                                             jsonb_build_object('persona_id', pg_temp.id('us', 12)))), 'productor')$q$,

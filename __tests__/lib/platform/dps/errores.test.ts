@@ -96,10 +96,10 @@ describe('mensajeErrorDps', () => {
   // S12: the lists by position (Configuración › Listas) and the cells of several people.
   it.each([
     ['sin_autoridad', 'listas', 'No tienes permiso para cambiar esta lista.'],
-    ['lista_invalida', 'listas', 'Los cantantes se gestionan en Dream Team › Global Music › Cantantes.'],
+    ['lista_invalida', 'listas', 'Los productores y los cantantes se gestionan en Dream Team.'],
     ['persona_invalida', 'listas', 'Esa persona ya no existe. Busca de nuevo.'],
     ['busqueda_invalida', 'listas', 'La búsqueda es muy larga (máximo 100 caracteres).'],
-    ['persona_fuera_de_lista', 'programacion', 'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.'],
+    ['persona_fuera_de_lista', 'programacion', 'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.'],
     ['demasiadas_personas', 'programacion', 'Son demasiadas personas para esta celda: hasta 3, y hasta 8 en Cantantes.'],
   ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
     expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)

@@ -134,15 +134,17 @@ describe('the lists by position (S12.2)', () => {
       ok: true,
       data: { lista: 'hosts', puedeEditar: true, personas: [{ personaId: P1, nombre: 'Ana Rivas', iniciales: 'AR' }] },
     })
-    expect(await quitarDeListaDps({ lista: 'productores', personaId: P1 })).toMatchObject({ ok: true })
+    expect(await quitarDeListaDps({ lista: 'comunicadores', personaId: P1 })).toMatchObject({ ok: true })
     expect(rpc.mock.calls).toEqual([
       ['dps_lista_agregar', { p_lista: 'hosts', p_persona_id: P1 }],
-      ['dps_lista_quitar', { p_lista: 'productores', p_persona_id: P1 }],
+      ['dps_lista_quitar', { p_lista: 'comunicadores', p_persona_id: P1 }],
     ])
   })
 
-  it('refuses Cantantes, an unknown list or a bad id without calling', async () => {
-    expect(await agregarAListaDps({ lista: 'cantantes', personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+  it('refuses Productores, Cantantes (Dream Team, L59), an unknown list or a bad id without calling', async () => {
+    expect(await agregarAListaDps({ lista: 'productores' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+    expect(await quitarDeListaDps({ lista: 'productores' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
+    expect(await agregarAListaDps({ lista: 'cantantes' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
     expect(await agregarAListaDps({ lista: 'bajistas' as never, personaId: P1 })).toMatchObject({ ok: false, codigo: null })
     expect(await quitarDeListaDps({ lista: 'hosts', personaId: 'x' })).toMatchObject({ ok: false, codigo: null })
     expect(rpc).not.toHaveBeenCalled()

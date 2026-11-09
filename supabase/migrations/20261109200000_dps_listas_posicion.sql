@@ -1,6 +1,7 @@
 -- noqa: insert-into
 -- DPS planning: lists by position and several people per cell
--- (odd/tasks/dps-asistencia-pco.md, T14a, T14b; S12.1-S12.4, L56, L57) and
+-- (odd/tasks/dps-asistencia-pco.md, T14a, T14b; S12.1-S12.4, L56, L57,
+-- S12.2 as amended by L59) and
 -- the follow-up of the T11c/T13 review (T13c, L55). Builds on
 -- 20261108200000..208000.
 --
@@ -13,7 +14,15 @@
 -- Creativa direction, hosts and comunicadores by the DPS direction; Cantantes
 -- = a «Cantantes» sub-equipo of Global Music, plus one sub-equipo per
 -- instrument, filled by Miguel from Dream Team; a name without an account is
--- written by hand («Sin cuenta»); several people in every cell.
+-- written by hand («Sin cuenta»); several people in every cell. After
+-- seeing it (L59): "los productores también debería ser en dream team no??
+-- porque productor es un rol o puesto dentro de producción creativa", and
+-- chose a «Productores» sub-equipo of Producción Creativa: the productores
+-- are whoever serves there, like Cantantes with Global Music.
+--
+-- Re-runnable: staging already ran the first version of this file (with a
+-- stored productores list); running this one on top leaves the same result
+-- as on a fresh database.
 --
 -- What:
 --   1. T14a (S12.1). Under the Global Music node (dps_raiz_musica()) the
@@ -40,25 +49,31 @@
 --      someone still on Global Music can be convocado in a puesto of its
 --      sub-equipos; once Miguel moves them they are found in the sub-equipo.
 --      Nowhere else does a servicio above the puesto count.
---   2. S12.2. dps_listas_personas (lista 'productores', 'hosts' or
---      'comunicadores', persona_id, agregado_por, created_at; one row per
---      lista and person): who may be picked in each column of the sheet.
---      The Cantantes list is not stored: it is the people with an active
---      servicio in the «Cantantes» sub-equipo (and below), managed in Dream
---      Team by the DPS and Global Music directions.
+--      L59: under «Producción Creativa» (the active direct child of the DPS
+--      root with that label) the active sub-equipo «Productores», with the
+--      experiencia of its parent and the same three roles; inserted only
+--      when missing. Without Producción Creativa, a NOTICE and nothing.
+--   2. S12.2. dps_listas_personas (lista 'hosts' or 'comunicadores',
+--      persona_id, agregado_por, created_at; one row per lista and person):
+--      who may be picked in those columns of the sheet. The Productores and
+--      Cantantes lists are not stored: they are the people with an active
+--      servicio in the «Productores» sub-equipo of Producción Creativa (L59)
+--      or the «Cantantes» sub-equipo of Global Music (and below), placed
+--      from Dream Team. Where the first version of this file already ran,
+--      the stored productores rows are deleted and the CHECK on lista is
+--      replaced (dps_listas_personas_lista_check, dropped and added again).
 --      For authenticated:
---        dps_lista_puede_editar(lista) -> boolean   productores: a
---            configurator (dps_exigir_configurador's rule) or
---            dream_team.direct / dream_team.org.manage on «Producción
---            Creativa» (the active direct child of the DPS root with that
---            label; a grant on it or above); hosts and comunicadores: a
---            configurator; cantantes and anything else: false.
+--        dps_lista_puede_editar(lista) -> boolean   hosts and comunicadores:
+--            a configurator (dps_exigir_configurador's rule); productores,
+--            cantantes and anything else: false.
 --        dps_lista_leer(lista) -> {lista, puede_editar, personas: [{persona_id,
 --            nombre, iniciales}] by nombre}   dps_puede_ver; the four lists.
 --        dps_lista_agregar(lista, persona) / dps_lista_quitar(lista, persona)
---            -> the list as dps_lista_leer   dps_lista_puede_editar, else
---            'sin_autoridad'; idempotent. Taking someone off a list leaves
---            the plans where they already are as they are.
+--            -> the list as dps_lista_leer   hosts and comunicadores only
+--            (else 'lista_invalida'); dps_lista_puede_editar, else
+--            'sin_autoridad'; idempotent. Taking someone off a list (or out
+--            of a sub-equipo) leaves the plans where they already are as
+--            they are.
 --   3. S12.3, S12.4. dps_plan_personas: the people of the Productor, Host,
 --      Comunicador and Cantantes cells of a plan, in order (posicion), each
 --      a persona of the system or a written name (never both, S7.3); at most
@@ -87,10 +102,11 @@
 --   5. Internal (no EXECUTE for PUBLIC, anon or authenticated):
 --      dps_es_configurador() (dps_exigir_configurador now uses it),
 --      dps_equipo_cantantes(), dps_equipo_produccion_creativa(),
---      dps_equipos_para_puesto(equipo), dps_lista_tiene(lista, persona).
+--      dps_equipo_productores(), dps_equipos_para_puesto(equipo),
+--      dps_lista_equipo(lista), dps_lista_tiene(lista, persona).
 --
 -- Errors: 'sin_autoridad' (42501); 22023 for lista_invalida (an unknown
--- list, or cantantes for agregar / quitar), persona_invalida,
+-- list, or productores / cantantes for agregar / quitar), persona_invalida,
 -- demasiadas_personas (more than 3, or 8 in Cantantes),
 -- persona_fuera_de_lista, valor_invalido, persona_o_texto, llegada_invalida,
 -- horarios_invalidos, item_invalido.
@@ -100,8 +116,8 @@
 -- Rollback:
 --   DROP FUNCTION IF EXISTS public.dps_lista_quitar(text, uuid), public.dps_lista_agregar(text, uuid),
 --     public.dps_lista_leer(text), public.dps_lista_puede_editar(text), public.dps_lista_tiene(text, uuid),
---     public.dps_equipos_para_puesto(uuid), public.dps_equipo_produccion_creativa(),
---     public.dps_equipo_cantantes();
+--     public.dps_lista_equipo(text), public.dps_equipos_para_puesto(uuid), public.dps_equipo_productores(),
+--     public.dps_equipo_produccion_creativa(), public.dps_equipo_cantantes();
 --   re-run, in this order, dps_exigir_configurador, dps_plan_campo and
 --   dps_config_guardar of 20261108201000, dps_convocar and
 --   dps_candidatos_puesto of 20261108202000, dps_copiar_plan of
@@ -111,7 +127,7 @@
 --   restore dps_horarios_normalizar from 20261108200000 (1 to 6);
 --   DROP TABLE IF EXISTS public.dps_plan_personas, public.dps_listas_personas;
 --   (the old single columns kept the first entry of each cell; a second or
---   third person is lost). The sub-equipos and roles stay (delete them only
+--   third person is lost). The sub-equipos (also Productores) and roles stay (delete them only
 --   while no servicio points at them); move the puestos back with
 --   UPDATE public.dps_puestos SET equipo_id = '<Global Music id>' WHERE id IN (...).
 
@@ -168,16 +184,52 @@ BEGIN
 END;
 $$;
 
+-- L59: Producción Creativa › Productores, placed from Dream Team.
+DO $$
+DECLARE
+  v_pc uuid;
+BEGIN
+  SELECT e.id INTO v_pc
+    FROM public.dream_team_equipos e
+   WHERE e.parent_equipo_id = public.dps_raiz() AND e.label = 'Producción Creativa' AND e.activo
+   ORDER BY e.created_at, e.id
+   LIMIT 1;
+  IF v_pc IS NULL THEN
+    RAISE NOTICE 'dps listas: Producción Creativa not found, sub-equipo Productores skipped';
+    RETURN;
+  END IF;
+
+  INSERT INTO public.dream_team_equipos (experiencia, parent_equipo_id, label, activo)
+  SELECT pc.experiencia, pc.id, 'Productores', true
+    FROM public.dream_team_equipos pc
+   WHERE pc.id = v_pc
+     AND NOT EXISTS (SELECT 1 FROM public.dream_team_equipos e WHERE e.parent_equipo_id = pc.id AND e.label = 'Productores');
+
+  INSERT INTO public.dream_team_roles (equipo_id, label, nivel, activo)
+  SELECT e.id, r.label, r.nivel, true
+    FROM public.dream_team_equipos e
+   CROSS JOIN (VALUES ('coordinador', 'coordinador'), ('entrenador', 'lider'), ('voluntario', 'voluntario')) AS r(label, nivel)
+   WHERE e.parent_equipo_id = v_pc AND e.label = 'Productores'
+     AND NOT EXISTS (SELECT 1 FROM public.dream_team_roles x WHERE x.equipo_id = e.id AND x.label = r.label);
+END;
+$$;
+
 -- ── 2. tables ────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.dps_listas_personas (
-  lista text NOT NULL CHECK (lista IN ('productores', 'hosts', 'comunicadores')),
+  lista text NOT NULL CONSTRAINT dps_listas_personas_lista_check CHECK (lista IN ('hosts', 'comunicadores')),
   persona_id uuid NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
   agregado_por uuid REFERENCES public.usuarios(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (lista, persona_id)
 );
 CREATE INDEX IF NOT EXISTS dps_listas_personas_persona_idx ON public.dps_listas_personas (persona_id);
+-- L59: where the first version ran, productores were stored here; they are
+-- the Productores sub-equipo now.
+DELETE FROM public.dps_listas_personas WHERE lista NOT IN ('hosts', 'comunicadores');
+ALTER TABLE public.dps_listas_personas DROP CONSTRAINT IF EXISTS dps_listas_personas_lista_check;
+ALTER TABLE public.dps_listas_personas
+  ADD CONSTRAINT dps_listas_personas_lista_check CHECK (lista IN ('hosts', 'comunicadores'));
 
 CREATE TABLE IF NOT EXISTS public.dps_plan_personas (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -196,7 +248,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS dps_plan_personas_persona_uidx
 CREATE INDEX IF NOT EXISTS dps_plan_personas_persona_idx ON public.dps_plan_personas (persona_id);
 
 COMMENT ON TABLE public.dps_listas_personas IS
-  'Who may be picked as productor, host or comunicador in the DPS sheet (S12.2). Only through the dps_* functions.';
+  'Who may be picked as host or comunicador in the DPS sheet (S12.2). Only through the dps_* functions.';
 COMMENT ON TABLE public.dps_plan_personas IS
   'The people of the Productor, Host, Comunicador and Cantantes cells of a DPS plan, in order (S12.4). Only through the dps_* functions.';
 
@@ -276,6 +328,21 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.dps_equipo_produccion_creativa() FROM PUBLIC, anon, authenticated;
 
+CREATE OR REPLACE FUNCTION public.dps_equipo_productores()
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO ''
+AS $$
+  SELECT e.id
+    FROM public.dream_team_equipos e
+    JOIN public.dream_team_equipos pc ON pc.id = e.parent_equipo_id
+   WHERE pc.id = public.dps_equipo_produccion_creativa() AND e.label = 'Productores' AND e.activo
+     AND e.experiencia = pc.experiencia
+   ORDER BY e.created_at, e.id
+   LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION public.dps_equipo_productores() FROM PUBLIC, anon, authenticated;
+
 -- The equipos whose servicios may fill a puesto of p_equipo: its subtree
 -- and, inside Global Music only, its ancestors up to the Global Music node
 -- (the S12.1 transition: people still on Global Music fill the puestos of
@@ -300,18 +367,30 @@ AS $$
 $$;
 REVOKE ALL ON FUNCTION public.dps_equipos_para_puesto(uuid) FROM PUBLIC, anon, authenticated;
 
+-- The sub-equipo behind a list kept in Dream Team: Productores (L59) or
+-- Cantantes; NULL for the stored lists.
+CREATE OR REPLACE FUNCTION public.dps_lista_equipo(p_lista text)
+RETURNS uuid
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO ''
+AS $$
+  SELECT CASE p_lista WHEN 'productores' THEN public.dps_equipo_productores()
+                      WHEN 'cantantes' THEN public.dps_equipo_cantantes() END;
+$$;
+REVOKE ALL ON FUNCTION public.dps_lista_equipo(text) FROM PUBLIC, anon, authenticated;
+
 -- Whether the person is on the list: a row of dps_listas_personas, or for
--- 'cantantes' an active servicio in the Cantantes sub-equipo or below.
+-- 'productores' and 'cantantes' an active servicio in their sub-equipo or below.
 CREATE OR REPLACE FUNCTION public.dps_lista_tiene(p_lista text, p_persona_id uuid)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO ''
 AS $$
   SELECT CASE
-           WHEN p_lista = 'cantantes' THEN EXISTS (
+           WHEN p_lista IN ('productores', 'cantantes') THEN EXISTS (
              SELECT 1 FROM public.dream_team_servicios s
               WHERE s.persona_id = p_persona_id AND s.estado = 'activo'
-                AND s.equipo_id IN (SELECT x FROM public.dps_subarbol(public.dps_equipo_cantantes()) x))
+                AND s.equipo_id IN (SELECT x FROM public.dps_subarbol(public.dps_lista_equipo(p_lista)) x))
            ELSE EXISTS (SELECT 1 FROM public.dps_listas_personas l WHERE l.lista = p_lista AND l.persona_id = p_persona_id)
          END;
 $$;
@@ -324,13 +403,9 @@ RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO ''
 AS $$
+  -- Productores and cantantes are placed in Dream Team (L59), not here.
   SELECT public.ninos_usuario_actual() IS NOT NULL AND CASE
            WHEN p_lista IN ('hosts', 'comunicadores') THEN public.dps_es_configurador()
-           WHEN p_lista = 'productores' THEN public.dps_es_configurador()
-             OR EXISTS (SELECT 1 FROM (SELECT public.dps_equipo_produccion_creativa() AS id) pc
-                         WHERE pc.id IS NOT NULL
-                           AND (public.auth_has_dream_team_capability_in_tree('dream_team.direct', pc.id)
-                                OR public.auth_has_dream_team_capability_in_tree('dream_team.org.manage', pc.id)))
            ELSE false
          END;
 $$;
@@ -357,10 +432,10 @@ BEGIN
                           'iniciales', public.dps_iniciales(u.nombre, u.apellido))
                           ORDER BY u.nombre, u.apellido, u.id), '[]'::jsonb)
                    FROM public.usuarios u
-                  WHERE CASE WHEN p_lista = 'cantantes'
+                  WHERE CASE WHEN p_lista IN ('productores', 'cantantes')
                              THEN u.id IN (SELECT s.persona_id FROM public.dream_team_servicios s
                                             WHERE s.estado = 'activo'
-                                              AND s.equipo_id IN (SELECT x FROM public.dps_subarbol(public.dps_equipo_cantantes()) x))
+                                              AND s.equipo_id IN (SELECT x FROM public.dps_subarbol(public.dps_lista_equipo(p_lista)) x))
                              ELSE u.id IN (SELECT l.persona_id FROM public.dps_listas_personas l WHERE l.lista = p_lista) END));
 END;
 $$;
@@ -378,7 +453,7 @@ BEGIN
   IF v_actor IS NULL THEN
     RAISE EXCEPTION 'sin_autoridad' USING ERRCODE = '42501';
   END IF;
-  IF p_lista IS NULL OR p_lista NOT IN ('productores', 'hosts', 'comunicadores') THEN
+  IF p_lista IS NULL OR p_lista NOT IN ('hosts', 'comunicadores') THEN
     RAISE EXCEPTION 'lista_invalida' USING ERRCODE = '22023';
   END IF;
   IF NOT public.dps_lista_puede_editar(p_lista) THEN
@@ -405,7 +480,7 @@ BEGIN
   IF public.ninos_usuario_actual() IS NULL THEN
     RAISE EXCEPTION 'sin_autoridad' USING ERRCODE = '42501';
   END IF;
-  IF p_lista IS NULL OR p_lista NOT IN ('productores', 'hosts', 'comunicadores') THEN
+  IF p_lista IS NULL OR p_lista NOT IN ('hosts', 'comunicadores') THEN
     RAISE EXCEPTION 'lista_invalida' USING ERRCODE = '22023';
   END IF;
   IF NOT public.dps_lista_puede_editar(p_lista) THEN

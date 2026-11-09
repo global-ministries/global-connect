@@ -22,7 +22,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { leerConfig, normalizarHorarios, validarLlegada, type ConfigDps } from '@/lib/platform/dps/configuracion'
 import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ErrorRpc } from '@/lib/platform/dps/errores'
-import { leerListaDps, type ListaDps, type ListaPersonasDps } from '@/lib/platform/dps/listas'
+import { esListaEditableDps, leerListaDps, type ListaEditableDps, type ListaPersonasDps } from '@/lib/platform/dps/listas'
 import { leerPersonasBuscadas, textoParaBuscar, type PersonaBuscada } from '@/lib/platform/dps/personas'
 import { rpcDps } from '@/lib/platform/dps/rpc'
 import type { ResultadoDps } from './dps-asistencia.actions'
@@ -39,8 +39,6 @@ const esUuid = (valor: unknown): valor is string => typeof valor === 'string' &&
 const fallo = (message: string, codigo: CodigoErrorDps | null = null) => ({ ok: false, message, codigo }) as const
 const falloRpc = (error: ErrorRpc) => fallo(mensajeErrorDps(error, 'configuracion'), codigoErrorDps(error))
 const falloLista = (error: ErrorRpc) => fallo(mensajeErrorDps(error, 'listas'), codigoErrorDps(error))
-/** The lists kept here; Cantantes are managed in Dream Team. */
-const LISTAS_EDITABLES: readonly ListaDps[] = ['productores', 'hosts', 'comunicadores']
 
 async function rpcConSesion() {
   const cliente = await createSupabaseServerClient()
@@ -132,20 +130,21 @@ export async function buscarPersonasDps(input: { readonly q: string }): Promise<
 }
 
 /** Adds a person to Productores, Hosts or Comunicadores and returns the list. */
-export async function agregarAListaDps(input: { readonly lista: ListaDps; readonly personaId: string }): Promise<ResultadoDps<ListaPersonasDps>> {
+export async function agregarAListaDps(input: { readonly lista: ListaEditableDps; readonly personaId: string }): Promise<ResultadoDps<ListaPersonasDps>> {
   return cambiarLista('dps_lista_agregar', input)
 }
 
 /** Takes a person off Productores, Hosts or Comunicadores and returns the list (the plans keep them). */
-export async function quitarDeListaDps(input: { readonly lista: ListaDps; readonly personaId: string }): Promise<ResultadoDps<ListaPersonasDps>> {
+export async function quitarDeListaDps(input: { readonly lista: ListaEditableDps; readonly personaId: string }): Promise<ResultadoDps<ListaPersonasDps>> {
   return cambiarLista('dps_lista_quitar', input)
 }
 
 async function cambiarLista(
   nombre: 'dps_lista_agregar' | 'dps_lista_quitar',
-  input: { readonly lista: ListaDps; readonly personaId: string },
+  input: { readonly lista: ListaEditableDps; readonly personaId: string },
 ): Promise<ResultadoDps<ListaPersonasDps>> {
-  if (!LISTAS_EDITABLES.includes(input?.lista) || !esUuid(input.personaId)) return fallo(DATOS_INVALIDOS)
+  // Only Hosts and Comunicadores are kept here; Productores and Cantantes are managed in Dream Team (L59).
+  if (!esListaEditableDps(input?.lista) || !esUuid(input.personaId)) return fallo(DATOS_INVALIDOS)
   const rpc = await rpcConSesion()
   if (!rpc) return fallo(SIN_SESION)
 

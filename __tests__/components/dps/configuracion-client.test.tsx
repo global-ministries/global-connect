@@ -56,6 +56,7 @@ const LISTAS: ListasDps = {
   comunicadores: { lista: 'comunicadores', puedeEditar: false, personas: [PEDRO] },
   cantantes: { lista: 'cantantes', puedeEditar: false, personas: [LIA] },
 }
+const LISTAS_HOSTS: ListasDps = { ...LISTAS, hosts: { lista: 'hosts', puedeEditar: true, personas: [ELENA] } }
 
 const CONFIG: ConfigDps = leerConfig({
   horarios: ['09:15', '11:15'],
@@ -205,47 +206,53 @@ describe('ConfiguracionClient', () => {
       buscarLista.mockResolvedValue({ ok: true, data: [ELENA, { personaId: 'bruno', nombre: 'Bruno Díaz', iniciales: 'BD' }] })
     })
 
-    it('shows the four lists, who keeps each and its people; Cantantes come from Dream Team', () => {
+    it('shows the four lists, who keeps each and its people; Productores and Cantantes come from Dream Team (L59)', () => {
       render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
       const seccion = screen.getByRole('region', { name: 'Listas de la programación' })
       expect(within(seccion).getByRole('list', { name: 'Productores' })).toHaveTextContent('Elena Garrido')
-      expect(within(seccion).getByText('La arman la dirección de DPS y la de Producción Creativa.')).toBeInTheDocument()
+      expect(within(seccion).getByText('Se gestionan en Dream Team › DPS › Producción Creativa › Productores: son quienes sirven ahí.')).toBeInTheDocument()
       expect(within(seccion).getByText('Nadie en esta lista todavía.')).toBeInTheDocument()
       expect(within(seccion).getByRole('list', { name: 'Cantantes' })).toHaveTextContent('Lía Soto')
       expect(within(seccion).getByText('Se gestionan en Dream Team › Global Music › Cantantes: son quienes sirven ahí.')).toBeInTheDocument()
-      // Editable: Productores and Hosts; read-only: Comunicadores (not this caller's) and Cantantes.
-      expect(within(seccion).getByRole('searchbox', { name: 'Agregar a Productores' })).toBeInTheDocument()
+      // Editable: Hosts; read-only: Comunicadores (not this caller's), and always Productores and Cantantes.
       expect(within(seccion).getByRole('searchbox', { name: 'Agregar a Hosts' })).toBeInTheDocument()
+      expect(within(seccion).queryByRole('searchbox', { name: 'Agregar a Productores' })).not.toBeInTheDocument()
       expect(within(seccion).queryByRole('searchbox', { name: 'Agregar a Comunicadores' })).not.toBeInTheDocument()
       expect(within(seccion).queryByRole('searchbox', { name: 'Agregar a Cantantes' })).not.toBeInTheDocument()
-      expect(within(seccion).getByRole('button', { name: 'Quitar a Elena Garrido de Productores' })).toBeInTheDocument()
+      expect(within(seccion).queryByRole('button', { name: 'Quitar a Elena Garrido de Productores' })).not.toBeInTheDocument()
       expect(within(seccion).queryByRole('button', { name: 'Quitar a Pedro Olmedo de Comunicadores' })).not.toBeInTheDocument()
     })
 
     it('adds a person found by name; who is already on the list is not offered', async () => {
-      agregarLista.mockResolvedValue({ ok: true, data: { lista: 'productores', puedeEditar: true, personas: [{ personaId: 'bruno', nombre: 'Bruno Díaz', iniciales: 'BD' }, ELENA] } })
-      render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
-      await userEvent.type(screen.getByRole('searchbox', { name: 'Agregar a Productores' }), 'di')
-      const boton = await screen.findByRole('button', { name: 'Agregar a Bruno Díaz en Productores' })
+      agregarLista.mockResolvedValue({ ok: true, data: { lista: 'hosts', puedeEditar: true, personas: [{ personaId: 'bruno', nombre: 'Bruno Díaz', iniciales: 'BD' }, ELENA] } })
+      render(<ConfiguracionClient config={CONFIG} listas={LISTAS_HOSTS} error={null} />)
+      await userEvent.type(screen.getByRole('searchbox', { name: 'Agregar a Hosts' }), 'di')
+      const boton = await screen.findByRole('button', { name: 'Agregar a Bruno Díaz en Hosts' })
       expect(buscarLista).toHaveBeenCalledWith({ texto: 'di' })
-      expect(screen.queryByRole('button', { name: 'Agregar a Elena Garrido en Productores' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Agregar a Elena Garrido en Hosts' })).not.toBeInTheDocument()
       await userEvent.click(boton)
-      expect(agregarLista).toHaveBeenCalledWith({ lista: 'productores', personaId: 'bruno' })
-      await waitFor(() => expect(screen.getByRole('list', { name: 'Productores' })).toHaveTextContent('Bruno Díaz'))
-      expect(screen.getByRole('searchbox', { name: 'Agregar a Productores' })).toHaveValue('')
+      expect(agregarLista).toHaveBeenCalledWith({ lista: 'hosts', personaId: 'bruno' })
+      await waitFor(() => expect(screen.getByRole('list', { name: 'Hosts' })).toHaveTextContent('Bruno Díaz'))
+      expect(screen.getByRole('searchbox', { name: 'Agregar a Hosts' })).toHaveValue('')
       await waitFor(() => expect(screen.getByTestId('estado-guardado')).toHaveTextContent('Guardado'))
     })
 
     it('takes a person off and rolls a failure back with its reason', async () => {
       quitarLista.mockResolvedValueOnce({ ok: false, message: 'No tienes permiso para cambiar esta lista.', codigo: 'sin_autoridad' })
-      render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
-      await userEvent.click(screen.getByRole('button', { name: 'Quitar a Elena Garrido de Productores' }))
-      expect(quitarLista).toHaveBeenCalledWith({ lista: 'productores', personaId: 'elena' })
+      render(<ConfiguracionClient config={CONFIG} listas={LISTAS_HOSTS} error={null} />)
+      await userEvent.click(screen.getByRole('button', { name: 'Quitar a Elena Garrido de Hosts' }))
+      expect(quitarLista).toHaveBeenCalledWith({ lista: 'hosts', personaId: 'elena' })
       await waitFor(() => expect(toastError).toHaveBeenCalledWith('No tienes permiso para cambiar esta lista.'))
+      expect(screen.getByRole('list', { name: 'Hosts' })).toHaveTextContent('Elena Garrido')
+      quitarLista.mockResolvedValueOnce({ ok: true, data: { lista: 'hosts', puedeEditar: true, personas: [] } })
+      await userEvent.click(screen.getByRole('button', { name: 'Quitar a Elena Garrido de Hosts' }))
+      await waitFor(() => expect(screen.queryByRole('list', { name: 'Hosts' })).not.toBeInTheDocument())
+    })
+
+    it('never edits Productores here, even if the read says so', () => {
+      render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
       expect(screen.getByRole('list', { name: 'Productores' })).toHaveTextContent('Elena Garrido')
-      quitarLista.mockResolvedValueOnce({ ok: true, data: { lista: 'productores', puedeEditar: true, personas: [] } })
-      await userEvent.click(screen.getByRole('button', { name: 'Quitar a Elena Garrido de Productores' }))
-      await waitFor(() => expect(screen.queryByRole('list', { name: 'Productores' })).not.toBeInTheDocument())
+      expect(screen.queryByRole('searchbox', { name: 'Agregar a Productores' })).not.toBeInTheDocument()
     })
   })
 

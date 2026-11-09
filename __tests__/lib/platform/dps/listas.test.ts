@@ -1,27 +1,33 @@
 /**
- * The lists by position (odd/tasks/dps-asistencia-pco.md, T14b; S12.2,
- * S12.3): which list feeds each column of the programming sheet, who edits
- * each one, and how dps_lista_leer is read. Every name is fictitious.
+ * The lists by position (odd/tasks/dps-asistencia-pco.md, T14b; S12.2 as
+ * amended by L59, S12.3): which list feeds each column of the programming
+ * sheet, who edits each one, which are kept in Configuración and how
+ * dps_lista_leer is read. Every name is fictitious.
  */
-import { LISTA_DE_COLUMNA, LISTAS_DPS, leerListaDps, listasVacias } from '@/lib/platform/dps/listas'
+import { LISTA_DE_COLUMNA, LISTAS_DPS, LISTAS_EDITABLES_DPS, esListaEditableDps, leerListaDps, listasVacias } from '@/lib/platform/dps/listas'
 
 const ID = '11111111-1111-4111-8111-111111111111'
 
 describe('LISTAS_DPS', () => {
   it('are Productores, Hosts, Comunicadores and Cantantes, each with who edits it', () => {
-    expect(LISTAS_DPS.map((l) => [l.id, l.etiqueta, l.columna])).toEqual([
-      ['productores', 'Productores', 'productor'],
-      ['hosts', 'Hosts', 'host'],
-      ['comunicadores', 'Comunicadores', 'comunicador'],
-      ['cantantes', 'Cantantes', 'cantantes'],
+    expect(LISTAS_DPS.map((l) => [l.id, l.etiqueta, l.columna, l.editable])).toEqual([
+      ['productores', 'Productores', 'productor', false],
+      ['hosts', 'Hosts', 'host', true],
+      ['comunicadores', 'Comunicadores', 'comunicador', true],
+      ['cantantes', 'Cantantes', 'cantantes', false],
     ])
     expect(LISTAS_DPS.map((l) => l.quienEdita)).toEqual([
-      'La arman la dirección de DPS y la de Producción Creativa.',
+      'Se gestionan en Dream Team › DPS › Producción Creativa › Productores: son quienes sirven ahí.',
       'La arma la dirección de DPS.',
       'La arma la dirección de DPS. Un comunicador no tiene que servir en DPS.',
       'Se gestionan en Dream Team › Global Music › Cantantes: son quienes sirven ahí.',
     ])
     expect(LISTA_DE_COLUMNA).toEqual({ productor: 'productores', host: 'hosts', comunicador: 'comunicadores', cantantes: 'cantantes' })
+  })
+
+  it('keeps only Hosts and Comunicadores in Configuración; Productores and Cantantes come from Dream Team (L59)', () => {
+    expect(LISTAS_EDITABLES_DPS).toEqual(['hosts', 'comunicadores'])
+    expect(['productores', 'hosts', 'comunicadores', 'cantantes', 'bajistas', null].map(esListaEditableDps)).toEqual([false, true, true, false, false, false])
   })
 })
 

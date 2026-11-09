@@ -201,9 +201,9 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
     case 'destino_con_orden':
       return 'Este plan ya tiene orden. Elige si quieres reemplazarlo.'
     case 'lista_invalida':
-      return 'Los cantantes se gestionan en Dream Team › Global Music › Cantantes.'
+      return 'Los productores y los cantantes se gestionan en Dream Team.'
     case 'persona_fuera_de_lista':
-      return 'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.'
+      return 'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.'
     case 'demasiadas_personas':
       return 'Son demasiadas personas para esta celda: hasta 3, y hasta 8 en Cantantes.'
     default:

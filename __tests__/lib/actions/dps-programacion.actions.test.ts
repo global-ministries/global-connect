@@ -362,7 +362,7 @@ describe('guardarCeldaDps with the people of a cell (S11, S12.3, S12.4)', () => 
     respuestas({ dps_plan_campo: { data: null, error: { code: '22023', message: 'persona_fuera_de_lista' } } })
     expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'productor', valor: 'Ana Pérez', personas: [{ personaId: PERSONA, nombre: 'Ana Pérez' }] })).toEqual({
       ok: false,
-      message: 'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.',
+      message: 'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.',
       codigo: 'persona_fuera_de_lista',
     })
     respuestas({ dps_plan_campo: { data: null, error: { code: '22023', message: 'persona_invalida' } } })

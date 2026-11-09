@@ -2,14 +2,15 @@
 
 /**
  * DPS › Configuración › Listas de la programación (T14b of
- * odd/tasks/dps-asistencia-pco.md; S12.2, S12.3; L56, L57): who may be
+ * odd/tasks/dps-asistencia-pco.md; S12.2 as amended by L59, S12.3; L56,
+ * L57): who may be
  * picked in the Productor, Host, Comunicador and Cantantes columns of the
  * programming sheet. One block per list with who keeps it, its people and,
  * when the caller edits it (dps_lista_puede_editar, from the page), «Quitar»
  * per person and a person search (dps_buscar_personas) to add one; whoever
- * is already on the list is not offered again. Productores: the DPS
- * direction and the Producción Creativa one; Hosts and Comunicadores: the
- * DPS direction; Cantantes are read-only here, they are whoever serves in
+ * is already on the list is not offered again. Hosts and Comunicadores: the
+ * DPS direction; Productores and Cantantes are read-only here, they are
+ * whoever serves in Dream Team › DPS › Producción Creativa › Productores and
  * Dream Team › Global Music › Cantantes. Each change is saved at once and
  * rolled back on failure; the parent shows the autosave status.
  */
@@ -18,7 +19,7 @@ import { Search } from 'lucide-react'
 
 import { BotonSistema, InputSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { agregarAListaDps, buscarPersonasListaDps, quitarDeListaDps } from '@/lib/actions/dps-configuracion.actions'
-import { LISTAS_DPS, type DefListaDps, type ListaDps, type ListaPersonasDps, type ListasDps } from '@/lib/platform/dps/listas'
+import { LISTAS_DPS, esListaEditableDps, type DefListaDps, type ListaDps, type ListaEditableDps, type ListaPersonasDps, type ListasDps } from '@/lib/platform/dps/listas'
 import { textoParaBuscar, type PersonaBuscada } from '@/lib/platform/dps/personas'
 
 const ESPERA_BUSQUEDA_MS = 250
@@ -41,6 +42,8 @@ interface BloqueListaProps {
 }
 
 function BloqueLista({ def, lista, onCambiar }: BloqueListaProps): ReactElement {
+  // Productores and Cantantes are managed in Dream Team (L59), whatever the read says.
+  const editable: ListaEditableDps | null = def.editable && lista.puedeEditar && esListaEditableDps(def.id) ? def.id : null
   const [busqueda, setBusqueda] = useState('')
   const [resultados, setResultados] = useState<readonly PersonaBuscada[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +53,7 @@ function BloqueLista({ def, lista, onCambiar }: BloqueListaProps): ReactElement 
   useEffect(() => {
     const pedido = ++pedidoRef.current
     // Under two letters the results are hidden (see the render), not cleared.
-    if (texto === null || !lista.puedeEditar) return
+    if (texto === null || !editable) return
     const espera = setTimeout(() => {
       void buscarPersonasListaDps({ texto }).then((r) => {
         if (pedido !== pedidoRef.current) return
@@ -59,18 +62,18 @@ function BloqueLista({ def, lista, onCambiar }: BloqueListaProps): ReactElement 
       })
     }, ESPERA_BUSQUEDA_MS)
     return () => clearTimeout(espera)
-  }, [texto, lista.puedeEditar])
+  }, [texto, editable])
 
   const yaEstan = new Set(lista.personas.map((p) => p.personaId))
   const candidatos = resultados.filter((r) => !yaEstan.has(r.personaId))
 
-  function agregar(persona: PersonaBuscada): void {
+  function agregar(destino: ListaEditableDps, persona: PersonaBuscada): void {
     setBusqueda('')
-    onCambiar(def.id, () => agregarAListaDps({ lista: def.id, personaId: persona.personaId }), { ...lista, personas: [...lista.personas, persona] })
+    onCambiar(destino, () => agregarAListaDps({ lista: destino, personaId: persona.personaId }), { ...lista, personas: [...lista.personas, persona] })
   }
 
-  function quitar(persona: PersonaBuscada): void {
-    onCambiar(def.id, () => quitarDeListaDps({ lista: def.id, personaId: persona.personaId }), {
+  function quitar(destino: ListaEditableDps, persona: PersonaBuscada): void {
+    onCambiar(destino, () => quitarDeListaDps({ lista: destino, personaId: persona.personaId }), {
       ...lista,
       personas: lista.personas.filter((p) => p.personaId !== persona.personaId),
     })
@@ -89,8 +92,8 @@ function BloqueLista({ def, lista, onCambiar }: BloqueListaProps): ReactElement 
           {lista.personas.map((p) => (
             <li key={p.personaId} className={CLASE_FILA}>
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.nombre}</span>
-              {lista.puedeEditar && (
-                <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Quitar a ${p.nombre} de ${def.etiqueta}`} onClick={() => quitar(p)}>
+              {editable && (
+                <BotonSistema type="button" variante="ghost" tamaño="sm" aria-label={`Quitar a ${p.nombre} de ${def.etiqueta}`} onClick={() => quitar(editable, p)}>
                   Quitar
                 </BotonSistema>
               )}
@@ -98,7 +101,7 @@ function BloqueLista({ def, lista, onCambiar }: BloqueListaProps): ReactElement 
           ))}
         </ul>
       )}
-      {lista.puedeEditar && (
+      {editable && (
         <div className="space-y-2">
           <InputSistema
             type="search"
@@ -114,7 +117,7 @@ function BloqueLista({ def, lista, onCambiar }: BloqueListaProps): ReactElement 
               {candidatos.map((c) => (
                 <li key={c.personaId} className={CLASE_FILA}>
                   <span className="min-w-0 flex-1 truncate text-sm">{c.nombre}</span>
-                  <BotonSistema type="button" variante="outline" tamaño="sm" aria-label={`Agregar a ${c.nombre} en ${def.etiqueta}`} onClick={() => agregar(c)}>
+                  <BotonSistema type="button" variante="outline" tamaño="sm" aria-label={`Agregar a ${c.nombre} en ${def.etiqueta}`} onClick={() => agregar(editable, c)}>
                     Agregar
                   </BotonSistema>
                 </li>

@@ -295,7 +295,7 @@ describe('the editor', () => {
   it('rolls a failed save back and explains', async () => {
     guardar.mockResolvedValue({
       ok: false,
-      message: 'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.',
+      message: 'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.',
       codigo: 'persona_fuera_de_lista',
     })
     const user = userEvent.setup()

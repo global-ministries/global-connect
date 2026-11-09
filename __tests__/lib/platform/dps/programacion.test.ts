@@ -342,7 +342,7 @@ describe('mensajeErrorProgramacion', () => {
 
   it('explains the lists and the limits of a cell (S12.3, S12.4)', () => {
     expect(mensajeErrorProgramacion({ message: 'persona_fuera_de_lista' })).toBe(
-      'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.',
+      'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.',
     )
     expect(mensajeErrorProgramacion({ message: 'demasiadas_personas' })).toBe('Son demasiadas personas para esta celda: hasta 3, y hasta 8 en Cantantes.')
   })
