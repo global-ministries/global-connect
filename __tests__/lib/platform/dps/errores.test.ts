@@ -66,6 +66,33 @@ describe('mensajeErrorDps', () => {
     expect(mensajeErrorDps(error('XX000'), 'portada')).toBe('No se pudo cambiar la portada. Intenta de nuevo.')
   })
 
+  // T13 + S10: the order of the service and each plan's horarios.
+  it.each([
+    ['sin_autoridad', 'orden', 'Solo quienes arman el plan pueden cambiar el orden del servicio.'],
+    ['sin_autoridad', 'horarios', 'Solo quienes arman el plan pueden cambiar los horarios.'],
+    ['plan_invalido', 'orden', 'Ese plan ya no existe. Actualiza la página.'],
+    ['item_invalido', 'orden', 'Ese elemento ya no está en el orden. Actualiza la página.'],
+    ['titulo_invalido', 'orden', 'Escribe el título (máximo 120 caracteres).'],
+    ['duracion_invalida', 'orden', 'Escribe la duración como minutos:segundos, por ejemplo 4:30 (máximo 240 minutos).'],
+    ['valor_invalido', 'orden', 'Las notas van hasta 500 caracteres y el responsable hasta 80.'],
+    ['fase_invalida', 'orden', 'Elige antes, en o después del servicio.'],
+    ['posicion_invalida', 'orden', 'No se pudo mover el elemento. Actualiza la página.'],
+    ['orden_lleno', 'orden', 'El orden llegó al máximo de 150 filas.'],
+    ['destino_con_orden', 'orden', 'Este plan ya tiene orden. Elige si quieres reemplazarlo.'],
+    ['horarios_invalidos', 'horarios', 'Revisa los servicios: de 1 a 4, cada uno después del anterior, con el formato 09:15.'],
+    ['llegada_invalida', 'horarios', 'La llegada del equipo tiene que ser antes del primer servicio.'],
+  ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
+    expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)
+    expect(codigoErrorDps(error(codigo))).toBe(codigo)
+  })
+
+  it('keeps the configuration texts of horarios and llegada', () => {
+    expect(mensajeErrorDps(error('horarios_invalidos'), 'configuracion')).toBe('Revisa los horarios: de 1 a 6, con el formato 09:15.')
+    expect(mensajeErrorDps(error('titulo_invalido'), 'evento')).toBe('Escribe el título del evento (máximo 120 caracteres).')
+    expect(mensajeErrorDps(error('XX000'), 'orden')).toBe('No se pudo guardar el orden. Intenta de nuevo.')
+    expect(mensajeErrorDps(error('XX000'), 'horarios')).toBe('No se pudieron guardar los horarios. Intenta de nuevo.')
+  })
+
   it('explains a missing sheet authority as "no teams"', () => {
     expect(mensajeErrorDps(error('sin_autoridad', '42501'), 'planilla')).toBe('No tienes equipos para pasar asistencia en este plan.')
   })

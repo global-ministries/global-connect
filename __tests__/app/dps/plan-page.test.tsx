@@ -127,6 +127,27 @@ describe('/dps/plan', () => {
     expect(ultima()).toMatchObject({ plan: { id: ID(2) }, equipos: null, error: 'No se pudo cargar el plan. Actualiza la página.' })
   })
 
+  // T13: the «Orden» tab reads the order with the plan; ?vista=orden opens it.
+  it('reads the order of the plan and opens on Equipos unless ?vista=orden', async () => {
+    respuestas.dps_orden_leer = {
+      data: { plan_id: ID(2), puede_editar: true, items: [{ id: 'a', posicion: 0, tipo: 'item', titulo: 'Montaje', duracion_seg: 2700 }] },
+      error: null,
+    }
+    await pagina()
+    expect(rpc).toHaveBeenCalledWith('dps_orden_leer', { p_plan_id: ID(2) })
+    expect(ultima()).toMatchObject({ vista: 'equipos', orden: { planId: ID(2), puedeEditar: true, filas: [{ id: 'a', titulo: 'Montaje', duracionSeg: 2700 }] }, ordenError: null })
+    await pagina({ plan: ID(2), vista: 'orden' })
+    expect(ultima()).toMatchObject({ vista: 'orden', orden: { planId: ID(2) } })
+    await pagina({ vista: 'otra' })
+    expect(ultima()).toMatchObject({ vista: 'equipos' })
+  })
+
+  it('shows the plan with an error when its order cannot be read', async () => {
+    respuestas.dps_orden_leer = { data: null, error: { code: 'XX000', message: 'boom' } }
+    await pagina({ vista: 'orden' })
+    expect(ultima()).toMatchObject({ plan: { id: ID(2) }, vista: 'orden', orden: null, ordenError: 'No se pudo cargar el plan. Actualiza la página.', error: null })
+  })
+
   it('has no cover URL without an image', async () => {
     respuestas.dps_plan_leer = { data: { ...plan(1, '2026-11-01', { serie: { ...SERIE, imagen_path: null } }), puede_editar: true }, error: null }
     await pagina({ plan: ID(1) })

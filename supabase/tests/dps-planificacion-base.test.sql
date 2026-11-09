@@ -267,7 +267,10 @@ SELECT pg_temp.assert_eq('a6: authenticated executes exactly the public dps_* fu
                               -- T11b (20261108206000), in dps-planificacion-eventos.test.sql.
                               'dps_evento_crear', 'dps_plan_mover', 'dps_plan_eliminar',
                               -- T11c (20261108207000), in dps-planificacion-buscar.test.sql.
-                              'dps_buscar_personas')$q$,
+                              'dps_buscar_personas',
+                              -- T13 (20261108208000), in dps-planificacion-orden.test.sql.
+                              'dps_plan_horarios_guardar', 'dps_orden_leer', 'dps_orden_plantilla', 'dps_orden_agregar',
+                              'dps_orden_item_guardar', 'dps_orden_mover', 'dps_orden_eliminar', 'dps_orden_copiar')$q$,
   'dps_config_guardar,dps_config_leer,dps_pasan_asistencia_guardar,dps_plan_campo,dps_plan_crear,dps_plan_leer,'
   || 'dps_planes_rango,dps_planificador_agregar,dps_planificador_quitar,dps_puede_pasar_asistencia,dps_puede_planificar,'
   || 'dps_puede_ver,dps_puesto_desactivar,dps_puesto_guardar,dps_puestos_listar,dps_serie_actualizar,dps_serie_crear,'
@@ -277,7 +280,7 @@ SELECT pg_temp.assert_eq('a7: the tables have RLS on and no policies',
                        ',' ORDER BY c.relname COLLATE "C")
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'dps\_%'
-        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias')$q$,
+        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias', 'dps_orden_items')$q$,
   'dps_config:true:0,dps_pasan_asistencia:true:0,dps_planes:true:0,dps_planificadores:true:0,dps_puestos:true:0,dps_series:true:0');
 
 SET LOCAL ROLE authenticated;

@@ -1,7 +1,8 @@
 /**
- * DPS — /dps/plan (RSC), Plan del domingo · Equipos
- * (T10 of odd/tasks/dps-asistencia-pco.md; S6.2, S6.4, S6.5, S7.1, S7.4;
- * artboard docs/design-system/prototipos/planificacion-dps/01-plan-domingo-equipos.html).
+ * DPS — /dps/plan (RSC), Plan del domingo · Equipos and Orden
+ * (T10 and T13 of odd/tasks/dps-asistencia-pco.md; S6.2, S6.4, S6.5, S7.1,
+ * S7.4, S10; artboards docs/design-system/prototipos/planificacion-dps/01-plan-domingo-equipos.html
+ * and 02-plan-domingo-orden.html).
  *
  * For whoever sees DPS (dps_planes_rango / dps_plan_leer require
  * dps_puede_ver); everyone else gets the app's not-found state. Without
@@ -9,14 +10,17 @@
  * most recent one of the last year; `?plan=<id>` opens that plan. The date
  * pill steps to the plans before and after it (dps_planes_rango around its
  * date). Its teams come from dps_plan_equipos, which also says whether the
- * caller edits (puede_editar). The client island
+ * caller edits (puede_editar); its order of the service from dps_orden_leer
+ * (T13), and `?vista=orden` opens on the «Orden» tab. The client island
  * (components/dps/plan-client.tsx) convoca, quita, copies and changes the
- * cover through lib/actions/dps-plan.actions.ts; the RPCs decide.
+ * cover through lib/actions/dps-plan.actions.ts, and edits the order and
+ * the horarios through lib/actions/dps-orden.actions.ts; the RPCs decide.
  */
 import { notFound, redirect } from 'next/navigation'
 
 import { PlanClient, type PlanClientProps } from '@/components/dps/plan-client'
 import { codigoErrorDps, mensajeErrorDps } from '@/lib/platform/dps/errores'
+import { leerOrden } from '@/lib/platform/dps/orden'
 import { elegirProximoPlan, leerEquiposPlan, leerPlanCabecera, leerPlanesCabecera, urlPortada, vecinosPlan, type EquiposPlan, type PlanCabecera } from '@/lib/platform/dps/plan'
 import { rpcDps } from '@/lib/platform/dps/rpc'
 import { isDreamTeamEnabled } from '@/lib/platform/dream-team/route-access'
@@ -40,7 +44,7 @@ function sumarDias(fecha: string, dias: number): string {
 const primero = (valor: string | string[] | undefined): string | null => (Array.isArray(valor) ? valor[0] : valor) ?? null
 
 export interface DpsPlanPageProps {
-  readonly searchParams?: Promise<{ plan?: string | string[] }>
+  readonly searchParams?: Promise<{ plan?: string | string[]; vista?: string | string[] }>
 }
 
 export default async function DpsPlanPage({ searchParams }: DpsPlanPageProps = {}) {
@@ -54,7 +58,9 @@ export default async function DpsPlanPage({ searchParams }: DpsPlanPageProps = {
 
   const rpc = rpcDps(supabase)
   const hoy = hoyEnCaracas()
-  const pedido = primero((await searchParams)?.plan)
+  const parametros = await searchParams
+  const pedido = primero(parametros?.plan)
+  const vista = primero(parametros?.vista) === 'orden' ? 'orden' : 'equipos'
 
   const vacio: PlanClientProps = { plan: null, anterior: null, siguiente: null, equipos: null, portadaUrl: null, motivo: null, error: null }
   let plan: PlanCabecera | null = null
@@ -82,9 +88,10 @@ export default async function DpsPlanPage({ searchParams }: DpsPlanPageProps = {
     if (!plan) return <PlanClient {...vacio} motivo="sin_planes" />
   }
 
-  const [alrededor, respuestaEquipos] = await Promise.all([
+  const [alrededor, respuestaEquipos, respuestaOrden] = await Promise.all([
     rpc('dps_planes_rango', { p_desde: sumarDias(plan.fecha, -DIAS_VECINOS), p_hasta: sumarDias(plan.fecha, DIAS_VECINOS) }),
     rpc('dps_plan_equipos', { p_plan_id: plan.id }),
+    rpc('dps_orden_leer', { p_plan_id: plan.id }),
   ])
   const { anterior, siguiente } = alrededor.error ? { anterior: null, siguiente: null } : vecinosPlan(leerPlanesCabecera(alrededor.data), plan.id)
   const equipos: EquiposPlan | null = respuestaEquipos.error ? null : leerEquiposPlan(respuestaEquipos.data)
@@ -100,6 +107,9 @@ export default async function DpsPlanPage({ searchParams }: DpsPlanPageProps = {
       portadaUrl={urlPortada(plan.serie?.imagenPath, process.env.NEXT_PUBLIC_SUPABASE_URL)}
       motivo={null}
       error={respuestaEquipos.error ? mensajeErrorDps(respuestaEquipos.error, 'plan') : null}
+      orden={respuestaOrden.error ? null : leerOrden(respuestaOrden.data)}
+      ordenError={respuestaOrden.error ? mensajeErrorDps(respuestaOrden.error, 'plan') : null}
+      vista={vista}
     />
   )
 }
