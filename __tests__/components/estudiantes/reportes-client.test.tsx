@@ -2,8 +2,10 @@
  * `<ReportesClient>` — /estudiantes/reportes (C6d3 of
  * odd/tasks/estudiantes-fase-b.md, S17–S20, L48, L49; artboards 11 / 12).
  * The server actions and the router are mocked; each flow checks what the
- * screen shows and what it asks for. Without matchMedia the drawer is the
- * desktop side panel. Every person is fictitious.
+ * screen shows and what it asks for. Without matchMedia the screen renders
+ * its desktop tree (S7 of odd/tasks/estudiantes-estilo-dps.md: the range
+ * pill, the «barra de alcance», the dense table) and the panel is the
+ * overlay side panel. Every person is fictitious.
  */
 import React from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -181,11 +183,12 @@ beforeEach(() => {
 })
 
 describe('the screen', () => {
-  it('shows the hero, the ámbitos in S20 order, the funnel steps of L49 and the groups', () => {
+  it('shows the header band, the ámbitos in S20 order, the funnel steps of L49 and the groups', () => {
     render(<ReportesClient {...props()} />)
     expect(screen.getAllByText('Reportes de asistencia').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Barquisimeto · Transit · 8 sep – 2 nov/).length).toBeGreaterThan(0)
-    const tarjetas = within(screen.getByRole('group', { name: 'Ámbitos' })).getAllByRole('button')
+    expect(screen.getByRole('button', { name: /^Últimas 8 semanas · 8 sep – 2 nov/ })).toBeInTheDocument()
+    const tarjetas = within(screen.getByRole('group', { name: 'Ámbito' })).getAllByRole('button')
     expect(tarjetas.map((b) => b.textContent)).toEqual([expect.stringContaining('Transit'), expect.stringContaining('Inside Out'), expect.stringContaining('The Living Room')])
     expect(tarjetas[0]).toHaveAttribute('aria-pressed', 'true')
 
@@ -202,6 +205,30 @@ describe('the screen', () => {
     expect(screen.getAllByRole('img', { name: 'Baja 17 puntos frente al período anterior' }).length).toBeGreaterThan(0)
     expect(screen.getAllByRole('img', { name: 'Sube 4 puntos frente al período anterior' }).length).toBeGreaterThan(0)
     expect(screen.getByRole('status')).toHaveTextContent('2 de 2 grupos · 26 integrantes')
+  })
+
+  it('hides a column of the table from «Columnas» (S7)', async () => {
+    const user = userEvent.setup()
+    render(<ReportesClient {...props()} />)
+    const boton = screen.getByRole('button', { name: /Columnas/ })
+    expect(boton).toHaveTextContent('8/8')
+    await user.click(boton)
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Tendencia' }))
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: /Columnas/ })).toHaveTextContent('7/8')
+    const tabla = screen.getByRole('table', { name: 'Asistencia por grupo' })
+    expect(within(tabla).queryByRole('columnheader', { name: /^Tendencia/ })).not.toBeInTheDocument()
+    expect(within(tabla).getByRole('columnheader', { name: /^Asistencia/ })).toBeInTheDocument()
+  })
+
+  it('sorts from the table header and marks aria-sort (S7)', async () => {
+    const user = userEvent.setup()
+    render(<ReportesClient {...props()} />)
+    const tabla = screen.getByRole('table', { name: 'Asistencia por grupo' })
+    await user.click(within(tabla).getByRole('button', { name: /^Asistencia/ }))
+    expect(within(tabla).getByRole('columnheader', { name: /^Asistencia/ })).toHaveAttribute('aria-sort', 'ascending')
+    expect(within(tabla).getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Abrir 2do año · Chicas', 'Abrir 1er año · Chicas'])
+    expect(window.location.search).toContain('orden=asistencia')
   })
 
   it('filters with one attention pill, a second tap clears it, and the URL follows', async () => {
@@ -228,12 +255,13 @@ describe('the screen', () => {
   it('reloads the data for another range or ámbito', async () => {
     const user = userEvent.setup()
     render(<ReportesClient {...props({ subareaId: CHICAS })} />)
-    await user.click(within(screen.getByRole('group', { name: 'Rango de fechas' })).getByRole('button', { name: 'Este mes' }))
+    await user.click(screen.getByRole('button', { name: /^Últimas 8 semanas/ }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Rango de fechas' })).getByRole('button', { name: /^Este mes/ }))
     expect(replace).toHaveBeenLastCalledWith(`/estudiantes/reportes?ambito=${TRANSIT}&subarea=${CHICAS}&rango=mes`, { scroll: false })
-    await user.click(within(screen.getByRole('group', { name: 'Ámbitos' })).getByRole('button', { name: /Inside Out/ }))
+    await user.click(within(screen.getByRole('group', { name: 'Ámbito' })).getByRole('button', { name: /Inside Out/ }))
     expect(replace).toHaveBeenLastCalledWith(`/estudiantes/reportes?ambito=${IO}`, { scroll: false })
     replace.mockClear()
-    await user.click(within(screen.getByRole('group', { name: 'Ámbitos' })).getByRole('button', { name: /Transit/ }))
+    await user.click(within(screen.getByRole('group', { name: 'Ámbito' })).getByRole('button', { name: /Transit/ }))
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -247,28 +275,26 @@ describe('the screen', () => {
     expect(screen.getByText('No hay reuniones en este rango')).toBeInTheDocument()
     expect(screen.getByText('Del 1 jun al 30 jun ningún grupo de Transit marcó asistencia.')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Necesitan atención' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Quitar 1 jun – 30 jun' })).toBeInTheDocument()
+    // The custom range stays in sight in the header pill.
+    expect(screen.getByRole('button', { name: /^Elegir fechas · 1 jun – 30 jun/ })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Ver las últimas 8 semanas' }))
     expect(replace).toHaveBeenLastCalledWith(`/estudiantes/reportes?ambito=${TRANSIT}`, { scroll: false })
   })
 
-  it('hides the ámbito cards and the sub-área filter for a fixed scope (the entrenadora)', async () => {
-    const user = userEvent.setup()
+  it('hides the ámbito and the sub-área of the scope bar for a fixed scope (the entrenadora)', () => {
     const soloChicas = leerReporteAsistencia(reporteRpc({ subareas: [{ subarea_id: CHICAS, label: 'Grupos de Chicas', grupos: 2 }] }))!
     render(<ReportesClient {...props({ ambitos: [ambitos[0]] }, soloChicas)} />)
-    expect(screen.queryByRole('group', { name: 'Ámbitos' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Ámbito' })).not.toBeInTheDocument()
     expect(screen.getAllByText(/Barquisimeto · Transit · Grupos de Chicas · 8 sep – 2 nov/).length).toBeGreaterThan(0)
-    await user.click(screen.getAllByRole('button', { name: 'Filtros' })[0])
-    const hoja = await screen.findByRole('dialog')
-    expect(within(hoja).queryByText('Sub-área')).not.toBeInTheDocument()
-    expect(within(hoja).getByText('Rango de fechas')).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Sub-área' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /Embudo de conexión/ })).toBeInTheDocument()
   })
 
-  it('applies a valid custom range from the sheet and explains an invalid one', async () => {
+  it('applies a valid custom range from the range pill and explains an invalid one', async () => {
     const user = userEvent.setup()
     render(<ReportesClient {...props()} />)
-    await user.click(screen.getByRole('button', { name: 'Elegir fechas' }))
-    const hoja = await screen.findByRole('dialog')
+    await user.click(screen.getByRole('button', { name: /^Últimas 8 semanas/ }))
+    const hoja = await screen.findByRole('dialog', { name: 'Rango de fechas' })
     const desde = within(hoja).getByLabelText('Desde')
     await user.clear(desde)
     await user.type(desde, '2026-11-05')

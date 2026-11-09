@@ -1,7 +1,8 @@
 /**
  * Estudiantes — /estudiantes/reportes (RSC), "Reportes de asistencia" (C6d3
  * of odd/tasks/estudiantes-fase-b.md, S17–S20; artboards 11 / 12 of
- * design/estudiantes-asistencia).
+ * design/estudiantes-asistencia), in the planning style of
+ * odd/tasks/estudiantes-estilo-dps.md (S7; design/estudiantes-dps 15 / 16).
  *
  * Who (S19, level >= 2 on a sub-área, within the campus): the sub-áreas of
  * estudiantes_subareas_gestionables (level 3, the same source as
