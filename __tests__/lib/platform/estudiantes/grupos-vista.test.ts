@@ -251,3 +251,53 @@ describe('texts', () => {
     expect(textoVisita(0)).toBe('Aún sin visitas marcadas')
   })
 })
+
+describe('the scope bar and the bands (S7 of odd/tasks/estudiantes-estilo-dps.md)', () => {
+  const dosAmbitos = (filtros: Partial<FiltrosGrupos> = {}) =>
+    calcularVistaGrupos({
+      grupos: [...GRUPOS_TRANSIT, grupo('t1', 'Zona Este · Chicas', { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room', subareaId: TLR_CHICAS, anio: null, anioEtiqueta: null, zona: 'Zona Este' })],
+      subareas: [...SUBAREAS_TRANSIT, subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' })],
+      filtros: { ...FILTROS_INICIALES, ...filtros },
+      campusId: null,
+    })
+
+  it('lists every ámbito with its sub-áreas and numbers, the current level marked', () => {
+    const v = dosAmbitos({ ambito: TRANSIT, area: CHICOS })
+    expect(v.alcance.todos).toEqual({ grupos: 6, integrantes: 7, actual: false, parche: { ambito: null, area: null, anio: null } })
+    expect(v.alcance.ambitos.map((a) => [a.label, a.grupos, a.actual, a.areas.map((s) => [s.label, s.grupos, s.sinLider, s.porConfirmar, s.actual])])).toEqual([
+      [
+        'Transit',
+        5,
+        false,
+        [
+          ['Grupos de Chicas', 3, 1, 1, false],
+          ['Grupos de Chicos', 2, 1, 1, true],
+        ],
+      ],
+      ['The Living Room', 1, false, [['Grupos de Chicas', 1, 1, 0, false]]],
+    ])
+    // A sub-área of another ámbito changes the ámbito too and drops the año.
+    expect(v.alcance.ambitos[1].areas[0].parche).toEqual({ ambito: TLR, area: TLR_CHICAS, anio: null })
+    expect(v.alcance.ambitos[0].areas[0].parche).toEqual({ area: CHICAS })
+    expect(v.alcance.fijo).toBeNull()
+  })
+
+  it('shows a fixed scope as text for a directora de grupo', () => {
+    const v = calcularVistaGrupos({
+      grupos: GRUPOS_TRANSIT.filter((g) => g.subareaId === CHICAS),
+      subareas: [SUBAREAS_TRANSIT[0]],
+      filtros: FILTROS_INICIALES,
+      campusId: null,
+    })
+    expect(v.alcance).toEqual({ todos: null, ambitos: [], fijo: { etiqueta: 'Transit · Grupos de Chicas', grupos: 3, detalle: 'Tu sub-área · Dirige Lorena Salas' } })
+  })
+
+  it('bands the visible groups by sub-área, keeping the order inside each band', () => {
+    const v = vista({ orden: 'integrantes' })
+    expect(v.secciones.map((s) => [s.titulo, s.detalle, s.grupos.map((g) => g.nombre)])).toEqual([
+      ['Grupos de Chicas', '3 grupos · 4 integrantes · Dirige Lorena Salas', ['1er año · Chicas', '2do año · Chicas', '3er año · Chicas']],
+      ['Grupos de Chicos', '2 grupos · 3 integrantes · Dirige Raúl Gómez', ['1er año · Chicos', '2do año · Chicos']],
+    ])
+    expect(dosAmbitos().secciones.map((s) => s.titulo)).toEqual(['Transit · Grupos de Chicas', 'Transit · Grupos de Chicos', 'The Living Room · Grupos de Chicas'])
+  })
+})

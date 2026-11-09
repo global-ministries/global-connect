@@ -1,7 +1,9 @@
 /**
  * Estudiantes — /estudiantes/grupos (RSC), group management for Transit,
  * Inside Out and The Living Room (C2 of odd/tasks/estudiantes-fase-b.md;
- * artboards 06 / 07 / 08 of design/estudiantes-asistencia).
+ * artboards 06 / 07 / 08 of design/estudiantes-asistencia), restyled in the
+ * planning style (S7 of odd/tasks/estudiantes-estilo-dps.md, artboards 11 / 12
+ * of design/estudiantes-dps).
  *
  * Only callers who manage at least one Grupos de Chicas / Chicos sub-área
  * (estudiantes_subareas_gestionables) see it; anyone else gets the app's
