@@ -16,6 +16,12 @@
  * (attendance marking; L23).
  *
  * Every filter lives in the URL (`?ambito=&area=&metrica=&anio=&orden=&q=`).
+ *
+ * Planning style (S7 of odd/tasks/estudiantes-estilo-dps.md, artboards 11 /
+ * 12 of design/estudiantes-dps): `alcance` is the whole scope tree of the
+ * «barra de alcance» (every ámbito with its sub-áreas and their numbers, the
+ * current level marked) and `secciones` bands the visible groups by
+ * sub-área, keeping the chosen order inside each band.
  */
 import type { Experiencia, GrupoGestion, Integrante, SubareaGestionable } from './grupos-datos'
 import { compararAmbitos, ordenarPorAmbito } from './orden-ambitos'
@@ -128,6 +134,37 @@ export interface Miga {
   readonly parche: Partial<FiltrosGrupos> | null
 }
 
+/** One level of the «barra de alcance»: an ámbito (with its sub-áreas) or a sub-área. */
+export interface NodoAlcance {
+  readonly id: string
+  readonly label: string
+  readonly grupos: number
+  readonly integrantes: number
+  readonly sinLider: number
+  readonly porConfirmar: number
+  readonly actual: boolean
+  readonly parche: Partial<FiltrosGrupos>
+  readonly areas: readonly NodoAlcance[]
+}
+
+export interface AlcanceGrupos {
+  /** «Todos»: only when the caller manages more than one ámbito. */
+  readonly todos: { readonly grupos: number; readonly integrantes: number; readonly actual: boolean; readonly parche: Partial<FiltrosGrupos> } | null
+  readonly ambitos: readonly NodoAlcance[]
+  /** A fixed scope (a directora de grupo manages one sub-área): plain text, no levels. */
+  readonly fijo: { readonly etiqueta: string; readonly grupos: number; readonly detalle: string } | null
+}
+
+/** A band of the table: the visible groups of one sub-área. */
+export interface SeccionGrupos {
+  readonly id: string
+  /** "Grupos de Chicas", or "Transit · Grupos de Chicas" when no ámbito is chosen. */
+  readonly titulo: string
+  /** "3 grupos · 39 integrantes · Dirige Lorena Salas". */
+  readonly detalle: string
+  readonly grupos: readonly GrupoGestion[]
+}
+
 export interface ChipGrupos {
   readonly id: string
   readonly etiqueta: string
@@ -146,7 +183,9 @@ export interface VistaGrupos {
   readonly totales: TotalesGrupos
   readonly metricas: readonly MetricaVista[]
   readonly tarjetas: { readonly nivel: 'ambitos' | 'areas' | null; readonly items: readonly TarjetaAlcance[] }
+  readonly alcance: AlcanceGrupos
   readonly visibles: readonly GrupoGestion[]
+  readonly secciones: readonly SeccionGrupos[]
   /** The años of the scope with their active groups; empty outside Transit / Inside Out. */
   readonly anios: readonly { readonly numero: number; readonly etiqueta: string; readonly cantidad: number }[]
   /** Header of the año / zona column. */
@@ -244,12 +283,12 @@ export function calcularVistaGrupos({ grupos, subareas, filtros, campusId }: Ent
   const ambito =
     ambitos.length === 1 ? ambitos[0] : (ambitos.find((a) => a.id === filtros.ambito) ?? null)
 
-  const areas = ambito
-    ? nodos([
-        ...subareasCampus.filter((s) => s.ambitoId === ambito.id).map((s) => ({ id: s.subareaId, label: s.subarea, experiencia: s.experiencia })),
-        ...enCampus.filter((g) => g.ambitoId === ambito.id).map((g) => ({ id: g.subareaId, label: g.subarea, experiencia: g.experiencia })),
-      ])
-    : []
+  const areasDe = (ambitoId: string): Nodo[] =>
+    nodos([
+      ...subareasCampus.filter((s) => s.ambitoId === ambitoId).map((s) => ({ id: s.subareaId, label: s.subarea, experiencia: s.experiencia })),
+      ...enCampus.filter((g) => g.ambitoId === ambitoId).map((g) => ({ id: g.subareaId, label: g.subarea, experiencia: g.experiencia })),
+    ])
+  const areas = ambito ? areasDe(ambito.id) : []
   const area = areas.length === 1 ? areas[0] : (areas.find((a) => a.id === filtros.area) ?? null)
 
   const conAnio = ambito?.experiencia === 'estudiantes'
@@ -302,6 +341,54 @@ export function calcularVistaGrupos({ grupos, subareas, filtros, campusId }: Ent
     }
   }
 
+  const directorDe = (subareaId: string): string | null =>
+    subareasCampus.filter((s) => s.subareaId === subareaId).flatMap((s) => s.responsables).find((r) => esDirector(r.rol))?.nombre ?? null
+  const nodoAlcance = (id: string, label: string, delNodo: readonly GrupoGestion[], actual: boolean, parche: Partial<FiltrosGrupos>, hijos: NodoAlcance[]): NodoAlcance => {
+    const t = totalesDe(delNodo)
+    return { id, label, grupos: t.grupos, integrantes: t.integrantes, sinLider: t.sinLider, porConfirmar: t.porConfirmar, actual, parche, areas: hijos }
+  }
+  const unaArea = ambitos.length === 1 && areas.length === 1
+  const totalesCampus = totalesDe(enCampus)
+  const alcance: AlcanceGrupos = {
+    todos: ambitos.length > 1 ? { grupos: totalesCampus.grupos, integrantes: totalesCampus.integrantes, actual: !ambito, parche: { ambito: null, area: null, anio: null } } : null,
+    ambitos: unaArea
+      ? []
+      : ambitos.map((a) => {
+          const delAmbito = enCampus.filter((g) => g.ambitoId === a.id)
+          const hijos = areasDe(a.id).map((s) =>
+            nodoAlcance(s.id, s.label, delAmbito.filter((g) => g.subareaId === s.id), area?.id === s.id, a.id === ambito?.id ? { area: s.id } : { ambito: a.id, area: s.id, anio: null }, []),
+          )
+          return nodoAlcance(a.id, a.label, delAmbito, ambito?.id === a.id && !area, parcheTarjeta('ambitos', a.id), hijos)
+        }),
+    fijo:
+      unaArea && ambito && area
+        ? {
+            etiqueta: `${ambito.label} · ${area.label}`,
+            grupos: totales.grupos,
+            detalle: directorDe(area.id) ? `Tu sub-área · Dirige ${directorDe(area.id)}` : 'Tu sub-área',
+          }
+        : null,
+  }
+
+  // Bands by sub-área, Transit → Inside Out → The Living Room; each keeps the chosen order.
+  const porSeccion = new Map<string, GrupoGestion[]>()
+  for (const g of [...visibles].sort((a, b) => compararAmbitos(a, b) || a.subarea.localeCompare(b.subarea, 'es'))) {
+    const clave = `${g.ambitoId}|${g.subareaId}`
+    if (!porSeccion.has(clave)) porSeccion.set(clave, [])
+  }
+  for (const g of visibles) porSeccion.get(`${g.ambitoId}|${g.subareaId}`)?.push(g)
+  const secciones: SeccionGrupos[] = [...porSeccion.entries()].map(([id, delaSeccion]) => {
+    const primero = delaSeccion[0]
+    const director = directorDe(primero.subareaId)
+    const integrantes = delaSeccion.reduce((suma, g) => suma + miembrosDe(g).length, 0)
+    return {
+      id,
+      titulo: ambito ? primero.subarea : `${primero.ambito} · ${primero.subarea}`,
+      detalle: [plural(delaSeccion.length, 'grupo', 'grupos'), plural(integrantes, 'integrante', 'integrantes'), director ? `Dirige ${director}` : null].filter(Boolean).join(' · '),
+      grupos: delaSeccion,
+    }
+  })
+
   const migas: Miga[] = [
     { id: 'raiz', etiqueta: 'Estudiantes', parche: ambito && ambitos.length > 1 ? { ambito: null, area: null, anio: null } : null },
   ]
@@ -336,7 +423,9 @@ export function calcularVistaGrupos({ grupos, subareas, filtros, campusId }: Ent
     totales,
     metricas: metricasDe(totales, metrica),
     tarjetas,
+    alcance,
     visibles,
+    secciones,
     anios,
     columnaAnio,
     filtrosEnHoja: (anio !== null ? 1 : 0) + (orden !== 'anio' ? 1 : 0),

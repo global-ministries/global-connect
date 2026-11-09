@@ -10,7 +10,7 @@
  *   percentage scale of patterns.md (≥80 success, ≥60 warning, ≥40 brand,
  *   else danger).
  * `DatosClave` is the key/value grid of the drawers (as in Promover
- * temporada) and `MigasReportes` the breadcrumbs "Estudiantes / Reportes".
+ * temporada) and `MigasReportes` the breadcrumbs "Estudiantes › Reportes".
  */
 import type { ReactElement } from 'react'
 import { Minus, TrendingDown, TrendingUp } from 'lucide-react'
@@ -95,13 +95,13 @@ export function DatosClave({ datos }: { readonly datos: readonly DatoDetalle[] }
 export function MigasReportes(): ReactElement {
   return (
     <nav aria-label="Ubicación">
-      <ol className="flex min-w-0 flex-wrap items-center gap-0.5 text-sm">
+      <ol className="flex min-w-0 flex-wrap items-center gap-0.5 text-[13px]">
         <li className="flex min-w-0 items-center">
           <span className="truncate px-2 py-1.5 text-muted-foreground">Estudiantes</span>
         </li>
         <li className="flex min-w-0 items-center gap-0.5">
           <span aria-hidden="true" className="px-0.5 text-muted-foreground">
-            /
+            ›
           </span>
           <span aria-current="page" className="truncate px-2 py-1.5 font-semibold text-foreground">
             Reportes

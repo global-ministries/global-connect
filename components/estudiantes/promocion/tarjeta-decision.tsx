@@ -8,6 +8,10 @@
  * `fieldset` of native radios on the inset list surface). An option Inside
  * Out cannot take is disabled with its reason. The notices of the chosen
  * option are announced politely.
+ *
+ * Planning style (`.dc` of design/estudiantes-dps/13 / 14, C18, C25): a
+ * `rounded-md` card with a header bar (14px / 650 name, 12px route and the
+ * status tag) and its border in warning while it waits; 56px option rows.
  */
 import type { ReactElement } from 'react'
 
@@ -29,13 +33,20 @@ export interface TarjetaDecisionProps {
 export function TarjetaDecision({ tarjeta, onDecidir }: TarjetaDecisionProps): ReactElement {
   const titulo = `${idDecision(tarjeta.grupoId)}-titulo`
   return (
-    <article id={idDecision(tarjeta.grupoId)} aria-labelledby={titulo} className="min-w-0 space-y-4 rounded-2xl border border-border bg-card p-4 md:p-5">
-      <div className="flex min-w-0 items-start justify-between gap-3">
+    <article
+      id={idDecision(tarjeta.grupoId)}
+      aria-labelledby={titulo}
+      className={cn(
+        'min-w-0 scroll-mt-4 overflow-hidden rounded-md border bg-card',
+        tarjeta.decidido ? 'border-border' : 'border-[color-mix(in_oklab,var(--warning)_55%,var(--border))]',
+      )}
+    >
+      <div className="flex min-w-0 items-start justify-between gap-2 border-b border-border px-3 py-2.5">
         <div className="min-w-0">
-          <h3 id={titulo} className="truncate text-[17px] font-semibold text-foreground">
+          <h3 id={titulo} className="truncate text-sm font-[650] text-foreground">
             {tarjeta.titulo}
           </h3>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             <ConNumeros texto={tarjeta.ruta} />
           </p>
         </div>
@@ -45,17 +56,17 @@ export function TarjetaDecision({ tarjeta, onDecidir }: TarjetaDecisionProps): R
       </div>
 
       <fieldset className="min-w-0">
-        <legend className="mb-2 text-sm font-medium text-foreground">¿Qué pasa con este grupo?</legend>
-        <ul className="min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card">
+        <legend className="block w-full px-3 pt-2 pb-1 text-xs font-semibold text-muted-foreground">¿Qué pasa con este grupo?</legend>
+        <ul className="min-w-0">
           {tarjeta.opciones.map((opcion) => {
             const id = idOpcion(tarjeta.grupoId, opcion.valor)
             const elegida = tarjeta.decision === opcion.valor
             return (
-              <li key={opcion.valor} className="relative before:absolute before:top-0 before:right-0 before:left-12 before:h-px before:bg-border/60 first:before:hidden">
+              <li key={opcion.valor} className="border-t border-border/60 first:border-t-0">
                 <label
                   htmlFor={id}
                   className={cn(
-                    'flex min-h-[52px] w-full min-w-0 gap-3 px-3.5 py-3 transition-colors',
+                    'flex min-h-14 w-full min-w-0 gap-2.5 px-3 py-2.5 transition-colors',
                     opcion.disponible ? 'cursor-pointer md:hover:bg-accent/50' : 'cursor-not-allowed opacity-70',
                     elegida && 'bg-brand-tint md:hover:bg-brand-tint',
                   )}
@@ -68,14 +79,14 @@ export function TarjetaDecision({ tarjeta, onDecidir }: TarjetaDecisionProps): R
                     checked={elegida}
                     disabled={!opcion.disponible}
                     onChange={() => onDecidir(tarjeta.grupoId, opcion.valor)}
-                    className="focus-ring mt-0.5 size-5 shrink-0 accent-[var(--brand-strong)]"
+                    className="focus-ring mt-px size-[18px] shrink-0 accent-[var(--brand-strong)]"
                   />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold text-foreground">{opcion.titulo}</span>
-                    <span className="mt-0.5 block text-[13px] text-muted-foreground">
+                    <span className="block text-[13px] font-semibold text-foreground">{opcion.titulo}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
                       <ConNumeros texto={opcion.descripcion} />
                     </span>
-                    {opcion.motivo && <span className="mt-1 block text-[13px] font-medium text-warning-text">{opcion.motivo}</span>}
+                    {opcion.motivo && <span className="mt-1 block text-xs font-medium text-warning-text">{opcion.motivo}</span>}
                   </span>
                 </label>
               </li>
@@ -84,13 +95,13 @@ export function TarjetaDecision({ tarjeta, onDecidir }: TarjetaDecisionProps): R
         </ul>
       </fieldset>
 
-      <div aria-live="polite" className="space-y-3 empty:hidden">
+      <div aria-live="polite" className="space-y-2 px-3 pb-3 empty:hidden">
         {tarjeta.avisos.map((aviso) => (
           <AvisoPromocion key={aviso.texto} tono={aviso.tono} titulo={aviso.titulo}>
             <p>{aviso.texto}</p>
           </AvisoPromocion>
         ))}
-        {tarjeta.nota && <p className="text-sm text-muted-foreground">{tarjeta.nota}</p>}
+        {tarjeta.nota && <p className="text-[13px] text-muted-foreground">{tarjeta.nota}</p>}
       </div>
     </article>
   )

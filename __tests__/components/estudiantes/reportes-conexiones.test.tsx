@@ -8,7 +8,7 @@
  * person is fictitious.
  */
 import React from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ReportesClient, type ReportesClientProps } from '@/components/estudiantes/reportes/reportes-client'
@@ -180,10 +180,9 @@ describe('the Personas tab of The Living Room', () => {
     expect(within(tabla).getByText('No sirve')).toBeInTheDocument()
     expect(within(tabla).getByText('Ninguno')).toBeInTheDocument()
     expect(within(tabla).getAllByText('3 de 4').length).toBeGreaterThan(0)
-    // Phone row tags (A40).
-    expect(within(tabla).getByText('3 · 1:1')).toBeInTheDocument()
-    expect(within(tabla).getByText('Sirve 75%')).toBeInTheDocument()
-    expect(within(tabla).getByText('2 talleres')).toBeInTheDocument()
+    // D8: the Grupo stays under the name, no Grupo column.
+    expect(within(tabla).queryByRole('columnheader', { name: /^Grupo/ })).not.toBeInTheDocument()
+    expect(within(tabla).getAllByText(/^Zona Este · Chicas/).length).toBeGreaterThan(0)
     expect(screen.getByRole('status')).toHaveTextContent('2 de 2 personas · grupo, 1:1 y servicio cuentan en el rango; talleres, en total')
 
     const pastillas = within(screen.getByRole('group', { name: 'Necesitan atención' })).getAllByRole('button')
@@ -195,12 +194,12 @@ describe('the Personas tab of The Living Room', () => {
     expect(screen.queryByRole('button', { name: 'Ver las conexiones de Lucía Mendoza' })).not.toBeInTheDocument()
   })
 
-  it('offers the connection sorts in the filters sheet', async () => {
+  it('sorts by the connection columns from the table header', async () => {
     const user = userEvent.setup()
     render(<ReportesClient {...props()} />)
-    await user.click(screen.getAllByRole('button', { name: 'Filtros' })[0])
-    const hoja = await screen.findByRole('dialog')
-    await user.click(within(hoja).getByRole('button', { name: 'Servicio más bajo' }))
+    const tabla = screen.getByRole('table', { name: 'Asistencia por persona' })
+    await user.click(within(tabla).getByRole('button', { name: /^Servicio/ }))
+    expect(within(tabla).getByRole('columnheader', { name: /^Servicio/ })).toHaveAttribute('aria-sort', 'ascending')
     expect(window.location.search).toContain('orden=servicio')
     expect(screen.getByText('Orden: servicio más bajo primero (sin servicio al final)')).toBeInTheDocument()
   })
@@ -216,6 +215,75 @@ describe('the Personas tab of The Living Room', () => {
   it('never shows the plan names or voseo (L49)', () => {
     render(<ReportesClient {...props()} />)
     expect(document.body.textContent).not.toMatch(/Foyer|Kitchen|\bacá\b|\bvos\b/)
+  })
+})
+
+describe('The Living Room on a phone (artboard 16)', () => {
+  const original = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockImplementation((consulta: string) => ({
+      matches: false,
+      media: consulta,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    window.matchMedia = original
+  })
+
+  it('tags each person row with its connections (A40) and has no scope bar', () => {
+    render(<ReportesClient {...props()} />)
+    expect(screen.queryByRole('complementary', { name: 'Ámbito y embudo' })).not.toBeInTheDocument()
+    const tabla = screen.getByRole('table', { name: 'Asistencia por persona' })
+    expect(within(tabla).getByText('3 · 1:1')).toBeInTheDocument()
+    expect(within(tabla).getByText('Sirve 75%')).toBeInTheDocument()
+    expect(within(tabla).getByText('2 talleres')).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Ámbito' })).getByRole('button', { name: /The Living Room/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(screen.getByRole('list', { name: 'Embudo de conexión' })).getAllByRole('button')).toHaveLength(3)
+  })
+
+  it('offers the connection sorts in the filters sheet', async () => {
+    const user = userEvent.setup()
+    render(<ReportesClient {...props()} />)
+    // The nav bar's Filtros (the toolbar's own one hides below md).
+    await user.click(screen.getAllByRole('button', { name: 'Filtros' })[0])
+    const hoja = await screen.findByRole('dialog')
+    // The bottom sheet (vaul) needs pointer capture, which jsdom lacks: a plain click.
+    fireEvent.click(within(hoja).getByRole('button', { name: 'Servicio más bajo' }))
+    expect(window.location.search).toContain('orden=servicio')
+  })
+})
+
+describe('the docked person panel of The Living Room (S7, from 1280px)', () => {
+  const original = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockImplementation((consulta: string) => ({
+      matches: true,
+      media: consulta,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    window.matchMedia = original
+  })
+
+  it('folds the scope bar while open and repeats the ámbito and the range in its header', async () => {
+    const user = userEvent.setup()
+    mock.detallePersonaReporte.mockResolvedValue({ ok: true, data: detallePersona(P1, 'Lucía Mendoza') })
+    mock.conexionesPersonaReporte.mockResolvedValue({ ok: true, data: leerConexionesPersona(conexionesRpc, P1)! })
+    render(<ReportesClient {...props()} />)
+    expect(screen.getByRole('complementary', { name: 'Ámbito y embudo' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ver las conexiones de Lucía Mendoza' }))
+    const panel = await screen.findByRole('complementary', { name: 'Lucía Mendoza' })
+    expect(within(panel).getByText('The Living Room · Últimas 8 semanas · 8 sep – 2 nov')).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: 'Ámbito y embudo' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.click(within(panel).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.getByRole('complementary', { name: 'Ámbito y embudo' })).toBeInTheDocument()
   })
 })
 

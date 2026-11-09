@@ -653,7 +653,10 @@ export interface ResultadoPromocion {
   readonly totalEgresados: number
   readonly pieEgresados: string
   readonly puedeConfirmar: boolean
+  /** The footer line: "Faltan 2 decisiones: …" / "Falta 1 decisión: …" / "Todo listo. …" (S7). */
   readonly estadoPie: string
+  /** The same line in two parts, the first one highlighted. */
+  readonly estado: { readonly listo: boolean; readonly destacado: string; readonly texto: string }
   readonly confirmacion: { readonly titulo: string; readonly descripcion: string; readonly lineas: readonly LineaConfirmacion[] }
   readonly bloqueado: EstadoBloqueado | null
 }
@@ -930,6 +933,14 @@ export function calcularPromocion({ vista, decisiones, filtros }: EntradaPromoci
     })
   const pieEgresados = `${egresados.length} de ${vista.egresados.length} · los grupos de ${ultimoIo?.ultimoEtiqueta ?? '6to año'} quedan con su líder en ${ultimoIo?.primerEtiqueta ?? '4to año'}`
 
+  const estado = pendientes.length
+    ? {
+        listo: false,
+        destacado: pendientes.length === 1 ? 'Falta 1 decisión:' : `Faltan ${pendientes.length} decisiones:`,
+        texto: `${unirY(pendientes.map((g) => g.nombre))}.`,
+      }
+    : { listo: true, destacado: 'Todo listo.', texto: 'Al confirmar verás el resumen antes de aplicar.' }
+
   const lineas: LineaConfirmacion[] = [{ icono: 'subir', texto: `${plural(totales.grupos, 'grupo', 'grupos')} y ${totales.suben} estudiantes suben un año.` }]
   for (const g of terceros) {
     const d = decisionPor.get(g.id)
@@ -990,9 +1001,8 @@ export function calcularPromocion({ vista, decisiones, filtros }: EntradaPromoci
     totalEgresados: vista.egresados.length,
     pieEgresados,
     puedeConfirmar: decisionesParaAplicar(vista, decisiones) !== null,
-    estadoPie: pendientes.length
-      ? `Falta decidir ${plural(pendientes.length, 'grupo', 'grupos')} de ${ultimoTransit}: ${unirY(pendientes.map((g) => g.nombre))}.`
-      : 'Todo listo. Al confirmar verás el resumen antes de aplicar.',
+    estadoPie: `${estado.destacado} ${estado.texto}`,
+    estado,
     confirmacion: {
       titulo: `¿Promover ${vista.campus.nombre}?`,
       descripcion: `${unirAmbitos(vista.ambitos.map((a) => a.nombre))} suben un año ahora mismo. No se puede deshacer desde la app.`,

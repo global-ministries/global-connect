@@ -3,9 +3,10 @@
  * odd/tasks/estudiantes-fase-b.md, artboards 06 / 07 / 08). The server
  * actions are mocked; each flow checks what the screen sends and shows.
  *
- * `ListaResponsiva` renders the desktop cells and the phone cell of every row
- * (CSS swaps them, jsdom applies none), so rows are found through their
- * "Abrir …" button. Without matchMedia the drawer is the desktop side panel.
+ * Without matchMedia the screen renders its desktop tree (the dense table
+ * and the «barra de alcance», S7 of odd/tasks/estudiantes-estilo-dps.md);
+ * rows are found through their "Abrir …" button and the panel is the
+ * overlay side panel (it docks only from 1280px).
  */
 import React from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -126,24 +127,31 @@ async function abrirGrupo(nombre: string) {
 }
 
 describe('the list', () => {
-  it('shows the hero, the three metrics, the área cards and the active groups', () => {
+  it('shows the header band, the scope bar with its sub-áreas and metrics, and the active groups', () => {
     render(<GestionGruposClient {...props()} />)
     expect(screen.getByRole('heading', { level: 1, name: 'Grupos de Transit' })).toBeInTheDocument()
     const metricas = screen.getByRole('group', { name: 'Necesitan atención' })
     expect(within(metricas).getAllByRole('button').map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false'])
     expect(within(metricas).getByRole('button', { name: /Grupos sin líder/ })).toBeInTheDocument()
     expect(screen.queryByText(/Asistencia baja/)).not.toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Áreas' })).toBeInTheDocument()
+    const ambitos = within(screen.getByRole('group', { name: 'Ámbitos' })).getAllByRole('button')
+    expect(ambitos.map((b) => [b.querySelector('b')?.textContent, b.getAttribute('aria-current')])).toEqual([
+      ['Transit', 'true'],
+      ['Grupos de Chicas', 'false'],
+      ['Grupos de Chicos', 'false'],
+    ])
     expect(screen.getAllByRole('button', { name: /^Abrir / })).toHaveLength(5)
     expect(screen.getByText('5 de 5 grupos activos · 7 integrantes')).toBeInTheDocument()
+    expect(screen.queryByText(/Última reunión/)).not.toBeInTheDocument()
   })
 
   it('filters by a metric and writes it in the URL; Desactivados lists the deactivated group', async () => {
     render(<GestionGruposClient {...props()} />)
     await user.click(screen.getByRole('button', { name: /Grupos sin líder/ }))
+    // Banded by sub-área: Grupos de Chicas, then Grupos de Chicos.
     expect(screen.getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual([
-      'Abrir 2do año · Chicos',
       'Abrir 3er año · Chicas',
+      'Abrir 2do año · Chicos',
     ])
     expect(replace).toHaveBeenLastCalledWith('/estudiantes/grupos?ambito=a-transit&metrica=sinLider', { scroll: false })
 
@@ -151,17 +159,100 @@ describe('the list', () => {
     expect(screen.getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Abrir Nuevos · Chicos'])
   })
 
-  it('enters a sub-área from its card and goes back from the breadcrumb', async () => {
+  it('enters a sub-área from the scope bar and goes back from the breadcrumb', async () => {
     render(<GestionGruposClient {...props()} />)
-    await user.click(within(screen.getByRole('group', { name: 'Áreas' })).getByRole('button', { name: /Grupos de Chicos/ }))
+    await user.click(within(screen.getByRole('group', { name: 'Ámbitos' })).getByRole('button', { name: /Grupos de Chicos/ }))
     expect(screen.getByRole('heading', { level: 1, name: 'Grupos de Chicos' })).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'Áreas' })).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Ámbitos' })).getByRole('button', { name: /Grupos de Chicos/ })).toHaveAttribute('aria-current', 'true')
+    expect(replace).toHaveBeenLastCalledWith('/estudiantes/grupos?ambito=a-transit&area=s-transit-chicos', { scroll: false })
     await user.click(within(screen.getByRole('navigation', { name: 'Ubicación' })).getByRole('button', { name: 'Transit' }))
     expect(screen.getByRole('heading', { level: 1, name: 'Grupos de Transit' })).toBeInTheDocument()
   })
 })
 
+describe('the dense table (S7)', () => {
+  it('hides a column from «Columnas» and always keeps Grupo', async () => {
+    render(<GestionGruposClient {...props()} />)
+    const boton = screen.getByRole('button', { name: /Columnas/ })
+    expect(boton).toHaveTextContent('6/6')
+    await user.click(boton)
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Grupo' })).toHaveAttribute('aria-disabled', 'true')
+    await user.click(screen.getByRole('menuitemcheckbox', { name: 'Estado' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Estado' })).toHaveAttribute('aria-checked', 'false')
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: /Columnas/ })).toHaveTextContent('5/6')
+    const tabla = screen.getByRole('table', { name: 'Grupos' })
+    expect(within(tabla).queryByRole('columnheader', { name: 'Estado' })).not.toBeInTheDocument()
+    expect(within(tabla).getByRole('columnheader', { name: 'Grupo' })).toBeInTheDocument()
+  })
+
+  it('sorts by Integrantes inside each sub-área band and marks the column', async () => {
+    render(<GestionGruposClient {...props()} />)
+    const tabla = screen.getByRole('table', { name: 'Grupos' })
+    expect(within(tabla).getByRole('columnheader', { name: /^Año/ })).toHaveAttribute('aria-sort', 'ascending')
+    await user.click(within(tabla).getByRole('button', { name: /^Integrantes/ }))
+    expect(within(tabla).getByRole('columnheader', { name: /^Integrantes/ })).toHaveAttribute('aria-sort', 'descending')
+    expect(within(tabla).getByRole('columnheader', { name: /^Año/ })).not.toHaveAttribute('aria-sort')
+    expect(within(tabla).getByRole('columnheader', { name: /^Grupos de Chicas · 3 grupos · 4 integrantes · Dirige Lorena Salas/ })).toBeInTheDocument()
+    expect(within(tabla).getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Abrir 1er año · Chicas',
+      'Abrir 2do año · Chicas',
+      'Abrir 3er año · Chicas',
+      'Abrir 1er año · Chicos',
+      'Abrir 2do año · Chicos',
+    ])
+    expect(replace).toHaveBeenLastCalledWith('/estudiantes/grupos?ambito=a-transit&orden=integrantes', { scroll: false })
+  })
+
+  it('puts «Promover temporada» inside «Acciones» (S7)', async () => {
+    render(<GestionGruposClient {...props()} />)
+    expect(screen.queryByRole('link', { name: /Promover temporada/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Acciones' }))
+    expect(screen.getByRole('menuitem', { name: /Promover temporada/ })).toHaveAttribute('href', '/estudiantes/promocion')
+  })
+})
+
+describe('the docked panel (S7, from 1280px)', () => {
+  const original = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockImplementation((consulta: string) => ({
+      matches: true,
+      media: consulta,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    window.matchMedia = original
+  })
+
+  it('opens the group beside the table, keeps its row selected and moves to another group without closing', async () => {
+    render(<GestionGruposClient {...props()} />)
+    await user.click(screen.getByRole('button', { name: 'Abrir 2do año · Chicas' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: '2do año · Chicas' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir 2do año · Chicas' }).closest('tr')).toHaveAttribute('aria-selected', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'Abrir 3er año · Chicas' }))
+    expect(screen.getByRole('complementary', { name: '3er año · Chicas' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir 2do año · Chicas' }).closest('tr')).toHaveAttribute('aria-selected', 'false')
+
+    await user.click(within(screen.getByRole('complementary', { name: '3er año · Chicas' })).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('complementary', { name: '3er año · Chicas' })).not.toBeInTheDocument()
+  })
+})
+
 describe('the group drawer', () => {
+  it('splits the group in Integrantes | Líderes | Ajustes, with Desactivar under Ajustes (S7)', async () => {
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('1er año · Chicas')
+    expect(within(dialogo).getAllByRole('tab').map((t) => t.textContent)).toEqual(['Integrantes 2', 'Líderes 1', 'Ajustes'])
+    expect(within(dialogo).getByRole('tab', { name: /Integrantes/ })).toHaveAttribute('aria-selected', 'true')
+    expect(within(dialogo).queryByRole('button', { name: 'Desactivar grupo' })).not.toBeInTheDocument()
+    await user.click(within(dialogo).getByRole('tab', { name: 'Ajustes' }))
+    expect(within(dialogo).getByRole('button', { name: 'Desactivar grupo' })).toBeInTheDocument()
+  })
+
   it('confirms a visitor from the 3rd visit as a member', async () => {
     mock.confirmarMiembro.mockResolvedValue(OK)
     render(<GestionGruposClient {...props()} />)
@@ -176,6 +267,7 @@ describe('the group drawer', () => {
   it('warns about a group without a leader and shows who directs the sub-área', async () => {
     render(<GestionGruposClient {...props()} />)
     const dialogo = await abrirGrupo('3er año · Chicas')
+    await user.click(within(dialogo).getByRole('tab', { name: /Líderes/ }))
     expect(within(dialogo).getByText('Este grupo no tiene líder')).toBeInTheDocument()
     expect(within(dialogo).getByText('Lorena Salas')).toBeInTheDocument()
     expect(within(dialogo).getByText('Se asignan en Dream Team › Transit › Grupos de Chicas.')).toBeInTheDocument()
@@ -185,6 +277,7 @@ describe('the group drawer', () => {
     mock.fijarLideres.mockResolvedValue(OK)
     render(<GestionGruposClient {...props()} />)
     const dialogo = await abrirGrupo('2do año · Chicas')
+    await user.click(within(dialogo).getByRole('tab', { name: /Líderes/ }))
     await user.click(within(dialogo).getByRole('button', { name: 'Quitar a Paola Ruiz como líder' }))
     expect(mock.fijarLideres).toHaveBeenCalledWith({ grupoId: 'g2', servicioIds: ['sv-and'] })
   })
@@ -199,6 +292,7 @@ describe('the group drawer', () => {
     })
     render(<GestionGruposClient {...props()} />)
     const dialogo = await abrirGrupo('2do año · Chicas')
+    await user.click(within(dialogo).getByRole('tab', { name: /Líderes/ }))
     const anteriores = await within(dialogo).findByRole('list', { name: 'Líderes anteriores' })
     expect(within(anteriores).getByText('Diana Peraza')).toBeInTheDocument()
     expect(within(anteriores).getByText('Líder · sep 2024 – ene 2025')).toBeInTheDocument()
@@ -210,6 +304,7 @@ describe('the group drawer', () => {
     mock.fijarLideres.mockResolvedValue(OK)
     render(<GestionGruposClient {...props()} />)
     const dialogo = await abrirGrupo('3er año · Chicas')
+    await user.click(within(dialogo).getByRole('tab', { name: /Líderes/ }))
     await user.click(within(dialogo).getByRole('button', { name: 'Asignar líder' }))
     expect(mock.lideresDisponibles).toHaveBeenCalledWith({ subareaId: 's-transit-chicas', campusId: CAMPUS })
     const diana = await within(panel()).findByRole('checkbox', { name: /Diana Peraza/ })
@@ -218,13 +313,16 @@ describe('the group drawer', () => {
     await user.click(within(panel()).getByRole('button', { name: 'Guardar líderes' }))
     expect(mock.fijarLideres).toHaveBeenCalledWith({ grupoId: 'g3', servicioIds: ['sv-dia'] })
     expect(exito).toHaveBeenCalledWith('Líderes guardados')
-    expect(await within(panel()).findByText('Desactivar grupo', { selector: 'h3' })).toBeInTheDocument()
+    // Back in the group, on the tab it came from.
+    expect(await within(panel()).findByRole('tab', { name: /Líderes/, selected: true })).toBeInTheDocument()
+    expect(within(panel()).getByRole('button', { name: 'Asignar líder' })).toBeInTheDocument()
   })
 
   it('deactivates only after the inline confirmation', async () => {
     mock.activarGrupo.mockResolvedValue(OK)
     render(<GestionGruposClient {...props()} />)
     const dialogo = await abrirGrupo('1er año · Chicos')
+    await user.click(within(dialogo).getByRole('tab', { name: 'Ajustes' }))
     await user.click(within(dialogo).getByRole('button', { name: 'Desactivar grupo' }))
     expect(mock.activarGrupo).not.toHaveBeenCalled()
     expect(within(dialogo).getByText('¿Desactivar 1er año · Chicos?')).toBeInTheDocument()
@@ -390,7 +488,7 @@ describe('Crear grupo', () => {
     mock.editarGrupo.mockResolvedValue(OK)
     render(<GestionGruposClient {...props()} />)
     const dialogo = await abrirGrupo('3er año · Chicas')
-    await user.click(within(dialogo).getByRole('button', { name: 'Editar grupo' }))
+    await user.click(within(dialogo).getByRole('button', { name: 'Editar' }))
     const formulario = await screen.findByRole('dialog', { name: 'Editar grupo' })
     const nombre = within(formulario).getByLabelText('Nombre')
     await user.clear(nombre)
@@ -448,16 +546,44 @@ describe('the leader list from the drawer (C3b)', () => {
 })
 
 describe('Promover temporada', () => {
-  it('links to the promotion of the campus for whoever manages Transit or Inside Out', () => {
+  it('links to the promotion of the campus for whoever manages Transit or Inside Out', async () => {
     render(<GestionGruposClient {...props()} />)
-    const enlaces = screen.getAllByRole('link', { name: 'Promover temporada' })
-    expect(enlaces.length).toBeGreaterThan(0)
-    enlaces.forEach((enlace) => expect(enlace).toHaveAttribute('href', '/estudiantes/promocion'))
+    await user.click(screen.getByRole('button', { name: 'Acciones' }))
+    const enlace = screen.getByRole('menuitem', { name: /Promover temporada/ })
+    expect(enlace).toHaveAttribute('href', '/estudiantes/promocion')
+    expect(enlace).toHaveTextContent('Transit de Barquisimeto sube un año')
   })
 
   it('is not offered to whoever manages only The Living Room (it has no year)', () => {
     const tlr = subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' })
     render(<GestionGruposClient {...props({ subareas: [tlr], grupos: [] })} />)
-    expect(screen.queryByRole('link', { name: 'Promover temporada' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Acciones' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Promover temporada/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('on a phone (artboard 12)', () => {
+  const original = window.matchMedia
+  beforeEach(() => {
+    window.matchMedia = jest.fn().mockImplementation((consulta: string) => ({
+      matches: false,
+      media: consulta,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+    })) as unknown as typeof window.matchMedia
+  })
+  afterEach(() => {
+    window.matchMedia = original
+  })
+
+  it('lists the groups by sub-área with the metrics in one row and «Promover temporada» at the end', async () => {
+    render(<GestionGruposClient {...props()} />)
+    expect(screen.queryByRole('complementary', { name: 'Ámbitos y atención' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver a Estudiantes' })).toHaveAttribute('href', '/estudiantes')
+    expect(screen.getByRole('heading', { level: 2, name: 'Grupos de Chicas' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Grupos de Chicos' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Promover temporada' })).toHaveAttribute('href', '/estudiantes/promocion')
+    await user.click(within(screen.getByRole('group', { name: 'Necesitan atención' })).getByRole('button', { name: /Sin líder/ }))
+    expect(screen.getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Abrir 3er año · Chicas', 'Abrir 2do año · Chicos'])
   })
 })

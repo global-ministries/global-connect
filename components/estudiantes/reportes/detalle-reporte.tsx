@@ -1,9 +1,13 @@
 'use client'
 
 /**
- * Estudiantes › Reportes — the read-only drawer (artboards 11 / 12 `#grupo`,
- * `#persona`, `#etapa`): one `DetalleResponsivo` (side panel from md, bottom
- * sheet below) that swaps views instead of stacking sheets (gap G8):
+ * Estudiantes › Reportes — the read-only panel (artboards 15 / 16 of
+ * design/estudiantes-dps `#grupo`, `#persona`, `#etapa`, C32, C33, C37): one
+ * `PanelAcoplado` (docked from 1280px; overlay side panel from md, bottom
+ * sheet below) that swaps views instead of stacking sheets (gap G8). Its
+ * header carries a context line: the person's repeats the ámbito and the
+ * range («The Living Room · Últimas 8 semanas · 14 sep – 8 nov»), because
+ * the 640px card folds the «barra de alcance» while it is open (D9):
  * - Grupo: meta, "N reuniones sin marcar" (warning), Reuniones · Promedio de
  *   presentes · Asistencia · Visitantes nuevos, the trend sentence, its
  *   meetings (read-only rows, "Sin marcar") and its members (rows that open
@@ -25,7 +29,6 @@
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 
 import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
-import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonAtrasMovil } from '@/components/ui/barra-navegacion-movil'
 import { EstadoVacioSistema, SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 import { PuntoEstado } from '@/components/ui/punto-estado'
@@ -43,6 +46,7 @@ import {
   type RangoReporte,
 } from '@/lib/platform/estudiantes/reportes'
 
+import { PanelAcoplado } from '../alcance/panel-acoplado'
 import { FilaInset, FilaNavegable, ListaInset, TituloSeccion } from '../filas-inset'
 import { AvisoPromocion } from '../promocion/partes-promocion'
 import { AvatarIniciales } from '../vivo/franja-visitantes'
@@ -310,6 +314,8 @@ export interface DetalleReporteProps {
   readonly campusId?: string
   /** Today in Caracas, for "hace 1 semana". */
   readonly hoy?: string
+  /** The range in words ("Últimas 8 semanas · 8 sep – 2 nov"), for the person's context line. */
+  readonly rangoTexto?: string
 }
 
 /** Focuses the inner view when it changes (G8: focus moves with the view). */
@@ -340,6 +346,7 @@ export function DetalleReporte({
   livingRoom = false,
   campusId = '',
   hoy = rango.hasta,
+  rangoTexto,
 }: DetalleReporteProps): ReactElement | null {
   const vista = pila?.vista ?? null
   const claveRango = `${rango.desde}|${rango.hasta}`
@@ -358,12 +365,13 @@ export function DetalleReporte({
   if (!pila || !vista) return null
 
   let titulo = ''
+  let contextoLinea: string | undefined
   let descripcion: ReactNode
   let contenido: ReactNode
   if (vista.tipo === 'grupo') {
     const carga = grupo.carga
     titulo = carga.estado === 'listo' ? carga.data.grupo.nombre : (nombreGrupo(vista.grupoId) ?? 'Grupo')
-    if (carga.estado === 'listo') descripcion = vistaDetalleGrupo(carga.data).meta
+    if (carga.estado === 'listo') contextoLinea = vistaDetalleGrupo(carga.data).meta
     contenido =
       carga.estado === 'cargando' ? (
         <Cargando />
@@ -375,6 +383,8 @@ export function DetalleReporte({
   } else if (vista.tipo === 'persona') {
     const carga = persona.carga
     titulo = carga.estado === 'listo' ? carga.data.persona.nombre : (nombrePersona(vista.personaId) ?? 'Asistencia')
+    contextoLinea = [contexto.ambito, rangoTexto].filter(Boolean).join(' · ')
+    if (carga.estado === 'listo') descripcion = carga.data.membresias.find((m) => m.activo)?.grupo
     const desdeGrupoId = pila.volver?.vista.tipo === 'grupo' ? pila.volver.vista.grupoId : null
     contenido =
       carga.estado === 'cargando' ? (
@@ -405,6 +415,7 @@ export function DetalleReporte({
   } else if (embudo) {
     const v = vistaEtapa(embudo, vista.etapa, alcance)
     titulo = `${v.titulo} · ${v.cantidad}`
+    contextoLinea = `Embudo de conexión · ${contexto.ambito} · hoy`
     descripcion = v.descripcion
     contenido = (
       <ContenidoEtapa embudo={embudo} etapa={vista.etapa} alcance={alcance} onPersona={(personaId) => onIr({ vista: { tipo: 'persona', personaId }, volver: { vista, etiqueta: v.titulo } })} />
@@ -415,13 +426,20 @@ export function DetalleReporte({
 
   return (
     // The Living Room person view opens wider so the four cards sit 2 × 2 (A41).
-    <DetalleResponsivo abierto={abierto} onCambioAbierto={onCambioAbierto} titulo={titulo} descripcion={descripcion} ancho={livingRoom && vista.tipo === 'persona' ? 'lg' : 'md'}>
+    <PanelAcoplado
+      abierto={abierto}
+      onCambioAbierto={onCambioAbierto}
+      titulo={titulo}
+      contexto={contextoLinea}
+      descripcion={descripcion}
+      ancho={livingRoom && vista.tipo === 'persona' ? 'lg' : 'md'}
+    >
       <VistaEnfocada clave={clave} enfocar={clave !== claveInicial}>
         {pila.volver && (
           <BotonAtrasMovil atras={{ etiqueta: pila.volver.etiqueta, onClick: () => onIr({ vista: pila.volver!.vista, volver: null }) }} className="-ml-2 max-w-full" />
         )}
         {contenido}
       </VistaEnfocada>
-    </DetalleResponsivo>
+    </PanelAcoplado>
   )
 }

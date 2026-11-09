@@ -1,9 +1,11 @@
 'use client'
 
 /**
- * Estudiantes › Grupos — "Crear grupo" / "Editar grupo" (artboard 08): a
- * `DetalleResponsivo` with a form (bottom sheet on phones, 480px panel from
- * md); the footer submits it.
+ * Estudiantes › Grupos — "Crear grupo" / "Editar grupo" (artboard 08; C9 of
+ * design/estudiantes-dps 11 / 12): a `PanelAcoplado` with a form (docked
+ * from 1280px like the group panel, 480px overlay from md, bottom sheet on
+ * phones); the footer submits it. Controls stay at 44px: a form, not a
+ * cell.
  *
  * - Dónde: ámbito, sub-área (and campus when the sub-área is managed in more
  *   than one) from estudiantes_subareas_gestionables; read only when there is
@@ -23,7 +25,6 @@ import { useId, useMemo, useRef, useState, type FormEvent, type ReactElement } f
 
 import { BotonSistema, InputSistema, SelectSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
-import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { crearGrupo, editarGrupo, type DatosGrupo } from '@/lib/actions/estudiantes-grupos.actions'
 import { opcionesDonde, pistaEscala } from '@/lib/platform/estudiantes/gestion-grupo'
@@ -31,6 +32,7 @@ import type { GradoEscala, GrupoGestion, SubareaGestionable } from '@/lib/platfo
 import { DIAS_SEMANA } from '@/lib/platform/estudiantes/grupos-vista'
 import { baseNombreGrupo, pistaNombre, sugerirNombreGrupo, validarNombreGrupo } from '@/lib/platform/estudiantes/nombre-grupo'
 
+import { PanelAcoplado } from '../alcance/panel-acoplado'
 import { TituloSeccion } from '../filas-inset'
 import { SelectorLideres } from './selector-lideres'
 import { DatoClave } from './vista-grupo'
@@ -196,7 +198,7 @@ export function FormularioGrupo({ modo, abierto, onCambioAbierto, subareas, grup
   const varios = (subarea?.campus.length ?? 0) > 1
 
   return (
-    <DetalleResponsivo
+    <PanelAcoplado
       abierto={abierto}
       onCambioAbierto={onCambioAbierto}
       titulo={editar ? 'Editar grupo' : 'Crear grupo'}
@@ -349,6 +351,6 @@ export function FormularioGrupo({ modo, abierto, onCambioAbierto, subareas, grup
           </div>
         )}
       </form>
-    </DetalleResponsivo>
+    </PanelAcoplado>
   )
 }

@@ -48,7 +48,8 @@ the pieces in [components.md](components.md#planning-style-components).
   the period controls ("‹ Hoy ›") at the right. Actions at the right, 36px.
 - **Context sidebar** (optional): 240px, `bg-card border-r`, left of the
   content, for what describes the item (horarios, equipos with counts,
-  archivos, notas). Never navigation.
+  archivos, notas). Never navigation, with one exception: the
+  [scope bar](#scope-bar-barra-de-alcance).
 - **Toolbar**: one row, 24px gutters: section tabs or filters (select,
   density toggle, column picker), the summary, and the autosave status at
   the far right.
@@ -56,6 +57,46 @@ the pieces in [components.md](components.md#planning-style-components).
   `bg-card border rounded-md` wrapper with `overflow: auto`; team columns
   scroll inside a region with `tabindex="0"` and an `aria-label`.
 - **Footer line** (optional): 12px muted keyboard hints with `kbd`.
+
+### Scope bar («barra de alcance»)
+
+The one allowed exception to "the context sidebar never navigates"
+(decided 2026-11-08, S7 of `odd/tasks/estudiantes-estilo-dps.md`; gap B1 of
+`design/estudiantes-dps/README-tanda-b.md`). Like the group types bar of
+PCO Groups, a list screen with a scope tree shows the whole scope with its
+numbers and changes it with one click, instead of scope cards and big
+attention metrics.
+
+- Same frame as the context sidebar: 240px (200px on tablets), `bg-card
+  border-r`, its own scroll, sections split by `border-t`, each a `group`
+  named by its 12px uppercase heading (an optional muted hint after it).
+- Rows of 32px (44px on touch): name, the number in mono at the right and
+  an optional 12px line ("79 integrantes · 1 sin líder" with the flag in
+  `warning-text`). A level of the scope (ámbito, sub-área indented 22px)
+  carries `aria-current`; an attention filter is a toggle with
+  `aria-pressed`; the chosen row has `bg-brand-tint` and its name in
+  `brand-text`. A fixed scope (one sub-área) is plain text.
+- What it may hold: the scope levels, the attention toggles that filter the
+  list (they replace `MetricasAtencion`), a funnel whose steps open a panel
+  (`aria-haspopup="dialog"`) and short notes. Whatever it changes is also
+  written in the URL and shown in the breadcrumbs and the summary line.
+- Desktop only. On phones the levels become pills, the toggles a row of
+  compact metric cards ([mobile.md](mobile.md)).
+- A docked 640px panel folds it while open; the panel header repeats the
+  scope it hides ("The Living Room · Últimas 8 semanas · 14 sep – 8 nov").
+- Built locally in `components/estudiantes/alcance/barra-alcance.tsx`
+  (Grupos, Promover temporada and Reportes of Estudiantes).
+
+### Docked detail panel
+
+From 1280px a list's detail panel (480px; 640px for a wide card) may dock
+at the right under the desktop header instead of covering the view (S7 /
+D3, gap B4): the view leaves it room, the open row stays in sight with
+`aria-selected` and the brand tint, and another row opens in the same panel
+without closing it. It is not modal (no scrim, no focus trap); it takes the
+focus on its title, `Escape` inside closes it and the focus goes back.
+Below 1280px it is the usual overlay (`DetalleResponsivo`). Local in
+`components/estudiantes/alcance/panel-acoplado.tsx`.
 
 ### Horizontal scroll and sticky regions
 
@@ -138,7 +179,7 @@ The first block of the content column on desktop and tablet.
 ## Section headings
 
 A section inside a page opens with a small heading row: `h2` 12px uppercase
-muted on the left, an optional hint on the right ("Tocá para entrar"), 12px
+muted on the left, an optional hint on the right ("Toca para entrar"), 12px
 below. On phone the hint is hidden and the heading gets 4px inset to line up
 with the inset list.
 

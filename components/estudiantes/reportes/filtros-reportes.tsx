@@ -1,8 +1,10 @@
 'use client'
 
 /**
- * Estudiantes › Reportes — the filters sheet (`HojaFiltros`, artboards 11 /
- * 12 `#filtros`): Rango de fechas (the quick ranges plus Desde / Hasta, gap
+ * Estudiantes › Reportes — the filters sheet of phones (`HojaFiltros`,
+ * artboards 12 / 16 `#filtros`; on a desktop the range is the pill of the
+ * header band, the sub-área is in the «barra de alcance» and the sorts are
+ * the table headers): Rango de fechas (the quick ranges plus Desde / Hasta, gap
  * GR3 `FiltroRangoFechas` under "Planned components" in
  * docs/design-system/components.md), Sub-área (only when the caller sees
  * more than one) and Ordenar grupos / personas por (The Living Room adds
@@ -46,7 +48,8 @@ export interface HojaFiltrosReportesProps {
   readonly conConexiones?: boolean
 }
 
-function FechasPropias({ hoy, rango, onRango }: Pick<HojaFiltrosReportesProps, 'hoy' | 'rango' | 'onRango'>): ReactElement {
+/** Desde / Hasta: applies once both dates are valid, otherwise says why. Also in the range pill (`PastillaRango`). */
+export function FechasPropias({ hoy, rango, onRango }: Pick<HojaFiltrosReportesProps, 'hoy' | 'rango' | 'onRango'>): ReactElement {
   const [desde, setDesde] = useState(rango.desde)
   const [hasta, setHasta] = useState(rango.hasta)
   const error = validarRango(desde, hasta, hoy)
