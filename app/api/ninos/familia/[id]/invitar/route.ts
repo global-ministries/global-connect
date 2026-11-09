@@ -1,11 +1,13 @@
 /**
- * POST /api/ninos/familia/[id]/invitar — right after "Nueva familia" at the
- * table, the operator invites the NEW adult to create an account (G5 of
- * odd/tasks/ninos-cobertura.md).
+ * POST /api/ninos/familia/[id]/invitar — the desk invites the parent of a
+ * family without an account to create one: right after "Nueva familia" (G5
+ * of odd/tasks/ninos-cobertura.md) or at any later visit from the family
+ * card (T2k of odd/tasks/ninos-checkin-pco.md, S9.9).
  *
  * { email } → { ok, email } | { error, codigo? }. The invitation row is
- * created by ninos_familia_invitar AS THE CALLER, for exactly the ficha of
- * the URL: only the operator who registered it, within one hour.
+ * created by ninos_familia_cuenta_invitar AS THE CALLER, for exactly the
+ * ficha of the URL: anfitriones and coordinación of the family's campus,
+ * one invitation per family every 10 minutes (429 invitacion_reciente).
  */
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -28,7 +30,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     try { body = await req.json() } catch { return NextResponse.json({ error: 'Solicitud inválida.' }, { status: 400 }) }
 
     const rpc = rpcSinTipos(supabase)
-    const deps = dependenciasInvitacionNinos((email) => rpc('ninos_familia_invitar', { p_padre_id: id, p_email: email }))
+    const deps = dependenciasInvitacionNinos((email) => rpc('ninos_familia_cuenta_invitar', { p_padre_id: id, p_email: email }))
     const r = await invitarFamiliaNueva(deps, id, body)
     return NextResponse.json(r.body, { status: r.status })
   } catch {

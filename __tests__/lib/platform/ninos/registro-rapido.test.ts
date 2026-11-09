@@ -5,15 +5,20 @@
  */
 import {
   conFechaNacimiento,
+  conFechaPublica,
+  conRelacion,
   cuerpoPublico,
   datosIniciales,
   debePlegarse,
   estadoBarra,
   faltantes,
   familiaMesa,
+  forzadosIngreso,
   hijoRapidoVacio,
   idRapido,
+  llenosDeIngreso,
   personasRetiran,
+  pideGrado,
   resumenSeccion,
   salonVivo,
   seccionCompleta,
@@ -35,7 +40,7 @@ const salones: SalonNivel[] = [
 
 function completos(): DatosRapido {
   const d = datosIniciales({ campusId: CAMPUS })
-  d.padre = { nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', cedula: '', email: '' }
+  d.padre = { nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', relacion: 'mama', cedula: '', email: '' }
   d.hijos = [{ ...hijoRapidoVacio('Linárez'), nombre: 'Camila', fechaNacimiento: '2022-02-09', genero: 'Femenino', tieneAlergias: false, tieneNecesidades: false }]
   return d
 }
@@ -56,7 +61,7 @@ describe('faltantes', () => {
       idRapido.padre('nombre'),
       idRapido.padre('apellido'),
       idRapido.padre('telefono'),
-      idRapido.padre('genero'),
+      idRapido.padre('relacion'),
       idRapido.hijo(0, 'nombre'),
       idRapido.hijo(0, 'apellido'),
       idRapido.hijo(0, 'nacimiento'),
@@ -65,13 +70,12 @@ describe('faltantes', () => {
       idRapido.hijo(0, 'tiene-nee'),
     ])
     expect(f[1]).toEqual({ id: 'rr-padre-nombre', seccion: 'tu', etiqueta: 'Tu nombre', mensaje: 'Escribe tu nombre.' })
-    expect(f[4].mensaje).toBe('Elige mamá o papá.')
+    expect(f[4]).toEqual({ id: 'rr-padre-relacion', seccion: 'tu', etiqueta: 'Tu relación con los niños', mensaje: 'Elige tu relación con los niños.' })
   })
 
-  it('the parent género is required in both modes', () => {
+  it('the desk still asks for the parent género (no relationship there)', () => {
     const d = completos()
-    d.padre.genero = ''
-    expect(faltantes(d, publico).map((x) => x.id)).toEqual([idRapido.padre('genero')])
+    d.padre = { ...d.padre, genero: '', relacion: '' }
     expect(faltantes(d, mesa)).toEqual([
       { id: 'rr-padre-genero', seccion: 'tu', etiqueta: 'Género del representante', mensaje: 'Elige mamá o papá.' },
     ])
@@ -79,7 +83,7 @@ describe('faltantes', () => {
 
   it('a known parent (existing or confirmed) skips the parent fields', () => {
     const d = completos()
-    d.padre = { nombre: '', apellido: '', telefono: '', genero: '', cedula: '', email: '' }
+    d.padre = { nombre: '', apellido: '', telefono: '', genero: '', relacion: '', cedula: '', email: '' }
     expect(faltantes(d, { ...mesa, padreConocido: true })).toEqual([])
   })
 
@@ -192,7 +196,7 @@ describe('payloads', () => {
     d.autorizados = [{ nombre: 'Abuela', telefono: '0424', relacion: '' }, { nombre: '', telefono: '', relacion: '' }]
     const body = cuerpoPublico(d, '')
     expect(Object.keys(body).sort()).toEqual(['autorizados', 'campusId', 'hijos', 'padre', 'sitioWeb'])
-    expect(body.padre).toEqual({ nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', cedula: '', email: '' })
+    expect(body.padre).toEqual({ nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', genero: 'Femenino', relacion: 'mama', cedula: '', email: '' })
     expect(body.autorizados).toEqual([{ nombre: 'Abuela', telefono: '0424', relacion: '' }])
     expect(body.hijos).toEqual([
       {
@@ -220,7 +224,7 @@ describe('payloads', () => {
       },
       email: 'a@b.co',
     })
-    expect(d.padre).toEqual({ nombre: 'Ana', apellido: 'P', telefono: '0414', cedula: '1', genero: '', email: 'a@b.co' })
+    expect(d.padre).toEqual({ nombre: 'Ana', apellido: 'P', telefono: '0414', cedula: '1', genero: '', relacion: '', email: 'a@b.co' })
     expect(d.hijos[0]).toMatchObject({ nombre: 'Sol', alergias: 'Maní', tieneAlergias: true, tieneNecesidades: null })
   })
 })
@@ -243,6 +247,161 @@ describe('salón', () => {
   it('pairs the registered children with their ids and salón for the check-in', () => {
     const hijos = familiaMesa(completos()).hijos.map((h) => ({ nombre: h.nombre, apellido: h.apellido, fecha_nacimiento: h.fechaNacimiento, grado: null, salon_preferido_id: null, necesidades_especiales: null }))
     expect(seleccionIngreso(hijos, ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: PREESCOLAR, nombre: 'Camila' }])
-    expect(seleccionIngreso([{ ...hijos[0], fecha_nacimiento: '2010-01-01' }], ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila' }])
+    expect(seleccionIngreso([{ ...hijos[0], fecha_nacimiento: '2010-01-01' }], ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'revisar' }])
+    // T2i: the engine's reason when the data is fine (closed salón, none configured).
+    const cerrados = salones.map((s) => ({ ...s, abierto: false }))
+    expect(seleccionIngreso(hijos, ['n1'], cerrados, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'cerrado' }])
+    expect(seleccionIngreso(hijos, ['n1'], [], HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'revisar' }])
+  })
+})
+
+// T2j, S9.1: «Avisa y ofrece otro salón, pero deja forzar» in the desk «Nueva familia» path.
+describe('salón lleno al dar ingreso (S9.1)', () => {
+  const PREESCOLAR_B = '00000000-0000-4000-8000-000000000003'
+  // As the check-in page loads them: with the regulars' quota.
+  const conB: SalonNivel[] = [...salones, { ...salones[1], id: PREESCOLAR_B, nombre: 'Preescolar B', orden: 3 }].map((s) => ({ ...s, capacidad: 18 }))
+  const cupo = (id: string, presentes: number, capacidad = 18) => [id, { salon_id: id, nombre: id, presentes, capacidad }] as const
+  const lleno = new Map([cupo(PREESCOLAR, 18)])
+  const ambosLlenos = new Map([cupo(PREESCOLAR, 18), cupo(PREESCOLAR_B, 18)])
+  const hijo = { nombre: 'Camila', apellido: 'Linárez', fecha_nacimiento: '2022-02-09', grado: null, salon_preferido_id: null, necesidades_especiales: null }
+
+  it('the live salón takes the next one with room, keeps a hand-picked one and never leaves a full child without salón', () => {
+    const camila = { ...hijoRapidoVacio(), fechaNacimiento: '2022-02-09' }
+    expect(salonVivo(camila, conB, HOY, lleno)?.id).toBe(PREESCOLAR_B)
+    expect(salonVivo({ ...camila, salonPreferidoId: PREESCOLAR }, conB, HOY, lleno)?.id).toBe(PREESCOLAR)
+    expect(salonVivo(camila, conB, HOY, ambosLlenos)?.id).toBe(PREESCOLAR)
+    expect(salonVivo(camila, conB, HOY)?.id).toBe(PREESCOLAR)
+  })
+
+  it('a full salón goes in with its room (no blocking «lleno» reason) and «Usar otro» applies for today only', () => {
+    expect(seleccionIngreso([hijo], ['n1'], conB, HOY, ambosLlenos)).toEqual([{ ninoId: 'n1', salonId: PREESCOLAR, nombre: 'Camila' }])
+    expect(seleccionIngreso([{ ...hijo, salon_preferido_id: PREESCOLAR }], ['n1'], conB, HOY, lleno, { 0: PREESCOLAR_B })).toEqual([
+      { ninoId: 'n1', salonId: PREESCOLAR_B, nombre: 'Camila' },
+    ])
+  })
+
+  it('forced: only the children whose salón has no place for a first visit (quota + visitor places)', () => {
+    const sel = [
+      { ninoId: 'n1', salonId: PREESCOLAR },
+      { ninoId: 'n2', salonId: MATERNAL },
+    ]
+    expect(forzadosIngreso(sel, salones, new Map([cupo(PREESCOLAR, 18), cupo(MATERNAL, 3, 10)]))).toEqual(['n1'])
+    const conVisitantes = salones.map((s) => ({ ...s, cupoVisitantes: 2 }))
+    expect(forzadosIngreso(sel, conVisitantes, new Map([cupo(PREESCOLAR, 19)]))).toEqual([])
+    expect(forzadosIngreso(sel, conVisitantes, new Map([cupo(PREESCOLAR, 20)]))).toEqual(['n1'])
+    expect(forzadosIngreso(sel, salones, undefined)).toEqual([])
+    expect(forzadosIngreso(sel, salones, new Map())).toEqual([])
+  })
+
+  it('lists the full salones of the form with the next one that has room', () => {
+    const camila = { ...hijoRapidoVacio(), nombre: 'Camila ', fechaNacimiento: '2022-02-09', salonPreferidoId: PREESCOLAR }
+    const bebe = { ...hijoRapidoVacio(), nombre: 'Luis', fechaNacimiento: '2024-07-21' }
+    expect(llenosDeIngreso([camila, bebe], conB, HOY, lleno)).toEqual([
+      { indice: 0, nombre: 'Camila', salon: conB[1], ocupacion: lleno.get(PREESCOLAR), otro: conB[2] },
+    ])
+    expect(llenosDeIngreso([camila], conB, HOY, ambosLlenos)).toEqual([
+      { indice: 0, nombre: 'Camila', salon: conB[1], ocupacion: ambosLlenos.get(PREESCOLAR), otro: null },
+    ])
+    expect(llenosDeIngreso([camila, bebe], conB, HOY, new Map([cupo(PREESCOLAR, 17)]))).toEqual([])
+    expect(llenosDeIngreso([camila], conB, HOY, undefined)).toEqual([])
+  })
+})
+
+describe('relación con los niños (S9.8)', () => {
+  it('mamá, papá, abuela, abuelo, tía and tío set the género; tutor and otro clear it', () => {
+    const p = completos().padre
+    expect(conRelacion(p, 'abuela')).toMatchObject({ relacion: 'abuela', genero: 'Femenino' })
+    expect(conRelacion(p, 'tia')).toMatchObject({ relacion: 'tia', genero: 'Femenino' })
+    expect(conRelacion(p, 'papa')).toMatchObject({ relacion: 'papa', genero: 'Masculino' })
+    expect(conRelacion(p, 'abuelo')).toMatchObject({ relacion: 'abuelo', genero: 'Masculino' })
+    expect(conRelacion(p, 'tio')).toMatchObject({ relacion: 'tio', genero: 'Masculino' })
+    expect(conRelacion(p, 'tutor')).toMatchObject({ relacion: 'tutor', genero: '' })
+    expect(conRelacion({ ...p, genero: 'Masculino' }, 'otro')).toMatchObject({ relacion: 'otro', genero: '' })
+  })
+
+  it('tutor or otro asks hombre o mujer on the public page', () => {
+    const d = completos()
+    d.padre = conRelacion(d.padre, 'tutor')
+    expect(faltantes(d, publico)).toEqual([
+      { id: 'rr-padre-genero', seccion: 'tu', etiqueta: '¿Hombre o mujer?', mensaje: 'Elige hombre o mujer.' },
+    ])
+    d.padre.genero = 'Masculino'
+    expect(faltantes(d, publico)).toEqual([])
+  })
+
+  it('an unknown relationship is missing on the public page', () => {
+    const d = completos()
+    d.padre.relacion = 'vecina'
+    expect(faltantes(d, publico).map((x) => x.id)).toEqual(['rr-padre-relacion'])
+  })
+
+  it('the folded line shows the relationship', () => {
+    const d = completos()
+    d.padre = conRelacion(d.padre, 'abuela')
+    expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez · abuela')
+    d.padre = { ...conRelacion(d.padre, 'tutor'), genero: 'Femenino' }
+    expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez · tutor o tutora')
+  })
+
+  it('«otro» shows only the name in the folded line (T2i)', () => {
+    const d = completos()
+    d.padre = { ...conRelacion(d.padre, 'otro'), genero: 'Femenino' }
+    expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez')
+    expect(resumenSeccion(d, 'tu', mesa).texto).toBe('María Linárez')
+  })
+
+  it('the desk review keeps the pre-registro relationship: summary and género question (T2i)', () => {
+    const form = { padre: { nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', cedula: '', genero: '' as const }, hijos: [], autorizados: [] }
+    const d = datosIniciales({ form, relacion: 'abuela' })
+    expect(d.padre.relacion).toBe('abuela')
+    d.hijos = completos().hijos
+    expect(faltantes(d, mesa)).toEqual([{ id: 'rr-padre-genero', seccion: 'tu', etiqueta: 'Género del representante', mensaje: 'Elige mujer u hombre.' }])
+    d.padre.genero = 'Femenino'
+    expect(resumenSeccion(d, 'tu', mesa).texto).toBe('María Linárez · abuela')
+    expect(familiaMesa(d).padre).not.toHaveProperty('relacion')
+  })
+
+  it('a desk family without relationship keeps mamá / papá (T2i)', () => {
+    const d = completos()
+    d.padre.relacion = ''
+    expect(resumenSeccion(d, 'tu', mesa).texto).toBe('María Linárez · mamá')
+    d.padre.genero = ''
+    expect(faltantes(d, mesa).map((x) => x.mensaje)).toEqual(['Elige mamá o papá.'])
+    d.padre = { ...d.padre, relacion: 'papa' }
+    expect(faltantes(d, mesa).map((x) => x.mensaje)).toEqual(['Elige mamá o papá.'])
+  })
+
+  it('the public body carries the relationship and the derived género', () => {
+    const d = completos()
+    d.padre = conRelacion(d.padre, 'abuelo')
+    expect(cuerpoPublico(d, '').padre).toMatchObject({ relacion: 'abuelo', genero: 'Masculino' })
+  })
+
+  it('the desk form never carries the relationship', () => {
+    const d = completos()
+    expect(familiaMesa(d).padre).not.toHaveProperty('relacion')
+  })
+})
+
+describe('grado para 5 años o más (S9.8)', () => {
+  it('asks the grade only from 5 years (60 months) with a valid birth date', () => {
+    expect(pideGrado('2021-11-01', HOY)).toBe(true)
+    expect(pideGrado('2021-11-02', HOY)).toBe(false)
+    expect(pideGrado('2022-02-09', HOY)).toBe(false)
+    expect(pideGrado('', HOY)).toBe(false)
+    expect(pideGrado('2099-01-01', HOY)).toBe(false)
+    expect(pideGrado('2010-01-01', HOY)).toBe(false)
+  })
+
+  it('the grade is optional: a 5+ child without grade misses nothing', () => {
+    const d = completos()
+    d.hijos[0].fechaNacimiento = '2019-05-01'
+    expect(faltantes(d, publico)).toEqual([])
+  })
+
+  it('a new birth date under 5 clears the grade; 5+ keeps it', () => {
+    const h = { ...hijoRapidoVacio(), fechaNacimiento: '2019-05-01', grado: '2' }
+    expect(conFechaPublica(h, '2018-01-01', HOY)).toMatchObject({ fechaNacimiento: '2018-01-01', grado: '2' })
+    expect(conFechaPublica(h, '2023-01-01', HOY)).toMatchObject({ fechaNacimiento: '2023-01-01', grado: '' })
   })
 })

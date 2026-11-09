@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronDown, Plus, X } from 'lucide-react'
 
 import { BotonSistema, InputSistema, SelectSistema, TextareaSistema } from '@/components/ui/sistema-diseno'
 import { GENEROS, GRADOS, type AutorizadoForm, type HijoForm } from '@/lib/platform/ninos/familia'
+import { preferidoCorresponde, salonesParaNivel } from '@/lib/platform/ninos/familias-vista'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { LIMITES_MIS_HIJOS } from '@/lib/platform/ninos/mis-hijos'
 import { aplicarNivel, gruposNivel, nivelSugerido, valorNivel, type SalonNivel } from '@/lib/platform/ninos/nivel'
@@ -112,9 +113,11 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
   // A parent's texts follow the SQL limit of ninos_mis_hijos_guardar.
   const maxTexto = esPadre ? LIMITES_MIS_HIJOS.texto : undefined
   // The level last preselected by the rules: a new birth date may replace it,
-  // a level chosen by hand is never overridden.
+  // a level chosen by hand is never overridden while it still fits the child.
   const nivelAuto = useRef<string | null>(null)
-  const nivel = valorNivel(hijo, salones)
+  // S9.5: only the rooms that correspond to the child today are offered.
+  const salonesNivel = salonesParaNivel(hijo, salones, hoyEnCaracas())
+  const nivel = valorNivel(hijo, salonesNivel)
   const sinSugerencia = hijo.fechaNacimiento !== '' && nivel === '' && nivelSugerido(hijo, salones, hoyEnCaracas()) === ''
 
   function cambiarFecha(fechaNacimiento: string) {
@@ -124,7 +127,10 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
       onChange(siguiente)
       return
     }
-    const libre = (nivel === '' && hijo.salonPreferidoId === '') || (nivelAuto.current !== null && nivel === nivelAuto.current)
+    // A room picked by hand that no longer fits the new birth date gives way to the suggestion.
+    const preferidoCaduco = hijo.salonPreferidoId !== '' && !preferidoCorresponde(siguiente, salones, hoyEnCaracas())
+    const libre =
+      preferidoCaduco || (nivel === '' && hijo.salonPreferidoId === '') || (nivelAuto.current !== null && nivel === nivelAuto.current)
     if (!libre) {
       onChange(siguiente)
       return
@@ -192,7 +198,7 @@ export function CamposNino({ indice, hijo, onChange, salones = [], publico = fal
               id={id('nivel')}
               label={publico ? 'Nivel (si lo sabes)' : 'Nivel'}
               value={nivel}
-              salones={salones}
+              salones={salonesNivel}
               onValueChange={(v) => {
                 nivelAuto.current = null
                 onChange(aplicarNivel(hijo, v))

@@ -19,10 +19,19 @@ jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({ auth: { getUser }, rpc }),
 }))
 
-import { cargarProgramacionDps, crearEventoDps, crearSerieDps, eliminarPlanDps, guardarCeldaDps, moverPlanDps } from '@/lib/actions/dps-programacion.actions'
+import {
+  buscarPersonasProgramacionDps,
+  cargarProgramacionDps,
+  crearEventoDps,
+  crearSerieDps,
+  eliminarPlanDps,
+  guardarCeldaDps,
+  moverPlanDps,
+} from '@/lib/actions/dps-programacion.actions'
 
 const PLAN = '66666666-6666-4666-8666-666666666666'
 const SERIE = '99999999-9999-4999-8999-999999999999'
+const PERSONA = '11111111-1111-4111-8111-111111111111'
 const DATOS_INVALIDOS = { ok: false, message: 'Revisa los datos e inténtalo de nuevo.', codigo: null }
 const SIN_SESION = { ok: false, message: 'Tu sesión terminó. Vuelve a iniciar sesión.', codigo: null }
 
@@ -283,6 +292,65 @@ describe('eliminarPlanDps (S9)', () => {
       ok: false,
       message: 'Ya tiene asistencia marcada: no se puede mover ni eliminar.',
       codigo: 'plan_con_asistencia',
+    })
+  })
+})
+
+describe('guardarCeldaDps with a persona of the system (S11)', () => {
+  it('links the person as {"persona_id"} and returns the plan with their name', async () => {
+    respuestas({ dps_plan_campo: { data: planJson({ host: { persona_id: PERSONA, texto: null, nombre: 'Ana Pérez' } }), error: null } })
+    const r = await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personaId: PERSONA })
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('dps_plan_campo', { p_plan_id: PLAN, p_campo: 'host', p_valor: { persona_id: PERSONA } })
+    expect(r.ok && [r.data.valores.host, r.data.personaIds.host]).toEqual(['Ana Pérez', PERSONA])
+  })
+
+  it('creates the Sunday plan first when the Sunday has none', async () => {
+    respuestas({ dps_plan_crear: { data: PLAN, error: null }, dps_plan_campo: { data: planJson(), error: null } })
+    await guardarCeldaDps({ planId: null, fecha: '2026-11-15', columna: 'productor', valor: 'Ana Pérez', personaId: PERSONA })
+    expect(rpc).toHaveBeenLastCalledWith('dps_plan_campo', { p_plan_id: PLAN, p_campo: 'productor', p_valor: { persona_id: PERSONA } })
+  })
+
+  it('refuses a persona on a creative column or a bad id, without calling', async () => {
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'opener', valor: 'Ana Pérez', personaId: PERSONA })).toEqual(DATOS_INVALIDOS)
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personaId: 'nope' })).toEqual(DATOS_INVALIDOS)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('says when the person is gone', async () => {
+    respuestas({ dps_plan_campo: { data: null, error: { code: '22023', message: 'persona_invalida' } } })
+    expect(await guardarCeldaDps({ planId: PLAN, fecha: '2026-11-15', columna: 'host', valor: 'Ana Pérez', personaId: PERSONA })).toEqual({
+      ok: false,
+      message: 'Esa persona ya no está en la plataforma. Búscala de nuevo.',
+      codigo: 'persona_invalida',
+    })
+  })
+})
+
+describe('buscarPersonasProgramacionDps', () => {
+  it('searches people by name (dps_buscar_personas) and reads id, name and initials', async () => {
+    respuestas({ dps_buscar_personas: { data: [{ id: PERSONA, nombre: 'Ana', apellido: 'Pérez', iniciales: 'AP' }], error: null } })
+    const r = await buscarPersonasProgramacionDps({ texto: '  ana p ' })
+    expect(rpc).toHaveBeenCalledWith('dps_buscar_personas', { p_texto: 'ana p', p_limite: 8 })
+    expect(r).toEqual({ ok: true, data: [{ personaId: PERSONA, nombre: 'Ana Pérez', iniciales: 'AP' }] })
+  })
+
+  it('does not call for fewer than 2 or more than 100 characters', async () => {
+    expect(await buscarPersonasProgramacionDps({ texto: 'a' })).toEqual({ ok: true, data: [] })
+    expect(await buscarPersonasProgramacionDps({ texto: 'a'.repeat(101) })).toEqual({ ok: true, data: [] })
+    expect(await buscarPersonasProgramacionDps({ texto: 3 as never })).toEqual(DATOS_INVALIDOS)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('maps no session and the refusal of someone who does not plan', async () => {
+    getUser.mockResolvedValue({ data: { user: null } })
+    expect(await buscarPersonasProgramacionDps({ texto: 'Ana' })).toEqual(SIN_SESION)
+    getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
+    respuestas({ dps_buscar_personas: { data: null, error: { code: '42501', message: 'sin_autoridad' } } })
+    expect(await buscarPersonasProgramacionDps({ texto: 'Ana' })).toEqual({
+      ok: false,
+      message: 'Solo quienes arman el plan pueden cambiar la programación.',
+      codigo: 'sin_autoridad',
     })
   })
 })

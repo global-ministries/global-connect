@@ -26,12 +26,16 @@ export function DashboardLayout({ children, className }: DashboardLayoutProps) {
       {/* Sidebar */}
       <SidebarModerna />
 
-      {/* Contenido principal: the page's only scroll container. */}
+      {/* Contenido principal: the page's only scroll container. `relative`
+          makes it the containing block of every absolute descendant (the
+          sr-only text of a page included): otherwise their containing block
+          is the viewport, they escape this scroller and stretch the document
+          under the shell, showing a dark band and a second scrollbar. */}
       <main
         id={ID_CONTENIDO_PRINCIPAL}
         tabIndex={-1}
         className={cn(
-          "flex-1 min-w-0 overflow-auto outline-none",
+          "relative flex-1 min-w-0 overflow-auto outline-none",
           className
         )}
       >

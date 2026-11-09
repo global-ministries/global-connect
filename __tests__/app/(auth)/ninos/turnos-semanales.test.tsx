@@ -1,7 +1,9 @@
 /**
  * Niños never sees a dated Dream Team shift (S5 of odd/tasks/tlr-calendario-servicios.md):
  * check-in, salón and reportes read only weekly Sunday shifts (tipo = 'semanal'
- * on top of dia_semana = 0, as before).
+ * on top of dia_semana = 0, as before). Since odd/tasks/ninos-checkin-pco.md T1b,
+ * check-in and salón also read the dated turnos of a Niños event; that query
+ * goes to dream_team_turno_fechas and is covered in turnos-servicio.test.ts.
  */
 import type { ReactNode } from 'react'
 
@@ -14,7 +16,7 @@ const filtrosDeTurnos: Filtro[] = []
 
 function consulta(tabla: string, data: unknown) {
   const q: Record<string, unknown> = {}
-  for (const op of ['select', 'eq', 'in', 'order']) {
+  for (const op of ['select', 'eq', 'in', 'order', 'gte', 'lte', 'filter']) {
     q[op] = (...args: unknown[]) => {
       if (tabla === 'dream_team_turnos') filtrosDeTurnos.push({ op, args })
       return q

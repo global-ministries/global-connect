@@ -66,6 +66,21 @@ describe('RegistroMesa', () => {
     expect(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' })).toBeInTheDocument()
   })
 
+  // S9.5: a room picked by hand that no longer fits the birth date gives way to the suggestion.
+  it('a hand-picked level that does not fit the new birth date is replaced by the suggested salón', () => {
+    const MATERNAL = '00000000-0000-4000-8000-000000000001'
+    const MATERNAL_B = '00000000-0000-4000-8000-000000000003'
+    const maternal = { ...salones[0], edadMinMeses: 0, edadMaxMeses: 23 }
+    const conMaternal: SalonNivel[] = [{ ...maternal, id: MATERNAL, nombre: 'Maternal', orden: 0 }, { ...maternal, id: MATERNAL_B, nombre: 'Maternal B', orden: 2 }, ...salones]
+    render(<RegistroMesa salones={conMaternal} ingreso={ingreso} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    escribir('Fecha de nacimiento del niño 1', '2025-09-01')
+    escribir('Nivel', `salon:${MATERNAL_B}`)
+    expect(screen.getByText('Maternal B', { selector: 'b' })).toBeInTheDocument()
+    escribir('Fecha de nacimiento del niño 1', '2022-02-09')
+    expect(screen.getByText('Preescolar', { selector: 'b' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nivel')).toHaveValue(`salon:${PREESCOLAR}`)
+  })
+
   it('"Registrar y dar ingreso" registers, checks the new children in and shows the code with the optional invitation', async () => {
     responder()
     ingresoOk()
@@ -122,8 +137,21 @@ describe('RegistroMesa', () => {
     render(<RegistroMesa salones={[]} ingreso={ingreso} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
     llenar()
     fireEvent.click(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
-    expect(await screen.findByText('La familia quedó registrada, pero no se pudo dar ingreso: Camila no tiene salón: asígnalo antes de registrar.')).toBeInTheDocument()
+    expect(
+      await screen.findByText(
+        'La familia quedó registrada, pero no se pudo dar ingreso: Camila no corresponde a ningún salón: revisa su fecha de nacimiento o grado, o registra a los demás.',
+      ),
+    ).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps «Género del representante» (no relationship) and the grade only in the ficha (S9.8)', () => {
+    render(<RegistroMesa salones={salones} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    expect(screen.getByRole('group', { name: 'Género del representante' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Tu relación con los niños')).not.toBeInTheDocument()
+    escribir('Fecha de nacimiento del niño 1', '2019-05-01')
+    expect(screen.queryByText('¿En qué grado está?')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('¿En qué grado está el niño 1?')).not.toBeInTheDocument()
   })
 
   it('"Solo registrar" registers without the check-in', async () => {
@@ -148,6 +176,81 @@ describe('RegistroMesa', () => {
     escribir('Fecha de nacimiento del niño 1', '2022-02-09')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
     expect(await screen.findByText('Solo se registran en Niños los menores de 13 años con fecha de nacimiento.')).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+// T2j, S9.1: «Avisa y ofrece otro salón, pero deja forzar», as the main desk (forzadoIds → forzado_por).
+describe('RegistroMesa: salón lleno al dar ingreso', () => {
+  const PREESCOLAR_B = '00000000-0000-4000-8000-000000000003'
+  const cupo = (id: string, presentes: number) => [id, { salon_id: id, nombre: id, presentes, capacidad: 18 }] as const
+  const lleno = new Map([cupo(PREESCOLAR, 18)])
+  const cuerpo = () => JSON.parse(fetchMock.mock.calls[0][1].body)
+  const dar = () => fireEvent.click(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
+
+  it('warns on the card and asks before registering; «Dar ingreso igual» sends the child as forced', async () => {
+    responder()
+    ingresoOk()
+    render(<RegistroMesa salones={salones} ingreso={ingreso} ocupacion={lleno} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    llenar()
+    expect(within(screen.getByTestId('nino-1')).getByText('Lleno')).toBeInTheDocument()
+    dar()
+    const aviso = screen.getByRole('alert', { name: '¿Dar ingreso igual?' })
+    expect(aviso).toHaveTextContent('Preescolar está lleno (18/18).')
+    expect(aviso).toHaveTextContent('Queda anotado que forzaste el cupo.')
+    expect(registros()).toHaveLength(0)
+    fireEvent.click(within(aviso).getByRole('button', { name: 'Dar ingreso igual' }))
+    expect(await screen.findByText('5172')).toBeInTheDocument()
+    expect(registros()).toHaveLength(1)
+    expect(cuerpo()).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR], turnoId: 't9', fecha: '2026-11-01', forzadoIds: ['n1'] })
+  })
+
+  it('«Volver» registers nothing', () => {
+    responder()
+    render(<RegistroMesa salones={salones} ingreso={ingreso} ocupacion={lleno} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    llenar()
+    dar()
+    fireEvent.click(within(screen.getByRole('alert', { name: '¿Dar ingreso igual?' })).getByRole('button', { name: 'Volver' }))
+    expect(screen.queryByRole('alert', { name: '¿Dar ingreso igual?' })).not.toBeInTheDocument()
+    expect(registros()).toHaveLength(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('«Usar {otro}» gives ingreso in the other salón today, not forced, and the ficha keeps its salón', async () => {
+    responder()
+    ingresoOk()
+    const conB: SalonNivel[] = [...salones, { ...salones[0], id: PREESCOLAR_B, nombre: 'Preescolar B', orden: 2 }].map((s) => ({ ...s, capacidad: 18 }))
+    render(<RegistroMesa salones={conB} ingreso={ingreso} ocupacion={new Map([cupo(PREESCOLAR, 18), cupo(PREESCOLAR_B, 10)])} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    llenar()
+    dar()
+    const aviso = screen.getByRole('alert', { name: '¿Dar ingreso igual?' })
+    expect(aviso).toHaveTextContent('El siguiente con lugar que le sirve es Preescolar B (10/18).')
+    fireEvent.click(within(aviso).getByRole('button', { name: 'Usar Preescolar B' }))
+    expect(await screen.findByText('5172')).toBeInTheDocument()
+    expect(registros()[0][1].p.hijos[0].salon_preferido_id).toBe(PREESCOLAR)
+    expect(cuerpo()).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR_B], turnoId: 't9', fecha: '2026-11-01' })
+  })
+
+  it('a salón with room registers exactly as before: no question, no forzadoIds', async () => {
+    responder()
+    ingresoOk()
+    render(<RegistroMesa salones={salones} ingreso={ingreso} ocupacion={new Map([cupo(PREESCOLAR, 17)])} onRegistrada={jest.fn()} onCancelar={jest.fn()} />)
+    llenar()
+    expect(within(screen.getByTestId('nino-1')).queryByText('Lleno')).not.toBeInTheDocument()
+    dar()
+    expect(await screen.findByText('5172')).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: '¿Dar ingreso igual?' })).not.toBeInTheDocument()
+    expect(cuerpo()).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR], turnoId: 't9', fecha: '2026-11-01' })
+  })
+
+  it('«Solo registrar» into a full salón does not ask: no check-in happens', async () => {
+    responder()
+    const onRegistrada = jest.fn()
+    render(<RegistroMesa salones={salones} ingreso={ingreso} ocupacion={lleno} onRegistrada={onRegistrada} onCancelar={jest.fn()} />)
+    llenar()
+    fireEvent.click(screen.getByRole('button', { name: 'Solo registrar' }))
+    await waitFor(() => expect(registros()).toHaveLength(1))
+    expect(screen.queryByRole('alert', { name: '¿Dar ingreso igual?' })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
@@ -177,6 +280,29 @@ describe('PanelesCheckin: Nueva familia', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Siguiente familia' }))
     expect(onCerrar).toHaveBeenCalled()
     expect(onIngresado).toHaveBeenCalled()
+  })
+
+  // T3b, S10: new families get labels too, from the desk's chosen station (as the main desk).
+  it('"Registrar y dar ingreso" sends the desk\'s print station', async () => {
+    responder()
+    ingresoOk()
+    render(<PanelesCheckin {...base} panel={{ tipo: 'nueva' }} turnoId="t9" estacion={{ id: 'e1', nombre: 'Mesa 1' }} />)
+    const panel = await screen.findByRole('dialog', { name: 'Nueva familia' })
+    llenar()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR], turnoId: 't9', fecha: '2026-11-01', estacionId: 'e1' })
+  })
+
+  it('without a print station the check-in body is unchanged', async () => {
+    responder()
+    ingresoOk()
+    render(<PanelesCheckin {...base} panel={{ tipo: 'nueva' }} turnoId="t9" estacion={null} />)
+    const panel = await screen.findByRole('dialog', { name: 'Nueva familia' })
+    llenar()
+    fireEvent.click(within(panel).getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ninoIds: ['n1'], salonIds: [PREESCOLAR], turnoId: 't9', fecha: '2026-11-01' })
   })
 
   it('without the service it keeps "Registrar familia"', async () => {

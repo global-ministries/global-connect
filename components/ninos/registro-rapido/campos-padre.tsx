@@ -1,16 +1,20 @@
 'use client'
 
 /**
- * "Tú" (public) / "Representante" (desk): name, surname, phone and Mamá /
- * Papá. The desk keeps the accessible names of the former form
- * ("Nombre del representante", …) so its tests and habits stay.
+ * "Tú" (public) / "Representante" (desk): name, surname, phone and who the
+ * adult is. The public page asks «Tu relación con los niños» (S9.8; tutor /
+ * otro also answer «¿Hombre o mujer?»); the desk keeps Mamá / Papá and the
+ * accessible names of the former form ("Nombre del representante", …) so its
+ * tests and habits stay. A pre-registro from someone who is not mamá or papá
+ * shows «Relación con los niños: Abuela» and asks Mujer / Hombre (T2i).
  */
 import type { ReactNode } from 'react'
 import { Phone, User, Users } from 'lucide-react'
 
 import { CamposSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import type { Genero } from '@/lib/platform/ninos/familia'
-import { idRapido, type ModoRegistro, type PadreRapido } from '@/lib/platform/ninos/registro-rapido'
+import { RELACIONES_PADRE, etiquetaRelacion } from '@/lib/platform/ninos/preregistro'
+import { idRapido, relacionNoPadre, relacionPideGenero, type ModoRegistro, type PadreRapido } from '@/lib/platform/ninos/registro-rapido'
 
 import { Eleccion } from './piezas'
 
@@ -18,6 +22,19 @@ const ROLES: readonly { valor: Genero; etiqueta: string }[] = [
   { valor: 'Femenino', etiqueta: 'Mamá' },
   { valor: 'Masculino', etiqueta: 'Papá' },
 ]
+
+const HOMBRE_MUJER: readonly { valor: Genero; etiqueta: string }[] = [
+  { valor: 'Masculino', etiqueta: 'Hombre' },
+  { valor: 'Femenino', etiqueta: 'Mujer' },
+]
+
+// Desk order, as ROLES: the woman first.
+const MUJER_HOMBRE: readonly { valor: Genero; etiqueta: string }[] = [
+  { valor: 'Femenino', etiqueta: 'Mujer' },
+  { valor: 'Masculino', etiqueta: 'Hombre' },
+]
+
+const RELACIONES = [{ valor: '', etiqueta: 'Elige…' }, ...RELACIONES_PADRE.map((r) => ({ valor: r.valor, etiqueta: r.etiqueta }))]
 
 type Props = {
   modo: ModoRegistro
@@ -93,17 +110,44 @@ export function CamposPadre({ modo, padre, errores, onPadre, campus = [], campus
         </div>
       </CamposSistema>
       {debajoTelefono}
-      <div className="max-w-sm">
-        <Eleccion
-          id={id('genero')}
-          pregunta={pub ? 'Eres' : 'Es'}
-          nombre={pub ? 'Eres mamá o papá' : 'Género del representante'}
-          opciones={ROLES}
-          valor={(padre.genero as Genero) || ''}
-          onCambio={(g) => onPadre('genero', g)}
-          error={errores[id('genero')]}
-        />
-      </div>
+      {pub ? (
+        <div className="grid max-w-sm min-w-0 gap-4">
+          <SelectSistema
+            id={id('relacion')}
+            label="Tu relación con los niños"
+            opciones={RELACIONES}
+            value={padre.relacion}
+            onValueChange={(v) => onPadre('relacion', v)}
+            error={errores[id('relacion')]}
+          />
+          {relacionPideGenero(padre.relacion) && (
+            <Eleccion
+              id={id('genero')}
+              pregunta="¿Hombre o mujer?"
+              nombre="¿Hombre o mujer?"
+              opciones={HOMBRE_MUJER}
+              valor={(padre.genero as Genero) || ''}
+              onCambio={(g) => onPadre('genero', g)}
+              error={errores[id('genero')]}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="max-w-sm">
+          {relacionNoPadre(padre.relacion) && (
+            <p className="mb-2 text-sm text-muted-foreground">Relación con los niños: {etiquetaRelacion(padre.relacion)}</p>
+          )}
+          <Eleccion
+            id={id('genero')}
+            pregunta="Es"
+            nombre="Género del representante"
+            opciones={relacionNoPadre(padre.relacion) ? MUJER_HOMBRE : ROLES}
+            valor={(padre.genero as Genero) || ''}
+            onCambio={(g) => onPadre('genero', g)}
+            error={errores[id('genero')]}
+          />
+        </div>
+      )}
     </div>
   )
 }

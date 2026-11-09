@@ -30,15 +30,21 @@
  * the cell saves. The editor is a text area that grows with its text, so it
  * shows all of it (the cell grows with it; the brand outline marks it).
  * Read-only (aria-readonly): the same moves, no edits.
+ * Productor, Host and Comunicador (T11c, S11) edit in a combobox
+ * (celda-persona.tsx) that searches people of the system: Enter or Tab with
+ * a person highlighted links them (onElegirPersona), without one they save
+ * the written name; a linked person reads with a person mark and «(con
+ * ficha)» for screen readers, a written name with a «Sin cuenta» tag.
  * The parent saves and decides what changed.
  */
 import { Fragment, useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type ReactElement } from 'react'
 import Link from 'next/link'
-import { CalendarClock, MoreHorizontal, Trash2 } from 'lucide-react'
+import { CalendarClock, MoreHorizontal, Trash2, UserRound } from 'lucide-react'
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { CLASE_ACCION_FILA } from '@/components/grupos-vida/planner/estilo-planner'
 import { EtiquetaPlanner } from '@/components/grupos-vida/planner/etiqueta'
+import type { PersonaBuscada } from '@/lib/platform/dps/personas'
 import { horariosTexto } from '@/lib/platform/dps/planilla'
 import {
   fechaCorta,
@@ -47,12 +53,14 @@ import {
   partesFecha,
   semanaSerie,
   type ColumnaHoja,
+  type ColumnaPersona,
   type DefColumna,
   type FilaHoja,
   type PlanHoja,
 } from '@/lib/platform/dps/programacion'
 import { cn } from '@/lib/utils'
 
+import { CeldaPersona } from './celda-persona'
 import { hrefPlan } from './encabezado-plan'
 
 export type Densidad = 'normal' | 'condensado'
@@ -115,11 +123,17 @@ export interface HojaProgramacionProps {
   readonly valor: (fila: FilaDomingo, columna: ColumnaHoja) => string
   /** A finished edit whose text differs from the one it started with. */
   readonly onGuardar: (fila: FilaDomingo, columna: ColumnaHoja, texto: string) => void
+  /** Whether a Productor / Host / Comunicador cell is a linked person now (S11). */
+  readonly conFicha?: (fila: FilaDomingo, columna: ColumnaPersona) => boolean
+  /** A person of the system picked in Productor / Host / Comunicador (S11). */
+  readonly onElegirPersona?: (fila: FilaDomingo, columna: ColumnaPersona, persona: PersonaBuscada) => void
   /** «Mover fecha…» of a special row (editable only). */
   readonly onMover?: (plan: PlanHoja) => void
   /** «Eliminar evento» of a special row (editable only). */
   readonly onEliminar?: (plan: PlanHoja) => void
 }
+
+const esColumnaPersona = (columna: Columna): columna is ColumnaPersona => columna === 'productor' || columna === 'host' || columna === 'comunicador'
 
 /** The text area grows with its text: the whole value shows while editing. */
 function ajustarAlto(el: HTMLTextAreaElement): void {
@@ -127,7 +141,21 @@ function ajustarAlto(el: HTMLTextAreaElement): void {
   el.style.height = `${el.scrollHeight}px`
 }
 
-export function HojaProgramacion({ anio, filas, columnas, editable, densidad, hoy, proximo, valor, onGuardar, onMover, onEliminar }: HojaProgramacionProps): ReactElement {
+export function HojaProgramacion({
+  anio,
+  filas,
+  columnas,
+  editable,
+  densidad,
+  hoy,
+  proximo,
+  valor,
+  onGuardar,
+  conFicha,
+  onElegirPersona,
+  onMover,
+  onEliminar,
+}: HojaProgramacionProps): ReactElement {
   const tablaRef = useRef<HTMLTableElement>(null)
   const [foco, setFoco] = useState<Foco | null>(null)
   const [edicion, setEdicion] = useState<Edicion | null>(null)
@@ -192,17 +220,27 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
     return actual
   }
 
-  function teclaEdicion(e: KeyboardEvent<HTMLTextAreaElement>): void {
+  /** Ends the edit of a person cell with the person picked instead of its text (S11). */
+  function elegirPersona(persona: PersonaBuscada): Edicion | null {
+    const actual = terminarEdicion(false)
+    const fila = actual && domingos.find((f) => f.fecha === actual.fecha)
+    if (actual && fila && esColumnaPersona(actual.columna)) onElegirPersona?.(fila, actual.columna, persona)
+    return actual
+  }
+
+  /** Enter, Tab and Escape while editing; a person cell hands the person highlighted in its list (null: its text). */
+  function teclaEdicion(e: KeyboardEvent<HTMLElement>, persona: PersonaBuscada | null = null): void {
     const actual = edicionRef.current
     if (!actual) return
     const desde: Foco = { fecha: actual.fecha, columna: actual.columna }
+    const terminar = () => (persona ? elegirPersona(persona) : terminarEdicion(true))
     if (e.key === 'Enter') {
       e.preventDefault()
-      terminarEdicion(true)
+      terminar()
       mover(paso(desde, 1, 0, false))
     } else if (e.key === 'Tab') {
       e.preventDefault()
-      terminarEdicion(true)
+      terminar()
       mover(paso(desde, 0, e.shiftKey ? -1 : 1, true))
     } else if (e.key === 'Escape') {
       e.preventDefault()
@@ -409,6 +447,7 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                 {columnas.map((c) => {
                   const texto = valor(fila, c.id)
                   const editando = edicion?.fecha === fila.fecha && edicion.columna === c.id
+                  const persona = esColumnaPersona(c.id) ? c.id : null
                   return (
                     <td
                       key={c.id}
@@ -436,7 +475,26 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                         !texto && editable && !editando && 'hover:after:text-xs hover:after:content-["Agregar"]',
                       )}
                     >
-                      {editando ? (
+                      {editando && persona ? (
+                        <CeldaPersona
+                          etiqueta={`${c.etiqueta}, ${fechaCorta(fila.fecha)}`}
+                          columna={c.etiqueta}
+                          valor={edicion.valor}
+                          seleccionar={edicion.seleccionar}
+                          condensado={densidad === 'condensado'}
+                          onCambio={(v) => {
+                            if (!edicionRef.current) return
+                            const siguiente = { ...edicionRef.current, valor: v }
+                            edicionRef.current = siguiente
+                            setEdicion(siguiente)
+                          }}
+                          onTecla={teclaEdicion}
+                          onElegir={(p) => {
+                            if (elegirPersona(p)) mover({ fecha: fila.fecha, columna: c.id })
+                          }}
+                          onSalir={() => terminarEdicion(true)}
+                        />
+                      ) : editando ? (
                         <textarea
                           aria-label={`${c.etiqueta}, ${fechaCorta(fila.fecha)}`}
                           value={edicion.valor}
@@ -463,6 +521,21 @@ export function HojaProgramacion({ anio, filas, columnas, editable, densidad, ho
                             densidad === 'condensado' ? 'py-[5px] leading-5' : 'py-2 leading-5',
                           )}
                         />
+                      ) : persona && texto ? (
+                        conFicha?.(fila, persona) ? (
+                          <>
+                            <UserRound aria-hidden="true" className="mr-1 inline size-3.5 -translate-y-px text-brand-text" />
+                            {texto}
+                            <span className="sr-only"> (con ficha)</span>
+                          </>
+                        ) : (
+                          <>
+                            {texto}{' '}
+                            <span className="inline-block align-top">
+                              <EtiquetaPlanner tono="neutro">Sin cuenta</EtiquetaPlanner>
+                            </span>
+                          </>
+                        )
                       ) : (
                         texto
                       )}

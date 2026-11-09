@@ -9,12 +9,34 @@
  * `foco` asks the mesa to move the keyboard focus (desktop flow, prototype
  * 05): the family opens → "Registrar ingreso", the code → "Siguiente
  * familia", the next family → the search.
+ *
+ * Desk rules (odd/tasks/ninos-checkin-pco.md, T2d, S9.1, S9.3): each child is
+ * placed with the salón rules, its prior visits and the room occupancy; a
+ * room full for the child warns with «Usar {otro}» (a room used that way is
+ * not remembered on the ficha) and may still be forced: the forced children
+ * travel as forzadoIds, never blocked.
+ *
+ * No salón (T2g, S9.6): a child the rules place nowhere is not marked (the
+ * row asks for the missing data), so the rest of the family can go in;
+ * «Llegaron» with such a child opens the family here.
+ *
+ * Print station (T3b, S10): with `estacionId` the check-in body carries it and
+ * the server queues the labels there; without it the body is unchanged.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { alertasDeHijo, armarCheckin, avisosDeCapacidad, mensajeDeErrorCheckin, preferidosAGuardar, type Servicio } from '@/lib/platform/ninos/checkin'
-import { hijosMarcados, quienesRetiran, salonDeHijo, type Ingresados, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
+import { hijosMarcados, quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaEncontrada, HijoEncontrado, PadreDeFamilia, SalonFila } from '@/lib/platform/ninos/familias-vista'
+import {
+  estadoHijo,
+  faltaDeHijo,
+  forzadosDe,
+  mensajeSinSalon,
+  salonDeHijoConReglas,
+  type EstadoHijoMesa,
+  type VisitasPrevias,
+} from '@/lib/platform/ninos/mesa-reglas'
 import { llegandoAFamilia, type FamiliaLlegando } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
@@ -31,14 +53,32 @@ const conAgregado = (s: ReadonlySet<string>, id: string, agregar: boolean): Set<
   return siguiente
 }
 
+/** What the desk knows to place a child (T2d): prior visits (loaded by `cargarVisitas`) and occupancy. */
+export type ReglasDeMesa = {
+  readonly visitas: VisitasPrevias
+  readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
+  readonly cargarVisitas: (ninoIds: readonly string[]) => void
+}
+
+const SIN_REGLAS: ReglasDeMesa = { visitas: {}, ocupacion: new Map(), cargarVisitas: () => {} }
+
 /** `alIngresar` runs after every saved check-in (occupancy and queue reload). */
-export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIngresar: () => void) {
+export function useMesa(
+  salones: readonly SalonFila[],
+  servicio: Servicio,
+  alIngresar: () => void,
+  reglas: ReglasDeMesa = SIN_REGLAS,
+  estacionId: string | null = null,
+) {
+  const { visitas, ocupacion, cargarVisitas } = reglas
   const busqueda = useBuscarFamilias()
   const { buscar, limpiar } = busqueda
   const [familia, setFamilia] = useState<FamiliaEncontrada | null>(null)
   const [ingresados, setIngresados] = useState<Ingresados>({})
   const [desmarcados, setDesmarcados] = useState<ReadonlySet<string>>(new Set())
   const [salonManual, setSalonManual] = useState<Record<string, string>>({})
+  /** Children moved with «Usar {otro}» because theirs was full: not remembered on the ficha. */
+  const [porLleno, setPorLleno] = useState<ReadonlySet<string>>(new Set())
   const [foco, setFoco] = useState<{ objetivo: ObjetivoFoco; n: number } | null>(null)
   const pedirFoco = useCallback((objetivo: ObjetivoFoco) => setFoco((x) => ({ objetivo, n: (x?.n ?? 0) + 1 })), [])
   const [error, setError] = useState<string | null>(null)
@@ -70,10 +110,12 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
       setFamilia(f)
       setDesmarcados(new Set())
       setSalonManual({})
+      setPorLleno(new Set())
       setError(null)
       void cargarIngresados(f)
+      if (f && f.hijos.length > 0) cargarVisitas(f.hijos.map((h) => h.id))
     },
-    [cargarIngresados],
+    [cargarIngresados, cargarVisitas],
   )
 
   const buscarYElegir = useCallback(
@@ -96,14 +138,34 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [servicio])
 
+  const reglasHijo = useMemo(() => ({ visitas, ocupacion }), [visitas, ocupacion])
+
   const salonDe = useCallback(
-    (h: HijoEncontrado): SalonDeHijo => salonDeHijo(h, salones, servicio.fecha, salonManual[h.id]),
-    [salones, servicio.fecha, salonManual],
+    (h: HijoEncontrado): SalonDeHijo => salonDeHijoConReglas(h, salones, servicio.fecha, salonManual[h.id], reglasHijo),
+    [salones, servicio.fecha, salonManual, reglasHijo],
+  )
+
+  /** The salón the rules suggest for the child, ignoring a hand pick. */
+  const sugeridoDe = useCallback(
+    (h: HijoEncontrado): SalonDeHijo => salonDeHijoConReglas(h, salones, servicio.fecha, undefined, reglasHijo),
+    [salones, servicio.fecha, reglasHijo],
+  )
+
+  /** Visit badge, full room and the other room to offer (S9.1, S9.3). */
+  const estadoDe = useCallback(
+    (h: HijoEncontrado): EstadoHijoMesa => estadoHijo(h, salonDe(h).salonId, salones, servicio.fecha, reglasHijo),
+    [salonDe, salones, servicio.fecha, reglasHijo],
+  )
+
+  /** The child fits no salón until its missing data is completed (S9.6). */
+  const sinSalon = useCallback(
+    (h: HijoEncontrado): boolean => !salonManual[h.id] && faltaDeHijo(h, salones, servicio.fecha) !== null,
+    [salonManual, salones, servicio.fecha],
   )
 
   const marcados = useMemo(
-    () => new Set(familia ? hijosMarcados(familia.hijos, ingresados, desmarcados).map((h) => h.id) : []),
-    [familia, ingresados, desmarcados],
+    () => new Set(familia ? hijosMarcados(familia.hijos, ingresados, desmarcados).filter((h) => !sinSalon(h)).map((h) => h.id) : []),
+    [familia, ingresados, desmarcados, sinSalon],
   )
 
   /** The code to write on the tags, one line per child, the full-salón warnings and who may pick up. */
@@ -132,10 +194,10 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     const cambios = preferidosAGuardar(
       ninoIds.map((ninoId, i) => {
         const h = f.hijos.find((x) => x.id === ninoId)
-        const r = h ? salonDeHijo(h, salones, servicio.fecha) : null
+        const r = h ? sugeridoDe(h) : null
         return { ninoId, salonId: salonIds[i], sugeridoId: r?.salonId ?? null }
       }),
-    )
+    ).filter((c) => !porLleno.has(c.ninoId))
     if (cambios.length === 0) return
     const supabase = createClient()
     try {
@@ -155,7 +217,7 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     }
     setError(null)
     setGuardando(true)
-    const { data, error: err } = await registrarIngresoApi({ ninoIds: armado.ninoIds, salonIds: armado.salonIds, turnoId: servicio.turnoId, fecha: servicio.fecha })
+    const { data, error: err } = await registrarIngresoApi(cuerpoIngreso(armado, familia.hijos, servicio.turnoId))
     setGuardando(false)
     if (err || !data || data.length === 0) {
       setError(mensajeDeErrorCheckin(err ?? null))
@@ -168,16 +230,43 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
   /** "Llegaron" (P3): the notified children go in with their salón; one without a salón opens the family here. */
   async function llegaron(f: FamiliaLlegando): Promise<string | null> {
     if (!servicio.turnoId) return null
-    const armado = armarCheckin(f.hijos.map((h) => ({ ninoId: h.id, salonId: salonDeHijo(h, salones, servicio.fecha).salonId, nombre: h.nombre })))
+    const sinDato = f.hijos.find((h) => faltaDeHijo(h, salones, servicio.fecha) !== null)
+    if (sinDato) {
+      elegirFamilia(llegandoAFamilia(f))
+      setError(mensajeSinSalon(sinDato.nombre))
+      return null
+    }
+    const armado = armarCheckin(
+      f.hijos.map((h) => ({ ninoId: h.id, salonId: salonDeHijoConReglas(h, salones, servicio.fecha, undefined, reglasHijo).salonId, nombre: h.nombre })),
+    )
     if (!armado.ok) {
       elegirFamilia(llegandoAFamilia(f))
       setError(armado.error)
       return null
     }
-    const { data, error: err } = await registrarIngresoApi({ ninoIds: armado.ninoIds, salonIds: armado.salonIds, turnoId: servicio.turnoId, fecha: servicio.fecha })
+    // A full room warns in the queue row and does not block «Llegaron»: it goes in as forced.
+    const { data, error: err } = await registrarIngresoApi(cuerpoIngreso(armado, f.hijos, servicio.turnoId))
     if (err || !data || data.length === 0) return mensajeDeErrorCheckin(err ?? null)
     mostrarCodigo(f.hijos, llegandoAFamilia(f).padres, data)
     return null
+  }
+
+  /** The body of /api/ninos/checkin; forzadoIds only when a room is full for a child, estacionId only with a station (else as before). */
+  function cuerpoIngreso(armado: { ninoIds: string[]; salonIds: string[] }, hijos: readonly HijoEncontrado[], turnoId: string) {
+    const forzadoIds = forzadosDe(
+      armado.ninoIds.map((ninoId, i) => ({ ninoId, salonId: armado.salonIds[i] })),
+      hijos,
+      salones,
+      reglasHijo,
+    )
+    return {
+      ninoIds: armado.ninoIds,
+      salonIds: armado.salonIds,
+      turnoId,
+      fecha: servicio.fecha,
+      ...(forzadoIds.length > 0 && { forzadoIds }),
+      ...(estacionId && { estacionId }),
+    }
   }
 
   function siguienteFamilia() {
@@ -197,6 +286,8 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     guardando,
     resultado,
     salonDe,
+    sugeridoDe,
+    estadoDe,
     elegirFamilia: (f: FamiliaEncontrada | null) => {
       elegirFamilia(f)
       if (f && !f.sin_hijos) pedirFoco('registrar')
@@ -208,6 +299,14 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     /** Opens a family of "Llegando" at the mesa (to change a child's salón). */
     abrirLlegando: (f: FamiliaLlegando) => elegirFamilia(llegandoAFamilia(f)),
     marcar: (id: string, v: boolean) => setDesmarcados((s) => conAgregado(s, id, !v)),
-    elegirSalon: (id: string, salonId: string) => setSalonManual((x) => ({ ...x, [id]: salonId })),
+    elegirSalon: (id: string, salonId: string) => {
+      setSalonManual((x) => ({ ...x, [id]: salonId }))
+      setPorLleno((s) => conAgregado(s, id, false))
+    },
+    /** «Usar {otro}» (S9.1): today only, the ficha keeps its room. */
+    usarOtro: (id: string, salonId: string) => {
+      setSalonManual((x) => ({ ...x, [id]: salonId }))
+      setPorLleno((s) => conAgregado(s, id, true))
+    },
   }
 }

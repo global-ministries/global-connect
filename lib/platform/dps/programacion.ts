@@ -11,7 +11,8 @@
  * ten columns (Productor … Notas, the fields dps_plan_campo accepts), count
  * the summary and help "Nueva serie". Productor, host and comunicador are a
  * persona of the system or a written name, never both (S7.3): the sheet
- * shows either and writes the name. T11b (S9) adds the special events of
+ * shows either and writes the name or, since T11c (S11), links a persona
+ * found with dps_buscar_personas (personas.ts). T11b (S9) adds the special events of
  * one or several days (dps_evento_crear: one plan per day sharing an
  * `evento`, shown as «Título · Día N de M»), moving a plan to another date
  * (dps_plan_mover) and deleting one (dps_plan_eliminar), in
@@ -78,6 +79,8 @@ export interface PlanHoja {
   readonly valores: Readonly<Record<ColumnaHoja, string>>
   /** Productor / host / comunicador that are a persona of the system (not a written name). */
   readonly conFicha: Readonly<Record<ColumnaPersona, boolean>>
+  /** Their persona_id (null: a written name or empty). */
+  readonly personaIds: Readonly<Record<ColumnaPersona, string | null>>
   readonly evento: EventoPlan | null
   /** Someone's attendance is marked: the plan can no longer be moved or deleted. */
   readonly conAsistencia: boolean
@@ -118,11 +121,13 @@ export function leerPlanHoja(v: unknown): PlanHoja | null {
   const campos = objeto(p.campos) ?? {}
   const valores = {} as Record<ColumnaHoja, string>
   const conFicha = {} as Record<ColumnaPersona, boolean>
+  const personaIds = {} as Record<ColumnaPersona, string | null>
   for (const c of COLUMNAS_HOJA) {
     if (c.tipo === 'persona') {
       const persona = objeto(p[c.id])
       valores[c.id] = texto(persona?.nombre)
       conFicha[c.id as ColumnaPersona] = typeof persona?.persona_id === 'string'
+      personaIds[c.id as ColumnaPersona] = typeof persona?.persona_id === 'string' ? persona.persona_id : null
     } else {
       valores[c.id] = valorCampo(campos, c.id)
     }
@@ -137,6 +142,7 @@ export function leerPlanHoja(v: unknown): PlanHoja | null {
     horarios: Array.isArray(p.horarios) ? p.horarios.filter((x): x is string => typeof x === 'string') : [],
     valores,
     conFicha,
+    personaIds,
     evento: leerEvento(p.evento),
     conAsistencia: p.con_asistencia === true,
   }
@@ -327,6 +333,8 @@ export function mensajeErrorProgramacion(error: ErrorRpc | null | undefined): st
   if (error?.message?.includes('domingo_ocupado') && error.details && /^\d{4}-\d{2}-\d{2}$/.test(error.details)) {
     return `El domingo ${fechaCorta(error.details)} ya es de otra serie. Elige otro primer domingo o menos semanas.`
   }
+  // A person picked in Productor, Host or Comunicador (S11) that no longer exists.
+  if (error?.message?.includes('persona_invalida')) return 'Esa persona ya no está en la plataforma. Búscala de nuevo.'
   return mensajeErrorDps(error, 'programacion')
 }
 

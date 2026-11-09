@@ -266,6 +266,8 @@ SELECT pg_temp.assert_eq('a6: authenticated executes exactly the public dps_* fu
                               'dps_asistencia_marcar_equipo', 'dps_historial_persona',
                               -- T11b (20261108206000), in dps-planificacion-eventos.test.sql.
                               'dps_evento_crear', 'dps_plan_mover', 'dps_plan_eliminar',
+                              -- T11c (20261108207000), in dps-planificacion-buscar.test.sql.
+                              'dps_buscar_personas',
                               -- T13 (20261108208000), in dps-planificacion-orden.test.sql.
                               'dps_plan_horarios_guardar', 'dps_orden_leer', 'dps_orden_plantilla', 'dps_orden_agregar',
                               'dps_orden_item_guardar', 'dps_orden_mover', 'dps_orden_eliminar', 'dps_orden_copiar')$q$,

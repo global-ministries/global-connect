@@ -7,7 +7,12 @@
  * "Llegaron" checks the family in through the usual path in one tap; a full
  * salón warns ("Lleno 12/12") and "Cambiar" opens the family at the mesa to
  * pick another one. A QR pre-registration has no ficha yet: "Revisar" opens
- * its review.
+ * its review. Each child is placed with the salón rules, its prior visits
+ * and the occupancy, as at the mesa (T2d); a room full for the child still
+ * goes in with «Llegaron», recorded as forced (S9.1). A child with an active
+ * custody restriction carries the «Custodia» chip (T2e, S9.2). A child
+ * that fits no salón says what is missing (S9.6); «Completar» opens the
+ * family at the mesa, where it is fixed.
  */
 import { useState, type ReactElement } from 'react'
 import { Car, Check, QrCode } from 'lucide-react'
@@ -15,11 +20,14 @@ import { Car, Check, QrCode } from 'lucide-react'
 import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
-import { edadCorta, estadoCupo, salonDeHijo, type ItemCola, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
-import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { edadCorta, type ItemCola, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
+import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
+import { TEXTO_FALTA, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
+import { ETIQUETA_VISITA, estadoHijo, faltaDeHijo, salonDeHijoConReglas, type VisitasPrevias } from '@/lib/platform/ninos/mesa-reglas'
 import type { FamiliaLlegando, PreregistroLlegando } from '@/lib/platform/ninos/precheck'
 
+import { ChipCustodia } from '../custodia/chip-custodia'
 import { Alertas } from './alertas'
 import { Avatar, CLASE_LINEA_INSET, EtiquetaLleno, ListaInset, TituloSeccion } from './partes'
 
@@ -30,6 +38,10 @@ export interface ColaLlegandoProps {
   readonly salones: readonly SalonFila[]
   readonly fecha: string
   readonly ocupacion: ReadonlyMap<string, OcupacionSalon>
+  /** Prior visits of the children (T2d, S9.3). */
+  readonly visitas?: VisitasPrevias
+  /** Active custody restrictions by child (T2e): the «Custodia» chip. */
+  readonly custodia?: CustodiaPorNino
   /** Checks the family in; resolves to an error message, or null when done. */
   readonly onLlegaron: (f: FamiliaLlegando) => Promise<string | null>
   /** Opens the family at the mesa to change a child's salón. */
@@ -81,11 +93,13 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
       </div>
       <ul className="grid min-w-0 gap-2 pl-[52px]">
         {f.hijos.map((h) => {
-          const salon = salonDeHijo(h, props.salones, props.fecha)
+          const reglas = { visitas: props.visitas, ocupacion: props.ocupacion }
+          const salon = salonDeHijoConReglas(h, props.salones, props.fecha, undefined, reglas)
           const nombreSalon = props.salones.find((s) => s.id === salon.salonId)?.nombre
           const cupo = salon.salonId ? props.ocupacion.get(salon.salonId) : undefined
-          const lleno = cupo !== undefined && estadoCupo(cupo.presentes, cupo.capacidad) === 'lleno'
+          const { visita, lleno } = estadoHijo(h, salon.salonId, props.salones, props.fecha, reglas)
           const edad = edadCorta(h.fecha_nacimiento, props.fecha)
+          const falta = salon.salonId ? null : faltaDeHijo(h, props.salones, props.fecha)
           return (
             <li key={h.id} className="grid min-w-0 gap-1 text-sm">
               <span className="flex min-w-0 items-center gap-1.5">
@@ -95,7 +109,11 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
                 </b>
               </span>
               <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-                <span className="min-w-0 truncate">{[nombreSalon ?? 'Sin salón sugerido', edad].filter(Boolean).join(' · ')}</span>
+                {falta ? (
+                  <span className="min-w-0 font-medium text-warning-text">{[TEXTO_FALTA[falta], edad].filter(Boolean).join(' · ')}</span>
+                ) : (
+                  <span className="min-w-0 truncate">{[nombreSalon ?? 'Sin salón sugerido', edad].filter(Boolean).join(' · ')}</span>
+                )}
                 {lleno && cupo && <EtiquetaLleno ocupacion={cupo} />}
                 {(lleno || !salon.salonId) && (
                   <BotonSistema
@@ -103,18 +121,26 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
                     variante="ghost"
                     tamaño="sm"
                     className="ml-auto pointer-coarse:min-h-11"
-                    aria-label={`Cambiar salón de ${h.nombre} ${h.apellido}`}
+                    aria-label={falta ? `Completar datos de ${h.nombre} ${h.apellido}` : `Cambiar salón de ${h.nombre} ${h.apellido}`}
                     onClick={() => props.onCambiarSalon(f, h.id)}
                   >
-                    Cambiar
+                    {falta ? 'Completar' : 'Cambiar'}
                   </BotonSistema>
                 )}
               </span>
-              {h.desde_casa && (
-                <span>
-                  <BadgeSistema variante="info" tamaño="sm">
-                    Registrado desde casa
-                  </BadgeSistema>
+              {(h.desde_casa || (visita && visita !== 'regular') || (props.custodia?.[h.id]?.length ?? 0) > 0) && (
+                <span className="flex flex-wrap gap-1.5">
+                  <ChipCustodia restricciones={props.custodia?.[h.id] ?? []} />
+                  {visita && visita !== 'regular' && (
+                    <BadgeSistema variante="info" tamaño="sm">
+                      {ETIQUETA_VISITA[visita]}
+                    </BadgeSistema>
+                  )}
+                  {h.desde_casa && (
+                    <BadgeSistema variante="info" tamaño="sm">
+                      Registrado desde casa
+                    </BadgeSistema>
+                  )}
                 </span>
               )}
               <Alertas alertas={alertasDeHijo(h)} />

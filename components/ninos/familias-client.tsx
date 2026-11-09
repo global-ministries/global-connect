@@ -5,12 +5,11 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, ClipboardPlus, Pencil, Plus, Search, UserPlus, Users } from 'lucide-react'
 
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import { createClient } from '@/lib/supabase/client'
-import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
 import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 import { AdultoSinHijos } from './adulto-sin-hijos'
 import { AgregarPadreForm } from './agregar-padre-form'
+import { SeccionCustodia } from './custodia/seccion-custodia'
 import { EditarNinoForm } from './editar-nino-form'
 import { EncabezadoNinos } from './encabezado-ninos'
 import { EstadoVacio } from './estado-vacio'
@@ -29,25 +28,21 @@ type Props = {
   registrarAlInicio?: boolean
   /** Check-in URL to return to after registering (?volver=checkin). */
   volverCheckin?: string
+  /** Coordinación / dirección of Niños: the ficha shows the «Custodia» section (T2e, S9.2). */
+  puedeEditarCustodia?: boolean
 }
 
 type Vista = { tipo: 'buscar' } | { tipo: 'registrar' } | { tipo: 'agregar'; padre: { id: string; nombre: string } }
 
 /** Mobile-first Familias screen: search, register, add a child; a child's ficha is edited in a side panel. */
-export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volverCheckin }: Props) {
+export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volverCheckin, puedeEditarCustodia = false }: Props) {
   const salonesNivel = useMemo(() => salones.map(aSalonSugerible), [salones])
   const router = useRouter()
   const [vista, setVista] = useState<Vista>({ tipo: registrarAlInicio ? 'registrar' : 'buscar' })
   const [editando, setEditando] = useState<HijoEncontrado | null>(null)
   const [agregandoPadre, setAgregandoPadre] = useState<FamiliaEncontrada | null>(null)
   const [vinculandoHijo, setVinculandoHijo] = useState<{ id: string; nombre: string } | null>(null)
-  const { q, setQ, familias, error, setError, buscando, buscar } = useBuscarFamilias()
-
-  async function elegirSalon(hijoId: string, salonId: string) {
-    const { error: err } = await createClient().from('ninos_fichas').update({ salon_preferido_id: salonId }).eq('usuario_id', hijoId)
-    if (err) setError(mensajeDeErrorFamilia(err))
-    else await buscar(q)
-  }
+  const { q, setQ, familias, error, buscando, buscar } = useBuscarFamilias()
 
   const volver = async () => {
     setVista({ tipo: 'buscar' })
@@ -211,11 +206,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
                         )}
                       </div>
                       {h.tiene_ficha && (
-                        <SalonSugerido
-                          resultado={salonParaHijo(h, salones, fechaServicio)}
-                          salones={salones}
-                          onElegir={(salonId) => void elegirSalon(h.id, salonId)}
-                        />
+                        <SalonSugerido hijo={h} resultado={salonParaHijo(h, salones, fechaServicio)} onGuardado={() => void buscar(q)} />
                       )}
                     </li>
                   ))}
@@ -245,7 +236,10 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
         onCerrar={() => setEditando(null)}
       >
         {editando && (
-          <EditarNinoForm salones={salonesNivel} key={editando.id} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
+          <div key={editando.id} className="space-y-6">
+            {puedeEditarCustodia && editando.tiene_ficha && <SeccionCustodia ninoId={editando.id} nombre={editando.nombre} />}
+            <EditarNinoForm salones={salonesNivel} hijo={editando} onCancelar={() => setEditando(null)} onGuardado={() => void cerrarPanel()} />
+          </div>
         )}
       </PanelLateralNinos>
 

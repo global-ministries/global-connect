@@ -36,6 +36,23 @@ describe('resolverServicio', () => {
   })
 })
 
+// T1b, S8.1: a dated turno is only listed on a date it happens.
+describe('resolverServicio with a dated turno', () => {
+  const evento: TurnoFila = { id: 'te', nombre: 'Campamento 18:00', hora: '18:00:00', orden: 9, tipo: 'fechas' }
+  const mezcla = [...turnos, evento]
+
+  it('opens the dated turno on a weekday when no turno is asked for', () => {
+    expect(resolverServicio({ fecha: '2026-10-07' }, mezcla, '2026-10-07')).toEqual({ turnoId: 'te', fecha: '2026-10-07' })
+  })
+  it('keeps the asked turno and the Sunday order', () => {
+    expect(resolverServicio({ turno: 't11', fecha: '2026-10-07' }, mezcla, '2026-10-07')).toEqual({ turnoId: 't11', fecha: '2026-10-07' })
+    expect(resolverServicio({ fecha: '2026-10-11' }, mezcla, '2026-10-07')).toEqual({ turnoId: 't9', fecha: '2026-10-11' })
+  })
+  it('weekly turnos alone keep the first by orden on any date', () => {
+    expect(resolverServicio({ fecha: '2026-10-07' }, turnos, '2026-10-07')).toEqual({ turnoId: 't9', fecha: '2026-10-07' })
+  })
+})
+
 describe('armarCheckin', () => {
   it('aligns the children with their rooms', () => {
     expect(armarCheckin([{ ninoId: 'a', salonId: 's1' }, { ninoId: 'b', salonId: 's2' }])).toEqual({
@@ -47,10 +64,30 @@ describe('armarCheckin', () => {
   it('refuses an empty selection', () => {
     expect(armarCheckin([])).toEqual({ ok: false, error: 'Elige al menos un niño.' })
   })
-  it('refuses a child without a room (D4)', () => {
-    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis' }])).toEqual({
+  it('refuses a child without a room with the missing data in plain words (D4, S9.8)', () => {
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', motivo: 'grado' }])).toEqual({
       ok: false,
-      error: 'Luis no tiene salón: asígnalo antes de registrar.',
+      error: 'Luis todavía no tiene salón: falta el grado. Completa el dato o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', motivo: 'fecha_o_grado' }])).toMatchObject({
+      error: 'Luis todavía no tiene salón: falta la fecha de nacimiento o el grado. Completa el dato o registra a los demás.',
+    })
+  })
+  it('says the real reason when the data is not what is missing (T2i)', () => {
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', motivo: 'revisar' }])).toMatchObject({
+      error: 'Luis no corresponde a ningún salón: revisa su fecha de nacimiento o grado, o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', motivo: 'cerrado' }])).toMatchObject({
+      error: 'Luis no tiene salón abierto hoy: abre su salón o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis', motivo: 'lleno' }])).toMatchObject({
+      error: 'Luis: su salón está lleno. Dale ingreso desde la mesa o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, nombre: 'Luis' }])).toMatchObject({
+      error: 'Luis todavía no tiene salón. Revisa sus datos o registra a los demás.',
+    })
+    expect(armarCheckin([{ ninoId: 'a', salonId: null, motivo: null }])).toMatchObject({
+      error: 'Un niño todavía no tiene salón. Revisa sus datos o registra a los demás.',
     })
   })
 })

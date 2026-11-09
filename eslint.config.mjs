@@ -50,6 +50,15 @@ const migratedToDesignSystem = [
   'components/ninos/registro/**',
   'components/ninos/registro-rapido/**',
   'components/ninos/registrar-familia-form.tsx',
+  // Niños › Eventos (T1c of odd/tasks/ninos-checkin-pco.md), planning style from the start.
+  'app/(auth)/ninos/eventos/**',
+  'components/ninos/eventos/**',
+  // Niños › Salones de check-in (T1d), same style.
+  'app/(auth)/ninos/salones/**',
+  'components/ninos/salones/**',
+  // Niños › Etiquetas e impresoras (T3b), same style.
+  'app/(auth)/ninos/etiquetas/**',
+  'components/ninos/etiquetas/**',
 ]
 
 const legacyUiImports = {
@@ -103,6 +112,14 @@ const eslintConfig = [
       'security/detect-object-injection': 'off',
       // Browser code often uses hardcoded URLs; not a real threat
       'security/detect-non-literal-fs-filename': 'off',
+    },
+  },
+  // The Niños print agent is a plain CommonJS Node script with no build step
+  // (odd/tasks/ninos-checkin-pco.md S10, T3a).
+  {
+    files: ['tools/agente-impresion/**/*.js'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
     },
   },
   {

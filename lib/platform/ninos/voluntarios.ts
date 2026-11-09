@@ -4,6 +4,10 @@
  * decides who may mark whom, who was expected and the marking window; these
  * helpers only pick the service from the URL and shape the roster rows for
  * the screen.
+ *
+ * A dated turno ('fechas') of a Niños event (T1b, S8.1) happens only on its
+ * planned dates, which ninos_voluntarios_turnos lists; a weekly turno on its
+ * weekday, as before.
  */
 import { resolverServicio, type Servicio, type TurnoFila } from './checkin'
 
@@ -18,8 +22,8 @@ export const ETIQUETA_ESTADO: Record<EstadoAsistencia, string> = {
   ausente: 'Faltó',
 }
 
-/** A row of ninos_voluntarios_turnos. */
-export type TurnoVoluntarios = TurnoFila & { dia_semana: number; campus_id: string; campus: string }
+/** A row of ninos_voluntarios_turnos; `fechas` are the planned dates of a dated turno, oldest first. */
+export type TurnoVoluntarios = TurnoFila & { dia_semana: number; campus_id: string; campus: string; fechas?: readonly string[] }
 
 /** A row of the roster: one active servicio the caller may mark. */
 export interface FilaVoluntario {
@@ -102,9 +106,23 @@ export function ultimaFechaDeServicio(hoy: string, diaSemana: number): string {
 }
 
 /**
+ * The default date of a dated turno: its last planned date up to `hoy`; before
+ * the first one, the next planned date; without any, `hoy`.
+ */
+export function ultimaFechaPlanificada(fechas: readonly string[], hoy: string): string {
+  const pasadas = fechas.filter((f) => f <= hoy).sort()
+  return pasadas.at(-1) ?? [...fechas].sort()[0] ?? hoy
+}
+
+function esPlanificada(turno: TurnoVoluntarios, fecha: string | undefined): fecha is string {
+  return Boolean(fecha) && (turno.fechas ?? []).includes(fecha as string)
+}
+
+/**
  * The service from the query (?turno=&fecha=). The turno falls back like
  * check-in (resolverServicio); the date falls back to the last day of that
- * service, never a future one: attendance is marked after the fact.
+ * service, never a future one: attendance is marked after the fact. A dated
+ * turno keeps only one of its planned dates.
  */
 export function resolverServicioVoluntarios(
   query: { turno?: string; fecha?: string },
@@ -112,14 +130,23 @@ export function resolverServicioVoluntarios(
   hoy: string,
 ): Servicio {
   const base = resolverServicio(query, turnos, hoy)
-  if (query.fecha && base.fecha === query.fecha) return base
   const turno = turnos.find((t) => t.id === base.turnoId)
+  if (turno?.tipo === 'fechas') {
+    return { turnoId: turno.id, fecha: esPlanificada(turno, query.fecha) ? query.fecha : ultimaFechaPlanificada(turno.fechas ?? [], hoy) }
+  }
+  if (query.fecha && base.fecha === query.fecha) return base
   return { turnoId: base.turnoId, fecha: ultimaFechaDeServicio(hoy, turno?.dia_semana ?? 0) }
 }
 
-/** After picking another service: a date on another weekday moves to that service's last day. */
+/**
+ * After picking another service: a date on another weekday moves to that
+ * service's last day; for a dated turno, a date it is not planned on.
+ */
 export function ajustarFecha(servicio: Servicio, turnos: readonly TurnoVoluntarios[], hoy: string): Servicio {
   const turno = turnos.find((t) => t.id === servicio.turnoId)
+  if (turno?.tipo === 'fechas') {
+    return esPlanificada(turno, servicio.fecha) ? servicio : { ...servicio, fecha: ultimaFechaPlanificada(turno.fechas ?? [], hoy) }
+  }
   if (!turno || diaDeSemana(servicio.fecha) === turno.dia_semana) return servicio
   return { ...servicio, fecha: ultimaFechaDeServicio(hoy, turno.dia_semana) }
 }
@@ -130,6 +157,12 @@ function lista(v: unknown): Record<string, unknown>[] {
 
 function texto(v: unknown): string {
   return typeof v === 'string' ? v : ''
+}
+
+const FECHA = /^\d{4}-\d{2}-\d{2}$/
+
+function fechas(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((f): f is string => typeof f === 'string' && FECHA.test(f)) : []
 }
 
 function estado(v: unknown): EstadoAsistencia | null {
@@ -146,6 +179,8 @@ export function leerTurnosVoluntarios(data: unknown): TurnoVoluntarios[] {
     dia_semana: Number(t.dia_semana) || 0,
     campus_id: texto(t.campus_id),
     campus: texto(t.campus),
+    tipo: t.tipo === 'fechas' ? ('fechas' as const) : ('semanal' as const),
+    fechas: fechas(t.fechas),
   }))
   if (new Set(filas.map((t) => t.campus_id)).size < 2) return filas
   return filas.map((t) => ({ ...t, nombre: `${t.campus} · ${t.nombre}` }))
