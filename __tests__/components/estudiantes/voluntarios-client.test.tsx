@@ -1,9 +1,12 @@
 /**
  * `<VoluntariosClient>` — volunteer attendance of Transit, Inside Out and The
- * Living Room (C5 of odd/tasks/estudiantes-fase-b.md). The server actions are
- * mocked: each flow checks what is sent, the optimistic mark and its
- * rollback, "Marcar el resto como Faltó", the read-only view, the filters and
- * the service pickers. Every person is fictitious.
+ * Living Room (C5 of odd/tasks/estudiantes-fase-b.md) in the planning style
+ * (E4a of odd/tasks/estudiantes-estilo-dps.md, S6; artboards 06 / 07 of
+ * design/estudiantes-dps). The server actions are mocked: each flow checks
+ * what is sent, the optimistic mark and its rollback, "Marcar el resto como
+ * Faltó", the read-only view, the filters and their counts, the summary, the
+ * Equipos bar, the service picker and the date pill. Every person is
+ * fictitious.
  */
 import React from 'react'
 import { render, screen, waitFor, within } from '@testing-library/react'
@@ -87,6 +90,10 @@ const props = (parche: Partial<VoluntariosClientProps> = {}): VoluntariosClientP
 })
 
 const filaDe = (nombre: string) => screen.getByRole('group', { name: `Asistencia de ${nombre} Rivas` })
+const marca = (nombre: string, texto: 'Presente' | 'Avisó' | 'Faltó') => within(filaDe(nombre)).getByRole('button', { name: `${texto}: ${nombre} Rivas` })
+const filtros = () => within(screen.getByRole('group', { name: 'Mostrar' }))
+const cuentas = () => filtros().getAllByRole('button').map((b) => b.textContent)
+const resumen = () => screen.getAllByText((_, el) => el?.tagName === 'P' && el.getAttribute('aria-live') === 'polite')[0]
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -95,38 +102,63 @@ beforeEach(() => {
 })
 
 describe('VoluntariosClient', () => {
-  it('shows the service, the metrics and the expected volunteers by equipo', () => {
+  it('shows the service, the summary, the filters and the expected volunteers by equipo', () => {
     render(<VoluntariosClient {...props()} />)
     expect(screen.getAllByRole('heading', { name: 'Voluntarios' }).length).toBeGreaterThan(0)
     expect(screen.getByLabelText('Servicio')).toHaveValue('t1')
-    expect(screen.getByLabelText('Fecha')).toHaveValue('2026-10-25')
-    expect(screen.getByRole('button', { name: /Sin marcar\s*2/ })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('group', { name: 'Fecha' })).toHaveTextContent('Domingo 25 oct')
+    // «esperados» so it does not read as the count of a filter (S6).
+    expect(resumen()).toHaveTextContent('2 esperados sin marcar · 2 de 4 marcados')
+    expect(filtros().getByRole('button', { name: /Todos/ })).toHaveAttribute('aria-pressed', 'true')
     const logistica = screen.getByRole('region', { name: /Logística/ })
-    expect(within(logistica).getByText('1 de 3 marcados')).toBeInTheDocument()
-    expect(within(filaDe('Ana')).getByRole('button', { name: 'Presente' })).toHaveAttribute('aria-pressed', 'true')
+    expect(logistica).toHaveTextContent(/^Logística\s*1\/3 marcados/)
+    expect(marca('Ana', 'Presente')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('region', { name: /Sin turno asignado/ })).toHaveTextContent('Elena Rivas')
+  })
+
+  it('each filter count equals the rows it shows (S6)', async () => {
+    render(<VoluntariosClient {...props()} />)
+    expect(cuentas()).toEqual(['Todos 5', 'Sin marcar 3', 'Presentes 1', 'Avisó 0', 'Faltó 1'])
+    await userEvent.click(filtros().getByRole('button', { name: /Sin marcar/ }))
+    expect(screen.getAllByRole('group', { name: /^Asistencia de / })).toHaveLength(3)
+    expect(filaDe('Elena')).toBeInTheDocument()
+    await userEvent.click(filtros().getByRole('button', { name: /Todos/ }))
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar voluntario' }), 'diego')
+    expect(cuentas()).toEqual(['Todos 1', 'Sin marcar 0', 'Presentes 0', 'Avisó 0', 'Faltó 1'])
+  })
+
+  it('narrows to an equipo from the Equipos bar; the counts follow it', async () => {
+    render(<VoluntariosClient {...props()} />)
+    const equipos = within(screen.getByRole('group', { name: 'Equipos' }))
+    expect(equipos.getByRole('button', { name: /Todos los equipos/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(equipos.getByRole('button', { name: /Logística/ })).toHaveTextContent('1/32 sin marcar')
+    await userEvent.click(equipos.getByRole('button', { name: /Producción/ }))
+    expect(screen.queryByRole('region', { name: /Logística/ })).not.toBeInTheDocument()
+    expect(cuentas()).toEqual(['Todos 1', 'Sin marcar 0', 'Presentes 0', 'Avisó 0', 'Faltó 1'])
   })
 
   it('marks on tap and sends the servicio', async () => {
     render(<VoluntariosClient {...props()} />)
-    await userEvent.click(within(filaDe('Bruno')).getByRole('button', { name: 'Avisó' }))
-    expect(within(filaDe('Bruno')).getByRole('button', { name: 'Avisó' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(marca('Bruno', 'Avisó'))
+    expect(marca('Bruno', 'Avisó')).toHaveAttribute('aria-pressed', 'true')
     expect(marcar).toHaveBeenCalledWith({ turnoId: 't1', fecha: '2026-10-25', servicioIds: ['s2'], estado: 'justificado', soloSinMarcar: false })
+    await waitFor(() => expect(screen.getByTestId('estado-guardado')).toHaveTextContent('Guardado'))
   })
 
   it('clears the mark with a second tap on the pressed state', async () => {
     render(<VoluntariosClient {...props()} />)
-    await userEvent.click(within(filaDe('Ana')).getByRole('button', { name: 'Presente' }))
+    await userEvent.click(marca('Ana', 'Presente'))
     expect(marcar).toHaveBeenCalledWith(expect.objectContaining({ servicioIds: ['s1'], estado: null }))
-    expect(within(filaDe('Ana')).getByRole('button', { name: 'Presente' })).toHaveAttribute('aria-pressed', 'false')
+    expect(marca('Ana', 'Presente')).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('rolls the mark back and explains when saving fails', async () => {
     marcar.mockResolvedValueOnce({ ok: false, message: 'No tienes permiso para marcar a este voluntario.' })
     render(<VoluntariosClient {...props()} />)
-    await userEvent.click(within(filaDe('Bruno')).getByRole('button', { name: 'Faltó' }))
+    await userEvent.click(marca('Bruno', 'Faltó'))
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('No tienes permiso para marcar a este voluntario.'))
-    expect(within(filaDe('Bruno')).getByRole('button', { name: 'Faltó' })).toHaveAttribute('aria-pressed', 'false')
+    expect(marca('Bruno', 'Faltó')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('estado-guardado')).toHaveTextContent('No se pudo guardar')
   })
 
   it('marks the rest of an equipo as Faltó after confirming, keeping the existing marks', async () => {
@@ -142,17 +174,18 @@ describe('VoluntariosClient', () => {
   it('is read-only outside the marking window', () => {
     render(<VoluntariosClient {...props({ planilla: { ...PLANILLA, editable: false } })} />)
     expect(screen.getByText(/Solo se puede marcar hoy o hasta 14 días atrás/)).toBeInTheDocument()
-    expect(within(filaDe('Bruno')).getByRole('button', { name: 'Presente' })).toBeDisabled()
+    expect(marca('Bruno', 'Presente')).toBeDisabled()
+    expect(marca('Bruno', 'Avisó')).toBeDisabled()
     expect(screen.queryByRole('button', { name: /Marcar el resto/ })).not.toBeInTheDocument()
   })
 
-  it('filters by the pressed metric and by name', async () => {
+  it('filters by the pressed filter and by name', async () => {
     render(<VoluntariosClient {...props()} />)
-    await userEvent.click(screen.getByRole('button', { name: /Sin marcar\s*2/ }))
-    expect(screen.getByRole('button', { name: /Sin marcar\s*2/ })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(filtros().getByRole('button', { name: /Sin marcar/ }))
+    expect(filtros().getByRole('button', { name: /Sin marcar/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('group', { name: 'Asistencia de Ana Rivas' })).not.toBeInTheDocument()
     expect(filaDe('Bruno')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /Sin marcar\s*2/ }))
+    await userEvent.click(filtros().getByRole('button', { name: /Todos/ }))
     await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar voluntario' }), 'diego')
     expect(filaDe('Diego')).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Asistencia de Bruno Rivas' })).not.toBeInTheDocument()
@@ -162,13 +195,18 @@ describe('VoluntariosClient', () => {
     render(<VoluntariosClient {...props()} />)
     await userEvent.selectOptions(screen.getByLabelText('Servicio'), 't3')
     expect(replace).toHaveBeenLastCalledWith('/estudiantes/voluntarios?turno=t3&fecha=2026-10-28', { scroll: false })
-    await userEvent.selectOptions(screen.getByLabelText('Fecha'), '2026-10-18')
+    const fecha = within(screen.getByRole('group', { name: 'Fecha' }))
+    await userEvent.click(fecha.getByRole('button', { name: 'Fecha anterior, domingo 18 oct' }))
     expect(replace).toHaveBeenLastCalledWith('/estudiantes/voluntarios?turno=t1&fecha=2026-10-18', { scroll: false })
+    expect(fecha.getByRole('button', { name: 'Es la fecha más reciente' })).toBeDisabled()
   })
 
-  it('offers the planned dates of a dated service, and says when there are none', () => {
+  it('steps through the planned dates of a dated service, and says when there are none', () => {
     const { unmount } = render(<VoluntariosClient {...props({ servicio: { turnoId: 't3', fecha: '2026-10-28' } })} />)
-    expect(within(screen.getByLabelText('Fecha')).getAllByRole('option').map((o) => o.textContent)).toEqual(['Miércoles 28 oct', 'Miércoles 14 oct'])
+    const fecha = within(screen.getByRole('group', { name: 'Fecha' }))
+    expect(screen.getByRole('group', { name: 'Fecha' })).toHaveTextContent('Miércoles 28 oct')
+    expect(fecha.getByRole('button', { name: 'Fecha anterior, miércoles 14 oct' })).toBeEnabled()
+    expect(fecha.getByRole('button', { name: 'Es la fecha más reciente' })).toBeDisabled()
     unmount()
     render(<VoluntariosClient {...props({ turnos: [{ ...T3, fechas: [] }], servicio: { turnoId: 't3', fecha: null }, planilla: null })} />)
     expect(screen.getByText('Todavía no hay fechas de servicio')).toBeInTheDocument()
