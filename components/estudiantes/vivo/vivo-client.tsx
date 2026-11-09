@@ -2,16 +2,21 @@
 
 /**
  * Estudiantes › En vivo — client island of /estudiantes/vivo (C4b of
- * odd/tasks/estudiantes-fase-b.md; artboards 03 desktop and 04 phone of
- * design/estudiantes-asistencia; list anatomy of
- * docs/design-system/patterns.md#list-screen-anatomy).
+ * odd/tasks/estudiantes-fase-b.md) in the planning style (E4a of
+ * odd/tasks/estudiantes-estilo-dps.md, S6; artboards 04 / 05 of
+ * design/estudiantes-dps, B20–B28).
  *
- * Top to bottom: header (breadcrumbs "Estudiantes / <ámbito> / <sub-área>"),
- * hero (title, "Domingo 25 oct · 9:00 · 42 en el salón: …" and the live
- * indicator, G4), the ámbito / meeting pickers when there is more than one,
- * toolbar (search over groups and leaders; Filtros), the attention metrics
- * that act as filters, "Visitantes de hoy" (G2), the sub-área cards (hidden at
- * the leaf) and the groups. A row (or a visitor) opens the group detail.
+ * Top to bottom: the header band (crumbs "Estudiantes › <ámbito> ›
+ * <sub-área>" in the desktop header; phone "‹ origin" and Filtros; the date
+ * pill stepping between the meetings of the ámbito; the live indicator, G4;
+ * "N en el salón: … · K de M marcados" with its bar; the Ámbito tabs from md
+ * with more than one), then the side bar (Resumen: the four metrics that
+ * filter; "Visitantes de hoy", G2; the sub-área cards) — on top in two
+ * columns between 768 and 1099px, the metrics 2 × 2 on a phone — and the
+ * main column: the toolbar (Estado del grupo Todos · Faltan · Completo, the
+ * search, Ordenar, the metric chip), the phone "Visitantes de hoy" before
+ * the groups (S6), and the groups by sub-área under sticky bands. A row (or
+ * a visitor) opens the group detail.
  *
  * The data refreshes every 15 s through a server action (use-en-vivo.ts) and
  * is swapped in place; a new visitor is announced with a toast. Every rule
@@ -21,40 +26,53 @@
  * ámbito or meeting is a `router.replace` (the page loads its data).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Radio, UsersRound } from 'lucide-react'
+import { Radio, Search, UsersRound } from 'lucide-react'
 
-import { BotonSistema, PaginaSistema, SelectSistema } from '@/components/ui/sistema-diseno'
-import { BarraHerramientas, BotonFiltrosMovil, ChipsFiltrosActivos } from '@/components/ui/barra-herramientas'
-import { BotonAtrasMovil, TituloGrande } from '@/components/ui/barra-navegacion-movil'
+import { BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
+import { BotonFiltrosMovil, ChipsFiltrosActivos } from '@/components/ui/barra-herramientas'
+import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { MetricasAtencion } from '@/components/ui/metricas-atencion'
-import { TarjetasFiltro, type InsigniaTarjeta, type TarjetaFiltro } from '@/components/ui/TarjetasFiltro'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
-import { fechaLarga, horaCorta } from '@/lib/platform/estudiantes/lista-vista'
 import type { DatosVivo, OpcionVivo, VisitanteHoy } from '@/lib/platform/estudiantes/vivo-datos'
 import {
+  ESTADOS_FILTRO,
   ETIQUETA_ESTADO_FILTRO,
+  ETIQUETA_ORDEN_VIVO,
+  ORDENES_VIVO,
   calcularVistaVivo,
   consultaVivo,
   elegirOpcion,
   mensajesNuevosVisitantes,
   opcionesAmbito,
-  opcionesReunion,
+  pasosVivo,
   valorAmbito,
-  valorReunion,
-  type AreaVivo,
   type FiltrosVivo,
   type MetricaVivo,
+  type OrdenVivo,
+  type PasoVivo,
   type VistaVivo,
 } from '@/lib/platform/estudiantes/vivo-vista'
+import { cn } from '@/lib/utils'
 
+import { FiltroSegmentado } from '../planificacion/filtro-segmentado'
+import {
+  BarraHerramientasPlanificacion,
+  BarraProgreso,
+  EncabezadoPlanificacion,
+  LineaFecha,
+  MarcoPlanificacion,
+  ResumenPlanificacion,
+} from '../planificacion/marco-planificacion'
+import { MigasEstudiantes, type Miga } from '../planificacion/migas-estudiantes'
+import { PastillaFecha } from '../planificacion/pastilla-fecha'
+import { PieRegion, RegionDatos, TablaPlanificacion } from '../planificacion/region-datos'
+import { AreasVivo, MetricasVivo } from './barra-resumen-vivo'
 import { DetalleGrupoVivo } from './detalle-grupo-vivo'
-import { FranjaVisitantes } from './franja-visitantes'
 import { HojaFiltrosVivo } from './filtros-vivo'
+import { VisitantesBarra, VisitantesSeccion } from './franja-visitantes'
 import { IndicadorEnVivo } from './indicador-en-vivo'
 import { ListaVivo } from './lista-vivo'
 import { useEnVivo } from './use-en-vivo'
@@ -64,6 +82,9 @@ const RETRASO_BUSQUEDA_MS = 300
 const SIN_DATOS: DatosVivo = { ambitoId: null, fecha: null, turnoId: null, grupos: [], visitantesHoy: [] }
 
 const palabra = (n: number, uno: string, varios: string): string => (n === 1 ? uno : varios)
+const minuscula = (texto: string): string => texto.charAt(0).toLocaleLowerCase('es') + texto.slice(1)
+
+const CLASE_TITULO_BARRA = 'mb-1 flex min-h-[26px] items-center justify-between gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground'
 
 export interface VivoClientProps {
   readonly opciones: readonly OpcionVivo[]
@@ -75,96 +96,40 @@ export interface VivoClientProps {
   readonly filtrosIniciales: FiltrosVivo
 }
 
-function Migas({ ambito, area, onIrAmbito }: { readonly ambito: string | null; readonly area: string | null; readonly onIrAmbito: () => void }): ReactElement {
-  const enlace = 'focus-ring truncate rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground pointer-coarse:min-h-11'
-  const actual = 'truncate px-2 py-1.5 font-semibold text-foreground'
-  const separador = (
-    <span aria-hidden="true" className="px-0.5 text-muted-foreground">
-      /
-    </span>
-  )
-  return (
-    <nav aria-label="Ubicación">
-      <ol className="flex min-w-0 flex-wrap items-center gap-0.5 text-sm">
-        <li className="flex min-w-0 items-center gap-0.5">
-          <Link href="/estudiantes" className={enlace}>
-            Estudiantes
-          </Link>
-        </li>
-        <li className="flex min-w-0 items-center gap-0.5">
-          {separador}
-          {!ambito ? (
-            <span aria-current="page" className={actual}>
-              En vivo
-            </span>
-          ) : area ? (
-            <button type="button" onClick={onIrAmbito} className={enlace}>
-              {ambito}
-            </button>
-          ) : (
-            <span aria-current="page" className={actual}>
-              {ambito}
-            </span>
-          )}
-        </li>
-        {ambito && area && (
-          <li className="flex min-w-0 items-center gap-0.5">
-            {separador}
-            <span aria-current="page" className={actual}>
-              {area}
-            </span>
-          </li>
-        )}
-      </ol>
-    </nav>
-  )
+function MigasVivo({ ambito, area, onIrAmbito }: { readonly ambito: string | null; readonly area: string | null; readonly onIrAmbito: () => void }): ReactElement {
+  const migas: Miga[] = [{ texto: 'Estudiantes', href: '/estudiantes' }]
+  if (!ambito) migas.push({ texto: 'En vivo' })
+  else if (area) migas.push({ texto: ambito, onClick: onIrAmbito }, { texto: area })
+  else migas.push({ texto: ambito })
+  return <MigasEstudiantes migas={migas} />
 }
 
-function Resumen({ opcion, vista }: { readonly opcion: OpcionVivo; readonly vista: VistaVivo }): ReactElement {
-  const { presentes, presentesInscritos, visitantes } = vista.totales
-  const linea = [fechaLarga(opcion.fecha), horaCorta(opcion.hora)].filter(Boolean).join(' · ')
+function Resumen({ vista }: { readonly vista: VistaVivo }): ReactElement {
+  const { presentes, presentesInscritos, visitantes, marcados, inscritos } = vista.totales
   return (
-    <>
-      {linea} · <strong className="font-mono tabular-nums">{presentes}</strong> en el salón:{' '}
-      <strong className="font-mono tabular-nums">{presentesInscritos}</strong> {palabra(presentesInscritos, 'inscrito', 'inscritos')} y{' '}
-      <strong className="font-mono tabular-nums">{visitantes}</strong> {palabra(visitantes, 'visitante', 'visitantes')}
-    </>
+    <ResumenPlanificacion>
+      <strong className="font-mono tabular-nums">{presentes}</strong> en el salón: <strong className="font-mono tabular-nums">{presentesInscritos}</strong>{' '}
+      {palabra(presentesInscritos, 'inscrito', 'inscritos')} y <strong className="font-mono tabular-nums">{visitantes}</strong>{' '}
+      {palabra(visitantes, 'visitante', 'visitantes')} ·{' '}
+      <strong>
+        <span className="font-mono tabular-nums">{marcados}</span> de <span className="font-mono tabular-nums">{inscritos}</span>
+      </strong>{' '}
+      marcados
+    </ResumenPlanificacion>
   )
-}
-
-function aTarjeta(area: AreaVivo): TarjetaFiltro {
-  const insignias: InsigniaTarjeta[] = []
-  if (area.gruposSinMarcar > 0) insignias.push({ texto: `${area.gruposSinMarcar} ${palabra(area.gruposSinMarcar, 'grupo sin marcar', 'grupos sin marcar')}`, tono: 'warning' })
-  if (area.visitantes > 0) insignias.push({ texto: `${area.visitantes} ${palabra(area.visitantes, 'visitante', 'visitantes')}`, tono: 'info' })
-  return {
-    id: area.id,
-    label: area.label,
-    subtitulo: `de ${area.inscritos} inscritos · ${area.grupos} ${palabra(area.grupos, 'grupo', 'grupos')}`,
-    total: area.presentes,
-    badge: null,
-    insignias,
-    barraEtapas: [
-      { tono: 'success', valor: area.presentes, etiqueta: 'presentes' },
-      { tono: 'danger', valor: area.ausentes, etiqueta: 'ausentes' },
-      { tono: 'warning', valor: area.sinMarcar, etiqueta: 'sin marcar' },
-    ],
-  }
 }
 
 /** No meeting to show: the frame, a title and one line (patterns.md#empty-and-loading-states). */
 function SinReuniones(): ReactElement {
   return (
-    <PaginaSistema breadcrumbs={<Migas ambito={null} area={null} onIrAmbito={() => undefined} />}>
-      <div className="md:hidden">
-        <TituloGrande titulo="En vivo" nivel={2} />
-      </div>
-      <h1 className="hidden text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground md:block">En vivo</h1>
-      <EstadoVacioSistema
-        icono={Radio}
-        titulo="No hay reuniones para seguir en vivo"
-        subtitulo="Aparecen aquí cuando Transit o Inside Out se reúnen."
-      />
-    </PaginaSistema>
+    <MarcoPlanificacion migas={<MigasVivo ambito={null} area={null} onIrAmbito={() => undefined} />}>
+      <EncabezadoPlanificacion titulo="En vivo" antetitulo="Estudiantes" atras={{ etiqueta: 'Estudiantes', href: '/estudiantes' }} />
+      <RegionDatos>
+        <TablaPlanificacion>
+          <EstadoVacioSistema icono={Radio} titulo="No hay reuniones para seguir en vivo" subtitulo="Aparecen aquí cuando Transit o Inside Out se reúnen." />
+        </TablaPlanificacion>
+      </RegionDatos>
+    </MarcoPlanificacion>
   )
 }
 
@@ -217,16 +182,19 @@ function VivoReunion({ opciones, opcion, datos: datosIniciales, error, filtrosIn
     router.replace(`${pathname}?${consultaVivo(otra, vista.filtros)}`, { scroll: false })
   }
 
+  function irAmbito(valor: string): void {
+    const [ambito, campus] = valor.split('|')
+    irA(elegirOpcion(opciones, { ambito, campus }, hoyEnCaracas()))
+  }
+
   const ambitos = opcionesAmbito(opciones)
-  const reuniones = opcionesReunion(opciones, opcion)
+  const pasos = pasosVivo(opciones, opcion)
   const area = vista.filtros.area
+  const abrir = (grupoId: string): void => setDetalle({ grupoId, abierto: true })
   const grupoDetalle = detalle ? (datos.grupos.find((g) => g.grupoId === detalle.grupoId) ?? null) : null
   const metricaActiva = vista.metricas.find((m) => m.activa)
-  const chips = [
-    ...(metricaActiva ? [{ id: 'metrica', etiqueta: metricaActiva.etiqueta }] : []),
-    ...(vista.filtros.estado !== 'todos' ? [{ id: 'estado', etiqueta: ETIQUETA_ESTADO_FILTRO[vista.filtros.estado] }] : []),
-  ]
-  const hayFiltros = chips.length > 0 || vista.filtros.q.trim() !== ''
+  const hayFiltros = metricaActiva !== undefined || vista.filtros.estado !== 'todos' || vista.filtros.q.trim() !== ''
+  const paso = (p: PasoVivo | null, cual: 'anterior' | 'siguiente') => (p ? { etiqueta: `Reunión ${cual}, ${minuscula(p.etiqueta)}`, onIr: () => irA(p.opcion) } : null)
   const vacio = hayFiltros ? (
     <EstadoVacioSistema
       icono={UsersRound}
@@ -241,112 +209,139 @@ function VivoReunion({ opciones, opcion, datos: datosIniciales, error, filtrosIn
   ) : (
     <EstadoVacioSistema icono={UsersRound} titulo="Todavía no hay grupos aquí" subtitulo="Los grupos activos de este ámbito aparecen aquí." />
   )
-  const indicador = <IndicadorEnVivo actualizadoAt={vivo.actualizadoAt} oculto={vivo.oculto} fallo={vivo.fallo} />
 
   return (
-    // No `titulo`: the h1 is the hero on desktop and the shell header on phones (one h1 per width).
-    <PaginaSistema breadcrumbs={<Migas ambito={opcion.ambito} area={area} onIrAmbito={() => cambiar({ area: null })} />} className="pb-28 md:pb-0">
-      <div data-slot="cabecera-movil" className="md:hidden">
-        <div className="-mx-2 -mt-2 mb-1 flex items-center justify-between gap-2">
-          <BotonAtrasMovil
-            atras={area ? { etiqueta: opcion.ambito, onClick: () => cambiar({ area: null }) } : { etiqueta: 'Estudiantes', href: '/estudiantes' }}
-            className="max-w-[75%]"
-          />
-          <BotonFiltrosMovil filtrosActivos={vista.filtrosEnHoja} onClick={() => setHojaAbierta(true)} />
-        </div>
-        <TituloGrande titulo={vista.titulo} nivel={2} resumen={<Resumen opcion={opcion} vista={vista} />} />
-        <div className="mt-2">{indicador}</div>
-      </div>
-      <div className="hidden md:flex md:flex-wrap md:items-end md:justify-between md:gap-x-6 md:gap-y-2">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">{vista.titulo}</h1>
-          <p className="mt-1.5 text-[15px] text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">
-            <Resumen opcion={opcion} vista={vista} />
-          </p>
-        </div>
-        {indicador}
-      </div>
+    <MarcoPlanificacion migas={<MigasVivo ambito={opcion.ambito} area={area} onIrAmbito={() => cambiar({ area: null })} />}>
+      <EncabezadoPlanificacion
+        titulo={vista.titulo}
+        antetitulo="Estudiantes · En vivo"
+        atras={area ? { etiqueta: opcion.ambito, onClick: () => cambiar({ area: null }) } : { etiqueta: 'Estudiantes', href: '/estudiantes' }}
+        accionMovil={<BotonFiltrosMovil filtrosActivos={vista.filtrosEnHoja} onClick={() => setHojaAbierta(true)} />}
+        acciones={
+          ambitos.length > 1 ? (
+            <div className="max-md:hidden">
+              <ControlSegmentado etiqueta="Ámbito" opciones={ambitos} valor={valorAmbito(opcion)} onCambio={(valor) => valor !== valorAmbito(opcion) && irAmbito(valor)} />
+            </div>
+          ) : undefined
+        }
+      >
+        <LineaFecha>
+          <PastillaFecha
+            etiqueta="Reunión"
+            anterior={paso(pasos.anterior, 'anterior')}
+            siguiente={paso(pasos.siguiente, 'siguiente')}
+            sinAnterior="No hay reuniones anteriores"
+            sinSiguiente="Es la reunión más reciente"
+          >
+            {pasos.etiqueta}
+          </PastillaFecha>
+          <IndicadorEnVivo actualizadoAt={vivo.actualizadoAt} oculto={vivo.oculto} fallo={vivo.fallo} />
+        </LineaFecha>
+        <Resumen vista={vista} />
+        <BarraProgreso valor={vista.totales.marcados} total={vista.totales.inscritos} />
+      </EncabezadoPlanificacion>
 
-      {vivo.fallo && vivo.mensaje && <AvisoFormulario tono="error">{vivo.mensaje}</AvisoFormulario>}
-
-      {(ambitos.length > 1 || reuniones.length > 1) && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:max-w-[720px]">
-          {ambitos.length > 1 && (
-            <SelectSistema
-              label="Ámbito"
-              opciones={ambitos}
-              value={valorAmbito(opcion)}
-              onValueChange={(valor) => {
-                const [ambito, campus] = valor.split('|')
-                irA(elegirOpcion(opciones, { ambito, campus }, hoyEnCaracas()))
-              }}
-            />
+      <div className="min-[1100px]:grid min-[1100px]:grid-cols-[260px_minmax(0,1fr)] min-[1100px]:items-start">
+        <aside
+          aria-label="Resumen de la reunión"
+          className={cn(
+            'px-4 pb-3 sm:px-6 md:border-b md:border-border md:bg-card md:p-0 md:max-[1099px]:grid md:max-[1099px]:grid-cols-2',
+            'min-[1100px]:sticky min-[1100px]:top-16 min-[1100px]:max-h-[calc(100dvh-4rem)] min-[1100px]:min-h-[calc(100dvh-9rem)] min-[1100px]:overflow-auto min-[1100px]:border-r min-[1100px]:border-b-0',
           )}
-          {reuniones.length > 1 && (
-            <SelectSistema
-              label="Reunión"
-              opciones={reuniones}
-              value={valorReunion(opcion)}
-              onValueChange={(valor) => irA(opciones.find((o) => valorAmbito(o) === valorAmbito(opcion) && valorReunion(o) === valor))}
-            />
-          )}
-        </div>
-      )}
-
-      <BarraHerramientas
-        busqueda={{ valor: vista.filtros.q, onCambio: (q) => cambiar({ q }), placeholder: 'Buscar grupo o líder', etiqueta: 'Buscar grupos' }}
-        filtrosActivos={vista.filtrosEnHoja}
-        onAbrirFiltros={() => setHojaAbierta(true)}
-      />
-
-      <MetricasAtencion
-        etiqueta="Resumen de la reunión"
-        metricas={vista.metricas}
-        onAlternar={(id) => cambiar({ metrica: vista.filtros.metrica === id ? null : (id as MetricaVivo) })}
-      />
-
-      <FranjaVisitantes visitantes={vista.visitantes} onAbrirGrupo={(grupoId) => setDetalle({ grupoId, abierto: true })} />
-
-      {vista.areas.length > 0 && (
-        <section aria-labelledby="vivo-areas" className="space-y-3">
-          <div className="flex items-baseline justify-between gap-3 px-1 md:px-0">
-            <h2 id="vivo-areas" className="text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground">
-              Áreas
+        >
+          <section aria-labelledby="vivo-resumen" className="md:px-4 md:pt-2.5 md:pb-3 min-[1100px]:pr-3">
+            <h2 id="vivo-resumen" className={cn(CLASE_TITULO_BARRA, 'max-md:sr-only')}>
+              Resumen
             </h2>
-            <span className="hidden text-xs text-muted-foreground md:inline">Toca para entrar</span>
-          </div>
-          <TarjetasFiltro
-            items={vista.areas.map(aTarjeta)}
-            modoCompacto={false}
-            seleccionadoId=""
-            onSeleccionar={(id) => cambiar({ area: id })}
-            unidad={{ singular: 'presente', plural: 'presentes' }}
-            etiqueta="Áreas"
-            buscarEtiqueta="Buscar área"
-            presentacion="alcance"
-          />
-        </section>
-      )}
+            <MetricasVivo metricas={vista.metricas} onAlternar={(id: MetricaVivo) => cambiar({ metrica: vista.filtros.metrica === id ? null : id })} />
+          </section>
+          <section
+            aria-labelledby="vivo-visitantes"
+            className="hidden md:block md:border-border md:px-4 md:pt-2.5 md:pb-3 md:max-[1099px]:border-l min-[1100px]:border-t min-[1100px]:pr-3"
+          >
+            <h2 id="vivo-visitantes" className={CLASE_TITULO_BARRA}>
+              <span>
+                Visitantes de hoy <span className="font-mono tabular-nums">{vista.visitantes.length}</span>
+              </span>
+            </h2>
+            <VisitantesBarra visitantes={vista.visitantes} onAbrirGrupo={abrir} />
+          </section>
+          {vista.areas.length > 0 && (
+            <section
+              aria-labelledby="vivo-areas"
+              className="hidden md:block md:border-t md:border-border md:px-4 md:pt-2.5 md:pb-3 md:max-[1099px]:col-span-2 min-[1100px]:pr-3"
+            >
+              <h2 id="vivo-areas" className={CLASE_TITULO_BARRA}>
+                Áreas <span className="font-normal normal-case tracking-normal">Toca para entrar</span>
+              </h2>
+              <AreasVivo areas={vista.areas} onElegir={(id) => cambiar({ area: id })} />
+            </section>
+          )}
+        </aside>
 
-      <section aria-labelledby="vivo-grupos" className="space-y-3">
-        <h2 id="vivo-grupos" className="px-1 text-xs font-medium uppercase tracking-[0.08em] text-muted-foreground md:px-0">
-          Grupos
-        </h2>
-        <ChipsFiltrosActivos
-          chips={chips}
-          onQuitar={(id) => cambiar(id === 'metrica' ? { metrica: null } : { estado: 'todos' })}
-          onLimpiarTodo={() => cambiar({ metrica: null, estado: 'todos' })}
-        />
-        <ListaVivo grupos={vista.visibles} orden={vista.filtros.orden} onOrdenar={(orden) => cambiar({ orden })} onAbrir={(grupoId) => setDetalle({ grupoId, abierto: true })} vacio={vacio} />
-        {vista.visibles.length > 0 && (
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted-foreground">
-            <span className="font-mono tabular-nums">{vista.pie.resumen}</span>
-            <span>{vista.pie.orden}</span>
-          </div>
-        )}
-      </section>
+        <div className="min-w-0">
+          <BarraHerramientasPlanificacion>
+            <FiltroSegmentado
+              etiqueta="Estado del grupo"
+              opciones={ESTADOS_FILTRO.map((e) => ({ valor: e, etiqueta: ETIQUETA_ESTADO_FILTRO[e], cuenta: vista.cuentasEstado[e] }))}
+              valor={vista.filtros.estado}
+              onCambio={(estado) => cambiar({ estado })}
+            />
+            <div className="w-full md:w-60">
+              <InputSistema
+                type="search"
+                autoComplete="off"
+                icono={Search}
+                aria-label="Buscar grupos"
+                placeholder="Buscar grupo o líder"
+                value={vista.filtros.q}
+                onChange={(e) => cambiar({ q: e.target.value })}
+              />
+            </div>
+            <div className="hidden md:block md:w-52">
+              <SelectSistema
+                aria-label="Ordenar"
+                opciones={ORDENES_VIVO.map((o) => ({ valor: o, etiqueta: ETIQUETA_ORDEN_VIVO[o] }))}
+                value={vista.filtros.orden}
+                onValueChange={(orden) => cambiar({ orden: orden as OrdenVivo })}
+              />
+            </div>
+            <ChipsFiltrosActivos
+              chips={metricaActiva ? [{ id: 'metrica', etiqueta: metricaActiva.etiqueta }] : []}
+              onQuitar={() => cambiar({ metrica: null })}
+              onLimpiarTodo={() => cambiar({ metrica: null })}
+            />
+          </BarraHerramientasPlanificacion>
 
-      <HojaFiltrosVivo vista={vista} abierta={hojaAbierta} onCambioAbierta={setHojaAbierta} onCambio={cambiar} />
+          <RegionDatos>
+            {vivo.fallo && vivo.mensaje && (
+              <AvisoFormulario tono="error" className="mx-4 md:mx-0">
+                {vivo.mensaje}
+              </AvisoFormulario>
+            )}
+            <div className="md:hidden">
+              <VisitantesSeccion visitantes={vista.visitantes} onAbrirGrupo={abrir} />
+            </div>
+            <ListaVivo secciones={vista.secciones} onAbrir={abrir} vacio={vacio} />
+            {vista.visibles.length > 0 && (
+              <PieRegion>
+                <span className="font-mono tabular-nums">{vista.pie.resumen}</span>
+                <span>{vista.pie.orden}</span>
+              </PieRegion>
+            )}
+          </RegionDatos>
+        </div>
+      </div>
+
+      <HojaFiltrosVivo
+        vista={vista}
+        ambitos={ambitos}
+        ambito={valorAmbito(opcion)}
+        onAmbito={irAmbito}
+        abierta={hojaAbierta}
+        onCambioAbierta={setHojaAbierta}
+        onCambio={cambiar}
+      />
 
       <DetalleGrupoVivo
         key={detalle?.grupoId ?? 'ninguno'}
@@ -356,7 +351,6 @@ function VivoReunion({ opciones, opcion, datos: datosIniciales, error, filtrosIn
         abierto={detalle?.abierto ?? false}
         onCambioAbierto={(abierto) => setDetalle((actual) => (actual ? { ...actual, abierto } : null))}
       />
-    </PaginaSistema>
+    </MarcoPlanificacion>
   )
 }
-

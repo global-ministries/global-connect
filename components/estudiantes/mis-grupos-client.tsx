@@ -2,32 +2,37 @@
 
 /**
  * Estudiantes — "Mi grupo" entry (/estudiantes, C3b of
- * odd/tasks/estudiantes-fase-b.md): the groups the caller sees
- * (estudiantes_mis_grupos) as a `ListaResponsiva`; a row opens that group's
- * leader list. Managers also get "Gestionar grupos" (/estudiantes/grupos) and
- * whoever has the live view "En vivo" (/estudiantes/vivo, C4b) in the header
- * (below the title on phones). A leader with a single group never lands here:
- * the page sends them straight to it.
+ * odd/tasks/estudiantes-fase-b.md) in the planning style (E4a of
+ * odd/tasks/estudiantes-estilo-dps.md; artboard 01-mis-grupos of
+ * design/estudiantes-dps, B1–B5).
+ *
+ * The header band (title, "N grupos · toca uno para marcar su asistencia",
+ * "En vivo" for whoever has the live view, C4b, and "Gestionar grupos" for
+ * managers), then the groups the caller sees (estudiantes_mis_grupos) in one
+ * data region, a band per ámbito (Transit → Inside Out → The Living Room,
+ * the order of aGruposMios) with "N grupos". A row is a PCO People style
+ * row: avatar, name and leaders ("Sin líder" in warning), Sub-área,
+ * Integrantes and Visitantes from md; on a phone 64px with "12 integrantes"
+ * and a chevron. The whole row links to the group's leader list. A leader
+ * with a single group never lands here: the page sends them straight to it.
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Radio, Settings2, UsersRound } from 'lucide-react'
+import { ChevronRight, Radio, Settings2, UsersRound } from 'lucide-react'
 
-import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
-import { TituloGrande } from '@/components/ui/barra-navegacion-movil'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { ListaResponsiva, type ColumnaLista } from '@/components/ui/lista-responsiva'
+import { AvatarIniciales } from '@/components/grupos-vida/planner/avatar-iniciales'
 import type { GrupoMio } from '@/lib/platform/estudiantes/lista-datos'
+import { cn } from '@/lib/utils'
 
-const plural = (n: number, uno: string, varios: string): string => `${n} ${n === 1 ? uno : varios}`
+import { EncabezadoPlanificacion, MarcoPlanificacion, ResumenPlanificacion } from './planificacion/marco-planificacion'
+import { MigasEstudiantes } from './planificacion/migas-estudiantes'
+import { BandaSeccion, CLASE_AVATAR_FILA, CLASE_FILA, CLASE_LINEA, CabeceraColumnas, PieRegion, RegionDatos, TablaPlanificacion } from './planificacion/region-datos'
 
-const COLUMNAS: readonly ColumnaLista[] = [
-  { id: 'grupo', titulo: 'Grupo', ancho: 'minmax(0,1.6fr)' },
-  { id: 'ambito', titulo: 'Ámbito', ancho: 'minmax(0,1fr)' },
-  { id: 'integrantes', titulo: 'Integrantes', ancho: 'minmax(0,0.6fr)' },
-  { id: 'visitantes', titulo: 'Visitantes', ancho: 'minmax(0,0.6fr)', ocultarEnTablet: true },
-]
+const palabra = (n: number, uno: string, varios: string): string => (n === 1 ? uno : varios)
+
+const COLUMNAS = 'md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_110px_110px_20px]'
 
 export interface MisGruposClientProps {
   readonly grupos: readonly GrupoMio[]
@@ -53,86 +58,107 @@ function Accesos({ puedeGestionar, puedeVerVivo }: { readonly puedeGestionar: bo
   )
 }
 
-export function MisGruposClient({ grupos, puedeGestionar, puedeVerVivo = false }: MisGruposClientProps): ReactElement {
-  const router = useRouter()
-  const titulo = grupos.length === 1 ? 'Mi grupo' : 'Mis grupos'
-  const resumen = (
-    <>
-      <strong className="font-mono tabular-nums">{grupos.length}</strong> {grupos.length === 1 ? 'grupo' : 'grupos'} · toca uno para marcar su asistencia
-    </>
+/** Consecutive groups of the same ámbito (aGruposMios already sorts them). */
+function porAmbito(grupos: readonly GrupoMio[]): { readonly ambito: string; readonly grupos: GrupoMio[] }[] {
+  const bandas: { ambito: string; grupos: GrupoMio[] }[] = []
+  for (const g of grupos) {
+    const ultima = bandas[bandas.length - 1]
+    if (ultima?.ambito === g.ambito) ultima.grupos.push(g)
+    else bandas.push({ ambito: g.ambito, grupos: [g] })
+  }
+  return bandas
+}
+
+function FilaGrupo({ grupo }: { readonly grupo: GrupoMio }): ReactElement {
+  return (
+    <li className={CLASE_LINEA}>
+      <Link
+        href={`/estudiantes/grupos/${encodeURIComponent(grupo.grupoId)}`}
+        aria-label={`Abrir la lista de ${grupo.nombre}`}
+        className={cn(CLASE_FILA, COLUMNAS, 'focus-ring min-h-16 pr-2.5 touch-manipulation transition-colors active:bg-accent md:min-h-[52px] md:py-1.5')}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-3 md:gap-2.5">
+          <AvatarIniciales nombres={[grupo.nombre]} className={CLASE_AVATAR_FILA} />
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-semibold text-foreground md:text-sm">{grupo.nombre}</span>
+            <span className="block truncate text-[13px] text-muted-foreground md:text-xs">
+              {grupo.lideres.length > 0 ? grupo.lideres.join(', ') : <span className="font-medium text-warning-text">Sin líder</span>}
+            </span>
+          </span>
+        </span>
+        <span className="hidden truncate text-[13px] text-foreground md:block">{grupo.subarea}</span>
+        <span className="shrink-0 whitespace-nowrap text-[13px] text-muted-foreground md:text-sm md:text-foreground">
+          <span className="font-mono tabular-nums">{grupo.miembros}</span>
+          <span className="md:hidden">{` ${palabra(grupo.miembros, 'integrante', 'integrantes')}`}</span>
+        </span>
+        <span className="hidden font-mono text-sm tabular-nums text-foreground md:block">{grupo.visitantes}</span>
+        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      </Link>
+    </li>
   )
+}
+
+export function MisGruposClient({ grupos, puedeGestionar, puedeVerVivo = false }: MisGruposClientProps): ReactElement {
+  const titulo = grupos.length === 1 ? 'Mi grupo' : 'Mis grupos'
+  const accesos = puedeGestionar || puedeVerVivo ? <Accesos puedeGestionar={puedeGestionar} puedeVerVivo={puedeVerVivo} /> : undefined
 
   return (
-    <PaginaSistema
-      breadcrumbs={
-        <nav aria-label="Ubicación">
-          <span aria-current="page" className="px-2 py-1.5 text-sm font-semibold text-foreground">
-            Estudiantes
-          </span>
-        </nav>
-      }
-      acciones={
-        (puedeGestionar || puedeVerVivo) && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Accesos puedeGestionar={puedeGestionar} puedeVerVivo={puedeVerVivo} />
-          </div>
-        )
-      }
-    >
-      <div className="md:hidden">
-        <TituloGrande titulo={titulo} nivel={2} resumen={grupos.length > 0 ? resumen : undefined} />
-        {(puedeGestionar || puedeVerVivo) && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Accesos puedeGestionar={puedeGestionar} puedeVerVivo={puedeVerVivo} />
-          </div>
+    <MarcoPlanificacion migas={<MigasEstudiantes migas={[{ texto: 'Estudiantes' }]} />}>
+      <EncabezadoPlanificacion titulo={titulo} antetitulo="Estudiantes" acciones={accesos}>
+        {grupos.length > 0 && (
+          <ResumenPlanificacion>
+            <strong className="font-mono tabular-nums">{grupos.length}</strong> {palabra(grupos.length, 'grupo', 'grupos')} · toca uno para marcar su asistencia
+          </ResumenPlanificacion>
         )}
-      </div>
-      <div className="hidden md:block">
-        <h1 className="text-2xl font-[650] leading-[1.15] tracking-[-0.02em] text-foreground">{titulo}</h1>
-        {grupos.length > 0 && <p className="mt-1.5 text-[15px] text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground">{resumen}</p>}
-      </div>
+      </EncabezadoPlanificacion>
 
-      <ListaResponsiva
-        etiqueta={titulo}
-        columnas={COLUMNAS}
-        filas={grupos}
-        claveFila={(g) => g.grupoId}
-        etiquetaFila={(g) => `Abrir la lista de ${g.nombre}`}
-        onAbrirFila={(g) => router.push(`/estudiantes/grupos/${encodeURIComponent(g.grupoId)}`)}
-        renderCelda={(g, columna) => {
-          switch (columna) {
-            case 'grupo':
-              return (
-                <div className="min-w-0">
-                  <p className="truncate text-[15px] font-semibold text-foreground">{g.nombre}</p>
-                  <p className="truncate text-[13px] text-muted-foreground">{g.lideres.length > 0 ? g.lideres.join(', ') : 'Sin líder'}</p>
-                </div>
-              )
-            case 'ambito':
-              return <span className="truncate text-sm text-foreground">{`${g.ambito} · ${g.subarea}`}</span>
-            case 'integrantes':
-              return <span className="font-mono text-sm tabular-nums text-foreground">{g.miembros}</span>
-            case 'visitantes':
-              return <span className="font-mono text-sm tabular-nums text-foreground">{g.visitantes}</span>
-            default:
-              return null
-          }
-        }}
-        renderFilaMovil={(g) => ({
-          titulo: g.nombre,
-          subtitulo: `${g.ambito} · ${g.subarea}`,
-          meta: <span className="font-mono tabular-nums text-muted-foreground">{plural(g.miembros, 'integrante', 'integrantes')}</span>,
-        })}
-        vacio={
-          <EstadoVacioSistema
-            icono={UsersRound}
-            titulo="Todavía no tienes un grupo"
-            subtitulo={
-              puedeGestionar ? 'Crea el primero desde «Gestionar grupos».' : 'Cuando la dirección te asigne como líder, tu grupo aparece aquí.'
-            }
-          />
-        }
-      />
-    </PaginaSistema>
+      <RegionDatos>
+        <TablaPlanificacion>
+          {grupos.length === 0 ? (
+            <EstadoVacioSistema
+              icono={UsersRound}
+              titulo="Todavía no tienes un grupo"
+              subtitulo={puedeGestionar ? 'Crea el primero desde «Gestionar grupos».' : 'Cuando la dirección te asigne como líder, tu grupo aparece aquí.'}
+            />
+          ) : (
+            <>
+              <CabeceraColumnas className={COLUMNAS}>
+                <span>Grupo</span>
+                <span>Sub-área</span>
+                <span>Integrantes</span>
+                <span>Visitantes</span>
+                <span />
+              </CabeceraColumnas>
+              {porAmbito(grupos).map((banda, i) => (
+                <section key={banda.ambito} aria-labelledby={`mis-grupos-${i}`}>
+                  <BandaSeccion
+                    id={`mis-grupos-${i}`}
+                    titulo={banda.ambito}
+                    pista={
+                      <>
+                        <span className="font-mono tabular-nums">{banda.grupos.length}</span> {palabra(banda.grupos.length, 'grupo', 'grupos')}
+                      </>
+                    }
+                  />
+                  <ul aria-label={`Grupos de ${banda.ambito}`}>
+                    {banda.grupos.map((g) => (
+                      <FilaGrupo key={g.grupoId} grupo={g} />
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </>
+          )}
+        </TablaPlanificacion>
+        {grupos.length > 0 && (
+          <PieRegion>
+            <span>
+              <span className="font-mono tabular-nums">{grupos.length}</span> {palabra(grupos.length, 'grupo', 'grupos')}
+            </span>
+            <span>Orden: ámbito, luego nombre</span>
+          </PieRegion>
+        )}
+      </RegionDatos>
+    </MarcoPlanificacion>
   )
 }

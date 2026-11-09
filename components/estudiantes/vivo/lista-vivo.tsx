@@ -1,34 +1,26 @@
-'use client'
-
 /**
- * Estudiantes › En vivo — the groups of the meeting (artboards 03 / 04): a
- * `ListaResponsiva` with Grupo (+ leaders), Presentes (n / inscritos and a
- * proportion bar), Visitantes and Estado (`PuntoEstado`: Sin marcar / Faltan
- * N / Completo). "Última marca" is left out: estudiantes_en_vivo does not
- * return it. The headers sort (Grupo A–Z, más presentes, sin marcar primero).
- * Phones get inset rows: name, leaders, and "n/total" with the estado. Every
- * row opens the group detail.
+ * Estudiantes › En vivo — the groups of the meeting in the planning style
+ * (artboards 04 / 05 of design/estudiantes-dps, B25): one dense table, a
+ * sticky band per sub-área ("Grupos de Chicas 20/39 · 1 sin marcar") and a
+ * row per group: avatar, name and leaders ("Sin líder" in warning),
+ * Presentes "n / total" with a proportion bar, Visitantes and Estado (Sin
+ * marcar / Faltan N / Completo, never color alone). On a phone the row is
+ * 64px with "n/total" and the estado at its end. Every row opens the group
+ * detail. "Última marca" is left out: estudiantes_en_vivo does not return
+ * it. Server-safe.
  */
 import type { ReactElement, ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
 
-import { ListaResponsiva, type ColumnaLista } from '@/components/ui/lista-responsiva'
 import { FONDO_TONO, PuntoEstado } from '@/components/ui/punto-estado'
+import { AvatarIniciales } from '@/components/grupos-vida/planner/avatar-iniciales'
 import type { GrupoVivo } from '@/lib/platform/estudiantes/vivo-datos'
-import { etiquetaEstado, inscritosDe, type OrdenVivo } from '@/lib/platform/estudiantes/vivo-vista'
+import { etiquetaEstado, inscritosDe, type SeccionVivo } from '@/lib/platform/estudiantes/vivo-vista'
+import { cn } from '@/lib/utils'
 
-const COLUMNAS: readonly ColumnaLista[] = [
-  { id: 'grupo', titulo: 'Grupo', ordenable: true, ancho: 'minmax(0,1.6fr)' },
-  { id: 'presentes', titulo: 'Presentes', ordenable: true, ancho: 'minmax(0,1fr)' },
-  { id: 'visitantes', titulo: 'Visitantes', ancho: 'minmax(0,0.6fr)' },
-  { id: 'estado', titulo: 'Estado', ordenable: true, ancho: 'minmax(0,0.8fr)' },
-]
+import { BandaSeccion, CLASE_AVATAR_FILA, CLASE_FILA, CLASE_LINEA, CabeceraColumnas, TablaPlanificacion } from '../planificacion/region-datos'
 
-/** The sort a header applies, and how the arrow reads. */
-const ORDEN_COLUMNA: Readonly<Record<string, { readonly orden: OrdenVivo; readonly sentido: 'asc' | 'desc' }>> = {
-  grupo: { orden: 'nombre', sentido: 'asc' },
-  presentes: { orden: 'asistencia', sentido: 'desc' },
-  estado: { orden: 'atencion', sentido: 'asc' },
-}
+const COLUMNAS = 'md:max-[1099px]:grid-cols-[minmax(0,1.4fr)_150px_80px_120px_16px] min-[1100px]:grid-cols-[minmax(0,1.6fr)_180px_90px_130px_16px]'
 
 export const lideresTexto = (g: GrupoVivo): string => (g.lideres.length > 0 ? g.lideres.join(', ') : 'Sin líder')
 
@@ -36,82 +28,101 @@ function Lideres({ grupo }: { readonly grupo: GrupoVivo }): ReactElement {
   return grupo.lideres.length > 0 ? <span>{lideresTexto(grupo)}</span> : <span className="font-medium text-warning-text">Sin líder</span>
 }
 
-function Presentes({ grupo }: { readonly grupo: GrupoVivo }): ReactElement {
-  const total = inscritosDe(grupo)
-  const pct = total > 0 ? Math.round((grupo.presentes / total) * 100) : 0
+function FilaGrupoVivo({ grupo: g, onAbrir }: { readonly grupo: GrupoVivo; readonly onAbrir: (grupoId: string) => void }): ReactElement {
+  const total = inscritosDe(g)
+  const pct = total > 0 ? Math.round((g.presentes / total) * 100) : 0
+  const { tono, texto } = etiquetaEstado(g)
   return (
-    <div className="min-w-0 max-w-[160px]">
-      <span className="font-mono text-[15px] tabular-nums text-foreground">
-        {grupo.presentes} <span className="text-[13px] text-muted-foreground">/ {total}</span>
-      </span>
-      <span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-muted">
-        <span className={`block h-full rounded-full ${FONDO_TONO.success}`} style={{ width: `${pct}%` }} />
-      </span>
-    </div>
+    <li className={CLASE_LINEA}>
+      <button
+        type="button"
+        aria-label={`Abrir ${g.nombre}`}
+        onClick={() => onAbrir(g.grupoId)}
+        className={cn(CLASE_FILA, COLUMNAS, 'focus-ring min-h-16 touch-manipulation transition-colors active:bg-accent md:min-h-11')}
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-3 md:gap-2.5">
+          <AvatarIniciales nombres={[g.nombre]} className={CLASE_AVATAR_FILA} />
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-semibold text-foreground md:text-sm">{g.nombre}</span>
+            <span className="block truncate text-[13px] text-muted-foreground md:text-xs">
+              <Lideres grupo={g} />
+            </span>
+          </span>
+        </span>
+        <span className="hidden items-center gap-2.5 md:flex">
+          <span className="font-mono text-sm tabular-nums text-foreground">
+            {g.presentes} <span className="text-xs text-muted-foreground">/ {total}</span>
+          </span>
+          <span aria-hidden="true" className="h-1.5 max-w-20 flex-1 overflow-hidden rounded-full bg-muted">
+            <span className={cn('block h-full rounded-full', FONDO_TONO.success)} style={{ width: `${pct}%` }} />
+          </span>
+        </span>
+        <span className="hidden font-mono text-sm tabular-nums text-foreground md:block">{g.visitantes}</span>
+        <span className="hidden md:block">
+          <PuntoEstado tono={tono} etiqueta={texto} />
+        </span>
+        <span className="flex shrink-0 flex-col items-end gap-0.5 md:hidden">
+          <span className="font-mono text-[13px] tabular-nums text-foreground">
+            {g.presentes}
+            <span className="text-muted-foreground">/{total}</span>
+          </span>
+          <PuntoEstado tono={tono} etiqueta={texto} />
+        </span>
+        <ChevronRight aria-hidden="true" className="hidden size-4 shrink-0 text-muted-foreground md:block" />
+      </button>
+    </li>
   )
 }
 
 export interface ListaVivoProps {
-  readonly grupos: readonly GrupoVivo[]
-  readonly orden: OrdenVivo
-  readonly onOrdenar: (orden: OrdenVivo) => void
+  readonly secciones: readonly SeccionVivo[]
   readonly onAbrir: (grupoId: string) => void
+  /** Shown instead of the table when no group is visible. */
   readonly vacio: ReactNode
 }
 
-export function ListaVivo({ grupos, orden, onOrdenar, onAbrir, vacio }: ListaVivoProps): ReactElement {
-  const columnaActiva = Object.entries(ORDEN_COLUMNA).find(([, o]) => o.orden === orden)
+export function ListaVivo({ secciones, onAbrir, vacio }: ListaVivoProps): ReactElement {
   return (
-    <ListaResponsiva
-      etiqueta="Grupos"
-      columnas={COLUMNAS}
-      filas={grupos}
-      claveFila={(g) => g.grupoId}
-      orden={columnaActiva ? { columna: columnaActiva[0], sentido: columnaActiva[1].sentido } : undefined}
-      onOrdenar={(columna) => {
-        const o = ORDEN_COLUMNA[columna]
-        if (o) onOrdenar(o.orden)
-      }}
-      onAbrirFila={(g) => onAbrir(g.grupoId)}
-      etiquetaFila={(g) => `Abrir ${g.nombre}`}
-      vacio={vacio}
-      renderCelda={(g, columna) => {
-        switch (columna) {
-          case 'grupo':
-            return (
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold text-foreground">{g.nombre}</p>
-                <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-                  <Lideres grupo={g} />
-                </p>
-              </div>
-            )
-          case 'presentes':
-            return <Presentes grupo={g} />
-          case 'visitantes':
-            return <span className="font-mono text-[15px] tabular-nums text-foreground">{g.visitantes}</span>
-          default: {
-            const { tono, texto } = etiquetaEstado(g)
-            return <PuntoEstado tono={tono} etiqueta={texto} />
-          }
-        }
-      }}
-      renderFilaMovil={(g) => {
-        const { tono, texto } = etiquetaEstado(g)
-        return {
-          titulo: g.nombre,
-          subtitulo: <Lideres grupo={g} />,
-          meta: (
-            <span className="flex flex-col items-end gap-1">
-              <span className="font-mono text-sm tabular-nums text-foreground" aria-label={`${g.presentes} presentes de ${inscritosDe(g)}`}>
-                {g.presentes}
-                <span className="text-muted-foreground">/{inscritosDe(g)}</span>
-              </span>
-              <PuntoEstado tono={tono} etiqueta={texto} />
-            </span>
-          ),
-        }
-      }}
-    />
+    <TablaPlanificacion>
+      {secciones.length === 0 ? (
+        vacio
+      ) : (
+        <>
+          <CabeceraColumnas className={COLUMNAS}>
+            <span>Grupo</span>
+            <span>Presentes</span>
+            <span>Visitantes</span>
+            <span>Estado</span>
+            <span />
+          </CabeceraColumnas>
+          {secciones.map((s, i) => (
+            <section key={s.subarea} aria-labelledby={`vivo-seccion-${i}`}>
+              <BandaSeccion
+                id={`vivo-seccion-${i}`}
+                titulo={s.subarea}
+                cuenta={
+                  <>
+                    {s.presentes}/{s.inscritos}
+                    <span className="sr-only"> presentes</span>
+                  </>
+                }
+                pista={
+                  s.gruposSinMarcar > 0 ? (
+                    <>
+                      · <span className="font-mono tabular-nums">{s.gruposSinMarcar}</span> sin marcar
+                    </>
+                  ) : undefined
+                }
+              />
+              <ul aria-label={`Grupos de ${s.subarea}`}>
+                {s.grupos.map((g) => (
+                  <FilaGrupoVivo key={g.grupoId} grupo={g} onAbrir={onAbrir} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </>
+      )}
+    </TablaPlanificacion>
   )
 }

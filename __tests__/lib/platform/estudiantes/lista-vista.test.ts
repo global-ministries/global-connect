@@ -16,8 +16,11 @@ import {
   filtrarLista,
   lineaReunion,
   mensajeMarca,
+  pasosReunion,
   pastillasReunion,
+  pendientesMarcarTodos,
   pistaDia,
+  progresoLista,
   puntosHistorial,
   subtituloFila,
   type FilaVista,
@@ -114,6 +117,32 @@ describe('the The Living Room meeting pills', () => {
   })
 })
 
+describe('the date pill (pasosReunion)', () => {
+  const sesiones = [sesion('2026-10-25'), sesion('2026-10-25', { turnoId: T11, turno: 'Domingo 11:00', hora: '11:00:00' }), sesion('2026-10-18')]
+
+  it('Transit steps through the meetings that exist, newest first; › is off at the newest', () => {
+    expect(pasosReunion({ sesiones, actual: { fecha: '2026-10-25', turnoId: T9 }, experiencia: 'estudiantes', hoy: '2026-10-29' })).toEqual({
+      anterior: { fecha: '2026-10-25', turnoId: T11, etiqueta: 'Domingo 25 oct · 11:00' },
+      siguiente: null,
+    })
+    expect(pasosReunion({ sesiones, actual: { fecha: '2026-10-18', turnoId: T9 }, experiencia: 'estudiantes', hoy: '2026-10-29' })).toEqual({
+      anterior: null,
+      siguiente: { fecha: '2026-10-25', turnoId: T11, etiqueta: 'Domingo 25 oct · 11:00' },
+    })
+  })
+
+  it('The Living Room steps through this week’s meeting and the two before, also from another date', () => {
+    const tlr = ['2026-10-29', '2026-10-22', '2026-10-15', '2026-10-08'].map((f) => sesion(f, { turnoId: null, turno: null, hora: null }))
+    const pasos = (fecha: string) => pasosReunion({ sesiones: tlr, actual: { fecha, turnoId: null }, experiencia: 'the_living_room', hoy: '2026-10-29' })
+    expect(pasos('2026-10-29')).toEqual({ anterior: { fecha: '2026-10-22', turnoId: null, etiqueta: 'Jueves 22 oct' }, siguiente: null })
+    expect(pasos('2026-10-15')).toEqual({ anterior: null, siguiente: { fecha: '2026-10-22', turnoId: null, etiqueta: 'Jueves 22 oct' } })
+    expect(pasos('2026-10-19')).toEqual({
+      anterior: { fecha: '2026-10-15', turnoId: null, etiqueta: 'Jueves 15 oct' },
+      siguiente: { fecha: '2026-10-22', turnoId: null, etiqueta: 'Jueves 22 oct' },
+    })
+  })
+})
+
 describe('dates', () => {
   it('reads like the artboards', () => {
     expect(fechaLarga('2026-10-25')).toBe('Domingo 25 oct')
@@ -174,6 +203,18 @@ describe('filters and counts', () => {
     const r = filtrarLista(filas, 'todos', 'SOFIA')
     expect(r.integrantes).toEqual([])
     expect(r.visitantes.map((f) => f.persona.nombre)).toEqual(['Sofía Linares'])
+  })
+
+  it('the progress counts every mark except the visitors registered today (S5)', () => {
+    expect(progresoLista(contarLista(filas))).toEqual({ marcados: 3, total: 4 })
+    expect(progresoLista(contarLista([]))).toEqual({ marcados: 0, total: 0 })
+  })
+
+  it('«Marcar todos» only takes the members still unmarked: never an Ausente, never a visitor (S6)', () => {
+    expect(pendientesMarcarTodos(filas).map((f) => f.persona.personaId)).toEqual(['p3'])
+    const visitanteSinMarcar = fila(persona('v2', 'Gabriela Montilla', { estado: 'visitante', visitas: 2, desde: '2026-10-18' }))
+    expect(pendientesMarcarTodos([...filas, visitanteSinMarcar]).map((f) => f.persona.personaId)).toEqual(['p3'])
+    expect(pendientesMarcarTodos(filas.filter((f) => f.estado !== 'sin'))).toEqual([])
   })
 
   it('a second tap on the active pill goes back to Todos', () => {

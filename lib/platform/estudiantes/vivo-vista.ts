@@ -5,12 +5,15 @@
  *
  * - Which meeting opens (`?ambito&campus&fecha&turno`): the requested one when
  *   it is an option (date and turno alone are enough: the "‹ En vivo" of a
- *   leader list), else today, else the newest; the ámbito and meeting pickers.
+ *   leader list), else today, else the newest; the ámbito picker and the
+ *   date pill (‹ the older meeting, › the newer one).
  * - The estado of each group: Sin marcar (nobody marked yet), Faltan N,
  *   Completo, or Sin integrantes.
  * - The attention metrics Presentes · Visitantes · Grupos sin marcar ·
- *   Ausentes (each toggles a filter), the sub-área cards, the search (group
- *   and leader names), the Estado del grupo filter and the three sorts. The
+ *   Ausentes (each toggles a filter; «Grupos sin marcar» is the only filter
+ *   of unmarked groups, estudiantes-estilo-dps S6), the sub-área cards, the
+ *   search (group and leader names), the Estado del grupo filter (Todos ·
+ *   Faltan · Completo), the three sorts and the groups by sub-área. The
  *   filters live in the URL next to the selection.
  * - The live indicator ("En vivo · Actualizado hace 10 s", G4) and the new
  *   visitors between two refreshes (announced with a toast, Q5).
@@ -105,19 +108,36 @@ export function opcionesReunion(opciones: readonly OpcionVivo[], actual: OpcionV
   }))
 }
 
+export interface PasoVivo {
+  readonly opcion: OpcionVivo
+  readonly etiqueta: string
+}
+
+/** The date pill: the label of `actual` and the older / newer meeting of its ámbito. */
+export function pasosVivo(
+  opciones: readonly OpcionVivo[],
+  actual: OpcionVivo,
+): { readonly etiqueta: string; readonly anterior: PasoVivo | null; readonly siguiente: PasoVivo | null } {
+  const delAmbito = opciones.filter((o) => valorAmbito(o) === valorAmbito(actual))
+  const etiquetas = opcionesReunion(opciones, actual)
+  const i = delAmbito.findIndex((o) => valorReunion(o) === valorReunion(actual))
+  const paso = (j: number): PasoVivo | null => (i >= 0 && delAmbito[j] ? { opcion: delAmbito[j], etiqueta: etiquetas[j].etiqueta } : null)
+  return { etiqueta: etiquetas[i]?.etiqueta ?? '', anterior: paso(i + 1), siguiente: paso(i - 1) }
+}
+
 // ── filters ─────────────────────────────────────────────────────────────
 
 export type MetricaVivo = 'presentes' | 'visitantes' | 'sin_marcar' | 'ausentes'
-export type FiltroEstado = 'todos' | 'sin_marcar' | 'faltan' | 'completo'
+/** «Sin marcar» is not here: the «Grupos sin marcar» metric is that filter (S6). */
+export type FiltroEstado = 'todos' | 'faltan' | 'completo'
 export type OrdenVivo = 'atencion' | 'nombre' | 'asistencia'
 
 const METRICAS: readonly MetricaVivo[] = ['presentes', 'visitantes', 'sin_marcar', 'ausentes']
-export const ESTADOS_FILTRO: readonly FiltroEstado[] = ['todos', 'sin_marcar', 'faltan', 'completo']
+export const ESTADOS_FILTRO: readonly FiltroEstado[] = ['todos', 'faltan', 'completo']
 export const ORDENES_VIVO: readonly OrdenVivo[] = ['atencion', 'nombre', 'asistencia']
 
 export const ETIQUETA_ESTADO_FILTRO: Readonly<Record<FiltroEstado, string>> = {
   todos: 'Todos',
-  sin_marcar: 'Sin marcar',
   faltan: 'Faltan',
   completo: 'Completo',
 }
@@ -145,8 +165,8 @@ export interface FiltrosVivo {
 
 export const FILTROS_VIVO_INICIALES: FiltrosVivo = { area: null, metrica: null, estado: 'todos', orden: 'atencion', q: '' }
 
-/** What "Limpiar" in the filters sheet resets. */
-export const LIMPIAR_HOJA_VIVO: Partial<FiltrosVivo> = { estado: 'todos', orden: 'atencion' }
+/** What "Limpiar" in the phone filters sheet resets (Área and Ordenar por). */
+export const LIMPIAR_HOJA_VIVO: Partial<FiltrosVivo> = { area: null, orden: 'atencion' }
 
 export type ParametrosVivo = Readonly<Record<string, string | readonly string[] | undefined>>
 
@@ -157,9 +177,11 @@ export function leerFiltrosVivo(parametros: ParametrosVivo): FiltrosVivo {
   const metrica = primerParametro(parametros.metrica)
   const estado = primerParametro(parametros.estado)
   const orden = primerParametro(parametros.orden)
+  // An old link with ?estado=sin_marcar keeps its meaning through the metric.
+  const metricaLegada: MetricaVivo | null = estado === 'sin_marcar' ? 'sin_marcar' : null
   return {
     area: primerParametro(parametros.area) || null,
-    metrica: METRICAS.includes(metrica as MetricaVivo) ? (metrica as MetricaVivo) : null,
+    metrica: METRICAS.includes(metrica as MetricaVivo) ? (metrica as MetricaVivo) : metricaLegada,
     estado: ESTADOS_FILTRO.includes(estado as FiltroEstado) ? (estado as FiltroEstado) : 'todos',
     orden: ORDENES_VIVO.includes(orden as OrdenVivo) ? (orden as OrdenVivo) : 'atencion',
     q: primerParametro(parametros.q) ?? '',
@@ -247,10 +269,12 @@ export interface TotalesVivo {
   readonly ausentes: number
   readonly sinMarcar: number
   readonly gruposSinMarcar: number
+  /** People with a mark (presentes + ausentes), out of `inscritos`. */
+  readonly marcados: number
 }
 
 function totalesDe(grupos: readonly GrupoVivo[]): TotalesVivo {
-  const t = { grupos: grupos.length, inscritos: 0, presentes: 0, presentesInscritos: 0, visitantes: 0, ausentes: 0, sinMarcar: 0, gruposSinMarcar: 0 }
+  const t = { grupos: grupos.length, inscritos: 0, presentes: 0, presentesInscritos: 0, visitantes: 0, ausentes: 0, sinMarcar: 0, gruposSinMarcar: 0, marcados: 0 }
   for (const g of grupos) {
     t.inscritos += inscritosDe(g)
     t.presentes += g.presentes
@@ -260,6 +284,7 @@ function totalesDe(grupos: readonly GrupoVivo[]): TotalesVivo {
     if (estadoGrupo(g) === 'sin_marcar') t.gruposSinMarcar += 1
   }
   t.presentesInscritos = Math.max(0, t.presentes - t.visitantes)
+  t.marcados = t.presentes + t.ausentes
   return t
 }
 
@@ -285,6 +310,15 @@ export interface AreaVivo {
   readonly gruposSinMarcar: number
 }
 
+/** The visible groups of one sub-área (a band of the table) and the sub-área totals, filters aside. */
+export interface SeccionVivo {
+  readonly subarea: string
+  readonly grupos: readonly GrupoVivo[]
+  readonly presentes: number
+  readonly inscritos: number
+  readonly gruposSinMarcar: number
+}
+
 export interface VistaVivo {
   /** The filters in force (an área not in the meeting is dropped). */
   readonly filtros: FiltrosVivo
@@ -294,11 +328,15 @@ export interface VistaVivo {
   readonly metricas: readonly MetricaVista[]
   /** One card per sub-área; empty with a single one or inside one. */
   readonly areas: readonly AreaVivo[]
+  /** Every sub-área of the meeting (the Área of the phone sheet). */
+  readonly subareas: readonly string[]
   readonly visibles: readonly GrupoVivo[]
+  /** `visibles` by sub-área, in the meeting order; sub-áreas without a visible group are left out. */
+  readonly secciones: readonly SeccionVivo[]
   /** "Visitantes de hoy" of the scope, newest first. */
   readonly visitantes: readonly VisitanteHoy[]
   readonly cuentasEstado: Readonly<Record<FiltroEstado, number>>
-  /** Active filters inside the sheet (Estado del grupo, Ordenar por). */
+  /** Active filters inside the phone sheet (Área, Ordenar por). */
   readonly filtrosEnHoja: number
   readonly pie: { readonly resumen: string; readonly orden: string }
 }
@@ -345,7 +383,6 @@ export function calcularVistaVivo({ datos, ambito, filtros: pedidos }: { readonl
   const porMetrica = buscados.filter((g) => pasaMetrica(g, filtros.metrica))
   const cuentasEstado: Record<FiltroEstado, number> = {
     todos: porMetrica.length,
-    sin_marcar: porMetrica.filter((g) => estadoGrupo(g) === 'sin_marcar').length,
     faltan: porMetrica.filter((g) => estadoGrupo(g) === 'faltan').length,
     completo: porMetrica.filter((g) => estadoGrupo(g) === 'completo').length,
   }
@@ -353,6 +390,12 @@ export function calcularVistaVivo({ datos, ambito, filtros: pedidos }: { readonl
     porMetrica.filter((g) => filtros.estado === 'todos' || estadoGrupo(g) === filtros.estado),
     filtros.orden,
   )
+  const secciones: SeccionVivo[] = subareas.flatMap((subarea) => {
+    const grupos = visibles.filter((g) => g.subarea === subarea)
+    if (grupos.length === 0) return []
+    const t = totalesDe(datos.grupos.filter((g) => g.subarea === subarea))
+    return [{ subarea, grupos, presentes: t.presentes, inscritos: t.inscritos, gruposSinMarcar: t.gruposSinMarcar }]
+  })
 
   return {
     filtros,
@@ -360,10 +403,12 @@ export function calcularVistaVivo({ datos, ambito, filtros: pedidos }: { readonl
     totales,
     metricas,
     areas,
+    subareas,
     visibles,
+    secciones,
     visitantes,
     cuentasEstado,
-    filtrosEnHoja: (filtros.estado !== 'todos' ? 1 : 0) + (filtros.orden !== 'atencion' ? 1 : 0),
+    filtrosEnHoja: (filtros.area ? 1 : 0) + (filtros.orden !== 'atencion' ? 1 : 0),
     pie: {
       resumen: `${visibles.length} de ${plural(totales.grupos, 'grupo', 'grupos')} · ${totales.inscritos} inscritos`,
       orden: PIE_ORDEN[filtros.orden],

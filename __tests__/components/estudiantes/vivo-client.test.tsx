@@ -1,13 +1,15 @@
 /**
- * `<VivoClient>` — the live view (C4b of odd/tasks/estudiantes-fase-b.md,
- * artboards 03 / 04). The server action is mocked and the timers are fake:
- * each flow checks the 15 s refresh, the live indicator, the filters that
- * survive a refresh and the toast for a new visitor. Every person is
- * fictitious.
+ * `<VivoClient>` — the live view (C4b of odd/tasks/estudiantes-fase-b.md) in
+ * the planning style (E4a of odd/tasks/estudiantes-estilo-dps.md, S6;
+ * artboards 04 / 05 of design/estudiantes-dps). The server action is mocked
+ * and the timers are fake: each flow checks the 15 s refresh, the live
+ * indicator, the filters that survive a refresh, the toast for a new
+ * visitor, the single «Grupos sin marcar» filter and the date pill. Every
+ * person is fictitious.
  *
- * `ListaResponsiva` renders the desktop cells and the phone cell of every row
- * (CSS swaps them, jsdom applies none), so each row button appears twice; the
- * tests use the first. Without matchMedia the drawer is the side panel.
+ * "Visitantes de hoy" renders twice (the side bar from md, the compact
+ * section before the groups on a phone; CSS swaps them, jsdom applies none):
+ * the tests use the first. Without matchMedia the drawer is the side panel.
  */
 import React from 'react'
 import { act, render, screen, within } from '@testing-library/react'
@@ -90,6 +92,10 @@ function pintar(extra: Partial<React.ComponentProps<typeof VivoClient>> = {}) {
 }
 
 const metricas = () => within(screen.getByRole('group', { name: 'Resumen de la reunión' }))
+const visitantesHoy = () => screen.getAllByRole('list', { name: 'Visitantes de hoy' })[0]
+const estado = () => within(screen.getByRole('group', { name: 'Estado del grupo' }))
+// Not a live region: a refresh every 15 s would announce it again and again.
+const resumen = () => screen.getByText((_, el) => el?.tagName === 'P' && (el.textContent ?? '').includes('en el salón'))
 const filasGrupo = (nombre: string) => screen.queryAllByRole('button', { name: `Abrir ${nombre}` })
 
 const pasar = async (ms: number) => {
@@ -122,10 +128,36 @@ describe('<VivoClient>', () => {
     expect(screen.getAllByRole('heading', { name: 'Transit' }).length).toBeGreaterThan(0)
     expect(screen.getAllByText('En vivo · Actualizado ahora').length).toBeGreaterThan(0)
     expect(metricas().getByRole('button', { name: /Grupos sin marcar/ })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('list', { name: 'Visitantes de hoy' })).toHaveTextContent('Emilia Rangel')
-    expect(screen.getByRole('list', { name: 'Visitantes de hoy' })).toHaveTextContent('Nuevo')
+    expect(visitantesHoy()).toHaveTextContent('Emilia Rangel')
+    expect(visitantesHoy()).toHaveTextContent('Nuevo')
     expect(filasGrupo('3er año · Chicas').length).toBeGreaterThan(0)
     expect(screen.getByText('4 de 4 grupos · 52 inscritos')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Reunión' })).toHaveTextContent('Domingo 25 oct · 9:00')
+    expect(resumen()).toHaveTextContent('20 en el salón: 19 inscritos y 1 visitante · 27 de 52 marcados')
+  })
+
+  it('filters by Estado del grupo without a «Sin marcar» option: that is the metric (S6)', async () => {
+    pintar()
+    expect(estado().getAllByRole('button').map((b) => b.textContent)).toEqual(['Todos 4', 'Faltan 0', 'Completo 2'])
+    await user.click(estado().getByRole('button', { name: /Completo/ }))
+    expect(filasGrupo('1er año · Chicas').length).toBeGreaterThan(0)
+    expect(filasGrupo('3er año · Chicas')).toHaveLength(0)
+    expect(replaceState).toHaveBeenLastCalledWith(window.history.state, '', '/estudiantes/vivo?ambito=a-t&campus=c1&fecha=2026-10-25&turno=t1&estado=completo')
+  })
+
+  it('groups the rows by sub-área under sticky bands', () => {
+    pintar()
+    expect(screen.getByRole('region', { name: 'Grupos de Chicas' })).toHaveTextContent('11/27')
+    expect(screen.getByRole('region', { name: 'Grupos de Chicos' })).toHaveTextContent('9/25')
+  })
+
+  it('steps to the older meeting with the date pill', async () => {
+    const anterior: OpcionVivo = { ...OPCION, fecha: '2026-10-18' }
+    pintar({ opciones: [OPCION, anterior] })
+    const reunion = within(screen.getByRole('group', { name: 'Reunión' }))
+    expect(reunion.getByRole('button', { name: 'Es la reunión más reciente' })).toBeDisabled()
+    await user.click(reunion.getByRole('button', { name: 'Reunión anterior, domingo 18 oct · 9:00' }))
+    expect(replace).toHaveBeenCalledWith('/estudiantes/vivo?ambito=a-t&campus=c1&fecha=2026-10-18&turno=t1', { scroll: false })
   })
 
   it('counts the seconds since the last refresh', async () => {
@@ -152,7 +184,7 @@ describe('<VivoClient>', () => {
     expect(metricas().getByRole('button', { name: /Grupos sin marcar/ })).toHaveAttribute('aria-pressed', 'true')
     expect(filasGrupo('3er año · Chicas').length).toBeGreaterThan(0)
     expect(filasGrupo('2do año · Chicos')).toHaveLength(0)
-    expect(screen.getByRole('list', { name: 'Visitantes de hoy' })).toHaveTextContent('Joaquín Silva')
+    expect(visitantesHoy()).toHaveTextContent('Joaquín Silva')
     expect(replace).not.toHaveBeenCalled()
   })
 
@@ -201,7 +233,7 @@ describe('<VivoClient>', () => {
 
   it('opens the group of a visitor from the strip', async () => {
     pintar()
-    await user.click(within(screen.getByRole('list', { name: 'Visitantes de hoy' })).getByRole('button', { name: /Emilia Rangel/ }))
+    await user.click(within(visitantesHoy()).getByRole('button', { name: /Emilia Rangel/ }))
     expect(within(screen.getByRole('dialog')).getByRole('heading', { name: '1er año · Chicas' })).toBeInTheDocument()
   })
 
