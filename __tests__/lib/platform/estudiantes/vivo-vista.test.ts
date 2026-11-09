@@ -1,6 +1,8 @@
 import type { DatosVivo, GrupoVivo, OpcionVivo, VisitanteHoy } from '@/lib/platform/estudiantes/vivo-datos'
 import {
+  ESTADOS_FILTRO,
   FILTROS_VIVO_INICIALES,
+  LIMPIAR_HOJA_VIVO,
   calcularVistaVivo,
   consultaVivo,
   elegirOpcion,
@@ -14,6 +16,7 @@ import {
   nuevosVisitantes,
   opcionesAmbito,
   opcionesReunion,
+  pasosVivo,
   textoHace,
   valorAmbito,
   valorReunion,
@@ -101,6 +104,19 @@ describe('the selection pickers', () => {
     expect(opcionesReunion(dos, dos[0]).map((o) => o.etiqueta)).toEqual(['Domingo 25 oct · 9:00 · 1er servicio', 'Domingo 25 oct · 11:00 · 2do servicio'])
     expect(valorReunion(OPCIONES[3])).toBe('2026-10-18|t1')
   })
+
+  it('the date pill steps to the older and newer meeting of the ámbito; › is off at the newest', () => {
+    expect(pasosVivo(OPCIONES, OPCIONES[2])).toEqual({
+      etiqueta: 'Domingo 25 oct · 9:00',
+      anterior: { opcion: OPCIONES[3], etiqueta: 'Domingo 18 oct · 9:00' },
+      siguiente: null,
+    })
+    expect(pasosVivo(OPCIONES, OPCIONES[1])).toEqual({
+      etiqueta: 'Domingo 18 oct · 11:00',
+      anterior: null,
+      siguiente: { opcion: OPCIONES[0], etiqueta: 'Domingo 25 oct · 11:00' },
+    })
+  })
 })
 
 describe('the URL', () => {
@@ -120,6 +136,11 @@ describe('the URL', () => {
       q: 'ana',
     })
     expect(leerFiltrosVivo({ metrica: 'otra', estado: 'x', orden: ['asistencia', 'nombre'] })).toEqual({ ...FILTROS_VIVO_INICIALES, orden: 'asistencia' })
+  })
+
+  it('reads an old ?estado=sin_marcar as the «Grupos sin marcar» metric, its only filter now (S6)', () => {
+    expect(leerFiltrosVivo({ estado: 'sin_marcar' })).toEqual({ ...FILTROS_VIVO_INICIALES, metrica: 'sin_marcar' })
+    expect(leerFiltrosVivo({ estado: 'sin_marcar', metrica: 'ausentes' })).toEqual({ ...FILTROS_VIVO_INICIALES, metrica: 'ausentes' })
   })
 
   it('links a group to its leader list, back to this meeting', () => {
@@ -198,7 +219,7 @@ describe('calcularVistaVivo', () => {
   it('adds up the meeting and builds the four attention metrics', () => {
     const v = vista()
     expect(v.titulo).toBe('Transit')
-    expect(v.totales).toEqual({ grupos: 6, inscritos: 81, presentes: 42, presentesInscritos: 37, visitantes: 5, ausentes: 11, sinMarcar: 28, gruposSinMarcar: 2 })
+    expect(v.totales).toEqual({ grupos: 6, inscritos: 81, presentes: 42, presentesInscritos: 37, visitantes: 5, ausentes: 11, sinMarcar: 28, gruposSinMarcar: 2, marcados: 53 })
     expect(v.metricas).toEqual([
       { id: 'presentes', etiqueta: 'Presentes', valor: 42, total: 81, pista: '52% de 81 inscritos', tono: 'success', activa: false },
       { id: 'visitantes', etiqueta: 'Visitantes', valor: 5, pista: '2 por primera vez', tono: 'info', activa: false },
@@ -224,12 +245,33 @@ describe('calcularVistaVivo', () => {
     expect(vista({ metrica: 'ausentes' }).pie.resumen).toBe('4 de 6 grupos · 81 inscritos')
   })
 
-  it('filters by estado and counts each estado for the sheet', () => {
+  it('filters by estado and counts each estado; «sin marcar» is only the metric (S6)', () => {
+    expect(ESTADOS_FILTRO).toEqual(['todos', 'faltan', 'completo'])
     expect(ids(vista({ estado: 'faltan' }).visibles)).toEqual(['g2'])
     expect(ids(vista({ estado: 'completo' }).visibles)).toEqual(['g1', 'g4', 'g6'])
-    expect(vista().cuentasEstado).toEqual({ todos: 6, sin_marcar: 2, faltan: 1, completo: 3 })
+    expect(vista().cuentasEstado).toEqual({ todos: 6, faltan: 1, completo: 3 })
+    expect(vista({ metrica: 'sin_marcar' }).cuentasEstado).toEqual({ todos: 2, faltan: 0, completo: 0 })
+  })
+
+  it('the phone sheet holds the área and the sort; Estado lives in the toolbar', () => {
     expect(vista().filtrosEnHoja).toBe(0)
-    expect(vista({ estado: 'faltan', orden: 'nombre' }).filtrosEnHoja).toBe(2)
+    expect(vista({ estado: 'faltan' }).filtrosEnHoja).toBe(0)
+    expect(vista({ area: CHICAS, orden: 'nombre' }).filtrosEnHoja).toBe(2)
+    expect(LIMPIAR_HOJA_VIVO).toEqual({ area: null, orden: 'atencion' })
+    expect(vista({ area: CHICAS }).subareas).toEqual([CHICAS, CHICOS])
+  })
+
+  it('groups the visible groups by sub-área, in the meeting order, with the sub-área totals', () => {
+    const resumen = (v: ReturnType<typeof vista>) => v.secciones.map((s) => [s.subarea, ids(s.grupos), s.presentes, s.inscritos, s.gruposSinMarcar])
+    expect(resumen(vista())).toEqual([
+      [CHICAS, ['g3', 'g2', 'g1'], 21, 41, 1],
+      [CHICOS, ['g5', 'g4', 'g6'], 21, 40, 1],
+    ])
+    expect(resumen(vista({ metrica: 'sin_marcar' }))).toEqual([
+      [CHICAS, ['g3'], 21, 41, 1],
+      [CHICOS, ['g5'], 21, 40, 1],
+    ])
+    expect(resumen(vista({ q: 'karla' }))).toEqual([[CHICAS, ['g3'], 21, 41, 1]])
   })
 
   it('searches group and leader names, without accents or case', () => {
