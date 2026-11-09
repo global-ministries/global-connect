@@ -8,7 +8,9 @@ import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vi
 import {
   estadoHijo,
   estadoVentana,
+  faltaDeHijo,
   forzadosDe,
+  mensajeSinSalon,
   horaCorta,
   parseHorarios,
   parseVisitas,
@@ -48,6 +50,28 @@ describe('visitaDe / parseVisitas (S9.3: visitante = primeras 3 visitas)', () =>
   it('reads ninos_es_visitante_lote rows and drops garbage', () => {
     expect(parseVisitas([{ nino_id: 'h1', visitas_previas: 0, visitante: true }, { nino_id: 'h2', visitas_previas: 5 }, { x: 1 }, null])).toEqual({ h1: 0, h2: 5 })
     expect(parseVisitas(null)).toEqual({})
+  })
+})
+
+describe('faltaDeHijo / mensajeSinSalon (S9.6: the desk asks for the missing data)', () => {
+  it('nothing is missing for a child with a salón, or one whose salones are only closed', () => {
+    expect(faltaDeHijo(hijo(), salones, '2026-11-08')).toBeNull()
+    expect(faltaDeHijo(hijo({ grado: 4 }), salones, '2026-11-08')).toBeNull()
+  })
+
+  it('says which data the child lacks', () => {
+    expect(faltaDeHijo(hijo({ grado: 5 }), salones, '2026-11-08')).toBe('revisar')
+    expect(faltaDeHijo(hijo({ grado: null }), salones, '2026-11-08')).toBe('grado')
+    expect(faltaDeHijo(hijo({ grado: null, fecha_nacimiento: null }), salones, '2026-11-08')).toBe('fecha_o_grado')
+    const conMaternal: SalonFila[] = [
+      ...salones,
+      { ...base, area: 'waumba', id: 'mat', nombre: 'Maternal', edad_min_meses: 0, edad_max_meses: 23, grado_min: null, grado_max: null, orden: 10 },
+    ]
+    expect(faltaDeHijo(hijo({ grado: null }), conMaternal, '2026-11-08')).toBe('grado')
+  })
+
+  it('«Llegaron» with a child without salón opens the family and says what to do', () => {
+    expect(mensajeSinSalon('Eva')).toBe('Eva no tiene salón: completa el dato que falta o registra a los demás.')
   })
 })
 

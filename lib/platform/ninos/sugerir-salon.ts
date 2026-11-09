@@ -208,6 +208,33 @@ export function sugerirSalon<S extends SalonSugerible>(input: SugerirSalonInput<
   return explicarSalon(input).salon
 }
 
+/**
+ * What keeps a child out of every room (S9.6, L38: "Pide completar el dato
+ * que falta"), only when no room fits (estado 'ninguno'):
+ *  - grado: the age is known, the child is older than every Waumba room and
+ *    there are grade rooms, so the grade is what is missing;
+ *  - fecha_o_grado: neither the birth date nor the grade is known;
+ *  - revisar: the data is there but no room admits it (an age outside every
+ *    range, a grade without a room).
+ * Null when some room fits, even if all of them are closed or full.
+ */
+export type DatoFaltante = 'grado' | 'fecha_o_grado' | 'revisar'
+
+export function datoFaltante<S extends SalonSugerible>(
+  input: Pick<SugerirSalonInput<S>, 'fechaNacimiento' | 'grado' | 'necesidadesEspeciales' | 'fechaServicio' | 'salones'>,
+): DatoFaltante | null {
+  if (explicarSalon(input).estado !== 'ninguno') return null
+  const edadConocida = edadEnMeses(input.fechaNacimiento, input.fechaServicio) !== null
+  if (!edadConocida && input.grado === null) return 'fecha_o_grado'
+  if (!edadConocida || input.grado !== null) return 'revisar'
+  const activos = input.salones.filter((s) => s.activo)
+  const hayGrados = activos.some((s) => s.area === 'upstreet' && (s.gradoMin !== null || s.gradoMax !== null))
+  const mayorQueWaumba = activos
+    .filter((s) => s.area === 'waumba' && !s.esNecesidadesEspeciales && (s.edadMinMeses !== null || s.edadMaxMeses !== null))
+    .every((s) => s.edadMaxMeses !== null && (edadParaSalon(input.fechaNacimiento, input.fechaServicio, s) ?? 0) > s.edadMaxMeses)
+  return hayGrados && mayorQueWaumba ? 'grado' : 'revisar'
+}
+
 /** reglas: the rooms that admit the child; sin_datos: no age and no grade; ninguno: age or grade known but no room admits them. */
 export type MotivoSalones = 'reglas' | 'sin_datos' | 'ninguno'
 
@@ -222,7 +249,9 @@ export interface SalonesDelNino<S extends SalonSugerible> {
  * a alguien de maternal en un salon que no corresponda y viceversa"): the
  * candidates of explicarSalon, by the same steps (necesidades › grado › edad).
  * A child without age and grade cannot be checked against the rules, and a
- * child no room admits must still go somewhere: both get every active room.
+ * child no room admits gets none: both get every active room here with
+ * their motivo, for the ficha's «Nivel»; the desk and Familias ask for the
+ * missing data instead (salonesDelHijo, S9.6).
  */
 export function salonesQueCorresponden<S extends SalonSugerible>(
   input: Pick<SugerirSalonInput<S>, 'fechaNacimiento' | 'grado' | 'necesidadesEspeciales' | 'fechaServicio' | 'salones'>,

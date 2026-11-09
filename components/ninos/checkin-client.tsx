@@ -17,6 +17,8 @@
  * (VentanaHorario, informative only); the children are placed with the salón
  * rules, their prior visits (useVisitas, «Primera vez» / «Visitante») and the
  * occupancy, and a full room offers «Usar {otro}» or is forced (useMesa).
+ * A child that fits no salón asks for the missing grade or birth date in
+ * its row and the family reloads once it is saved (T2g, S9.6).
  *
  * Custody (T2e, S9.2): a child of the queue or the mesa with an active
  * restriction carries the «Custodia» chip (useCustodia); never the label.
@@ -31,7 +33,7 @@ import { BotonSistema, PaginaSistema, TarjetaSistema } from '@/components/ui/sis
 import type { Servicio, TurnoFila } from '@/lib/platform/ninos/checkin'
 import { resumenCheckin, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import { aSalonSugerible, type SalonFila } from '@/lib/platform/ninos/familias-vista'
-import type { HorarioMesa } from '@/lib/platform/ninos/mesa-reglas'
+import { faltaDeHijo, type HorarioMesa } from '@/lib/platform/ninos/mesa-reglas'
 import type { FamiliaLlegando } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
@@ -139,11 +141,14 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
     void recargarCola()
   }
 
-  /** "Cambiar" on a child of Llegando: the family opens at the mesa with the salón panel. */
+  /**
+   * "Cambiar" on a child of Llegando: the family opens at the mesa with the salón panel.
+   * «Completar» (no salón, S9.6): only the family, whose row asks for the missing data.
+   */
   function cambiarSalonLlegando(f: FamiliaLlegando, hijoId: string) {
     mesa.abrirLlegando(f)
     const hijo = f.hijos.find((h) => h.id === hijoId)
-    if (hijo) setPanel({ tipo: 'salon', hijo })
+    if (hijo && faltaDeHijo(hijo, salones, servicio.fecha) === null) setPanel({ tipo: 'salon', hijo })
   }
 
   const resumen = resumenCheckin(ocupacion, cola.length)
@@ -151,6 +156,10 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
   const abrirFamilia = (padreId: string, consulta = busqueda.q) => {
     busqueda.setQ(consulta)
     void buscarYElegir(consulta, padreId)
+  }
+  /** After a ficha or a child's missing data is saved: reload the family so the child can go in right away. */
+  const recargarFamilia = () => {
+    if (mesa.familia) abrirFamilia(mesa.familia.id)
   }
   const nuevaFamilia = () => setPanel({ tipo: 'nueva' })
   const ingreso = pestana === 'ingreso'
@@ -234,6 +243,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
             panelAbierto={panel !== null}
             onCambiarSalon={(hijo) => setPanel({ tipo: 'salon', hijo })}
             onCompletar={(hijo) => setPanel({ tipo: 'ficha', hijo })}
+            onDatoGuardado={recargarFamilia}
             onParaAdulto={(tipo, a) => setPanel({ tipo, id: a.id, nombre: `${a.nombre} ${a.apellido}` })}
           />
           <div className="hidden min-w-0 lg:block">
@@ -260,10 +270,7 @@ export function CheckinClient({ salones, turnos, servicio: servicioInicial, camp
         sugeridoDe={mesa.sugeridoDe}
         onElegirSalon={mesa.elegirSalon}
         onAbrirFamilia={(padreId, consulta) => abrirFamilia(padreId, consulta)}
-        onFichaGuardada={() => {
-          // Reload the family so the child can be checked in right away.
-          if (mesa.familia) abrirFamilia(mesa.familia.id)
-        }}
+        onFichaGuardada={recargarFamilia}
       />
     </PaginaSistema>
   )

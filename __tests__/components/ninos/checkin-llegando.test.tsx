@@ -126,16 +126,22 @@ describe('Llegando (pre-check-in at the table)', () => {
     expect(screen.queryByRole('region', { name: 'Ingreso registrado' })).not.toBeInTheDocument()
   })
 
-  it('a child without a suggested room opens the family to pick it by hand', async () => {
+  // S9.6: the queue says what is missing; «Llegaron» opens the family, which can still go in without her.
+  it('a child without a salón opens the family at the mesa with the missing data to complete', async () => {
     responder(llegando([nino('h1', 'Luis'), nino('h2', 'Eva', { fecha_nacimiento: '2015-01-01' })]))
     render(<CheckinClient salones={salones} turnos={turnos} servicio={servicio} />)
+    const fila = await screen.findByTestId('llegando-p1')
+    expect(fila).toHaveTextContent('Revisa la fecha de nacimiento o el grado: no corresponde a ningún salón')
+    expect(within(fila).queryByText(/Sin salón sugerido/)).not.toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: /^Llegaron: Ana Pérez/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Eva no tiene salón: asígnalo antes de registrar.')
+    expect(await screen.findByText('Eva no tiene salón: completa el dato que falta o registra a los demás.')).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
     expect(screen.getByRole('checkbox', { name: 'Luis Pérez' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Eva Pérez' })).toBeChecked()
-    expect(screen.getByRole('button', { name: 'Elegir salón de Eva Pérez' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Eva Pérez' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Fecha de nacimiento de Eva')).toHaveValue('2015-01-01')
+    expect(screen.getByRole('button', { name: 'Registrar ingreso · 1 niño' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /salón de Eva/ })).not.toBeInTheDocument()
   })
 
   it('"Cambiar" on a child in a full salón opens the family at the mesa and the salón panel', async () => {

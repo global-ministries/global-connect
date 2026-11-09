@@ -14,6 +14,11 @@
  * with «Usar {otro salón}»; registering it anyway is allowed and recorded as
  * forced (S9.1).
  *
+ * No salón (T2g, S9.6, L38 "Pide completar el dato que falta"): a child
+ * the rules place nowhere is not marked; the row says what is missing
+ * («Falta el grado») with the fields to fix it, and once saved the family
+ * reloads with its salón. The rest of the family goes in meanwhile.
+ *
  * Custody (T2e, S9.2; artboard 05 `.q-al`): an active restriction adds the
  * «Custodia» chip, which expands to «No entregar a {persona} — {respaldo}».
  */
@@ -25,10 +30,11 @@ import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
 import { edadCorta, estadoCupo, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { RestriccionCustodia } from '@/lib/platform/ninos/custodia'
 import type { HijoEncontrado, SalonFila } from '@/lib/platform/ninos/familias-vista'
-import { ETIQUETA_VISITA, type EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
+import { ETIQUETA_VISITA, faltaDeHijo, type EstadoHijoMesa } from '@/lib/platform/ninos/mesa-reglas'
 import { cn } from '@/lib/utils'
 
 import { ChipCustodia } from '../custodia/chip-custodia'
+import { CompletarDatoSalon } from '../salon-sugerido'
 import { Alertas } from './alertas'
 import { CupoSalon, EtiquetaLleno } from './partes'
 
@@ -51,6 +57,8 @@ export interface FilaHijoProps {
   readonly onUsarOtro?: (salonId: string) => void
   /** Active custody restrictions of the child (T2e). */
   readonly custodia?: readonly RestriccionCustodia[]
+  /** After the missing grade or birth date is saved (S9.6): reload the family. */
+  readonly onDatoGuardado?: () => void
 }
 
 export function FilaHijo(p: FilaHijoProps): ReactElement {
@@ -65,7 +73,8 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
   const cupoOtro = otro ? p.ocupacion.get(otro.id) : undefined
   const nombreSalon = p.salones.find((s) => s.id === salon.salonId)?.nombre ?? 'salón'
   const idSalon = `salon-${h.id}`
-  const marcable = h.tiene_ficha && !p.codigo
+  const falta = h.tiene_ficha && !p.codigo && !salon.salonId ? faltaDeHijo(h, p.salones, p.fecha) : null
+  const marcable = h.tiene_ficha && !p.codigo && falta === null
 
   const nombreYEdad = (
     <span className="flex min-h-11 min-w-0 items-center gap-2 text-base font-semibold text-foreground">
@@ -128,7 +137,7 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
           <BadgeSistema variante="success" tamaño="sm">
             Ya ingresó (código <span className="font-mono tabular-nums">{p.codigo}</span>)
           </BadgeSistema>
-        ) : salon.salonId ? (
+        ) : falta ? null : salon.salonId ? (
           <>
             <span id={idSalon} className="min-w-0">
               <CupoSalon nombre={nombreSalon} ocupacion={cupo} />
@@ -150,7 +159,7 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
           <>
             <span id={idSalon} className="flex items-center gap-2 text-sm font-medium text-warning-text">
               <AlertTriangle className="size-4 shrink-0" aria-hidden />
-              Sin salón sugerido: asígnalo manualmente
+              Su salón está cerrado hoy: elige uno
             </span>
             <BotonSistema
               type="button"
@@ -166,6 +175,12 @@ export function FilaHijo(p: FilaHijoProps): ReactElement {
           </>
         )}
       </div>
+
+      {falta && (
+        <div className="col-start-2 mt-1 min-w-0">
+          <CompletarDatoSalon hijo={h} falta={falta} onGuardado={() => p.onDatoGuardado?.()} />
+        </div>
+      )}
 
       {marcable && p.estado && lleno && salon.salonId && cupo && (
         <div role="alert" className="col-start-2 mt-1 grid min-w-0 gap-2 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2.5 text-[13px]">

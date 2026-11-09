@@ -39,13 +39,15 @@ export interface MesaProps {
   readonly panelAbierto: boolean
   readonly onCambiarSalon: (h: HijoEncontrado) => void
   readonly onCompletar: (h: HijoEncontrado) => void
+  /** A child's missing grade or birth date was saved at the mesa (S9.6): reload the family. */
+  readonly onDatoGuardado?: () => void
   readonly onParaAdulto: (tipo: 'agregar' | 'vincular', adulto: FamiliaEncontrada) => void
 }
 
 const esCampo = (t: EventTarget | null): boolean =>
   t instanceof HTMLElement && (t.isContentEditable || Boolean(t.closest('input, select, textarea, [contenteditable="true"]')))
 
-export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbierto, onCambiarSalon, onCompletar, onParaAdulto }: MesaProps): ReactElement {
+export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbierto, onCambiarSalon, onCompletar, onDatoGuardado, onParaAdulto }: MesaProps): ReactElement {
   const { busqueda, familia, resultado, foco } = mesa
   const varias = (busqueda.familias?.length ?? 0) > 1
   const refBuscar = useRef<HTMLInputElement>(null)
@@ -121,6 +123,7 @@ export function Mesa({ mesa, servicio, salones, ocupacion, custodia, panelAbiert
             onMarcar={mesa.marcar}
             onCambiarSalon={onCambiarSalon}
             onCompletar={onCompletar}
+            onDatoGuardado={onDatoGuardado}
             onRegistrar={() => void mesa.registrarIngreso()}
             refRegistrar={refRegistrar}
           />

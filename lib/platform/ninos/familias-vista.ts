@@ -1,12 +1,13 @@
 /**
  * Read side of the Familias screen (odd/tasks/ninos-checkin.md, N3): parses
  * the ninos_buscar_familias jsonb and decides which room to show for a child.
- * D4: when the rule finds no room the result is 'ninguno' and the UI asks for
- * a manual choice; a room picked by hand (salon_preferido_id) wins while it
- * corresponds to the child (S9.5, odd/tasks/ninos-checkin-pco.md T2f).
+ * When the rules find no room the result is 'ninguno' with the missing data
+ * (S9.6, odd/tasks/ninos-checkin-pco.md T2g: "Pide completar el dato que
+ * falta"), never a manual pick; a room picked by hand (salon_preferido_id)
+ * wins while it corresponds to the child (S9.5, T2f).
  */
 import type { HijoForm } from './familia'
-import { explicarSalon, salonesQueCorresponden, type SalonSugerible } from './sugerir-salon'
+import { datoFaltante, explicarSalon, salonesQueCorresponden, type DatoFaltante, type SalonSugerible } from './sugerir-salon'
 
 export type AutorizadoEncontrado = { id: string; nombre: string; telefono: string | null; relacion: string | null }
 
@@ -85,7 +86,15 @@ export type SalonVista = SalonSugerible & { nombre: string }
 export type SalonParaHijo =
   | { tipo: 'elegido'; salon: SalonVista }
   | { tipo: 'sugerido'; salon: SalonVista }
-  | { tipo: 'ninguno' }
+  /** falta: the data that keeps the child out of every room; null when its rooms are only closed. */
+  | { tipo: 'ninguno'; falta: DatoFaltante | null }
+
+/** What the desk and Familias say when a child fits no room (S9.6). */
+export const TEXTO_FALTA: Readonly<Record<DatoFaltante, string>> = {
+  grado: 'Falta el grado',
+  fecha_o_grado: 'Falta la fecha de nacimiento o el grado',
+  revisar: 'Revisa la fecha de nacimiento o el grado: no corresponde a ningún salón',
+}
 
 function esObjeto(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -225,32 +234,29 @@ export function aSalonSugerible(s: SalonFila): SalonVista {
   }
 }
 
-/** The desk note when the child cannot be checked against the salón rules (S9.5). */
-export const NOTA_SIN_EDAD_NI_GRADO = 'Sin edad ni grado: elige el salón a mano.'
-
 /**
  * The salones a child may be placed in by hand at the desk (S9.5): those
  * that correspond by necesidades › grado › edad, closed and full ones
- * included. Without age and grade every active salón, with `nota`; when no
- * salón admits the child, every active one too (the desk is never stuck).
+ * included. Without age and grade, or when no salón admits the child, none:
+ * `falta` says which data to complete (S9.6, a salón that does not
+ * correspond is never offered).
  */
 export function salonesDelHijo(
   hijo: Pick<HijoEncontrado, 'fecha_nacimiento' | 'grado' | 'necesidades_especiales'>,
   salones: readonly SalonFila[],
   fechaServicio: string,
-): { salones: SalonFila[]; nota: string | null } {
-  const r = salonesQueCorresponden({
+): { salones: SalonFila[]; falta: DatoFaltante | null } {
+  const input = {
     fechaNacimiento: hijo.fecha_nacimiento,
     grado: hijo.grado,
     necesidadesEspeciales: Boolean(hijo.necesidades_especiales),
     fechaServicio,
     salones: salones.map(aSalonSugerible),
-  })
-  const porId = new Map(salones.map((s) => [s.id, s]))
-  return {
-    salones: r.salones.flatMap((s) => porId.get(s.id) ?? []),
-    nota: r.motivo === 'sin_datos' ? NOTA_SIN_EDAD_NI_GRADO : null,
   }
+  const r = salonesQueCorresponden(input)
+  if (r.motivo !== 'reglas') return { salones: [], falta: datoFaltante(input) }
+  const porId = new Map(salones.map((s) => [s.id, s]))
+  return { salones: r.salones.flatMap((s) => porId.get(s.id) ?? []), falta: null }
 }
 
 type FichaNivel = Pick<HijoForm, 'fechaNacimiento' | 'grado' | 'necesidadesEspeciales' | 'salonPreferidoId'>
@@ -303,7 +309,7 @@ export function preferidoCorresponde<S extends SalonSugerible>(h: FichaNivel, sa
  * is skipped for the next one with room (a visitor may use the visitor
  * places); when every room that fits is full the first open one is still
  * proposed, so the desk warns and offers another (S9.1). A closed room is
- * never proposed.
+ * never proposed. No room: 'ninguno' with the missing data (S9.6).
  */
 export function salonParaHijo(
   hijo: HijoEncontrado,
@@ -312,7 +318,8 @@ export function salonParaHijo(
   reglas: ReglasSugerencia = {},
 ): SalonParaHijo {
   const vistas = salones.map(aSalonSugerible)
-  const corresponden = new Set(salonesDelHijo(hijo, salones, fechaServicio).salones.map((s) => s.id))
+  const delHijo = salonesDelHijo(hijo, salones, fechaServicio)
+  const corresponden = new Set(delHijo.salones.map((s) => s.id))
   const elegido = vistas.find((s) => s.id === hijo.salon_preferido_id && corresponden.has(s.id) && s.abierto !== false)
   if (elegido) return { tipo: 'elegido', salon: elegido }
   const explicacion = explicarSalon({
@@ -326,7 +333,7 @@ export function salonParaHijo(
   })
   const lleno = explicacion.estado === 'lleno' ? explicacion.candidatos.find((s) => s.abierto !== false) : undefined
   const sugerido = explicacion.salon ?? lleno
-  return sugerido ? { tipo: 'sugerido', salon: sugerido } : { tipo: 'ninguno' }
+  return sugerido ? { tipo: 'sugerido', salon: sugerido } : { tipo: 'ninguno', falta: delHijo.falta }
 }
 
 export function hijoAForm(h: HijoEncontrado): HijoForm {

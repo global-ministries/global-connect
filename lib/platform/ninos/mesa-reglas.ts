@@ -12,13 +12,16 @@
  *    visitor places for a visitor; the desk offers the next room that fits
  *    and has room, and may still force it. The forced children travel to
  *    ninos_checkin as p_forzados, which records who forced it.
+ *  - No salón (S9.6, T2g): a child that fits no salón says which data is
+ *    missing (faltaDeHijo); it cannot go in until that is completed, the
+ *    rest of the family can.
  *  - Horario window (S5): open from abre_min_antes before the turno hour to
  *    cierra_min_despues after it, in Caracas time; 120 / 120 without a
  *    horario, as ninos_horario_de_turno. Shown only, never blocks.
  */
 import type { OcupacionSalon, SalonDeHijo } from './checkin-vista'
-import { aSalonSugerible, salonParaHijo, type HijoEncontrado, type ReglasSugerencia, type SalonFila } from './familias-vista'
-import { explicarSalon } from './sugerir-salon'
+import { aSalonSugerible, salonesDelHijo, salonParaHijo, type HijoEncontrado, type ReglasSugerencia, type SalonFila } from './familias-vista'
+import { explicarSalon, type DatoFaltante } from './sugerir-salon'
 
 /** S8.3: a child is a visitor in their first 3 visits. */
 export const VISITAS_DE_VISITANTE = 3
@@ -74,6 +77,20 @@ export function salonDeHijoConReglas(
   if (manual) return { salonId: manual, origen: 'manual' }
   const r = salonParaHijo(h, salones, fechaServicio, reglasDe(h, reglas))
   return r.tipo === 'ninguno' ? { salonId: null, origen: 'ninguno' } : { salonId: r.salon.id, origen: r.tipo }
+}
+
+/** The data a child lacks to fit any salón (S9.6); null when one fits, even closed or full. */
+export function faltaDeHijo(
+  h: Pick<HijoEncontrado, 'fecha_nacimiento' | 'grado' | 'necesidades_especiales'>,
+  salones: readonly SalonFila[],
+  fechaServicio: string,
+): DatoFaltante | null {
+  return salonesDelHijo(h, salones, fechaServicio).falta
+}
+
+/** «Llegaron» stops on a child without salón: the family opens at the mesa. */
+export function mensajeSinSalon(nombre: string): string {
+  return `${nombre} no tiene salón: completa el dato que falta o registra a los demás.`
 }
 
 /** Whether the room has no place for this child: the regulars' quota, plus the visitor places for a visitor. */

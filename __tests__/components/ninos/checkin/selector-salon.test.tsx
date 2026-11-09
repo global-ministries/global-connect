@@ -2,7 +2,7 @@
  * Desk «Cambiar salón» (odd/tasks/ninos-checkin-pco.md, T2f, S9.5, L34): the
  * panel only lists the salones that correspond to the child (age, grade,
  * special needs), marking closed and full ones; a child without age and
- * grade cannot be checked against the rules and sees every active salón.
+ * grade gets no salón, only what is missing (S9.6).
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
 
@@ -45,7 +45,7 @@ describe('SelectorSalon (S9.5)', () => {
     expect(nombres).toEqual(['Maternal', 'Maternal B'])
     expect(within(lista).getByRole('button', { name: /^Maternal 0/ })).toHaveTextContent('Lleno 12/12')
     expect(within(lista).getByRole('button', { name: /Maternal B/ })).toHaveTextContent('cerrado')
-    expect(screen.queryByText('Sin edad ni grado: elige el salón a mano.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Falta/)).not.toBeInTheDocument()
     // Full and closed still warn, never block.
     fireEvent.click(within(lista).getByRole('button', { name: /Maternal B/ }))
     expect(onElegir).toHaveBeenCalledWith('matb')
@@ -55,9 +55,9 @@ describe('SelectorSalon (S9.5)', () => {
     expect(pintar(hijo({ fecha_nacimiento: '2019-06-01', grado: 1 })).nombres).toEqual(['UpStreet 1º'])
   })
 
-  it('without birth date and grade: every active salón and a short note', () => {
-    const { nombres } = pintar(hijo({ fecha_nacimiento: null, grado: null }))
-    expect(nombres).toEqual(['Maternal', 'Maternal B', 'Preescolar II', 'UpStreet 1º'])
-    expect(screen.getByText('Sin edad ni grado: elige el salón a mano.')).toBeInTheDocument()
+  it('without birth date and grade: no salón, only what is missing', () => {
+    render(<SelectorSalon hijo={hijo({ fecha_nacimiento: null, grado: null })} fecha="2026-11-08" salones={salones} ocupacion={ocupacion} actualId={null} sugeridoId={null} onElegir={jest.fn()} />)
+    expect(screen.getByText(/Falta la fecha de nacimiento o el grado/)).toBeInTheDocument()
+    expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 })

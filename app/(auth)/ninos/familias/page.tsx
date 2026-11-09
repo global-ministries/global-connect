@@ -15,6 +15,7 @@
  * the check-in with the new family selected (N4).
  */
 import { notFound } from 'next/navigation'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { ContenedorDashboard } from '@/components/ui/sistema-diseno'
 import { FamiliasClient } from '@/components/ninos/familias-client'
@@ -34,10 +35,14 @@ export default async function NinosFamiliasPage({ searchParams }: Props) {
   if (!puede) notFound()
 
   const query = await searchParams
+  // The salón rule columns are newer than the generated types, as in the desk page.
+  const sinTipos = supabase as unknown as SupabaseClient
   const [{ data: salones }, { data: puedeCustodia }] = await Promise.all([
-    supabase
+    sinTipos
       .from('ninos_salones')
-      .select('id, nombre, area, edad_min_meses, edad_max_meses, grado_min, grado_max, es_necesidades_especiales, activo, orden')
+      .select(
+        'id, nombre, area, edad_min_meses, edad_max_meses, grado_min, grado_max, es_necesidades_especiales, activo, orden, abierto, corte_mes, corte_dia, promocion_mes, promocion_dia',
+      )
       .eq('activo', true)
       .order('orden'),
     supabase.rpc('ninos_puede_configurar_algun_area'),

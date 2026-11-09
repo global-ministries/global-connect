@@ -33,6 +33,8 @@ export interface TarjetaFamiliaProps {
   readonly estadoDe?: (h: HijoEncontrado) => EstadoHijoMesa
   /** «Usar {otro}» on a full room. */
   readonly onUsarOtro?: (hijoId: string, salonId: string) => void
+  /** A child's missing grade or birth date was saved (S9.6). */
+  readonly onDatoGuardado?: () => void
   readonly error: string | null
   readonly guardando: boolean
   readonly puedeRegistrar: boolean
@@ -91,6 +93,7 @@ export function TarjetaFamilia({ refRegistrar, ...p }: TarjetaFamiliaProps): Rea
               onMarcar={(v) => p.onMarcar(h.id, v)}
               onCambiarSalon={() => p.onCambiarSalon(h)}
               onCompletar={() => p.onCompletar(h)}
+              onDatoGuardado={p.onDatoGuardado}
             />
           ))}
         </ul>

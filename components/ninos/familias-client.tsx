@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, ClipboardPlus, Pencil, Plus, Search, UserPlus, Users } from 'lucide-react'
 
 import { BadgeSistema, BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import { createClient } from '@/lib/supabase/client'
-import { mensajeDeErrorFamilia } from '@/lib/platform/ninos/familia'
 import { aSalonSugerible, salonParaHijo, type FamiliaEncontrada, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 
 import { AdultoSinHijos } from './adulto-sin-hijos'
@@ -44,13 +42,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
   const [editando, setEditando] = useState<HijoEncontrado | null>(null)
   const [agregandoPadre, setAgregandoPadre] = useState<FamiliaEncontrada | null>(null)
   const [vinculandoHijo, setVinculandoHijo] = useState<{ id: string; nombre: string } | null>(null)
-  const { q, setQ, familias, error, setError, buscando, buscar } = useBuscarFamilias()
-
-  async function elegirSalon(hijoId: string, salonId: string) {
-    const { error: err } = await createClient().from('ninos_fichas').update({ salon_preferido_id: salonId }).eq('usuario_id', hijoId)
-    if (err) setError(mensajeDeErrorFamilia(err))
-    else await buscar(q)
-  }
+  const { q, setQ, familias, error, buscando, buscar } = useBuscarFamilias()
 
   const volver = async () => {
     setVista({ tipo: 'buscar' })
@@ -214,11 +206,7 @@ export function FamiliasClient({ salones, fechaServicio, registrarAlInicio, volv
                         )}
                       </div>
                       {h.tiene_ficha && (
-                        <SalonSugerido
-                          resultado={salonParaHijo(h, salones, fechaServicio)}
-                          salones={salones}
-                          onElegir={(salonId) => void elegirSalon(h.id, salonId)}
-                        />
+                        <SalonSugerido hijo={h} resultado={salonParaHijo(h, salones, fechaServicio)} onGuardado={() => void buscar(q)} />
                       )}
                     </li>
                   ))}

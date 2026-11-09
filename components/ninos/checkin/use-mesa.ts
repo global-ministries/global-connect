@@ -15,13 +15,25 @@
  * room full for the child warns with «Usar {otro}» (a room used that way is
  * not remembered on the ficha) and may still be forced: the forced children
  * travel as forzadoIds, never blocked.
+ *
+ * No salón (T2g, S9.6): a child the rules place nowhere is not marked (the
+ * row asks for the missing data), so the rest of the family can go in;
+ * «Llegaron» with such a child opens the family here.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { alertasDeHijo, armarCheckin, avisosDeCapacidad, mensajeDeErrorCheckin, preferidosAGuardar, type Servicio } from '@/lib/platform/ninos/checkin'
 import { hijosMarcados, quienesRetiran, type Ingresados, type OcupacionSalon, type SalonDeHijo } from '@/lib/platform/ninos/checkin-vista'
 import type { FamiliaEncontrada, HijoEncontrado, PadreDeFamilia, SalonFila } from '@/lib/platform/ninos/familias-vista'
-import { estadoHijo, forzadosDe, salonDeHijoConReglas, type EstadoHijoMesa, type VisitasPrevias } from '@/lib/platform/ninos/mesa-reglas'
+import {
+  estadoHijo,
+  faltaDeHijo,
+  forzadosDe,
+  mensajeSinSalon,
+  salonDeHijoConReglas,
+  type EstadoHijoMesa,
+  type VisitasPrevias,
+} from '@/lib/platform/ninos/mesa-reglas'
 import { llegandoAFamilia, type FamiliaLlegando } from '@/lib/platform/ninos/precheck'
 import { createClient } from '@/lib/supabase/client'
 
@@ -136,9 +148,15 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
     [salonDe, salones, servicio.fecha, reglasHijo],
   )
 
+  /** The child fits no salón until its missing data is completed (S9.6). */
+  const sinSalon = useCallback(
+    (h: HijoEncontrado): boolean => !salonManual[h.id] && faltaDeHijo(h, salones, servicio.fecha) !== null,
+    [salonManual, salones, servicio.fecha],
+  )
+
   const marcados = useMemo(
-    () => new Set(familia ? hijosMarcados(familia.hijos, ingresados, desmarcados).map((h) => h.id) : []),
-    [familia, ingresados, desmarcados],
+    () => new Set(familia ? hijosMarcados(familia.hijos, ingresados, desmarcados).filter((h) => !sinSalon(h)).map((h) => h.id) : []),
+    [familia, ingresados, desmarcados, sinSalon],
   )
 
   /** The code to write on the tags, one line per child, the full-salón warnings and who may pick up. */
@@ -203,6 +221,12 @@ export function useMesa(salones: readonly SalonFila[], servicio: Servicio, alIng
   /** "Llegaron" (P3): the notified children go in with their salón; one without a salón opens the family here. */
   async function llegaron(f: FamiliaLlegando): Promise<string | null> {
     if (!servicio.turnoId) return null
+    const sinDato = f.hijos.find((h) => faltaDeHijo(h, salones, servicio.fecha) !== null)
+    if (sinDato) {
+      elegirFamilia(llegandoAFamilia(f))
+      setError(mensajeSinSalon(sinDato.nombre))
+      return null
+    }
     const armado = armarCheckin(
       f.hijos.map((h) => ({ ninoId: h.id, salonId: salonDeHijoConReglas(h, salones, servicio.fecha, undefined, reglasHijo).salonId, nombre: h.nombre })),
     )

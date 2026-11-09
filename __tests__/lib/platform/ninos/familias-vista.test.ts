@@ -2,12 +2,12 @@ import { hijoVacio } from '@/lib/platform/ninos/familia'
 import {
   aSalonSugerible,
   hijoAForm,
-  NOTA_SIN_EDAD_NI_GRADO,
   parseFamilias,
   preferidoCorresponde,
   salonesDelHijo,
   salonesParaNivel,
   salonParaHijo,
+  TEXTO_FALTA,
   type SalonFila,
 } from '@/lib/platform/ninos/familias-vista'
 
@@ -52,9 +52,9 @@ describe('salonParaHijo', () => {
     expect(r).toEqual({ tipo: 'sugerido', salon: expect.objectContaining({ id: 'mat' }) })
   })
 
-  it('returns none when no rule matches (PreK) — never guesses', () => {
+  it('returns none when no rule matches (PreK) — never guesses — and says what to review', () => {
     const r = salonParaHijo({ ...hijoBase, fecha_nacimiento: '2021-06-01', grado: 0 }, salones, '2026-10-11')
-    expect(r).toEqual({ tipo: 'ninguno' })
+    expect(r).toEqual({ tipo: 'ninguno', falta: 'revisar' })
   })
 
   it('a room picked by hand that corresponds to the child wins over the rule', () => {
@@ -75,14 +75,28 @@ describe('salonParaHijo', () => {
     })
   })
 
-  it('keeps the remembered room while the child cannot be checked (no age and no grade) or no room admits them', () => {
+  // S9.6 (L38): "Pide completar el dato que falta" — a remembered room never stands in for the missing data.
+  it('without age and grade, or when no room admits the child, asks for the missing data instead of a room', () => {
     expect(salonParaHijo({ ...hijoBase, fecha_nacimiento: null, salon_preferido_id: 'g1' }, salones, '2026-10-11')).toEqual({
-      tipo: 'elegido',
-      salon: expect.objectContaining({ id: 'g1' }),
+      tipo: 'ninguno',
+      falta: 'fecha_o_grado',
     })
     expect(salonParaHijo({ ...hijoBase, fecha_nacimiento: '2015-01-01', salon_preferido_id: 'g1' }, salones, '2026-10-11')).toEqual({
-      tipo: 'elegido',
-      salon: expect.objectContaining({ id: 'g1' }),
+      tipo: 'ninguno',
+      falta: 'grado',
+    })
+  })
+
+  it('a closed room is no missing data', () => {
+    const cerrados = salones.map((s) => ({ ...s, abierto: false }))
+    expect(salonParaHijo({ ...hijoBase, fecha_nacimiento: '2025-06-01' }, cerrados, '2026-10-11')).toEqual({ tipo: 'ninguno', falta: null })
+  })
+
+  it('says in plain Spanish what is missing', () => {
+    expect(TEXTO_FALTA).toEqual({
+      grado: 'Falta el grado',
+      fecha_o_grado: 'Falta la fecha de nacimiento o el grado',
+      revisar: 'Revisa la fecha de nacimiento o el grado: no corresponde a ningún salón',
     })
   })
 
@@ -125,24 +139,21 @@ describe('salonesDelHijo (S9.5: the desk «Cambiar salón» list)', () => {
     { ...salones[0], id: 'viejo', nombre: 'Viejo', orden: 5, activo: false },
   ]
 
-  it('only the salones that correspond, closed ones included, with no note', () => {
+  it('only the salones that correspond, closed ones included, nothing missing', () => {
     const r = salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2025-06-01' }, conCerrado, '2026-10-11')
     expect(r.salones.map((s) => s.id)).toEqual(['mat', 'matb'])
-    expect(r.nota).toBeNull()
+    expect(r.falta).toBeNull()
     expect(salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2019-06-01', grado: 1 }, conCerrado, '2026-10-11').salones.map((s) => s.id)).toEqual(['g1'])
   })
 
-  it('without age and grade: every active salón and the note', () => {
+  // S9.6: no open list any more; the missing data is asked for.
+  it('without age and grade: no salón, the birth date or the grade is missing', () => {
     const r = salonesDelHijo({ ...hijoBase, fecha_nacimiento: null, grado: null }, conCerrado, '2026-10-11')
-    expect(r.salones.map((s) => s.id)).toEqual(['mat', 'matb', 'pre', 'g1'])
-    expect(r.nota).toBe('Sin edad ni grado: elige el salón a mano.')
-    expect(NOTA_SIN_EDAD_NI_GRADO).toBe('Sin edad ni grado: elige el salón a mano.')
+    expect(r).toEqual({ salones: [], falta: 'fecha_o_grado' })
   })
 
-  it('with age but no salón that admits the child: every active salón (the desk is never stuck), no note', () => {
-    const r = salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2015-01-01' }, conCerrado, '2026-10-11')
-    expect(r.salones.map((s) => s.id)).toEqual(['mat', 'matb', 'pre', 'g1'])
-    expect(r.nota).toBeNull()
+  it('with age but no salón that admits the child: no salón, the grade is missing', () => {
+    expect(salonesDelHijo({ ...hijoBase, fecha_nacimiento: '2015-01-01' }, conCerrado, '2026-10-11')).toEqual({ salones: [], falta: 'grado' })
   })
 })
 

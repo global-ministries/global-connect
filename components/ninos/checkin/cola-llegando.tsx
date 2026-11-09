@@ -10,7 +10,9 @@
  * its review. Each child is placed with the salón rules, its prior visits
  * and the occupancy, as at the mesa (T2d); a room full for the child still
  * goes in with «Llegaron», recorded as forced (S9.1). A child with an active
- * custody restriction carries the «Custodia» chip (T2e, S9.2).
+ * custody restriction carries the «Custodia» chip (T2e, S9.2). A child
+ * that fits no salón says what is missing (S9.6); «Completar» opens the
+ * family at the mesa, where it is fixed.
  */
 import { useState, type ReactElement } from 'react'
 import { Car, Check, QrCode } from 'lucide-react'
@@ -20,9 +22,9 @@ import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { alertasDeHijo } from '@/lib/platform/ninos/checkin'
 import { edadCorta, type ItemCola, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
 import type { CustodiaPorNino } from '@/lib/platform/ninos/custodia'
-import type { SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { TEXTO_FALTA, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { horaEnCaracas } from '@/lib/platform/ninos/fecha'
-import { ETIQUETA_VISITA, estadoHijo, salonDeHijoConReglas, type VisitasPrevias } from '@/lib/platform/ninos/mesa-reglas'
+import { ETIQUETA_VISITA, estadoHijo, faltaDeHijo, salonDeHijoConReglas, type VisitasPrevias } from '@/lib/platform/ninos/mesa-reglas'
 import type { FamiliaLlegando, PreregistroLlegando } from '@/lib/platform/ninos/precheck'
 
 import { ChipCustodia } from '../custodia/chip-custodia'
@@ -97,6 +99,7 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
           const cupo = salon.salonId ? props.ocupacion.get(salon.salonId) : undefined
           const { visita, lleno } = estadoHijo(h, salon.salonId, props.salones, props.fecha, reglas)
           const edad = edadCorta(h.fecha_nacimiento, props.fecha)
+          const falta = salon.salonId ? null : faltaDeHijo(h, props.salones, props.fecha)
           return (
             <li key={h.id} className="grid min-w-0 gap-1 text-sm">
               <span className="flex min-w-0 items-center gap-1.5">
@@ -106,7 +109,11 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
                 </b>
               </span>
               <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-                <span className="min-w-0 truncate">{[nombreSalon ?? 'Sin salón sugerido', edad].filter(Boolean).join(' · ')}</span>
+                {falta ? (
+                  <span className="min-w-0 font-medium text-warning-text">{[TEXTO_FALTA[falta], edad].filter(Boolean).join(' · ')}</span>
+                ) : (
+                  <span className="min-w-0 truncate">{[nombreSalon ?? 'Sin salón sugerido', edad].filter(Boolean).join(' · ')}</span>
+                )}
                 {lleno && cupo && <EtiquetaLleno ocupacion={cupo} />}
                 {(lleno || !salon.salonId) && (
                   <BotonSistema
@@ -114,10 +121,10 @@ function ItemFamilia({ f, props }: { readonly f: FamiliaLlegando; readonly props
                     variante="ghost"
                     tamaño="sm"
                     className="ml-auto pointer-coarse:min-h-11"
-                    aria-label={`Cambiar salón de ${h.nombre} ${h.apellido}`}
+                    aria-label={falta ? `Completar datos de ${h.nombre} ${h.apellido}` : `Cambiar salón de ${h.nombre} ${h.apellido}`}
                     onClick={() => props.onCambiarSalon(f, h.id)}
                   >
-                    Cambiar
+                    {falta ? 'Completar' : 'Cambiar'}
                   </BotonSistema>
                 )}
               </span>

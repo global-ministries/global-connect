@@ -5,7 +5,7 @@
  * `tpl-salon`): the salones that correspond to the child (S9.5, T2f: by
  * needs, grade or age, as the suggestion) with who each is for and its
  * occupancy; the suggested one is marked. A child without age and grade
- * cannot be checked against the rules: every active salón, with a note. A
+ * child that fits no salón gets no list, only what is missing (S9.6). A
  * full salón can still be chosen (warns, never blocks). One tap picks it and
  * closes the panel; a salón other than the suggestion is remembered on the
  * ficha for next Sunday (as before). A closed salón (T2d) reads «cerrado»:
@@ -14,7 +14,7 @@
 import type { ReactElement } from 'react'
 
 import { edadCorta, estadoCupo, rangoSalon, type OcupacionSalon } from '@/lib/platform/ninos/checkin-vista'
-import { salonesDelHijo, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
+import { salonesDelHijo, TEXTO_FALTA, type HijoEncontrado, type SalonFila } from '@/lib/platform/ninos/familias-vista'
 import { cn } from '@/lib/utils'
 
 import { EtiquetaLleno } from './partes'
@@ -35,6 +35,14 @@ export function SelectorSalon({ hijo, fecha, salones, ocupacion, actualId, suger
   const edad = edadCorta(hijo.fecha_nacimiento, fecha)
   const sugerido = salones.find((s) => s.id === sugeridoId)
   const lista = salonesDelHijo(hijo, salones, fecha)
+  if (lista.falta) {
+    return (
+      <p className="text-[13px] text-muted-foreground">
+        {hijo.nombre} {hijo.apellido}
+        {edad && ` · ${edad}`}. <b className="font-semibold text-foreground">{TEXTO_FALTA[lista.falta]}</b>: complétalo en su fila de la mesa.
+      </p>
+    )
+  }
   return (
     <div className="grid min-w-0 gap-3.5">
       <p className="text-[13px] text-muted-foreground">
@@ -44,10 +52,9 @@ export function SelectorSalon({ hijo, fecha, salones, ocupacion, actualId, suger
           <>
             Sugerido: <b className="font-semibold text-foreground">{sugerido.nombre}</b>.
           </>
-        ) : lista.nota ? null : (
+        ) : (
           'Sin salón sugerido: elige uno.'
         )}
-        {lista.nota && <span> {lista.nota}</span>}
       </p>
       <ul aria-label={`Salones para ${hijo.nombre}`} className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
         {lista.salones.map((s) => {

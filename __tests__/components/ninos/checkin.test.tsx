@@ -163,9 +163,13 @@ describe('CheckinClient', () => {
     fireEvent.keyDown(panel, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 
+    // S9.6: 11 years and no grade — the desk asks for the grade, never a list of salones.
     const eva = screen.getByTestId('nino-h2')
-    expect(within(eva).getByText('Sin salón sugerido: asígnalo manualmente')).toBeInTheDocument()
-    expect(within(eva).getByRole('button', { name: 'Elegir salón de Eva Pérez' })).toBeInTheDocument()
+    expect(within(eva).getByText('Falta el grado')).toBeInTheDocument()
+    expect(within(eva).getByText('Sin este dato no puede ingresar a un salón.')).toBeInTheDocument()
+    expect(within(eva).getByLabelText('Grado de Eva')).toBeInTheDocument()
+    expect(within(eva).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(eva).queryByRole('button', { name: /salón de Eva/ })).not.toBeInTheDocument()
 
     const teo = screen.getByTestId('nino-h3')
     await waitFor(() => expect(teo).toHaveTextContent('Ya ingresó (código 1234)'))
@@ -179,22 +183,20 @@ describe('CheckinClient', () => {
     await within(screen.getByTestId('nino-h3')).findByText(/Ya ingresó/)
 
     expect(screen.getByRole('checkbox', { name: 'Luis Pérez' })).toBeChecked()
-    expect(screen.getByRole('checkbox', { name: 'Eva Pérez' })).toBeChecked()
-    expect(screen.getByRole('button', { name: 'Registrar ingreso · 2 niños' })).toBeEnabled()
-
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
+    expect(screen.queryByRole('checkbox', { name: 'Eva Pérez' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Registrar ingreso · 1 niño' })).toBeEnabled()
+
     fireEvent.click(screen.getByRole('checkbox', { name: 'Luis Pérez' }))
     expect(screen.getByRole('button', { name: 'Marca al menos un niño' })).toBeDisabled()
   })
 
-  it('a child without a room blocks the check-in until one is chosen', async () => {
-    responder()
+  it('a child with missing data does not hold up the rest of the family', async () => {
+    responder({ ninos_checkin: { data: [{ nino_id: 'h1', salon_id: 's1', codigo: '4821', ocupacion: 4, capacidad: 20, sobre_capacidad: false }], error: null } })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     await buscarFamilia()
-    fireEvent.click(screen.getByRole('button', { name: /^Registrar ingreso/ }))
-    expect(await screen.findByText('Eva no tiene salón: asígnalo antes de registrar.')).toBeInTheDocument()
-    expect(llamadaRuta('ninos_checkin')).toBeUndefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso · 1 niño' }))
+    expect(await screen.findByText('4821')).toBeInTheDocument()
+    expect(llamadaRuta('ninos_checkin')).toEqual({ p_nino_ids: ['h1'], p_salon_ids: ['s1'], p_turno_id: 't9', p_fecha: '2026-10-11' })
   })
 
   it('registers the check-in and shows the code very large with the rooms and warnings', async () => {
@@ -207,11 +209,24 @@ describe('CheckinClient', () => {
         error: null,
       },
     })
+    // Eva's grade is saved from the mesa; the family reloads with it and her salón appears (S9.6).
+    const responderBase = rpc.getMockImplementation()
+    let gradoEva: number | null = null
+    rpc.mockImplementation((nombre: string, args: { p: { grado: number } }) => {
+      if (nombre === 'ninos_actualizar_nino') {
+        gradoEva = args.p.grado
+        return Promise.resolve({ data: null, error: null })
+      }
+      if (nombre === 'ninos_buscar_familias')
+        return Promise.resolve({ data: [{ ...familia, hijos: familia.hijos.map((h) => (h.id === 'h2' ? { ...h, grado: gradoEva } : h)) }], error: null })
+      return responderBase?.(nombre)
+    })
     render(<CheckinClient salones={salones} turnos={turnos} servicio={{ turnoId: 't9', fecha: '2026-10-11' }} />)
     await buscarFamilia()
-    fireEvent.click(screen.getByRole('button', { name: 'Elegir salón de Eva Pérez' }))
-    fireEvent.click(within(await screen.findByRole('dialog', { name: 'Cambiar salón' })).getByRole('button', { name: /1º grado/ }))
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    fireEvent.change(within(screen.getByTestId('nino-h2')).getByLabelText('Grado de Eva'), { target: { value: '1' } })
+    fireEvent.click(within(screen.getByTestId('nino-h2')).getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByRole('checkbox', { name: 'Eva Pérez' })).toBeChecked()
+    expect(rpc).toHaveBeenCalledWith('ninos_actualizar_nino', { p_nino_id: 'h2', p: { grado: 1 } })
     expect(screen.getByTestId('nino-h2')).toHaveTextContent('1º grado')
     fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso · 2 niños' }))
 
@@ -234,10 +249,8 @@ describe('CheckinClient', () => {
       p_fecha: '2026-10-11',
     })
     await waitFor(() => expect(rpc.mock.calls.filter(([n]) => n === 'ninos_ocupacion').length).toBeGreaterThanOrEqual(2))
-    // Only Eva's hand-picked room differs from the suggestion: it becomes her preferred room.
-    expect(actualizar).toHaveBeenCalledTimes(1)
-    expect(actualizar).toHaveBeenCalledWith({ salon_preferido_id: 's2' })
-    expect(filtro).toHaveBeenCalledWith('usuario_id', 'h2')
+    // Both rooms are the suggestion: nothing is remembered on the ficha.
+    expect(actualizar).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente familia' }))
     expect(screen.getByLabelText(BUSCAR)).toHaveValue('')
@@ -253,7 +266,6 @@ describe('CheckinClient', () => {
     await buscarFamilia()
     const luis = screen.getByTestId('nino-h1')
     expect(within(luis).getByText(/^Lleno/)).toHaveTextContent('Lleno 20/20')
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Eva Pérez' }))
     fireEvent.click(screen.getByRole('button', { name: 'Registrar ingreso · 1 niño' }))
     expect(await screen.findByText('4821')).toBeInTheDocument()
     expect(llamadaRuta('ninos_checkin')).toEqual({ p_nino_ids: ['h1'], p_salon_ids: ['s1'], p_turno_id: 't9', p_fecha: '2026-10-11' })

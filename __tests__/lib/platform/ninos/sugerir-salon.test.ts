@@ -1,4 +1,5 @@
 import {
+  datoFaltante,
   edadEnMeses,
   edadParaSalon,
   explicarSalon,
@@ -307,5 +308,52 @@ describe('salonesQueCorresponden (S9.5: a child only goes to a salón that admit
     const r = corresponden({ fechaNacimiento: '2015-01-01' })
     expect(r.motivo).toBe('ninguno')
     expect(ids(r)).toEqual(SALONES.map((s) => s.id))
+  })
+})
+
+describe('datoFaltante (S9.6, L38: "Pide completar el dato que falta")', () => {
+  const falta = (input: { fechaNacimiento?: string | null; grado?: number | null; necesidadesEspeciales?: boolean; salones?: SalonSugerible[] }) =>
+    datoFaltante({
+      fechaNacimiento: input.fechaNacimiento ?? null,
+      grado: input.grado ?? null,
+      necesidadesEspeciales: input.necesidadesEspeciales ?? false,
+      fechaServicio: SERVICIO,
+      salones: input.salones ?? SALONES,
+    })
+
+  it('nothing is missing when a salón corresponds, open, closed or full', () => {
+    expect(falta({ fechaNacimiento: '2025-06-01' })).toBeNull()
+    expect(falta({ fechaNacimiento: '2019-06-01', grado: 1 })).toBeNull()
+    expect(falta({ fechaNacimiento: '2025-06-01', salones: SALONES.map((s) => ({ ...s, abierto: false })) })).toBeNull()
+  })
+
+  it('older than every Waumba salón and no grade: the grade is missing', () => {
+    expect(falta({ fechaNacimiento: '2015-01-01' })).toBe('grado')
+    expect(falta({ fechaNacimiento: '2021-06-01' })).toBe('grado')
+  })
+
+  it('no birth date and no grade: the birth date or the grade is missing', () => {
+    expect(falta({})).toBe('fecha_o_grado')
+    // A birth date after the service is no age either.
+    expect(falta({ fechaNacimiento: '2027-01-01' })).toBe('fecha_o_grado')
+  })
+
+  it('known data that no salón admits: review the birth date or the grade', () => {
+    // 5 years, PreK (0): no PreK salón.
+    expect(falta({ fechaNacimiento: '2021-06-01', grado: 0 })).toBe('revisar')
+    // A grade without a salón and no birth date.
+    expect(falta({ grado: 3 })).toBe('revisar')
+    // Younger than every Waumba salón.
+    const desdeSeisMeses = [salon({ id: 'm', area: 'waumba', edadMinMeses: 6, edadMaxMeses: 23 }), salon({ id: 'g1', area: 'upstreet', gradoMin: 1, gradoMax: 1 })]
+    expect(falta({ fechaNacimiento: '2026-09-01', salones: desdeSeisMeses })).toBe('revisar')
+    // No grade salón at all: a grade would not help.
+    expect(falta({ fechaNacimiento: '2015-01-01', salones: SALONES.filter((s) => s.area === 'waumba') })).toBe('revisar')
+  })
+
+  it('measures the age on the salón reference date (corte and promoción)', () => {
+    // Born 15 nov 2021: 59 months on 11 oct 2026 (pre3), but 60 on the 1 dic corte.
+    const conCorte = SALONES.map((s) => ({ ...s, corteMes: 12, corteDia: 1, promocionMes: 8, promocionDia: 1 }))
+    expect(falta({ fechaNacimiento: '2021-11-15' })).toBeNull()
+    expect(falta({ fechaNacimiento: '2021-11-15', salones: conCorte })).toBe('grado')
   })
 })
