@@ -33,7 +33,11 @@
 --      replacement says whom it replaces; the person sees «Cambió tu
 --      servicio» / «Ya no estás programado» until visto; quitado cannot open
 --      or answer the service; back in after quitado is a new invitation; an
---      answer clears cambio.
+--      answer clears cambio. A closure counts in total and por_enviar.
+--   d. A closure alone (L67): a no_puede taken out is the only pending
+--      change: total 1, por_enviar 1 (global and per plan), the send closes
+--      it (cerrados 1, enviados 0), then nothing is pending and the person
+--      no longer sees the service.
 --   b. Blocked dates: add (trimmed nota), the conflicts are listed and
 --      nothing is answered (S13.6); fecha_invalida, rango_invalido (also 367
 --      days; 366 is fine), fecha_pasada, nota_invalida leave nothing; the same
@@ -575,11 +579,12 @@ SELECT pg_temp.put('y4', $q$SELECT public.dps_convocar(pg_temp.plan('pl_a'), pg_
 SELECT pg_temp.put('y5', $q$SELECT public.dps_desconvocar(pg_temp.plan('pl_a'), pg_temp.plan('pu_cam'), pg_temp.id('us', 7))::text$q$);
 SELECT pg_temp.put('y6', $q$SELECT public.dps_desconvocar(pg_temp.plan('pl_a'), pg_temp.plan('pu_cam'), pg_temp.id('us', 8))::text$q$);
 SELECT pg_temp.put('pend3', $q$SELECT public.dps_avisos_pendientes(pg_temp.planes('pl_a'))::text$q$);
+-- total counts Oscar's closure too (L67): 2 notices + 1 closure.
 SELECT pg_temp.assert_eq('c1: out and back before sending leaves nothing; Luis is a change, Hugo taken out, Oscar closes silently',
   $q$SELECT concat_ws('|', pg_temp.quienes(pg_temp.j('pend3') -> 'nuevas'), pg_temp.quienes(pg_temp.j('pend3') -> 'cambios'),
                       pg_temp.quienes(pg_temp.j('pend3') -> 'quitados'),
                       pg_temp.quienes(pg_temp.j('pend3') -> 'no_reciben' -> 'ya_respondieron'), pg_temp.j('pend3') ->> 'total')$q$,
-  '|U06|U07|U08|2');
+  '|U06|U07|U08|3');
 SELECT pg_temp.assert_eq('c2: Luis: before and now, asks again; Hugo: the role he had',
   $q$SELECT concat_ws('|', pg_temp.roles(pg_temp.de(pg_temp.j('pend3') -> 'cambios', 6) -> 'roles_antes'),
                       pg_temp.roles(pg_temp.de(pg_temp.j('pend3') -> 'cambios', 6) -> 'roles'),
@@ -589,13 +594,13 @@ SELECT pg_temp.assert_eq('c2: Luis: before and now, asks again; Hugo: the role h
   'puesto:ZZ Dav Audio:ZZ Dav Equipo:ZZ Dav Dirección:false|puesto:ZZ Dav Cámara:ZZ Dav Equipo:ZZ Dav Dirección:false|true|confirmo|-|'
   || 'puesto:ZZ Dav Cámara:ZZ Dav Equipo:ZZ Dav Dirección:false');
 SELECT pg_temp.put('est4', $q$SELECT public.dps_avisos_estado(pg_temp.planes('pl_a'))::text$q$);
-SELECT pg_temp.assert_eq('c3: the plan state before sending: Luis sin_avisar (was confirmo, roles_antes), Hugo quitado, Oscar gone',
+SELECT pg_temp.assert_eq('c3: the plan state before sending: Luis sin_avisar (was confirmo, roles_antes), Hugo quitado, Oscar gone but counted',
   $q$SELECT pg_temp.estados(pg_temp.j('est4'), 'pl_a') || '|'
             || (pg_temp.de(pg_temp.plan_estado(pg_temp.j('est4'), 'pl_a') -> 'personas', 6) ->> 'estado_aviso') || '|'
             || pg_temp.roles(pg_temp.de(pg_temp.plan_estado(pg_temp.j('est4'), 'pl_a') -> 'personas', 6) -> 'roles_antes') || '|'
             || (pg_temp.plan_estado(pg_temp.j('est4'), 'pl_a') ->> 'por_enviar')$q$,
   'U04:pendiente,U05:confirmo,U06:sin_avisar,U07:quitado,U10:pendiente,U11:pendiente|confirmo|'
-  || 'puesto:ZZ Dav Audio:ZZ Dav Equipo:ZZ Dav Dirección:false|2');
+  || 'puesto:ZZ Dav Audio:ZZ Dav Equipo:ZZ Dav Dirección:false|3');
 
 -- Irene replaces Oscar in Cámara; the hours change for everyone.
 SELECT pg_temp.put('y7', $q$SELECT public.dps_convocar(pg_temp.plan('pl_a'), pg_temp.plan('pu_cam'), pg_temp.id('se', 14))::text$q$);
@@ -698,6 +703,47 @@ SELECT pg_temp.assert_eq('c22: Hugo''s notice starts over',
   $q$SELECT concat_ws('|', (pg_temp.aviso(7, 'pl_a') ->> 'quitado'), (pg_temp.aviso(7, 'pl_a') ->> 'estado'), (pg_temp.aviso(7, 'pl_a') ->> 'visto_at') IS NULL,
                       (pg_temp.aviso(7, 'pl_a') ->> 'cambio'), pg_temp.roles(pg_temp.aviso(7, 'pl_a') -> 'roles'))$q$,
   'false|pendiente|t|false|puesto:ZZ Dav Audio:ZZ Dav Equipo:ZZ Dav Dirección:false');
+
+-- ── d. a closure alone (L67) ─────────────────────────────────────────
+-- Juan is notified in pl_c, says no_puede and is taken out: closing his
+-- notice is the only pending change, and it must still be sent.
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.put('pl_c', $q$SELECT public.dps_plan_crear(DATE '2096-05-20', 'especial', 'ZZ Dav C')::text$q$);
+SELECT pg_temp.put('z1', $q$SELECT public.dps_convocar(pg_temp.plan('pl_c'), pg_temp.plan('pu_aud'), pg_temp.id('se', 2))::text$q$);
+SELECT pg_temp.put('z2', $q$SELECT public.dps_avisos_enviar(pg_temp.planes('pl_c')) ->> 'nuevas'$q$);
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_eq('d1: Juan says no_puede in pl_c',
+  $q$SELECT public.dps_responder(pg_temp.plan('pl_c'), 'no_puede', 'ZZ Dav Viaje') ->> 'estado'$q$, 'no_puede');
+SELECT pg_temp.assert_eq('d1: Juan still sees pl_c among his services',
+  $q$SELECT pg_temp.de_planes(public.dps_mis_servicios() -> 'servicios')$q$, 'pl_c');
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.put('z3', $q$SELECT public.dps_desconvocar(pg_temp.plan('pl_c'), pg_temp.plan('pu_aud'), pg_temp.id('us', 2))::text$q$);
+SELECT pg_temp.put('pend_d', $q$SELECT public.dps_avisos_pendientes(pg_temp.planes('pl_c'))::text$q$);
+SELECT pg_temp.assert_eq('d2: the closure is the only pending change and counts in total',
+  $q$SELECT concat_ws('|', pg_temp.j('pend_d') ->> 'total', pg_temp.quienes(pg_temp.j('pend_d') -> 'nuevas'),
+                      pg_temp.quienes(pg_temp.j('pend_d') -> 'cambios'), pg_temp.quienes(pg_temp.j('pend_d') -> 'quitados'),
+                      pg_temp.quienes(pg_temp.j('pend_d') -> 'no_reciben' -> 'ya_respondieron'))$q$, '1||||U02');
+SELECT pg_temp.put('est_d', $q$SELECT public.dps_avisos_estado(pg_temp.planes('pl_c'))::text$q$);
+SELECT pg_temp.assert_eq('d3: por_enviar counts it (global and per plan); Juan is not a row of the plan',
+  $q$SELECT concat_ws('|', pg_temp.j('est_d') ->> 'por_enviar', pg_temp.plan_estado(pg_temp.j('est_d'), 'pl_c') ->> 'por_enviar',
+                      pg_temp.estados(pg_temp.j('est_d'), 'pl_c'))$q$, '1|1|U11:pendiente');
+SELECT pg_temp.put('env_d', $q$SELECT public.dps_avisos_enviar(pg_temp.planes('pl_c'))::text$q$);
+SELECT pg_temp.assert_eq('d4: sending closes it: cerrados 1, enviados 0',
+  $q$SELECT concat_ws('|', pg_temp.j('env_d') ->> 'cerrados', pg_temp.j('env_d') ->> 'enviados', pg_temp.j('env_d') ->> 'nuevas',
+                      pg_temp.j('env_d') ->> 'cambios', pg_temp.j('env_d') ->> 'quitados')$q$, '1|0|0|0|0');
+SELECT pg_temp.assert_eq('d5: afterwards nothing is pending',
+  $q$SELECT public.dps_avisos_pendientes(pg_temp.planes('pl_c')) ->> 'total'$q$, '0');
+SELECT pg_temp.assert_eq('d5: nor in the plan state',
+  $q$SELECT public.dps_avisos_estado(pg_temp.planes('pl_c')) ->> 'por_enviar'$q$, '0');
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_eq('d6: Juan no longer sees pl_c, and gets no «Ya no estás programado»',
+  $q$SELECT pg_temp.de_planes(public.dps_mis_servicios() -> 'servicios') || '|' || pg_temp.de_planes(public.dps_mis_servicios() -> 'avisos')$q$, '|');
+RESET ROLE;
+SELECT pg_temp.assert_eq('d7: his notice is quitado, seen, with his answer kept',
+  $q$SELECT concat_ws('|', (pg_temp.aviso(2, 'pl_c') ->> 'quitado'), (pg_temp.aviso(2, 'pl_c') ->> 'visto_at') IS NOT NULL,
+                      (pg_temp.aviso(2, 'pl_c') ->> 'estado'), (pg_temp.aviso(2, 'pl_c') ->> 'motivo'))$q$, 'true|t|no_puede|ZZ Dav Viaje');
 
 -- ── b. blocked dates ─────────────────────────────────────────────────
 

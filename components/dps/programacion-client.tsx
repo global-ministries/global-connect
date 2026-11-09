@@ -79,7 +79,7 @@ import {
   type PlanHoja,
 } from '@/lib/platform/dps/programacion'
 
-import { BarraAvisos, LeyendaAvisos, detalleAvisos } from './avisos-estado'
+import { BarraAvisos, LeyendaAvisos, cierresAvisos, detalleAvisos } from './avisos-estado'
 import { PanelAvisos, textoEnvio } from './avisos-panel'
 import { DialogoNuevaSerie } from './dialogo-nueva-serie'
 import { DialogoNuevoEvento } from './dialogo-nuevo-evento'
@@ -204,13 +204,14 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
       })
     : []
   const porEnviarVisibles = avisosVisibles.reduce((n, e) => n + e.porEnviar, 0)
+  const cierresVisibles = avisosVisibles.reduce((n, e) => n + cierresAvisos(e.porEnviar, e.personas), 0)
   const alcanceAvisos = mes === null ? ` en ${anio}` : ` en ${nombreMes(mes)}`
 
   function alEnviar(envio: EnvioAvisos): void {
     setEnviarAbierto(false)
     const frase = textoEnvio(envio)
     setAviso(frase)
-    if (envio.enviados > 0) toast.success(frase)
+    if (envio.enviados > 0 || envio.cerrados > 0) toast.success(frase)
     else toast.info(frase)
     recargarAvisos()
   }
@@ -437,8 +438,9 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
               <div className="shrink-0 px-4 pb-3 sm:px-6">
                 <BarraAvisos
                   porEnviar={porEnviarVisibles}
+                  cierres={cierresVisibles}
                   alcance={alcanceAvisos}
-                  detalle={detalleAvisos(avisosVisibles.flatMap((e) => e.personas))}
+                  detalle={detalleAvisos(avisosVisibles.flatMap((e) => e.personas), cierresVisibles)}
                   nota="Solo lo que ves en la hoja; las fechas pasadas no se avisan."
                   onEnviar={() => setEnviarAbierto(true)}
                 />

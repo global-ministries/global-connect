@@ -96,7 +96,7 @@ export interface SinCuentaAviso {
 }
 
 export interface PendientesAvisos {
-  /** Notices the next send delivers. */
+  /** Notices and closures (a removed «No puede») the next send applies. */
   readonly total: number
   readonly nuevas: readonly InvitacionAviso[]
   readonly cambios: readonly CambioAviso[]

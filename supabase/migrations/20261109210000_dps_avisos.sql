@@ -50,7 +50,9 @@
 --      unknown ids are ignored; more than 400 ids is 'demasiados'):
 --        dps_avisos_pendientes(plan_ids) -> {total, nuevas, cambios, quitados,
 --            no_reciben: {ya_respondieron: [...], sin_cuenta: [...], sin_cambios}}
---            the review panel of 02.
+--            the review panel of 02. total also counts the no_puede taken
+--            out (listed under ya_respondieron): sending closes them, so a
+--            closure alone still has something to send (L67).
 --        dps_avisos_enviar(plan_ids) -> {enviados, nuevas, cambios, quitados,
 --            cerrados}   applies every pending notice at once under the plans'
 --            locks; a second call sends 0.
@@ -59,6 +61,8 @@
 --            'sin_avisar' (a pending nueva / cambio), 'pendiente', 'confirmo',
 --            'no_puede' (with motivo) or 'quitado' (notified, taken out, not
 --            sent yet); past plans show their notices as they are.
+--            por_enviar (global and per plan) also counts the no_puede taken
+--            out, which are not among the personas (L67).
 --        dps_personas_bloqueadas(plan) -> (persona_id, nota)   who blocked the
 --            plan's date (S13.6: the planner may still pick them, with a
 --            warning). A separate function: dps_candidatos_puesto and
@@ -389,7 +393,8 @@ BEGIN
         LEFT JOIN public.dps_avisos v ON v.id = d.aviso_id
     )
     SELECT jsonb_build_object(
-      'total', (SELECT count(*) FROM f WHERE f.tipo IN ('nueva', 'cambio', 'quitado')),
+      -- A no_puede taken out (cerrar) counts too: only a send closes it (L67).
+      'total', (SELECT count(*) FROM f WHERE f.tipo IN ('nueva', 'cambio', 'quitado', 'cerrar')),
       'nuevas', coalesce((
         SELECT jsonb_agg(f.base || jsonb_build_object(
                  'roles', f.roles,
@@ -530,7 +535,7 @@ BEGIN
         FROM public.dps_planes p
        WHERE p.id = ANY (coalesce(p_plan_ids, ARRAY[]::uuid[]))
     ), d AS MATERIALIZED (
-      SELECT x.* FROM public.dps_avisos_diff(v_futuros) x WHERE x.tipo <> 'cerrar'
+      SELECT x.* FROM public.dps_avisos_diff(v_futuros) x
     ), actuales AS MATERIALIZED (
       SELECT a.plan_id, a.persona_id, array_agg(a.clave ORDER BY a.clave COLLATE "C") AS claves
         FROM public.dps_avisos_asignaciones(ARRAY(SELECT pl.id FROM planes pl WHERE pl.pasado)) a
@@ -544,6 +549,8 @@ BEGIN
              CASE WHEN d.tipo = 'nueva' THEN NULL ELSE v.id END AS aviso_id
         FROM d
         LEFT JOIN public.dps_avisos v ON v.id = d.aviso_id
+       -- A no_puede taken out is not a row of the plan; it only counts in por_enviar.
+       WHERE d.tipo <> 'cerrar'
       UNION ALL
       -- Past plans: their notices as they are, nothing to send.
       SELECT v.plan_id, v.persona_id, NULL, v.estado, coalesce(ac.claves, v.claves), NULL, v.id
@@ -553,11 +560,13 @@ BEGIN
        WHERE NOT v.quitado
     )
     SELECT jsonb_build_object(
-      'por_enviar', (SELECT count(*) FROM filas f WHERE f.por_enviar IS NOT NULL),
+      'por_enviar', (SELECT count(*) FROM filas f WHERE f.por_enviar IS NOT NULL)
+                    + (SELECT count(*) FROM d WHERE d.tipo = 'cerrar'),
       'planes', coalesce((
         SELECT jsonb_agg(jsonb_build_object(
                  'plan_id', pl.id, 'fecha', pl.fecha, 'pasado', pl.pasado,
-                 'por_enviar', (SELECT count(*) FROM filas f WHERE f.plan_id = pl.id AND f.por_enviar IS NOT NULL),
+                 'por_enviar', (SELECT count(*) FROM filas f WHERE f.plan_id = pl.id AND f.por_enviar IS NOT NULL)
+                               + (SELECT count(*) FROM d WHERE d.plan_id = pl.id AND d.tipo = 'cerrar'),
                  'resumen', jsonb_build_object(
                    'sin_avisar', (SELECT count(*) FROM filas f WHERE f.plan_id = pl.id AND f.estado = 'sin_avisar'),
                    'pendiente', (SELECT count(*) FROM filas f WHERE f.plan_id = pl.id AND f.estado = 'pendiente'),

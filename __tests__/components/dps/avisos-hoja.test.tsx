@@ -137,6 +137,29 @@ const ESTADO = leerEstadoAvisos({
   ],
 })
 
+const item = (planId: string, fecha: string, personaId: string, nombre: string) => ({
+  plan_id: planId,
+  fecha,
+  tipo: 'domingo',
+  titulo: null,
+  serie: null,
+  persona_id: personaId,
+  nombre,
+  iniciales: 'XX',
+  tiene_cuenta: true,
+  roles: [{ origen: 'columna', puesto_id: null, columna: 'host', nombre: 'Host', equipo: 'Producción Creativa', direccion: 'Producción Creativa', automatico: false }],
+})
+const PENDIENTES = leerPendientesAvisos({
+  total: 3,
+  nuevas: [
+    { ...item(P22, '2026-11-22', RD, 'Rafael Duarte'), automatico: false, reemplaza: [] },
+    { ...item(P6D, '2026-12-06', RD, 'Rafael Duarte'), automatico: false, reemplaza: [] },
+  ],
+  cambios: [],
+  quitados: [item(P22, '2026-11-22', id(9), 'Gerardo Silva')],
+  no_reciben: {},
+})
+
 const props = (parche: Partial<ProgramacionClientProps> = {}): ProgramacionClientProps => ({
   anio: 2026,
   hoy: '2026-11-09',
@@ -155,7 +178,7 @@ const celda = (fecha: string, columna: string): HTMLElement => {
 beforeEach(() => {
   jest.clearAllMocks()
   cargarEstado.mockResolvedValue({ ok: true, data: ESTADO })
-  cargarPendientes.mockResolvedValue({ ok: true, data: leerPendientesAvisos({ total: 3, nuevas: [], cambios: [], quitados: [], no_reciben: {} }) })
+  cargarPendientes.mockResolvedValue({ ok: true, data: PENDIENTES })
   enviar.mockResolvedValue({ ok: true, data: leerEnvioAvisos({ enviados: 3, nuevas: 2, cambios: 0, quitados: 1, cerrados: 0 }) })
 })
 
@@ -214,6 +237,29 @@ describe('the «Enviar avisos» bar of the sheet', () => {
     expect(enviar).toHaveBeenCalledWith({ planIds: [P15, P22, P6D] })
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Enviamos 3 avisos: 2 invitaciones y 1 «Ya no estás programado». Ya están en su panel.'))
     await waitFor(() => expect(cargarEstado).toHaveBeenCalledTimes(2))
+  })
+
+  it('counts a «No puede» taken out as a change to save, even with no notice to send', async () => {
+    cargarEstado.mockResolvedValue({
+      ok: true,
+      data: leerEstadoAvisos({
+        por_enviar: 1,
+        planes: [
+          {
+            plan_id: P15,
+            fecha: '2026-11-15',
+            pasado: false,
+            por_enviar: 1,
+            resumen: resumen({ confirmo: 1 }),
+            personas: [persona(XR, 'Ximena Rangel', 'confirmo', ['c:productor'])],
+          },
+        ],
+      }),
+    })
+    render(<ProgramacionClient {...props()} />)
+    const barra = await screen.findByRole('region', { name: '1 cambio sin guardar en 2026' })
+    expect(barra).toHaveTextContent('1 «No puede» sale del plan')
+    expect(within(barra).getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
   })
 
   it('follows the month filter', async () => {

@@ -5,8 +5,9 @@
  * + text, never color alone), the small mark of a person in a sheet cell
  * (`.mk`, 16px), the legend of the sheet (`.leg`), the summary of answers
  * of the plan's header (`.est`) and the «N avisos sin enviar» bar (`.avb`)
- * with «Enviar avisos». Built from the status tokens (tint + `-text`) as
- * EtiquetaPlanner; local here until they move to components/ui.
+ * with «Enviar avisos» («N cambios sin guardar» + «Guardar cambios» when it
+ * only closes a «No puede», S13.4). Built from the status tokens (tint +
+ * `-text`) as EtiquetaPlanner; local here until they move to components/ui.
  * Server-safe.
  */
 import type { ReactElement } from 'react'
@@ -160,8 +161,16 @@ export function ResumenRespuestas({ resumen }: { readonly resumen: ResumenAvisos
   )
 }
 
-/** «1 invitación · 2 cambios · 1 «Ya no estás programado»»: what a send would deliver. */
-export function detalleAvisos(personas: readonly PersonaEstadoAviso[]): string {
+/**
+ * The «No puede» taken out in porEnviar: closed when saving, without a notice
+ * (S13.4). They are counted but are not among the personas.
+ */
+export function cierresAvisos(porEnviar: number, personas: readonly PersonaEstadoAviso[]): number {
+  return Math.max(0, porEnviar - personas.filter((p) => p.porEnviar !== null).length)
+}
+
+/** «1 invitación · 2 cambios · 1 «Ya no estás programado» · 1 «No puede» sale del plan»: what a send would deliver. */
+export function detalleAvisos(personas: readonly PersonaEstadoAviso[], cierres = 0): string {
   const cuenta = (tipo: PersonaEstadoAviso['porEnviar']) => personas.filter((p) => p.porEnviar === tipo).length
   const nuevas = cuenta('nueva')
   const cambios = cuenta('cambio')
@@ -170,6 +179,7 @@ export function detalleAvisos(personas: readonly PersonaEstadoAviso[]): string {
     nuevas > 0 ? `${nuevas} ${nuevas === 1 ? 'invitación' : 'invitaciones'}` : null,
     cambios > 0 ? `${cambios} ${cambios === 1 ? 'cambio' : 'cambios'}` : null,
     quitados > 0 ? `${quitados} «Ya no estás programado»` : null,
+    cierres > 0 ? `${cierres} «No puede» ${cierres === 1 ? 'sale' : 'salen'} del plan` : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -177,6 +187,8 @@ export function detalleAvisos(personas: readonly PersonaEstadoAviso[]): string {
 
 export interface BarraAvisosProps {
   readonly porEnviar: number
+  /** How many of porEnviar only close a «No puede» (cierresAvisos): no notice goes out for them. */
+  readonly cierres?: number
   /** «1 invitación · 1 cambio». */
   readonly detalle: string
   /** « en noviembre»: the sheet names its range. */
@@ -186,9 +198,15 @@ export interface BarraAvisosProps {
   readonly className?: string
 }
 
-/** «N avisos sin enviar» + «Enviar avisos» (`.avb`); the caller shows it only with something to send. */
-export function BarraAvisos({ porEnviar, detalle, alcance = '', nota, onEnviar, className }: BarraAvisosProps): ReactElement {
-  const titulo = `${porEnviar} ${porEnviar === 1 ? 'aviso' : 'avisos'} sin enviar${alcance}`
+/**
+ * «N avisos sin enviar» + «Enviar avisos» (`.avb`); the caller shows it only with something to send.
+ * When everything pending only closes a «No puede», nobody gets a notice: «N cambios sin guardar» + «Guardar cambios».
+ */
+export function BarraAvisos({ porEnviar, cierres = 0, detalle, alcance = '', nota, onEnviar, className }: BarraAvisosProps): ReactElement {
+  const soloCierres = cierres >= porEnviar
+  const sustantivo = soloCierres ? (porEnviar === 1 ? 'cambio' : 'cambios') : porEnviar === 1 ? 'aviso' : 'avisos'
+  const estado = soloCierres ? 'sin guardar' : 'sin enviar'
+  const titulo = `${porEnviar} ${sustantivo} ${estado}${alcance}`
   return (
     <section
       aria-label={titulo}
@@ -199,12 +217,13 @@ export function BarraAvisos({ porEnviar, detalle, alcance = '', nota, onEnviar, 
       </span>
       <div className="min-w-0 flex-1 basis-60">
         <p className="text-[15px] font-semibold">
-          <span className="font-mono tabular-nums">{porEnviar}</span> {porEnviar === 1 ? 'aviso' : 'avisos'} sin enviar{alcance}
+          <span className="font-mono tabular-nums">{porEnviar}</span> {sustantivo} {estado}
+          {alcance}
         </p>
         <p className="text-[13px] text-muted-foreground">{[detalle, nota].filter(Boolean).join(' · ')}</p>
       </div>
-      <BotonSistema icono={Send} onClick={onEnviar}>
-        Enviar avisos
+      <BotonSistema icono={soloCierres ? Check : Send} onClick={onEnviar}>
+        {soloCierres ? 'Guardar cambios' : 'Enviar avisos'}
       </BotonSistema>
     </section>
   )

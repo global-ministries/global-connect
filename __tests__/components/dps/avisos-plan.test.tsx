@@ -78,8 +78,15 @@ const SERIE = { id: 's1', nombre: 'Tu casa tiene influencers', color: 'chart-1',
 const plan = (parche: Record<string, unknown> = {}): PlanCabecera =>
   leerPlanCabecera({ id: PLAN, fecha: '2026-11-15', tipo: 'domingo', titulo: null, semana: 4, serie: SERIE, horarios: ['09:00', '11:30'], llegada: '07:30', ...parche })!
 
-const conv = (personaId: string, nombre: string) => ({ convocado_id: `c-${personaId}`, persona_id: personaId, servicio_id: `sv-${personaId}`, nombre, iniciales: 'XX' })
-const equiposJson = (puedeEditar = true) => ({
+const conv = (personaId: string, nombre: string, automatico = false) => ({
+  convocado_id: `c-${personaId}`,
+  persona_id: personaId,
+  servicio_id: `sv-${personaId}`,
+  nombre,
+  iniciales: 'XX',
+  automatico,
+})
+const equiposJson = (puedeEditar = true, oscarAutomatico = false) => ({
   plan_id: PLAN,
   puede_editar: puedeEditar,
   equipos: [
@@ -97,7 +104,7 @@ const equiposJson = (puedeEditar = true) => ({
       equipo_id: 'video',
       equipo: 'Video',
       ruta: 'v',
-      puestos: [{ puesto_id: 'cam2', nombre: 'Cámara 2', cantidad: 1, activo: true, convocados: [conv(OB, 'Óscar Bermúdez')] }],
+      puestos: [{ puesto_id: 'cam2', nombre: 'Cámara 2', cantidad: 1, activo: true, convocados: [conv(OB, 'Óscar Bermúdez', oscarAutomatico)] }],
     },
   ],
 })
@@ -161,10 +168,27 @@ const sinPendientes = (): EstadoAvisos =>
     ],
   })
 
+/** Óscar («No puede») was taken out: the only pending change is closing his notice, which is not a notice. */
+const soloCierre = (): EstadoAvisos =>
+  leerEstadoAvisos({
+    por_enviar: 1,
+    planes: [
+      {
+        plan_id: PLAN,
+        fecha: '2026-11-15',
+        pasado: false,
+        por_enviar: 1,
+        resumen: { sin_avisar: 0, pendiente: 0, confirmo: 1, no_puede: 0, quitado: 0, sin_cuenta: 0 },
+        personas: [persona(RC, 'Rubén Carvajal', 'confirmo', ['p:foh'], { estado_aviso: 'confirmo' })],
+      },
+    ],
+  })
+
 const rolJson = (nombre: string, equipo: string, automatico = false) => ({ origen: 'puesto', puesto_id: null, columna: null, nombre, equipo, direccion: 'DPS', automatico })
 const base = (personaId: string, nombre: string) => ({ plan_id: PLAN, fecha: '2026-11-15', tipo: 'domingo', titulo: null, serie: 'Tu casa', persona_id: personaId, nombre, iniciales: 'XX', tiene_cuenta: true })
+// total counts Óscar's closure too (S13.4): 3 notices + 1 closed without a notice.
 const pendientes = leerPendientesAvisos({
-  total: 3,
+  total: 4,
   nuevas: [{ ...base(SA, 'Simón Arrieta'), roles: [rolJson('Streaming', 'Audio')], automatico: false, reemplaza: [] }],
   cambios: [
     {
@@ -283,6 +307,14 @@ describe('the «avisos sin enviar» bar', () => {
     expect(screen.queryByRole('button', { name: 'Enviar avisos' })).not.toBeInTheDocument()
   })
 
+  it('shows when the only pending change closes a «No puede» taken out, saying so', async () => {
+    cargarEstado.mockResolvedValue({ ok: true, data: soloCierre() })
+    render(<PlanClient {...props()} />)
+    const barra = await screen.findByRole('region', { name: '1 cambio sin guardar' })
+    expect(barra).toHaveTextContent('1 «No puede» sale del plan')
+    expect(within(barra).getByRole('button', { name: 'Guardar cambios' })).toBeInTheDocument()
+  })
+
   it('never shows for a past plan', async () => {
     cargarEstado.mockResolvedValue({ ok: true, data: estado({ pasado: true }) })
     render(<PlanClient {...props()} />)
@@ -345,6 +377,35 @@ describe('the «Enviar avisos» panel', () => {
     expect(toast.success).not.toHaveBeenCalled()
   })
 
+  it('saves a closure-only change with «Guardar cambios» and says who left the plan', async () => {
+    cargarEstado.mockResolvedValue({ ok: true, data: soloCierre() })
+    cargarPendientes.mockResolvedValue({
+      ok: true,
+      data: leerPendientesAvisos({
+        total: 1,
+        nuevas: [],
+        cambios: [],
+        quitados: [],
+        no_reciben: { ya_respondieron: [{ ...base(OB, 'Óscar Bermúdez'), roles: [rolJson('Cámara 2', 'Video')] }], sin_cuenta: [], sin_cambios: 1 },
+      }),
+    })
+    enviar.mockResolvedValue({ ok: true, data: leerEnvioAvisos({ enviados: 0, nuevas: 0, cambios: 0, quitados: 0, cerrados: 1 }) })
+    render(<PlanClient {...props()} />)
+    const barra = await screen.findByRole('region', { name: '1 cambio sin guardar' })
+    await userEvent.click(within(barra).getByRole('button', { name: 'Guardar cambios' }))
+    const panel = await screen.findByRole('dialog', { name: 'Enviar avisos' })
+    expect(await within(panel).findByRole('region', { name: 'No reciben aviso' })).toHaveTextContent(
+      'Óscar Bermúdez ya respondió que no puede; sale del plan sin otro aviso.',
+    )
+    expect(within(panel).queryByText(/No hay avisos por enviar/)).not.toBeInTheDocument()
+    const guardar = within(panel).getByRole('button', { name: 'Guardar cambios' })
+    expect(guardar).toBeEnabled()
+    await userEvent.click(guardar)
+    expect(enviar).toHaveBeenCalledWith({ planIds: [PLAN] })
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Listo: 1 persona que dijo «No puedo» salió del plan, sin otro aviso.'))
+    expect(toast.info).not.toHaveBeenCalled()
+  })
+
   it('closes with «Cancelar» without sending', async () => {
     const panel = await abrir()
     await userEvent.click(within(panel).getByRole('button', { name: 'Cancelar' }))
@@ -375,6 +436,17 @@ describe('«Buscar reemplazo» and the blocked dates (S13.6)', () => {
     await waitFor(() => expect(desconvocar).toHaveBeenCalledWith({ planId: PLAN, puestoId: 'cam2', personaId: OB }))
     expect(screen.getByTestId('aviso-cambio')).toHaveTextContent('Wilmer Duque reemplaza a Óscar Bermúdez en Cámara 2. Queda sin avisar. Ojo: bloqueó esta fecha.')
     await waitFor(() => expect(cargarEstado).toHaveBeenCalledTimes(2))
+  })
+})
+
+describe('an automatic director who said «No puede»', () => {
+  it('offers no «Buscar reemplazo»: the row follows Dream Team and cannot be taken out here', async () => {
+    render(<PlanClient {...props({ equipos: leerEquiposPlan(equiposJson(true, true)) })} />)
+    const oscar = await within(columna('Video')).findByText(/Estoy de viaje en Carora ese fin de semana\./)
+    const filaOscar = oscar.closest('li')!
+    expect(within(filaOscar).getByText('No puede')).toBeInTheDocument()
+    expect(within(filaOscar).getByText('Automático')).toBeInTheDocument()
+    expect(within(columna('Video')).queryByRole('button', { name: /Buscar reemplazo/ })).not.toBeInTheDocument()
   })
 })
 

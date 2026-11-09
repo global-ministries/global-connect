@@ -88,7 +88,7 @@ import {
 import { horariosTexto, nombreCompleto } from '@/lib/platform/dps/planilla'
 import { cn } from '@/lib/utils'
 
-import { BarraAvisos, ResumenRespuestas, detalleAvisos } from './avisos-estado'
+import { BarraAvisos, ResumenRespuestas, cierresAvisos, detalleAvisos } from './avisos-estado'
 import { PanelAvisos, textoEnvio } from './avisos-panel'
 import { ColumnasEquipos, type AvisosColumnas } from './columnas-equipos'
 import { DialogoCopiar } from './dialogo-copiar'
@@ -290,7 +290,7 @@ export function PlanClient({
     setEnviarAbierto(false)
     const frase = textoEnvio(envio)
     setAviso(frase)
-    if (envio.enviados > 0) toast.success(frase)
+    if (envio.enviados > 0 || envio.cerrados > 0) toast.success(frase)
     else toast.info(frase)
     recargarAvisos()
   }
@@ -647,7 +647,8 @@ export function PlanClient({
               <div className="order-2 shrink-0 px-4 pb-3 sm:px-6 md:order-none md:pb-4">
                 <BarraAvisos
                   porEnviar={estadoAvisos.porEnviar}
-                  detalle={detalleAvisos(estadoAvisos.personas)}
+                  cierres={cierresAvisos(estadoAvisos.porEnviar, estadoAvisos.personas)}
+                  detalle={detalleAvisos(estadoAvisos.personas, cierresAvisos(estadoAvisos.porEnviar, estadoAvisos.personas))}
                   nota="Puedes cambiar a alguien las veces que quieras: solo sale el último cambio."
                   onEnviar={() => setEnviarAbierto(true)}
                 />

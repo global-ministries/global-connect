@@ -26,7 +26,8 @@
  * 288px and each person shows a state chip (icon + text: Sin avisar,
  * Pendiente, Confirmó, No puede). «No puede» tints the row, shows the motivo
  * and when they answered, and «Buscar reemplazo» opens the puesto's picker
- * titled «Reemplazo para …». Someone who changed puesto after the notice
+ * titled «Reemplazo para …» (never for an automatic director, who cannot be
+ * taken out here). Someone who changed puesto after the notice
  * reads «Cambió de …». Whoever was taken out after the notice stays in the
  * puestos they were told, struck through with «Quitado» until the notices
  * are sent; they do not count in "n/m". The picker lists who blocked the
@@ -131,7 +132,8 @@ function FilaConvocado({
               {aviso.motivo ? ' · respondió' : 'Respondió'} el {respondio}
             </>
           )}
-          {editable && puesto.activo && (
+          {/* An automatic director cannot be taken out here, so there is no replacement. */}
+          {editable && puesto.activo && !convocado.automatico && (
             <button
               type="button"
               onClick={onReemplazo}

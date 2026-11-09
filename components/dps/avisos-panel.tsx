@@ -12,7 +12,8 @@
  * aviso» (who already said «No puedo», the written names «Sin cuenta» and
  * how many have nothing new). «Enviar N avisos» sends everything at once
  * (enviarAvisosDps, all or nothing: no person is left out and there is no
- * message); a failure keeps the panel open and says why. The caller mounts
+ * message); when the only change closes a «No puede» taken out (counted in
+ * total, no notice: S13.4) the button is «Guardar cambios»; a failure keeps the panel open and says why. The caller mounts
  * it while open (each opening reads again), closes it, announces the counts
  * and reads the states again.
  */
@@ -50,8 +51,16 @@ const fechaFila = (fecha: string): string => {
 }
 const horaCorta = (hora: string): string => hora.replace(/^0(\d)/, '$1')
 
-/** «Enviamos 3 avisos: 1 invitación, 1 cambio y 1 «Ya no estás programado». Ya están en su panel.» */
+/**
+ * «Enviamos 3 avisos: 1 invitación, 1 cambio y 1 «Ya no estás programado». Ya están en su panel.»;
+ * with only closures, «Listo: 1 persona que dijo «No puedo» salió del plan, sin otro aviso.»
+ */
 export function textoEnvio(envio: EnvioAvisos): string {
+  if (envio.enviados === 0 && envio.cerrados > 0) {
+    return envio.cerrados === 1
+      ? 'Listo: 1 persona que dijo «No puedo» salió del plan, sin otro aviso.'
+      : `Listo: ${envio.cerrados} personas que dijeron «No puedo» salieron del plan, sin otro aviso.`
+  }
   if (envio.enviados === 0) return 'No había avisos por enviar.'
   const partes = [
     envio.nuevas > 0 ? `${envio.nuevas} ${envio.nuevas === 1 ? 'invitación' : 'invitaciones'}` : null,
@@ -144,6 +153,8 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
   }
 
   const total = pendientes?.total ?? 0
+  // total also counts the «No puede» taken out, which close without a notice.
+  const avisos = pendientes ? pendientes.nuevas.length + pendientes.cambios.length + pendientes.quitados.length : 0
   const no = pendientes?.noReciben
   const hayNoReciben = no ? no.yaRespondieron.length + no.sinCuenta.length + no.sinCambios > 0 : false
 
@@ -160,8 +171,14 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
           <BotonSistema variante="outline" onClick={onCerrar} disabled={enviando}>
             Cancelar
           </BotonSistema>
-          <BotonSistema icono={Send} onClick={() => void enviar()} cargando={enviando} disabled={!pendientes || total === 0}>
-            Enviar <span className="font-mono tabular-nums">{total}</span> {total === 1 ? 'aviso' : 'avisos'}
+          <BotonSistema icono={avisos === 0 && total > 0 ? Check : Send} onClick={() => void enviar()} cargando={enviando} disabled={!pendientes || total === 0}>
+            {avisos === 0 && total > 0 ? (
+              'Guardar cambios'
+            ) : (
+              <>
+                Enviar <span className="font-mono tabular-nums">{avisos}</span> {avisos === 1 ? 'aviso' : 'avisos'}
+              </>
+            )}
           </BotonSistema>
         </>
       }
