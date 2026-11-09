@@ -96,7 +96,8 @@ const CLASE_F2 = 'sticky left-[146px] w-[250px] min-w-[250px] max-w-[250px] over
 /** Body text wraps and the row grows (S9.5). */
 const CLASE_AJUSTE = 'whitespace-normal break-words align-top'
 const CLASE_MENU = 'min-h-9 gap-2.5 text-sm pointer-coarse:min-h-11'
-const CLASE_RAYADO =
+/** The hatch of the special days (`.sp`), shared with the matrix (matriz-domingos.tsx); opaque, so sticky cells may use it. */
+export const CLASE_RAYADO =
   'bg-[repeating-linear-gradient(135deg,var(--card)_0_7px,color-mix(in_oklab,var(--border)_45%,var(--card))_7px_8px)]'
 
 export interface HojaProgramacionProps {
