@@ -1,12 +1,13 @@
 /**
  * DPS planning — the configuration screen (odd/tasks/dps-asistencia-pco.md,
- * T9; S6.2, S6.3): default horarios and llegada for new plans, who builds the
+ * T9; S6.2, S6.3): default horarios and llegada for new plans (1 to 4,
+ * the llegada not after the first, as a plan's own since T13c), who builds the
  * plan besides the DPS direction (planificadores) and, per team, whether its
  * coordinators pass attendance. dps_config_leer is for planners; the writes
  * are for configurators only (admin/pastor or the DPS direction, L17), and
  * the database is the one that says no. Pure: safe on the client.
  */
-import { MENSAJE_HORARIOS, MENSAJE_LLEGADA } from './errores'
+import { MENSAJE_HORARIOS, MENSAJE_LLEGADA, MENSAJE_LLEGADA_PRIMERO } from './errores'
 
 export interface PlanificadorDps {
   readonly personaId: string
@@ -64,7 +65,8 @@ export function leerConfig(data: unknown): ConfigDps {
 }
 
 const HORA_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/
-const MAX_HORARIOS = 6
+/** As a plan's own horarios (dps_plan_horarios_guardar; T13c, L55). */
+export const MAX_HORARIOS_CONFIG = 4
 
 /** "9:15" → "09:15"; null when it is not a time. */
 function hora(valor: string): string | null {
@@ -72,7 +74,7 @@ function hora(valor: string): string | null {
   return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null
 }
 
-/** The horarios as dps_config_guardar wants them: 1 to 6, sorted, no repeats. */
+/** The horarios as dps_config_guardar wants them: 1 to 4, sorted, no repeats. */
 export function normalizarHorarios(
   valores: readonly string[],
 ): { readonly ok: true; readonly horarios: string[] } | { readonly ok: false; readonly mensaje: string } {
@@ -80,13 +82,19 @@ export function normalizarHorarios(
   const horas = llenos.map(hora)
   if (horas.some((h) => h === null)) return { ok: false, mensaje: MENSAJE_HORARIOS }
   const unicas = [...new Set(horas as string[])].sort()
-  if (unicas.length < 1 || unicas.length > MAX_HORARIOS) return { ok: false, mensaje: MENSAJE_HORARIOS }
+  if (unicas.length < 1 || unicas.length > MAX_HORARIOS_CONFIG) return { ok: false, mensaje: MENSAJE_HORARIOS }
   return { ok: true, horarios: unicas }
 }
 
-export function validarLlegada(valor: string): { readonly ok: true; readonly llegada: string } | { readonly ok: false; readonly mensaje: string } {
+/** The arrival, padded; with the first horario, not after it (dps_config_guardar, T13c). */
+export function validarLlegada(
+  valor: string,
+  primerHorario?: string,
+): { readonly ok: true; readonly llegada: string } | { readonly ok: false; readonly mensaje: string } {
   const h = hora(valor)
-  return h ? { ok: true, llegada: h } : { ok: false, mensaje: MENSAJE_LLEGADA }
+  if (!h) return { ok: false, mensaje: MENSAJE_LLEGADA }
+  const primero = primerHorario ? hora(primerHorario) : null
+  return primero && h > primero ? { ok: false, mensaje: MENSAJE_LLEGADA_PRIMERO } : { ok: true, llegada: h }
 }
 
 /** The ancestors' rutas of a team, nearest first ("A › B › C" → "A › B", "A"). */

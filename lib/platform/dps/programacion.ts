@@ -11,8 +11,12 @@
  * ten columns (Productor … Notas, the fields dps_plan_campo accepts), count
  * the summary and help "Nueva serie". Productor, host and comunicador are a
  * persona of the system or a written name, never both (S7.3): the sheet
- * shows either and writes the name or, since T11c (S11), links a persona
- * found with dps_buscar_personas (personas.ts). T11b (S9) adds the special events of
+ * shows either and writes the name or, since T11c (S11), links a persona.
+ * Since S12 (20261109200000_dps_listas_posicion.sql) Productor, Host,
+ * Comunicador and Cantantes hold several people each (up to 3; 8 in
+ * Cantantes), read from the plan's `personas` and written whole as a list
+ * of {persona_id} / {texto}; the people offered come from each column's
+ * list (listas.ts). T11b (S9) adds the special events of
  * one or several days (dps_evento_crear: one plan per day sharing an
  * `evento`, shown as «Título · Día N de M»), moving a plan to another date
  * (dps_plan_mover) and deleting one (dps_plan_eliminar), in
@@ -25,7 +29,8 @@ import { mensajeErrorDps, type ErrorRpc } from './errores'
 import { ETIQUETA_TIPO, type TipoPlan } from './planilla'
 
 export type ColumnaHoja = 'productor' | 'host' | 'comunicador' | 'opener' | 'anuncios' | 'cantantes' | 'canciones' | 'closer' | 'historia_vida' | 'notas'
-export type ColumnaPersona = 'productor' | 'host' | 'comunicador'
+/** The cells of people (S12.4): several per cell, each a persona of the system or a written name. */
+export type ColumnaPersona = 'productor' | 'host' | 'comunicador' | 'cantantes'
 
 export interface DefColumna {
   readonly id: ColumnaHoja
@@ -42,14 +47,31 @@ export const COLUMNAS_HOJA: readonly DefColumna[] = [
   { id: 'comunicador', etiqueta: 'Comunicador', ancho: 180, tipo: 'persona' },
   { id: 'opener', etiqueta: 'Opener', ancho: 220, tipo: 'texto' },
   { id: 'anuncios', etiqueta: 'Anuncios', ancho: 200, tipo: 'texto' },
-  { id: 'cantantes', etiqueta: 'Cantantes', ancho: 180, tipo: 'texto' },
+  { id: 'cantantes', etiqueta: 'Cantantes', ancho: 180, tipo: 'persona' },
   { id: 'canciones', etiqueta: 'Canciones', ancho: 280, tipo: 'lista' },
   { id: 'closer', etiqueta: 'Closer', ancho: 180, tipo: 'texto' },
   { id: 'historia_vida', etiqueta: 'Historia de vida', ancho: 170, tipo: 'texto' },
   { id: 'notas', etiqueta: 'Notas', ancho: 200, tipo: 'texto' },
 ]
 
-const PERSONAS: readonly ColumnaPersona[] = ['productor', 'host', 'comunicador']
+/** The roles the summary counts as unassigned. */
+const RESUMEN_PERSONAS = ['productor', 'host', 'comunicador'] as const
+const COLUMNAS_PERSONA: readonly ColumnaPersona[] = ['productor', 'host', 'comunicador', 'cantantes']
+
+/** dps_plan_campo's limits per cell (S12.4) and per written name. */
+export const MAX_PERSONAS: Readonly<Record<ColumnaPersona, number>> = { productor: 3, host: 3, comunicador: 3, cantantes: 8 }
+const MAX_TEXTO_PERSONA: Readonly<Record<ColumnaPersona, number>> = { productor: 120, host: 120, comunicador: 120, cantantes: 4000 }
+
+export const esColumnaPersona = (columna: string): columna is ColumnaPersona => (COLUMNAS_PERSONA as readonly string[]).includes(columna)
+
+/** One person of a cell: a persona of the system (personaId) or a written name («Sin cuenta», personaId null). */
+export interface EntradaPersona {
+  readonly personaId: string | null
+  readonly nombre: string
+}
+
+/** What a cell of people reads: the names, comma separated. */
+export const textoPersonas = (entradas: readonly EntradaPersona[]): string => entradas.map((e) => e.nombre).join(', ')
 const COLORES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'] as const
 
 export interface SerieHoja {
@@ -77,10 +99,8 @@ export interface PlanHoja {
   readonly horarios: readonly string[]
   /** What each cell shows ('' when empty). */
   readonly valores: Readonly<Record<ColumnaHoja, string>>
-  /** Productor / host / comunicador that are a persona of the system (not a written name). */
-  readonly conFicha: Readonly<Record<ColumnaPersona, boolean>>
-  /** Their persona_id (null: a written name or empty). */
-  readonly personaIds: Readonly<Record<ColumnaPersona, string | null>>
+  /** The people of Productor, Host, Comunicador and Cantantes, in order (S12.4). */
+  readonly personas: Readonly<Record<ColumnaPersona, readonly EntradaPersona[]>>
   readonly evento: EventoPlan | null
   /** Someone's attendance is marked: the plan can no longer be moved or deleted. */
   readonly conAsistencia: boolean
@@ -114,20 +134,41 @@ function valorCampo(campos: Objeto, id: ColumnaHoja): string {
   return texto(v)
 }
 
+function leerEntrada(v: unknown): EntradaPersona | null {
+  const e = objeto(v)
+  const nombre = texto(e?.nombre).trim()
+  if (!e || !nombre) return null
+  if (typeof e.persona_id === 'string') return { personaId: e.persona_id, nombre }
+  return e.persona_id === null || e.persona_id === undefined ? { personaId: null, nombre } : null
+}
+
+/**
+ * The people of a cell: `personas` of dps_plan_json (S12.4) or, from an
+ * older read, the single productor / host / comunicador or the text of
+ * campos.cantantes.
+ */
+function leerEntradas(p: Objeto, campos: Objeto, columna: ColumnaPersona): EntradaPersona[] {
+  const lista = objeto(p.personas)?.[columna]
+  if (Array.isArray(lista)) return lista.map(leerEntrada).filter((e): e is EntradaPersona => e !== null)
+  if (columna === 'cantantes') {
+    const escrito = texto(campos.cantantes).trim()
+    return escrito ? [{ personaId: null, nombre: escrito }] : []
+  }
+  const una = leerEntrada(p[columna])
+  return una ? [una] : []
+}
+
 export function leerPlanHoja(v: unknown): PlanHoja | null {
   const p = objeto(v)
   if (!p || typeof p.id !== 'string' || typeof p.fecha !== 'string') return null
   const s = objeto(p.serie)
   const campos = objeto(p.campos) ?? {}
   const valores = {} as Record<ColumnaHoja, string>
-  const conFicha = {} as Record<ColumnaPersona, boolean>
-  const personaIds = {} as Record<ColumnaPersona, string | null>
+  const personas = {} as Record<ColumnaPersona, EntradaPersona[]>
   for (const c of COLUMNAS_HOJA) {
-    if (c.tipo === 'persona') {
-      const persona = objeto(p[c.id])
-      valores[c.id] = texto(persona?.nombre)
-      conFicha[c.id as ColumnaPersona] = typeof persona?.persona_id === 'string'
-      personaIds[c.id as ColumnaPersona] = typeof persona?.persona_id === 'string' ? persona.persona_id : null
+    if (esColumnaPersona(c.id)) {
+      personas[c.id] = leerEntradas(p, campos, c.id)
+      valores[c.id] = textoPersonas(personas[c.id])
     } else {
       valores[c.id] = valorCampo(campos, c.id)
     }
@@ -141,8 +182,7 @@ export function leerPlanHoja(v: unknown): PlanHoja | null {
     serie: s && typeof s.id === 'string' ? { id: s.id, nombre: texto(s.nombre), color: texto(s.color), semanas: entero(s.semanas) } : null,
     horarios: Array.isArray(p.horarios) ? p.horarios.filter((x): x is string => typeof x === 'string') : [],
     valores,
-    conFicha,
-    personaIds,
+    personas,
     evento: leerEvento(p.evento),
     conAsistencia: p.con_asistencia === true,
   }
@@ -219,10 +259,10 @@ export function nombreEspecial(plan: PlanHoja): string {
 export type ValorRpc = { readonly ok: true; readonly valor: unknown } | { readonly ok: false; readonly mensaje: string }
 
 /**
- * What dps_plan_campo receives for a cell: productor / host / comunicador as
- * {"texto"} (the sheet writes names; a persona of the system stays until the
- * cell is rewritten), the creative fields as text, the songs as a list split
- * by «·» or «;»; null clears. Refuses locally what the RPC would refuse.
+ * What dps_plan_campo receives for a cell typed as text: a cell of people as
+ * one written name {"texto"} (valorPersonasParaRpc sends the whole list),
+ * the creative fields as text, the songs as a list split by «·» or «;»;
+ * null clears. Refuses locally what the RPC would refuse.
  */
 export function valorParaRpc(columna: ColumnaHoja, entrada: string): ValorRpc {
   const limpio = entrada.trim()
@@ -233,12 +273,41 @@ export function valorParaRpc(columna: ColumnaHoja, entrada: string): ValorRpc {
     if (canciones.some((c) => c.length > 200)) return { ok: false, mensaje: 'Cada canción, máximo 200 caracteres.' }
     return { ok: true, valor: canciones.length > 0 ? canciones : null }
   }
-  if (def?.tipo === 'persona') {
-    if (limpio.length > 120) return { ok: false, mensaje: 'Máximo 120 caracteres.' }
+  if (def?.tipo === 'persona' && esColumnaPersona(columna)) {
+    if (limpio.length > MAX_TEXTO_PERSONA[columna]) return { ok: false, mensaje: `Máximo ${MAX_TEXTO_PERSONA[columna]} caracteres.` }
     return { ok: true, valor: limpio ? { texto: limpio } : null }
   }
   if (limpio.length > 4000) return { ok: false, mensaje: 'Máximo 4000 caracteres.' }
   return { ok: true, valor: limpio || null }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ETIQUETA_PERSONA: Readonly<Record<ColumnaPersona, string>> = { productor: 'Productor', host: 'Host', comunicador: 'Comunicador', cantantes: 'Cantantes' }
+
+/**
+ * What dps_plan_campo receives for a cell of people (S12.3, S12.4): the
+ * people in order, {"persona_id"} or {"texto"}, a repeated person or name
+ * once, null when empty. Refuses locally what the RPC would refuse (the
+ * limit per cell, a long name); whether a persona is on the column's list
+ * is the RPC's call.
+ */
+export function valorPersonasParaRpc(columna: ColumnaPersona, entradas: readonly EntradaPersona[]): ValorRpc {
+  const valor: ({ persona_id: string } | { texto: string })[] = []
+  const vistas = new Set<string>()
+  for (const e of entradas) {
+    if (e.personaId !== null && !UUID_RE.test(e.personaId)) return { ok: false, mensaje: 'Esa persona no es válida. Búscala de nuevo.' }
+    const nombre = e.nombre.trim()
+    if (e.personaId === null && !nombre) continue
+    if (e.personaId === null && nombre.length > MAX_TEXTO_PERSONA[columna]) {
+      return { ok: false, mensaje: `Máximo ${MAX_TEXTO_PERSONA[columna]} caracteres por nombre.` }
+    }
+    const clave = e.personaId ?? `texto:${nombre.toLocaleLowerCase('es')}`
+    if (vistas.has(clave)) continue
+    vistas.add(clave)
+    valor.push(e.personaId ? { persona_id: e.personaId } : { texto: nombre })
+  }
+  if (valor.length > MAX_PERSONAS[columna]) return { ok: false, mensaje: `Máximo ${MAX_PERSONAS[columna]} personas en ${ETIQUETA_PERSONA[columna]}.` }
+  return { ok: true, valor: valor.length > 0 ? valor : null }
 }
 
 /** What the cell shows after a save, before the stored plan comes back. */
@@ -263,7 +332,7 @@ export function resumenHoja(filas: readonly FilaHoja[], hoy: string, anio: numbe
   const fin = `${anio}-12-31`
   const sinAsignar = domingos
     .filter((f) => f.fecha > hoy && f.fecha <= fin)
-    .reduce((n, f) => n + PERSONAS.filter((c) => !f.plan?.valores[c]).length, 0)
+    .reduce((n, f) => n + RESUMEN_PERSONAS.filter((c) => !f.plan?.valores[c]).length, 0)
   return { domingos: domingos.length, series: series.size, especiales: filas.length - domingos.length, sinAsignar }
 }
 

@@ -29,8 +29,8 @@ describe('mensajeErrorDps', () => {
     ['equipo_invalido', 'asistencia', 'Ese equipo ya no está en DPS. Actualiza la página.'],
     ['estado_invalido', 'asistencia', 'No se pudo guardar la asistencia. Intenta de nuevo.'],
     ['rango_invalido', 'asistencia', 'Revisa las fechas e inténtalo de nuevo.'],
-    ['horarios_invalidos', 'configuracion', 'Revisa los horarios: de 1 a 6, con el formato 09:15.'],
-    ['llegada_invalida', 'configuracion', 'Revisa la hora de llegada, con el formato 07:00.'],
+    ['horarios_invalidos', 'configuracion', 'Revisa los horarios: de 1 a 4, con el formato 09:15.'],
+    ['llegada_invalida', 'configuracion', 'Revisa la llegada: con el formato 07:00 y no después del primer horario.'],
   ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
     expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)
   })
@@ -87,10 +87,24 @@ describe('mensajeErrorDps', () => {
   })
 
   it('keeps the configuration texts of horarios and llegada', () => {
-    expect(mensajeErrorDps(error('horarios_invalidos'), 'configuracion')).toBe('Revisa los horarios: de 1 a 6, con el formato 09:15.')
+    expect(mensajeErrorDps(error('horarios_invalidos'), 'configuracion')).toBe('Revisa los horarios: de 1 a 4, con el formato 09:15.')
     expect(mensajeErrorDps(error('titulo_invalido'), 'evento')).toBe('Escribe el título del evento (máximo 120 caracteres).')
     expect(mensajeErrorDps(error('XX000'), 'orden')).toBe('No se pudo guardar el orden. Intenta de nuevo.')
     expect(mensajeErrorDps(error('XX000'), 'horarios')).toBe('No se pudieron guardar los horarios. Intenta de nuevo.')
+  })
+
+  // S12: the lists by position (Configuración › Listas) and the cells of several people.
+  it.each([
+    ['sin_autoridad', 'listas', 'No tienes permiso para cambiar esta lista.'],
+    ['lista_invalida', 'listas', 'Los cantantes se gestionan en Dream Team › Global Music › Cantantes.'],
+    ['persona_invalida', 'listas', 'Esa persona ya no existe. Busca de nuevo.'],
+    ['busqueda_invalida', 'listas', 'La búsqueda es muy larga (máximo 100 caracteres).'],
+    ['persona_fuera_de_lista', 'programacion', 'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.'],
+    ['demasiadas_personas', 'programacion', 'Son demasiadas personas para esta celda: hasta 3, y hasta 8 en Cantantes.'],
+  ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
+    expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)
+    expect(codigoErrorDps(error(codigo))).toBe(codigo)
+    expect(mensajeErrorDps(error('XX000'), 'listas')).toBe('No se pudo guardar la lista. Intenta de nuevo.')
   })
 
   it('explains a missing sheet authority as "no teams"', () => {

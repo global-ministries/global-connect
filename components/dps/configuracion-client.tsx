@@ -2,15 +2,20 @@
 
 /**
  * DPS › Configuración — client island of /dps/configuracion (T9
- * of odd/tasks/dps-asistencia-pco.md; S6.2, S6.3): three sections, each saved
+ * of odd/tasks/dps-asistencia-pco.md; S6.2, S6.3): four sections, each saved
  * on its own.
  *
- * 1. Horarios de los planes nuevos: 1 to 6 times and the arrival, with
- *    "Guardar horarios" (only plans created afterwards take them).
+ * 1. Horarios de los planes nuevos: 1 to 4 times and the arrival, not after
+ *    the first (as a plan's own, T13c), with "Guardar horarios" (only plans
+ *    created afterwards take them).
  * 2. Quién arma el plan: the added planners ("Quitar a …") and a person
  *    search to add one; the DPS direction, pastors and admins plan anyway.
  * 3. Quién pasa asistencia: per team "Heredar | Sí | No"; inheriting teams
  *    follow their parent at once.
+ * 4. Listas de la programación (S12.2, listas-configuracion.tsx): who may
+ *    be picked in Productor, Host, Comunicador and Cantantes; each list
+ *    says itself whether the caller edits it, so its refusals never turn
+ *    the rest read-only.
  *
  * Every page visitor plans (dps_config_leer requires it), but only a
  * configurator writes (L17). Nobody can tell in advance without a new RPC,
@@ -42,26 +47,31 @@ import {
   type PersonaEncontradaDps,
 } from '@/lib/actions/dps-configuracion.actions'
 import {
+  MAX_HORARIOS_CONFIG,
   normalizarHorarios,
   recalcularPasanAsistencia,
   validarLlegada,
   type ConfigDps,
   type PasanAsistenciaEquipo,
 } from '@/lib/platform/dps/configuracion'
+import { listasVacias, type ListasDps } from '@/lib/platform/dps/listas'
 import { horariosTexto } from '@/lib/platform/dps/planilla'
 
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
+import { ListasConfiguracion } from './listas-configuracion'
 import { MigasDps } from './migas-dps'
 
 export interface ConfiguracionClientProps {
   readonly config: ConfigDps | null
+  /** The lists by position (dps_lista_leer), each with whether the caller edits it. */
+  readonly listas?: ListasDps
   /** Why `config` is missing. */
   readonly error: string | null
 }
 
 type ValorPasan = 'heredar' | 'si' | 'no'
 
-const MAX_HORARIOS = 6
+const SIN_LISTAS = listasVacias()
 const ESPERA_BUSQUEDA_MS = 250
 const OPCIONES_PASAN = [
   { valor: 'heredar', etiqueta: 'Heredar' },
@@ -85,7 +95,7 @@ function textoPasan(equipo: PasanAsistenciaEquipo, todos: readonly PasanAsistenc
 const CLASE_TITULO_SECCION = 'text-base font-[650] text-foreground'
 const CLASE_FILA = 'flex min-h-11 items-center gap-3 border-b border-border/60 py-1.5 last:border-b-0'
 
-export function ConfiguracionClient({ config: configInicial, error }: ConfiguracionClientProps): ReactElement {
+export function ConfiguracionClient({ config: configInicial, listas = SIN_LISTAS, error }: ConfiguracionClientProps): ReactElement {
   const toast = useNotificaciones()
   const [config, setConfig] = useState<ConfigDps | null>(configInicial)
   const [soloLectura, setSoloLectura] = useState(false)
@@ -136,11 +146,22 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
     return false
   }
 
+  /** A list says itself who edits it: a refusal is explained, the rest stays editable. */
+  function terminarLista(ok: boolean, mensaje?: string): void {
+    enVueloRef.current -= 1
+    if (ok) {
+      if (enVueloRef.current === 0) setGuardado((g) => (g === 'error' ? g : 'guardado'))
+      return
+    }
+    setGuardado('error')
+    if (mensaje) toast.error(mensaje)
+  }
+
   async function guardarHorarios(): Promise<void> {
     if (!config) return
     const h = normalizarHorarios(horarios)
     if (!h.ok) return setErrorHorarios(h.mensaje)
-    const l = validarLlegada(llegada)
+    const l = validarLlegada(llegada, h.horarios[0])
     if (!l.ok) return setErrorHorarios(l.mensaje)
     setErrorHorarios(null)
     setGuardandoHorarios(true)
@@ -191,7 +212,7 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
         <h1 className="text-[28px] font-bold leading-[1.1] tracking-[-0.03em] md:text-2xl md:font-[650] md:tracking-[-0.02em]">Configuración de DPS</h1>
         <EstadoGuardado estado={guardado} />
       </div>
-      <p className="text-[15px] text-muted-foreground">Horarios de los planes, quién arma el plan y quién pasa asistencia.</p>
+      <p className="text-[15px] text-muted-foreground">Horarios de los planes, quién arma el plan, quién pasa asistencia y las listas de la programación.</p>
     </div>
   )
 
@@ -264,7 +285,7 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
                     </div>
                   ))}
                 </div>
-                {horarios.length < MAX_HORARIOS && (
+                {horarios.length < MAX_HORARIOS_CONFIG && (
                   <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setHorarios((actual) => [...actual, ''])}>
                     Agregar horario
                   </BotonSistema>
@@ -376,6 +397,8 @@ export function ConfiguracionClient({ config: configInicial, error }: Configurac
           )}
         </section>
       </TarjetaSistema>
+
+      <ListasConfiguracion listas={listas} onEmpezar={empezar} onTerminar={terminarLista} />
     </PaginaSistema>
   )
 }

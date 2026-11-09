@@ -2,8 +2,10 @@
  * /dps/programacion (RSC, odd/tasks/dps-asistencia-pco.md, T11; S6.4): the
  * plans of the year of ?anio= (else this year in Caracas) from
  * dps_planes_rango, and whether the caller edits (dps_puede_planificar).
- * Whoever does not see DPS gets a 404; a failed read shows its error. The
- * client island is mocked to read its props.
+ * Whoever does not see DPS gets a 404; a failed read shows its error. S12.3:
+ * the four lists by position (dps_lista_leer) feed the suggestions of the
+ * Productor, Host, Comunicador and Cantantes cells. The client island is
+ * mocked to read its props.
  */
 import React from 'react'
 import { render, screen } from '@testing-library/react'
@@ -23,7 +25,7 @@ jest.mock('@/lib/platform/ninos/fecha', () => ({ hoyEnCaracas: () => '2026-11-04
 const getUser = jest.fn()
 type Respuesta = { data: unknown; error: unknown }
 let respuestas: Record<string, Respuesta> = {}
-const rpc = jest.fn(async (nombre: string) => respuestas[nombre] ?? { data: null, error: null })
+const rpc = jest.fn(async (nombre: string, args?: { p_lista?: string }) => respuestas[args?.p_lista ? `${nombre}:${args.p_lista}` : nombre] ?? { data: null, error: null })
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: async () => ({ auth: { getUser }, rpc }) }))
 
 const recibidas: unknown[] = []
@@ -57,6 +59,18 @@ describe('/dps/programacion', () => {
     expect(screen.getByTestId('isla')).toBeInTheDocument()
     expect(ultima()).toMatchObject({ anio: 2026, hoy: '2026-11-04', editable: true, error: null })
     expect((ultima().planes as { id: string }[]).map((p) => p.id)).toEqual(['p1'])
+  })
+
+  it('hands the island the four lists by position; a list that fails reads empty (S12.3)', async () => {
+    const ANA = { persona_id: '11111111-1111-4111-8111-111111111111', nombre: 'Ana Pérez', iniciales: 'AP' }
+    respuestas['dps_lista_leer:hosts'] = { data: { lista: 'hosts', puede_editar: false, personas: [ANA] }, error: null }
+    respuestas['dps_lista_leer:cantantes'] = { data: null, error: { message: 'boom' } }
+    await pagina()
+    for (const lista of ['productores', 'hosts', 'comunicadores', 'cantantes']) expect(rpc).toHaveBeenCalledWith('dps_lista_leer', { p_lista: lista })
+    const listas = ultima().listas as Record<string, { personas: unknown[] }>
+    expect(listas.hosts).toEqual({ lista: 'hosts', puedeEditar: false, personas: [{ personaId: ANA.persona_id, nombre: 'Ana Pérez', iniciales: 'AP' }] })
+    expect(listas.cantantes).toEqual({ lista: 'cantantes', puedeEditar: false, personas: [] })
+    expect(listas.productores.personas).toEqual([])
   })
 
   it('reads the year of ?anio=, and ignores a malformed one', async () => {

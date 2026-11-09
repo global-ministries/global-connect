@@ -10,12 +10,15 @@
  * and dps_puede_planificar says whether the caller edits (S6: plain
  * servidores read). The client island (components/dps/programacion-client.tsx)
  * edits the cells and creates series through
- * lib/actions/dps-programacion.actions.ts; the RPCs decide.
+ * lib/actions/dps-programacion.actions.ts; the RPCs decide. The four lists
+ * by position (dps_lista_leer, S12.3) feed the suggestions of the
+ * Productor, Host, Comunicador and Cantantes cells.
  */
 import { notFound, redirect } from 'next/navigation'
 
 import { ProgramacionClient } from '@/components/dps/programacion-client'
 import { codigoErrorDps } from '@/lib/platform/dps/errores'
+import { cargarListasDps } from '@/lib/platform/dps/listas'
 import { leerPlanesHoja } from '@/lib/platform/dps/programacion'
 import { rpcDps } from '@/lib/platform/dps/rpc'
 import { isDreamTeamEnabled } from '@/lib/platform/dream-team/route-access'
@@ -46,9 +49,10 @@ export default async function DpsProgramacionPage({ searchParams }: DpsProgramac
   const pedido = primero((await searchParams)?.anio)
   const anio = pedido && /^\d{4}$/.test(pedido) && Number(pedido) >= 2000 && Number(pedido) <= 2100 ? Number(pedido) : Number(hoy.slice(0, 4))
 
-  const [planes, planifica] = await Promise.all([
+  const [planes, planifica, listas] = await Promise.all([
     rpc('dps_planes_rango', { p_desde: `${anio}-01-01`, p_hasta: `${anio}-12-31` }),
     rpc('dps_puede_planificar', undefined),
+    cargarListasDps(rpc),
   ])
   if (planes.error && codigoErrorDps(planes.error) === 'sin_autoridad') notFound()
 
@@ -60,6 +64,7 @@ export default async function DpsProgramacionPage({ searchParams }: DpsProgramac
       hoy={hoy}
       planes={planes.error ? [] : leerPlanesHoja(planes.data)}
       editable={!planifica.error && planifica.data === true}
+      listas={listas}
       error={planes.error ? ERROR_CARGA : null}
     />
   )

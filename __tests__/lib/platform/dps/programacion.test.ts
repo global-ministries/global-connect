@@ -21,8 +21,10 @@ import {
   primerDomingoSugerido,
   proximoDomingo,
   resumenHoja,
+  MAX_PERSONAS,
   semanaSerie,
   valorParaRpc,
+  valorPersonasParaRpc,
 } from '@/lib/platform/dps/programacion'
 
 const SERIE_A = { id: 'sa', nombre: 'Empezar de nuevo', color: 'chart-1', imagen_path: null, semanas: 2, primer_domingo: '2026-01-04' }
@@ -75,8 +77,53 @@ describe('leerPlanHoja', () => {
       historia_vida: '',
       notas: 'Bautizos',
     })
-    expect(p.conFicha).toEqual({ productor: true, host: false, comunicador: false })
-    expect(p.personaIds).toEqual({ productor: 'u1', host: null, comunicador: null })
+    // Without `personas` (an older read) the single keys still fill the cells.
+    expect(p.personas).toEqual({
+      productor: [{ personaId: 'u1', nombre: 'Ximena Rangel' }],
+      host: [{ personaId: null, nombre: 'Andrés Valero' }],
+      comunicador: [],
+      cantantes: [],
+    })
+  })
+
+  it('reads several people per cell from `personas` (S12.4), in order, joined in the cell text', () => {
+    const p = leerPlanHoja(
+      plan('m', '2026-02-01', {
+        productor: { persona_id: 'u1', texto: null, nombre: 'Ximena Rangel' },
+        campos: { cantantes: 'Lía Soto, Coro invitado' },
+        personas: {
+          productor: [
+            { persona_id: 'u1', texto: null, nombre: 'Ximena Rangel' },
+            { persona_id: null, texto: 'Invitada Ana', nombre: 'Invitada Ana' },
+          ],
+          host: [],
+          comunicador: [{ persona_id: 'u3', texto: null, nombre: 'Tomás Gil' }],
+          cantantes: [
+            { persona_id: 'u4', texto: null, nombre: 'Lía Soto' },
+            { persona_id: null, texto: 'Coro invitado', nombre: 'Coro invitado' },
+            { persona_id: 7, nombre: 'mala' },
+          ],
+        },
+      }),
+    )!
+    expect(p.personas.productor).toEqual([
+      { personaId: 'u1', nombre: 'Ximena Rangel' },
+      { personaId: null, nombre: 'Invitada Ana' },
+    ])
+    expect(p.personas.cantantes).toEqual([
+      { personaId: 'u4', nombre: 'Lía Soto' },
+      { personaId: null, nombre: 'Coro invitado' },
+    ])
+    expect([p.valores.productor, p.valores.host, p.valores.comunicador, p.valores.cantantes]).toEqual([
+      'Ximena Rangel, Invitada Ana',
+      '',
+      'Tomás Gil',
+      'Lía Soto, Coro invitado',
+    ])
+  })
+
+  it('reads an old Cantantes text as one written name', () => {
+    expect(leerPlanHoja(plan('c', '2026-02-01', { campos: { cantantes: 'Ana y Luis' } }))!.personas.cantantes).toEqual([{ personaId: null, nombre: 'Ana y Luis' }])
   })
 
   it('reads a song list stored as text as it is, and drops rows without id or fecha', () => {
@@ -88,6 +135,11 @@ describe('leerPlanHoja', () => {
 })
 
 describe('the columns', () => {
+  it('Productor, Host, Comunicador and Cantantes take people (S12.4): up to 3, Cantantes up to 8', () => {
+    expect(COLUMNAS_HOJA.filter((c) => c.tipo === 'persona').map((c) => c.id)).toEqual(['productor', 'host', 'comunicador', 'cantantes'])
+    expect(MAX_PERSONAS).toEqual({ productor: 3, host: 3, comunicador: 3, cantantes: 8 })
+  })
+
   it('are the ten of the artboard, Productor to Notas, mapped to dps_plan_campo', () => {
     expect(COLUMNAS_HOJA.map((c) => [c.id, c.etiqueta])).toEqual([
       ['productor', 'Productor'],
@@ -169,6 +221,46 @@ describe('valorParaRpc', () => {
   })
 })
 
+describe('valorPersonasParaRpc (S12.3, S12.4)', () => {
+  const U1 = '11111111-1111-4111-8111-111111111111'
+  const U2 = '22222222-2222-4222-8222-222222222222'
+
+  it('sends the people of a cell in order: a persona by id, a written name as text; empty is null', () => {
+    expect(
+      valorPersonasParaRpc('productor', [
+        { personaId: U1, nombre: 'Ximena Rangel' },
+        { personaId: null, nombre: '  Invitada Ana ' },
+      ]),
+    ).toEqual({ ok: true, valor: [{ persona_id: U1 }, { texto: 'Invitada Ana' }] })
+    expect(valorPersonasParaRpc('host', [])).toEqual({ ok: true, valor: null })
+    expect(valorPersonasParaRpc('host', [{ personaId: null, nombre: '   ' }])).toEqual({ ok: true, valor: null })
+  })
+
+  it('keeps a repeated person or name once', () => {
+    expect(
+      valorPersonasParaRpc('host', [
+        { personaId: U1, nombre: 'Ximena Rangel' },
+        { personaId: U1, nombre: 'Ximena Rangel' },
+        { personaId: null, nombre: 'Pedro' },
+        { personaId: null, nombre: 'pedro' },
+      ]),
+    ).toEqual({ ok: true, valor: [{ persona_id: U1 }, { texto: 'Pedro' }] })
+  })
+
+  it('refuses more than 3 people (8 in Cantantes) and long written names, as dps_plan_campo', () => {
+    const escritas = (n: number) => Array.from({ length: n }, (_, i) => ({ personaId: null, nombre: `Persona ${i}` }))
+    expect(valorPersonasParaRpc('comunicador', escritas(4))).toEqual({ ok: false, mensaje: 'Máximo 3 personas en Comunicador.' })
+    expect(valorPersonasParaRpc('cantantes', escritas(8))).toMatchObject({ ok: true })
+    expect(valorPersonasParaRpc('cantantes', escritas(9))).toEqual({ ok: false, mensaje: 'Máximo 8 personas en Cantantes.' })
+    expect(valorPersonasParaRpc('productor', [{ personaId: null, nombre: 'x'.repeat(121) }])).toEqual({ ok: false, mensaje: 'Máximo 120 caracteres por nombre.' })
+    expect(valorPersonasParaRpc('cantantes', [{ personaId: null, nombre: 'x'.repeat(200) }])).toMatchObject({ ok: true })
+    expect(valorPersonasParaRpc('productor', [{ personaId: U2, nombre: '' }, { personaId: 'nope', nombre: 'X' }])).toEqual({
+      ok: false,
+      mensaje: 'Esa persona no es válida. Búscala de nuevo.',
+    })
+  })
+})
+
 describe('resumenHoja and proximoDomingo', () => {
   it('counts Sundays, series, special days and the unassigned productor, host and comunicador from today to the end of the year', () => {
     const filas = filasHoja(leerPlanesHoja(PLANES), 2026)
@@ -246,6 +338,13 @@ describe('mensajeErrorProgramacion', () => {
     expect(mensajeErrorProgramacion({ message: 'persona_o_texto' })).toBe('Ese valor es muy largo o no es válido.')
     expect(mensajeErrorProgramacion({ message: 'plan_invalido' })).toBe('Ese plan ya no existe. Actualiza la página.')
     expect(mensajeErrorProgramacion({ message: 'boom' })).toBe('No se pudo guardar la programación. Intenta de nuevo.')
+  })
+
+  it('explains the lists and the limits of a cell (S12.3, S12.4)', () => {
+    expect(mensajeErrorProgramacion({ message: 'persona_fuera_de_lista' })).toBe(
+      'Esa persona no está en la lista de esta columna. Agrégala en Configuración › Listas o escribe su nombre sin cuenta.',
+    )
+    expect(mensajeErrorProgramacion({ message: 'demasiadas_personas' })).toBe('Son demasiadas personas para esta celda: hasta 3, y hasta 8 en Cantantes.')
   })
 
   it('says a picked person is gone and maps the search errors (S11)', () => {

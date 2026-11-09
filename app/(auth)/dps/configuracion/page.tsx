@@ -7,13 +7,15 @@
  * else gets the app's not-found state. The writes are for configurators only
  * (admin/pastor or the DPS direction, L17) and only the database knows who
  * they are, so the island (components/dps/configuracion-client.tsx)
- * turns read-only on the first 'sin_autoridad'.
+ * turns read-only on the first 'sin_autoridad'. The four lists by position
+ * (dps_lista_leer, S12.2) come with whether the caller edits each one.
  */
 import { notFound, redirect } from 'next/navigation'
 
 import { ConfiguracionClient } from '@/components/dps/configuracion-client'
 import { leerConfig } from '@/lib/platform/dps/configuracion'
 import { codigoErrorDps } from '@/lib/platform/dps/errores'
+import { cargarListasDps } from '@/lib/platform/dps/listas'
 import { rpcDps } from '@/lib/platform/dps/rpc'
 import { isDreamTeamEnabled } from '@/lib/platform/dream-team/route-access'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -29,12 +31,13 @@ export default async function DpsConfiguracionPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data, error } = await rpcDps(supabase)('dps_config_leer', undefined)
+  const rpc = rpcDps(supabase)
+  const [{ data, error }, listas] = await Promise.all([rpc('dps_config_leer', undefined), cargarListasDps(rpc)])
   if (error && codigoErrorDps(error) === 'sin_autoridad') notFound()
 
   return error ? (
-    <ConfiguracionClient config={null} error="No se pudo cargar la configuración. Actualiza la página." />
+    <ConfiguracionClient config={null} listas={listas} error="No se pudo cargar la configuración. Actualiza la página." />
   ) : (
-    <ConfiguracionClient config={leerConfig(data)} error={null} />
+    <ConfiguracionClient config={leerConfig(data)} listas={listas} error={null} />
   )
 }

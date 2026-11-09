@@ -4,7 +4,7 @@
  * rows are read (id, nombre, apellido and iniciales only). Every name is
  * fictitious.
  */
-import { leerPersonasBuscadas, textoParaBuscar } from '@/lib/platform/dps/personas'
+import { filtrarPersonas, leerPersonasBuscadas, textoParaBuscar } from '@/lib/platform/dps/personas'
 
 const ID = '11111111-1111-4111-8111-111111111111'
 
@@ -34,5 +34,24 @@ describe('leerPersonasBuscadas', () => {
       { personaId: ID, nombre: 'Ana', iniciales: 'A' },
     ])
     expect(leerPersonasBuscadas(null)).toEqual([])
+  })
+})
+
+describe('filtrarPersonas (the suggestions of a list, S12.3)', () => {
+  const LISTA = [
+    { personaId: 'a', nombre: 'Ana Pérez', iniciales: 'AP' },
+    { personaId: 'b', nombre: 'Andrés Valero', iniciales: 'AV' },
+    { personaId: 'c', nombre: 'Lía Soto', iniciales: 'LS' },
+  ]
+
+  it('is the whole list for an empty text, minus the people already in the cell', () => {
+    expect(filtrarPersonas(LISTA, '  ', ['b']).map((p) => p.personaId)).toEqual(['a', 'c'])
+  })
+
+  it('keeps who has every word, ignoring case, accents and order', () => {
+    expect(filtrarPersonas(LISTA, 'an', []).map((p) => p.personaId)).toEqual(['a', 'b'])
+    expect(filtrarPersonas(LISTA, 'perez ANA', []).map((p) => p.personaId)).toEqual(['a'])
+    expect(filtrarPersonas(LISTA, 'lia', []).map((p) => p.personaId)).toEqual(['c'])
+    expect(filtrarPersonas(LISTA, 'zz', [])).toEqual([])
   })
 })

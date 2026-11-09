@@ -3,8 +3,11 @@
  * T9; S6.3): default horarios and llegada, planificadores and "Quién pasa
  * asistencia" per team. The server actions are mocked: each edit flow checks
  * what is sent and the in-place result; a 'sin_autoridad' from any write
- * turns the screen read-only (a planner who does not configure, L17). Every
- * person is fictitious.
+ * turns the screen read-only (a planner who does not configure, L17). S12.2:
+ * the lists by position (Productores, Hosts, Comunicadores editable per
+ * dps_lista_puede_editar; Cantantes read-only, kept in Dream Team). T13c:
+ * at most four horarios and the llegada not after the first. Every person
+ * is fictitious.
  */
 import React from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -13,6 +16,7 @@ import userEvent from '@testing-library/user-event'
 import { ConfiguracionClient } from '@/components/dps/configuracion-client'
 import * as acciones from '@/lib/actions/dps-configuracion.actions'
 import { leerConfig, type ConfigDps } from '@/lib/platform/dps/configuracion'
+import type { ListasDps } from '@/lib/platform/dps/listas'
 
 jest.mock('@/lib/actions/dps-configuracion.actions', () => ({
   guardarHorariosDps: jest.fn(),
@@ -20,6 +24,9 @@ jest.mock('@/lib/actions/dps-configuracion.actions', () => ({
   quitarPlanificadorDps: jest.fn(),
   guardarPasanAsistenciaDps: jest.fn(),
   buscarPersonasDps: jest.fn(),
+  agregarAListaDps: jest.fn(),
+  quitarDeListaDps: jest.fn(),
+  buscarPersonasListaDps: jest.fn(),
 }))
 
 const toastError = jest.fn()
@@ -36,6 +43,19 @@ const agregar = acciones.agregarPlanificadorDps as jest.MockedFunction<typeof ac
 const quitar = acciones.quitarPlanificadorDps as jest.MockedFunction<typeof acciones.quitarPlanificadorDps>
 const guardarPasan = acciones.guardarPasanAsistenciaDps as jest.MockedFunction<typeof acciones.guardarPasanAsistenciaDps>
 const buscar = acciones.buscarPersonasDps as jest.MockedFunction<typeof acciones.buscarPersonasDps>
+const agregarLista = acciones.agregarAListaDps as jest.MockedFunction<typeof acciones.agregarAListaDps>
+const quitarLista = acciones.quitarDeListaDps as jest.MockedFunction<typeof acciones.quitarDeListaDps>
+const buscarLista = acciones.buscarPersonasListaDps as jest.MockedFunction<typeof acciones.buscarPersonasListaDps>
+
+const ELENA = { personaId: 'elena', nombre: 'Elena Garrido', iniciales: 'EG' }
+const PEDRO = { personaId: 'pedro', nombre: 'Pedro Olmedo', iniciales: 'PO' }
+const LIA = { personaId: 'lia', nombre: 'Lía Soto', iniciales: 'LS' }
+const LISTAS: ListasDps = {
+  productores: { lista: 'productores', puedeEditar: true, personas: [ELENA] },
+  hosts: { lista: 'hosts', puedeEditar: true, personas: [] },
+  comunicadores: { lista: 'comunicadores', puedeEditar: false, personas: [PEDRO] },
+  cantantes: { lista: 'cantantes', puedeEditar: false, personas: [LIA] },
+}
 
 const CONFIG: ConfigDps = leerConfig({
   horarios: ['09:15', '11:15'],
@@ -164,6 +184,69 @@ describe('ConfiguracionClient', () => {
     await userEvent.click(within(fila('Audio')).getByRole('button', { name: 'Sí' }))
     expect(await screen.findByText(/Puedes ver la configuración/)).toBeInTheDocument()
     expect(screen.getByTestId('pasa-audio')).toHaveTextContent('Sí pasan · como DPS')
+  })
+
+  it('refuses a fifth horario and a llegada after the first one (T13c)', async () => {
+    render(<ConfiguracionClient config={CONFIG} error={null} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar horario' }))
+    expect(screen.getByLabelText('Horario 4')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Agregar horario' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Quitar el horario 4' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Quitar el horario 3' }))
+    fireEvent.change(screen.getByLabelText('Llegada'), { target: { value: '09:30' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+    expect(guardarHorarios).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('La llegada no puede ser después del primer horario.')
+  })
+
+  describe('the lists by position (S12.2)', () => {
+    beforeEach(() => {
+      buscarLista.mockResolvedValue({ ok: true, data: [ELENA, { personaId: 'bruno', nombre: 'Bruno Díaz', iniciales: 'BD' }] })
+    })
+
+    it('shows the four lists, who keeps each and its people; Cantantes come from Dream Team', () => {
+      render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
+      const seccion = screen.getByRole('region', { name: 'Listas de la programación' })
+      expect(within(seccion).getByRole('list', { name: 'Productores' })).toHaveTextContent('Elena Garrido')
+      expect(within(seccion).getByText('La arman la dirección de DPS y la de Producción Creativa.')).toBeInTheDocument()
+      expect(within(seccion).getByText('Nadie en esta lista todavía.')).toBeInTheDocument()
+      expect(within(seccion).getByRole('list', { name: 'Cantantes' })).toHaveTextContent('Lía Soto')
+      expect(within(seccion).getByText('Se gestionan en Dream Team › Global Music › Cantantes: son quienes sirven ahí.')).toBeInTheDocument()
+      // Editable: Productores and Hosts; read-only: Comunicadores (not this caller's) and Cantantes.
+      expect(within(seccion).getByRole('searchbox', { name: 'Agregar a Productores' })).toBeInTheDocument()
+      expect(within(seccion).getByRole('searchbox', { name: 'Agregar a Hosts' })).toBeInTheDocument()
+      expect(within(seccion).queryByRole('searchbox', { name: 'Agregar a Comunicadores' })).not.toBeInTheDocument()
+      expect(within(seccion).queryByRole('searchbox', { name: 'Agregar a Cantantes' })).not.toBeInTheDocument()
+      expect(within(seccion).getByRole('button', { name: 'Quitar a Elena Garrido de Productores' })).toBeInTheDocument()
+      expect(within(seccion).queryByRole('button', { name: 'Quitar a Pedro Olmedo de Comunicadores' })).not.toBeInTheDocument()
+    })
+
+    it('adds a person found by name; who is already on the list is not offered', async () => {
+      agregarLista.mockResolvedValue({ ok: true, data: { lista: 'productores', puedeEditar: true, personas: [{ personaId: 'bruno', nombre: 'Bruno Díaz', iniciales: 'BD' }, ELENA] } })
+      render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
+      await userEvent.type(screen.getByRole('searchbox', { name: 'Agregar a Productores' }), 'di')
+      const boton = await screen.findByRole('button', { name: 'Agregar a Bruno Díaz en Productores' })
+      expect(buscarLista).toHaveBeenCalledWith({ texto: 'di' })
+      expect(screen.queryByRole('button', { name: 'Agregar a Elena Garrido en Productores' })).not.toBeInTheDocument()
+      await userEvent.click(boton)
+      expect(agregarLista).toHaveBeenCalledWith({ lista: 'productores', personaId: 'bruno' })
+      await waitFor(() => expect(screen.getByRole('list', { name: 'Productores' })).toHaveTextContent('Bruno Díaz'))
+      expect(screen.getByRole('searchbox', { name: 'Agregar a Productores' })).toHaveValue('')
+      await waitFor(() => expect(screen.getByTestId('estado-guardado')).toHaveTextContent('Guardado'))
+    })
+
+    it('takes a person off and rolls a failure back with its reason', async () => {
+      quitarLista.mockResolvedValueOnce({ ok: false, message: 'No tienes permiso para cambiar esta lista.', codigo: 'sin_autoridad' })
+      render(<ConfiguracionClient config={CONFIG} listas={LISTAS} error={null} />)
+      await userEvent.click(screen.getByRole('button', { name: 'Quitar a Elena Garrido de Productores' }))
+      expect(quitarLista).toHaveBeenCalledWith({ lista: 'productores', personaId: 'elena' })
+      await waitFor(() => expect(toastError).toHaveBeenCalledWith('No tienes permiso para cambiar esta lista.'))
+      expect(screen.getByRole('list', { name: 'Productores' })).toHaveTextContent('Elena Garrido')
+      quitarLista.mockResolvedValueOnce({ ok: true, data: { lista: 'productores', puedeEditar: true, personas: [] } })
+      await userEvent.click(screen.getByRole('button', { name: 'Quitar a Elena Garrido de Productores' }))
+      await waitFor(() => expect(screen.queryByRole('list', { name: 'Productores' })).not.toBeInTheDocument())
+    })
   })
 
   it('explains a failed read', () => {
