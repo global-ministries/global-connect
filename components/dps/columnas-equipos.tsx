@@ -44,7 +44,8 @@ import { ConvocarPuesto } from './convocar-puesto'
 /** Thin token-colored scrollbars of the board (no global scrollbar style in the system yet). */
 const CLASE_SCROLL_FINO = '[scrollbar-color:color-mix(in_oklab,var(--muted-foreground)_40%,transparent)_transparent] [scrollbar-width:thin]'
 
-const CLASE_INSIGNIA_FALTA =
+/** The red count of «Falta N» (`.bdg`), shared with the matrix cells (matriz-domingos.tsx). */
+export const CLASE_INSIGNIA_FALTA =
   'inline-grid h-5 min-w-5 place-items-center rounded-full border border-danger/45 bg-danger/15 px-1 font-mono text-[11px] font-bold tabular-nums'
 
 export interface AccionesColumnas {

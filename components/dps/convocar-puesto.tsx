@@ -10,7 +10,10 @@
  * team subtree, those not convocado in the plan first — each with one
  * context line: "Ya está en este puesto" (not selectable), "Ya sirve ese
  * día en <puesto>" in `warning-text`, or their team and role. Picking one
- * convoca at once (the parent saves and closes).
+ * convoca at once (the parent saves and closes). The matrix
+ * (matriz-domingos.tsx) titles the popover itself (`encabezado={false}`),
+ * keeps it open after a pick and bumps `recarga` once the change is saved,
+ * so the list is read again.
  */
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import { Search } from 'lucide-react'
@@ -35,9 +38,26 @@ export interface ConvocarPuestoProps {
   readonly horarios: string
   readonly idTitulo: string
   readonly onElegir: (candidato: CandidatoPuesto) => void
+  /** Without it, the caller titles the popover (the matrix). */
+  readonly encabezado?: boolean
+  /** A change reads the candidates again (after a saved change). */
+  readonly recarga?: number
+  /** The search's id, so the caller can focus it. */
+  readonly idBusqueda?: string
 }
 
-export function ConvocarPuesto({ planId, puestoId, puesto, equipo, horarios, idTitulo, onElegir }: ConvocarPuestoProps): ReactElement {
+export function ConvocarPuesto({
+  planId,
+  puestoId,
+  puesto,
+  equipo,
+  horarios,
+  idTitulo,
+  onElegir,
+  encabezado = true,
+  recarga = 0,
+  idBusqueda,
+}: ConvocarPuestoProps): ReactElement {
   const [busqueda, setBusqueda] = useState('')
   const [candidatos, setCandidatos] = useState<readonly CandidatoPuesto[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -61,20 +81,23 @@ export function ConvocarPuesto({ planId, puestoId, puesto, equipo, horarios, idT
     }
     const espera = setTimeout(() => void buscar(), ESPERA_BUSQUEDA_MS)
     return () => clearTimeout(espera)
-  }, [planId, puestoId, busqueda])
+  }, [planId, puestoId, busqueda, recarga])
 
   return (
     <div className="space-y-2">
-      <div>
-        <h3 id={idTitulo} className="text-[13px] font-[650]">
-          Convocar para {puesto}
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          {equipo}
-          {horarios && <> · {horarios}</>}
-        </p>
-      </div>
+      {encabezado && (
+        <div>
+          <h3 id={idTitulo} className="text-[13px] font-[650]">
+            Convocar para {puesto}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {equipo}
+            {horarios && <> · {horarios}</>}
+          </p>
+        </div>
+      )}
       <InputSistema
+        id={idBusqueda}
         type="search"
         aria-label="Buscar en el equipo"
         placeholder="Buscar en el equipo"

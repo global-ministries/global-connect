@@ -151,6 +151,14 @@ describe('the header', () => {
     expect(screen.getByRole('button', { name: 'No hay plan siguiente' })).toBeDisabled()
   })
 
+  it('opens the matrix of Sundays from the week of the plan (T12), also for read-only', () => {
+    const { unmount } = render(<PlanClient {...props()} />)
+    expect(screen.getByRole('link', { name: 'Matriz' })).toHaveAttribute('href', '/dps/matriz?desde=2026-11-08')
+    unmount()
+    render(<PlanClient {...props({ plan: plan({ fecha: '2026-11-10', tipo: 'cena_del_senor' }), equipos: leerEquiposPlan(equiposJson(false)) })} />)
+    expect(screen.getByRole('link', { name: 'Matriz' })).toHaveAttribute('href', '/dps/matriz?desde=2026-11-08')
+  })
+
   it('has Equipos as the current tab and Orden coming later', () => {
     render(<PlanClient {...props()} />)
     const pestanas = screen.getByRole('navigation', { name: 'Secciones del plan' })

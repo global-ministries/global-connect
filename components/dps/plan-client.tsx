@@ -8,8 +8,9 @@
  *
  * Top to bottom: crumbs "DPS › Plan"; the header band (encabezado-plan.tsx:
  * series cover, title, date pill to the previous / next plan, horarios and
- * llegada; "Acciones ▾" for whoever edits: "Copiar del domingo anterior" and
- * the series cover); the toolbar (tabs "Orden pronto" · "Equipos", the
+ * llegada; «Matriz» to the matrix of Sundays of that week (T12, from md);
+ * "Acciones ▾" for whoever edits: "Copiar del domingo anterior" and the
+ * series cover); the toolbar (tabs "Orden pronto" · "Equipos", the
  * summary "N convocados en M equipos · F puestos sin cubrir" and the
  * autosave status); the team columns (columnas-equipos.tsx). From md the
  * view fills the viewport under the desktop header: the band and the toolbar
@@ -32,7 +33,7 @@
  */
 import { useMemo, useRef, useState, type ChangeEvent, type ReactElement } from 'react'
 import Link from 'next/link'
-import { CalendarDays, ChevronDown, Copy, ImageMinus, ImageUp, UsersRound } from 'lucide-react'
+import { CalendarDays, ChevronDown, Copy, Grid3x3, ImageMinus, ImageUp, UsersRound } from 'lucide-react'
 
 import { BotonSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -42,6 +43,7 @@ import { LISTA_PESTANAS, clasePestana } from '@/components/ninos/pestanas-sistem
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { cambiarPortadaDps, cargarEquiposDps, convocarDps, copiarPlanDps, desconvocarDps, planAnteriorDps, quitarPortadaDps } from '@/lib/actions/dps-plan.actions'
 import { MENSAJE_IMAGEN } from '@/lib/platform/dps/errores'
+import { domingoAnterior, hrefMatriz } from '@/lib/platform/dps/matriz'
 import {
   confirmarConvocado,
   convocadosManuales,
@@ -254,8 +256,15 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
   }
 
   const conSerie = plan.serie !== null
+  // The matrix of Sundays (T12) opens on this plan's week; a desktop view, for everyone who reads the plan.
+  const matriz = (
+    <BotonSistema asChild variante="outline" tamaño="sm" icono={Grid3x3} className="hidden md:inline-flex">
+      <Link href={hrefMatriz(domingoAnterior(plan.fecha))}>Matriz</Link>
+    </BotonSistema>
+  )
   const acciones = editable ? (
     <>
+      {matriz}
       {conSerie && (
         <input
           ref={archivoRef}
@@ -296,7 +305,9 @@ export function PlanClient({ plan, anterior, siguiente, equipos: equiposIniciale
         </DropdownMenuContent>
       </DropdownMenu>
     </>
-  ) : null
+  ) : (
+    matriz
+  )
 
   return (
     <PaginaSistema breadcrumbs={<MigasDps actual="Plan" />} className="relative">
