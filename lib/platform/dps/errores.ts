@@ -12,7 +12,9 @@
  * 20261108202000_dps_planificacion_convocados.sql and
  * 20261108204000_dps_directores_automaticos.sql; T11b the special events,
  * moving and deleting a plan: 20261108206000_dps_eventos_especiales.sql;
- * T13 the order and the horarios: 20261108208000_dps_orden_servicio.sql).
+ * T13 the order and the horarios: 20261108208000_dps_orden_servicio.sql;
+ * T15a the service notices, the answers and the blocked dates, S13:
+ * 20261109210000_dps_avisos.sql).
  * Pure: safe on the client.
  */
 
@@ -36,6 +38,12 @@ export type ContextoErrorDps =
   | 'orden'
   | 'horarios'
   | 'listas'
+  /** The planner's notices: review, send and states (S13.3). */
+  | 'avisos'
+  /** The person's services: detail, answer and dismiss (S13.5). */
+  | 'mis_servicios'
+  /** «Fechas que no puedo servir» (S13.6). */
+  | 'fechas_bloqueadas'
 
 const CODIGOS = [
   'sin_autoridad',
@@ -78,6 +86,10 @@ const CODIGOS = [
   'lista_invalida',
   'persona_fuera_de_lista',
   'demasiadas_personas',
+  'respuesta_invalida',
+  'motivo_invalido',
+  'nota_invalida',
+  'bloqueo_invalido',
 ] as const
 
 export type CodigoErrorDps = (typeof CODIGOS)[number]
@@ -99,6 +111,9 @@ const GENERICO: Record<ContextoErrorDps, string> = {
   orden: 'No se pudo guardar el orden. Intenta de nuevo.',
   horarios: 'No se pudieron guardar los horarios. Intenta de nuevo.',
   listas: 'No se pudo guardar la lista. Intenta de nuevo.',
+  avisos: 'No se pudieron enviar los avisos. Intenta de nuevo.',
+  mis_servicios: 'No se pudo guardar tu respuesta. Intenta de nuevo.',
+  fechas_bloqueadas: 'No se pudo guardar la fecha. Intenta de nuevo.',
 }
 
 /** The default horarios of Configuración: 1 to 4, as a plan's own (T13c). */
@@ -110,6 +125,14 @@ export const MENSAJE_HORARIOS_PLAN = 'Revisa los servicios: de 1 a 4, cada uno d
 export const MENSAJE_LLEGADA_PLAN = 'La llegada del equipo tiene que ser antes del primer servicio.'
 /** The dps-series bucket: jpeg, png or webp up to 5 MB (also checked by the server action before uploading). */
 export const MENSAJE_IMAGEN = 'La imagen debe ser JPG, PNG o WebP de hasta 5 MB.'
+/** dps_responder: the motivo of «No puedo» (also checked before calling). */
+export const MENSAJE_MOTIVO = 'El motivo va hasta 300 caracteres.'
+/** dps_fecha_bloqueada_agregar (also checked before calling, lib/platform/dps/avisos.ts). */
+export const MENSAJE_FECHAS_BLOQUEO = 'Elige las fechas «Desde» y «Hasta».'
+export const MENSAJE_RANGO_BLOQUEO = 'Revisa las fechas: «Hasta» no puede ser antes de «Desde» y el rango es de hasta un año.'
+export const MENSAJE_NOTA_BLOQUEO = 'La nota va hasta 200 caracteres.'
+/** More plans than dps_avisos_* take at once (400). */
+export const MENSAJE_DEMASIADOS_PLANES = 'Son demasiadas fechas a la vez. Elige un rango más corto.'
 
 export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: ContextoErrorDps): string {
   switch (codigoErrorDps(error)) {
@@ -124,22 +147,29 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       if (contexto === 'orden') return 'Solo quienes arman el plan pueden cambiar el orden del servicio.'
       if (contexto === 'horarios') return 'Solo quienes arman el plan pueden cambiar los horarios.'
       if (contexto === 'listas') return 'No tienes permiso para cambiar esta lista.'
+      if (contexto === 'avisos') return 'Solo quienes arman el plan pueden ver y enviar los avisos.'
+      if (contexto === 'mis_servicios') return 'Ya no estás programado en este servicio. Actualiza la página.'
+      if (contexto === 'fechas_bloqueadas') return 'No pudimos identificarte. Vuelve a iniciar sesión.'
       return 'No tienes permiso para pasar asistencia en este equipo.'
     case 'fecha_invalida':
       if (contexto === 'programacion') return 'El primer domingo tiene que caer en domingo.'
       if (contexto === 'evento') return 'Elige la fecha del evento.'
+      if (contexto === 'fechas_bloqueadas') return MENSAJE_FECHAS_BLOQUEO
       return 'Solo se puede pasar asistencia el día del plan o hasta 14 días después.'
     case 'persona_invalida':
       return contexto === 'configuracion' || contexto === 'listas'
         ? 'Esa persona ya no existe. Busca de nuevo.'
         : 'Esa persona ya no está en este plan ni sirve en DPS. Actualiza la página.'
     case 'demasiados':
+      if (contexto === 'avisos') return MENSAJE_DEMASIADOS_PLANES
+      if (contexto === 'fechas_bloqueadas') return 'Tienes demasiadas fechas bloqueadas (máximo 100). Quita alguna antes de agregar otra.'
       return 'Son demasiadas personas a la vez (máximo 300).'
     case 'plan_invalido':
       return 'Ese plan ya no existe. Actualiza la página.'
     case 'equipo_invalido':
       return 'Ese equipo ya no está en DPS. Actualiza la página.'
     case 'rango_invalido':
+      if (contexto === 'fechas_bloqueadas') return MENSAJE_RANGO_BLOQUEO
       return contexto === 'evento' ? 'Un evento dura de 1 a 14 días. Revisa las fechas.' : 'Revisa las fechas e inténtalo de nuevo.'
     case 'horarios_invalidos':
       return contexto === 'horarios' ? MENSAJE_HORARIOS_PLAN : MENSAJE_HORARIOS
@@ -183,8 +213,10 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
     case 'plan_domingo':
       return 'Los domingos de la programación no se mueven ni se eliminan.'
     case 'plan_pasado':
+      if (contexto === 'mis_servicios') return 'Este servicio ya pasó: ya no puedes responder.'
       return 'Este día ya pasó: no se puede mover.'
     case 'fecha_pasada':
+      if (contexto === 'fechas_bloqueadas') return 'Esas fechas ya pasaron. Elige fechas de hoy en adelante.'
       return 'Elige una fecha de hoy en adelante.'
     case 'plan_con_asistencia':
       return 'Ya tiene asistencia marcada: no se puede mover ni eliminar.'
@@ -206,6 +238,14 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       return 'Esa persona no está en la lista de esta columna. Revisa Configuración › Listas o escribe su nombre sin cuenta.'
     case 'demasiadas_personas':
       return 'Son demasiadas personas para esta celda: hasta 3, y hasta 8 en Cantantes.'
+    case 'respuesta_invalida':
+      return 'Elige Confirmar o No puedo.'
+    case 'motivo_invalido':
+      return MENSAJE_MOTIVO
+    case 'nota_invalida':
+      return MENSAJE_NOTA_BLOQUEO
+    case 'bloqueo_invalido':
+      return 'Esa fecha ya no está en tu lista. Actualiza la página.'
     default:
       return GENERICO[contexto]
   }

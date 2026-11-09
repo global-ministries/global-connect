@@ -107,6 +107,37 @@ describe('mensajeErrorDps', () => {
     expect(mensajeErrorDps(error('XX000'), 'listas')).toBe('No se pudo guardar la lista. Intenta de nuevo.')
   })
 
+  // S13: service notices (planner and person) and the dates a person cannot serve.
+  it.each([
+    ['sin_autoridad', 'avisos', 'Solo quienes arman el plan pueden ver y enviar los avisos.'],
+    ['demasiados', 'avisos', 'Son demasiadas fechas a la vez. Elige un rango más corto.'],
+    ['plan_invalido', 'avisos', 'Ese plan ya no existe. Actualiza la página.'],
+    ['sin_autoridad', 'mis_servicios', 'Ya no estás programado en este servicio. Actualiza la página.'],
+    ['plan_pasado', 'mis_servicios', 'Este servicio ya pasó: ya no puedes responder.'],
+    ['respuesta_invalida', 'mis_servicios', 'Elige Confirmar o No puedo.'],
+    ['motivo_invalido', 'mis_servicios', 'El motivo va hasta 300 caracteres.'],
+    ['sin_autoridad', 'fechas_bloqueadas', 'No pudimos identificarte. Vuelve a iniciar sesión.'],
+    ['fecha_invalida', 'fechas_bloqueadas', 'Elige las fechas «Desde» y «Hasta».'],
+    ['rango_invalido', 'fechas_bloqueadas', 'Revisa las fechas: «Hasta» no puede ser antes de «Desde» y el rango es de hasta un año.'],
+    ['fecha_pasada', 'fechas_bloqueadas', 'Esas fechas ya pasaron. Elige fechas de hoy en adelante.'],
+    ['nota_invalida', 'fechas_bloqueadas', 'La nota va hasta 200 caracteres.'],
+    ['bloqueo_invalido', 'fechas_bloqueadas', 'Esa fecha ya no está en tu lista. Actualiza la página.'],
+    ['demasiados', 'fechas_bloqueadas', 'Tienes demasiadas fechas bloqueadas (máximo 100). Quita alguna antes de agregar otra.'],
+  ] as const)('%s (%s)', (codigo, contexto, mensaje) => {
+    expect(mensajeErrorDps(error(codigo, codigo === 'sin_autoridad' ? '42501' : '22023'), contexto)).toBe(mensaje)
+    expect(codigoErrorDps(error(codigo))).toBe(codigo)
+  })
+
+  it('falls back to a generic sentence on the notice screens and keeps the other texts', () => {
+    expect(mensajeErrorDps(error('XX000'), 'avisos')).toBe('No se pudieron enviar los avisos. Intenta de nuevo.')
+    expect(mensajeErrorDps(error('XX000'), 'mis_servicios')).toBe('No se pudo guardar tu respuesta. Intenta de nuevo.')
+    expect(mensajeErrorDps(error('XX000'), 'fechas_bloqueadas')).toBe('No se pudo guardar la fecha. Intenta de nuevo.')
+    expect(mensajeErrorDps(error('demasiados'), 'asistencia')).toBe('Son demasiadas personas a la vez (máximo 300).')
+    expect(mensajeErrorDps(error('plan_pasado'), 'evento')).toBe('Este día ya pasó: no se puede mover.')
+    expect(mensajeErrorDps(error('fecha_pasada'), 'evento')).toBe('Elige una fecha de hoy en adelante.')
+    expect(mensajeErrorDps(error('rango_invalido'), 'asistencia')).toBe('Revisa las fechas e inténtalo de nuevo.')
+  })
+
   it('explains a missing sheet authority as "no teams"', () => {
     expect(mensajeErrorDps(error('sin_autoridad', '42501'), 'planilla')).toBe('No tienes equipos para pasar asistencia en este plan.')
   })

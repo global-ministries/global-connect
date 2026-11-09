@@ -13,6 +13,9 @@ import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
 import type { HostHomeQueuesData, PendingHostHomeReviewItem } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
 import { TarjetaMisHijosDashboard } from '@/components/dashboard/TarjetaMisHijosDashboard'
 import { cargarMisHijosDashboard } from './mis-hijos-dashboard'
+import { cargarMisServiciosPanel } from '@/components/mis-servicios/cargar-mis-servicios'
+import { TarjetaMisServicios } from '@/components/mis-servicios/tarjeta-mis-servicios'
+import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 
 export const dynamic = 'force-dynamic'
 
@@ -86,6 +89,7 @@ async function obtenerColasCasasAnfitrionas(rol: string): Promise<HostHomeQueues
 export default async function PaginaTablero() {
   // Started first so it runs alongside the role data instead of after it.
   const misHijosPromesa = cargarMisHijosDashboard()
+  const misServiciosPromesa = cargarMisServiciosPanel()
   const data = await obtenerDatosDashboard(await leerCampusInicial())
   const hostHomeQueues = await obtenerColasCasasAnfitrionas(data.rol)
   const widgets = hostHomeQueues
@@ -93,6 +97,7 @@ export default async function PaginaTablero() {
     : data.widgets
   const contextualAccess = await resolveDashboardContextualAccess(data.platformSession, getDashboardPlatformNavigationFlags())
   const misHijos = await misHijosPromesa
+  const misServicios = await misServiciosPromesa
 
   const titulo = 'Dashboard'
   const descripcion =
@@ -108,6 +113,7 @@ export default async function PaginaTablero() {
 
   return (
 <ContenedorDashboard titulo={titulo} descripcion={descripcion}>
+        {misServicios && <TarjetaMisServicios inicial={misServicios} hoy={hoyEnCaracas()} />}
         {misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
         {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
           <DashboardAdmin data={widgets} rol={data.rol} campusInicialId={data.campusId ?? null} />

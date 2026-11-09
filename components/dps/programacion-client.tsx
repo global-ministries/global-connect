@@ -33,8 +33,17 @@
  * S12.4): the cell suggests only its list (`listas`, from the page) and is
  * saved whole, like any cell. Everyone else who sees DPS reads the same
  * sheet (S6). The database decides.
+ *
+ * Service notices (T15b; S13.2, S13.3; design/dps-avisos/03), for whoever
+ * plans: the sheet reads the states of every Sunday plan of the year
+ * (cargarEstadoAvisosDps), again after a cell of people is saved, the year
+ * is reloaded or the notices are sent. The cells mark each person's state,
+ * the toolbar shows the legend, an «Avisos» column sums each row, and a bar
+ * «N avisos sin enviar en <mes|año>» with «Enviar avisos» covers only the
+ * visible Sundays from today on (past dates are never notified) and opens
+ * the review panel (avisos-panel.tsx) for those plans.
  */
-import { useMemo, useRef, useState, type ReactElement } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { CalendarPlus, CalendarRange, ChevronDown, Columns3, Plus } from 'lucide-react'
@@ -46,6 +55,8 @@ import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { CLASE_RESUMEN_PAGINA, CLASE_TITULO_PAGINA } from '@/components/grupos-vida/planner/marco-planner'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { cargarProgramacionDps, guardarCeldaDps } from '@/lib/actions/dps-programacion.actions'
+import { cargarEstadoAvisosDps } from '@/lib/actions/dps-avisos.actions'
+import type { EnvioAvisos, EstadoAvisos, PlanEstadoAvisos } from '@/lib/platform/dps/avisos'
 import { listasVacias, type ListasDps } from '@/lib/platform/dps/listas'
 import {
   COLUMNAS_HOJA,
@@ -68,6 +79,8 @@ import {
   type PlanHoja,
 } from '@/lib/platform/dps/programacion'
 
+import { BarraAvisos, LeyendaAvisos, cierresAvisos, detalleAvisos } from './avisos-estado'
+import { PanelAvisos, textoEnvio } from './avisos-panel'
 import { DialogoNuevaSerie } from './dialogo-nueva-serie'
 import { DialogoNuevoEvento } from './dialogo-nuevo-evento'
 import { DialogoEliminarEvento, DialogoMoverFecha } from './dialogos-evento'
@@ -124,6 +137,16 @@ function Resumen({ domingos, series, especiales, sinAsignar, conPendientes }: Re
 
 const SIN_LISTAS = listasVacias()
 
+/** The states of the notices of those plans; undefined when they could not be read (keep what is shown). */
+async function leerEstadoAvisos(planIds: readonly string[]): Promise<EstadoAvisos | undefined> {
+  try {
+    const r = await cargarEstadoAvisosDps({ planIds })
+    return r?.ok ? r.data : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editable, listas = SIN_LISTAS, error }: ProgramacionClientProps): ReactElement {
   const router = useRouter()
   const toast = useNotificaciones()
@@ -139,6 +162,9 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
   const [accion, setAccion] = useState<{ readonly tipo: 'mover' | 'eliminar'; readonly plan: PlanHoja } | null>(null)
   const enVueloRef = useRef(0)
   const turnoRef = useRef(0)
+  const [estadoAvisos, setEstadoAvisos] = useState<EstadoAvisos | null>(null)
+  const [enviarAbierto, setEnviarAbierto] = useState(false)
+  const pedidoAvisosRef = useRef(0)
 
   const filas = useMemo(() => filasHoja(planes, anio), [planes, anio])
   const visibles = useMemo(() => (mes === null ? filas : filas.filter((f) => f.mes === mes)), [filas, mes])
@@ -147,6 +173,48 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
   const proximo = useMemo(() => proximoDomingo(filas, hoy), [filas, hoy])
   const anioHoy = Number(hoy.slice(0, 4))
   const anios = [...new Set([anioHoy - 1, anioHoy, anioHoy + 1, anio])].sort((a, b) => a - b)
+
+  // The notices: every Sunday plan of the year, for whoever plans (the database refuses the rest).
+  const idsAvisos = editable && !error ? filas.flatMap((f) => (f.clase === 'domingo' && f.plan ? [f.plan.id] : [])).join(',') : ''
+  useEffect(() => {
+    if (!idsAvisos) return
+    const pedido = ++pedidoAvisosRef.current
+    void leerEstadoAvisos(idsAvisos.split(',')).then((e) => {
+      if (pedido === pedidoAvisosRef.current && e) setEstadoAvisos(e)
+    })
+  }, [idsAvisos])
+
+  function recargarAvisos(): void {
+    if (!idsAvisos) return
+    const pedido = ++pedidoAvisosRef.current
+    void leerEstadoAvisos(idsAvisos.split(',')).then((e) => {
+      if (pedido === pedidoAvisosRef.current && e) setEstadoAvisos(e)
+    })
+  }
+
+  const avisosPorPlan = useMemo(
+    () => (editable && estadoAvisos ? new Map<string, PlanEstadoAvisos>(estadoAvisos.planes.map((p) => [p.planId, p])) : null),
+    [editable, estadoAvisos],
+  )
+  // «Enviar avisos» covers the visible Sundays from today on.
+  const avisosVisibles = avisosPorPlan
+    ? visibles.flatMap((f) => {
+        const e = f.clase === 'domingo' && f.plan && f.fecha >= hoy ? avisosPorPlan.get(f.plan.id) : undefined
+        return e && !e.pasado ? [e] : []
+      })
+    : []
+  const porEnviarVisibles = avisosVisibles.reduce((n, e) => n + e.porEnviar, 0)
+  const cierresVisibles = avisosVisibles.reduce((n, e) => n + cierresAvisos(e.porEnviar, e.personas), 0)
+  const alcanceAvisos = mes === null ? ` en ${anio}` : ` en ${nombreMes(mes)}`
+
+  function alEnviar(envio: EnvioAvisos): void {
+    setEnviarAbierto(false)
+    const frase = textoEnvio(envio)
+    setAviso(frase)
+    if (envio.enviados > 0 || envio.cerrados > 0) toast.success(frase)
+    else toast.info(frase)
+    recargarAvisos()
+  }
 
   const valor = (fila: FilaDomingo, columna: ColumnaHoja): string => cambios[`${fila.fecha}|${columna}`]?.valor ?? fila.plan?.valores[columna] ?? ''
   const personasDe = (fila: FilaDomingo, columna: ColumnaPersona): readonly EntradaPersona[] =>
@@ -187,6 +255,8 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
       return resto
     })
     terminar(r.ok, r.ok ? undefined : r.message)
+    // A change of people may leave notices to send.
+    if (r.ok && personas) recargarAvisos()
   }
 
   /** A written value of a text cell. */
@@ -311,7 +381,8 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
             <ControlSegmentado etiqueta="Densidad" opciones={DENSIDADES} valor={densidad} onCambio={setDensidad} />
           </div>
           {!editable && !error && <p className="text-[13px] text-muted-foreground">Solo lectura: la programación la arman la dirección de DPS y quienes ella agrega.</p>}
-          {editable && <EstadoGuardado estado={guardado} className="ml-auto" />}
+          {avisosPorPlan && <LeyendaAvisos className="ml-auto hidden md:flex" />}
+          {editable && <EstadoGuardado estado={guardado} className={avisosPorPlan ? 'md:ml-0 ml-auto' : 'ml-auto'} />}
         </div>
 
         {error ? (
@@ -340,6 +411,7 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
                 listas={listas}
                 onMover={(plan) => setAccion({ tipo: 'mover', plan })}
                 onEliminar={(plan) => setAccion({ tipo: 'eliminar', plan })}
+                avisos={avisosPorPlan}
               />
             </div>
             <p id="ayuda-hoja" className="hidden shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-6 pt-2 pb-3 text-xs text-muted-foreground md:flex">
@@ -361,6 +433,19 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
               <span>Flechas para moverte</span>
               <span className="ml-auto">Las columnas Fecha y Serie quedan fijas al desplazarte</span>
             </p>
+
+            {porEnviarVisibles > 0 && (
+              <div className="shrink-0 px-4 pb-3 sm:px-6">
+                <BarraAvisos
+                  porEnviar={porEnviarVisibles}
+                  cierres={cierresVisibles}
+                  alcance={alcanceAvisos}
+                  detalle={detalleAvisos(avisosVisibles.flatMap((e) => e.personas), cierresVisibles)}
+                  nota="Solo lo que ves en la hoja; las fechas pasadas no se avisan."
+                  onEnviar={() => setEnviarAbierto(true)}
+                />
+              </div>
+            )}
 
             {/* Phones: a task view of the same dates (the sheet is edited on a wider screen). */}
             <div className="px-4 pb-8 md:hidden">
@@ -404,6 +489,15 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
         {aviso}
       </p>
 
+      {editable && enviarAbierto && (
+        <PanelAvisos
+          abierto
+          onCerrar={() => setEnviarAbierto(false)}
+          planIds={avisosVisibles.map((e) => e.planId)}
+          descripcion={mes === null ? `Programación ${anio}, de hoy en adelante` : `${nombreMes(mes).replace(/^./, (l) => l.toLocaleUpperCase('es'))} ${anio}, de hoy en adelante`}
+          onEnviado={alEnviar}
+        />
+      )}
       {editable && nuevaSerie && (
         <DialogoNuevaSerie planes={planes} anio={anio} hoy={hoy} onCerrar={() => setNuevaSerie(false)} onCreada={(n, s) => void serieCreada(n, s)} />
       )}

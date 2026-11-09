@@ -27,6 +27,14 @@ jest.mock('@/lib/actions/dps-plan.actions', () => ({
   quitarPortadaDps: jest.fn(),
 }))
 
+// The notices (T15b) are covered in avisos-plan.test.tsx / avisos-hoja.test.tsx: here they read nothing.
+jest.mock('@/lib/actions/dps-avisos.actions', () => ({
+  cargarEstadoAvisosDps: jest.fn(),
+  cargarPersonasBloqueadasDps: jest.fn(),
+  cargarAvisosPendientesDps: jest.fn(),
+  enviarAvisosDps: jest.fn(),
+}))
+
 const toast = { success: jest.fn(), error: jest.fn(), info: jest.fn() }
 jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => toast }))
 

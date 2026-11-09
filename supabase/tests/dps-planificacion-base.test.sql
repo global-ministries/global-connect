@@ -289,7 +289,11 @@ SELECT pg_temp.assert_eq('a6: authenticated executes exactly the public dps_* fu
                               'dps_plan_horarios_guardar', 'dps_orden_leer', 'dps_orden_plantilla', 'dps_orden_agregar',
                               'dps_orden_item_guardar', 'dps_orden_mover', 'dps_orden_eliminar', 'dps_orden_copiar',
                               -- T14b (20261109200000), in dps-planificacion-listas.test.sql.
-                              'dps_lista_leer', 'dps_lista_agregar', 'dps_lista_quitar', 'dps_lista_puede_editar')$q$,
+                              'dps_lista_leer', 'dps_lista_agregar', 'dps_lista_quitar', 'dps_lista_puede_editar',
+                              -- T15a (20261109210000), in dps-avisos.test.sql.
+                              'dps_avisos_pendientes', 'dps_avisos_enviar', 'dps_avisos_estado', 'dps_personas_bloqueadas',
+                              'dps_mis_servicios', 'dps_mi_servicio', 'dps_responder', 'dps_aviso_visto',
+                              'dps_mis_fechas_bloqueadas', 'dps_fecha_bloqueada_agregar', 'dps_fecha_bloqueada_quitar')$q$,
   'dps_config_guardar,dps_config_leer,dps_pasan_asistencia_guardar,dps_plan_campo,dps_plan_crear,dps_plan_leer,'
   || 'dps_planes_rango,dps_planificador_agregar,dps_planificador_quitar,dps_puede_pasar_asistencia,dps_puede_planificar,'
   || 'dps_puede_ver,dps_puesto_desactivar,dps_puesto_guardar,dps_puestos_listar,dps_serie_actualizar,dps_serie_crear,'
@@ -299,7 +303,8 @@ SELECT pg_temp.assert_eq('a7: the tables have RLS on and no policies',
                        ',' ORDER BY c.relname COLLATE "C")
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'dps\_%'
-        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias', 'dps_orden_items', 'dps_listas_personas', 'dps_plan_personas')$q$,
+        AND c.relname NOT IN ('dps_convocados', 'dps_asistencias', 'dps_orden_items', 'dps_listas_personas', 'dps_plan_personas',
+                              'dps_avisos')$q$,
   'dps_config:true:0,dps_pasan_asistencia:true:0,dps_planes:true:0,dps_planificadores:true:0,dps_puestos:true:0,dps_series:true:0');
 
 SET LOCAL ROLE authenticated;
