@@ -25,6 +25,8 @@ export type RespuestaRuta = { status: number; body: Record<string, unknown> }
 
 const FUERA_DE_ALCANCE = 'Solo el equipo de la mesa del campus de esta familia puede invitarla.'
 const RECIENTE = 'Ya le enviamos una invitación hace poco. Espera unos minutos para reenviarla.'
+// The desk never replaces the ficha's email; the route does not know it, so it is not repeated here.
+const OTRO_CORREO = 'Esta familia ya tiene otro correo guardado. Usa ese correo, o pide a coordinación que lo cambie desde la ficha.'
 
 export async function invitarFamiliaNueva(deps: DependenciasInvitacion, padreId: string, body: unknown): Promise<RespuestaRuta> {
   const entrada = parseInvitacion(body)
@@ -45,6 +47,7 @@ export async function invitarFamiliaNueva(deps: DependenciasInvitacion, padreId:
   if (r.ok) return { status: 200, body: { ok: true, email: r.email } }
   if (reciente) return { status: 429, body: { error: RECIENTE, codigo: 'invitacion_reciente' } }
   if (r.codigo === 'sin_autoridad') return { status: 403, body: { error: FUERA_DE_ALCANCE, codigo: r.codigo } }
+  if (r.codigo === 'email_distinto') return { status: 409, body: { error: OTRO_CORREO, codigo: r.codigo } }
   return { status: r.status, body: { error: r.error, ...(r.codigo ? { codigo: r.codigo } : {}) } }
 }
 

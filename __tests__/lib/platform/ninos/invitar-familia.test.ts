@@ -51,6 +51,9 @@ describe('invitarFamiliaNueva', () => {
       status: 403,
       body: { error: 'Solo el equipo de la mesa del campus de esta familia puede invitarla.', codigo: 'sin_autoridad' },
     })
+    expect(d.admin.generarEnlace).not.toHaveBeenCalled()
+    expect(d.admin.obtenerUsuario).not.toHaveBeenCalled()
+    expect(d.admin.borrarUsuario).not.toHaveBeenCalled()
     expect(d.enviarCorreo).not.toHaveBeenCalled()
   })
 
@@ -61,6 +64,20 @@ describe('invitarFamiliaNueva', () => {
     expect(r).toEqual({
       status: 429,
       body: { error: 'Ya le enviamos una invitación hace poco. Espera unos minutos para reenviarla.', codigo: 'invitacion_reciente' },
+    })
+    expect(d.admin.generarEnlace).not.toHaveBeenCalled()
+    expect(d.enviarCorreo).not.toHaveBeenCalled()
+  })
+
+  it('another email on the ficha: the desk uses that one or asks coordinación (it cannot replace it)', async () => {
+    const rpc = jest.fn().mockResolvedValue({ data: null, error: { code: '22023', message: 'email_distinto' } })
+    const d = deps(rpc)
+    expect(await invitarFamiliaNueva(d, PADRE, { email: 'otro@example.test' })).toEqual({
+      status: 409,
+      body: {
+        error: 'Esta familia ya tiene otro correo guardado. Usa ese correo, o pide a coordinación que lo cambie desde la ficha.',
+        codigo: 'email_distinto',
+      },
     })
     expect(d.admin.generarEnlace).not.toHaveBeenCalled()
     expect(d.enviarCorreo).not.toHaveBeenCalled()

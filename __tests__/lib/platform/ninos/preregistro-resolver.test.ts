@@ -169,6 +169,15 @@ describe('resolverPreregistro', () => {
     log.mockRestore()
   })
 
+  it('an invitation that throws never undoes the confirmation', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    const d = deps({ invitar: jest.fn().mockRejectedValue(new Error('down ana@example.test')) })
+    const r = await resolverPreregistro(d, ID, { accion: 'confirmar', payload, email: 'ana@example.test' })
+    expect(r).toEqual({ status: 200, body: { ok: true, estado: 'confirmado', padreId: 'p1', correo: 'programado', invitacion: 'fallo' } })
+    expect(JSON.stringify(log.mock.calls)).not.toContain('ana@example.test')
+    log.mockRestore()
+  })
+
   it('maps the database errors', async () => {
     const con = (error: object) => deps({ rpcUsuario: jest.fn().mockResolvedValue({ data: null, error }) })
     expect((await resolverPreregistro(con({ code: '42501', message: 'sin_autoridad' }), ID, { accion: 'descartar' })).status).toBe(403)
