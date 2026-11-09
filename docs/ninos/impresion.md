@@ -3,7 +3,8 @@
 Spec: [`odd/tasks/ninos-checkin-pco.md`](../../odd/tasks/ninos-checkin-pco.md)
 S10 (labels), S6 (reprint with audit), S9.2 (custody never on a label), S9.3
 (first visit). Tasks T3a (queue, agent, templates, reprint) and T3b (station
-admin and desk UI). Database: `supabase/migrations/20261109100000_ninos_impresion.sql`.
+admin and desk UI). Database: `supabase/migrations/20261109100000_ninos_impresion.sql`
+and `20261109110000_ninos_impresion_vistas.sql` (the reprint history).
 
 The 4B-2054N label printer goes by USB to a laptop or PC at the desk that runs
 the print agent. Any phone or tablet at the desk prints to that station with
@@ -67,11 +68,96 @@ Directora de Niños, area coordinators, admin, pastor) create stations, rotate
 their token and edit the size. Hosts (Anfitriones) can list the stations of
 their campus and print to them. RPCs: `ninos_impresion_estaciones`,
 `ninos_impresion_estacion_crear`, `ninos_impresion_estacion_rotar_token`,
-`ninos_impresion_estacion_actualizar` (the admin UI is T3b).
+`ninos_impresion_estacion_actualizar` (screen: [Station admin](#station-admin--ninosetiquetas)).
 
 **Token.** Creating a station or rotating its token returns
 `{ estacion, token }`. The token (64 hex chars) is shown only once and the
 database keeps only its sha256. Rotating it disconnects the old agent at once.
+
+## Station admin — `/ninos/etiquetas`
+
+Artboard `design/ninos-checkin-pco/03-admin-etiquetas.html`. Tab «Etiquetas»
+next to Eventos and Salones; same gate as those screens
+(`ninos_puede_configurar_algun_area`, then the campus with
+`ninos_puede_configurar_algun_area_campus`; anyone else gets a 404). Code:
+`app/(auth)/ninos/etiquetas/page.tsx`, `components/ninos/etiquetas/`,
+helpers in `lib/platform/ninos/impresion-vista.ts`.
+
+- **Stations.** One row per station of the campus: name, size («102 × 51 mm ·
+  203 dpi (por defecto)» while unset), jobs in queue and the connection from
+  `ultima_conexion`: «Conectada» when the agent called in the last 2 minutes,
+  «Sin conexión desde HH:MM» (another day adds the date: «desde el dom 1 nov,
+  18:05»), «Nunca se conectó», or «Desactivada». The page refreshes every
+  30 s while visible.
+- **Create** («Agregar estación»): name (≤ 60), width and height in mm (both
+  empty = 102 × 51 mm, said in the form; else width 20–120 and height 10–300,
+  checked before calling), resolution 203 or 300 dpi.
+- **Edit** (open a row): name, size, dpi, active. **Crear token nuevo** asks
+  first: the agent with the old token stops at once.
+- **Token.** Creating or rotating shows the token once, with «Copiar token»,
+  three plain steps (USB printer, paste it in `token` of the agent config,
+  leave it open) and a link to `tools/agente-impresion/README.md`.
+- Every write is the RPC as the user; its refusal is said in the panel
+  («No tienes permiso para hacer esto en este campus.», …). Whoever cannot
+  manage the campus reads the list without opening rows.
+
+### Reprints of the campus — `ninos_impresion_reimpresiones`
+
+`ninos_impresion_reimpresiones(p_campus_id, p_desde, p_hasta)` returns the
+reprinted labels (`motivo` set; never the labels of the check-in itself) whose
+`created_at` falls, in Caracas, between the two dates (inclusive). Both NULL =
+today; one NULL = that day; at most 31 days, else `datos_invalidos`. Newest
+first, up to 500 rows:
+
+| Column | Meaning |
+|---|---|
+| `id`, `created_at` | The job and when it was reprinted. |
+| `quien` | Name of who reprinted (`created_by`). |
+| `tipo` | `nino` or `representante`. |
+| `nino` | The child of a child label (from its payload). |
+| `ninos` | The first names on a receipt (jsonb array; `[]` for a child label). |
+| `codigo`, `motivo`, `nota` | The pickup código, the reason and the note. |
+| `estacion_id`, `estacion` | The station and its name. |
+| `estado`, `error` | `pendiente` / `impresa` / `error` and the agent's message. |
+
+Same campus scope as the other print RPCs: `ninos_impresion_puede_operar`
+(anfitriones and coordinación on a room of the campus) or
+`ninos_impresion_puede_administrar`; anyone else, another campus or anon gets
+`sin_autoridad` (42501). The screen shows today's list («Reimpresiones de
+hoy», with hour, what, reason · note, who · station · código and status) and
+«Historial» with Desde / Hasta (last 7 days by default). Suite:
+`supabase/tests/ninos-impresion-vistas.test.sql`.
+
+## Desk — printer and reprint
+
+Artboard `design/ninos-checkin-pco/05-mesa-tableta.html`. Code:
+`components/ninos/checkin/use-estacion-mesa.ts`, `estacion-mesa.tsx`,
+`reimprimir-etiquetas.tsx`.
+
+- **Printer of this desk.** Under the service, «Impresora de esta mesa»
+  lists the active stations of the desk's campuses with their connection
+  (`ninos_impresion_estaciones`, refreshed every 30 s). The choice is kept on
+  this device per campus in `localStorage` (`ninos-mesa-estacion:<campus>`).
+  A campus without stations (or a refused read) shows nothing, and the
+  check-in body is exactly the one of before.
+- **Notice, never a block.** No station chosen: «Esta mesa no tiene impresora
+  elegida: el código queda en pantalla». The chosen one offline: «La impresora
+  "X" está sin conexión: el código queda en pantalla». The check-in goes on.
+- **Check-in.** With a station the body carries `estacionId` (also when it is
+  offline: the labels print when the agent comes back, within 12 hours). The
+  code then says «Las etiquetas salen por «X»…» instead of «Escríbelo en las
+  dos etiquetas».
+- **Reprint.** «Reimprimir» on the code, and «Reimprimir etiquetas · código»
+  on a family already checked in (both only with a station chosen), open the
+  form: the label of each child of that código and/or the parent receipt, the
+  reason (Se trabó · Se perdió · Otro) and a note (required for Otro, ≤ 200).
+  It posts one `/api/ninos/impresion/reimprimir` per piece (every child + the
+  receipt = one `todas`) and says «Listo: 1 etiqueta y 1 recibo van a «Mesa 1».
+  El código sigue siendo 4821.» or the refusal in plain Spanish («Ese código ya
+  no está adentro: solo se reimprime antes del retiro.»).
+- Not yet: «Registrar y dar ingreso» in the Nueva familia panel
+  (`components/ninos/registro-rapido/use-registro-mesa.ts`) does not send
+  `estacionId`, so those labels are not queued.
 
 ## Agent API
 

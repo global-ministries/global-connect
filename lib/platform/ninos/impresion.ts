@@ -10,6 +10,8 @@
  */
 import { createHash, timingSafeEqual } from 'node:crypto'
 
+import { MOTIVOS_REIMPRESION, type MotivoReimpresion, type TipoReimpresion } from './impresion-vista'
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const TOKEN = /^[0-9a-f]{64}$/
@@ -57,11 +59,8 @@ export type EstacionAgente = { id: string; nombre: string; ancho_mm: number | nu
 
 export type ReporteImpresion = { id: string; estado: 'impresa' | 'error'; error: string | null }
 
-export type TipoReimpresion = 'todas' | 'representante' | 'nino'
-
-/** S10 reprint reasons: se trabó, se perdió, otro (otro needs a note). */
-export const MOTIVOS_REIMPRESION = ['se_trabo', 'se_perdio', 'otro'] as const
-export type MotivoReimpresion = (typeof MOTIVOS_REIMPRESION)[number]
+// The reasons live with the browser helpers (no node:crypto there); re-exported here.
+export { MOTIVOS_REIMPRESION, type MotivoReimpresion, type TipoReimpresion } from './impresion-vista'
 
 export type EntradaReimpresion = {
   estacionId: string

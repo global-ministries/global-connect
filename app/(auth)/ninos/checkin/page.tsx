@@ -14,6 +14,8 @@
  * each turno with its Niños horario (event name and window, readable by who
  * operates Niños in the campus). Those columns and tables are not in
  * database.types.ts yet, so these two reads use an untyped client.
+ * Labels (T3b, S10): the campuses of the salones go to the desk, which reads
+ * its print stations itself (ninos_impresion_estaciones, as the user).
  */
 import { notFound } from 'next/navigation'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -79,6 +81,7 @@ export default async function NinosCheckinPage({ searchParams }: Props) {
       consultaInicial={query.q}
       padreInicial={query.padre}
       horarios={parseHorarios(filasHorarios)}
+      campusIds={campus}
     />
   )
 }

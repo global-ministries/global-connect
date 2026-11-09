@@ -56,6 +56,9 @@ const migratedToDesignSystem = [
   // Niños › Salones de check-in (T1d), same style.
   'app/(auth)/ninos/salones/**',
   'components/ninos/salones/**',
+  // Niños › Etiquetas e impresoras (T3b), same style.
+  'app/(auth)/ninos/etiquetas/**',
+  'components/ninos/etiquetas/**',
 ]
 
 const legacyUiImports = {
