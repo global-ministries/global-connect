@@ -18,11 +18,29 @@
  * meanwhile ('plan_duplicado'), the cell goes to that plan. The series
  * cover is uploaded afterwards with cambiarPortadaDps (dps-plan.actions.ts)
  * on one of its plans.
+ *
+ * T11b (S9): "Nuevo evento" (dps_evento_crear, one plan per day), "Mover
+ * fecha" (dps_plan_mover) and "Eliminar evento" (dps_plan_eliminar), in
+ * supabase/migrations/20261108206000_dps_eventos_especiales.sql. The client
+ * reloads the year afterwards, so «Día N de M» is renumbered by the database.
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { codigoErrorDps, type CodigoErrorDps, type ErrorRpc } from '@/lib/platform/dps/errores'
-import { COLUMNAS_HOJA, esDomingo, leerPlanHoja, leerPlanesHoja, mensajeErrorProgramacion, valorParaRpc, type ColumnaHoja, type PlanHoja } from '@/lib/platform/dps/programacion'
+import {
+  COLUMNAS_HOJA,
+  diasEvento,
+  esDomingo,
+  leerPlanHoja,
+  leerPlanesHoja,
+  MAX_DIAS_EVENTO,
+  mensajeErrorEvento,
+  mensajeErrorProgramacion,
+  TIPOS_EVENTO,
+  valorParaRpc,
+  type ColumnaHoja,
+  type PlanHoja,
+} from '@/lib/platform/dps/programacion'
 import { rpcDps, type RpcDps } from '@/lib/platform/dps/rpc'
 
 import type { ResultadoDps } from './dps-asistencia.actions'
@@ -35,6 +53,8 @@ const COLORES = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5']
 const esUuid = (valor: unknown): valor is string => typeof valor === 'string' && UUID_RE.test(valor)
 const fallo = (message: string, codigo: CodigoErrorDps | null = null) => ({ ok: false, message, codigo }) as const
 const falloRpc = (error: ErrorRpc) => fallo(mensajeErrorProgramacion(error), codigoErrorDps(error))
+const falloEvento = (error: ErrorRpc) => fallo(mensajeErrorEvento(error), codigoErrorDps(error))
+const esFecha = (valor: unknown): valor is string => typeof valor === 'string' && diasEvento(valor, '').length === 1
 
 async function sesion(): Promise<RpcDps | null> {
   const cliente = await createSupabaseServerClient()
@@ -135,4 +155,53 @@ export async function crearSerieDps(input: CrearSerieInput): Promise<ResultadoDp
   const r = (data ?? {}) as { serie_id?: unknown; planes?: unknown }
   const planIds = (Array.isArray(r.planes) ? r.planes : []).map((p) => (p as { id?: unknown })?.id).filter(esUuid)
   return { ok: true, data: { serieId: esUuid(r.serie_id) ? r.serie_id : '', planIds } }
+}
+
+export interface CrearEventoInput {
+  /** especial, cena_del_senor or noche_adoracion (TIPOS_EVENTO). */
+  readonly tipo: string
+  readonly titulo: string
+  readonly desde: string
+  /** The last day; null = one day. */
+  readonly hasta: string | null
+}
+
+/** "Nuevo evento": one plan per day from desde to hasta, grouped as one event (dps_evento_crear). */
+export async function crearEventoDps(input: CrearEventoInput): Promise<ResultadoDps<{ readonly eventoId: string; readonly planes: PlanHoja[] }>> {
+  const titulo = typeof input?.titulo === 'string' ? input.titulo.trim() : ''
+  const hasta = input?.hasta ?? null
+  const dias = esFecha(input?.desde) && (hasta === null || esFecha(hasta)) ? diasEvento(input.desde, hasta ?? '') : []
+  if (!TIPOS_EVENTO.some((t) => t.valor === input?.tipo) || !titulo || titulo.length > 120 || dias.length === 0 || dias.length > MAX_DIAS_EVENTO) {
+    return fallo(DATOS_INVALIDOS)
+  }
+  const rpc = await sesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc('dps_evento_crear', { p_tipo: input.tipo, p_titulo: titulo, p_desde: input.desde, p_hasta: hasta })
+  if (error) return falloEvento(error)
+  const r = (data ?? {}) as { evento_id?: unknown; planes?: unknown }
+  return { ok: true, data: { eventoId: esUuid(r.evento_id) ? r.evento_id : '', planes: leerPlanesHoja(r.planes) } }
+}
+
+/** "Mover fecha": the plan with its convocados and campos to another date (dps_plan_mover); returns the stored plan. */
+export async function moverPlanDps(input: { readonly planId: string; readonly fecha: string }): Promise<ResultadoDps<PlanHoja>> {
+  if (!esUuid(input?.planId) || !esFecha(input.fecha)) return fallo(DATOS_INVALIDOS)
+  const rpc = await sesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc('dps_plan_mover', { p_plan_id: input.planId, p_fecha: input.fecha })
+  if (error) return falloEvento(error)
+  const plan = leerPlanHoja(data)
+  return plan ? { ok: true, data: plan } : falloEvento({ message: null })
+}
+
+/** "Eliminar evento": the plan, or every day of its event (dps_plan_eliminar); never one with attendance. */
+export async function eliminarPlanDps(input: { readonly planId: string; readonly todoElEvento: boolean }): Promise<ResultadoDps<{ readonly eliminados: number }>> {
+  if (!esUuid(input?.planId) || typeof input.todoElEvento !== 'boolean') return fallo(DATOS_INVALIDOS)
+  const rpc = await sesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc('dps_plan_eliminar', { p_plan_id: input.planId, p_todo_el_evento: input.todoElEvento })
+  if (error) return falloEvento(error)
+  return { ok: true, data: { eliminados: typeof data === 'number' ? data : 0 } }
 }

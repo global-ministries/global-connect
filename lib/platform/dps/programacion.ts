@@ -11,7 +11,14 @@
  * ten columns (Productor … Notas, the fields dps_plan_campo accepts), count
  * the summary and help "Nueva serie". Productor, host and comunicador are a
  * persona of the system or a written name, never both (S7.3): the sheet
- * shows either and writes the name. Pure: safe on the client.
+ * shows either and writes the name. T11b (S9) adds the special events of
+ * one or several days (dps_evento_crear: one plan per day sharing an
+ * `evento`, shown as «Título · Día N de M»), moving a plan to another date
+ * (dps_plan_mover) and deleting one (dps_plan_eliminar), in
+ * supabase/migrations/20261108206000_dps_eventos_especiales.sql: these
+ * helpers name the days, list the days of a new event, warn before sending
+ * and say why a plan cannot be moved or deleted; the RPCs decide. Pure:
+ * safe on the client.
  */
 import { mensajeErrorDps, type ErrorRpc } from './errores'
 import { ETIQUETA_TIPO, type TipoPlan } from './planilla'
@@ -51,6 +58,13 @@ export interface SerieHoja {
   readonly semanas: number | null
 }
 
+/** The event a plan is a day of (dps_evento_crear): day `dia` of `dias`, by date. */
+export interface EventoPlan {
+  readonly id: string
+  readonly dia: number
+  readonly dias: number
+}
+
 /** A plan of dps_plan_json, as the sheet needs it. */
 export interface PlanHoja {
   readonly id: string
@@ -64,6 +78,9 @@ export interface PlanHoja {
   readonly valores: Readonly<Record<ColumnaHoja, string>>
   /** Productor / host / comunicador that are a persona of the system (not a written name). */
   readonly conFicha: Readonly<Record<ColumnaPersona, boolean>>
+  readonly evento: EventoPlan | null
+  /** Someone's attendance is marked: the plan can no longer be moved or deleted. */
+  readonly conAsistencia: boolean
 }
 
 /** A row of the sheet: a Sunday (its plan, or none yet) or a special day (never edited in the sheet). */
@@ -80,6 +97,13 @@ const entero = (v: unknown): number | null => (typeof v === 'number' && Number.i
 const tipo = (v: unknown): TipoPlan => (Object.hasOwn(ETIQUETA_TIPO, texto(v)) ? (v as TipoPlan) : 'domingo')
 
 export const SEPARADOR_CANCIONES = ' · '
+
+function leerEvento(v: unknown): EventoPlan | null {
+  const e = objeto(v)
+  const dia = entero(e?.dia)
+  const dias = entero(e?.dias)
+  return e && typeof e.id === 'string' && dia !== null && dias !== null && dia >= 1 && dia <= dias ? { id: e.id, dia, dias } : null
+}
 
 function valorCampo(campos: Objeto, id: ColumnaHoja): string {
   const v = campos[id]
@@ -113,6 +137,8 @@ export function leerPlanHoja(v: unknown): PlanHoja | null {
     horarios: Array.isArray(p.horarios) ? p.horarios.filter((x): x is string => typeof x === 'string') : [],
     valores,
     conFicha,
+    evento: leerEvento(p.evento),
+    conAsistencia: p.con_asistencia === true,
   }
 }
 
@@ -178,8 +204,11 @@ export function semanaSerie(plan: PlanHoja): string {
   return plan.serie.semanas ? `${plan.semana}/${plan.serie.semanas}` : String(plan.semana)
 }
 
-/** The name of a special row: its title, else its tipo ("Cena del Señor"). */
-export const nombreEspecial = (plan: PlanHoja): string => plan.titulo ?? ETIQUETA_TIPO[plan.tipo]
+/** The name of a special row: its title, else its tipo ("Cena del Señor"); a day of a multi-day event adds «· Día N de M». */
+export function nombreEspecial(plan: PlanHoja): string {
+  const nombre = plan.titulo ?? ETIQUETA_TIPO[plan.tipo]
+  return plan.evento && plan.evento.dias > 1 ? `${nombre} · Día ${plan.evento.dia} de ${plan.evento.dias}` : nombre
+}
 
 export type ValorRpc = { readonly ok: true; readonly valor: unknown } | { readonly ok: false; readonly mensaje: string }
 
@@ -299,4 +328,74 @@ export function mensajeErrorProgramacion(error: ErrorRpc | null | undefined): st
     return `El domingo ${fechaCorta(error.details)} ya es de otra serie. Elige otro primer domingo o menos semanas.`
   }
   return mensajeErrorDps(error, 'programacion')
+}
+
+// ── special events (T11b, S9) ────────────────────────────────────────
+
+export type TipoEvento = 'especial' | 'cena_del_senor' | 'noche_adoracion'
+
+/** What dps_evento_crear takes: a Sunday is in the year's Sundays and a free Sunday is no event. */
+export const TIPOS_EVENTO: readonly { readonly valor: TipoEvento; readonly etiqueta: string }[] = (['especial', 'cena_del_senor', 'noche_adoracion'] as const).map(
+  (valor) => ({ valor, etiqueta: ETIQUETA_TIPO[valor] }),
+)
+
+/** dps_evento_crear's limit. */
+export const MAX_DIAS_EVENTO = 14
+
+const fechaValida = (fecha: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(fecha) && !Number.isNaN(fechaUtc(fecha).getTime()) && iso(fechaUtc(fecha)) === fecha
+
+/** The days of a new event, Del to Al inclusive (Al empty = one day); [] when the dates are not valid or inverted. */
+export function diasEvento(desde: string, hasta: string): string[] {
+  const fin = hasta === '' ? desde : hasta
+  if (!fechaValida(desde) || !fechaValida(fin) || fin < desde) return []
+  const dias: string[] = []
+  for (let f = desde; f <= fin && dias.length <= MAX_DIAS_EVENTO; f = sumarDias(f, 1)) dias.push(f)
+  return dias
+}
+
+/** What «Nuevo evento» says before sending (null: the dates are fine). */
+export function avisoEvento(desde: string, hasta: string): string | null {
+  if (!fechaValida(desde)) return 'Elige la fecha del evento.'
+  if (hasta !== '' && !fechaValida(hasta)) return 'Revisa la fecha del último día.'
+  if (hasta !== '' && hasta < desde) return 'El último día no puede ser antes del primero.'
+  if (diasEvento(desde, hasta).length > MAX_DIAS_EVENTO) return `Un evento dura como máximo ${MAX_DIAS_EVENTO} días.`
+  return null
+}
+
+const clave = (texto: string): string => texto.trim().toLocaleLowerCase('es')
+
+/** The dates that already have a plan of that tipo and título (dps_planes_fecha_tipo_titulo_uidx: 'plan_duplicado'). */
+export function choquesEvento(planes: readonly PlanHoja[], tipo: string, titulo: string, fechas: readonly string[]): string[] {
+  if (clave(titulo) === '') return []
+  const ocupadas = new Set(planes.filter((p) => p.tipo === tipo && clave(p.titulo ?? '') === clave(titulo)).map((p) => p.fecha))
+  return fechas.filter((f) => ocupadas.has(f))
+}
+
+/** Why dps_plan_mover would refuse the plan (null: it can move). */
+export function bloqueoMover(plan: PlanHoja, hoy: string): string | null {
+  if (plan.tipo === 'domingo') return 'Los domingos de la programación no se mueven.'
+  if (plan.fecha < hoy) return 'Este día ya pasó: no se puede mover.'
+  if (plan.conAsistencia) return 'Este día ya tiene asistencia marcada: no se puede mover.'
+  return null
+}
+
+/** Why dps_plan_eliminar would refuse the plan alone (null: it can go). */
+export function bloqueoEliminar(plan: PlanHoja): string | null {
+  if (plan.tipo === 'domingo') return 'Los domingos de la programación no se eliminan.'
+  if (plan.conAsistencia) return 'Este día ya tiene asistencia marcada: no se puede eliminar.'
+  return null
+}
+
+/** The days of the plan's event, by date (just the plan when it is not an event day). */
+export function diasDelEvento(planes: readonly PlanHoja[], plan: PlanHoja): PlanHoja[] {
+  if (!plan.evento) return [plan]
+  return planes.filter((p) => p.evento?.id === plan.evento!.id).sort((a, b) => (a.fecha === b.fecha ? (a.id < b.id ? -1 : 1) : a.fecha < b.fecha ? -1 : 1))
+}
+
+/** The errors of «Nuevo evento», «Mover fecha» and «Eliminar evento», naming the date of a clash. */
+export function mensajeErrorEvento(error: ErrorRpc | null | undefined): string {
+  if (error?.message?.includes('plan_duplicado') && error.details && fechaValida(error.details)) {
+    return `Ya hay un evento de ese tipo con ese título el ${fechaCorta(error.details)}.`
+  }
+  return mensajeErrorDps(error, 'evento')
 }

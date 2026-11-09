@@ -24,13 +24,17 @@
  * once and is saved through guardarCeldaDps (a Sunday without a plan gets it
  * then); a failure rolls the cell back and explains why. "Nueva serie"
  * (dialogo-nueva-serie.tsx) creates the series and its Sundays and reloads
- * the year. Everyone else who sees DPS reads the same sheet (S6). The
- * database decides.
+ * the year. «Nuevo evento» (dialogo-nuevo-evento.tsx) creates a special
+ * event of one or several days (one plan per day, shown together as
+ * «Título · Día N de M»), and the menu of a special row moves it to another
+ * date or deletes it (dialogos-evento.tsx); each reloads the year (T11b,
+ * S9). Everyone else who sees DPS reads the same sheet (S6). The database
+ * decides.
  */
 import { useMemo, useRef, useState, type ReactElement } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { CalendarRange, ChevronDown, Columns3, Plus } from 'lucide-react'
+import { CalendarPlus, CalendarRange, ChevronDown, Columns3, Plus } from 'lucide-react'
 
 import { BotonSistema, PaginaSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import { ControlSegmentado } from '@/components/ui/control-segmentado'
@@ -41,6 +45,7 @@ import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { cargarProgramacionDps, guardarCeldaDps } from '@/lib/actions/dps-programacion.actions'
 import {
   COLUMNAS_HOJA,
+  diasDelEvento,
   fechaCorta,
   filasHoja,
   nombreEspecial,
@@ -56,6 +61,8 @@ import {
 } from '@/lib/platform/dps/programacion'
 
 import { DialogoNuevaSerie } from './dialogo-nueva-serie'
+import { DialogoNuevoEvento } from './dialogo-nuevo-evento'
+import { DialogoEliminarEvento, DialogoMoverFecha } from './dialogos-evento'
 import { hrefPlan } from './encabezado-plan'
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
 import { HojaProgramacion, type Densidad, type FilaDomingo } from './hoja-programacion'
@@ -114,6 +121,8 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
   const [guardado, setGuardado] = useState<EstadoGuardadoValor>('inactivo')
   const [aviso, setAviso] = useState('')
   const [nuevaSerie, setNuevaSerie] = useState(false)
+  const [nuevoEvento, setNuevoEvento] = useState(false)
+  const [accion, setAccion] = useState<{ readonly tipo: 'mover' | 'eliminar'; readonly plan: PlanHoja } | null>(null)
   const enVueloRef = useRef(0)
   const turnoRef = useRef(0)
 
@@ -188,14 +197,23 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
     })
   }
 
-  async function serieCreada(nombre: string, semanas: number): Promise<void> {
-    setNuevaSerie(false)
-    const frase = `Creamos «${nombre}» con ${semanas} ${semanas === 1 ? 'domingo' : 'domingos'}.`
+  /** Announces a change made in a dialog and reloads the year (series, events, «Día N de M»). */
+  async function recargar(frase: string): Promise<void> {
     toast.success(frase)
     setAviso(frase)
     const r = await cargarProgramacionDps({ anio })
     if (r.ok) setPlanes(r.data)
     else toast.error(r.message)
+  }
+
+  async function serieCreada(nombre: string, semanas: number): Promise<void> {
+    setNuevaSerie(false)
+    await recargar(`Creamos «${nombre}» con ${semanas} ${semanas === 1 ? 'domingo' : 'domingos'}.`)
+  }
+
+  async function eventoCreado(titulo: string, dias: number): Promise<void> {
+    setNuevoEvento(false)
+    await recargar(dias === 1 ? `Creamos «${titulo}».` : `Creamos «${titulo}» (${dias} días).`)
   }
 
   return (
@@ -208,9 +226,14 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
             {!error && <Resumen {...resumen} conPendientes={anio >= anioHoy} />}
           </div>
           {editable && !error && (
-            <BotonSistema tamaño="sm" icono={Plus} onClick={() => setNuevaSerie(true)}>
-              Nueva serie
-            </BotonSistema>
+            <div className="flex flex-wrap items-center gap-2">
+              <BotonSistema variante="outline" tamaño="sm" icono={CalendarPlus} onClick={() => setNuevoEvento(true)}>
+                Nuevo evento
+              </BotonSistema>
+              <BotonSistema tamaño="sm" icono={Plus} onClick={() => setNuevaSerie(true)}>
+                Nueva serie
+              </BotonSistema>
+            </div>
           )}
         </header>
 
@@ -274,6 +297,8 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
                 proximo={proximo}
                 valor={valor}
                 onGuardar={(fila, columna, texto) => void guardarCelda(fila, columna, texto)}
+                onMover={(plan) => setAccion({ tipo: 'mover', plan })}
+                onEliminar={(plan) => setAccion({ tipo: 'eliminar', plan })}
               />
             </div>
             <p id="ayuda-hoja" className="hidden shrink-0 flex-wrap items-center gap-x-4 gap-y-1 px-6 pt-2 pb-3 text-xs text-muted-foreground md:flex">
@@ -339,6 +364,30 @@ export function ProgramacionClient({ anio, hoy, planes: planesIniciales, editabl
 
       {editable && nuevaSerie && (
         <DialogoNuevaSerie planes={planes} anio={anio} hoy={hoy} onCerrar={() => setNuevaSerie(false)} onCreada={(n, s) => void serieCreada(n, s)} />
+      )}
+      {editable && nuevoEvento && <DialogoNuevoEvento planes={planes} hoy={hoy} onCerrar={() => setNuevoEvento(false)} onCreado={(t, d) => void eventoCreado(t, d)} />}
+      {editable && accion?.tipo === 'mover' && (
+        <DialogoMoverFecha
+          plan={accion.plan}
+          planes={planes}
+          hoy={hoy}
+          onCerrar={() => setAccion(null)}
+          onMovido={(nombre, fecha) => {
+            setAccion(null)
+            void recargar(`Movimos «${nombre}» al ${fechaCorta(fecha)}.`)
+          }}
+        />
+      )}
+      {editable && accion?.tipo === 'eliminar' && (
+        <DialogoEliminarEvento
+          plan={accion.plan}
+          dias={diasDelEvento(planes, accion.plan)}
+          onCerrar={() => setAccion(null)}
+          onEliminado={(frase) => {
+            setAccion(null)
+            void recargar(frase)
+          }}
+        />
       )}
     </PaginaSistema>
   )
