@@ -1,9 +1,16 @@
 'use client'
 
 /**
- * Estudiantes › Reportes — the Grupos and Personas lists (artboards 11 / 12):
- * one `ListaResponsiva` each, table from md, inset rows on phones; every row
- * opens its read-only drawer.
+ * Estudiantes › Reportes — the Grupos and Personas lists. Desktop (artboard
+ * 15 of design/estudiantes-dps, C29–C31): `TablaGruposReporte` and
+ * `TablaPersonasReporte`, dense tables with the name frozen, the columns of
+ * «Columnas» and the sorts in their headers; in The Living Room the Grupo
+ * stays under the name (D8) so the three connection columns fit without
+ * scrolling sideways. Phones (artboards 12 / 16, C36): the `ListaResponsiva`
+ * rows below. Every row opens its read-only panel.
+ *
+ * The phone lists (artboards 11 / 12 of design/estudiantes-asistencia):
+ * one `ListaResponsiva` each; every row opens its read-only drawer.
  * - Grupos: Grupo (+ leaders or "Sin líder") · Miembros · Reuniones (+ "N sin
  *   marcar", from lg) · Promedio (from lg) · Asistencia (GR4) · Visitantes
  *   (from lg) · Tendencia (GR2). Sortable: Grupo (año), Miembros, Asistencia,
@@ -32,7 +39,8 @@ import {
   type OrdenPersonasReporte,
 } from '@/lib/platform/estudiantes/reportes'
 
-import { CeldaPorcentaje, IndicadorTendencia } from './partes-reportes'
+import { TablaDensa, type ColumnaDensa, type Densidad, type OrdenColumna } from '../alcance/tabla-densa'
+import { BarraPorcentaje, CeldaPorcentaje, IndicadorTendencia } from './partes-reportes'
 
 const decimal = (valor: number): string => valor.toLocaleString('es-VE', { maximumFractionDigits: 1 })
 const unirY = (partes: readonly string[]): string => (partes.length <= 1 ? (partes[0] ?? '') : `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`)
@@ -303,6 +311,264 @@ export function ListaPersonasReporte({ filas, orden, hoy, onOrdenar, onAbrir, va
         insignias: <InsigniasPersona fila={fila} />,
         meta: <span className="font-mono text-sm tabular-nums text-foreground">{textoPorcentaje(fila.porcentaje)}</span>,
       })}
+    />
+  )
+}
+
+// ── Desktop: dense tables ─────────────────────────────────────────────
+
+/** The columns «Columnas» can hide, per tab (the name is always on). */
+export const COLUMNAS_TABLA_GRUPOS = [
+  { id: 'lideres', etiqueta: 'Líderes' },
+  { id: 'miembros', etiqueta: 'Miembros' },
+  { id: 'reuniones', etiqueta: 'Reuniones' },
+  { id: 'promedio', etiqueta: 'Promedio' },
+  { id: 'asistencia', etiqueta: 'Asistencia' },
+  { id: 'visitantes', etiqueta: 'Visitantes' },
+  { id: 'tendencia', etiqueta: 'Tendencia' },
+] as const
+
+export const COLUMNAS_TABLA_PERSONAS = [
+  { id: 'grupo', etiqueta: 'Grupo' },
+  { id: 'asistencia', etiqueta: 'Asistencia' },
+  { id: 'presentes', etiqueta: 'Presentes' },
+  { id: 'seguidas', etiqueta: 'Faltas seguidas' },
+  { id: 'ultima', etiqueta: 'Última vez' },
+] as const
+
+export const COLUMNAS_TABLA_CONEXIONES = [
+  { id: 'asistencia', etiqueta: 'Asistencia' },
+  { id: 'unos', etiqueta: '1:1' },
+  { id: 'servicio', etiqueta: 'Servicio' },
+  { id: 'talleres', etiqueta: 'Talleres' },
+  { id: 'seguidas', etiqueta: 'Faltas seguidas' },
+  { id: 'ultima', etiqueta: 'Última vez' },
+] as const
+
+const Num = ({ children }: { readonly children: ReactNode }): ReactElement => <span className="font-mono tabular-nums">{children}</span>
+const Apagado = ({ children = '—' }: { readonly children?: ReactNode }): ReactElement => <span className="text-muted-foreground">{children}</span>
+
+/** The GR4 cell of a dense row: value, 56px bar and an optional "7 de 8". */
+function PorcentajeDenso({ porcentaje, vacio = 'Sin reuniones', detalle }: { readonly porcentaje: number | null; readonly vacio?: string; readonly detalle?: string }): ReactElement {
+  if (porcentaje === null) return <Apagado>{vacio}</Apagado>
+  const valor = Math.min(100, Math.max(0, Math.round(porcentaje)))
+  return (
+    <span className="inline-flex items-center gap-2">
+      <Num>{valor}%</Num>
+      <BarraPorcentaje porcentaje={porcentaje} className="w-14 shrink-0" />
+      {detalle && <small className="text-xs text-muted-foreground">{detalle}</small>}
+    </span>
+  )
+}
+
+export interface TablaReporteProps<O extends string> {
+  readonly orden: O
+  readonly onOrdenar: (orden: O) => void
+  readonly onAbrir: (id: string) => void
+  readonly seleccionada: string | null
+  readonly ocultas: ReadonlySet<string>
+  readonly densidad: Densidad
+}
+
+function ordenDe<O extends string>(actual: O, id: O, onOrdenar: (orden: O) => void): OrdenColumna {
+  return { activo: actual === id, sentido: DESCENDENTES.has(id) ? 'desc' : 'asc', onOrdenar: () => onOrdenar(id) }
+}
+
+export function TablaGruposReporte({ filas, orden, onOrdenar, onAbrir, seleccionada, ocultas, densidad }: TablaReporteProps<OrdenGruposReporte> & { readonly filas: readonly FilaGrupoReporte[] }): ReactElement {
+  const columnas: readonly ColumnaDensa<FilaGrupoReporte>[] = [
+    { id: 'lideres', titulo: 'Líderes', celda: (f) => (f.lideres.length ? unirY(f.lideres) : <span className="font-semibold text-warning-text">Sin líder</span>) },
+    { id: 'miembros', titulo: 'Miembros', derecha: true, orden: ordenDe(orden, 'miembros', onOrdenar), celda: (f) => <Num>{f.miembros}</Num> },
+    {
+      id: 'reuniones',
+      titulo: 'Reuniones',
+      derecha: true,
+      celda: (f) => (
+        <>
+          <Num>{f.reuniones}</Num>
+          {f.sinMarcar > 0 && (
+            <BadgeSistema variante="warning" tamaño="sm" className="ml-1.5">
+              {`${f.sinMarcar} sin marcar`}
+            </BadgeSistema>
+          )}
+        </>
+      ),
+    },
+    {
+      id: 'promedio',
+      titulo: 'Promedio',
+      derecha: true,
+      celda: (f) =>
+        f.promedioPresentes === null ? (
+          <Apagado />
+        ) : (
+          <Num>
+            {decimal(f.promedioPresentes)} <span className="text-muted-foreground">de {f.miembros}</span>
+          </Num>
+        ),
+    },
+    { id: 'asistencia', titulo: 'Asistencia', orden: ordenDe(orden, 'asistencia', onOrdenar), celda: (f) => <PorcentajeDenso porcentaje={f.porcentaje} /> },
+    { id: 'visitantes', titulo: 'Visitantes', derecha: true, celda: (f) => (f.visitantes ? <Num>{f.visitantes}</Num> : <Apagado />) },
+    { id: 'tendencia', titulo: 'Tendencia', orden: ordenDe(orden, 'tendencia', onOrdenar), celda: (f) => <IndicadorTendencia tendencia={f.tendencia} /> },
+  ]
+  return (
+    <TablaDensa
+      etiqueta="Asistencia por grupo"
+      describidaPor="reportes-pie"
+      primera={{ titulo: 'Grupo', orden: ordenDe(orden, 'anio', onOrdenar), nombre: (f) => f.nombre }}
+      columnas={columnas.filter((c) => !ocultas.has(c.id))}
+      secciones={[{ id: 'grupos', titulo: '', filas }]}
+      claveFila={(f) => f.grupoId}
+      onAbrir={(f) => onAbrir(f.grupoId)}
+      etiquetaFila={(f) => `Abrir ${f.nombre}`}
+      seleccionada={seleccionada}
+      densidad={densidad}
+    />
+  )
+}
+
+export function TablaPersonasReporte({
+  filas,
+  orden,
+  hoy,
+  onOrdenar,
+  onAbrir,
+  seleccionada,
+  ocultas,
+  densidad,
+  conConexiones = false,
+}: TablaReporteProps<OrdenPersonasReporte> & { readonly filas: readonly FilaPersonaReporte[]; readonly hoy: string; readonly conConexiones?: boolean }): ReactElement {
+  const o = (id: OrdenPersonasReporte): OrdenColumna => ordenDe(orden, id, onOrdenar)
+  const ultima: ColumnaDensa<FilaPersonaReporte> = {
+    id: 'ultima',
+    titulo: 'Última vez',
+    orden: o('ultima'),
+    celda: (f) =>
+      f.ultimaPresente ? (
+        <>
+          <Num>{fechaDia(f.ultimaPresente)}</Num> <small className="text-xs text-muted-foreground">· {haceCuanto(f.ultimaPresente, hoy)}</small>
+        </>
+      ) : (
+        <Apagado>Todavía no vino</Apagado>
+      ),
+  }
+  const seguidas: ColumnaDensa<FilaPersonaReporte> = {
+    id: 'seguidas',
+    titulo: 'Faltas seguidas',
+    derecha: true,
+    orden: o('seguidas'),
+    celda: (f) =>
+      f.seguidas ? (
+        <BadgeSistema variante="warning" tamaño="sm">
+          {`${f.ausenciasSeguidas} seguidas`}
+        </BadgeSistema>
+      ) : (
+        <Num>{f.ausenciasSeguidas}</Num>
+      ),
+  }
+  const columnas: readonly ColumnaDensa<FilaPersonaReporte>[] = conConexiones
+    ? [
+        { id: 'asistencia', titulo: 'Asistencia', orden: o('asistencia'), celda: (f) => <PorcentajeDenso porcentaje={f.porcentaje} detalle={`${f.presentes} de ${f.reuniones}`} /> },
+        {
+          id: 'unos',
+          titulo: '1:1',
+          derecha: true,
+          orden: o('unos'),
+          celda: (f) =>
+            !f.conexion ? (
+              <Apagado />
+            ) : f.conexion.desconectado && f.conexion.unos === 0 ? (
+              <BadgeSistema variante="warning" tamaño="sm">
+                Sin 1:1
+              </BadgeSistema>
+            ) : (
+              <>
+                <Num>{f.conexion.unos}</Num>
+                {f.conexion.desconectado && (
+                  <BadgeSistema variante="warning" tamaño="sm" className="ml-1.5">
+                    Sin 1:1
+                  </BadgeSistema>
+                )}
+              </>
+            ),
+        },
+        {
+          id: 'servicio',
+          titulo: 'Servicio',
+          orden: o('servicio'),
+          celda: (f) =>
+            !f.conexion ? (
+              <Apagado />
+            ) : !f.conexion.servicio ? (
+              <Apagado>No sirve</Apagado>
+            ) : (
+              <PorcentajeDenso porcentaje={f.conexion.servicio.porcentaje} vacio="Sin fechas" detalle={`${f.conexion.servicio.presentes} de ${f.conexion.servicio.esperadas}`} />
+            ),
+        },
+        {
+          id: 'talleres',
+          titulo: 'Talleres',
+          derecha: true,
+          orden: o('talleres'),
+          celda: (f) => (!f.conexion ? <Apagado /> : f.conexion.talleres ? <Num>{f.conexion.talleres}</Num> : <Apagado>Ninguno</Apagado>),
+        },
+        seguidas,
+        ultima,
+      ]
+    : [
+        {
+          id: 'grupo',
+          titulo: 'Grupo',
+          orden: o('grupo'),
+          celda: (f) => (
+            <>
+              {f.grupo ?? 'Sin grupo'}
+              {(f.antesEn || f.grupo) && <span className="text-muted-foreground"> · </span>}
+              {f.antesEn ? (
+                <span className="text-muted-foreground">{`Antes en ${f.antesEn}`}</span>
+              ) : f.grupo ? (
+                <span className={f.lideres.length ? 'text-muted-foreground' : 'text-warning-text'}>{f.lideres.length ? unirY(f.lideres) : 'Sin líder'}</span>
+              ) : null}
+            </>
+          ),
+        },
+        { id: 'asistencia', titulo: 'Asistencia', orden: o('asistencia'), celda: (f) => (f.reuniones ? <PorcentajeDenso porcentaje={f.porcentaje} /> : <Apagado>Todavía no vino</Apagado>) },
+        {
+          id: 'presentes',
+          titulo: 'Presentes',
+          derecha: true,
+          celda: (f) => (
+            <>
+              <Num>
+                {f.presentes} de {f.reuniones}
+              </Num>
+              {f.sinMarcar > 0 && <small className="text-xs text-muted-foreground"> · {f.sinMarcar} sin marcar</small>}
+            </>
+          ),
+        },
+        seguidas,
+        ultima,
+      ]
+  return (
+    <TablaDensa
+      etiqueta="Asistencia por persona"
+      describidaPor="reportes-pie"
+      primera={{
+        titulo: 'Nombre',
+        orden: o('nombre'),
+        nombre: (f) => f.nombre,
+        ancho: 'min-w-[210px]',
+        // The Living Room: the group under the name (D8); elsewhere, when they joined, after it.
+        debajo: conConexiones ? (f) => [f.grupo ?? 'Sin grupo', f.antesEn ? `antes en ${f.antesEn}` : f.entro?.replace(/^Entró/, 'entró')].filter(Boolean).join(' · ') : undefined,
+        despues: conConexiones ? undefined : (f) => (f.entro ? `· ${f.entro.replace(/^Entró/, 'entró')}` : null),
+      }}
+      columnas={columnas.filter((c) => !ocultas.has(c.id))}
+      secciones={[{ id: 'personas', titulo: '', filas }]}
+      claveFila={(f) => f.personaId}
+      onAbrir={(f) => onAbrir(f.personaId)}
+      etiquetaFila={(f) => `${conConexiones ? 'Ver las conexiones de' : 'Ver la asistencia de'} ${f.nombre}`}
+      seleccionada={seleccionada}
+      densidad={densidad}
+      filaAlta={conConexiones}
     />
   )
 }
