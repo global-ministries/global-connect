@@ -4,9 +4,14 @@
  * that fails, throws or takes longer than TIEMPO_MAXIMO_MS degrades to its
  * empty value and is logged; the others are kept.
  *
- * Not loaded yet (stay 0/false): reportes sin cargar, pendientes del director
- * de Dream Team and tickets (T4), and DPS convocatorias / servicios por
- * confirmar (connected when feat/dps-avisos is merged, S2).
+ * Then, only for whoever has something in charge, the counts that come from
+ * it (cargarPendientesCargo, T4): reports, leaders without report and
+ * volunteers without Próximo Paso.
+ *
+ * Not loaded yet (stay 0/false): the other pendientes del director de Dream
+ * Team and tickets (no helper counts them for the home), and DPS
+ * convocatorias / servicios por confirmar (connected when feat/dps-avisos is
+ * merged, S2).
  */
 import { obtenerCasasRevisionPendiente, obtenerGruposSinCasaAnfitriona } from '@/lib/actions/casas-anfitrionas.actions'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
@@ -14,6 +19,7 @@ import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { createSupabaseServerClient } from '@/lib/supabase/server'
 
+import { cargarPendientesCargo, type PendientesCargo } from './cargar-pendientes'
 import { HECHOS_VACIOS, type HechosInicio, type MembresiaGrupo, type RolEnGrupo, type ServicioActivo } from './hechos'
 
 export type ClienteInicio = Awaited<ReturnType<typeof createSupabaseServerClient>>
@@ -168,6 +174,19 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
       }, 0),
     ])
 
+  const pedidoCargo = {
+    usuarioId,
+    hoy: hoyEnCaracas(),
+    gruposLider: grupos.filter((g) => g.rol === 'Líder').map((g) => g.grupoId),
+    etapas: etapasDirigidas,
+    segmentos: segmentosDirigidos,
+    areas: [...new Set(serviciosActivos.filter((s) => s.nivel === 'director').map((s) => s.equipoId))],
+  }
+  const conCargo = pedidoCargo.gruposLider.length + pedidoCargo.etapas.length + pedidoCargo.segmentos.length + pedidoCargo.areas.length > 0
+  const deCargo: PendientesCargo = conCargo
+    ? await cargarPendientesCargo(supabase, pedidoCargo)
+    : { reportesSinCargar: 0, lideresSinReporte: 0, marcarProximoPaso: 0 }
+
   return {
     ...HECHOS_VACIOS,
     usuarioId,
@@ -179,6 +198,6 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
     hijos,
     perfilCompleto: texto(usuario.telefono) !== null && fechaNacimiento !== null,
     hizoProximoPaso,
-    pendientes: { ...HECHOS_VACIOS.pendientes, solicitudesGrupo, casasPorRevisar, gruposSinCasa },
+    pendientes: { ...HECHOS_VACIOS.pendientes, ...deCargo, solicitudesGrupo, casasPorRevisar, gruposSinCasa },
   }
 }
