@@ -1,8 +1,9 @@
 /**
- * Inicio (/dashboard) by person (odd/tasks/home-por-rol.md T3): the facts of
- * the person decide the sections (decidirSecciones) and each section loads
- * only when present. The previous per-role dashboard stays inside «A tu
- * cargo» and «Visión general» until T4 replaces it.
+ * Inicio (/dashboard) by person (odd/tasks/home-por-rol.md T3, T4): the facts
+ * of the person decide the sections (decidirSecciones) and each section loads
+ * only when present: «A tu cargo» one block per cargo (cargarACargo),
+ * «Visión general» the campus numbers for admin and pastor. Both read
+ * obtener_datos_dashboard (tablero.tsx) only where they need it.
  */
 import { redirect } from 'next/navigation'
 
@@ -10,6 +11,7 @@ import { TarjetaMisHijosDashboard } from '@/components/dashboard/TarjetaMisHijos
 import { PantallaInicio } from '@/components/inicio/pantalla-inicio'
 import { MigasInicio } from '@/components/inicio/partes-inicio'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
+import { cargarACargo, type DatosCargo } from '@/lib/inicio/cargar-a-cargo'
 import { cargarGruposMiembro, type DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
 import { cargarHechosInicio } from '@/lib/inicio/cargar-hechos'
 import { decidirSecciones } from '@/lib/inicio/decidir-secciones'
@@ -18,7 +20,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 import { cargarMisHijosDashboard } from './mis-hijos-dashboard'
-import { cargarTableroAnterior, type TableroAnterior } from './tablero-anterior'
+import { cargarTablero, cargarVisionGeneral } from './tablero'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,11 +52,17 @@ export default async function PaginaInicio() {
   const aCargo = secciones.find((s) => s.id === 'a-cargo')
   const conVision = secciones.some((s) => s.id === 'vision-general')
 
-  const [gruposMiembro, tablero, misHijos] = await Promise.all([
-    hechos.usuarioId && grupos.length > 0
-      ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId: hechos.usuarioId, hoy, grupos })
+  const usuarioId = hechos.usuarioId
+  const tableroPromesa = aCargo || conVision ? cargarTablero() : Promise.resolve(null)
+  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos] = await Promise.all([
+    usuarioId && grupos.length > 0
+      ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Record<string, DatosGrupoMiembro>>({}),
-    aCargo || conVision ? cargarTableroAnterior({ cargos: aCargo?.cargos ?? null, conVision }) : Promise.resolve<TableroAnterior>({}),
+    usuarioId && aCargo
+      ? cargarACargo(supabase, { authId: user.id, usuarioId, hoy, cargos: aCargo.cargos, tablero: tableroPromesa })
+      : Promise.resolve<(DatosCargo | null)[]>([]),
+    conVision ? tableroPromesa.then((t) => cargarVisionGeneral(supabase, t, hechos.pendientes.gruposSinCasa)) : Promise.resolve(null),
+    tableroPromesa,
     misHijosPromesa,
   ])
 
@@ -69,8 +77,9 @@ export default async function PaginaInicio() {
         // to the Promise.all above when the section is present, then
         // misServicios={misServicios && <TarjetaMisServicios inicial={misServicios} hoy={hoy} />}
         misHijos={misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
-        aCargo={tablero.aCargo}
-        visionGeneral={tablero.visionGeneral}
+        aCargo={cargos}
+        visionGeneral={visionGeneral}
+        contextos={tablero?.contextos}
       />
     </PaginaSistema>
   )

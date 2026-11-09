@@ -105,7 +105,7 @@ describe('PantallaInicio', () => {
         nombre="Ricardo Colmenárez"
         hoy="2026-11-09"
         secciones={decidirSecciones(hechos({ esAdminOPastor: true, pendientes: { ...HECHOS_VACIOS.pendientes, solicitudesGrupo: 5, casasPorRevisar: 3 } }))}
-        visionGeneral={<p>Panel del campus</p>}
+        visionGeneral={{ personas: 2340, nuevos: 64, grupos: 128, asistencia: 78, dreamTeam: null, tendencia: [], gruposEnRiesgo: [], gruposSinCasa: 0, postulados: null }}
       />,
     )
 
@@ -114,7 +114,7 @@ describe('PantallaInicio', () => {
     expect(within(pendientes).getByRole('link', { name: /Solicitudes de grupo/ })).toHaveAttribute('href', '/grupos-vida/solicitudes')
     expect(within(pendientes).getByRole('link', { name: /Casas anfitrionas por revisar/ })).toHaveAttribute('href', '/grupos-vida/casas-anfitrionas/revision')
     expect(screen.getAllByText(/cosas por responder/)[0]).toHaveTextContent('Tienes 8 cosas por responder.')
-    expect(screen.getByText('Panel del campus')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Métricas del campus' })).toBeInTheDocument()
   })
 
   it('una sección sin contenido no se muestra', () => {
