@@ -1,14 +1,15 @@
 /**
- * `<ListaLiderClient>` — the leader list (C3b of odd/tasks/estudiantes-fase-b.md,
- * artboards 01 / 02 / 05). The server actions are mocked; each flow checks
- * what the screen sends and shows. Every person is fictitious.
+ * `<ListaLiderClient>` — the leader list (C3b of odd/tasks/estudiantes-fase-b.md)
+ * in the planning style (E4a of odd/tasks/estudiantes-estilo-dps.md, S5 and
+ * S6; artboards 02 / 03 of design/estudiantes-dps). The server actions are
+ * mocked; each flow checks what the screen sends and shows. Every person is
+ * fictitious.
  *
- * `ListaResponsiva` renders the desktop cells and the phone cell of every row
- * (CSS swaps them, jsdom applies none), so each row has two ✓ / ✕ pairs; the
- * tests use the first. Without matchMedia the drawers are side panels.
+ * Each row has one «Ausente» mark and one «Presente» circle. Without
+ * matchMedia the drawers are side panels.
  */
 import React from 'react'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ListaLiderClient } from '@/components/estudiantes/lista/lista-lider-client'
@@ -174,8 +175,13 @@ function datos({ lista = {}, ...extra }: Partial<Omit<DatosListaLider, 'lista'>>
   }
 }
 
-const marcas = (nombre: string) => within(screen.getAllByRole('group', { name: `Asistencia de ${nombre}` })[0])
+const marcas = (nombre: string) => within(screen.getByRole('group', { name: `Asistencia de ${nombre}` }))
+const presente = (nombre: string) => marcas(nombre).getByRole('button', { name: `Presente: ${nombre}` })
+const ausente = (nombre: string) => marcas(nombre).getByRole('button', { name: `Ausente: ${nombre}` })
 const resumen = () => screen.getAllByText((_, el) => el?.tagName === 'P' && el.getAttribute('aria-live') === 'polite')[0]
+const aviso = () => screen.getByTestId('aviso-cambio')
+const estadoGuardado = () => screen.getByTestId('estado-guardado')
+const marcarTodos = () => screen.getByRole('button', { name: /^Marcar todos/ })
 
 const FICHA_P1 = {
   personaId: 'p1',
@@ -202,11 +208,14 @@ describe('the list', () => {
   it('shows the meeting, the counts and both sections in A–Z order', () => {
     render(<ListaLiderClient datos={datos()} />)
     expect(screen.getByRole('heading', { level: 1, name: '2do año · Chicas' })).toBeInTheDocument()
-    expect(screen.getAllByText('Domingo 25 oct · 9:00 · Transit')[0]).toBeInTheDocument()
-    expect(resumen()).toHaveTextContent('2 presentes · 1 ausente · 1 sin marcar · 1 visitante nuevo')
-    expect(screen.getByRole('heading', { name: 'Integrantes · 3' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Visitantes · 2' })).toBeInTheDocument()
-    const integrantes = screen.getByRole('table', { name: 'Integrantes' })
+    expect(screen.getByText('Transit · Grupos de Chicas')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Reunión' })).toHaveTextContent('Domingo 25 oct')
+    expect(screen.getByText('9:00 · líder Andrea Molina')).toBeInTheDocument()
+    // «N de M marcados» leaves out the visitor registered today (S5).
+    expect(resumen()).toHaveTextContent('3 de 4 marcados · 2 presentes · 1 ausente · 1 sin marcar · 1 visitante nuevo')
+    expect(screen.getByRole('heading', { level: 2, name: 'Integrantes' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Visitantes' })).toBeInTheDocument()
+    const integrantes = screen.getByRole('list', { name: 'Integrantes' })
     expect(within(integrantes).getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual([
       'Abrir Camila Herrera',
       'Abrir Daniela Colmenares',
@@ -216,7 +225,20 @@ describe('the list', () => {
     expect(screen.getAllByText('Nueva hoy')[0]).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Asistencia de Luciana Ferrer' })).not.toBeInTheDocument()
     expect(screen.getAllByText('Últimas 2 reuniones: presente, presente')[0]).toBeInTheDocument()
-    expect(screen.getByText(/en la lista · se guarda al marcar/)).toBeInTheDocument()
+    expect(screen.getByText(/en la lista · se guarda al tocar; toca otra vez para deshacer/)).toBeInTheDocument()
+  })
+
+  it('steps to the meetings that exist with the date pill; › is off at the newest', async () => {
+    render(<ListaLiderClient datos={datos()} desde="grupos" />)
+    const reunion = within(screen.getByRole('group', { name: 'Reunión' }))
+    expect(reunion.getByRole('button', { name: 'Es la reunión más reciente' })).toBeDisabled()
+    await user.click(reunion.getByRole('button', { name: 'Reunión anterior, domingo 18 oct' }))
+    expect(replace).toHaveBeenCalledWith('/estudiantes/grupos/g2?fecha=2026-10-18&turno=t9&desde=grupos', { scroll: false })
+  })
+
+  it('opens in «Todos» (S6)', () => {
+    render(<ListaLiderClient datos={datos()} />)
+    expect(within(screen.getByRole('group', { name: 'Mostrar' })).getByRole('button', { name: /Todos/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('a leader with a single group has no back control; from Grupos it goes back to the drawer', () => {
@@ -239,48 +261,121 @@ describe('marking', () => {
     let resolver: (v: Awaited<ReturnType<typeof acciones.marcarAsistencia>>) => void = () => {}
     mock.marcarAsistencia.mockImplementation(() => new Promise((r) => (resolver = r)))
     render(<ListaLiderClient datos={datos()} />)
-    await user.click(marcas('Daniela Colmenares').getByRole('button', { name: 'Presente' }))
+    await user.click(presente('Daniela Colmenares'))
     // Optimistic: pressed and counted before the server answers.
-    expect(marcas('Daniela Colmenares').getByRole('button', { name: 'Presente' })).toHaveAttribute('aria-pressed', 'true')
-    expect(resumen()).toHaveTextContent('3 presentes · 1 ausente · 0 sin marcar')
+    expect(presente('Daniela Colmenares')).toHaveAttribute('aria-pressed', 'true')
+    expect(resumen()).toHaveTextContent('4 de 4 marcados · 3 presentes · 1 ausente · 0 sin marcar')
+    expect(estadoGuardado()).toHaveTextContent('Guardando…')
     expect(mock.marcarAsistencia).toHaveBeenCalledWith({ grupoId: 'g2', fecha: FECHA, turnoId: 't9', personaId: 'p2', estado: 'presente' })
     resolver({ ok: true, data: { visitas: 1, sugerirConfirmar: false } })
-    await waitFor(() => expect(exito).toHaveBeenCalledWith('Daniela: presente · guardado'))
+    // The status replaces the toast of each mark (S5); a live region names it.
+    await waitFor(() => expect(estadoGuardado()).toHaveTextContent('Guardado'))
+    expect(aviso()).toHaveTextContent('Daniela: presente · guardado')
+    expect(exito).not.toHaveBeenCalled()
+  })
+
+  it('«Ausente» and the circle exclude each other', async () => {
+    mock.marcarAsistencia.mockResolvedValue({ ok: true, data: { visitas: 0, sugerirConfirmar: false } })
+    render(<ListaLiderClient datos={datos()} />)
+    await user.click(ausente('Camila Herrera'))
+    expect(mock.marcarAsistencia).toHaveBeenCalledWith(expect.objectContaining({ personaId: 'p1', estado: 'ausente' }))
+    expect(ausente('Camila Herrera')).toHaveAttribute('aria-pressed', 'true')
+    expect(presente('Camila Herrera')).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('a second tap on the same state clears the mark', async () => {
     mock.marcarAsistencia.mockResolvedValue({ ok: true, data: { visitas: 0, sugerirConfirmar: false } })
     render(<ListaLiderClient datos={datos()} />)
-    await user.click(marcas('Camila Herrera').getByRole('button', { name: 'Presente' }))
+    await user.click(presente('Camila Herrera'))
     expect(mock.marcarAsistencia).toHaveBeenCalledWith(expect.objectContaining({ personaId: 'p1', estado: null }))
-    expect(marcas('Camila Herrera').getByRole('button', { name: 'Presente' })).toHaveAttribute('aria-pressed', 'false')
-    await waitFor(() => expect(exito).toHaveBeenCalledWith('Camila: sin marcar'))
+    expect(presente('Camila Herrera')).toHaveAttribute('aria-pressed', 'false')
+    await waitFor(() => expect(aviso()).toHaveTextContent('Camila: sin marcar'))
   })
 
   it('rolls back and shows the error when the server refuses', async () => {
     mock.marcarAsistencia.mockResolvedValue({ ok: false, message: 'Esa fecha no tiene reunión para marcar. Elige otra.', codigo: 'fecha_invalida' })
     render(<ListaLiderClient datos={datos()} />)
-    await user.click(marcas('Mariana Quintero').getByRole('button', { name: 'Presente' }))
+    await user.click(presente('Mariana Quintero'))
     await waitFor(() => expect(fallo).toHaveBeenCalledWith('Esa fecha no tiene reunión para marcar. Elige otra.'))
-    expect(marcas('Mariana Quintero').getByRole('button', { name: 'Ausente' })).toHaveAttribute('aria-pressed', 'true')
+    expect(ausente('Mariana Quintero')).toHaveAttribute('aria-pressed', 'true')
     expect(resumen()).toHaveTextContent('2 presentes · 1 ausente · 1 sin marcar')
+    expect(estadoGuardado()).toHaveTextContent('No se pudo guardar')
+  })
+})
+
+describe('«Marcar todos» (S5, S6)', () => {
+  const conOtra = () => {
+    const d = datos()
+    return { ...d, lista: d.lista && { ...d.lista, personas: [...d.lista.personas, persona('p4', 'Valeria Pinto'), persona('v2', 'Gabriela Montilla', { estado: 'visitante', visitas: 2, desde: '2026-10-11' })] } }
+  }
+
+  it('marks Presente only the unmarked members, never an «Ausente» nor a visitor, then disables itself', async () => {
+    mock.marcarAsistencia.mockResolvedValue({ ok: true, data: { visitas: 0, sugerirConfirmar: false } })
+    render(<ListaLiderClient datos={conOtra()} />)
+    await user.click(marcarTodos())
+    expect(mock.marcarAsistencia.mock.calls.map(([e]) => [e.personaId, e.estado])).toEqual([
+      ['p2', 'presente'],
+      ['p4', 'presente'],
+    ])
+    expect(presente('Daniela Colmenares')).toHaveAttribute('aria-pressed', 'true')
+    expect(presente('Valeria Pinto')).toHaveAttribute('aria-pressed', 'true')
+    expect(ausente('Mariana Quintero')).toHaveAttribute('aria-pressed', 'true')
+    expect(presente('Gabriela Montilla')).toHaveAttribute('aria-pressed', 'false')
+    expect(marcarTodos()).toBeDisabled()
+    expect(aviso()).toHaveTextContent('Marcaste 2 integrantes como presentes. Los ausentes no cambian.')
+    await waitFor(() => expect(estadoGuardado()).toHaveTextContent('Guardado'))
+    expect(exito).not.toHaveBeenCalled()
+  })
+
+  it('is undone one circle at a time', async () => {
+    mock.marcarAsistencia.mockResolvedValue({ ok: true, data: { visitas: 0, sugerirConfirmar: false } })
+    render(<ListaLiderClient datos={conOtra()} />)
+    await user.click(marcarTodos())
+    await waitFor(() => expect(estadoGuardado()).toHaveTextContent('Guardado'))
+    await user.click(presente('Valeria Pinto'))
+    expect(mock.marcarAsistencia).toHaveBeenLastCalledWith(expect.objectContaining({ personaId: 'p4', estado: null }))
+    expect(presente('Valeria Pinto')).toHaveAttribute('aria-pressed', 'false')
+    expect(marcarTodos()).toBeEnabled()
+  })
+
+  it('rolls every mark back with one error toast when the first one fails', async () => {
+    mock.marcarAsistencia.mockResolvedValue({ ok: false, message: 'Esa fecha no tiene reunión para marcar. Elige otra.', codigo: 'fecha_invalida' })
+    render(<ListaLiderClient datos={conOtra()} />)
+    await user.click(marcarTodos())
+    await waitFor(() => expect(fallo).toHaveBeenCalledWith('Esa fecha no tiene reunión para marcar. Elige otra.'))
+    expect(fallo).toHaveBeenCalledTimes(1)
+    expect(mock.marcarAsistencia).toHaveBeenCalledTimes(1)
+    expect(presente('Daniela Colmenares')).toHaveAttribute('aria-pressed', 'false')
+    expect(presente('Valeria Pinto')).toHaveAttribute('aria-pressed', 'false')
+    expect(marcarTodos()).toBeEnabled()
+  })
+
+  it('is disabled when every member is marked', () => {
+    const d = datos()
+    render(<ListaLiderClient datos={{ ...d, lista: d.lista && { ...d.lista, personas: d.lista.personas.filter((p) => p.personaId !== 'p2') } }} />)
+    expect(marcarTodos()).toBeDisabled()
   })
 })
 
 describe('filters and search', () => {
-  it('a pill narrows the list and a second tap goes back to Todos', async () => {
+  it('a filter narrows the list with its count, and «Todos» brings everyone back', async () => {
     render(<ListaLiderClient datos={datos()} />)
-    const pastillas = screen.getByRole('group', { name: 'Mostrar' })
-    await user.click(within(pastillas).getByRole('button', { name: /Sin marcar/ }))
+    const filtros = screen.getByRole('group', { name: 'Mostrar' })
+    expect(within(filtros).getAllByRole('button').map((b) => b.textContent)).toEqual(['Todos 5', 'Sin marcar 1', 'Presentes 2', 'Ausentes 1'])
+    await user.click(within(filtros).getByRole('button', { name: /Sin marcar/ }))
     expect(screen.getAllByRole('button', { name: /^Abrir / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Abrir Daniela Colmenares'])
-    expect(within(pastillas).getByRole('button', { name: /Sin marcar/ })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(within(pastillas).getByRole('button', { name: /Sin marcar/ }))
-    expect(within(pastillas).getByRole('button', { name: /Todos/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(filtros).getByRole('button', { name: /Sin marcar/ })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(filtros).getByRole('button', { name: /Todos/ }))
+    expect(within(filtros).getByRole('button', { name: /Todos/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getAllByRole('button', { name: /^Abrir / })).toHaveLength(5)
+  })
 
-    await user.click(within(pastillas).getByRole('button', { name: /Visitantes/ }))
-    expect(screen.queryByRole('table', { name: 'Integrantes' })).not.toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Abrir / })).toHaveLength(2)
+  it('the visitors are a section, not a filter, with «Agregar visitante» as its last row (S5)', () => {
+    render(<ListaLiderClient datos={datos()} />)
+    expect(within(screen.getByRole('group', { name: 'Mostrar' })).queryByRole('button', { name: /Visitantes/ })).not.toBeInTheDocument()
+    const seccion = screen.getByRole('region', { name: 'Visitantes' })
+    const botones = within(seccion).getAllByRole('button')
+    expect(botones[botones.length - 1]).toHaveTextContent('Agregar visitante')
   })
 
   it('searches by name and offers to clear when nobody matches', async () => {
@@ -381,14 +476,16 @@ describe('The Living Room', () => {
     return { ...d, grupo: { ...d.grupo, nombre: 'Zona Este · Chicos', ambito: 'The Living Room', experiencia: 'the_living_room' } }
   }
 
-  it('offers the weekly meeting pills and navigates to another one', async () => {
+  it('steps between this week’s meeting and the two before, or opens another date', async () => {
     render(<ListaLiderClient datos={tlr()} />)
-    expect(screen.getByText('Cada jueves')).toBeInTheDocument()
-    const reunion = screen.getByRole('group', { name: 'Reunión del grupo' })
-    expect(within(reunion).getAllByRole('button').map((b) => b.textContent)).toEqual(['Jue 29 oct · hoy', 'Jue 22 oct', 'Jue 15 oct'])
-    expect(within(reunion).getByRole('button', { name: 'Jue 29 oct · hoy' })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(within(reunion).getByRole('button', { name: 'Jue 22 oct' }))
+    expect(screen.getByText(/^Cada jueves · 19:30/)).toBeInTheDocument()
+    const reunion = within(screen.getByRole('group', { name: 'Reunión' }))
+    expect(screen.getByRole('group', { name: 'Reunión' })).toHaveTextContent('Jueves 29 oct')
+    expect(reunion.getByRole('button', { name: 'Es la reunión más reciente' })).toBeDisabled()
+    await user.click(reunion.getByRole('button', { name: 'Reunión anterior, jueves 22 oct' }))
     expect(replace).toHaveBeenCalledWith('/estudiantes/grupos/g2?fecha=2026-10-22', { scroll: false })
+    fireEvent.change(screen.getByLabelText('Otra fecha'), { target: { value: '2026-09-03' } })
+    expect(replace).toHaveBeenLastCalledWith('/estudiantes/grupos/g2?fecha=2026-09-03', { scroll: false })
   })
 
   it('saves the optional place on blur, with no turno', async () => {
@@ -403,7 +500,7 @@ describe('The Living Room', () => {
   it('marks without a turno and shows the age, never a representante', async () => {
     mock.marcarAsistencia.mockResolvedValue({ ok: true, data: { visitas: 0, sugerirConfirmar: false } })
     render(<ListaLiderClient datos={tlr()} />)
-    await user.click(marcas('Adrián Castillo').getByRole('button', { name: 'Presente' }))
+    await user.click(presente('Adrián Castillo'))
     expect(mock.marcarAsistencia).toHaveBeenCalledWith({ grupoId: 'g2', fecha: '2026-10-29', turnoId: null, personaId: 't1', estado: 'presente' })
     await user.click(screen.getAllByRole('button', { name: 'Abrir Adrián Castillo' })[0])
     expect(within(screen.getByRole('dialog')).queryByText('Representante')).not.toBeInTheDocument()
