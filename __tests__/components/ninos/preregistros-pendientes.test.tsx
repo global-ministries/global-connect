@@ -58,6 +58,43 @@ describe('PreregistrosPendientes', () => {
     expect(await screen.findByText('María González · Abuela')).toBeInTheDocument()
   })
 
+  it('«otro» shows only the name in the list (T2i)', async () => {
+    const otro = { ...pendiente, id: 'pr3', payload: { ...pendiente.payload, padre: { ...pendiente.payload.padre, nombre: 'Juan', apellido: 'Rojas', genero: 'Masculino', relacion: 'otro' } } }
+    rpc.mockImplementation((nombre: string) => Promise.resolve({ data: nombre === 'ninos_preregistros_pendientes' ? [otro] : null, error: null }))
+    const { unmount } = render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    expect(await screen.findByText('Juan Rojas')).toBeInTheDocument()
+    expect(screen.queryByText(/· Otro/)).not.toBeInTheDocument()
+    unmount()
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} variante="seccion" />)
+    expect(await screen.findByText('Juan Rojas')).toBeInTheDocument()
+    expect(screen.queryByText(/· Otro/)).not.toBeInTheDocument()
+  })
+
+  it('the review of an abuela shows the relationship and asks mujer or hombre, not mamá or papá (T2i)', async () => {
+    const abuela = { ...pendiente, id: 'pr2', payload: { ...pendiente.payload, padre: { ...pendiente.payload.padre, nombre: 'María', apellido: 'González', genero: 'Femenino', relacion: 'abuela' } } }
+    rpc.mockImplementation((nombre: string) => Promise.resolve({ data: nombre === 'ninos_preregistros_pendientes' ? [abuela] : null, error: null }))
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: /María González/ }))
+    expect(screen.getByText('Relación con los niños: Abuela')).toBeInTheDocument()
+    const genero = screen.getByRole('group', { name: 'Género del representante' })
+    expect(within(genero).getByRole('button', { name: 'Mujer' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(genero).getByRole('button', { name: 'Hombre' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(genero).queryByRole('button', { name: 'Mamá' })).not.toBeInTheDocument()
+  })
+
+  it('the review of a mamá or an old payload keeps Mamá / Papá without a relationship line (T2i)', async () => {
+    const mama = { ...pendiente, id: 'pr4', payload: { ...pendiente.payload, padre: { ...pendiente.payload.padre, nombre: 'Rosa', genero: 'Femenino', relacion: 'mama' } } }
+    rpc.mockImplementation((nombre: string) => Promise.resolve({ data: nombre === 'ninos_preregistros_pendientes' ? [mama, pendiente] : null, error: null }))
+    render(<PreregistrosPendientes onConfirmado={jest.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Rosa Pérez/ }))
+    expect(screen.queryByText(/Relación con los niños/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Mamá' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Ana Pérez/ }))
+    expect(screen.queryByText(/Relación con los niños/)).not.toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Género del representante' })).getByRole('button', { name: 'Papá' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('reviews, requires the parent gender and confirms with the edited payload', async () => {
     responder()
     const onConfirmado = jest.fn()

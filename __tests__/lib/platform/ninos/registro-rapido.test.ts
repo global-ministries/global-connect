@@ -245,7 +245,11 @@ describe('salón', () => {
   it('pairs the registered children with their ids and salón for the check-in', () => {
     const hijos = familiaMesa(completos()).hijos.map((h) => ({ nombre: h.nombre, apellido: h.apellido, fecha_nacimiento: h.fechaNacimiento, grado: null, salon_preferido_id: null, necesidades_especiales: null }))
     expect(seleccionIngreso(hijos, ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: PREESCOLAR, nombre: 'Camila' }])
-    expect(seleccionIngreso([{ ...hijos[0], fecha_nacimiento: '2010-01-01' }], ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', falta: 'revisar' }])
+    expect(seleccionIngreso([{ ...hijos[0], fecha_nacimiento: '2010-01-01' }], ['n1'], salones, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'revisar' }])
+    // T2i: the engine's reason when the data is fine (closed salón, none configured).
+    const cerrados = salones.map((s) => ({ ...s, abierto: false }))
+    expect(seleccionIngreso(hijos, ['n1'], cerrados, HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'cerrado' }])
+    expect(seleccionIngreso(hijos, ['n1'], [], HOY)).toEqual([{ ninoId: 'n1', salonId: null, nombre: 'Camila', motivo: 'revisar' }])
   })
 })
 
@@ -283,6 +287,34 @@ describe('relación con los niños (S9.8)', () => {
     expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez · abuela')
     d.padre = { ...conRelacion(d.padre, 'tutor'), genero: 'Femenino' }
     expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez · tutor o tutora')
+  })
+
+  it('«otro» shows only the name in the folded line (T2i)', () => {
+    const d = completos()
+    d.padre = { ...conRelacion(d.padre, 'otro'), genero: 'Femenino' }
+    expect(resumenSeccion(d, 'tu', publico).texto).toBe('María Linárez')
+    expect(resumenSeccion(d, 'tu', mesa).texto).toBe('María Linárez')
+  })
+
+  it('the desk review keeps the pre-registro relationship: summary and género question (T2i)', () => {
+    const form = { padre: { nombre: 'María', apellido: 'Linárez', telefono: '0414 512 3388', cedula: '', genero: '' as const }, hijos: [], autorizados: [] }
+    const d = datosIniciales({ form, relacion: 'abuela' })
+    expect(d.padre.relacion).toBe('abuela')
+    d.hijos = completos().hijos
+    expect(faltantes(d, mesa)).toEqual([{ id: 'rr-padre-genero', seccion: 'tu', etiqueta: 'Género del representante', mensaje: 'Elige mujer u hombre.' }])
+    d.padre.genero = 'Femenino'
+    expect(resumenSeccion(d, 'tu', mesa).texto).toBe('María Linárez · abuela')
+    expect(familiaMesa(d).padre).not.toHaveProperty('relacion')
+  })
+
+  it('a desk family without relationship keeps mamá / papá (T2i)', () => {
+    const d = completos()
+    d.padre.relacion = ''
+    expect(resumenSeccion(d, 'tu', mesa).texto).toBe('María Linárez · mamá')
+    d.padre.genero = ''
+    expect(faltantes(d, mesa).map((x) => x.mensaje)).toEqual(['Elige mamá o papá.'])
+    d.padre = { ...d.padre, relacion: 'papa' }
+    expect(faltantes(d, mesa).map((x) => x.mensaje)).toEqual(['Elige mamá o papá.'])
   })
 
   it('the public body carries the relationship and the derived género', () => {

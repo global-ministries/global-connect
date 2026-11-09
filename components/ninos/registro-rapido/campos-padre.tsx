@@ -5,15 +5,16 @@
  * adult is. The public page asks «Tu relación con los niños» (S9.8; tutor /
  * otro also answer «¿Hombre o mujer?»); the desk keeps Mamá / Papá and the
  * accessible names of the former form ("Nombre del representante", …) so its
- * tests and habits stay.
+ * tests and habits stay. A pre-registro from someone who is not mamá or papá
+ * shows «Relación con los niños: Abuela» and asks Mujer / Hombre (T2i).
  */
 import type { ReactNode } from 'react'
 import { Phone, User, Users } from 'lucide-react'
 
 import { CamposSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
 import type { Genero } from '@/lib/platform/ninos/familia'
-import { RELACIONES_PADRE } from '@/lib/platform/ninos/preregistro'
-import { idRapido, relacionPideGenero, type ModoRegistro, type PadreRapido } from '@/lib/platform/ninos/registro-rapido'
+import { RELACIONES_PADRE, etiquetaRelacion } from '@/lib/platform/ninos/preregistro'
+import { idRapido, relacionNoPadre, relacionPideGenero, type ModoRegistro, type PadreRapido } from '@/lib/platform/ninos/registro-rapido'
 
 import { Eleccion } from './piezas'
 
@@ -25,6 +26,12 @@ const ROLES: readonly { valor: Genero; etiqueta: string }[] = [
 const HOMBRE_MUJER: readonly { valor: Genero; etiqueta: string }[] = [
   { valor: 'Masculino', etiqueta: 'Hombre' },
   { valor: 'Femenino', etiqueta: 'Mujer' },
+]
+
+// Desk order, as ROLES: the woman first.
+const MUJER_HOMBRE: readonly { valor: Genero; etiqueta: string }[] = [
+  { valor: 'Femenino', etiqueta: 'Mujer' },
+  { valor: 'Masculino', etiqueta: 'Hombre' },
 ]
 
 const RELACIONES = [{ valor: '', etiqueta: 'Elige…' }, ...RELACIONES_PADRE.map((r) => ({ valor: r.valor, etiqueta: r.etiqueta }))]
@@ -127,11 +134,14 @@ export function CamposPadre({ modo, padre, errores, onPadre, campus = [], campus
         </div>
       ) : (
         <div className="max-w-sm">
+          {relacionNoPadre(padre.relacion) && (
+            <p className="mb-2 text-sm text-muted-foreground">Relación con los niños: {etiquetaRelacion(padre.relacion)}</p>
+          )}
           <Eleccion
             id={id('genero')}
             pregunta="Es"
             nombre="Género del representante"
-            opciones={ROLES}
+            opciones={relacionNoPadre(padre.relacion) ? MUJER_HOMBRE : ROLES}
             valor={(padre.genero as Genero) || ''}
             onCambio={(g) => onPadre('genero', g)}
             error={errores[id('genero')]}

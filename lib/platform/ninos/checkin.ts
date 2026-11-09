@@ -41,18 +41,27 @@ export function resolverServicio(
   return { turnoId: turno?.id ?? null, fecha }
 }
 
-/** `falta`: why a child has no salón (datoFaltante), for the desk message; null or absent when unknown. */
-export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string; falta?: DatoFaltante | null }
+/** Why a child has no salón: its salones are closed or full (explicarSalon), or the data that is missing (datoFaltante). */
+export type MotivoSinSalon = 'cerrado' | 'lleno' | DatoFaltante
+
+/** `motivo`: why the child has no salón, for the desk message; null or absent when unknown. */
+export type Seleccion = { ninoId: string; salonId: string | null; nombre?: string; motivo?: MotivoSinSalon | null }
+
+/** The desk message for a child without a salón, in plain words (S9.8, T2i). */
+function mensajeSinSalonMesa(nombre: string, motivo: MotivoSinSalon | null | undefined): string {
+  if (motivo === 'cerrado') return `${nombre} no tiene salón abierto hoy: abre su salón o registra a los demás.`
+  if (motivo === 'lleno') return `${nombre}: su salón está lleno. Dale ingreso desde la mesa o registra a los demás.`
+  if (motivo === 'revisar') return `${nombre} no corresponde a ningún salón: revisa su fecha de nacimiento o grado, o registra a los demás.`
+  if (motivo) return `${nombre} todavía no tiene salón: ${TEXTO_FALTA[motivo].toLowerCase()}. Completa el dato o registra a los demás.`
+  return `${nombre} todavía no tiene salón. Revisa sus datos o registra a los demás.`
+}
 
 export function armarCheckin(
   seleccion: readonly Seleccion[],
 ): { ok: true; ninoIds: string[]; salonIds: string[] } | { ok: false; error: string } {
   if (seleccion.length === 0) return { ok: false, error: 'Elige al menos un niño.' }
   const sinSalon = seleccion.find((s) => !s.salonId)
-  if (sinSalon) {
-    const falta = sinSalon.falta ? TEXTO_FALTA[sinSalon.falta].toLowerCase() : 'falta un dato para ubicarlo'
-    return { ok: false, error: `${sinSalon.nombre ?? 'Un niño'} todavía no tiene salón: ${falta}. Completa el dato o registra a los demás.` }
-  }
+  if (sinSalon) return { ok: false, error: mensajeSinSalonMesa(sinSalon.nombre ?? 'Un niño', sinSalon.motivo) }
   return { ok: true, ninoIds: seleccion.map((s) => s.ninoId), salonIds: seleccion.map((s) => s.salonId as string) }
 }
 

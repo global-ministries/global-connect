@@ -21,12 +21,16 @@ import {
 } from './familia'
 import { aplicarNivel, nivelSugerido, valorNivel, type SalonNivel } from './nivel'
 import { erroresPadrePreregistro, esRelacionPadre, etiquetaRelacion, generoDeRelacion } from './preregistro'
-import { datoFaltante, edadEnMeses, sugerirSalon, type SalonSugerible } from './sugerir-salon'
+import { datoFaltante, edadEnMeses, explicarSalon, sugerirSalon, type SalonSugerible } from './sugerir-salon'
 
 export type ModoRegistro = 'publico' | 'mesa'
 export type SeccionRegistro = 'tu' | 'ninos' | 'retiran' | 'despues'
 
-/** `relacion` (public page only, S9.8): a RELACIONES_PADRE value or ''; the desk keeps asking the género. */
+/**
+ * `relacion` (S9.8): a RELACIONES_PADRE value or ''. The public page asks it;
+ * the desk only shows it, from a pre-registro under review (T2i), and keeps
+ * asking the género.
+ */
 export type PadreRapido = { nombre: string; apellido: string; telefono: string; genero: string; relacion: string; cedula: string; email: string }
 
 export type HijoRapido = HijoForm & {
@@ -65,11 +69,11 @@ export function hijoRapidoDesde(h: HijoForm): HijoRapido {
   return { ...h, tieneAlergias: h.alergias.trim() ? true : null, tieneNecesidades: h.necesidadesEspeciales.trim() ? true : null, nivelAuto: '' }
 }
 
-export function datosIniciales({ campusId = '', form, email = '' }: { campusId?: string; form?: FamiliaForm; email?: string } = {}): DatosRapido {
+export function datosIniciales({ campusId = '', form, email = '', relacion = '' }: { campusId?: string; form?: FamiliaForm; email?: string; relacion?: string } = {}): DatosRapido {
   const p = form?.padre
   return {
     campusId,
-    padre: { nombre: p?.nombre ?? '', apellido: p?.apellido ?? '', telefono: p?.telefono ?? '', cedula: p?.cedula ?? '', genero: p?.genero ?? '', relacion: '', email },
+    padre: { nombre: p?.nombre ?? '', apellido: p?.apellido ?? '', telefono: p?.telefono ?? '', cedula: p?.cedula ?? '', genero: p?.genero ?? '', relacion, email },
     hijos: form?.hijos.length ? form.hijos.map(hijoRapidoDesde) : [hijoRapidoVacio()],
     autorizados: form?.autorizados ?? [],
     fotos: null,
@@ -84,6 +88,9 @@ const esGenero = (g: string) => (GENEROS as readonly string[]).includes(g)
 export function conRelacion(padre: PadreRapido, relacion: string): PadreRapido {
   return { ...padre, relacion, genero: generoDeRelacion(relacion) ?? '' }
 }
+
+/** Desk: a relationship other than mamá / papá, so the género is asked as Mujer / Hombre (T2i). */
+export const relacionNoPadre = (relacion: string) => esRelacionPadre(relacion) && relacion !== 'mama' && relacion !== 'papa'
 
 /** Tutor / otro (and nothing chosen yet) do not imply a género. */
 export const relacionPideGenero = (relacion: string) => esRelacionPadre(relacion) && generoDeRelacion(relacion) === null
@@ -123,7 +130,7 @@ export function faltantes(d: DatosRapido, ctx: ContextoRegistro): Faltante[] {
     if (e.apellido) add(idRapido.padre('apellido'), 'tu', ape, pub ? e.apellido : 'Escribe el apellido.')
     if (e.telefono) add(idRapido.padre('telefono'), 'tu', tel, e.telefono)
     if (!pub) {
-      if (!esGenero(d.padre.genero)) add(idRapido.padre('genero'), 'tu', 'Género del representante', 'Elige mamá o papá.')
+      if (!esGenero(d.padre.genero)) add(idRapido.padre('genero'), 'tu', 'Género del representante', relacionNoPadre(d.padre.relacion) ? 'Elige mujer u hombre.' : 'Elige mamá o papá.')
     } else if (!esRelacionPadre(d.padre.relacion)) {
       add(idRapido.padre('relacion'), 'tu', 'Tu relación con los niños', 'Elige tu relación con los niños.')
     } else if (!esGenero(d.padre.genero)) {
@@ -183,8 +190,9 @@ function edadHijo(fecha: string, hoy: string): string | null {
 /** The one line of a folded section; `numero` is shown in mono. */
 export function resumenSeccion(d: DatosRapido, s: SeccionRegistro, ctx: ContextoRegistro): { texto: string; numero?: string } {
   if (s === 'tu') {
-    const relacion = ctx.modo === 'publico' ? etiquetaRelacion(d.padre.relacion) : null
-    const rol = relacion ? relacion.toLowerCase() : d.padre.genero === 'Femenino' ? 'mamá' : d.padre.genero === 'Masculino' ? 'papá' : ''
+    // «otro» says nothing about the adult, so only the name is shown (T2i).
+    const relacion = d.padre.relacion === 'otro' ? '' : etiquetaRelacion(d.padre.relacion)?.toLowerCase()
+    const rol = esRelacionPadre(d.padre.relacion) ? relacion : d.padre.genero === 'Femenino' ? 'mamá' : d.padre.genero === 'Masculino' ? 'papá' : ''
     return { texto: [`${d.padre.nombre.trim()} ${d.padre.apellido.trim()}`.trim(), rol].filter(Boolean).join(' · '), numero: d.padre.telefono.trim() }
   }
   if (s === 'ninos') {
@@ -266,7 +274,10 @@ export function seleccionIngreso(hijos: readonly HijoRegistrado[], ids: readonly
     const comoForm = { fechaNacimiento: h.fecha_nacimiento, grado: h.grado === null ? '' : String(h.grado), salonPreferidoId: h.salon_preferido_id ?? '', necesidadesEspeciales: h.necesidades_especiales ?? '' }
     const salonId = salonVivo(comoForm, salones, fecha)?.id ?? null
     if (salonId) return { ninoId: ids[i], salonId, nombre: h.nombre }
-    const falta = datoFaltante({ fechaNacimiento: h.fecha_nacimiento || null, grado: h.grado, necesidadesEspeciales: comoForm.necesidadesEspeciales.trim() !== '', fechaServicio: fecha, salones })
-    return { ninoId: ids[i], salonId, nombre: h.nombre, falta }
+    // The engine's reason: closed or full salones, else the data that keeps the child out (T2i).
+    const input = { fechaNacimiento: h.fecha_nacimiento || null, grado: h.grado, necesidadesEspeciales: comoForm.necesidadesEspeciales.trim() !== '', fechaServicio: fecha, salones }
+    const { estado } = explicarSalon(input)
+    const motivo = estado === 'cerrado' || estado === 'lleno' ? estado : datoFaltante(input)
+    return { ninoId: ids[i], salonId, nombre: h.nombre, motivo }
   })
 }

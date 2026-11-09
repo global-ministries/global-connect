@@ -139,7 +139,7 @@ describe('RegistroMesa', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Registrar y dar ingreso · 1' }))
     expect(
       await screen.findByText(
-        'La familia quedó registrada, pero no se pudo dar ingreso: Camila todavía no tiene salón: revisa la fecha de nacimiento o el grado: no corresponde a ningún salón. Completa el dato o registra a los demás.',
+        'La familia quedó registrada, pero no se pudo dar ingreso: Camila no corresponde a ningún salón: revisa su fecha de nacimiento o grado, o registra a los demás.',
       ),
     ).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()

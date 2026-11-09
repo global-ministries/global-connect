@@ -36,6 +36,8 @@ export type RegistroMesaProps = {
   onCancelar: () => void
   /** Prefilled form (a pre-registration under review). */
   inicial?: FamiliaForm
+  /** The relationship the pre-registration gave (S9.8): shown, never sent. */
+  relacion?: string
   /** Replaces the direct RPC (e.g. confirming a pre-registration through its route). */
   guardar?: Guardar
   textoGuardar?: string
@@ -58,7 +60,7 @@ export function RegistroMesa(props: RegistroMesaProps) {
   const confirmado = mesa.padreConfirmado
   const padreNombre = padreExistente?.nombre ?? (confirmado ? `${confirmado.nombre} ${confirmado.apellido}`.trim() : undefined)
   const form = useFormularioRapido(
-    () => datosIniciales({ form: props.inicial }),
+    () => datosIniciales({ form: props.inicial, relacion: props.relacion }),
     { modo: 'mesa', hoy, padreConocido: padreNombre !== undefined, padreNombre },
     salones,
   )

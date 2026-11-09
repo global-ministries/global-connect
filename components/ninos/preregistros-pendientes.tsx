@@ -83,9 +83,9 @@ async function leerPendientes(): Promise<Lista> {
 
 const nombreCompleto = (p: { nombre: string; apellido: string }) => `${p.nombre} ${p.apellido}`.trim()
 
-/** «María González · Abuela» when the QR form said the relationship (S9.8). */
+/** «María González · Abuela» when the QR form said the relationship (S9.8); «Otro» adds nothing (T2i). */
 const conRelacion = (nombre: string, relacion: string | null) => {
-  const etiqueta = etiquetaRelacion(relacion)
+  const etiqueta = relacion === 'otro' ? null : etiquetaRelacion(relacion)
   return etiqueta ? `${nombre} · ${etiqueta}` : nombre
 }
 
@@ -183,7 +183,8 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
   if (lista.length === 0 && !aviso) return null
 
   const cuentaAbierta = abierto ? cuentas[abierto.id] : undefined
-  const formAbierto = abierto ? formDesdePreregistro(abierto.payload).form : undefined
+  const revisado = abierto ? formDesdePreregistro(abierto.payload) : undefined
+  const formAbierto = revisado?.form
   // A request from an account: the requester is the parent (never a new adult).
   const inicialAbierto =
     formAbierto && cuentaAbierta ? { ...formAbierto, padre: { ...formAbierto.padre, id: cuentaAbierta.solicitante.id } } : formAbierto
@@ -257,6 +258,7 @@ export function PreregistrosPendientes({ onConfirmado, salones, abrirId = null, 
             <RegistrarFamiliaForm
               key={abierto.id}
               inicial={inicialAbierto}
+              relacion={revisado?.relacion ?? undefined}
               padreExistente={
                 cuentaAbierta
                   ? { id: cuentaAbierta.solicitante.id, nombre: nombreCompleto(cuentaAbierta.solicitante) }
