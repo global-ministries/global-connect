@@ -11827,6 +11827,19 @@ export type Database = {
         Args: { p_usuario_id: string }
         Returns: boolean
       }
+      proximos_cumpleanos_mis_grupos: {
+        Args: { p_dias?: number }
+        Returns: {
+          apellido: string
+          dia: number
+          grupo_id: string
+          grupo_nombre: string
+          mes: number
+          nombre: string
+          proxima: string
+          usuario_id: string
+        }[]
+      }
       puede_aprobar_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id: string }
         Returns: boolean
