@@ -61,6 +61,9 @@ const migratedToDesignSystem = [
   // Niños › Etiquetas e impresoras (T3b), same style.
   'app/(auth)/ninos/etiquetas/**',
   'components/ninos/etiquetas/**',
+  // Talleres › Reserva pública (T5b of odd/tasks/talleres-reserva-publica.md), v2 from the start.
+  'app/talleres/reservar/**',
+  'components/talleres/reserva/**',
 ]
 
 const legacyUiImports = {
