@@ -31,6 +31,11 @@
  * Mínimo de inscritos (odd/tasks/talleres-reserva-publica.md T8a, S9 S16) —
  * «Mínimo de inscritos para abrir» renders here with its own read and save
  * (MinimoInscritosCampo) until T9 folds it into «Guardar configuración».
+ *
+ * Recuperar clase (odd/tasks/talleres-reserva-publica.md T8b, S17) — the
+ * minimum reads «Clases mínimas para el certificado» (artboard 14) and the
+ * «Recuperar clases aparte» switch (RecuperarClasesCampo) sits under it,
+ * with its own read and save like the mínimo de inscritos.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -45,6 +50,7 @@ import {
 } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
 import { MinimoInscritosCampo } from '@/components/talleres/minimo/minimo-inscritos-campo'
+import { RecuperarClasesCampo } from '@/components/talleres/recuperar/recuperar-clases-campo'
 
 export interface ConfiguracionTallerProps {
   readonly tallerId: string
@@ -256,7 +262,7 @@ export function ConfiguracionTaller({
 
           <div>
             <InputSistema
-              label="Clases mínimas para completar"
+              label="Clases mínimas para el certificado"
               type="number"
               min={1}
               max={50}
@@ -267,6 +273,10 @@ export function ConfiguracionTaller({
             <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
               Vacío = todas las clases dictadas
             </TextoSistema>
+          </div>
+
+          <div className="md:col-span-2">
+            <RecuperarClasesCampo tallerId={tallerId} tallerSlug={tallerSlug} puedeEditar />
           </div>
 
           <div className="md:col-span-2">
@@ -313,9 +323,10 @@ export function ConfiguracionTaller({
           {regimen === 'cadencia' && intervaloEdicionesDias !== null && (
             <Campo titulo="Intervalo entre ediciones">{`Cada ${intervaloEdicionesDias} días`}</Campo>
           )}
-          <Campo titulo="Clases mínimas para completar">
+          <Campo titulo="Clases mínimas para el certificado">
             {clasesMinimasLabel(clasesMinimasParaCompletar)}
           </Campo>
+          <RecuperarClasesCampo tallerId={tallerId} tallerSlug={tallerSlug} puedeEditar={false} />
           <Campo titulo="Cadencia y duración">
             {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
           </Campo>

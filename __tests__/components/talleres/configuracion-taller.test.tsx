@@ -19,6 +19,13 @@ jest.mock('@/app/(auth)/talleres/[taller]/actions', () => ({
   updateCadenciaYDuracion: (...args: unknown[]) => updateCadenciaYDuracionMock(...args),
 }))
 
+// T8b (odd/tasks/talleres-reserva-publica.md, S17) — the «Recuperar clases
+// aparte» switch reads its own value.
+jest.mock('@/lib/platform/talleres/recuperar-clase-actions', () => ({
+  leerPermiteRecuperar: jest.fn(() => Promise.resolve({ ok: true, permite: true })),
+  guardarPermiteRecuperar: jest.fn(),
+}))
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }))
@@ -164,7 +171,7 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
 describe('ConfiguracionTaller — clases mínimas para completar', () => {
   it('read-only: says "Todas las clases dictadas" when no minimum is set', () => {
     render(<ConfiguracionTaller {...baseProps({ clasesMinimasParaCompletar: null })} />)
-    expect(screen.getByText('Clases mínimas para completar')).toBeInTheDocument()
+    expect(screen.getByText('Clases mínimas para el certificado')).toBeInTheDocument()
     expect(screen.getByText('Todas las clases dictadas')).toBeInTheDocument()
   })
 
@@ -175,7 +182,7 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
 
   it('editor: shows the current value and a one-line hint that empty means all clases', () => {
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, clasesMinimasParaCompletar: 6 })} />)
-    const input = screen.getByLabelText(/clases mínimas para completar/i)
+    const input = screen.getByLabelText(/clases mínimas para el certificado/i)
     expect(input).toHaveValue(6)
     expect(input).toHaveAttribute('min', '1')
     expect(input).toHaveAttribute('max', '50')
@@ -185,7 +192,7 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
   it('editor: saves the typed minimum through updateTallerConfiguracion', async () => {
     updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
-    fireEvent.change(screen.getByLabelText(/clases mínimas para completar/i), { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText(/clases mínimas para el certificado/i), { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     await waitFor(() =>
       expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
@@ -197,7 +204,7 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
   it('editor: sends null when the field is cleared', async () => {
     updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, clasesMinimasParaCompletar: 6 })} />)
-    fireEvent.change(screen.getByLabelText(/clases mínimas para completar/i), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText(/clases mínimas para el certificado/i), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     await waitFor(() =>
       expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
@@ -251,5 +258,21 @@ describe('ConfiguracionTaller — envío del acceso al cónyuge nuevo', () => {
     render(<ConfiguracionTaller {...baseProps({ tipo: 'pareja', momentoEnvioAcceso: 'al_inscribirse' })} />)
     expect(screen.getByText('Envío del acceso al cónyuge nuevo')).toBeInTheDocument()
     expect(screen.getByText('Al inscribirse')).toBeInTheDocument()
+  })
+})
+
+// T8b (odd/tasks/talleres-reserva-publica.md, S17) — artboard 14: the
+// minimum is «para el certificado» and the recovery switch sits with it.
+describe('ConfiguracionTaller — recuperar clases aparte', () => {
+  it('editor: shows the switch with its saved value', async () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    const sw = await screen.findByRole('switch', { name: 'Recuperar clases aparte' })
+    await waitFor(() => expect(sw).toHaveAttribute('aria-checked', 'true'))
+  })
+
+  it('read-only: shows Sí / No', async () => {
+    render(<ConfiguracionTaller {...baseProps()} />)
+    expect(screen.getByText('Recuperar clases aparte')).toBeInTheDocument()
+    expect(await screen.findByText('Sí')).toBeInTheDocument()
   })
 })
