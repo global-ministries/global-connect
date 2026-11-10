@@ -118,12 +118,47 @@ describe('suspenderEdicion', () => {
 
     expect(sendBatchMock).toHaveBeenCalledTimes(1)
     const [lote, opciones] = sendBatchMock.mock.calls[0]
-    expect(opciones).toEqual({ idempotencyKey: 'taller-cambio-fecha:e-1:2027-01-15:0' })
+    // edición, new start, deadline, one id per suspension, batch.
+    expect(opciones.idempotencyKey).toMatch(
+      /^taller-cambio-fecha:e-1:2027-01-15:2027-01-11:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}:0$/,
+    )
     expect(lote.map((x: { to: string }) => x.to)).toEqual(['p1@example.test', 'p3@example.test'])
     expect(lote[0].subject).toBe('De Hombre a Hombre cambió de fecha: ahora empieza el viernes 15 de enero')
     // The approved inscrito gets the deadline; the pending request does not.
     expect(lote[0].template.props).toMatchObject({ nombre: 'Pablo', limite: 'lunes 11 de enero', mensaje: 'Queremos el grupo completo.' })
     expect(lote[1].template.props.limite).toBeNull()
+  })
+
+  it('a second suspension to the same date gets a new email idempotency key (Resend would drop it within 24h)', async () => {
+    setup({ rpc: { data: RESPUESTA_SUSPENSION, error: null } })
+    sendBatchMock.mockResolvedValue({ success: true, errors: [] })
+
+    await suspenderEdicion(SUSPENDER)
+    await suspenderEdicion(SUSPENDER)
+
+    expect(sendBatchMock).toHaveBeenCalledTimes(2)
+    const primera = sendBatchMock.mock.calls[0][1].idempotencyKey
+    const segunda = sendBatchMock.mock.calls[1][1].idempotencyKey
+    expect(primera).not.toBe(segunda)
+  })
+
+  it('batches of one suspension share its id and differ only in the batch number', async () => {
+    const muchos = Array.from({ length: 101 }, (_, n) => ({
+      persona_id: `p-${n}`,
+      nombre: `Persona ${n}`,
+      email: `p${n}@example.test`,
+      confirmar: true,
+    }))
+    setup({ rpc: { data: { ...RESPUESTA_SUSPENSION, correos: muchos }, error: null } })
+    sendBatchMock.mockResolvedValue({ success: true, errors: [] })
+
+    await suspenderEdicion(SUSPENDER)
+
+    expect(sendBatchMock).toHaveBeenCalledTimes(2)
+    const [k0, k1] = sendBatchMock.mock.calls.map((c) => c[1].idempotencyKey as string)
+    expect(k0.replace(/:0$/, '')).toBe(k1.replace(/:1$/, ''))
+    expect(k0).toMatch(/:0$/)
+    expect(k1).toMatch(/:1$/)
   })
 
   it('a failed email never undoes the suspension', async () => {

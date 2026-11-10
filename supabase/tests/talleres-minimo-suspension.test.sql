@@ -24,6 +24,9 @@
 --   E_canc 96 (T_hom) cancelado
 --   E_ok 97 (T_hom) cierre H-1, 4 aprobadas (reaches the minimum)
 --   E_venc 98 (T_otro) confirmations past their limit
+--   E_abrir2 9a (T_hom) cierre H-1, no inscritos (20261110210000: the
+--     director opens it anyway; E_emp is no longer below the minimum)
+--   E_rep 9b, E_cx 9c: section 9 (20261110210000), created there
 -- Persons (auth a<n>): DIR 21/a1 director.write+read at CON; COORD 22/a2
 --   coordinator.write+read at HOM; COORD_OTRO 23/a3 at OTRO; ADMIN 24/a4
 --   admin.manage at CON only; LEAD 25/a5 lead.read at HOM; P1 26/a6;
@@ -36,7 +39,9 @@
 --   (authority, refusals, dates, confirmations, avisos rows, recipients);
 --   5 the member's answer (own inscription only, mantener, no_puedo →
 --   retirado); 6 phone confirmation (authority); 7 expiry (only pendiente
---   aprobadas past the limit); 8 abrir igual (S16 authority).
+--   aprobadas past the limit); 8 abrir igual (S16 authority); 9
+--   20261110210000: a started edición is never below the minimum, the
+--   deadline follows a later Reprogramar, cancelled ediciones are ignored.
 
 BEGIN;
 
@@ -253,6 +258,21 @@ INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_prin
   ('cf8a0000-0000-4000-8000-000000000062', 'cf8a0000-0000-4000-8000-000000000098', 'cf8a0000-0000-4000-8000-0000000000c8', 'cf8a0000-0000-4000-8000-000000000029', NULL, NULL, 'aprobado'),
   ('cf8a0000-0000-4000-8000-000000000063', 'cf8a0000-0000-4000-8000-000000000098', 'cf8a0000-0000-4000-8000-0000000000c8', 'cf8a0000-0000-4000-8000-00000000002c', NULL, NULL, 'pendiente');
 
+-- E_abrir2 (20261110210000): what section 8's director opens anyway.
+INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata) VALUES
+  ('cf8a0000-0000-4000-8000-00000000008a', 'workshop', 'active', 'ZZ 8A Evento a', CURRENT_DATE, 'talleres_crecimiento', '{}'::jsonb);
+INSERT INTO public.taller_ediciones (
+  id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+  nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+  fecha_inicio, cierre_inscripcion, fecha_fin
+) VALUES (
+  'cf8a0000-0000-4000-8000-00000000009a', 'cf8a0000-0000-4000-8000-00000000008a', 'cf8a0000-0000-4000-8000-000000000010',
+  'individual', NULL, 'permanente_custom', 'cerrado', 'ZZ 8A Ea', 3, 90, 'permanente_custom',
+  pg_temp.h() + 4, pg_temp.h() - 1, pg_temp.h() + 30);
+INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion, started_at) VALUES
+  ('cf8a0000-0000-4000-8000-0000000000ca', 'cf8a0000-0000-4000-8000-00000000009a', 'cf8a0000-0000-4000-8000-000000000002',
+   'ZZ 8A Cohorte a', (pg_temp.h() + 4)::timestamptz);
+
 SELECT pg_temp.run('0: set the minimums (T_hom 4, T_par 2, T_otro none)',
   $$UPDATE public.talleres SET minimo_inscritos = 4 WHERE id = 'cf8a0000-0000-4000-8000-000000000010';
     UPDATE public.talleres SET minimo_inscritos = 2 WHERE id = 'cf8a0000-0000-4000-8000-000000000012'$$);
@@ -378,9 +398,11 @@ SELECT pg_temp.assert_error('4: an edición still open is refused',
 SELECT pg_temp.assert_error('4: a taller without minimum is never suspended',
   $$SELECT public.talleres_suspender_edicion('cf8a0000-0000-4000-8000-000000000091', pg_temp.h() + 40, pg_temp.h() + 10)$$,
   'P0001', 'EDICION_NO_BAJO_MINIMO');
-SELECT pg_temp.assert_error('4: an edición whose first clase was held is refused',
+-- 20261110210000: a held first clase means the edición started, so it is
+-- no longer below the minimum (was EDICION_YA_EMPEZO from the move).
+SELECT pg_temp.assert_error('4: an edición whose first clase was held is refused (not below the minimum once started)',
   $$SELECT public.talleres_suspender_edicion('cf8a0000-0000-4000-8000-000000000095', pg_temp.h() + 40, pg_temp.h() + 10)$$,
-  'P0001', 'EDICION_YA_EMPEZO');
+  'P0001', 'EDICION_NO_BAJO_MINIMO');
 SELECT pg_temp.assert_error('4: no new date is refused',
   $$SELECT public.talleres_suspender_edicion('cf8a0000-0000-4000-8000-000000000090', NULL, pg_temp.h() + 10)$$,
   'P0001', 'FECHA_INICIO_REQUIRED');
@@ -643,16 +665,151 @@ SELECT pg_temp.capture('8: the panel records who opened it and the banner condit
       FROM public.talleres_minimo_panel('cf8a0000-0000-4000-8000-000000000094') p$$,
   '{"bajo":false,"por":"Carlos ZZ8A Coord","motivo":"Arrancamos con los que hay"}');
 SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a1');
-SELECT pg_temp.capture('8: the director of Conexión opens E_emp anyway (inherited down the tree)', 'abrir_dir',
-  $$SELECT public.talleres_abrir_igual('cf8a0000-0000-4000-8000-000000000095') -> 'edicion_id'$$, '"cf8a0000-0000-4000-8000-000000000095"');
+-- 20261110210000: E_emp started, so the director opens E_abrir2 instead.
+SELECT pg_temp.capture('8: the director of Conexión opens E_abrir2 anyway (inherited down the tree)', 'abrir_dir',
+  $$SELECT public.talleres_abrir_igual('cf8a0000-0000-4000-8000-00000000009a') -> 'edicion_id'$$, '"cf8a0000-0000-4000-8000-00000000009a"');
 RESET ROLE;
 SELECT pg_temp.assert_rows('8: rows hold who and when; nothing else changed',
   $$SELECT 1 FROM public.taller_ediciones
      WHERE (id = 'cf8a0000-0000-4000-8000-000000000094' AND abierta_igual_por = 'cf8a0000-0000-4000-8000-000000000022'
             AND abierta_igual_en IS NOT NULL AND abierta_igual_motivo = 'Arrancamos con los que hay'
             AND fecha_inicio = pg_temp.h() + 4 AND cierre_inscripcion = pg_temp.h() - 1)
-        OR (id = 'cf8a0000-0000-4000-8000-000000000095' AND abierta_igual_por = 'cf8a0000-0000-4000-8000-000000000021'
+        OR (id = 'cf8a0000-0000-4000-8000-00000000009a' AND abierta_igual_por = 'cf8a0000-0000-4000-8000-000000000021'
             AND abierta_igual_motivo IS NULL)$$, 2);
+
+-- ══ 9. 20261110210000 adjustments ══
+
+-- 9a (S9): an edición whose first clase was held already started: no
+-- banner, no Suspender, no «Abrir igual», no Cancelar retry.
+SELECT pg_temp.assert_rows('9a: E_emp (minimum 4, 0 aprobadas, clase 1 cerrada) is not below the minimum',
+  $$SELECT 1 WHERE NOT public.talleres_edicion_bajo_minimo('cf8a0000-0000-4000-8000-000000000095')$$, 1);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a1');
+SELECT pg_temp.capture('9a: the panel of E_emp shows no banner', 'emp_panel',
+  $$SELECT public.talleres_minimo_panel('cf8a0000-0000-4000-8000-000000000095') -> 'bajo_minimo'$$, 'false');
+SELECT pg_temp.assert_error('9a: a started edición cannot be opened anyway',
+  $$SELECT public.talleres_abrir_igual('cf8a0000-0000-4000-8000-000000000095')$$, 'P0001', 'EDICION_NO_BAJO_MINIMO');
+RESET ROLE;
+SELECT pg_temp.assert_rows('9a: E_emp was not touched by the refusals',
+  $$SELECT 1 FROM public.taller_ediciones WHERE id = 'cf8a0000-0000-4000-8000-000000000095'
+     AND abierta_igual_en IS NULL AND suspendida_en IS NULL AND fecha_inicio = pg_temp.h() - 1$$, 1);
+SELECT pg_temp.run('9a: control: the same E_emp with clase 1 still programada',
+  $$UPDATE public.taller_sesiones SET estado = 'programada' WHERE grupo_id = 'cf8a0000-0000-4000-8000-000000000045' AND numero = 1$$);
+SELECT pg_temp.assert_rows('9a: control: without a held clase 1 it is below the minimum',
+  $$SELECT 1 WHERE public.talleres_edicion_bajo_minimo('cf8a0000-0000-4000-8000-000000000095')$$, 1);
+SELECT pg_temp.run('9a: control restored',
+  $$UPDATE public.taller_sesiones SET estado = 'cerrada' WHERE grupo_id = 'cf8a0000-0000-4000-8000-000000000045' AND numero = 1$$);
+
+-- 9b (S15): the deadline follows a later Reprogramar of the cierre.
+-- E_rep 9b (T_hom) start H+4, cierre H-1: P1 and P3 aprobadas, MEMBER a
+-- pendiente request. Suspended to H+40 / cierre H+10; P3 keeps the place.
+SELECT pg_temp.run('9b: E_rep fixtures',
+  $$INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata) VALUES
+      ('cf8a0000-0000-4000-8000-00000000008b', 'workshop', 'active', 'ZZ 8A Evento b', CURRENT_DATE, 'talleres_crecimiento', '{}'::jsonb);
+    INSERT INTO public.taller_ediciones (
+      id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+      nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+      fecha_inicio, cierre_inscripcion, fecha_fin)
+    VALUES ('cf8a0000-0000-4000-8000-00000000009b', 'cf8a0000-0000-4000-8000-00000000008b', 'cf8a0000-0000-4000-8000-000000000010',
+      'individual', NULL, 'permanente_custom', 'cerrado', 'ZZ 8A Eb', 3, 90, 'permanente_custom',
+      pg_temp.h() + 4, pg_temp.h() - 1, pg_temp.h() + 30);
+    INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion, started_at) VALUES
+      ('cf8a0000-0000-4000-8000-0000000000cb', 'cf8a0000-0000-4000-8000-00000000009b', 'cf8a0000-0000-4000-8000-000000000002',
+       'ZZ 8A Cohorte b', (pg_temp.h() + 4)::timestamptz);
+    INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, companero_id, link_type, estado) VALUES
+      ('cf8a0000-0000-4000-8000-000000000066', 'cf8a0000-0000-4000-8000-00000000009b', 'cf8a0000-0000-4000-8000-0000000000cb', 'cf8a0000-0000-4000-8000-000000000026', NULL, NULL, 'aprobado'),
+      ('cf8a0000-0000-4000-8000-000000000067', 'cf8a0000-0000-4000-8000-00000000009b', 'cf8a0000-0000-4000-8000-0000000000cb', 'cf8a0000-0000-4000-8000-000000000028', NULL, NULL, 'aprobado'),
+      ('cf8a0000-0000-4000-8000-000000000068', 'cf8a0000-0000-4000-8000-00000000009b', 'cf8a0000-0000-4000-8000-0000000000cb', 'cf8a0000-0000-4000-8000-000000000029', NULL, NULL, 'pendiente')$$);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a1');
+SELECT pg_temp.capture('9b: the director suspends E_rep to H+40, cierre H+10', 'rep_susp',
+  $$SELECT jsonb_build_object('por_confirmar', j -> 'por_confirmar', 'ok', (j ->> 'confirmacion_limite')::date = pg_temp.h() + 10)
+      FROM public.talleres_suspender_edicion('cf8a0000-0000-4000-8000-00000000009b', pg_temp.h() + 40, pg_temp.h() + 10) j$$,
+  '{"por_confirmar":2,"ok":true}');
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a7');
+SELECT pg_temp.capture('9b: P3 keeps the place', 'rep_p3',
+  $$SELECT public.talleres_confirmar_cambio_fecha('cf8a0000-0000-4000-8000-000000000067', 'mantener') -> 'confirmacion_estado'$$, '"confirmada"');
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a1');
+SELECT pg_temp.capture('9b: Reprogramar brings the cierre to H+6; the reply is the same as before (only the move)', 'rep_cierre',
+  $$SELECT jsonb_build_object(
+      'keys', (SELECT jsonb_agg(k ORDER BY k) FROM jsonb_object_keys(j) k),
+      'ok', (j ->> 'cierre_inscripcion')::date = pg_temp.h() + 6 AND (j ->> 'fecha_inicio')::date = pg_temp.h() + 40)
+      FROM public.talleres_reprogramar_edicion('cf8a0000-0000-4000-8000-00000000009b', NULL, pg_temp.h() + 6) j$$,
+  '{"keys":["cierre_inscripcion","clases_movidas","edicion_id","estado","fecha_fin","fecha_inicio"],"ok":true}');
+RESET ROLE;
+SELECT pg_temp.assert_rows('9b: the pendiente aprobada (P1) must now answer by H+6; P3 (confirmada) and the request are untouched',
+  $$SELECT 1 FROM public.taller_inscripciones
+     WHERE (id = 'cf8a0000-0000-4000-8000-000000000066' AND estado = 'aprobado' AND confirmacion_estado = 'pendiente' AND confirmacion_limite = pg_temp.h() + 6)
+        OR (id = 'cf8a0000-0000-4000-8000-000000000067' AND confirmacion_estado = 'confirmada' AND confirmacion_limite = pg_temp.h() + 10)
+        OR (id = 'cf8a0000-0000-4000-8000-000000000068' AND estado = 'pendiente' AND confirmacion_estado IS NULL AND confirmacion_limite IS NULL)$$, 3);
+SELECT pg_temp.assert_rows('9b: P1''s notice follows: datos.limite H+6, visible until the end of H+6, text with the new deadline',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE tipo = 'taller_cambio_fecha' AND persona_id = 'cf8a0000-0000-4000-8000-000000000026'
+       AND datos ->> 'inscripcion_id' = 'cf8a0000-0000-4000-8000-000000000066'
+       AND (datos ->> 'limite')::date = pg_temp.h() + 6
+       AND expira_at = public.talleres_fin_del_dia(pg_temp.h() + 6)
+       AND cuerpo LIKE '%Confirma antes del ' || to_char(pg_temp.h() + 6, 'DD/MM/YYYY') || ' para mantener tu lugar.'$$, 1);
+SELECT pg_temp.assert_rows('9b: P3''s answered notice stays expired; the request''s informative notice is unchanged',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE datos ->> 'edicion_id' = 'cf8a0000-0000-4000-8000-00000000009b'
+       AND ((persona_id = 'cf8a0000-0000-4000-8000-000000000028' AND expira_at <= now() AND (datos ->> 'limite')::date = pg_temp.h() + 10)
+         OR (persona_id = 'cf8a0000-0000-4000-8000-000000000029' AND tipo = 'taller_cambio_fecha_info'
+             AND datos -> 'limite' = 'null'::jsonb AND expira_at = public.talleres_fin_del_dia(pg_temp.h() + 40)))$$, 2);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a6');
+SELECT pg_temp.assert_rows('9b: P1 sees the new limit in Mi Recorrido',
+  $$SELECT 1 FROM jsonb_array_elements(public.talleres_mis_cambios_de_fecha()) c
+     WHERE c ->> 'inscripcion_id' = 'cf8a0000-0000-4000-8000-000000000066' AND (c ->> 'limite')::date = pg_temp.h() + 6$$, 1);
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a1');
+SELECT pg_temp.run('9b: Reprogramar moves the start 7 days later (cierre follows the offset: H+13)',
+  $$SELECT public.talleres_reprogramar_edicion('cf8a0000-0000-4000-8000-00000000009b', pg_temp.h() + 47)$$);
+RESET ROLE;
+SELECT pg_temp.assert_rows('9b: a start move also carries the limit (H+13) and the notice',
+  $$SELECT 1 FROM public.taller_inscripciones i
+     WHERE i.id = 'cf8a0000-0000-4000-8000-000000000066' AND i.confirmacion_limite = pg_temp.h() + 13
+       AND EXISTS (SELECT 1 FROM public.avisos_persona a WHERE a.datos ->> 'inscripcion_id' = i.id::text
+                    AND a.tipo = 'taller_cambio_fecha' AND (a.datos ->> 'limite')::date = pg_temp.h() + 13
+                    AND a.expira_at = public.talleres_fin_del_dia(pg_temp.h() + 13))$$, 1);
+SELECT pg_temp.capture('9b: the expiry job retires nobody whose limit is today or later', 'rep_job',
+  $$SELECT to_jsonb(public.talleres_cerrar_confirmaciones_vencidas())$$, '0');
+SELECT pg_temp.assert_rows('9b: P1 is still in E_rep',
+  $$SELECT 1 FROM public.taller_inscripciones WHERE id = 'cf8a0000-0000-4000-8000-000000000066' AND estado = 'aprobado'$$, 1);
+
+-- 9c: a cancelled edición: nobody leaves it by the job, nobody is asked,
+-- nobody can answer. E_cx 9c (T_otro, cancelado): MEMBER pendiente until
+-- H+3, P5 pendiente until H-1.
+SELECT pg_temp.run('9c: E_cx fixtures',
+  $$INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata) VALUES
+      ('cf8a0000-0000-4000-8000-00000000008c', 'workshop', 'active', 'ZZ 8A Evento c', CURRENT_DATE, 'talleres_crecimiento', '{}'::jsonb);
+    INSERT INTO public.taller_ediciones (
+      id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+      nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+      fecha_inicio, cierre_inscripcion, fecha_fin)
+    VALUES ('cf8a0000-0000-4000-8000-00000000009c', 'cf8a0000-0000-4000-8000-00000000008c', 'cf8a0000-0000-4000-8000-000000000011',
+      'individual', NULL, 'permanente_custom', 'cancelado', 'ZZ 8A Ec', 3, 90, 'permanente_custom',
+      pg_temp.h() + 9, pg_temp.h() + 3, pg_temp.h() + 30);
+    INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion, started_at) VALUES
+      ('cf8a0000-0000-4000-8000-0000000000cc', 'cf8a0000-0000-4000-8000-00000000009c', 'cf8a0000-0000-4000-8000-000000000003',
+       'ZZ 8A Cohorte c', (pg_temp.h() + 9)::timestamptz);
+    INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, companero_id, link_type, estado,
+                                            confirmacion_estado, confirmacion_limite) VALUES
+      ('cf8a0000-0000-4000-8000-000000000064', 'cf8a0000-0000-4000-8000-00000000009c', 'cf8a0000-0000-4000-8000-0000000000cc', 'cf8a0000-0000-4000-8000-000000000029', NULL, NULL, 'aprobado', 'pendiente', pg_temp.h() + 3),
+      ('cf8a0000-0000-4000-8000-000000000065', 'cf8a0000-0000-4000-8000-00000000009c', 'cf8a0000-0000-4000-8000-0000000000cc', 'cf8a0000-0000-4000-8000-00000000002c', NULL, NULL, 'aprobado', 'pendiente', pg_temp.h() - 1)$$);
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('cf8a0000-0000-4000-8000-0000000000a8');
+SELECT pg_temp.assert_rows('9c: a cancelled edición is not in Mi Recorrido''s pending changes',
+  $$SELECT 1 FROM jsonb_array_elements(public.talleres_mis_cambios_de_fecha())$$, 0);
+SELECT pg_temp.assert_error('9c: nobody can answer a date change of a cancelled edición',
+  $$SELECT public.talleres_confirmar_cambio_fecha('cf8a0000-0000-4000-8000-000000000064', 'mantener')$$,
+  'P0001', 'CONFIRMACION_NO_PENDIENTE');
+RESET ROLE;
+SELECT pg_temp.capture('9c: the expiry job skips a cancelled edición', 'cx_job',
+  $$SELECT to_jsonb(public.talleres_cerrar_confirmaciones_vencidas())$$, '0');
+SELECT pg_temp.assert_rows('9c: both inscriptions of E_cx are as they were',
+  $$SELECT 1 FROM public.taller_inscripciones
+     WHERE id IN ('cf8a0000-0000-4000-8000-000000000064', 'cf8a0000-0000-4000-8000-000000000065')
+       AND estado = 'aprobado' AND version = 1 AND confirmacion_estado = 'pendiente' AND confirmacion_motivo IS NULL
+       AND confirmada_en IS NULL$$, 2);
 
 SELECT pg_temp.report();
 

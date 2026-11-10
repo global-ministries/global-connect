@@ -17,6 +17,7 @@
  * the RPC). A failed email never undoes the suspension.
  */
 
+import { randomUUID } from 'node:crypto'
 import { createElement } from 'react'
 import { revalidatePath } from 'next/cache'
 
@@ -133,6 +134,7 @@ export async function suspenderEdicion(
 
   const envio = await enviarCorreosCambioFecha({
     edicionId: input.edicionId,
+    suspensionId: randomUUID(),
     // From the DB, never from the browser.
     tallerNombre: resultado.taller_nombre || 'Tu taller',
     fechaInicio: resultado.fecha_inicio,
@@ -155,6 +157,8 @@ export async function suspenderEdicion(
 
 async function enviarCorreosCambioFecha(d: {
   readonly edicionId: string
+  /** One per suspension: a re-suspension to the same date is a new email. */
+  readonly suspensionId: string
   readonly tallerNombre: string
   readonly fechaInicio: string
   readonly limite: string
@@ -183,8 +187,9 @@ async function enviarCorreosCambioFecha(d: {
             url,
           }),
         })),
-        // One suspension moves the start date, so the key is unique per move.
-        { idempotencyKey: `taller-cambio-fecha:${d.edicionId}:${d.fechaInicio}:${i / LOTE_CORREOS}` },
+        // Unique per suspension and batch: a second suspension to the same
+        // start within 24h must not be dropped as a repeat.
+        { idempotencyKey: `taller-cambio-fecha:${d.edicionId}:${d.fechaInicio}:${d.limite}:${d.suspensionId}:${i / LOTE_CORREOS}` },
       )
       if (respuesta.success) {
         enviados += lote.length - respuesta.errors.length
