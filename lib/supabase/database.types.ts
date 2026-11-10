@@ -8130,6 +8130,7 @@ export type Database = {
       }
       talleres: {
         Row: {
+          ancla_ediciones: string | null
           cadencia_dias: number
           cierre_inscripcion_offset_dias: number
           clases_minimas_para_completar: number | null
@@ -8140,6 +8141,7 @@ export type Database = {
           duracion_minutos: number | null
           estado: string
           id: string
+          inscripcion_automatica: boolean
           intervalo_ediciones_dias: number | null
           modalidad_default: string
           momento_envio_acceso: string
@@ -8152,6 +8154,7 @@ export type Database = {
           vinculo: string | null
         }
         Insert: {
+          ancla_ediciones?: string | null
           cadencia_dias?: number
           cierre_inscripcion_offset_dias?: number
           clases_minimas_para_completar?: number | null
@@ -8162,6 +8165,7 @@ export type Database = {
           duracion_minutos?: number | null
           estado?: string
           id?: string
+          inscripcion_automatica?: boolean
           intervalo_ediciones_dias?: number | null
           modalidad_default?: string
           momento_envio_acceso?: string
@@ -8174,6 +8178,7 @@ export type Database = {
           vinculo?: string | null
         }
         Update: {
+          ancla_ediciones?: string | null
           cadencia_dias?: number
           cierre_inscripcion_offset_dias?: number
           clases_minimas_para_completar?: number | null
@@ -8184,6 +8189,7 @@ export type Database = {
           duracion_minutos?: number | null
           estado?: string
           id?: string
+          inscripcion_automatica?: boolean
           intervalo_ediciones_dias?: number | null
           modalidad_default?: string
           momento_envio_acceso?: string
@@ -11770,6 +11776,17 @@ export type Database = {
           p_solicitud_id: string
         }
         Returns: Json
+      }
+      proximo_paso_ediciones_abiertas: {
+        Args: never
+        Returns: {
+          clases: Json
+          cupo_restante: number | null
+          edicion_id: string
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          nombre: string
+        }[]
       }
       puede_aprobar_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id: string }
