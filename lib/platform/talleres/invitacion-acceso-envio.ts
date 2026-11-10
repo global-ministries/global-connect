@@ -7,6 +7,10 @@
  * `invitacion_acceso_preparar_envio` and records the outcome with
  * `invitacion_acceso_registrar_envio`.
  *
+ * An invitation without an inviter (origen taller_publico: a new person who
+ * reserved on the public page, odd/tasks/talleres-reserva-publica.md S4) gets
+ * the public copy; a spouse invitation keeps the cónyuge copy.
+ *
  * Server-only (admin client). Never throws: enrollment and approval call it
  * after their own write committed, so a mail failure must not undo them;
  * the invitation stays pending and the coordinator can resend it.
@@ -17,6 +21,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createElement, type ReactElement } from 'react'
 
 import { AccesoTallerConyugeEmail } from '@/emails/acceso-taller-conyuge'
+import { AccesoTallerPublicoEmail } from '@/emails/acceso-taller-publico'
 
 export const VIGENCIA_INVITACION_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -57,7 +62,8 @@ export function hashTokenInvitacion(token: string): string {
 interface Preparada {
   readonly email: string
   readonly nombreInvitado: string
-  readonly nombreInvitante: string
+  /** null: nobody invited the person (public reservation). */
+  readonly nombreInvitante: string | null
   readonly tallerNombre: string
 }
 
@@ -73,9 +79,15 @@ function parsePreparada(raw: unknown): Preparada | null {
   return {
     email,
     nombreInvitado: texto(fila.nombre_invitado) ?? '',
-    nombreInvitante: texto(fila.nombre_invitante) ?? 'Tu pareja',
+    nombreInvitante: texto(fila.nombre_invitante),
     tallerNombre: texto(fila.taller_nombre) ?? 'un taller',
   }
+}
+
+function plantilla({ nombreInvitado, nombreInvitante, tallerNombre }: Preparada, urlActivar: string): ReactElement {
+  return nombreInvitante === null
+    ? createElement(AccesoTallerPublicoEmail, { nombreInvitado, tallerNombre, urlActivar })
+    : createElement(AccesoTallerConyugeEmail, { nombreInvitado, nombreInvitante, tallerNombre, urlActivar })
 }
 
 function mensajeError(error: unknown): string {
@@ -126,7 +138,7 @@ export async function enviarInvitacionAcceso(id: string, deps?: DependenciasEnvi
       envio = await d.enviarCorreo({
         to: preparada.email,
         subject: `Tu acceso al taller ${preparada.tallerNombre}`,
-        template: createElement(AccesoTallerConyugeEmail, { ...preparada, urlActivar }),
+        template: plantilla(preparada, urlActivar),
         idempotencyKey: `invitacion-acceso/${id}/${hashTokenInvitacion(token).slice(0, 16)}`,
       })
     } catch (e) {

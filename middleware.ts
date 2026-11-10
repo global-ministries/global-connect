@@ -75,12 +75,29 @@ function isActivationPath(path: string) {
   return token.length > 0 && !token.includes('/')
 }
 
+/**
+ * Public reservation of Grupos de Corto Plazo (odd/tasks/talleres-reserva-publica.md
+ * T5b): the catalog `/talleres/reservar` and one taller `/talleres/reservar/<slug>`.
+ * Like /ninos/registro the pages read only public data through service-role
+ * RPCs and post to /api/talleres/reserva/*, so getUser() is skipped. Matches
+ * the bare path and exactly one slug segment; the rest of /talleres stays private.
+ */
+const RESERVATION_ROOT = '/talleres/reservar'
+
+function isPublicReservationPath(path: string) {
+  if (path === RESERVATION_ROOT) return true
+  if (!path.startsWith(`${RESERVATION_ROOT}/`)) return false
+  const slug = path.slice(RESERVATION_ROOT.length + 1)
+  return slug.length > 0 && !slug.includes('/')
+}
+
 export function isPublicPath(path: string) {
   return (
     SKIP_AUTH_PATHS.has(path) ||
     ALWAYS_CHECK_AUTH_PATHS.has(path) ||
     isPublicCertificateVerificationPath(path) ||
-    isActivationPath(path)
+    isActivationPath(path) ||
+    isPublicReservationPath(path)
   )
 }
 
@@ -138,7 +155,7 @@ export async function middleware(request: NextRequest) {
   // /dashboard. Ver Finding 2 en 4R. Las otras paths "públicas" de auth UI
   // (/signup, /reset-password, /verify-email) viven en SKIP_AUTH_PATHS porque
   // no redirigen logueados — solo las manejan sus propios page handlers.
-  if (SKIP_AUTH_PATHS.has(path) || isActivationPath(path)) {
+  if (SKIP_AUTH_PATHS.has(path) || isActivationPath(path) || isPublicReservationPath(path)) {
     return supabaseResponse
   }
 

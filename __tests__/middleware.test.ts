@@ -340,6 +340,39 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     })
   })
 
+  // The public reservation of Grupos de Corto Plazo (odd/tasks/talleres-reserva-publica.md
+  // T5b): the catalog and one taller page open without a session and without
+  // getUser(); the rest of /talleres stays private.
+  describe('public taller reservation', () => {
+    it.each(['/talleres/reservar', '/talleres/reservar/mujer-de-hoy'])('lets a visitor without a session open %s', async (path) => {
+      const request = createMockRequest(path)
+      const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(getUserMock).not.toHaveBeenCalled()
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(result.type).toBe('next')
+    })
+
+    it.each(['/talleres/explorar', '/talleres/reservarx', '/talleres/reservar/mujer-de-hoy/extra', '/talleres/reservar/'])(
+      'still sends a visitor without a session on %s to login',
+      async (path) => {
+        queueFastResult(null)
+
+        const request = createMockRequest(path)
+        await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+        expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+      }
+    )
+
+    it('treats exactly the reservation paths as public', () => {
+      expect(isPublicPath('/talleres/reservar')).toBe(true)
+      expect(isPublicPath('/talleres/reservar/parejas')).toBe(true)
+      expect(isPublicPath('/talleres/reservar/parejas/x')).toBe(false)
+      expect(isPublicPath('/talleres')).toBe(false)
+    })
+  })
+
   // The QR on a printed certificate points at /verificar-certificado/<codigo>.
   // Anyone outside the church must be able to open it without a session, so
   // the middleware must not send visitors to login there — and only there.
