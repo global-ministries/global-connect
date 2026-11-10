@@ -5,21 +5,24 @@
  * Desktop: a full-width 12-column grid where consecutive narrow sections
  * share a row (7 + 5); phone: one column.
  *
- * Server-safe. The page loads the data; the sections that still reuse the
- * previous dashboard (mis hijos, a cargo, visión general) arrive as nodes.
+ * Server-safe. The page loads the data: «A tu cargo» gets one entry per
+ * cargo (null where it did not load, T4) and «Visión general» the campus
+ * numbers; «Mis hijos» and «Mis servicios» arrive as nodes.
  */
-import type { ReactElement, ReactNode } from 'react'
+import { Fragment, type ReactElement, type ReactNode } from 'react'
 
+import type { DatosCargo } from '@/lib/inicio/cargar-a-cargo'
 import type { DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
 import type { SeccionInicio } from '@/lib/inicio/decidir-secciones'
 
 import { HeroInicio, resumenInicio } from './hero-inicio'
-import { EncabezadoSeccion } from './partes-inicio'
 import { RanuraMisServicios } from './ranura-mis-servicios'
+import { SeccionesACargo } from './seccion-a-cargo'
 import { SeccionExplorar } from './seccion-explorar'
 import { SeccionGrupoMiembro } from './seccion-grupo-miembro'
 import { SeccionParaResponder } from './seccion-para-responder'
 import { SeccionProximosPasos } from './seccion-proximos-pasos'
+import { SeccionVisionGeneral, type DatosVisionGeneral } from './seccion-vision-general'
 
 export type PantallaInicioProps = {
   readonly nombre: string | null
@@ -30,8 +33,11 @@ export type PantallaInicioProps = {
   /** «Mis servicios» of feat/dps-avisos (S2); empty until it is merged. */
   readonly misServicios?: ReactNode
   readonly misHijos?: ReactNode
-  readonly aCargo?: ReactNode
-  readonly visionGeneral?: ReactNode
+  /** One entry per cargo of the «a-cargo» section, in its order; null where it did not load. */
+  readonly aCargo?: readonly (DatosCargo | null)[]
+  readonly visionGeneral?: DatosVisionGeneral | null
+  /** «Contextos visibles» of the platform navigation, after Visión general or the cargos. */
+  readonly contextos?: ReactNode
 }
 
 type Ancho = 'completa' | 'izquierda' | 'derecha'
@@ -60,20 +66,14 @@ function anchos(secciones: SeccionInicio[]): Ancho[] {
   return resultado
 }
 
-function SeccionConContenido({ id, titulo, children, className }: { readonly id: string; readonly titulo: string; readonly children: ReactNode; readonly className: string }): ReactElement {
-  return (
-    <section aria-labelledby={id} className={className}>
-      <EncabezadoSeccion id={id} titulo={titulo} />
-      <div className="space-y-6">{children}</div>
-    </section>
-  )
-}
-
-export function PantallaInicio({ nombre, hoy, secciones, gruposMiembro = {}, misServicios, misHijos, aCargo, visionGeneral }: PantallaInicioProps): ReactElement {
+export function PantallaInicio({ nombre, hoy, secciones, gruposMiembro = {}, misServicios, misHijos, aCargo = [], visionGeneral, contextos }: PantallaInicioProps): ReactElement {
+  const conCargos = aCargo.some((c) => c !== null)
   // Sections whose content is loaded elsewhere and did not arrive are left out (S1).
   const visibles = secciones.filter(
-    (s) => (s.id !== 'mis-hijos' || misHijos) && (s.id !== 'a-cargo' || aCargo) && (s.id !== 'vision-general' || visionGeneral),
+    (s) => (s.id !== 'mis-hijos' || misHijos) && (s.id !== 'a-cargo' || conCargos) && (s.id !== 'vision-general' || visionGeneral),
   )
+  // The contexts go with the campus view, else after the cargos.
+  const contextosEn = visibles.some((s) => s.id === 'vision-general') ? 'vision-general' : 'a-cargo'
   const conCargo = secciones.some((s) => s.id === 'a-cargo')
   const ancho = anchos(visibles)
 
@@ -99,9 +99,10 @@ export function PantallaInicio({ nombre, hoy, secciones, gruposMiembro = {}, mis
             )
           case 'a-cargo':
             return (
-              <SeccionConContenido key={s.id} id="inicio-a-cargo" titulo="A tu cargo" className={clase}>
-                {aCargo}
-              </SeccionConContenido>
+              <Fragment key={s.id}>
+                <SeccionesACargo datos={aCargo} hoy={hoy} className={clase} />
+                {contextos && contextosEn === 'a-cargo' && <div className={clase}>{contextos}</div>}
+              </Fragment>
             )
           case 'grupo-miembro':
             return (
@@ -117,9 +118,11 @@ export function PantallaInicio({ nombre, hoy, secciones, gruposMiembro = {}, mis
             )
           case 'vision-general':
             return (
-              <SeccionConContenido key={s.id} id="inicio-vision-general" titulo="Visión general" className={clase}>
-                {visionGeneral}
-              </SeccionConContenido>
+              visionGeneral && (
+                <SeccionVisionGeneral key={s.id} datos={visionGeneral} className={clase}>
+                  {contextosEn === 'vision-general' && contextos}
+                </SeccionVisionGeneral>
+              )
             )
           case 'proximos-pasos':
             return <SeccionProximosPasos key={s.id} pasos={s.pasos} className={clase} />
