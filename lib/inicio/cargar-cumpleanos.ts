@@ -7,10 +7,10 @@
  *   de etapa's groups, the director general's visible groups, or the whole
  *   campus for admin and pastor. No tablero (it failed) or another role: none.
  * - cargarCumpleanosGrupos: the groups where the person is Miembro or Colíder,
- *   the next DIAS_CUMPLEANOS days. The members come from obtener_detalle_grupo
- *   and their birth dates from usuarios read with the session, so RLS
- *   (puede_ver_usuario) decides whose dates come back. Only the date of the
- *   next birthday leaves the loader, never the birth year.
+ *   the next DIAS_CUMPLEANOS days, from proximos_cumpleanos_mis_grupos: it
+ *   answers from auth.uid() with the current groupmates' day and month and
+ *   the date of their next birthday, never the birth year (a plain Miembro
+ *   cannot read the members' usuarios rows through RLS, L19).
  */
 import { datos, intentar, type PedidoGruposMiembro } from './cargar-grupos-miembro'
 import type { ClienteInicio } from './cargar-hechos'
@@ -61,79 +61,36 @@ export function cumpleanosDelTablero(tablero: { rol: string; widgets: Record<str
     .sort(porFecha)
 }
 
-const esBisiesto = (anio: number): boolean => (anio % 4 === 0 && anio % 100 !== 0) || anio % 400 === 0
-
-/** The next birthday from `hoy` (included), YYYY-MM-DD; 29 Feb falls on 28 Feb when the year is not leap. */
-function proximoCumpleanos(nacimiento: string, hoy: string): string | null {
-  const partes = /^\d{4}-(\d{2})-(\d{2})/.exec(nacimiento)
-  if (!partes) return null
-  const mes = partes[1]
-  const dia = Number(partes[2])
-  const en = (anio: number) => `${anio}-${mes}-${String(mes === '02' && dia === 29 && !esBisiesto(anio) ? 28 : dia).padStart(2, '0')}`
-  const anio = Number(hoy.slice(0, 4))
-  return en(anio) >= hoy ? en(anio) : en(anio + 1)
-}
-
-const diasEntre = (desde: string, hasta: string): number =>
-  Math.round((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000)
-
-type DetalleCumpleanos = { nombre: string | null; miembros: { id: string; nombre: string }[] }
-
-function aDetalleCumpleanos(data: unknown): DetalleCumpleanos {
-  const g = objeto(data)
-  if (!g) throw new Error('sin detalle')
-  return {
-    nombre: texto(g.nombre),
-    miembros: filas(g.miembros).flatMap((m) => {
-      const id = texto(m.id)
-      const nombre = [texto(m.nombre), texto(m.apellido)].filter(Boolean).join(' ')
-      return id && nombre ? [{ id, nombre }] : []
-    }),
-  }
-}
-
 /**
  * Birthdays of the next DIAS_CUMPLEANOS days (today included) in the groups
- * where the person is Miembro or Colíder, without the person. A group whose
- * detail fails adds nothing; when the dates cannot be read the list is empty.
+ * where the person is Miembro or Colíder, without the person. The RPC answers
+ * for every group of the person; only the groups asked for are kept. When the
+ * RPC fails the list is empty.
  */
 export async function cargarCumpleanosGrupos(supabase: ClienteInicio, pedido: PedidoGruposMiembro): Promise<Cumpleanos[]> {
   if (pedido.grupos.length === 0) return []
-  const grupos = await Promise.all(
-    pedido.grupos.map(async (g) => {
-      const detalle = await intentar(
-        'obtener_detalle_grupo (cumpleaños)',
-        async () => aDetalleCumpleanos(await datos(supabase.rpc('obtener_detalle_grupo', { p_auth_id: pedido.authId, p_grupo_id: g.grupoId }))),
-        null,
-      )
-      return { contexto: detalle?.nombre ?? g.nombre, miembros: detalle?.miembros ?? [] }
-    }),
-  )
-
-  // A person in two of the groups is listed once, under the first one.
-  const personas = new Map<string, { nombre: string; contexto: string | null }>()
-  for (const g of grupos) {
-    for (const m of g.miembros) {
-      if (m.id !== pedido.usuarioId && !personas.has(m.id)) personas.set(m.id, { nombre: m.nombre, contexto: g.contexto })
-    }
-  }
-  if (personas.size === 0) return []
-
-  const nacimientos = await intentar(
-    'fechas de nacimiento del grupo',
-    async () => filas(await datos(supabase.from('usuarios').select('id, fecha_nacimiento').in('id', [...personas.keys()]))),
+  const respuesta = await intentar(
+    'proximos_cumpleanos_mis_grupos',
+    async () => filas(await datos(supabase.rpc('proximos_cumpleanos_mis_grupos', { p_dias: DIAS_CUMPLEANOS }))),
     [],
   )
-  return nacimientos
-    .flatMap((f): Cumpleanos[] => {
-      const id = texto(f.id)
-      const persona = id ? personas.get(id) : undefined
-      const nacimiento = texto(f.fecha_nacimiento)
-      const fecha = nacimiento ? proximoCumpleanos(nacimiento, pedido.hoy) : null
-      if (!id || !persona || !fecha || diasEntre(pedido.hoy, fecha) > DIAS_CUMPLEANOS) return []
-      return [{ id, nombre: persona.nombre, fecha, contexto: persona.contexto }]
-    })
-    .sort(porFecha)
+
+  // A person in two of the groups is listed once, under the first one asked for.
+  const orden = new Map(pedido.grupos.map((g, i) => [g.grupoId, i]))
+  const personas = new Map<string, { cumpleanos: Cumpleanos; orden: number }>()
+  for (const f of respuesta) {
+    const id = texto(f.usuario_id)
+    const grupoId = texto(f.grupo_id)
+    const nombre = [texto(f.nombre), texto(f.apellido)].filter(Boolean).join(' ')
+    const fecha = texto(f.proxima)?.slice(0, 10)
+    const posicion = grupoId ? orden.get(grupoId) : undefined
+    if (!id || id === pedido.usuarioId || !nombre || !fecha || posicion === undefined) continue
+    const anterior = personas.get(id)
+    if (anterior && anterior.orden <= posicion) continue
+    const contexto = texto(f.grupo_nombre) ?? pedido.grupos[posicion].nombre
+    personas.set(id, { cumpleanos: { id, nombre, fecha, contexto }, orden: posicion })
+  }
+  return [...personas.values()].map((p) => p.cumpleanos).sort(porFecha)
 }
 
 /** One list from several sources: each person once (the first source wins), sorted by date and name. */
