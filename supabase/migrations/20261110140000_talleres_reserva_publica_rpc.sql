@@ -1,6 +1,6 @@
 -- T5a (odd/tasks/talleres-reserva-publica.md) — the public reservation
 -- functions (S3, S4, S5, S11, S12, S13) over the storage of
--- 20261110130000 and the writer of 20261110120000.
+-- 20261110130000 and the writer of 20261110121000.
 --
 -- Every function here is service_role only (the Next.js API routes call
 -- them with the service key after hashing the client IP with a server

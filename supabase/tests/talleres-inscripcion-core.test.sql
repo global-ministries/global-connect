@@ -1,5 +1,5 @@
 -- T5a (odd/tasks/talleres-reserva-publica.md) — RED→GREEN for
--- 20261110120000_talleres_inscripcion_core.sql: taller_inscripciones.origen
+-- 20261110121000_talleres_inscripcion_core.sql: taller_inscripciones.origen
 -- and por_verificar, talleres_inscripcion_crear_core, and the regression of
 -- talleres_inscribirme on top of it. Run against STAGING inside
 -- BEGIN…ROLLBACK — nothing here is kept; fixture ids live under the
