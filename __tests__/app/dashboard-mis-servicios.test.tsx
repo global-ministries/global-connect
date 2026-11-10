@@ -1,7 +1,7 @@
 /**
  * «Mis servicios» on the dashboard (odd/tasks/dps-asistencia-pco.md, T15c,
- * S13.5; artboards design/dps-avisos/04 and 07): the card sits at the top of
- * the current panel only when dps_mis_servicios returns services or unseen
+ * S13.5; artboards design/dps-avisos/04 and 07): the card sits in its reserved slot of
+ * the new home (home-por-rol S2) only when dps_mis_servicios returns services or unseen
  * notices; empty, failed or slow answers leave the panel as it was.
  */
 import React from 'react'
@@ -10,23 +10,30 @@ import { render, screen } from '@testing-library/react'
 import * as acciones from '@/lib/actions/dps-avisos.actions'
 import { leerMisServicios } from '@/lib/platform/dps/avisos'
 
-const obtenerDatosDashboard = jest.fn()
-
 jest.mock('@/lib/actions/dps-avisos.actions', () => ({
   cargarMisServiciosDps: jest.fn(),
   responderServicioDps: jest.fn(),
   marcarAvisoVistoDps: jest.fn(),
 }))
-jest.mock('@/app/(auth)/dashboard/mis-hijos-dashboard', () => ({ cargarMisHijosDashboard: async () => null }))
-jest.mock('@/lib/dashboard/obtenerDatosDashboard', () => ({ obtenerDatosDashboard: (...args: unknown[]) => obtenerDatosDashboard(...args) }))
-jest.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }) }))
-jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({
-  obtenerCasasRevisionPendiente: jest.fn(),
-  obtenerGruposSinCasaAnfitriona: jest.fn(),
+// The new home (odd/tasks/home-por-rol.md T3): a person with nothing else, so «Explorar» is the rest of the panel.
+jest.mock('@/lib/supabase/server', () => ({
+  createSupabaseServerClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'auth-1' } } }) } }),
 }))
-jest.mock('@/components/ui/desktop-header', () => ({ DesktopHeader: ({ titulo }: { titulo?: string }) => <header>{titulo}</header> }))
+jest.mock('@/lib/supabase/admin', () => ({
+  createSupabaseAdminClient: () => ({
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { nombre: 'Valentina' }, error: null }) }) }) }),
+  }),
+}))
+jest.mock('@/lib/inicio/cargar-hechos', () => ({
+  cargarHechosInicio: async () => ({ ...jest.requireActual('@/lib/inicio/hechos').HECHOS_VACIOS, usuarioId: 'u-1', perfilCompleto: true, hizoProximoPaso: true }),
+}))
+jest.mock('@/app/(auth)/dashboard/mis-hijos-dashboard', () => ({ cargarMisHijosDashboard: async () => null }))
+jest.mock('next/navigation', () => ({ redirect: jest.fn(), useRouter: () => ({ refresh: jest.fn() }) }))
+jest.mock('@/components/ui/sistema-diseno', () => ({
+  ...jest.requireActual('@/components/ui/sistema-diseno'),
+  PaginaSistema: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
+}))
 jest.mock('@/hooks/use-notificaciones', () => ({ useNotificaciones: () => ({ success: jest.fn(), error: jest.fn(), info: jest.fn() }) }))
-jest.mock('@/components/dashboard/roles/DashboardMiembro', () => ({ __esModule: true, default: () => <section data-testid="miembro">miembro</section> }))
 
 const cargar = acciones.cargarMisServiciosDps as jest.MockedFunction<typeof acciones.cargarMisServiciosDps>
 
@@ -57,7 +64,6 @@ const flagOriginal = process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED
 beforeEach(() => {
   jest.clearAllMocks()
   process.env.NEXT_PUBLIC_DREAM_TEAM_ENABLED = 'on'
-  obtenerDatosDashboard.mockResolvedValue({ rol: 'miembro', widgets: {}, platformSession: null })
 })
 
 afterEach(() => {
@@ -77,7 +83,7 @@ describe('dashboard «Mis servicios»', () => {
     await renderPanel()
 
     const titulo = screen.getByRole('heading', { name: 'Mis servicios' })
-    expect(titulo.compareDocumentPosition(screen.getByTestId('miembro')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(titulo.compareDocumentPosition(screen.getByRole('heading', { name: 'Explorar' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument()
   })
 
@@ -91,7 +97,7 @@ describe('dashboard «Mis servicios»', () => {
     cargar.mockResolvedValue({ ok: true, data: leerMisServicios({ servicios: [], avisos: [], por_responder: 0, fechas_bloqueadas: 3 }) })
     await renderPanel()
     expect(screen.queryByRole('heading', { name: 'Mis servicios' })).not.toBeInTheDocument()
-    expect(screen.getByTestId('miembro')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Explorar' })).toBeInTheDocument()
   })
 
   it('keeps the panel when the action fails or throws', async () => {
@@ -103,7 +109,7 @@ describe('dashboard «Mis servicios»', () => {
     cargar.mockRejectedValueOnce(new Error('rpc caída'))
     await renderPanel()
     expect(screen.queryByRole('heading', { name: 'Mis servicios' })).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('miembro').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('heading', { name: 'Explorar' }).length).toBeGreaterThan(0)
     consola.mockRestore()
   })
 
@@ -119,7 +125,7 @@ describe('dashboard «Mis servicios»', () => {
     render(await pagina)
 
     expect(screen.queryByRole('heading', { name: 'Mis servicios' })).not.toBeInTheDocument()
-    expect(screen.getByTestId('miembro')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Explorar' })).toBeInTheDocument()
     aviso.mockRestore()
   })
 
