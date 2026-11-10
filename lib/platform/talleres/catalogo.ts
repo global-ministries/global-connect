@@ -170,6 +170,13 @@ export interface TallerDetalle extends CatalogoTaller {
   readonly clases_minimas_para_completar: number | null
   /** When a new partner ficha gets its access email (odd/tasks/talleres-conyuge-invitacion.md C2). */
   readonly momento_envio_acceso?: 'al_aprobar' | 'al_inscribirse'
+  /**
+   * «Mínimo de inscritos para abrir» (odd/tasks/talleres-reserva-publica.md
+   * T8a; null = sin mínimo) and «Recuperar clases aparte» (T8b; the column
+   * defaults to true), edited with the rest of "Configuración" (T9).
+   */
+  readonly minimo_inscritos?: number | null
+  readonly permite_recuperar_clases?: boolean
 }
 
 interface TallerDetalleQueryClient {
@@ -202,7 +209,7 @@ export async function loadTallerDetalle(
     .select(
       `${TALLER_CON_EDICIONES_SELECT}, descripcion, modalidad_default, cadencia_dias, duracion_minutos,
        tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias,
-       clases_minimas_para_completar, momento_envio_acceso`,
+       clases_minimas_para_completar, momento_envio_acceso, minimo_inscritos, permite_recuperar_clases`,
     )
     .eq('slug', slug)
     .maybeSingle()
@@ -222,6 +229,8 @@ export async function loadTallerDetalle(
     intervalo_ediciones_dias: (row.intervalo_ediciones_dias as number | null | undefined) ?? null,
     clases_minimas_para_completar: (row.clases_minimas_para_completar as number | null | undefined) ?? null,
     momento_envio_acceso: row.momento_envio_acceso === 'al_inscribirse' ? 'al_inscribirse' : 'al_aprobar',
+    minimo_inscritos: typeof row.minimo_inscritos === 'number' ? row.minimo_inscritos : null,
+    permite_recuperar_clases: row.permite_recuperar_clases !== false,
   }
 }
 

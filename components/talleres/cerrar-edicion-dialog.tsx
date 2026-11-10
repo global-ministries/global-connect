@@ -248,10 +248,10 @@ function TablaVistaPrevia({ filas }: { readonly filas: readonly FilaVistaPreviaC
               </td>
               <td className="px-3 py-2 text-sm text-muted-foreground">{fila.grupoNombre ?? '—'}</td>
               <td className="px-3 py-2 text-sm">
-                <span className="block text-foreground">
+                <span className="block font-mono tabular-nums text-foreground">
                   {fila.clasesPresente} de {fila.clasesTotal}
                 </span>
-                <span className="block text-xs text-muted-foreground">mín. {fila.minimo}</span>
+                <span className="block font-mono text-xs tabular-nums text-muted-foreground">mín. {fila.minimo}</span>
               </td>
               <td className="px-3 py-2">
                 <BadgeSistema variante={unitEstadoBadgeVariante(fila.resultado)} tamaño="sm">

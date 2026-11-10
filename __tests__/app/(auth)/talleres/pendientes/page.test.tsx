@@ -21,7 +21,7 @@
 import PendientesPage from '@/app/(auth)/talleres/pendientes/page'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { ResolverSolicitudRetiroControls } from '@/components/talleres/resolver-solicitud-retiro-controls'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
@@ -215,11 +215,11 @@ describe('PendientesPage — gate', () => {
 })
 
 describe('PendientesPage — nothing pending', () => {
-  it('shows a calm EstadoVacio, not an error, when both sections are empty', async () => {
+  it('shows a calm EstadoVacioSistema, not an error, when both sections are empty', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await PendientesPage()) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio).not.toBeNull()
     expect(String(vacio?.props.titulo)).toMatch(/no tenés nada pendiente/i)
     expect(findByType(element, TablaInscripciones)).toBeNull()
@@ -427,7 +427,7 @@ describe('PendientesPage — sections', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await PendientesPage()) as any
     expect(findByType(element, TablaInscripciones)).not.toBeNull()
-    const vacios = findAllByType(element, EstadoVacio)
+    const vacios = findAllByType(element, EstadoVacioSistema)
     expect(vacios.some((v) => /no hay retiros pendientes/i.test(String(v.props.titulo)))).toBe(true)
   })
 

@@ -10,8 +10,6 @@
 import {
   abrirEdicionIgual,
   confirmarPorTelefono,
-  guardarMinimoInscritos,
-  leerMinimoInscritos,
   responderCambioFecha,
   suspenderEdicion,
 } from '@/lib/platform/talleres/minimo-suspension-actions'
@@ -240,68 +238,5 @@ describe('responderCambioFecha', () => {
     setup({ rpc: { data: null, error: { code: '42501', message: 'sin_permisos_para_esta_inscripcion' } } })
     const r = await responderCambioFecha({ inscripcionId: 'i-2', respuesta: 'mantener' })
     expect(r).toEqual({ ok: false, error: 'forbidden', message: 'No tienes permisos para esta inscripción.' })
-  })
-})
-
-describe('mínimo de inscritos (Configuración)', () => {
-  function fromLectura(data: unknown) {
-    const maybeSingle = jest.fn().mockResolvedValue({ data, error: null })
-    const eq = jest.fn().mockReturnValue({ maybeSingle })
-    const select = jest.fn().mockReturnValue({ eq })
-    return { from: jest.fn().mockReturnValue({ select }), select, eq }
-  }
-
-  function fromEscritura(data: unknown) {
-    const select = jest.fn().mockResolvedValue({ data, error: null })
-    const eq = jest.fn().mockReturnValue({ select })
-    const update = jest.fn().mockReturnValue({ eq })
-    return { from: jest.fn().mockReturnValue({ update }), update, eq }
-  }
-
-  it('reads the current minimum (null = sin mínimo)', async () => {
-    const f = fromLectura({ minimo_inscritos: 15 })
-    setup({ from: f.from })
-    expect(await leerMinimoInscritos('t-1')).toEqual({ ok: true, minimo: 15 })
-    expect(f.from).toHaveBeenCalledWith('talleres')
-    expect(f.eq).toHaveBeenCalledWith('id', 't-1')
-    setup({ from: fromLectura({ minimo_inscritos: null }).from })
-    expect(await leerMinimoInscritos('t-1')).toEqual({ ok: true, minimo: null })
-  })
-
-  it('saves a valid minimum and revalidates the taller', async () => {
-    const f = fromEscritura([{ id: 't-1' }])
-    setup({ from: f.from })
-    const r = await guardarMinimoInscritos({ tallerId: 't-1', tallerSlug: 's', minimo: 15 })
-    expect(r).toEqual({ ok: true })
-    expect(f.update).toHaveBeenCalledWith({ minimo_inscritos: 15 })
-    expect(revalidateMock).toHaveBeenCalledWith('/talleres/s')
-  })
-
-  it('null clears the minimum', async () => {
-    const f = fromEscritura([{ id: 't-1' }])
-    setup({ from: f.from })
-    await guardarMinimoInscritos({ tallerId: 't-1', tallerSlug: 's', minimo: null })
-    expect(f.update).toHaveBeenCalledWith({ minimo_inscritos: null })
-  })
-
-  it('rejects 0, decimals and huge values without writing', async () => {
-    const f = fromEscritura([{ id: 't-1' }])
-    setup({ from: f.from })
-    for (const minimo of [0, 2.5, 501]) {
-      const r = await guardarMinimoInscritos({ tallerId: 't-1', tallerSlug: 's', minimo })
-      expect(r).toEqual({
-        ok: false,
-        error: 'invalid-input',
-        message: 'El mínimo de inscritos debe ser un entero entre 1 y 500, o vacío para no tener mínimo.',
-      })
-    }
-    expect(f.update).not.toHaveBeenCalled()
-  })
-
-  it('an RLS-empty update (not director) is forbidden', async () => {
-    setup({ from: fromEscritura([]).from })
-    const r = await guardarMinimoInscritos({ tallerId: 't-1', tallerSlug: 's', minimo: 3 })
-    expect(r).toEqual({ ok: false, error: 'forbidden', message: 'No tienes permisos para hacer este cambio.' })
-    expect(revalidateMock).not.toHaveBeenCalled()
   })
 })

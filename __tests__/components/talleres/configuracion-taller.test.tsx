@@ -19,13 +19,6 @@ jest.mock('@/app/(auth)/talleres/[taller]/actions', () => ({
   updateCadenciaYDuracion: (...args: unknown[]) => updateCadenciaYDuracionMock(...args),
 }))
 
-// T8b (odd/tasks/talleres-reserva-publica.md, S17) — the «Recuperar clases
-// aparte» switch reads its own value.
-jest.mock('@/lib/platform/talleres/recuperar-clase-actions', () => ({
-  leerPermiteRecuperar: jest.fn(() => Promise.resolve({ ok: true, permite: true })),
-  guardarPermiteRecuperar: jest.fn(),
-}))
-
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: refreshMock }),
 }))
@@ -42,6 +35,8 @@ function baseProps(overrides: Partial<Parameters<typeof ConfiguracionTaller>[0]>
     cierreInscripcionOffsetDias: 0,
     intervaloEdicionesDias: null,
     clasesMinimasParaCompletar: null,
+    minimoInscritos: null,
+    permiteRecuperarClases: true,
     cadenciaDias: 7,
     duracionMinutos: 90,
     puedeEditar: false,
@@ -136,6 +131,8 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
         cierreInscripcionOffsetDias: -5,
         intervaloEdicionesDias: 28,
         clasesMinimasParaCompletar: null,
+        minimoInscritos: null,
+        permiteRecuperarClases: true,
         momentoEnvioAcceso: 'al_aprobar',
       }),
     )
@@ -263,16 +260,62 @@ describe('ConfiguracionTaller — envío del acceso al cónyuge nuevo', () => {
 
 // T8b (odd/tasks/talleres-reserva-publica.md, S17) — artboard 14: the
 // minimum is «para el certificado» and the recovery switch sits with it.
-describe('ConfiguracionTaller — recuperar clases aparte', () => {
-  it('editor: shows the switch with its saved value', async () => {
-    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
-    const sw = await screen.findByRole('switch', { name: 'Recuperar clases aparte' })
-    await waitFor(() => expect(sw).toHaveAttribute('aria-checked', 'true'))
+// T9 (same doc, S8, L16) — the switch and «Mínimo de inscritos para abrir»
+// save with «Guardar configuración»; neither has its own save any more.
+describe('ConfiguracionTaller — recuperar clases y mínimo de inscritos (un solo guardar)', () => {
+  it('editor: shows both saved values and no separate save', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, minimoInscritos: 10, permiteRecuperarClases: false })} />)
+    expect(screen.getByRole('switch', { name: 'Recuperar clases aparte' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByLabelText('Mínimo de inscritos para abrir (personas)')).toHaveValue(10)
+    expect(screen.queryByRole('button', { name: 'Guardar mínimo' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /guardar/i }).map((b) => b.textContent)).toEqual([
+      'Guardar configuración',
+      'Guardar cadencia',
+    ])
   })
 
-  it('read-only: shows Sí / No', async () => {
-    render(<ConfiguracionTaller {...baseProps()} />)
+  it('editor: saves the switch and the mínimo with the rest of the configuration', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, minimoInscritos: 10, permiteRecuperarClases: true })} />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Recuperar clases aparte' }))
+    fireEvent.change(screen.getByLabelText(/mínimo de inscritos para abrir/i), { target: { value: '6' } })
+    expect(updateTallerConfiguracionMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ minimoInscritos: 6, permiteRecuperarClases: false }),
+      ),
+    )
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+  })
+
+  it('editor: an emptied mínimo is sent as null', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, minimoInscritos: 10 })} />)
+    fireEvent.change(screen.getByLabelText(/mínimo de inscritos para abrir/i), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(expect.objectContaining({ minimoInscritos: null })),
+    )
+  })
+
+  it('editor: a refused mínimo shows the server message', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({
+      ok: false,
+      error: 'invalid-input',
+      message: 'El mínimo de inscritos debe ser un entero entre 1 y 500, o vacío para no tener mínimo.',
+    })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getByLabelText(/mínimo de inscritos para abrir/i), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/entre 1 y 500/)
+  })
+
+  it('read-only: shows Sí / No and the mínimo', () => {
+    render(<ConfiguracionTaller {...baseProps({ permiteRecuperarClases: true, minimoInscritos: 8 })} />)
     expect(screen.getByText('Recuperar clases aparte')).toBeInTheDocument()
-    expect(await screen.findByText('Sí')).toBeInTheDocument()
+    expect(screen.getByText('Sí')).toBeInTheDocument()
+    expect(screen.getByText('8 personas')).toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
   })
 })

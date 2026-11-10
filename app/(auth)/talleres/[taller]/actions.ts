@@ -597,6 +597,10 @@ export async function quitarFacilitador(
 // applies: null (empty field) means every clase dictada, otherwise an
 // integer 1..50 (the column itself only requires >= 1; 50 is this form's
 // own sanity cap, well above any real taller's clase count).
+//
+// T9 (odd/tasks/talleres-reserva-publica.md, S8 S9 S17) — «Mínimo de
+// inscritos para abrir» and «Recuperar clases aparte» joined this save (they
+// had their own; same direct update through talleres_update_director).
 
 export interface UpdateTallerConfiguracionInput {
   readonly tallerId: string
@@ -614,6 +618,14 @@ export interface UpdateTallerConfiguracionInput {
    * Omitted = the column is left as it is.
    */
   readonly momentoEnvioAcceso?: 'al_aprobar' | 'al_inscribirse'
+  /**
+   * «Mínimo de inscritos para abrir» (talleres.minimo_inscritos,
+   * odd/tasks/talleres-reserva-publica.md T8a/T9): null = sin mínimo,
+   * otherwise an integer 1..500. Omitted = the column is left as it is.
+   */
+  readonly minimoInscritos?: number | null
+  /** «Recuperar clases aparte» (talleres.permite_recuperar_clases, T8b/T9). Omitted = left as it is. */
+  readonly permiteRecuperarClases?: boolean
 }
 
 const MOMENTOS_ENVIO_ACCESO = ['al_aprobar', 'al_inscribirse'] as const
@@ -622,6 +634,7 @@ const TIPOS_TALLER = ['individual', 'pareja'] as const
 const VINCULOS_TALLER = ['matrimonio', 'novios'] as const
 const REGIMENES_TALLER = ['temporada', 'cadencia'] as const
 const CLASES_MINIMAS_MAX = 50
+const MINIMO_INSCRITOS_MAX = 500
 
 export async function updateTallerConfiguracion(
   input: UpdateTallerConfiguracionInput,
@@ -686,6 +699,22 @@ export async function updateTallerConfiguracion(
     }
   }
 
+  const minimo = input.minimoInscritos
+  if (
+    minimo !== undefined &&
+    minimo !== null &&
+    (!Number.isInteger(minimo) || minimo < 1 || minimo > MINIMO_INSCRITOS_MAX)
+  ) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: `El mínimo de inscritos debe ser un entero entre 1 y ${MINIMO_INSCRITOS_MAX}, o vacío para no tener mínimo.`,
+    }
+  }
+  if (input.permiteRecuperarClases !== undefined && typeof input.permiteRecuperarClases !== 'boolean') {
+    return { ok: false, error: 'invalid-input', message: 'Valor inválido para recuperar clases aparte.' }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
   const { data, error } = await client
@@ -698,6 +727,10 @@ export async function updateTallerConfiguracion(
       intervalo_ediciones_dias: input.intervaloEdicionesDias,
       clases_minimas_para_completar: clasesMinimas,
       ...(input.momentoEnvioAcceso !== undefined ? { momento_envio_acceso: input.momentoEnvioAcceso } : {}),
+      ...(minimo !== undefined ? { minimo_inscritos: minimo } : {}),
+      ...(input.permiteRecuperarClases !== undefined
+        ? { permite_recuperar_clases: input.permiteRecuperarClases }
+        : {}),
     })
     .eq('id', input.tallerId)
     .select('id')

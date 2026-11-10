@@ -22,12 +22,17 @@
  * Cierre de edición (odd/tasks/talleres-cierre-de-edicion.md T2) adds
  * previsualizarCierreEdicion/cerrarEdicion at the end of this file, same
  * thin gate around talleres_previsualizar_cierre/talleres_cerrar_edicion.
+ * T9 (odd/tasks/talleres-reserva-publica.md, S6): after a close, the
+ * «Certificado listo» emails go out after the response
+ * (despacharAvisosTalleres, never throws).
  */
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { despacharAvisosTalleres } from '@/lib/platform/talleres/avisos-envio'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaEdicion, rutaGrupo, rutaTaller } from '@/lib/platform/talleres/rutas'
 import { loadPanelMinimo } from '@/lib/platform/talleres/minimo-suspension'
@@ -600,6 +605,8 @@ export async function cerrarEdicion(
   // The close also completes every grupo and closes its clases/reporte,
   // all rendered on each grupo's own page.
   await revalidarGruposDeEdicion(client, input.tallerSlug, input.edicionId)
+  // The certificados and their «Certificado listo» notices were written by the close.
+  after(() => despacharAvisosTalleres())
 
   // The edición IS closed at this point (the RPC committed). A summary that
   // drifts from the contract only loses the numbers, never the success.

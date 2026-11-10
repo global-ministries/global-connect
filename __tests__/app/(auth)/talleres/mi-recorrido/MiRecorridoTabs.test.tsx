@@ -14,11 +14,12 @@
  *   - each tab has its own distinct, honest empty state
  *   - estado_inscripcion is never rendered as a raw key
  *
- * The component renders a desktop table AND mobile cards simultaneously —
- * jsdom does not apply the `hidden md:block` / `md:hidden` breakpoints, so
- * row content appears twice. Assertions on row content use getAllByText
- * accordingly (same convention as
- * __tests__/components/dream-team/servidores-client.test.tsx).
+ * Each tab is a ListaResponsiva (T9 of odd/tasks/talleres-reserva-publica.md):
+ * its desktop cells AND its phone row are both in the DOM — jsdom does not
+ * apply the `hidden md:flex` / `md:hidden` breakpoints, so row content
+ * appears twice. Assertions on row content use getAllByText accordingly
+ * (same convention as __tests__/components/dream-team/servidores-client.test.tsx).
+ * A row opens its detail (en curso, historial) or the certificate page.
  */
 import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
@@ -31,10 +32,11 @@ import type {
 } from '@/lib/platform/talleres/participante'
 
 const replaceMock = jest.fn()
+const pushMock = jest.fn()
 let searchParamsValue = new URLSearchParams()
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: replaceMock, push: jest.fn(), refresh: jest.fn() }),
+  useRouter: () => ({ replace: replaceMock, push: pushMock, refresh: jest.fn() }),
   usePathname: () => '/talleres/mi-recorrido',
   useSearchParams: () => searchParamsValue,
 }))
@@ -81,6 +83,7 @@ function certificadoRow(overrides: Partial<ParticipanteCertificado> = {}): Parti
 
 beforeEach(() => {
   replaceMock.mockClear()
+  pushMock.mockClear()
   searchParamsValue = new URLSearchParams()
 })
 
@@ -279,5 +282,37 @@ describe('MiRecorridoTabs — couple certificates name the partner', () => {
     searchParamsValue = new URLSearchParams('tab=certificados')
     render(<MiRecorridoTabs talleres={[]} historial={[]} certificados={[certificadoRow()]} />)
     expect(screen.queryByText(/junto a/i)).not.toBeInTheDocument()
+  })
+})
+
+// T9 (odd/tasks/talleres-reserva-publica.md, S8) — the hand-made tables are
+// ListaResponsiva lists: one ARIA table per tab, every row opens something.
+describe('MiRecorridoTabs — ListaResponsiva', () => {
+  it('en curso: one table, and a row opens its detail', () => {
+    render(<MiRecorridoTabs talleres={[tallerRow({ unit_estado: 'abandono' })]} historial={[]} certificados={[]} />)
+    expect(screen.getByRole('table', { name: 'Talleres en curso' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Taller Activo' }))
+    const detalle = screen.getByRole('dialog', { name: 'Taller Activo' })
+    expect(detalle).toHaveTextContent('Septiembre 2026')
+    expect(detalle).toHaveTextContent('Individual')
+    expect(detalle).toHaveTextContent('Abandonó')
+  })
+
+  it('historial: one table with «Inscrito el», and a row opens its detail with the dates', () => {
+    searchParamsValue = new URLSearchParams('tab=historial')
+    render(<MiRecorridoTabs talleres={[]} historial={[historialRow()]} certificados={[]} />)
+    expect(screen.getByRole('table', { name: 'Historial' })).toBeInTheDocument()
+    expect(screen.getByText('Inscrito el')).toBeInTheDocument()
+    expect(screen.queryByText(/Inscripto/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir Taller Historial' }))
+    expect(screen.getByRole('dialog', { name: 'Taller Historial' })).toHaveTextContent('Marzo 2025')
+  })
+
+  it('certificados: one table, and a row opens the certificate page', () => {
+    searchParamsValue = new URLSearchParams('tab=certificados')
+    render(<MiRecorridoTabs talleres={[]} historial={[]} certificados={[certificadoRow()]} />)
+    expect(screen.getByRole('table', { name: 'Certificados' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir certificado de Taller Certificado' }))
+    expect(pushMock).toHaveBeenCalledWith('/talleres/mi-recorrido/certificados/c-1')
   })
 })

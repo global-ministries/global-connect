@@ -47,7 +47,7 @@ import { LogOut, Users as UsersIcon } from 'lucide-react'
 import Link from 'next/link'
 
 import { PaginaSistema, BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { ResolverSolicitudRetiroControls } from '@/components/talleres/resolver-solicitud-retiro-controls'
 
@@ -228,11 +228,13 @@ export default async function PendientesPage(ctx?: RouteContext) {
       </nav>
 
       {nadaPendiente ? (
-        <EstadoVacio
-          icono={UsersIcon}
-          titulo="No tenés nada pendiente"
-          subtitulo="Cuando algo necesite tu decisión, va a aparecer acá."
-        />
+        <TarjetaSistema className="p-0">
+          <EstadoVacioSistema
+            icono={UsersIcon}
+            titulo="No tenés nada pendiente"
+            subtitulo="Cuando algo necesite tu decisión, va a aparecer acá."
+          />
+        </TarjetaSistema>
       ) : (
         <div className="space-y-6">
           <section aria-labelledby="inscripciones-heading">
@@ -241,14 +243,16 @@ export default async function PendientesPage(ctx?: RouteContext) {
             </h2>
             <div className="mt-3">
               {inscripciones.rows.length === 0 ? (
-                <EstadoVacio
-                  icono={UsersIcon}
-                  titulo={
-                    estadoFiltro === 'pendiente'
-                      ? 'No hay inscripciones pendientes'
-                      : `No hay inscripciones en estado "${ESTADO_FILTRO_LABELS[estadoFiltro].toLowerCase()}"`
-                  }
-                />
+                <TarjetaSistema className="p-0">
+                  <EstadoVacioSistema
+                    icono={UsersIcon}
+                    titulo={
+                      estadoFiltro === 'pendiente'
+                        ? 'No hay inscripciones pendientes'
+                        : `No hay inscripciones en estado "${ESTADO_FILTRO_LABELS[estadoFiltro].toLowerCase()}"`
+                    }
+                  />
+                </TarjetaSistema>
               ) : (
                 <TablaInscripciones
                   rows={filasInscripciones}
@@ -267,7 +271,9 @@ export default async function PendientesPage(ctx?: RouteContext) {
             </h2>
             <div className="mt-3">
               {solicitudes.length === 0 ? (
-                <EstadoVacio icono={LogOut} titulo="No hay retiros pendientes" />
+                <TarjetaSistema className="p-0">
+                  <EstadoVacioSistema icono={LogOut} titulo="No hay retiros pendientes" />
+                </TarjetaSistema>
               ) : (
                 <ul className="grid gap-3">
                   {solicitudes.map((solicitud) => {

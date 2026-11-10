@@ -47,7 +47,7 @@ function preparar(respuestas: Record<string, Respuesta>) {
   const rpc = jest.fn(async (nombre: string) => respuestas[nombre] ?? { data: null, error: null })
   const enviarCorreo = jest.fn(async () => ({ success: true }))
   const enviarInvitacion = jest.fn(async () => 'enviada')
-  const deps: DependenciasReserva = { rpc, sal: 'sal', enviarCorreo, enviarInvitacion, codigo: () => '042917', token: () => TOKEN }
+  const deps: DependenciasReserva = { rpc, sal: 'sal', enviarCorreo, enviarInvitacion, despacharAvisos: jest.fn(async () => undefined), codigo: () => '042917', token: () => TOKEN }
   return { deps, rpc, enviarInvitacion }
 }
 

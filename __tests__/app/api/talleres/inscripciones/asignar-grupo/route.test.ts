@@ -33,6 +33,24 @@ jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: jest.fn(),
 }))
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
+jest.mock('@/lib/platform/talleres/avisos-envio', () => ({
+  despacharAvisosTalleres: jest.fn().mockResolvedValue(undefined),
+}))
+const tareasAfter: Array<() => unknown> = []
+jest.mock('next/server', () => ({
+  ...jest.requireActual('next/server'),
+  after: (tarea: () => unknown) => {
+    tareasAfter.push(tarea)
+  },
+}))
+
+/** Runs what the route left for after the response. */
+async function despuesDeResponder() {
+  for (const t of tareasAfter.splice(0)) await t()
+}
+
+const despacharAvisosMock = jest.requireMock('@/lib/platform/talleres/avisos-envio')
+  .despacharAvisosTalleres as jest.Mock
 
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags')
   .isTalleresEnabled as jest.Mock
@@ -78,6 +96,8 @@ beforeEach(() => {
   reset()
   flagsMock.mockReset().mockReturnValue(true)
   revalidatePathMock.mockReset()
+  despacharAvisosMock.mockClear()
+  tareasAfter.splice(0)
 
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
     auth: {
@@ -270,5 +290,27 @@ describe('POST /api/talleres/inscripciones/asignar-grupo — error mapping', () 
     expect(body.error).toBe('FAILED')
     expect(typeof body.message).toBe('string')
     expect(body.message.length).toBeGreaterThan(0)
+  })
+})
+
+// T9 (odd/tasks/talleres-reserva-publica.md, S6, L22) — the «Grupo y líder
+// asignados» notice is written by the assignment; its email goes out right
+// after the response instead of at the daily cron.
+describe('POST /api/talleres/inscripciones/asignar-grupo — avisos', () => {
+  it('sends the due notices after a successful assignment', async () => {
+    const res = await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-1' }))
+    expect(res.status).toBe(200)
+    expect(despacharAvisosMock).not.toHaveBeenCalled()
+    await despuesDeResponder()
+    expect(despacharAvisosMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not send notices on an RPC error nor on an unassign', async () => {
+    state.rpcResult = { data: null, error: { code: '42501', message: 'sin_permisos_para_este_grupo' } }
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-1' }))
+    reset()
+    await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: null }))
+    await despuesDeResponder()
+    expect(despacharAvisosMock).not.toHaveBeenCalled()
   })
 })

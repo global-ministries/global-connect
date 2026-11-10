@@ -3,8 +3,9 @@
 /**
  * T8a (odd/tasks/talleres-reserva-publica.md, S9 S15 S16) — server actions
  * for the minimum of inscritos: suspend and move the date, open anyway,
- * confirm by phone (edición page), the member's answer (Mi Recorrido) and
- * the taller's «Mínimo de inscritos para abrir» (Configuración).
+ * confirm by phone (edición page) and the member's answer (Mi Recorrido).
+ * The taller's «Mínimo de inscritos para abrir» saves with the rest of the
+ * configuration (updateTallerConfiguracion, T9).
  *
  * Same thin gate as app/(auth)/talleres/[taller]/[edicion]/actions.ts: flag
  * + session. Every rule and every permission lives in the RPCs of
@@ -35,7 +36,6 @@ export type MinimoActionResult<T> =
 
 const RUTA_MI_RECORRIDO = '/talleres/mi-recorrido'
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
-const MINIMO_MAX = 500
 const LOTE_CORREOS = 100
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, matches this feature's other action files
@@ -280,51 +280,4 @@ export async function responderCambioFecha(
 
   revalidatePath(RUTA_MI_RECORRIDO)
   return { ok: true, confirmacion: input.respuesta === 'mantener' ? 'confirmada' : 'no_puede' }
-}
-
-// ─── Mínimo de inscritos para abrir (Configuración) ──────────────────────
-
-export async function leerMinimoInscritos(tallerId: string): Promise<MinimoActionResult<{ minimo: number | null }>> {
-  const gated = await gate()
-  if (!gated.ok) return gated.result
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = gated.supabase
-  const { data, error } = await client.from('talleres').select('minimo_inscritos').eq('id', tallerId).maybeSingle()
-  if (error) return fallo(error, 'No se pudo leer el mínimo de inscritos.')
-  if (!data) return { ok: false, error: 'not-found', message: 'El taller no existe.' }
-
-  const minimo = (data as { minimo_inscritos: unknown }).minimo_inscritos
-  return { ok: true, minimo: typeof minimo === 'number' ? minimo : null }
-}
-
-export interface GuardarMinimoInscritosInput {
-  readonly tallerId: string
-  readonly tallerSlug: string
-  /** null = sin mínimo. */
-  readonly minimo: number | null
-}
-
-export async function guardarMinimoInscritos(input: GuardarMinimoInscritosInput): Promise<MinimoActionResult<object>> {
-  const gated = await gate()
-  if (!gated.ok) return gated.result
-
-  if (input.minimo !== null && (!Number.isInteger(input.minimo) || input.minimo < 1 || input.minimo > MINIMO_MAX)) {
-    return invalido(`El mínimo de inscritos debe ser un entero entre 1 y ${MINIMO_MAX}, o vacío para no tener mínimo.`)
-  }
-
-  // Same direct update through RLS (talleres_update_director) as the rest of
-  // the taller's configuration.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
-  const client: any = gated.supabase
-  const { data, error } = await client
-    .from('talleres')
-    .update({ minimo_inscritos: input.minimo })
-    .eq('id', input.tallerId)
-    .select('id')
-  if (error) return fallo(error, 'No se pudo guardar el mínimo de inscritos.')
-  if (!data || data.length === 0) return fallo({ code: '42501' }, 'No se pudo guardar el mínimo de inscritos.')
-
-  revalidatePath(rutaTaller(input.tallerSlug))
-  return { ok: true }
 }

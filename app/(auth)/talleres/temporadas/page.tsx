@@ -34,7 +34,7 @@ import {
   TituloSistema,
   BadgeSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { temporadaEstadoLabel, temporadaEstadoBadgeVariante } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -138,11 +138,13 @@ export default async function TemporadasPage() {
       }
     >
       {grupos.length === 0 ? (
-        <EstadoVacio
-          icono={CalendarRange}
-          titulo="Tu dirección todavía no tiene temporadas"
-          subtitulo={puedeCrear ? 'Usa "Crear Temporada" para abrir la primera.' : undefined}
-        />
+        <TarjetaSistema className="p-0">
+          <EstadoVacioSistema
+            icono={CalendarRange}
+            titulo="Tu dirección todavía no tiene temporadas"
+            subtitulo={puedeCrear ? 'Usa "Crear Temporada" para abrir la primera.' : undefined}
+          />
+        </TarjetaSistema>
       ) : (
         <div className="grid gap-6">
           {grupos.map(({ direccion, temporadas }) => (

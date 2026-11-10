@@ -52,7 +52,7 @@ import {
   TarjetaSistema,
   TextoSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { reporteEstadoLabel, reporteEstadoBadgeVariante } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -145,7 +145,9 @@ export default async function ReportesPage() {
       )}
 
       {rows.length === 0 ? (
-        <EstadoVacio icono={FileText} titulo="No hay reportes todavía" />
+        <TarjetaSistema className="p-0">
+          <EstadoVacioSistema icono={FileText} titulo="No hay reportes todavía" />
+        </TarjetaSistema>
       ) : (
         <>
           {/* Desktop — table */}

@@ -9,8 +9,6 @@
 
 import {
   anularRecuperacion,
-  guardarPermiteRecuperar,
-  leerPermiteRecuperar,
   registrarRecuperacion,
 } from '@/lib/platform/talleres/recuperar-clase-actions'
 
@@ -114,48 +112,5 @@ describe('anularRecuperacion', () => {
     await expect(anularRecuperacion({ ...RUTA, recuperacionId: 'r-1' })).resolves.toEqual({
       ok: false, error: 'forbidden', message: 'Solo el líder del grupo o la coordinación del taller registran recuperaciones.',
     })
-  })
-})
-
-describe('the switch', () => {
-  function tabla(result: { data: unknown; error: unknown }) {
-    const chain: Record<'select' | 'update' | 'eq' | 'maybeSingle', jest.Mock> & {
-      then: (resolve: (v: unknown) => unknown) => Promise<unknown>
-    } = {
-      select: jest.fn(),
-      update: jest.fn(),
-      eq: jest.fn(),
-      maybeSingle: jest.fn(() => Promise.resolve(result)),
-      then: (resolve) => Promise.resolve(result).then(resolve),
-    }
-    chain.select.mockReturnValue(chain)
-    chain.update.mockReturnValue(chain)
-    chain.eq.mockReturnValue(chain)
-    return { from: jest.fn(() => chain), chain }
-  }
-
-  it('reads permite_recuperar_clases', async () => {
-    const t = tabla({ data: { permite_recuperar_clases: false }, error: null })
-    setup({ from: t.from })
-    await expect(leerPermiteRecuperar('t-1')).resolves.toEqual({ ok: true, permite: false })
-    expect(t.chain.select).toHaveBeenCalledWith('permite_recuperar_clases')
-    expect(t.chain.eq).toHaveBeenCalledWith('id', 't-1')
-  })
-
-  it('saves it and revalidates the taller', async () => {
-    const t = tabla({ data: [{ id: 't-1' }], error: null })
-    setup({ from: t.from })
-    await expect(guardarPermiteRecuperar({ tallerId: 't-1', tallerSlug: 'mujer-de-hoy', permite: false })).resolves.toEqual({ ok: true })
-    expect(t.chain.update).toHaveBeenCalledWith({ permite_recuperar_clases: false })
-    expect(revalidateMock).toHaveBeenCalledWith('/talleres/mujer-de-hoy')
-  })
-
-  it('no row updated (RLS) → forbidden', async () => {
-    const t = tabla({ data: [], error: null })
-    setup({ from: t.from })
-    await expect(guardarPermiteRecuperar({ tallerId: 't-1', tallerSlug: 'mujer-de-hoy', permite: true })).resolves.toEqual({
-      ok: false, error: 'forbidden', message: 'No tienes permisos para hacer este cambio.',
-    })
-    expect(revalidateMock).not.toHaveBeenCalled()
   })
 })

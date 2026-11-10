@@ -47,12 +47,17 @@
  * looks like 2 missing rows). The route dedupes before calling the RPC;
  * the RPC itself is ALSO fixed to dedupe (T1 correction migration
  * 20260924140000) so any other caller is safe too.
+ *
+ * T9 (odd/tasks/talleres-reserva-publica.md, S6) — an assignment writes the
+ * «Grupo y líder asignados» notice; its email goes out after the response
+ * (despacharAvisosTalleres, never throws). An unassign writes no notice.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
+import { despacharAvisosTalleres } from '@/lib/platform/talleres/avisos-envio'
 
 interface Body {
   readonly inscripcion_ids: readonly string[]
@@ -214,6 +219,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   await revalidarPantallas(client, previas, grupoId)
+  if (grupoId) after(() => despacharAvisosTalleres())
 
   return NextResponse.json({
     asignadas: data?.asignadas ?? 0,

@@ -29,13 +29,14 @@
  * gets its access email: al aprobar (default) or al inscribirse.
  *
  * Mínimo de inscritos (odd/tasks/talleres-reserva-publica.md T8a, S9 S16) —
- * «Mínimo de inscritos para abrir» renders here with its own read and save
- * (MinimoInscritosCampo) until T9 folds it into «Guardar configuración».
+ * «Mínimo de inscritos para abrir» (MinimoInscritosCampo).
  *
  * Recuperar clase (odd/tasks/talleres-reserva-publica.md T8b, S17) — the
  * minimum reads «Clases mínimas para el certificado» (artboard 14) and the
- * «Recuperar clases aparte» switch (RecuperarClasesCampo) sits under it,
- * with its own read and save like the mínimo de inscritos.
+ * «Recuperar clases aparte» switch (RecuperarClasesCampo) sits under it.
+ *
+ * T9 (same doc, S8, L16) — both are controlled fields of this form and save
+ * with «Guardar configuración» (they had their own save before).
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -62,6 +63,10 @@ export interface ConfiguracionTallerProps {
   readonly intervaloEdicionesDias: number | null
   /** null = todas las clases dictadas. */
   readonly clasesMinimasParaCompletar: number | null
+  /** talleres.minimo_inscritos; null = sin mínimo. */
+  readonly minimoInscritos: number | null
+  /** talleres.permite_recuperar_clases. */
+  readonly permiteRecuperarClases: boolean
   /** talleres.momento_envio_acceso; defaults to 'al_aprobar'. */
   readonly momentoEnvioAcceso?: MomentoEnvioAcceso
   readonly cadenciaDias: number
@@ -90,6 +95,8 @@ export function ConfiguracionTaller({
   cierreInscripcionOffsetDias,
   intervaloEdicionesDias,
   clasesMinimasParaCompletar,
+  minimoInscritos,
+  permiteRecuperarClases,
   momentoEnvioAcceso = 'al_aprobar',
   cadenciaDias,
   duracionMinutos,
@@ -110,6 +117,9 @@ export function ConfiguracionTaller({
     clasesMinimasParaCompletar !== null ? String(clasesMinimasParaCompletar) : '',
   )
 
+  const [minimoSel, setMinimoSel] = useState(minimoInscritos !== null ? String(minimoInscritos) : '')
+  const [recuperarSel, setRecuperarSel] = useState(permiteRecuperarClases)
+
   const [momentoSel, setMomentoSel] = useState<MomentoEnvioAcceso>(momentoEnvioAcceso)
 
   const [cadencia, setCadencia] = useState(String(cadenciaDias))
@@ -120,6 +130,7 @@ export function ConfiguracionTaller({
     const cierreNum = Number(cierreSel)
     const intervaloNum = intervaloSel.trim() === '' ? null : Number(intervaloSel)
     const clasesMinimasNum = clasesMinimasSel.trim() === '' ? null : Number(clasesMinimasSel)
+    const minimoNum = minimoSel.trim() === '' ? null : Number(minimoSel)
     startTransition(async () => {
       const result = await updateTallerConfiguracion({
         tallerId,
@@ -130,6 +141,8 @@ export function ConfiguracionTaller({
         cierreInscripcionOffsetDias: cierreNum,
         intervaloEdicionesDias: intervaloNum,
         clasesMinimasParaCompletar: clasesMinimasNum,
+        minimoInscritos: minimoNum,
+        permiteRecuperarClases: recuperarSel,
         ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : {}),
       })
       if (result.ok) {
@@ -276,11 +289,11 @@ export function ConfiguracionTaller({
           </div>
 
           <div className="md:col-span-2">
-            <RecuperarClasesCampo tallerId={tallerId} tallerSlug={tallerSlug} puedeEditar />
+            <RecuperarClasesCampo permite={recuperarSel} onCambio={setRecuperarSel} puedeEditar />
           </div>
 
           <div className="md:col-span-2">
-            <MinimoInscritosCampo tallerId={tallerId} tallerSlug={tallerSlug} tipo={tipo} puedeEditar />
+            <MinimoInscritosCampo tipo={tipoSel} valor={minimoSel} onCambio={setMinimoSel} puedeEditar />
           </div>
 
           <div className="md:col-span-2">
@@ -326,11 +339,16 @@ export function ConfiguracionTaller({
           <Campo titulo="Clases mínimas para el certificado">
             {clasesMinimasLabel(clasesMinimasParaCompletar)}
           </Campo>
-          <RecuperarClasesCampo tallerId={tallerId} tallerSlug={tallerSlug} puedeEditar={false} />
+          <RecuperarClasesCampo permite={permiteRecuperarClases} onCambio={() => {}} puedeEditar={false} />
           <Campo titulo="Cadencia y duración">
             {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
           </Campo>
-          <MinimoInscritosCampo tallerId={tallerId} tallerSlug={tallerSlug} tipo={tipo} puedeEditar={false} />
+          <MinimoInscritosCampo
+            tipo={tipo}
+            valor={minimoInscritos !== null ? String(minimoInscritos) : ''}
+            onCambio={() => {}}
+            puedeEditar={false}
+          />
         </dl>
       )}
     </section>

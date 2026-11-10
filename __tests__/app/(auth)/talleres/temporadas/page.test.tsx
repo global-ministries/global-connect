@@ -19,7 +19,7 @@
  */
 
 import TemporadasPage from '@/app/(auth)/talleres/temporadas/page'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import type { TemporadaRow, DireccionConTalleres } from '@/lib/platform/talleres/temporadas'
 
@@ -170,11 +170,11 @@ describe('TemporadasPage — gate', () => {
 })
 
 describe('TemporadasPage — empty state', () => {
-  it('shows EstadoVacio with the exact copy when no dirección has any temporada', async () => {
+  it('shows EstadoVacioSistema with the exact copy when no dirección has any temporada', async () => {
     setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: true })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio).not.toBeNull()
     expect(String(vacio?.props.titulo)).toBe('Tu dirección todavía no tiene temporadas')
   })
@@ -183,7 +183,7 @@ describe('TemporadasPage — empty state', () => {
     setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: false })] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TemporadasPage()) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.subtitulo).toBeUndefined()
   })
 })

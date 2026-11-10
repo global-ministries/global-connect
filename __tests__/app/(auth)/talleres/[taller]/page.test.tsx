@@ -32,7 +32,7 @@ import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcio
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PaginaSistema, EnlaceSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { ChevronRight } from 'lucide-react'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
@@ -439,7 +439,7 @@ describe('TallerDetallePage — Equipo', () => {
     setup({ servidores: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toBe('Sin servidores activos en este equipo')
   })
 
@@ -451,7 +451,7 @@ describe('TallerDetallePage — Equipo', () => {
     setup({ cargaServidores: { ok: false, reason: 'sin_autoridad' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toBe('No tienes autoridad para ver el equipo de este taller.')
   })
 
@@ -634,6 +634,8 @@ describe('TallerDetallePage — permission wiring', () => {
         cierre_inscripcion_offset_dias: -3,
         intervalo_ediciones_dias: 28,
         clases_minimas_para_completar: 6,
+        minimo_inscritos: 12,
+        permite_recuperar_clases: false,
         cadencia_dias: 14,
         duracion_minutos: 75,
       },
@@ -650,10 +652,23 @@ describe('TallerDetallePage — permission wiring', () => {
       cierreInscripcionOffsetDias: -3,
       intervaloEdicionesDias: 28,
       clasesMinimasParaCompletar: 6,
+      minimoInscritos: 12,
+      permiteRecuperarClases: false,
       cadenciaDias: 14,
       duracionMinutos: 75,
       puedeEditar: true,
     })
+  })
+
+  // T9 (odd/tasks/talleres-reserva-publica.md) — mínimo and recuperar come
+  // from the loader now; a row without them reads «sin mínimo» and «sí».
+  it('passes minimoInscritos null and permiteRecuperarClases true when the row has neither', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const config = findByType(element, ConfiguracionTaller)
+    expect(config?.props.minimoInscritos).toBeNull()
+    expect(config?.props.permiteRecuperarClases).toBe(true)
   })
 
   it('passes gruposPlantillaActivos as the count of ACTIVE plantilla grupos', async () => {
@@ -1050,5 +1065,38 @@ describe('TallerDetallePage — content', () => {
       (l) => l.props.href === rutaEdicion('matrimonio-sobre-la-roca', 'e-1'),
     )
     expect(edicionLink).toBeDefined()
+  })
+})
+
+// T9 (odd/tasks/talleres-reserva-publica.md, S8) — "Avisos" (./avisos) sits
+// next to "Compartir" (./compartir): same editarTaller gate, both in the
+// desktop header and in the phone block of the cabecera.
+describe('TallerDetallePage — Avisos y Compartir', () => {
+  const AVISOS = '/talleres/matrimonio-sobre-la-roca/avisos'
+  const COMPARTIR = '/talleres/matrimonio-sobre-la-roca/compartir'
+
+  function hrefs(node: unknown): string[] {
+    return findAllByType(node, Link).map((l) => String(l.props.href))
+  }
+
+  it('shows Avisos next to Compartir in the desktop header and on the phone with editarTaller', async () => {
+    setup({ permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const acciones = findByType(element, PaginaSistema)?.props.acciones
+    expect(hrefs(acciones)).toEqual([AVISOS, COMPARTIR])
+    expect(extractText(acciones)).toMatch(/Avisos.*Compartir/)
+    // Phone copy inside the cabecera card (hidden from md).
+    const enCuerpo = hrefs(element).filter((h) => h === AVISOS || h === COMPARTIR)
+    expect(enCuerpo).toEqual([AVISOS, COMPARTIR])
+  })
+
+  it('hides Avisos and Compartir without editarTaller', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PaginaSistema)?.props.acciones).toBeUndefined()
+    expect(hrefs(element)).not.toContain(AVISOS)
+    expect(hrefs(element)).not.toContain(COMPARTIR)
   })
 })

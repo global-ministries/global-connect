@@ -113,7 +113,7 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import {
   claseEstadoBadgeVariante,
   claseEstadoLabel,
@@ -444,7 +444,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <div className="mt-3">
           {asignaciones.length === 0 ? (
-            <EstadoVacio icono={Users} titulo="No hay personas asignadas todavía" />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema icono={Users} titulo="No hay personas asignadas todavía" />
+            </TarjetaSistema>
           ) : (
             <TarjetaSistema className="p-0">
               <ul className="divide-y divide-border">
@@ -472,7 +474,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <div className="mt-3">
           {inscripcionesGrupo.aprobadas.length === 0 && inscripcionesGrupo.retiradas.length === 0 ? (
-            <EstadoVacio icono={Users} titulo="No hay participantes todavía" />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema icono={Users} titulo="No hay participantes todavía" />
+            </TarjetaSistema>
           ) : (
             <div className="space-y-4">
               {inscripcionesGrupo.aprobadas.length === 0 ? (
@@ -539,14 +543,16 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <div className="mt-3">
           {sesiones.length === 0 ? (
-            <EstadoVacio
-              icono={Calendar}
-              titulo={
-                modoLimitado
-                  ? 'Todavía no tienes permiso para ver las clases de este grupo'
-                  : 'No hay clases todavía'
-              }
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={Calendar}
+                titulo={
+                  modoLimitado
+                    ? 'Todavía no tienes permiso para ver las clases de este grupo'
+                    : 'No hay clases todavía'
+                }
+              />
+            </TarjetaSistema>
           ) : (
             <TarjetaSistema className="p-0">
               <ul className="divide-y divide-border">
@@ -678,18 +684,20 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               dadaPorDefecto={miRol === 'lider' ? session.personaId : (lideres[0]?.personaId ?? null)}
             />
           ) : asistencia.length === 0 ? (
-            <EstadoVacio
-              icono={ClipboardList}
-              titulo={
-                // A grupo member reads this by relation (T2), not by
-                // capability — RLS already decided what data arrives, so
-                // an empty result for a member is honestly "nothing yet",
-                // never "no permission".
-                permisos.ver || esMiembro
-                  ? 'Aún no hay asistencia registrada para esta clase'
-                  : 'No tienes permiso para ver la asistencia de esta clase'
-              }
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={ClipboardList}
+                titulo={
+                  // A grupo member reads this by relation (T2), not by
+                  // capability — RLS already decided what data arrives, so
+                  // an empty result for a member is honestly "nothing yet",
+                  // never "no permission".
+                  permisos.ver || esMiembro
+                    ? 'Aún no hay asistencia registrada para esta clase'
+                    : 'No tienes permiso para ver la asistencia de esta clase'
+                }
+              />
+            </TarjetaSistema>
           ) : (
             <LecturaAsistenciaClase
               numero={claseSeleccionada.numero}
@@ -716,15 +724,17 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </div>
         <div className="mt-3">
           {!reporte ? (
-            <EstadoVacio
-              icono={FileText}
-              titulo={
-                // Same relation-vs-capability honesty as asistencia above.
-                permisos.verReportes || esMiembro
-                  ? 'Aún no hay reporte para este grupo'
-                  : 'No tienes permiso para ver el reporte de este grupo'
-              }
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={FileText}
+                titulo={
+                  // Same relation-vs-capability honesty as asistencia above.
+                  permisos.verReportes || esMiembro
+                    ? 'Aún no hay reporte para este grupo'
+                    : 'No tienes permiso para ver el reporte de este grupo'
+                }
+              />
+            </TarjetaSistema>
           ) : (
             <TarjetaSistema variante="elevated" className="p-4">
               <TextoSistema variante="sutil" className="block text-sm">

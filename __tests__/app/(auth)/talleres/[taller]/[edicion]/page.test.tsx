@@ -12,7 +12,7 @@
  * session, each an informational card, inspected via extractText/findByType
  * rather than full rendering — OpenEdicionButton/CloseEdicionButton/
  * GruposSection are real client components with their own hooks, so they're
- * mocked to marker components; TablaInscripciones/EstadoVacio are plain
+ * mocked to marker components; TablaInscripciones/EstadoVacioSistema are plain
  * server components, left unmocked and inspected via their props).
  *
  * This page adds a SECOND resolution step beyond the taller-by-slug lookup:
@@ -31,7 +31,7 @@ import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edic
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -440,7 +440,7 @@ describe('EdicionDetallePage — permission wiring', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
     expect(findByType(element, TablaInscripciones)).toBeNull()
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio).not.toBeNull()
     expect(vacio?.props.titulo).toMatch(/no hay inscritos todavía/i)
   })

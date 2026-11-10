@@ -107,7 +107,7 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
@@ -387,7 +387,9 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
         )}
         <div className="mt-3">
           {inscripciones.rows.length === 0 ? (
-            <EstadoVacio icono={Users} titulo="No hay inscritos todavía" />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema icono={Users} titulo="No hay inscritos todavía" />
+            </TarjetaSistema>
           ) : (
             <TablaInscripciones
               rows={filasInscripciones}

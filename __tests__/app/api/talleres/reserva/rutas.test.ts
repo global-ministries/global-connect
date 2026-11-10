@@ -10,6 +10,19 @@ import { NextRequest } from 'next/server'
 jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: jest.fn() }))
 jest.mock('@/lib/email/send', () => ({ sendEmail: jest.fn() }))
 jest.mock('@/lib/platform/talleres/invitacion-acceso-envio', () => ({ enviarInvitacionAcceso: jest.fn() }))
+jest.mock('@/lib/platform/talleres/avisos-envio', () => ({ despacharAvisosTalleres: jest.fn() }))
+const tareasAfter: Array<() => unknown> = []
+jest.mock('next/server', () => ({
+  ...jest.requireActual('next/server'),
+  after: (tarea: () => unknown) => {
+    tareasAfter.push(tarea)
+  },
+}))
+
+/** Runs what the route left for after the response. */
+async function despuesDeResponder() {
+  for (const t of tareasAfter.splice(0)) await t()
+}
 
 import { POST as avisame } from '@/app/api/talleres/reserva/avisame/route'
 import { POST as reenviar } from '@/app/api/talleres/reserva/codigo/reenviar/route'
@@ -20,6 +33,7 @@ import { POST as identificar } from '@/app/api/talleres/reserva/identificar/rout
 const createAdmin = jest.requireMock('@/lib/supabase/admin').createSupabaseAdminClient as jest.Mock
 const sendEmail = jest.requireMock('@/lib/email/send').sendEmail as jest.Mock
 const enviarInvitacion = jest.requireMock('@/lib/platform/talleres/invitacion-acceso-envio').enviarInvitacionAcceso as jest.Mock
+const despacharAvisos = jest.requireMock('@/lib/platform/talleres/avisos-envio').despacharAvisosTalleres as jest.Mock
 
 const EDICION = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const CODIGO_ID = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
@@ -41,6 +55,8 @@ beforeEach(() => {
   createAdmin.mockReturnValue({ rpc })
   sendEmail.mockResolvedValue({ success: true })
   enviarInvitacion.mockResolvedValue('enviada')
+  despacharAvisos.mockReset().mockResolvedValue(undefined)
+  tareasAfter.splice(0)
   errorLog = jest.spyOn(console, 'error').mockImplementation(() => {})
 })
 afterEach(() => errorLog.mockRestore())
@@ -118,6 +134,21 @@ describe('POST /api/talleres/reserva/*', () => {
     rpc.mockResolvedValueOnce({ data: { estado: 'ok', inscripcion_id: 'i', invitacion_id: null, por_verificar: true }, error: null })
     await crear(pedir('crear', JSON.stringify({ edicionId: EDICION, principal: { por_verificar: { cedula: '15598745' } } })))
     expect(enviarInvitacion).not.toHaveBeenCalled()
+  })
+
+  // T9 (S6, L22) — the notices email goes out after the response (after()).
+  it('crear sends the due notices after the response, only on success', async () => {
+    rpc.mockResolvedValueOnce({ data: { estado: 'ok', inscripcion_id: 'i', invitacion_id: null, por_verificar: false }, error: null })
+    const res = await crear(pedir('crear', JSON.stringify({ edicionId: EDICION, principal: { por_verificar: { cedula: '15598745' } } })))
+    expect(res.status).toBe(200)
+    expect(despacharAvisos).not.toHaveBeenCalled()
+    await despuesDeResponder()
+    expect(despacharAvisos).toHaveBeenCalledTimes(1)
+
+    rpc.mockResolvedValueOnce({ data: { estado: 'cerrada' }, error: null })
+    expect((await crear(pedir('crear', JSON.stringify({ edicionId: EDICION, principal: { por_verificar: { cedula: '15598745' } } })))).status).toBe(409)
+    await despuesDeResponder()
+    expect(despacharAvisos).toHaveBeenCalledTimes(1)
   })
 
   it('avisame stores the request', async () => {

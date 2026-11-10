@@ -74,6 +74,8 @@ export interface DependenciasReserva {
   readonly enviarCorreo: (correo: CorreoReserva) => Promise<{ success: boolean }>
   /** Sends the /activar email of one invitation; never throws. */
   readonly enviarInvitacion: (invitacionId: string) => Promise<unknown>
+  /** Sends the due notice emails (the «Inscripción recibida» just written); never throws. */
+  readonly despacharAvisos: () => Promise<unknown>
   /** Random by default; tests pin them. */
   readonly codigo?: () => string
   readonly token?: () => string
@@ -321,6 +323,7 @@ export async function crearReserva(deps: DependenciasReserva, body: unknown, ip:
   if (estado === 'ok') {
     const invitacionId = typeof d.invitacion_id === 'string' ? d.invitacion_id : null
     if (invitacionId) await deps.enviarInvitacion(invitacionId)
+    await deps.despacharAvisos()
     return responder('ok', { porVerificar: d.por_verificar === true, cuentaNueva: invitacionId !== null })
   }
   if (estado === 'invalido') {

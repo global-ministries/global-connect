@@ -39,15 +39,17 @@ function preparar(respuestas: Record<string, Respuesta>) {
   const rpc = jest.fn(async (nombre: string) => respuestas[nombre] ?? { data: null, error: null })
   const enviarCorreo = jest.fn(async () => ({ success: true }))
   const enviarInvitacion = jest.fn(async () => 'enviada')
+  const despacharAvisos = jest.fn(async () => undefined)
   const deps: DependenciasReserva = {
     rpc,
     sal: 'sal-de-prueba',
     enviarCorreo,
     enviarInvitacion,
+    despacharAvisos,
     codigo: () => '042917',
     token: () => TOKEN,
   }
-  return { deps, rpc, enviarCorreo, enviarInvitacion }
+  return { deps, rpc, enviarCorreo, enviarInvitacion, despacharAvisos }
 }
 
 const llamada = (rpc: jest.Mock, nombre: string) => rpc.mock.calls.find((c) => c[0] === nombre)?.[1] as Record<string, unknown> | undefined
@@ -286,11 +288,31 @@ describe('crearReserva', () => {
   })
 
   it('honeypot: fake ok without writing', async () => {
-    const { deps, rpc, enviarInvitacion } = preparar({})
+    const { deps, rpc, enviarInvitacion, despacharAvisos } = preparar({})
     const r = await crearReserva(deps, { edicionId: EDICION, principal: { ficha_nueva: ficha }, sitio_web: 'x' }, IP)
     expect(r).toEqual({ status: 200, body: { estado: 'ok', porVerificar: false, cuentaNueva: true } })
     expect(rpc).not.toHaveBeenCalled()
     expect(enviarInvitacion).not.toHaveBeenCalled()
+    expect(despacharAvisos).not.toHaveBeenCalled()
+  })
+
+  // T9 (S6, L22) — the «Inscripción recibida» notice is written with the
+  // inscription; its email goes out right away, not at the daily cron.
+  it('sends the due notices once after a created reservation', async () => {
+    const { deps, despacharAvisos } = preparar({
+      talleres_reserva_crear: { data: { estado: 'ok', inscripcion_id: 'x', invitacion_id: null, por_verificar: false }, error: null },
+    })
+    await crearReserva(deps, { edicionId: EDICION, principal: { token: TOKEN } }, IP)
+    expect(despacharAvisos).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not send notices when the database refuses or fails', async () => {
+    const rechazo = preparar({ talleres_reserva_crear: { data: { estado: 'cupo_lleno' }, error: null } })
+    await crearReserva(rechazo.deps, { edicionId: EDICION, principal: { token: TOKEN } }, IP)
+    expect(rechazo.despacharAvisos).not.toHaveBeenCalled()
+    const caida = preparar({ talleres_reserva_crear: { data: null, error: { code: 'XX000', message: 'x' } } })
+    await crearReserva(caida.deps, { edicionId: EDICION, principal: { token: TOKEN } }, IP)
+    expect(caida.despacharAvisos).not.toHaveBeenCalled()
   })
 
   it.each([

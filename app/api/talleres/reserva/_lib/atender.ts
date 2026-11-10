@@ -4,12 +4,14 @@
  * /talleres/reservar[/slug] post here. The body is size-capped and parsed,
  * the handler of lib/platform/talleres/reserva-publica-servidor runs with the
  * service-role client (every RPC is service_role only), the salted IP hash
- * and the email senders. Errors are logged by name only.
+ * and the email senders. Errors are logged by name only. The notices email
+ * (despacharAvisosTalleres, never throws) runs after the response.
  */
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 
 import { sendEmail } from '@/lib/email/send'
 import { ipDeSolicitud } from '@/lib/platform/ninos/preregistro-servidor'
+import { despacharAvisosTalleres } from '@/lib/platform/talleres/avisos-envio'
 import { enviarInvitacionAcceso } from '@/lib/platform/talleres/invitacion-acceso-envio'
 import { LIMITE_CUERPO, MENSAJES } from '@/lib/platform/talleres/reserva-publica'
 import { rpcServicio, type DependenciasReserva, type RespuestaRuta } from '@/lib/platform/talleres/reserva-publica-servidor'
@@ -22,6 +24,9 @@ function dependencias(): DependenciasReserva {
     sal: process.env.TALLERES_RESERVA_SAL ?? process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'talleres-reserva',
     enviarCorreo: sendEmail,
     enviarInvitacion: (id) => enviarInvitacionAcceso(id),
+    despacharAvisos: async () => {
+      after(() => despacharAvisosTalleres())
+    },
   }
 }
 
