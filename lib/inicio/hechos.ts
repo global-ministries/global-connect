@@ -16,6 +16,10 @@ export type ServicioActivo = { servicioId: string; equipoId: string; nivel: stri
 /** Counts of things waiting for this person outside «Mis servicios». */
 export type PendientesInicio = {
   reportesSinCargar: number
+  /** Leaders in the director's etapa or segmento without this week's report. */
+  lideresSinReporte: number
+  /** Volunteers of the person's Dream Team area without the Próximo Paso milestone. */
+  marcarProximoPaso: number
   solicitudesGrupo: number
   casasPorRevisar: number
   gruposSinCasa: number
@@ -60,6 +64,8 @@ export const HECHOS_VACIOS: HechosInicio = {
   hizoProximoPaso: null,
   pendientes: {
     reportesSinCargar: 0,
+    lideresSinReporte: 0,
+    marcarProximoPaso: 0,
     solicitudesGrupo: 0,
     casasPorRevisar: 0,
     gruposSinCasa: 0,

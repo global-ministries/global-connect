@@ -7,6 +7,8 @@ import type { HechosInicio, PendientesInicio } from './hechos'
 
 export type TipoPendiente =
   | 'reportes-sin-cargar'
+  | 'lideres-sin-reporte'
+  | 'marcar-proximo-paso'
   | 'solicitudes-grupo'
   | 'casas-por-revisar'
   | 'grupos-sin-casa'
@@ -44,6 +46,8 @@ export type SeccionInicio =
 // Most urgent first: an overdue report before approvals, tickets last.
 const ORDEN_PENDIENTES: ReadonlyArray<[keyof PendientesInicio, TipoPendiente]> = [
   ['reportesSinCargar', 'reportes-sin-cargar'],
+  ['lideresSinReporte', 'lideres-sin-reporte'],
+  ['marcarProximoPaso', 'marcar-proximo-paso'],
   ['solicitudesGrupo', 'solicitudes-grupo'],
   ['casasPorRevisar', 'casas-por-revisar'],
   ['gruposSinCasa', 'grupos-sin-casa'],

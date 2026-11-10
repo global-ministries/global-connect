@@ -67,6 +67,17 @@ describe('decidirSecciones · para responder (S1)', () => {
   })
 })
 
+describe('decidirSecciones · pendientes de directores (S5, S7)', () => {
+  it('suma líderes sin reporte y Próximo Paso por marcar después de los reportes propios', () => {
+    const h = hechos({ pendientes: { reportesSinCargar: 1, lideresSinReporte: 4, marcarProximoPaso: 3 } })
+    expect(seccion(h, 'para-responder')?.items.map((i) => i.tipo)).toEqual([
+      'reportes-sin-cargar',
+      'lideres-sin-reporte',
+      'marcar-proximo-paso',
+    ])
+  })
+})
+
 describe('decidirSecciones · mis servicios (S1, S2)', () => {
   it('aparece con un servicio activo de Dream Team', () => {
     expect(seccion(hechos({ serviciosActivos: [servicio()] }), 'mis-servicios')).toEqual({ id: 'mis-servicios', porConfirmar: 0 })

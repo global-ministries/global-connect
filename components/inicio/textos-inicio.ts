@@ -11,6 +11,7 @@ import {
   HandHeart,
   House,
   LifeBuoy,
+  UserCheck,
   UserPlus,
   Users,
   type LucideIcon,
@@ -26,7 +27,15 @@ export const RUTA_PERFIL = '/perfil'
 export const RUTA_PROXIMO_PASO = RUTA_TALLERES
 export const RUTA_DREAM_TEAM = '/dream-team'
 
+export const RUTA_REPORTE_SEMANAL = '/grupos-vida/reportes/asistencia-semanal'
+export const RUTA_TABLERO_GRUPOS = '/grupos-vida/dashboard-riesgo'
+export const RUTA_MI_EQUIPO = '/dream-team/mi-equipo'
+/** Anchor of the first «Próximo Paso de tus voluntarios» list. */
+export const ID_PROXIMO_PASO_VOLUNTARIOS = 'proximo-paso-voluntarios'
+
 export const rutaGrupo = (grupoId: string) => `/grupos-vida/${grupoId}`
+export const rutaAsistenciaGrupo = (grupoId: string) => `/grupos-vida/${grupoId}/asistencia`
+export const rutaSaludGrupo = (grupoId: string) => `/grupos-vida/${grupoId}/salud`
 
 export const DESCRIPCION_PROXIMO_PASO =
   'Conoce la visión de Global, cómo funciona la iglesia y dónde puedes crecer. Es el primer paso para todo lo demás.'
@@ -43,6 +52,8 @@ export type TextoPendiente = {
 
 export const PENDIENTES: Record<TipoPendiente, TextoPendiente> = {
   'reportes-sin-cargar': { titulo: 'Reportes de asistencia sin cargar', detalle: 'De los grupos que lideras', estado: 'Atrasado', tono: 'danger', cta: 'Pasar asistencia', href: '/grupos-vida', icono: ClipboardList },
+  'lideres-sin-reporte': { titulo: 'Líderes sin reporte', detalle: 'La semana pasada, en lo que diriges', estado: 'Atrasado', tono: 'danger', cta: 'Ver líderes', href: RUTA_REPORTE_SEMANAL, icono: ClipboardList },
+  'marcar-proximo-paso': { titulo: 'Marcar Próximo Paso', detalle: 'Voluntarios sin la marca; sin ella no pasan a activos', estado: 'Por marcar', tono: 'warning', cta: 'Marcar abajo', href: `#${ID_PROXIMO_PASO_VOLUNTARIOS}`, icono: UserCheck },
   'solicitudes-grupo': { titulo: 'Solicitudes de grupo', detalle: 'Unirse o cambiarse de grupo', estado: 'Por aprobar', tono: 'warning', cta: 'Revisar', href: '/grupos-vida/solicitudes', icono: UserPlus },
   'casas-por-revisar': { titulo: 'Casas anfitrionas por revisar', detalle: 'Propuestas por líderes', estado: 'Por revisar', tono: 'warning', cta: 'Revisar', href: '/grupos-vida/casas-anfitrionas/revision', icono: House },
   'grupos-sin-casa': { titulo: 'Grupos sin casa anfitriona', detalle: 'Necesitan un lugar para reunirse', estado: 'Sin casa', tono: 'warning', cta: 'Buscar casa', href: '/grupos-vida/casas-anfitrionas/asignar', icono: House },
