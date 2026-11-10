@@ -31,13 +31,24 @@ export function MigasInicio(): ReactElement {
   )
 }
 
-/** Small uppercase heading of a section plus an optional trailing link or count. */
-export function EncabezadoSeccion({ id, titulo, children }: { readonly id: string; readonly titulo: string; readonly children?: ReactNode }): ReactElement {
+/** Small uppercase heading of a section (or, `nivel` 3, of a list inside it) plus an optional trailing link or count. */
+export function EncabezadoSeccion({
+  id,
+  titulo,
+  nivel = 2,
+  children,
+}: {
+  readonly id: string
+  readonly titulo: string
+  readonly nivel?: 2 | 3
+  readonly children?: ReactNode
+}): ReactElement {
+  const Titulo = nivel === 2 ? 'h2' : 'h3'
   return (
     <div className="mb-2 flex min-h-11 items-center gap-2 px-1">
-      <h2 id={id} className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+      <Titulo id={id} className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         {titulo}
-      </h2>
+      </Titulo>
       {children}
     </div>
   )
