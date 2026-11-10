@@ -1,8 +1,10 @@
 -- T5a (odd/tasks/talleres-reserva-publica.md) — RED→GREEN for
 -- 20261110140000_talleres_reserva_publica_rpc.sql: the public catalog, the
 -- identify/code/resend steps, talleres_reserva_crear, avísame and the
--- taller_publico invitation. Run against STAGING inside BEGIN…ROLLBACK
--- AFTER 20261110120000 and 20261110130000 — nothing here is kept; fixture
+-- taller_publico invitation, plus the hardening of
+-- 20261110180000_talleres_reserva_publica_endurecer.sql (section 8). Run
+-- against STAGING inside BEGIN…ROLLBACK AFTER 20261110121000 through
+-- 20261110180000 — nothing here is kept; fixture
 -- ids live under the cf300000-... namespace, cédulas start with 99830 and
 -- emails end in @example.test. Calls run as postgres (the service_role
 -- path); grants are checked with has_function_privilege and role switches.
@@ -26,7 +28,10 @@
 --   inscrito, por_verificar, ficha nueva + taller_publico invitation,
 --   neutral refusals, genero_requerido, cerrada, cupo lleno, pareja
 --   modes, ip limit, existing fichas unchanged, always pendiente/publico);
---   7 avísame dedupe.
+--   7 avísame dedupe; 8 hardening (code notices scoped to their edición,
+--   no principal name for an unverified principal, 20 unverified
+--   creations per edición per day, two tokens used once, taller_pareja
+--   al_aprobar invitation not ready, avísame domain case).
 
 BEGIN;
 
@@ -217,7 +222,7 @@ INSERT INTO t_rr_fn VALUES
   ('public.reserva_publica_consumir(text,text,text,integer,interval,integer,interval,integer,interval)'),
   ('public.talleres_reserva_edicion_publica(uuid)'), ('public.talleres_reserva_email_mascara(text)'),
   ('public.talleres_reserva_ficha(jsonb,boolean)'), ('public.talleres_reserva_ficha_crear(jsonb,text)'),
-  ('public.talleres_reserva_es_menor(uuid)'), ('public.talleres_reserva_avisos_retirar(uuid)'),
+  ('public.talleres_reserva_es_menor(uuid)'), ('public.talleres_reserva_avisos_retirar(uuid,uuid)'),
   ('public.talleres_reserva_codigo_envio(uuid,text)'), ('public.talleres_publico_taller_json(uuid)'),
   ('public.talleres_publico_catalogo()'), ('public.talleres_publico_taller(text)'),
   ('public.talleres_reserva_identificar(uuid,text,text,text,text)'),
@@ -623,6 +628,182 @@ SELECT pg_temp.capture('7: an invalid email names the field', 'av_bad',
 SELECT pg_temp.capture('7: a private taller is cerrada', 'av_priv',
   $$SELECT public.talleres_avisame_lugar_agregar('cf300000-0000-4000-8000-000000000093', 'Ana', 'cf3-av@example.test', pg_temp.h('ip-a'))$$,
   '{"estado":"cerrada"}');
+
+-- ══ 8. Hardening (20261110180000) ══
+-- Fixtures: E_cap 96 (T_pub, cohorte c6), X6 48 ('Marta Elena', account
+-- a3, email), P2 49 (no email), PV 51 ('Diego', no email), PS 52 (no
+-- email), T1 53 / T2 54 (email: both partners confirm with a code).
+
+INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata) VALUES
+  ('cf300000-0000-4000-8000-000000000086', 'workshop', 'active', 'ZZ RP3 Evento 6', CURRENT_DATE, 'talleres_crecimiento', '{}'::jsonb);
+INSERT INTO public.taller_ediciones (
+  id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+  nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+  fecha_inicio, cierre_inscripcion, fecha_fin
+) VALUES ('cf300000-0000-4000-8000-000000000096', 'cf300000-0000-4000-8000-000000000086', 'cf300000-0000-4000-8000-000000000010',
+  'individual', NULL, 'permanente_custom', 'abierto', 'ZZ RP3 E6', 6, 90, 'permanente_custom',
+  CURRENT_DATE + 30, CURRENT_DATE + 20, CURRENT_DATE + 60);
+INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion, started_at) VALUES
+  ('cf300000-0000-4000-8000-0000000000c6', 'cf300000-0000-4000-8000-000000000096', 'cf300000-0000-4000-8000-000000000001',
+   'ZZ RP3 Cohorte 6', (CURRENT_DATE + 30)::timestamptz);
+INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) VALUES
+  ('cf300000-0000-4000-8000-0000000000a3', 'authenticated', 'authenticated', 'cf3-x6@example.test', now(), '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now())
+ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, telefono, cedula, fecha_nacimiento, estado_civil, genero) VALUES
+  ('cf300000-0000-4000-8000-000000000048', 'cf300000-0000-4000-8000-0000000000a3', 'Marta Elena', 'ZZRP3 Seis', 'cf3-x6@example.test', NULL, '99830008', DATE '1984-01-01', 'Casado', 'Femenino'),
+  ('cf300000-0000-4000-8000-000000000049', NULL, 'Carlos', 'ZZRP3 Nueve', NULL, NULL, '99830009', DATE '1983-01-01', 'Casado', 'Masculino'),
+  ('cf300000-0000-4000-8000-000000000051', NULL, 'Diego', 'ZZRP3 Once', NULL, NULL, '99830011', DATE '1981-01-01', 'Casado', 'Masculino'),
+  ('cf300000-0000-4000-8000-000000000052', NULL, 'Sara', 'ZZRP3 Doce', NULL, NULL, '99830012', DATE '1982-01-01', 'Casado', 'Femenino'),
+  ('cf300000-0000-4000-8000-000000000053', NULL, 'Mateo', 'ZZRP3 Trece', 'cf3-x13@example.test', NULL, '99830013', DATE '1980-01-01', 'Casado', 'Masculino'),
+  ('cf300000-0000-4000-8000-000000000054', NULL, 'Lucia', 'ZZRP3 Catorce', 'cf3-x14@example.test', NULL, '99830014', DATE '1981-01-01', 'Casado', 'Femenino');
+
+SELECT pg_temp.assert_rows('8: the one-argument talleres_reserva_avisos_retirar is gone',
+  $$SELECT 1 WHERE to_regprocedure('public.talleres_reserva_avisos_retirar(uuid)') IS NULL$$, 1);
+
+-- Fix 3: a code only retires the code notices of its own edición.
+SELECT pg_temp.capture('8: X6 gets a code on E_pub', 'id_x6_a',
+  $$SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000090', '99830008', pg_temp.h('ip-81'),
+     pg_temp.h('c-x6-a'), 'Código A') -> 'estado'$$, '"codigo"');
+SELECT pg_temp.capture('8: X6 gets a code on E_muj', 'id_x6_b',
+  $$SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000091', '99830008', pg_temp.h('ip-81'),
+     pg_temp.h('c-x6-b'), 'Código B') -> 'estado'$$, '"codigo"');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('cf300000-0000-4000-8000-0000000000a3');
+SELECT pg_temp.assert_rows('8: a code on E_muj keeps the live E_pub notice (both readable)',
+  $$SELECT 1 FROM public.mis_avisos() a WHERE a.tipo = 'codigo_reserva'
+     AND ((a.cuerpo = 'Código A' AND a.datos ->> 'edicion_id' = 'cf300000-0000-4000-8000-000000000090')
+       OR (a.cuerpo = 'Código B' AND a.datos ->> 'edicion_id' = 'cf300000-0000-4000-8000-000000000091'))$$, 2);
+RESET ROLE;
+SELECT pg_temp.capture('8: X6 verifies the E_muj code', 'ver_x6_b',
+  $$SELECT public.talleres_reserva_codigo_verificar((SELECT c.id FROM public.taller_reserva_codigos c WHERE c.codigo_hash = pg_temp.h('c-x6-b')),
+     pg_temp.h('c-x6-b'), pg_temp.h('t-x6-b'), pg_temp.h('ip-81'))$$, '{"estado":"ok","nombre":"Marta"}');
+SELECT pg_temp.assert_rows('8: verifying on E_muj retires only the E_muj notice',
+  $$SELECT a.cuerpo FROM public.avisos_persona a WHERE a.persona_id = 'cf300000-0000-4000-8000-000000000048'
+     AND a.tipo = 'codigo_reserva' AND a.expira_at > now() AND a.cuerpo = 'Código A'
+    UNION ALL
+    SELECT 'x' FROM public.avisos_persona a WHERE a.persona_id = 'cf300000-0000-4000-8000-000000000048'
+     AND a.tipo = 'codigo_reserva' AND a.datos ->> 'edicion_id' = 'cf300000-0000-4000-8000-000000000091'
+     AND (a.cuerpo IS NOT NULL OR a.expira_at > now())$$, 1);
+SELECT pg_temp.capture('8: a new code on E_pub', 'id_x6_a2',
+  $$SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000090', '99830008', pg_temp.h('ip-81'),
+     pg_temp.h('c-x6-a2'), 'Código A2') -> 'estado'$$, '"codigo"');
+SELECT pg_temp.assert_rows('8: a new code on the same edición still replaces its notice',
+  $$SELECT a.cuerpo FROM public.avisos_persona a WHERE a.persona_id = 'cf300000-0000-4000-8000-000000000048'
+     AND a.tipo = 'codigo_reserva' AND a.expira_at > now() AND a.cuerpo IS NOT NULL$$, 1);
+SELECT pg_temp.assert_rows('8: and it is the new one',
+  $$SELECT 1 FROM public.avisos_persona a WHERE a.persona_id = 'cf300000-0000-4000-8000-000000000048'
+     AND a.tipo = 'codigo_reserva' AND a.expira_at > now() AND a.cuerpo = 'Código A2'$$, 1);
+
+-- Fix 1: the partner's notice names only a verified or new principal.
+SELECT pg_temp.run('8: X6 verifies on E_par',
+  $$SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000092', '99830008', pg_temp.h('ip-82'), pg_temp.h('c-x6-par'));
+    SELECT public.talleres_reserva_codigo_verificar((SELECT c.id FROM public.taller_reserva_codigos c WHERE c.codigo_hash = pg_temp.h('c-x6-par')),
+      pg_temp.h('c-x6-par'), pg_temp.h('t-x6-par'), pg_temp.h('ip-82'))$$);
+SELECT pg_temp.capture('8: verified principal + pending partner', 'cr_x6_par',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000092',
+     jsonb_build_object('token', pg_temp.h('t-x6-par'), 'pareja', '{"pendiente_cedula":"99830009"}'::jsonb), pg_temp.h('ip-83'))
+     - 'inscripcion_id'$$, '{"estado":"ok","invitacion_id":null,"por_verificar":true}');
+SELECT pg_temp.assert_rows('8: the partner of a verified principal reads the principal''s first name',
+  $$SELECT 1 FROM public.avisos_persona a WHERE a.persona_id = 'cf300000-0000-4000-8000-000000000049'
+     AND a.tipo = 'taller_pareja_por_confirmar'
+     AND a.cuerpo = 'Marta te inscribió como su pareja. Si no es correcto, avísale a la iglesia.'$$, 1);
+SELECT pg_temp.capture('8: unverified principal + pending partner', 'cr_pv_par',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000092',
+     '{"por_verificar":{"cedula":"99830011"},"pareja":{"pendiente_cedula":"99830012"}}', pg_temp.h('ip-84'))
+     - 'inscripcion_id'$$, '{"estado":"ok","invitacion_id":null,"por_verificar":true}');
+SELECT pg_temp.assert_rows('8: the partner of an unverified principal reads a neutral text without a name',
+  $$SELECT 1 FROM public.avisos_persona a WHERE a.persona_id = 'cf300000-0000-4000-8000-000000000052'
+     AND a.tipo = 'taller_pareja_por_confirmar'
+     AND a.cuerpo = 'Te inscribieron como pareja en ZZ RP3 Parejas. Si no es correcto, avísale a la iglesia.'
+     AND a.cuerpo NOT LIKE '%Diego%' AND a.titulo NOT LIKE '%Diego%'$$, 1);
+
+-- Fix 4: two tokens (locked in id order) are each used once.
+SELECT pg_temp.run('8: T1 and T2 verify on E_par',
+  $$SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000092', '99830013', pg_temp.h('ip-85'), pg_temp.h('c-t1'));
+    SELECT public.talleres_reserva_codigo_verificar((SELECT c.id FROM public.taller_reserva_codigos c WHERE c.codigo_hash = pg_temp.h('c-t1')),
+      pg_temp.h('c-t1'), pg_temp.h('t-t1'), pg_temp.h('ip-85'));
+    SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000092', '99830014', pg_temp.h('ip-85'), pg_temp.h('c-t2'));
+    SELECT public.talleres_reserva_codigo_verificar((SELECT c.id FROM public.taller_reserva_codigos c WHERE c.codigo_hash = pg_temp.h('c-t2')),
+      pg_temp.h('c-t2'), pg_temp.h('t-t2'), pg_temp.h('ip-85'))$$);
+SELECT pg_temp.capture('8: both partners verified', 'cr_t1t2',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000092',
+     jsonb_build_object('token', pg_temp.h('t-t1'), 'pareja', jsonb_build_object('token', pg_temp.h('t-t2'))), pg_temp.h('ip-86'))
+     - 'inscripcion_id'$$, '{"estado":"ok","invitacion_id":null,"por_verificar":false}');
+SELECT pg_temp.assert_rows('8: one row T1 + T2 (pareja_origen cedula) and both tokens used',
+  $$SELECT 1 FROM public.taller_inscripciones i
+     WHERE i.taller_id = 'cf300000-0000-4000-8000-000000000092' AND i.persona_principal_id = 'cf300000-0000-4000-8000-000000000053'
+       AND i.companero_id = 'cf300000-0000-4000-8000-000000000054' AND i.pareja_origen = 'cedula' AND NOT i.por_verificar
+       AND (SELECT count(*) FROM public.taller_reserva_codigos c
+             WHERE c.token_hash IN (pg_temp.h('t-t1'), pg_temp.h('t-t2')) AND c.token_usado_en IS NOT NULL) = 2$$, 1);
+CREATE TEMP TABLE t_rr_n ON COMMIT DROP AS SELECT count(*) AS n FROM public.taller_inscripciones;
+GRANT SELECT ON t_rr_n TO authenticated, anon;
+SELECT pg_temp.capture('8: the same tokens again are invalido', 'cr_t1t2_again',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000092',
+     jsonb_build_object('token', pg_temp.h('t-t1'), 'pareja', jsonb_build_object('token', pg_temp.h('t-t2'))), pg_temp.h('ip-87'))$$,
+  '{"estado":"invalido"}');
+SELECT pg_temp.capture('8: the same principal token alone is invalido', 'cr_t1_again',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000092',
+     jsonb_build_object('token', pg_temp.h('t-t1'), 'pareja', '{"pendiente_cedula":"99830004"}'::jsonb), pg_temp.h('ip-87'))$$,
+  '{"estado":"invalido"}');
+SELECT pg_temp.assert_rows('8: and the inscription count did not change',
+  $$SELECT 1 FROM t_rr_n WHERE n = (SELECT count(*) FROM public.taller_inscripciones)$$, 1);
+
+-- Fix 2: at most 20 unverified creations per edición per day.
+SELECT pg_temp.assert_rows('8: 20 unverified attempts on E_cap (10 new fichas, 10 por_verificar) are processed',
+  $$SELECT 1 FROM generate_series(1, 20) AS n,
+     LATERAL (SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000096',
+       CASE WHEN n <= 10 THEN jsonb_build_object('ficha_nueva', jsonb_build_object('cedula', '998302' || lpad(n::text, 2, '0'),
+              'nombre', 'Eva', 'apellido', 'Paz', 'fecha_nacimiento', to_char(CURRENT_DATE - interval '10 years', 'YYYY-MM-DD'),
+              'telefono', '0414-1234567', 'email', 'cf3-cap' || n || '@example.test', 'genero', 'Femenino'))
+            ELSE jsonb_build_object('por_verificar', jsonb_build_object('cedula', '998302' || lpad(n::text, 2, '0'))) END,
+       pg_temp.h('ip-cap-' || n)) AS r) x
+     WHERE x.r = '{"estado":"invalido"}'$$, 20);
+SELECT pg_temp.capture('8: the 21st unverified attempt (por_verificar) is limite', 'cap_21',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000096', '{"por_verificar":{"cedula":"99830004"}}', pg_temp.h('ip-cap-21'))$$,
+  '{"estado":"limite"}');
+SELECT pg_temp.capture('8: a new ficha after the cap is limite too', 'cap_22',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000096',
+     '{"ficha_nueva":{"cedula":"99830230","nombre":"Eva","apellido":"Paz","fecha_nacimiento":"1990-01-01","telefono":"0414-1234567","email":"cf3-cap30@example.test","genero":"Femenino"}}',
+     pg_temp.h('ip-cap-22'))$$, '{"estado":"limite"}');
+SELECT pg_temp.assert_rows('8: the capped attempts wrote no ficha and no inscription',
+  $$SELECT 1 FROM public.usuarios WHERE cedula = '99830230'
+    UNION ALL SELECT 1 FROM public.taller_inscripciones WHERE taller_id = 'cf300000-0000-4000-8000-000000000096'$$, 0);
+SELECT pg_temp.run('8: X5 verifies on E_cap',
+  $$SELECT public.talleres_reserva_identificar('cf300000-0000-4000-8000-000000000096', '99830007', pg_temp.h('ip-88'), pg_temp.h('c-x5-cap'));
+    SELECT public.talleres_reserva_codigo_verificar((SELECT c.id FROM public.taller_reserva_codigos c WHERE c.codigo_hash = pg_temp.h('c-x5-cap')),
+      pg_temp.h('c-x5-cap'), pg_temp.h('t-x5-cap'), pg_temp.h('ip-88'))$$);
+SELECT pg_temp.capture('8: a verified token still reserves on the capped edición', 'cap_token',
+  $$SELECT public.talleres_reserva_crear('cf300000-0000-4000-8000-000000000096',
+     jsonb_build_object('token', pg_temp.h('t-x5-cap')), pg_temp.h('ip-89')) - 'inscripcion_id'$$,
+  '{"estado":"ok","invitacion_id":null,"por_verificar":false}');
+SELECT pg_temp.assert_rows('8: 20 edición units recorded under the hashed edición id; the token path took none',
+  $$SELECT 1 FROM public.reserva_publica_limites
+     WHERE accion = 'reserva_crear_edicion' AND clave = pg_temp.h('cf300000-0000-4000-8000-000000000096')$$, 20);
+
+-- Regressions proposed by the verification.
+SELECT pg_temp.run('8: a taller_pareja invitation on an al_aprobar taller, inscription pendiente',
+  $$UPDATE public.talleres SET momento_envio_acceso = 'al_aprobar' WHERE id = 'cf300000-0000-4000-8000-000000000012';
+    INSERT INTO public.invitaciones_acceso (usuario_id, origen, creado_por, edicion_id, inscripcion_id, estado)
+    SELECT c.id, 'taller_pareja', p.id, 'cf300000-0000-4000-8000-000000000092', i.id, 'en_espera'
+      FROM public.taller_inscripciones i JOIN public.usuarios p ON p.id = i.persona_principal_id
+      JOIN public.usuarios c ON c.id = i.companero_id
+     WHERE c.cedula = '99830031' AND i.estado = 'pendiente'$$);
+SELECT pg_temp.assert_rows('8: it is not ready to send; the taller_publico one is',
+  $$SELECT ia.origen FROM public.invitacion_acceso_pendientes_de_envio() pe
+      JOIN public.invitaciones_acceso ia ON ia.id = pe.invitacion_id
+     WHERE (ia.origen = 'taller_pareja' AND ia.usuario_id = (SELECT id FROM public.usuarios WHERE cedula = '99830031'))
+        OR ia.id = (SELECT (j ->> 'invitacion_id')::uuid FROM t_rr WHERE key = 'cr_new')$$, 1);
+SELECT pg_temp.assert_rows('8: and the one listed is the taller_publico invitation',
+  $$SELECT 1 FROM public.invitacion_acceso_pendientes_de_envio() pe
+     WHERE pe.invitacion_id = (SELECT (j ->> 'invitacion_id')::uuid FROM t_rr WHERE key = 'cr_new')$$, 1);
+SELECT pg_temp.capture('8: avísame with a mixed-case local part', 'av_b1',
+  $$SELECT public.talleres_avisame_lugar_agregar('cf300000-0000-4000-8000-000000000095', 'Bea', 'cf3-B@example.test', pg_temp.h('ip-a2'))$$,
+  '{"estado":"ok"}');
+SELECT pg_temp.capture('8: avísame with a mixed-case domain', 'av_b2',
+  $$SELECT public.talleres_avisame_lugar_agregar('cf300000-0000-4000-8000-000000000095', 'Bea', 'cf3-b@EXAMPLE.test', pg_temp.h('ip-a2'))$$,
+  '{"estado":"ok"}');
+SELECT pg_temp.assert_rows('8: both leave one row',
+  $$SELECT 1 FROM public.taller_avisame_lugar WHERE edicion_id = 'cf300000-0000-4000-8000-000000000095' AND lower(email) = 'cf3-b@example.test'$$, 1);
 
 RESET request.jwt.claim.sub;
 RESET request.jwt.claim.role;
