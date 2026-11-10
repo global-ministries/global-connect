@@ -34,10 +34,11 @@ Audit evidence: Engram `talleres/auditoria-2026-11` (obs 16891).
 | T3 | S5, S6, S7, S8, S9 | design worker C — 12–17 admin, minimum/suspension, avisos, facilitador | done (awaiting T4) | — |
 | T4 | all | user approves designs (canvas) | artboards adjusted to L6; awaiting final approval | — |
 | T5a | S3, S4, S5, S10, S11, S12, S13 | DB (worker): extract `talleres_inscripcion_crear_core` (talleres_inscribirme unchanged output); tables `taller_reserva_codigos`, `reserva_publica_limites`, `taller_avisame_lugar`, `avisos_persona`; columns `taller_inscripciones.origen/por_verificar`, `talleres.publico/genero_requerido`, `taller_ediciones.lugar`, `invitaciones_acceso.origen += taller_publico`; service_role-only RPCs catalogo/taller/identificar/codigo/crear/avisame; SQL tests. HIGH RISK | done (staging; verify pending) | 10dc49ec, 9903be5c, e69f2b7d |
-| T5b | S1, S3, S4, S11, S12, S13 | App (worker): `lib/platform/talleres/reserva-publica*`, API routes `/api/talleres/reserva/*`, code email template, in-app aviso, middleware `/talleres/reservar[/slug]`, pages per design 01–06, Jest | done (worker; review pending) | — |
-| T6 | S2 | implementation: embed (iframe + modal script, frame-ancestors) | pending | — |
+| T5b | S1, S3, S4, S11, S12, S13 | App (worker): `lib/platform/talleres/reserva-publica*`, API routes `/api/talleres/reserva/*`, code email template, in-app aviso, middleware `/talleres/reservar[/slug]`, pages per design 01–06, Jest | done (staging; verify PASS WITH NOTES, fixes in 31fd8762) | de2024eb, 3916de17, 31fd8762 |
+| T6 | S2, S18 | worker: embed (iframe + modal script, frame-ancestors *), admin Compartir (08) | in progress | — |
 | T7 | S6 | implementation: avisos (Resend outbox, pg_cron reminders, WhatsApp links) | pending | — |
-| T8 | S9 | implementation: mínimo de inscritos + suspender y reprogramar con aviso | pending | — |
+| T8a | S9, S15, S16 | worker: mínimo de inscritos, suspender y mover fecha con confirmación (Mantener mi lugar / Ya no puedo), salida automática al nuevo cierre, lista de llamadas, «Abrir igual» solo director/coordinador; migration 20261110200000 | in progress | — |
+| T8b | S17 | recuperar clase (cuenta como asistida) + clases mínimas configurables en la pantalla | pending | — |
 | T9 | S8 | implementation: v2 interior, lint list, migration.md | pending | — |
 
 ## Log
