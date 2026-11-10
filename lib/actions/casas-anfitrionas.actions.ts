@@ -619,13 +619,15 @@ function puedeSolicitarMapaMiembros(roles: Set<string>): boolean {
     || roles.has("director-etapa");
 }
 
+// Only the Líder: this scope also gates assigning a house to the group, and the
+// Colíder is read-only (S6, odd/tasks/home-por-rol.md).
 async function obtenerGruposLideradosDashboard(supabase: ServerRpcClient, userId: string): Promise<Set<string>> {
   const { data, error } = await supabase
     .from("grupo_miembros")
     .select("grupo_id")
     .eq("usuario_id", userId)
     .is("fecha_salida", null)
-    .in("rol", ["Líder", "Colíder"]);
+    .in("rol", ["Líder"]);
 
   if (error || !Array.isArray(data)) return new Set();
   return new Set(data.map((row) => row.grupo_id).filter((id): id is string => typeof id === "string"));
