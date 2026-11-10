@@ -9,6 +9,7 @@ import { HECHOS_VACIOS, type HechosInicio } from '@/lib/inicio/hechos'
 
 const cargarHechosInicio = jest.fn()
 const cargarGruposMiembro = jest.fn()
+const cargarCumpleanosGrupos = jest.fn()
 const cargarTablero = jest.fn()
 const cargarVisionGeneral = jest.fn()
 const cargarACargo = jest.fn()
@@ -30,6 +31,10 @@ jest.mock('@/lib/supabase/admin', () => ({
 }))
 jest.mock('@/lib/inicio/cargar-hechos', () => ({ cargarHechosInicio: (...a: unknown[]) => cargarHechosInicio(...a) }))
 jest.mock('@/lib/inicio/cargar-grupos-miembro', () => ({ cargarGruposMiembro: (...a: unknown[]) => cargarGruposMiembro(...a) }))
+jest.mock('@/lib/inicio/cargar-cumpleanos', () => ({
+  ...jest.requireActual('@/lib/inicio/cargar-cumpleanos'),
+  cargarCumpleanosGrupos: (...a: unknown[]) => cargarCumpleanosGrupos(...a),
+}))
 jest.mock('@/app/(auth)/dashboard/tablero', () => ({
   cargarTablero: () => cargarTablero(),
   cargarVisionGeneral: (...a: unknown[]) => cargarVisionGeneral(...a),
@@ -56,6 +61,7 @@ describe('PaginaInicio', () => {
     jest.clearAllMocks()
     getUser.mockResolvedValue({ data: { user: { id: 'auth-1' } } })
     cargarGruposMiembro.mockResolvedValue({})
+    cargarCumpleanosGrupos.mockResolvedValue([])
     cargarTablero.mockResolvedValue({ rol: 'miembro', widgets: {}, campusId: null, contextos: null })
     cargarVisionGeneral.mockResolvedValue(null)
     cargarACargo.mockResolvedValue([])
@@ -74,6 +80,51 @@ describe('PaginaInicio', () => {
     expect(cargarTablero).not.toHaveBeenCalled()
     expect(cargarACargo).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 2, name: 'Mi grupo de vida' })).toBeInTheDocument()
+  })
+
+  it('miembro: los cumpleaños de su grupo, sin leer el tablero (S14a)', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'Matrimonios', rol: 'Miembro' }] }))
+    cargarCumpleanosGrupos.mockResolvedValue([{ id: 'u-2', nombre: 'Ana Pérez', fecha: '2026-11-12', contexto: 'Matrimonios' }])
+
+    render(await PaginaInicio())
+
+    expect(cargarCumpleanosGrupos).toHaveBeenCalledWith(supabase, expect.objectContaining({ authId: 'auth-1', usuarioId: 'u-1', grupos: [{ grupoId: 'g-1', nombre: 'Matrimonios' }] }))
+    expect(cargarTablero).not.toHaveBeenCalled()
+    const cumpleanos = screen.getByRole('region', { name: 'Próximos cumpleaños' })
+    expect(within(cumpleanos).getByText('Ana Pérez')).toBeInTheDocument()
+    expect(within(cumpleanos).getByText('Matrimonios')).toBeInTheDocument()
+  })
+
+  it('líder que además es miembro de otro grupo: una sección con ambos, sin repetir personas', async () => {
+    cargarHechosInicio.mockResolvedValue(
+      hechos({ grupos: [{ grupoId: 'g-1', nombre: 'Hombres +36', rol: 'Líder' }, { grupoId: 'g-2', nombre: 'Matrimonios', rol: 'Miembro' }] }),
+    )
+    cargarTablero.mockResolvedValue({
+      rol: 'lider',
+      widgets: { proximos_cumpleanos_grupo: [{ id: 'u-9', nombre_completo: 'Ramón Pérez', proximo: '2026-11-12' }] },
+      campusId: null,
+      contextos: null,
+    })
+    cargarCumpleanosGrupos.mockResolvedValue([
+      { id: 'u-9', nombre: 'Ramón Pérez', fecha: '2026-11-12', contexto: 'Matrimonios' },
+      { id: 'u-2', nombre: 'Ana Pérez', fecha: '2026-11-13', contexto: 'Matrimonios' },
+    ])
+
+    render(await PaginaInicio())
+
+    expect(cargarCumpleanosGrupos).toHaveBeenCalledWith(supabase, expect.objectContaining({ grupos: [{ grupoId: 'g-2', nombre: 'Matrimonios' }] }))
+    expect(screen.getAllByRole('region', { name: 'Próximos cumpleaños' })).toHaveLength(1)
+    const filas = within(screen.getByRole('region', { name: 'Próximos cumpleaños' })).getAllByRole('listitem')
+    expect(filas.map((f) => f.textContent)).toEqual([expect.stringContaining('Ramón Pérez'), expect.stringContaining('Ana Pérez')])
+    expect(filas[0]).toHaveTextContent('Hombres +36')
+  })
+
+  it('directora de etapa sin grupo propio no pide cumpleaños de grupos', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({ etapasDirigidas: ['sl-1'] }))
+
+    render(await PaginaInicio())
+
+    expect(cargarCumpleanosGrupos).not.toHaveBeenCalled()
   })
 
   it('admin: carga la visión del campus con sus grupos sin casa y los contextos', async () => {

@@ -1,6 +1,7 @@
 /**
- * «Próximos cumpleaños» (odd/tasks/home-por-rol.md T7, S12): so the leader,
- * the directors and admin/pastor can celebrate the people in their care.
+ * «Próximos cumpleaños» (odd/tasks/home-por-rol.md T7, S12; T8, S14a): so the
+ * leader, the directors and admin/pastor can celebrate the people in their
+ * care, and members and colíderes the people of their group.
  * Up to MAX_CUMPLEANOS rows sorted by date: initials, name, context (the
  * group, when known) and the day («Hoy», «Mañana», «jue 12 nov»). No page
  * lists every birthday, so there is no «Ver todos». Hidden by the screen

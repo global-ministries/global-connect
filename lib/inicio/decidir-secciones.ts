@@ -1,6 +1,6 @@
 /**
  * Which sections the home shows, in order of urgency (odd/tasks/home-por-rol.md
- * S1, S3, S6–S8, S11–S13; design/home-por-rol/00). Pure: the facts are loaded
+ * S1, S3, S6–S8, S11–S14; design/home-por-rol/00). Pure: the facts are loaded
  * by cargarHechosInicio and the screen renders whatever this returns.
  *
  * Order: Para responder → Mis servicios → Mis hijos → A tu cargo → Notas de
@@ -131,8 +131,8 @@ export function decidirSecciones(h: HechosInicio): SeccionInicio[] {
   }
 
   // The leader celebrates their group, the directors their scope, admin and pastor the campus
-  // (S12). Members and colíderes not yet: what they may read of others is not settled.
-  if (superviseLideres || h.grupos.some((g) => g.rol === 'Líder')) secciones.push({ id: 'cumpleanos' })
+  // (S12), members and colíderes their own group (S14a). One section for all of them.
+  if (superviseLideres || h.grupos.length > 0) secciones.push({ id: 'cumpleanos' })
 
   // Only admin and pastor see the campus; a director general sees their segmento (S7, S8).
   if (h.esAdminOPastor) secciones.push({ id: 'vision-general' })

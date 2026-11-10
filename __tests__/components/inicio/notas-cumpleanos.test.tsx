@@ -112,10 +112,22 @@ describe('Próximos cumpleaños (S12)', () => {
     expect(screen.queryByRole('region', { name: 'Próximos cumpleaños' })).not.toBeInTheDocument()
   })
 
-  it('el miembro no los ve aunque lleguen datos', () => {
-    pintar(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }), { cumpleanos: CUMPLEANOS, notasLideres: NOTAS })
+  it.each(['Miembro', 'Colíder'] as const)('el %s ve los de su grupo, con el grupo como contexto (S14a), pero no las notas', (rol) => {
+    const deSuGrupo: Cumpleanos[] = [{ id: 'u-2', nombre: 'Ana Pérez', fecha: '2026-11-10', contexto: 'Matrimonios · Zona Este' }]
+    pintar(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'Matrimonios · Zona Este', rol }] }), { cumpleanos: deSuGrupo, notasLideres: NOTAS })
+
+    const seccion = screen.getByRole('region', { name: 'Próximos cumpleaños' })
+    const [fila] = within(seccion).getAllByRole('listitem')
+    expect(within(fila).getByText('Ana Pérez')).toBeInTheDocument()
+    expect(within(fila).getByText('Matrimonios · Zona Este')).toBeInTheDocument()
+    expect(within(fila).getByText('Mañana')).toBeInTheDocument()
+    expect(fila).not.toHaveTextContent(/\d{4}|años/)
+    expect(screen.queryByRole('region', { name: 'Notas de líderes' })).not.toBeInTheDocument()
+  })
+
+  it('el miembro sin cumpleaños cercanos en su grupo no ve la sección', () => {
+    pintar(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }), { cumpleanos: [] })
 
     expect(screen.queryByRole('region', { name: 'Próximos cumpleaños' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Notas de líderes' })).not.toBeInTheDocument()
   })
 })
