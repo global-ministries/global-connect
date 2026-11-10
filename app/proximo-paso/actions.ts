@@ -8,7 +8,9 @@
  *     it (nombre, apellido, teléfono, correo, contraseña) and enrolls in the
  *     edición they picked.
  *   - `inscribirmeEnProximoPaso(edicionId)`: a signed-in person enrolls
- *     through the existing `inscribirseATaller` of /talleres/explorar.
+ *     through the existing `inscribirseATaller` of /talleres/explorar. The
+ *     ficha is linked first (T2d, L11): whoever confirmed through the email
+ *     link arrives signed in without one.
  *   - `confirmarCodigoProximoPaso({ email, token, edicionId })` (T2c, L8):
  *     the 6-digit code of the confirmation email, typed on the same page.
  *     verifyOtp (type signup) on the SSR client sets the session cookies;
@@ -107,9 +109,10 @@ const NO_DISPONIBLE = fallo('not-found', 'Las inscripciones no están disponible
 const EDICION_NO_DISPONIBLE = fallo('EDICION_NO_DISPONIBLE', 'Esa fecha ya no está disponible. Elige otra.')
 const CODIGO_INCOMPLETO = fallo('invalid-input', 'Escribe los 6 dígitos del código.')
 const CORREO_INVALIDO = fallo('invalid-input', MENSAJES_REGISTRO.email)
+// T2d (L11): a resend makes the earlier codes useless; Gmail groups the emails and hides that.
 const CODIGO_INVALIDO = fallo(
   'CODIGO_INVALIDO',
-  'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.',
+  'Ese código no funcionó. Usa el código del correo más reciente: cuando pides uno nuevo, los anteriores dejan de servir.',
 )
 const LIMITE_CODIGO = fallo('LIMITE', 'Hiciste muchos intentos. Espera un momento y vuelve a intentarlo.')
 // A server or network failure is not a bad code: asking for a new one would not help.
@@ -119,7 +122,7 @@ const CODIGO_NO_VERIFICADO = fallo(
 )
 const CODIGO_REENVIADO: ResultadoReenvio = {
   ok: true,
-  message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.',
+  message: 'Te enviamos un código nuevo. Usa solo el de este último correo.',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
@@ -237,15 +240,22 @@ export async function registrarseEnProximoPaso(input: unknown): Promise<Resultad
   return inscribirConSesionNueva(client, edicion)
 }
 
+type UsuarioSesion = Parameters<typeof vincularFichaConfirmada>[1] & { readonly id: string }
+
 /**
  * The steps once an account is confirmed and signed in on this request: link
  * the ficha (vincularFichaConfirmada) and save the phone. The failure to
  * return, or null when the person can enroll.
  */
-async function vincularCuenta(
-  user: Parameters<typeof vincularFichaConfirmada>[1] & { readonly id: string },
-  telefono: unknown,
-): Promise<FalloProximoPaso | null> {
+async function vincularCuenta(user: UsuarioSesion, telefono: unknown): Promise<FalloProximoPaso | null> {
+  const vinculo = await vincularFicha(user)
+  if (vinculo) return vinculo
+  await guardarTelefono(user.id, telefono)
+  return null
+}
+
+/** Links the person's ficha (a no-op when already linked); the failure to return, or null. */
+async function vincularFicha(user: UsuarioSesion): Promise<FalloProximoPaso | null> {
   const vinculo = await vincularFichaConfirmada(createSupabaseAdminClient(), user)
   if (vinculo.estado === 'pendiente_aprobacion' || vinculo.estado === 'ambigua') {
     return fallo(
@@ -256,7 +266,6 @@ async function vincularCuenta(
   if (vinculo.estado === 'error' || vinculo.estado === 'sin_confirmar') {
     return fallo('CUENTA_SIN_INSCRIPCION', 'Tu cuenta quedó creada, pero no pudimos inscribirte. Inténtalo de nuevo.')
   }
-  await guardarTelefono(user.id, telefono)
   return null
 }
 
@@ -292,6 +301,8 @@ export async function confirmarCodigoProximoPaso(input: unknown): Promise<Result
   // The SSR client stores the new session in the response cookies.
   const { data, error } = await client.auth.verifyOtp({ email, token, type: 'signup' })
   if (error) {
+    // Only the reason, never the email or the code.
+    console.error('Próximo Paso: verifyOtp falló', { code: error.code, status: error.status })
     if (esLimite(error)) return LIMITE_CODIGO
     if (esFalloTemporal(error)) return CODIGO_NO_VERIFICADO
     return CODIGO_INVALIDO
@@ -340,6 +351,9 @@ export async function inscribirmeEnProximoPaso(edicionId: unknown): Promise<Resu
 
   const elegida = await edicionAbierta(client, id)
   if (!elegida.ok) return elegida
+
+  const vinculo = await vincularFicha(user)
+  if (vinculo) return vinculo
 
   const resultado = await inscribirseATaller({ edicionId: id })
   if (!resultado.ok) return fallo(resultado.error, resultado.message)

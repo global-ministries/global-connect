@@ -364,6 +364,37 @@ describe('inscribirmeEnProximoPaso (signed in)', () => {
     expect(inscribirseATaller).not.toHaveBeenCalled()
   })
 
+  // T2d (L11): whoever confirmed through the email link arrives signed in without a ficha.
+  it('links the ficha before enrolling a signed-in person', async () => {
+    getUser.mockResolvedValue({ data: { user: sesion }, error: null })
+    inscribirseATaller.mockResolvedValue({ ok: true, inscripcionId: 'ins-2' })
+    const r = await inscribirmeEnProximoPaso('ed-dic')
+    expect(vincularFichaConfirmada).toHaveBeenCalledWith(expect.anything(), sesion)
+    expect(vincularFichaConfirmada.mock.invocationCallOrder[0]).toBeLessThan(inscribirseATaller.mock.invocationCallOrder[0])
+    expect(r).toEqual({ ok: true, estado: 'inscrito', edicion: RESUMEN })
+  })
+
+  it('enrolls as before when the ficha was already linked', async () => {
+    getUser.mockResolvedValue({ data: { user: sesion }, error: null })
+    vincularFichaConfirmada.mockResolvedValue({ estado: 'ya_vinculada' })
+    inscribirseATaller.mockResolvedValue({ ok: true, inscripcionId: 'ins-2' })
+    expect(await inscribirmeEnProximoPaso('ed-dic')).toEqual({ ok: true, estado: 'inscrito', edicion: RESUMEN })
+    expect(inscribirseATaller).toHaveBeenCalledWith({ edicionId: 'ed-dic' })
+  })
+
+  it.each([
+    ['pendiente_aprobacion', 'CUENTA_EN_REVISION', 'Tu cuenta quedó creada. La coordinación debe revisarla antes de inscribirte; te avisaremos.'],
+    ['ambigua', 'CUENTA_EN_REVISION', 'Tu cuenta quedó creada. La coordinación debe revisarla antes de inscribirte; te avisaremos.'],
+    ['error', 'CUENTA_SIN_INSCRIPCION', 'Tu cuenta quedó creada, pero no pudimos inscribirte. Inténtalo de nuevo.'],
+    ['sin_confirmar', 'CUENTA_SIN_INSCRIPCION', 'Tu cuenta quedó creada, pero no pudimos inscribirte. Inténtalo de nuevo.'],
+  ])('never enrolls when the ficha cannot be linked (%s)', async (estado, error, message) => {
+    getUser.mockResolvedValue({ data: { user: sesion }, error: null })
+    vincularFichaConfirmada.mockResolvedValue({ estado })
+    expect(await inscribirmeEnProximoPaso('ed-dic')).toEqual({ ok: false, error, message })
+    expect(inscribirseATaller).not.toHaveBeenCalled()
+    expect(adminUpdate).not.toHaveBeenCalled()
+  })
+
   it.each([undefined, '', 42])('rejects %j as edición', async (valor) => {
     const r = await inscribirmeEnProximoPaso(valor)
     expect(r).toEqual({ ok: false, error: 'invalid-input', message: 'Elige una fecha para empezar.' })
@@ -428,11 +459,41 @@ describe('confirmarCodigoProximoPaso', () => {
     expect(r).toEqual({
       ok: false,
       error: 'CODIGO_INVALIDO',
-      message: 'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.',
+      message:
+        'Ese código no funcionó. Usa el código del correo más reciente: cuando pides uno nuevo, los anteriores dejan de servir.',
     })
     expect(vincularFichaConfirmada).not.toHaveBeenCalled()
     expect(adminUpdate).not.toHaveBeenCalled()
     expect(rpc).not.toHaveBeenCalled()
+  })
+
+  // T2d (L11): the reason of a failed verifyOtp reaches the logs, never the email or the code.
+  it('logs only the code and status of a failed verification', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      verifyOtp.mockResolvedValue({
+        data: { user: null, session: null },
+        error: { code: 'otp_expired', status: 403, message: 'Token has expired or is invalid for ana@example.com' },
+      })
+      await confirmarCodigoProximoPaso(codigo())
+      expect(log).toHaveBeenCalledTimes(1)
+      expect(log).toHaveBeenCalledWith('Próximo Paso: verifyOtp falló', { code: 'otp_expired', status: 403 })
+      const escrito = JSON.stringify(log.mock.calls)
+      expect(escrito).not.toMatch(/ana@example\.com|123456/i)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('logs nothing when the code is right', async () => {
+    const log = jest.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      verificado()
+      await confirmarCodigoProximoPaso(codigo())
+      expect(log).not.toHaveBeenCalled()
+    } finally {
+      log.mockRestore()
+    }
   })
 
   it.each([
@@ -486,7 +547,7 @@ describe('confirmarCodigoProximoPaso', () => {
 })
 
 describe('reenviarCodigoProximoPaso', () => {
-  const ENVIADO = { ok: true, message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.' }
+  const ENVIADO = { ok: true, message: 'Te enviamos un código nuevo. Usa solo el de este último correo.' }
 
   it('resends the signup email with the link back to the edición', async () => {
     resend.mockResolvedValue({ data: {}, error: null })
