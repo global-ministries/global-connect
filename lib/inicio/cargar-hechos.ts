@@ -14,6 +14,8 @@
  * merged, S2).
  */
 import { obtenerCasasRevisionPendiente, obtenerGruposSinCasaAnfitriona } from '@/lib/actions/casas-anfitrionas.actions'
+import { puedeRegistrarParaNavegacion } from '@/lib/platform/dream-team/ficha-persona'
+import { hasDreamTeamMiEquipoAccess, isDreamTeamEnabled, requireDreamTeamSession } from '@/lib/platform/dream-team/route-access'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
@@ -21,6 +23,15 @@ import type { createSupabaseServerClient } from '@/lib/supabase/server'
 
 import { cargarPendientesCargo, type PendientesCargo } from './cargar-pendientes'
 import { HECHOS_VACIOS, type HechosInicio, type MembresiaGrupo, type RolEnGrupo, type ServicioActivo } from './hechos'
+
+// Same guard as app/(auth)/dream-team/page.tsx: who opens no Dream Team page gets a 404 there.
+async function abreDreamTeam(supabase: ClienteInicio): Promise<boolean> {
+  if (!isDreamTeamEnabled()) return false
+  const session = await requireDreamTeamSession({ includeRoles: true })
+  if (!session) return false
+  if (hasDreamTeamMiEquipoAccess(session)) return true
+  return puedeRegistrarParaNavegacion(supabase as Parameters<typeof puedeRegistrarParaNavegacion>[0], true)
+}
 
 export type ClienteInicio = Awaited<ReturnType<typeof createSupabaseServerClient>>
 
@@ -187,6 +198,8 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
     ? await cargarPendientesCargo(supabase, pedidoCargo)
     : { reportesSinCargar: 0, lideresSinReporte: 0, marcarProximoPaso: 0 }
 
+  const accesoDreamTeam = serviciosActivos.length > 0 || esAdminOPastor ? await intentar('dream_team_acceso', () => abreDreamTeam(supabase), false) : false
+
   return {
     ...HECHOS_VACIOS,
     usuarioId,
@@ -195,6 +208,7 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
     etapasDirigidas,
     segmentosDirigidos,
     serviciosActivos,
+    abreDreamTeam: accesoDreamTeam,
     hijos,
     perfilCompleto: texto(usuario.telefono) !== null && fechaNacimiento !== null,
     hizoProximoPaso,

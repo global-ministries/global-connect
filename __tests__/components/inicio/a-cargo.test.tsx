@@ -31,7 +31,6 @@ const LIDER: DatosGrupoLider = {
   ultimaReunion: { fecha: '2026-10-29', asistencia: 71 },
   ausentes: ['Pedro Linárez', 'Jesús Escalona', 'Rafael Mujica'],
   nuevos: 1,
-  cumpleanos: [{ nombre: 'Ramón Pérez', fecha: '2026-11-12' }],
 }
 
 const AREA: DatosArea = {
@@ -126,7 +125,8 @@ describe('A tu cargo', () => {
     const atencion = within(grupo).getByRole('list', { name: 'Atención' })
     expect(within(atencion).getByRole('link', { name: /3 faltan hace 3 semanas o más/ })).toHaveAttribute('href', '/grupos-vida/g-1/salud')
     expect(within(atencion).getByText('Pedro Linárez, Jesús Escalona y Rafael Mujica')).toBeInTheDocument()
-    expect(within(atencion).getByText('Cumpleaños de Ramón Pérez')).toBeInTheDocument()
+    // Birthdays have their own section now (S12), never repeated here.
+    expect(within(atencion).queryByText(/Cumpleaños/)).not.toBeInTheDocument()
   })
 
   it('06 director de área: sus voluntarios sin Próximo Paso y «Lo hizo» marca con la acción', async () => {

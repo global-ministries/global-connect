@@ -1,8 +1,8 @@
 /**
  * «Tus próximos pasos» (design/home-por-rol section 6). Who has not done
  * Próximo Paso sees it first and highlighted (S3); the steps decidirSecciones
- * returns are the only ones named, so Dream Team appears only when the
- * section includes «Servir en Dream Team».
+ * returns are the only ones named. Dream Team is never a step: the way to
+ * serve is Próximo Paso (S13).
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'

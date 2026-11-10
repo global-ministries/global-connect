@@ -4,9 +4,8 @@
  * through the session client, so RLS still decides what each person reads:
  *
  * - grupo-lider: next meeting and place (cargarGruposMiembro), members,
- *   attendance of the last meeting, absent 3+ weeks (v_salud_miembros_grupo),
- *   new in 30 days and, for whoever leads one group, the birthdays that
- *   obtener_datos_dashboard already returns.
+ *   attendance of the last meeting, absent 3+ weeks (v_salud_miembros_grupo)
+ *   and new in 30 days. Birthdays have their own section (cargar-cumpleanos).
  * - etapa / segmento: the groups of that etapa, or of that segmento as the
  *   director general sees it (alcance «segmento» or only the etapas marked
  *   for them, as gdv_dg_grupos_visibles), never the whole campus (S7). The
@@ -70,7 +69,6 @@ export type DatosGrupoLider = {
   ultimaReunion: { fecha: string; asistencia: number } | null
   ausentes: string[] | null
   nuevos: number | null
-  cumpleanos: { nombre: string; fecha: string }[]
 }
 
 export type DatosEtapa = ResumenGrupos & { tipo: 'etapa'; directorEtapaId: string; nombre: string | null }
@@ -102,8 +100,6 @@ export type PedidoACargo = {
   /** YYYY-MM-DD in Caracas. */
   hoy: string
   cargos: CargoInicio[]
-  /** obtener_datos_dashboard, when it is being loaded; awaited only for the leader's birthdays. */
-  tablero?: PromiseLike<{ rol: string; widgets: Record<string, unknown> } | null> | null
 }
 
 type Respuesta = { data: unknown; error: { message?: string } | null; count?: number | null }
@@ -360,10 +356,9 @@ async function cargarGrupoLider(
   supabase: ClienteInicio,
   pedido: PedidoACargo,
   cargo: Extract<CargoInicio, { tipo: 'grupo-lider' }>,
-  lideraUno: boolean,
 ): Promise<DatosGrupoLider> {
   const { grupoId } = cargo
-  const [detalle, salud, ultima, nuevos, tablero] = await Promise.all([
+  const [detalle, salud, ultima, nuevos] = await Promise.all([
     cargarGruposMiembro(supabase, { authId: pedido.authId, usuarioId: pedido.usuarioId, hoy: pedido.hoy, grupos: [{ grupoId, nombre: cargo.nombre }] }).then((r) => r[grupoId]),
     intentar<Record<string, unknown>[] | null>(
       'v_salud_miembros_grupo',
@@ -400,16 +395,7 @@ async function cargarGrupoLider(
         ),
       null,
     ),
-    lideraUno && pedido.tablero ? pedido.tablero : null,
   ])
-
-  // obtener_datos_dashboard mixes every group a leader leads: its birthdays are used for one.
-  const widgets = tablero?.rol === 'lider' ? tablero.widgets : null
-  const cumpleanos = filas(widgets?.proximos_cumpleanos_grupo).flatMap((c) => {
-    const nombre = texto(c.nombre_completo)
-    const fecha = texto(c.proximo)?.slice(0, 10) ?? null
-    return nombre && fecha ? [{ nombre, fecha }] : []
-  })
 
   return {
     tipo: 'grupo-lider',
@@ -423,7 +409,6 @@ async function cargarGrupoLider(
       ? salud.filter((m) => (numero(m.semanas_ausente) ?? 0) >= SEMANAS_AUSENTE).map((m) => texto(m.nombre_completo)).filter((n): n is string => n !== null)
       : null,
     nuevos,
-    cumpleanos,
   }
 }
 
@@ -525,7 +510,6 @@ export const claveCargo = (c: CargoInicio): string => {
 
 /** One entry per cargo, in order; `null` where its loader failed. */
 export async function cargarACargo(supabase: ClienteInicio, pedido: PedidoACargo): Promise<(DatosCargo | null)[]> {
-  const lideraUno = pedido.cargos.filter((c) => c.tipo === 'grupo-lider').length === 1
   // Same arguments as cargarPendientesCargo, so the memoized read is shared.
   const unaArea = new Set(pedido.cargos.flatMap((c) => (c.tipo === 'area-dream-team' ? [c.equipoId] : []))).size === 1
   return Promise.all(
@@ -535,7 +519,7 @@ export async function cargarACargo(supabase: ClienteInicio, pedido: PedidoACargo
         () => {
           switch (c.tipo) {
             case 'grupo-lider':
-              return cargarGrupoLider(supabase, pedido, c, lideraUno)
+              return cargarGrupoLider(supabase, pedido, c)
             case 'etapa':
               return cargarEtapa(supabase, c.directorEtapaId, pedido.hoy)
             case 'segmento':

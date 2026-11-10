@@ -2,8 +2,10 @@
  * Inicio (/dashboard) by person (odd/tasks/home-por-rol.md T3, T4): the facts
  * of the person decide the sections (decidirSecciones) and each section loads
  * only when present: «A tu cargo» one block per cargo (cargarACargo),
- * «Visión general» the campus numbers for admin and pastor. Both read
- * obtener_datos_dashboard (tablero.tsx) only where they need it.
+ * «Visión general» the campus numbers for admin and pastor, «Notas de
+ * líderes» (cargarNotasLideres) and «Próximos cumpleaños» (from the tablero,
+ * T7). obtener_datos_dashboard (tablero.tsx) is read only where needed; each
+ * section degrades on its own.
  */
 import { redirect } from 'next/navigation'
 
@@ -14,8 +16,10 @@ import { TarjetaMisServicios } from '@/components/mis-servicios/tarjeta-mis-serv
 import { MigasInicio } from '@/components/inicio/partes-inicio'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { cargarACargo, type DatosCargo } from '@/lib/inicio/cargar-a-cargo'
+import { cumpleanosDelTablero } from '@/lib/inicio/cargar-cumpleanos'
 import { cargarGruposMiembro, type DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
 import { cargarHechosInicio } from '@/lib/inicio/cargar-hechos'
+import { cargarNotasLideres, type NotaLider } from '@/lib/inicio/cargar-notas-lideres'
 import { decidirSecciones } from '@/lib/inicio/decidir-secciones'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
@@ -63,20 +67,27 @@ export default async function PaginaInicio() {
   const grupos = secciones.flatMap((s) => (s.id === 'grupo-miembro' ? [{ grupoId: s.grupoId, nombre: s.nombre }] : []))
   const aCargo = secciones.find((s) => s.id === 'a-cargo')
   const conVision = secciones.some((s) => s.id === 'vision-general')
+  const conNotas = secciones.some((s) => s.id === 'notas-lideres')
+  const conCumpleanos = secciones.some((s) => s.id === 'cumpleanos')
+  // The group names the leader's birthdays only when they lead one: the list mixes their groups.
+  const gruposLider = aCargo?.cargos.flatMap((c) => (c.tipo === 'grupo-lider' ? [c.nombre] : [])) ?? []
+  const grupoCumpleanos = gruposLider.length === 1 ? gruposLider[0] : null
 
   const usuarioId = hechos.usuarioId
-  const tableroPromesa = aCargo || conVision ? cargarTablero() : Promise.resolve(null)
-  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos] = await Promise.all([
+  const tableroPromesa = aCargo || conVision || conCumpleanos ? cargarTablero() : Promise.resolve(null)
+  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres] = await Promise.all([
     usuarioId && grupos.length > 0
       ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Record<string, DatosGrupoMiembro>>({}),
     usuarioId && aCargo
-      ? cargarACargo(supabase, { authId: user.id, usuarioId, hoy, cargos: aCargo.cargos, tablero: tableroPromesa })
+      ? cargarACargo(supabase, { authId: user.id, usuarioId, hoy, cargos: aCargo.cargos })
       : Promise.resolve<(DatosCargo | null)[]>([]),
     conVision ? tableroPromesa.then((t) => cargarVisionGeneral(supabase, t, hechos.pendientes.gruposSinCasa)) : Promise.resolve(null),
     tableroPromesa,
     misHijosPromesa,
+    conNotas ? cargarNotasLideres(supabase, user.id) : Promise.resolve<NotaLider[]>([]),
   ])
+  const cumpleanos = conCumpleanos ? cumpleanosDelTablero(tablero, grupoCumpleanos) : []
 
   return (
     <PaginaSistema breadcrumbs={<MigasInicio />}>
@@ -89,6 +100,8 @@ export default async function PaginaInicio() {
         misHijos={misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
         aCargo={cargos}
         visionGeneral={visionGeneral}
+        notasLideres={notasLideres}
+        cumpleanos={cumpleanos}
         contextos={tablero?.contextos}
       />
     </PaginaSistema>
