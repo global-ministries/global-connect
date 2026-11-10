@@ -177,7 +177,10 @@ function esFalloTemporal(error: ErrorAuth): boolean {
 
 /** The confirmation email of a signup, whose link comes back to the chosen edición. */
 function redireccionCorreo(edicionId: string): string {
-  const sitio = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  // Vercel previews have no NEXT_PUBLIC_SITE_URL: their own deployment URL, never localhost.
+  const sitio =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   return `${sitio}/auth/callback?next=${encodeURIComponent(rutaProximoPaso(edicionId))}`
 }
 

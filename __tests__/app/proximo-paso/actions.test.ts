@@ -585,3 +585,23 @@ describe('reenviarCodigoProximoPaso', () => {
     expect(resend).not.toHaveBeenCalled()
   })
 })
+
+describe('email redirect when NEXT_PUBLIC_SITE_URL is missing (Vercel preview)', () => {
+  const original = { site: process.env.NEXT_PUBLIC_SITE_URL, vercel: process.env.VERCEL_URL }
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_SITE_URL = original.site
+    if (original.vercel === undefined) delete process.env.VERCEL_URL
+    else process.env.VERCEL_URL = original.vercel
+  })
+
+  it('S3: uses the deployment URL instead of localhost', async () => {
+    delete process.env.NEXT_PUBLIC_SITE_URL
+    process.env.VERCEL_URL = 'global-connect-abc.vercel.app'
+    resend.mockResolvedValue({ error: null })
+    await reenviarCodigoProximoPaso({ email: 'ana@example.com', edicionId: 'ed-dic' })
+    const opciones = resend.mock.calls[0][0].options
+    expect(opciones.emailRedirectTo).toBe(
+      'https://global-connect-abc.vercel.app/auth/callback?next=%2Fproximo-paso%3Fedicion%3Ded-dic',
+    )
+  })
+})
