@@ -313,9 +313,18 @@ describe('decidirSecciones · próximos cumpleaños (S12)', () => {
     expect(ids(hechos({ esAdminOPastor: true }))).toContain('cumpleanos')
   })
 
-  it('el miembro, el colíder y el director de área no los ven todavía', () => {
-    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }))).not.toContain('cumpleanos')
-    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Colíder' }] }))).not.toContain('cumpleanos')
+  it('el miembro y el colíder ven los de su grupo (S14a)', () => {
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }))).toEqual(['grupo-miembro', 'cumpleanos', 'explorar'])
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Colíder' }] }))).toEqual(['grupo-miembro', 'cumpleanos', 'explorar'])
+  })
+
+  it('una sola sección aunque la persona lidere un grupo y sea miembro de otros', () => {
+    const h = hechos({ grupos: [{ grupoId: 'g-1', nombre: 'A', rol: 'Líder' }, { grupoId: 'g-2', nombre: 'B', rol: 'Miembro' }, { grupoId: 'g-3', nombre: 'C', rol: 'Colíder' }] })
+    expect(ids(h).filter((id) => id === 'cumpleanos')).toHaveLength(1)
+  })
+
+  it('sin grupo ni cargo no los ve, tampoco el director de área', () => {
+    expect(ids(hechos({}))).not.toContain('cumpleanos')
     expect(ids(hechos({ serviciosActivos: [servicio('director')] }))).not.toContain('cumpleanos')
   })
 
@@ -329,12 +338,12 @@ describe('decidirSecciones · próximos cumpleaños (S12)', () => {
 // Facts of each design profile (design/home-por-rol/_generar.mjs, PERFILES).
 const PERFILES: Array<[string, HechosInicio, string[]]> = [
   ['01 Miembro nuevo', hechos({ hizoProximoPaso: false, perfilCompleto: false }), ['6', 'x']],
-  ['02 Asiste pero no sirve', hechos({ hizoProximoPaso: false, grupos: [{ grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }] }), ['4b', '6', 'x']],
+  ['02 Asiste pero no sirve', hechos({ hizoProximoPaso: false, grupos: [{ grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }] }), ['4b', 'c', '6', 'x']],
   ['03 Padre o madre', hechos({ hizoProximoPaso: false, hijos: 2 }), ['3', '6', 'x']],
   ['04 Servidor con servicio por confirmar', hechos({
     serviciosActivos: [servicio('voluntario', 'eq-prod')], serviciosPorConfirmar: 1,
     grupos: [{ grupoId: 'g-jp', nombre: 'Jóvenes profesionales · Centro', rol: 'Miembro' }],
-  }), ['2', '4b', 'x']],
+  }), ['2', '4b', 'c', 'x']],
   ['05 Líder de grupo que además sirve', hechos({
     serviciosActivos: [servicio('voluntario', 'eq-bienvenida')], serviciosPorConfirmar: 1,
     grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Líder' }, { grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }],
@@ -347,7 +356,7 @@ const PERFILES: Array<[string, HechosInicio, string[]]> = [
     esAdminOPastor: true, pendientes: { casasPorRevisar: 3, solicitudesGrupo: 5, reportesSinCargar: 11, ticketsAbiertos: 2 },
   }), ['1', 'n', 'c', '5', 'x']],
   // Hizo Próximo Paso and has the profile complete: without «Servir en Dream Team» (S13) nothing is pending.
-  ['08 Colíder de grupo', hechos({ grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Colíder' }] }), ['4b', 'x']],
+  ['08 Colíder de grupo', hechos({ grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Colíder' }] }), ['4b', 'c', 'x']],
   ['09 Directora de etapa', hechos({
     etapasDirigidas: ['sl-mujeres36'], pendientes: { reportesSinCargar: 4, solicitudesGrupo: 2, gruposSinCasa: 1 },
   }), ['1', '4', 'n', 'c', 'x']],

@@ -40,7 +40,8 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 
 type Respuesta = { data: unknown; error: { message?: string } | null }
 
-async function intentar<T>(fuente: string, leer: () => PromiseLike<T>, vacio: T): Promise<T> {
+/** Runs `leer` with the time limit; a failure is logged and gives `vacio`. Also used by the group birthdays. */
+export async function intentar<T>(fuente: string, leer: () => PromiseLike<T>, vacio: T): Promise<T> {
   let reloj: ReturnType<typeof setTimeout> | undefined
   const limite = new Promise<never>((_, rechazar) => {
     reloj = setTimeout(() => rechazar(new Error(`más de ${TIEMPO_MAXIMO_MS} ms`)), TIEMPO_MAXIMO_MS)
@@ -55,7 +56,7 @@ async function intentar<T>(fuente: string, leer: () => PromiseLike<T>, vacio: T)
   }
 }
 
-async function datos(consulta: PromiseLike<Respuesta>): Promise<unknown> {
+export async function datos(consulta: PromiseLike<Respuesta>): Promise<unknown> {
   const { data, error } = await consulta
   if (error) throw new Error(error.message ?? 'error de Supabase')
   return data

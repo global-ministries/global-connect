@@ -4,7 +4,8 @@
  * only when present: «A tu cargo» one block per cargo (cargarACargo),
  * «Visión general» the campus numbers for admin and pastor, «Notas de
  * líderes» (cargarNotasLideres) and «Próximos cumpleaños» (from the tablero,
- * T7). obtener_datos_dashboard (tablero.tsx) is read only where needed; each
+ * T7, plus the groups where the person is Miembro or Colíder, T8).
+ * obtener_datos_dashboard (tablero.tsx) is read only where needed; each
  * section degrades on its own.
  */
 import { redirect } from 'next/navigation'
@@ -16,7 +17,7 @@ import { TarjetaMisServicios } from '@/components/mis-servicios/tarjeta-mis-serv
 import { MigasInicio } from '@/components/inicio/partes-inicio'
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
 import { cargarACargo, type DatosCargo } from '@/lib/inicio/cargar-a-cargo'
-import { cumpleanosDelTablero } from '@/lib/inicio/cargar-cumpleanos'
+import { cargarCumpleanosGrupos, cumpleanosDelTablero, unirCumpleanos, type Cumpleanos } from '@/lib/inicio/cargar-cumpleanos'
 import { cargarGruposMiembro, type DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
 import { cargarHechosInicio } from '@/lib/inicio/cargar-hechos'
 import { cargarNotasLideres, type NotaLider } from '@/lib/inicio/cargar-notas-lideres'
@@ -74,8 +75,9 @@ export default async function PaginaInicio() {
   const grupoCumpleanos = gruposLider.length === 1 ? gruposLider[0] : null
 
   const usuarioId = hechos.usuarioId
-  const tableroPromesa = aCargo || conVision || conCumpleanos ? cargarTablero() : Promise.resolve(null)
-  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres] = await Promise.all([
+  // The tablero has birthdays only for who leads or oversees, and they all have a cargo or the campus view.
+  const tableroPromesa = aCargo || conVision ? cargarTablero() : Promise.resolve(null)
+  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres, cumpleanosGrupos] = await Promise.all([
     usuarioId && grupos.length > 0
       ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Record<string, DatosGrupoMiembro>>({}),
@@ -86,8 +88,12 @@ export default async function PaginaInicio() {
     tableroPromesa,
     misHijosPromesa,
     conNotas ? cargarNotasLideres(supabase, user.id) : Promise.resolve<NotaLider[]>([]),
+    usuarioId && conCumpleanos && grupos.length > 0
+      ? cargarCumpleanosGrupos(supabase, { authId: user.id, usuarioId, hoy, grupos })
+      : Promise.resolve<Cumpleanos[]>([]),
   ])
-  const cumpleanos = conCumpleanos ? cumpleanosDelTablero(tablero, grupoCumpleanos) : []
+  // A leader who is also a member elsewhere sees both groups in one list, each person once (S14a).
+  const cumpleanos = conCumpleanos ? unirCumpleanos(cumpleanosDelTablero(tablero, grupoCumpleanos), cumpleanosGrupos) : []
 
   return (
     <PaginaSistema breadcrumbs={<MigasInicio />}>
