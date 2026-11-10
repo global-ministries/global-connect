@@ -63,6 +63,9 @@ async function* walk(dir: string): AsyncGenerator<string> {
   }
 }
 
+// Both scans walk the repository; under a loaded CI runner they pass the default 5 s.
+const SCAN_TIMEOUT_MS = 30_000
+
 describe('T0 — dead lib/platform/talleres modules removed', () => {
   it('none of the 10 dead module files exist', () => {
     const present = DEAD_MODULES.filter((name) =>
@@ -100,7 +103,7 @@ describe('T0 — dead lib/platform/talleres modules removed', () => {
       )
     }
     expect(violations).toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 
   it('no remaining lib/platform/talleres file imports a dead module via a relative specifier', async () => {
     const violations: Array<{ file: string; module: string }> = []
@@ -124,5 +127,5 @@ describe('T0 — dead lib/platform/talleres modules removed', () => {
       )
     }
     expect(violations).toEqual([])
-  })
+  }, SCAN_TIMEOUT_MS)
 })
