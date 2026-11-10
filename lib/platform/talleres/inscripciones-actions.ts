@@ -27,6 +27,13 @@
  * mails a fresh access link for an inscription whose partner ficha was
  * created by the member.
  *
+ * Talleres — avisos (odd/tasks/talleres-reserva-publica.md T7, S6): the
+ * approval and the rejection write their notices in the database (trigger
+ * on taller_inscripciones, in-app + email outbox); after a successful
+ * write both actions send the due emails right away
+ * (`despacharAvisosTalleres`, best effort, never throws) instead of
+ * waiting for the daily run.
+ *
  * Capability gate mirrors the page-level gate and the RLS policy:
  *   talleres_crecimiento.director.write
  *   OR talleres_crecimiento.admin.manage
@@ -54,6 +61,7 @@ import {
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { enviarInvitacionAcceso, enviarInvitacionesPendientes } from '@/lib/platform/talleres/invitacion-acceso-envio'
+import { despacharAvisosTalleres } from '@/lib/platform/talleres/avisos-envio'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 export type InscripcionError =
@@ -188,6 +196,8 @@ export async function approveInscripcionAction(
   // A partner ficha created at enrollment may now be due its access email
   // (taller set to 'al_aprobar'). The sender never throws.
   await enviarInvitacionesPendientes()
+  // The «Aprobada» notice was written with the update; send its email now.
+  await despacharAvisosTalleres()
 
   revalidateInscripcionSurfaces()
   return { ok: true, message: 'Inscripci\u00f3n aprobada.' }
@@ -304,6 +314,9 @@ export async function rejectInscripcionAction(
         'La inscripci\u00f3n no existe o no est\u00e1 en estado pendiente. Refresc\u00e1 la p\u00e1gina.',
     }
   }
+
+  // The «No aprobada» notice (with the motivo) was written with the update.
+  await despacharAvisosTalleres()
 
   revalidateInscripcionSurfaces()
   return { ok: true, message: 'Inscripci\u00f3n rechazada.' }

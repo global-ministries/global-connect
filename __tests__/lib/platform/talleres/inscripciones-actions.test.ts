@@ -33,6 +33,10 @@ jest.mock('@/lib/platform/talleres/invitacion-acceso-envio', () => ({
   enviarInvitacionAcceso: jest.fn().mockResolvedValue('enviada'),
 }))
 
+jest.mock('@/lib/platform/talleres/avisos-envio', () => ({
+  despacharAvisosTalleres: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdminClient: jest.fn(),
 }))
@@ -553,5 +557,50 @@ describe('reenviarAccesoAction', () => {
     setupMocks({ capabilities: ['talleres_crecimiento.coordinator.read'] })
     const result = await reenviarAccesoAction(INSCRIPCION_ID)
     expect(result).toMatchObject({ ok: false, error: 'FORBIDDEN' })
+  })
+})
+
+// ─── T7 avisos: the emails go right after the write ───────────────────────
+
+describe('approve / reject send the due notice emails right away', () => {
+  const despachar = jest.requireMock('@/lib/platform/talleres/avisos-envio').despacharAvisosTalleres as jest.Mock
+
+  function sinFila() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recursive chain mock
+    const updateBuilder: Record<string, any> = {}
+    updateBuilder['eq'] = jest.fn(() => updateBuilder)
+    updateBuilder['select'] = jest.fn(() => updateBuilder)
+    updateBuilder['maybeSingle'] = jest.fn(() => Promise.resolve({ data: null, error: null }))
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: AUTH_UID } }, error: null }) },
+      from: jest.fn(() => ({ update: jest.fn(() => updateBuilder) })),
+    })
+  }
+
+  it('an approval dispatches once', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    await expect(approveInscripcionAction(INSCRIPCION_ID)).resolves.toMatchObject({ ok: true })
+    expect(despachar).toHaveBeenCalledTimes(1)
+  })
+
+  it('a rejection dispatches once', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    await expect(rejectInscripcionAction(INSCRIPCION_ID, 'Cupo lleno')).resolves.toMatchObject({ ok: true })
+    expect(despachar).toHaveBeenCalledTimes(1)
+  })
+
+  it('nothing is dispatched when the row was not pendiente', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    sinFila()
+    await expect(approveInscripcionAction(INSCRIPCION_ID)).resolves.toMatchObject({ ok: false })
+    await expect(rejectInscripcionAction(INSCRIPCION_ID, 'Cupo lleno')).resolves.toMatchObject({ ok: false })
+    expect(despachar).not.toHaveBeenCalled()
+  })
+
+  it('nothing is dispatched without the capability', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.read'] })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    await rejectInscripcionAction(INSCRIPCION_ID, 'Cupo lleno')
+    expect(despachar).not.toHaveBeenCalled()
   })
 })
