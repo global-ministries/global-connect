@@ -507,6 +507,32 @@ describe('casas anfitrionas server actions permissions', () => {
     expect(createSupabaseAdminClient).not.toHaveBeenCalled()
   })
 
+  it('keeps a Colíder\'s group out of the missing-host-home queue and its assignment (Colíder is read-only, S6)', async () => {
+    const rpc = createPermissionRpcMock({ roles: ['lider'], missingHostHomeRows: [createMissingHostHomeRow()] })
+    const adminRpc = jest.fn().mockResolvedValue({ data: { ok: true, grupo_id: groupId, casa_id: casaId }, error: null })
+    const serverClient = createServerClient({ rpc, coLeaderDashboardGroupIds: [groupId] })
+    createSupabaseServerClient.mockResolvedValue(serverClient)
+    createSupabaseAdminClient.mockReturnValue(createAdminClient({ rpc: adminRpc }))
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [] })
+    await expect(asignarCasaAnfitrionaAGrupo({ groupId, casaId })).resolves.toEqual({
+      success: false,
+      error: 'El grupo ya no está en la cola de asignación. Actualiza la página e inténtalo nuevamente.',
+    })
+
+    expect(serverClient.dashboardGroupMembershipQuery.in).toHaveBeenCalledWith('rol', ['Líder'])
+    expect(adminRpc).not.toHaveBeenCalled()
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it('keeps the Líder\'s group in the missing-host-home queue', async () => {
+    const rpc = createPermissionRpcMock({ roles: ['lider'], missingHostHomeRows: [createMissingHostHomeRow()] })
+    const serverClient = createServerClient({ rpc, leaderDashboardGroupIds: [groupId] })
+    createSupabaseServerClient.mockResolvedValue(serverClient)
+
+    await expect(obtenerGruposSinCasaAnfitriona({ scope: 'active' })).resolves.toEqual({ success: true, data: [createMissingHostHomeRow()] })
+  })
+
   it('filters missing-host-home dashboard queue rows outside the director assigned scope', async () => {
     const rpc = createPermissionRpcMock({ roles: ['director-etapa'], missingHostHomeRows: [createMissingHostHomeRow()] })
     const serverClient = createServerClient({ rpc, directorDashboardGroupIds: [] })
@@ -905,10 +931,14 @@ function createServerClient(input: {
   casasQuery?: unknown
   directorDashboardGroupIds?: string[]
   groupLeaderRows?: GroupLeaderQueryRow[]
+  coLeaderDashboardGroupIds?: string[]
   internalUserId?: string | null
   leaderDashboardGroupIds?: string[]
 }) {
-  const dashboardGroupMembershipQuery = createDashboardGroupMembershipQuery(input.leaderDashboardGroupIds ?? [])
+  const dashboardGroupMembershipQuery = createDashboardGroupMembershipQuery([
+    ...(input.leaderDashboardGroupIds ?? []).map((grupo_id) => ({ grupo_id, rol: 'Líder' })),
+    ...(input.coLeaderDashboardGroupIds ?? []).map((grupo_id) => ({ grupo_id, rol: 'Colíder' })),
+  ])
   const groupLeaderQuery = input.groupLeaderRows ? createGroupLeaderQuery(input.groupLeaderRows) : null
 
   return {
@@ -921,6 +951,7 @@ function createServerClient(input: {
       if (table === 'director_etapa_grupos') return createDirectorEtapaGroupsQuery(input.directorDashboardGroupIds ?? [])
       throw new Error(`Unexpected server table ${table}`)
     }),
+    dashboardGroupMembershipQuery,
     groupLeaderQuery,
     rpc: input.rpc,
   }
@@ -946,7 +977,7 @@ function createListQuery(rows: unknown[]) {
   }
 }
 
-function createDashboardGroupMembershipQuery(groupIds: string[]) {
+function createDashboardGroupMembershipQuery(memberships: Array<{ grupo_id: string; rol: string }>) {
   let selectedGroupIds: string[] | null = null
   const query: {
     select: jest.Mock
@@ -963,7 +994,10 @@ function createDashboardGroupMembershipQuery(groupIds: string[]) {
         return query
       }
 
-      const filteredGroupIds = selectedGroupIds ? groupIds.filter((grupo_id) => selectedGroupIds?.includes(grupo_id)) : groupIds
+      const filteredGroupIds = memberships
+        .filter((row) => column !== 'rol' || values.includes(row.rol))
+        .map((row) => row.grupo_id)
+        .filter((grupo_id) => !selectedGroupIds || selectedGroupIds.includes(grupo_id))
       return Promise.resolve({ data: filteredGroupIds.map((grupo_id) => ({ grupo_id })), error: null })
     }),
   }
