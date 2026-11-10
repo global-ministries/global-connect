@@ -222,8 +222,8 @@ describe('decidirSecciones · próximos pasos (S3)', () => {
 })
 
 describe('decidirSecciones · datos heredados sin el hito de Próximo Paso (L8)', () => {
-  it('quien ya sirve no ve Próximo Paso destacado y Explorar sí nombra Dream Team', () => {
-    const h = hechos({ hizoProximoPaso: false, serviciosActivos: [servicio()] })
+  it('quien ya sirve no ve Próximo Paso destacado y, si puede abrir Dream Team, Explorar lo nombra', () => {
+    const h = hechos({ hizoProximoPaso: false, serviciosActivos: [servicio()], abreDreamTeam: true })
     expect(seccion(h, 'proximos-pasos')).toBeUndefined()
     expect(seccion(h, 'explorar')?.tiles).toContain('dream-team')
   })
@@ -270,12 +270,18 @@ describe('decidirSecciones · Dream Team solo con servicio (S13)', () => {
     expect(seccion(hechos({ hizoProximoPaso: true }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'ninos'])
   })
 
-  it('con un servicio de Dream Team Explorar lo ofrece', () => {
-    expect(seccion(hechos({ serviciosActivos: [servicio()] }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'dream-team', 'ninos'])
+  it('quien puede abrir Dream Team (Mi equipo o registrar) lo ve en Explorar', () => {
+    expect(seccion(hechos({ serviciosActivos: [servicio()], abreDreamTeam: true }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'dream-team', 'ninos'])
   })
 
-  it('convocado en DPS también lo ve', () => {
-    expect(seccion(hechos({ convocadoEnDps: true }), 'explorar')?.tiles).toContain('dream-team')
+  it('el servidor que no puede abrir Dream Team no lo ve en Explorar: tiene Mis servicios en el inicio', () => {
+    const h = hechos({ serviciosActivos: [servicio()], abreDreamTeam: false })
+    expect(seccion(h, 'explorar')?.tiles).not.toContain('dream-team')
+    expect(ids(h)).toContain('mis-servicios')
+  })
+
+  it('convocado en DPS sin acceso a Dream Team tampoco lo ve en Explorar', () => {
+    expect(seccion(hechos({ convocadoEnDps: true }), 'explorar')?.tiles).not.toContain('dream-team')
   })
 })
 

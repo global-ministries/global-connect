@@ -140,7 +140,8 @@ export function decidirSecciones(h: HechosInicio): SeccionInicio[] {
   const lista = pasos(h, sirve, aCargo.length > 0)
   if (lista.some((p) => !p.hecho)) secciones.push({ id: 'proximos-pasos', pasos: lista })
 
-  const tiles = pidePrimerPaso(h, sirve, aCargo.length > 0) ? EXPLORAR_SIN_PROXIMO_PASO : sirve ? EXPLORAR_SIRVE : EXPLORAR
+  // The Dream Team tile only for who can open /dream-team (it 404s otherwise); a plain servant has «Mis servicios».
+  const tiles = pidePrimerPaso(h, sirve, aCargo.length > 0) ? EXPLORAR_SIN_PROXIMO_PASO : h.abreDreamTeam ? EXPLORAR_SIRVE : EXPLORAR
   secciones.push({ id: 'explorar', tiles })
   return secciones
 }

@@ -82,7 +82,8 @@ describe('PantallaInicio', () => {
     expect(ranura).toBeEmptyDOMElement()
     const grupo = screen.getByRole('region', { name: 'Mi grupo de vida' })
     expect(ranura!.compareDocumentPosition(grupo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(within(screen.getByRole('region', { name: 'Explorar' })).getByText('Dream Team')).toBeInTheDocument()
+    // A plain servant cannot open /dream-team: the tile is gone, «Mis servicios» is their Dream Team.
+    expect(within(screen.getByRole('region', { name: 'Explorar' })).queryByText('Dream Team')).toBeNull()
   })
 
   it('08 colíder: su grupo en solo lectura, sin acciones de edición', () => {

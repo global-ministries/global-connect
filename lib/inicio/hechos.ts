@@ -39,6 +39,8 @@ export type HechosInicio = {
   serviciosActivos: ServicioActivo[]
   /** Convocado in a DPS plan; filled when feat/dps-avisos is merged (S2). */
   convocadoEnDps: boolean
+  /** Whether the person can open /dream-team (Mi equipo access or somewhere to register people), as its guard. */
+  abreDreamTeam: boolean
   /** DPS services waiting for an answer; filled when feat/dps-avisos is merged (S2). */
   serviciosPorConfirmar: number
   hijos: number
@@ -58,6 +60,7 @@ export const HECHOS_VACIOS: HechosInicio = {
   segmentosDirigidos: [],
   serviciosActivos: [],
   convocadoEnDps: false,
+  abreDreamTeam: false,
   serviciosPorConfirmar: 0,
   hijos: 0,
   perfilCompleto: true,
