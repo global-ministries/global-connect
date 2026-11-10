@@ -56,7 +56,7 @@
 -- ROLLBACK
 --   DROP FUNCTION public.talleres_anular_recuperacion(uuid);
 --   DROP FUNCTION public.talleres_registrar_recuperacion(uuid, uuid, date, uuid, text);
---   DROP TABLE public.taller_recuperaciones;
+--   DROP TABLE IF EXISTS public.taller_recuperaciones;
 --   ALTER TABLE public.talleres DROP COLUMN permite_recuperar_clases;
 --   then recreate talleres_cierre_resultados from
 --   20261003140000_talleres_cierre_de_edicion.sql (section D).
