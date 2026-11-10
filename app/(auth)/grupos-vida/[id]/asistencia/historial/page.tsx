@@ -34,16 +34,27 @@ export default async function HistorialAsistenciaPage({
 )
   }
 
-  // Obtener detalles del grupo y validar permisos
-  const [grupoRes, puedeEditarRes] = await Promise.all([
+  // Ver el historial: quien ve el grupo (también el Colíder, solo lectura).
+  // Registrar o editar: solo quien puede editar el grupo.
+  const { data: usuario } = await supabase
+    .from('usuarios')
+    .select('id')
+    .eq('auth_id', user.id)
+    .maybeSingle()
+
+  const [grupoRes, puedeVerRes, puedeEditarRes] = await Promise.all([
     supabase.rpc('obtener_detalle_grupo', { p_auth_id: user.id, p_grupo_id: id }),
+    usuario
+      ? supabase.rpc('puede_ver_grupo', { p_user_id: usuario.id, p_grupo_id: id })
+      : Promise.resolve({ data: false }),
     supabase.rpc('puede_editar_grupo', { p_auth_id: user.id, p_grupo_id: id })
   ])
 
   const grupo = grupoRes.data as any
-  const puedeEditar = puedeEditarRes.data
+  const puedeVer = puedeVerRes.data === true
+  const puedeEditar = puedeEditarRes.data === true
 
-  if (!puedeEditar || !grupo) {
+  if (!puedeVer || !grupo) {
     return (
 <PaginaSistema>
           <div className="flex items-center justify-center min-h-[50vh]">
@@ -98,7 +109,7 @@ export default async function HistorialAsistenciaPage({
         titulo={`Historial de Asistencia - ${grupo.nombre}`}
         descripcion="Análisis y eventos registrados"
         regreso={{ href: `/grupos-vida/${id}`, texto: 'Volver al grupo' }}
-        acciones={
+        acciones={puedeEditar ? (
           <Link href={`/grupos-vida/${id}/asistencia`}>
             <BotonSistema
               variante="outline"
@@ -109,13 +120,14 @@ export default async function HistorialAsistenciaPage({
               <span className="hidden sm:inline">Registrar nuevo</span>
             </BotonSistema>
           </Link>
-        }
+        ) : undefined}
       >
         <HistorialAsistenciaClient
           grupoId={id}
           reporte={reporte as any}
           fechaInicio={fechaInicio || undefined}
           fechaFin={fechaFin || undefined}
+          puedeEditar={puedeEditar}
         />
       </PaginaSistema>
 )
