@@ -1,7 +1,14 @@
 /**
  * Which sections the home shows, in order of urgency (odd/tasks/home-por-rol.md
- * S1, S3, S6–S8; design/home-por-rol/00). Pure: the facts are loaded by
- * cargarHechosInicio and the screen renders whatever this returns.
+ * S1, S3, S6–S8, S11–S13; design/home-por-rol/00). Pure: the facts are loaded
+ * by cargarHechosInicio and the screen renders whatever this returns.
+ *
+ * Order: Para responder → Mis servicios → Mis hijos → A tu cargo → Notas de
+ * líderes → Grupo donde soy miembro → Próximos cumpleaños → Visión general →
+ * Próximos pasos → Explorar. The notes go right after «A tu cargo»: they are
+ * what the leaders under the person wrote. The birthdays go after the groups
+ * and before the campus numbers: a birthday is today or this week, the
+ * campus trend can wait.
  */
 import type { HechosInicio, PendientesInicio } from './hechos'
 
@@ -26,7 +33,7 @@ export type CargoInicio =
   | { tipo: 'area-dream-team'; equipoId: string; servicioId: string }
 
 export type PasoInicio = {
-  id: 'proximo-paso' | 'completar-perfil' | 'talleres' | 'servir-dream-team'
+  id: 'proximo-paso' | 'completar-perfil' | 'talleres'
   hecho: boolean
   destacado?: true
 }
@@ -38,7 +45,9 @@ export type SeccionInicio =
   | { id: 'mis-servicios'; porConfirmar: number }
   | { id: 'mis-hijos'; cantidad: number }
   | { id: 'a-cargo'; cargos: CargoInicio[] }
+  | { id: 'notas-lideres' }
   | { id: 'grupo-miembro'; grupoId: string; nombre: string | null; soloLectura: boolean }
+  | { id: 'cumpleanos' }
   | { id: 'vision-general' }
   | { id: 'proximos-pasos'; pasos: PasoInicio[] }
   | { id: 'explorar'; tiles: TileExplorar[] }
@@ -55,9 +64,11 @@ const ORDEN_PENDIENTES: ReadonlyArray<[keyof PendientesInicio, TipoPendiente]> =
   ['ticketsAbiertos', 'tickets'],
 ]
 
-// Without Próximo Paso, Dream Team is not named: serving starts there (S3, S4).
+// Without Próximo Paso, Próximo Paso is the first door (S3, S4). Dream Team is named only to
+// whoever already serves in a team (S13): the way to serve is Próximo Paso.
 const EXPLORAR_SIN_PROXIMO_PASO: TileExplorar[] = ['proximo-paso', 'talleres', 'grupos-vida', 'ninos']
-const EXPLORAR: TileExplorar[] = ['grupos-vida', 'talleres', 'dream-team', 'ninos']
+const EXPLORAR: TileExplorar[] = ['grupos-vida', 'talleres', 'ninos']
+const EXPLORAR_SIRVE: TileExplorar[] = ['grupos-vida', 'talleres', 'dream-team', 'ninos']
 
 function cargos(h: HechosInicio): CargoInicio[] {
   return [
@@ -79,7 +90,7 @@ function pidePrimerPaso(h: HechosInicio, sirve: boolean, tieneCargo: boolean): b
 }
 
 function pasos(h: HechosInicio, sirve: boolean, tieneCargo: boolean): PasoInicio[] {
-  // Unknown (null) or legacy without the milestone asks for nothing: neither Próximo Paso nor serving.
+  // Unknown (null) or legacy without the milestone does not ask for Próximo Paso.
   if (pidePrimerPaso(h, sirve, tieneCargo)) {
     return [
       { id: 'proximo-paso', hecho: false, destacado: true },
@@ -88,11 +99,7 @@ function pasos(h: HechosInicio, sirve: boolean, tieneCargo: boolean): PasoInicio
     ]
   }
   const lista: PasoInicio[] = [{ id: 'completar-perfil', hecho: h.perfilCompleto }]
-  if (h.hizoProximoPaso === true) {
-    lista.push({ id: 'proximo-paso', hecho: true })
-    // Who already leads something, or oversees the campus, is not offered to serve.
-    if (!sirve && !tieneCargo && !h.esAdminOPastor) lista.push({ id: 'servir-dream-team', hecho: false })
-  }
+  if (h.hizoProximoPaso === true) lista.push({ id: 'proximo-paso', hecho: true })
   return lista
 }
 
@@ -114,10 +121,18 @@ export function decidirSecciones(h: HechosInicio): SeccionInicio[] {
   const aCargo = cargos(h)
   if (aCargo.length > 0) secciones.push({ id: 'a-cargo', cargos: aCargo })
 
+  // Whoever oversees leaders reads their notes, in the scope obtener_eventos_con_notas decides (S11).
+  const superviseLideres = h.etapasDirigidas.length > 0 || h.segmentosDirigidos.length > 0 || h.esAdminOPastor
+  if (superviseLideres) secciones.push({ id: 'notas-lideres' })
+
   for (const g of h.grupos) {
     if (g.rol === 'Líder') continue
     secciones.push({ id: 'grupo-miembro', grupoId: g.grupoId, nombre: g.nombre, soloLectura: g.rol === 'Colíder' })
   }
+
+  // The leader celebrates their group, the directors their scope, admin and pastor the campus
+  // (S12). Members and colíderes not yet: what they may read of others is not settled.
+  if (superviseLideres || h.grupos.some((g) => g.rol === 'Líder')) secciones.push({ id: 'cumpleanos' })
 
   // Only admin and pastor see the campus; a director general sees their segmento (S7, S8).
   if (h.esAdminOPastor) secciones.push({ id: 'vision-general' })
@@ -125,6 +140,7 @@ export function decidirSecciones(h: HechosInicio): SeccionInicio[] {
   const lista = pasos(h, sirve, aCargo.length > 0)
   if (lista.some((p) => !p.hecho)) secciones.push({ id: 'proximos-pasos', pasos: lista })
 
-  secciones.push({ id: 'explorar', tiles: pidePrimerPaso(h, sirve, aCargo.length > 0) ? EXPLORAR_SIN_PROXIMO_PASO : EXPLORAR })
+  const tiles = pidePrimerPaso(h, sirve, aCargo.length > 0) ? EXPLORAR_SIN_PROXIMO_PASO : sirve ? EXPLORAR_SIRVE : EXPLORAR
+  secciones.push({ id: 'explorar', tiles })
   return secciones
 }

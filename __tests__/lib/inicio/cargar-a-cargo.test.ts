@@ -41,8 +41,8 @@ const esConteo = (llamadas: Llamada[]) => llamadas.some(([m, , opciones]) => m =
 
 const HOY = '2026-11-09'
 const BASE = { authId: 'auth-1', usuarioId: 'u-1', hoy: HOY }
-const cargar = (c: ReturnType<typeof cliente>, cargos: Parameters<typeof cargarACargo>[1]['cargos'], tablero?: Parameters<typeof cargarACargo>[1]['tablero']) =>
-  cargarACargo(c as unknown as ClienteInicio, { ...BASE, cargos, tablero })
+const cargar = (c: ReturnType<typeof cliente>, cargos: Parameters<typeof cargarACargo>[1]['cargos']) =>
+  cargarACargo(c as unknown as ClienteInicio, { ...BASE, cargos })
 
 describe('semanaAnterior', () => {
   it('es el lunes a domingo antes de la semana de hoy', () => {
@@ -64,7 +64,7 @@ describe('cargarACargo', () => {
 
   afterEach(() => consola.mockRestore())
 
-  it('líder: su grupo con miembros, asistencia de la última reunión, ausentes, nuevos y cumpleaños', async () => {
+  it('líder: su grupo con miembros, asistencia de la última reunión, ausentes y nuevos', async () => {
     const c = cliente((tabla, llamadas) => {
       if (tabla === 'v_salud_miembros_grupo')
         return {
@@ -80,9 +80,7 @@ describe('cargarACargo', () => {
       if (tabla === 'grupo_miembros' && esConteo(llamadas)) return { count: 1 }
       return { data: [] }
     })
-    const tablero = Promise.resolve({ rol: 'lider', widgets: { proximos_cumpleanos_grupo: [{ nombre_completo: 'Ramón Pérez', proximo: '2026-11-12' }] } })
-
-    const [grupo] = await cargar(c, [{ tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'Hombres +36' }], tablero)
+    const [grupo] = await cargar(c, [{ tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'Hombres +36' }])
 
     expect(grupo).toEqual({
       tipo: 'grupo-lider',
@@ -94,26 +92,9 @@ describe('cargarACargo', () => {
       ultimaReunion: { fecha: '2026-10-29', asistencia: 67 },
       ausentes: ['Pedro Linárez', 'Jesús Escalona'],
       nuevos: 1,
-      cumpleanos: [{ nombre: 'Ramón Pérez', fecha: '2026-11-12' }],
     })
     const nuevos = c.consultas.find((q) => q.tabla === 'grupo_miembros')
     expect(tiene(nuevos!.llamadas, 'gte', 'fecha_asignacion', '2026-10-10')).toBe(true)
-  })
-
-  it('líder de dos grupos: sin los cumpleaños del tablero, que mezcla los grupos', async () => {
-    const c = cliente(() => ({ data: [] }))
-    const tablero = Promise.resolve({ rol: 'lider', widgets: { proximos_cumpleanos_grupo: [{ nombre_completo: 'Ramón Pérez', proximo: '2026-11-12' }] } })
-
-    const datos = await cargar(
-      c,
-      [
-        { tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'Hombres +36' },
-        { tipo: 'grupo-lider', grupoId: 'g-2', nombre: 'Jóvenes' },
-      ],
-      tablero,
-    )
-
-    expect(datos.map((d) => d?.tipo === 'grupo-lider' && d.cumpleanos)).toEqual([[], []])
   })
 
   it('etapa: sus grupos de la semana pasada, en riesgo y sin reporte', async () => {

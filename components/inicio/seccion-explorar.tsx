@@ -1,7 +1,7 @@
 /**
  * «Explorar» (design/home-por-rol): the door to everything of the church, like
  * Church Center's tabs. Always last; the tiles come from decidirSecciones, so
- * Dream Team is not named before Próximo Paso (S3).
+ * Dream Team is named only to whoever serves in a team (S3, S13).
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'

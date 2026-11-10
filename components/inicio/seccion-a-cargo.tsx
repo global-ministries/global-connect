@@ -6,7 +6,8 @@
  * side by side). A cargo whose data did not load is not shown.
  *
  * - Líder: «Grupo que lidero», «Pasar asistencia», Miembros · Asistencia ·
- *   Ausentes · Nuevos and «Atención» (absent 3+ weeks, birthdays).
+ *   Ausentes · Nuevos and «Atención» (absent 3+ weeks). Birthdays have their
+ *   own section (seccion-cumpleanos).
  * - Directora de etapa / director general: their etapa or segmento only,
  *   Grupos · Asistencia · En riesgo · Sin reporte, and the groups that need
  *   attention or the etapas of the segmento (S7: never the campus).
@@ -17,7 +18,7 @@
  */
 import type { ReactElement, ReactNode } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CalendarDays, ClipboardList, Users } from 'lucide-react'
+import { AlertTriangle, ClipboardList, Users } from 'lucide-react'
 
 import type { TonoEstado } from '@/components/ui/punto-estado'
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
@@ -121,12 +122,10 @@ function Bloque({
 function BloqueGrupoLider({ d, className }: { readonly d: DatosGrupoLider; readonly className?: string }): ReactElement {
   const nombre = d.nombre ?? 'Tu grupo'
   const r = d.proximaReunion
-  const atencion: FilaInicio[] = [
-    ...(d.ausentes && d.ausentes.length > 0
-      ? [{ clave: 'ausentes', titulo: `${plural(d.ausentes.length, 'falta', 'faltan')} hace 3 semanas o más`, detalle: algunosNombres(d.ausentes), icono: AlertTriangle, tono: 'danger' as const, href: rutaSaludGrupo(d.grupoId) }]
-      : []),
-    ...d.cumpleanos.map((c) => ({ clave: `cumple-${c.nombre}`, titulo: `Cumpleaños de ${c.nombre}`, detalle: fechaCorta(c.fecha), icono: CalendarDays, tono: 'info' as const })),
-  ]
+  const atencion: FilaInicio[] =
+    d.ausentes && d.ausentes.length > 0
+      ? [{ clave: 'ausentes', titulo: `${plural(d.ausentes.length, 'falta', 'faltan')} hace 3 semanas o más`, detalle: algunosNombres(d.ausentes), icono: AlertTriangle, tono: 'danger', href: rutaSaludGrupo(d.grupoId) }]
+      : []
   const miembros = d.miembros ?? undefined
   return (
     <Bloque

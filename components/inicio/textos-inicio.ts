@@ -26,6 +26,7 @@ export const RUTA_PERFIL = '/perfil'
 // Próximo Paso is a taller (S4): its enrollment lives with the other talleres.
 export const RUTA_PROXIMO_PASO = RUTA_TALLERES
 export const RUTA_DREAM_TEAM = '/dream-team'
+export const RUTA_NOTAS_LIDERES = '/notas-lideres'
 
 export const RUTA_REPORTE_SEMANAL = '/grupos-vida/reportes/asistencia-semanal'
 export const RUTA_TABLERO_GRUPOS = '/grupos-vida/dashboard-riesgo'
@@ -36,6 +37,8 @@ export const ID_PROXIMO_PASO_VOLUNTARIOS = 'proximo-paso-voluntarios'
 export const rutaGrupo = (grupoId: string) => `/grupos-vida/${grupoId}`
 export const rutaAsistenciaGrupo = (grupoId: string) => `/grupos-vida/${grupoId}/asistencia`
 export const rutaSaludGrupo = (grupoId: string) => `/grupos-vida/${grupoId}/salud`
+/** The meeting where a leader wrote the note (as NotasLideresWidget). */
+export const rutaReunionGrupo = (grupoId: string, eventoId: string) => `/grupos-vida/${grupoId}/asistencia/${eventoId}`
 
 export const DESCRIPCION_PROXIMO_PASO =
   'Conoce la visión de Global, cómo funciona la iglesia y dónde puedes crecer. Es el primer paso para todo lo demás.'
@@ -68,7 +71,6 @@ export const PASOS: Record<PasoInicio['id'], TextoPaso> = {
   'proximo-paso': { titulo: 'Próximo Paso', pendiente: 'El primer taller para conocer la iglesia', hecho: 'Terminado', cta: 'Inscribirme', href: RUTA_PROXIMO_PASO },
   'completar-perfil': { titulo: 'Completar tu perfil', pendiente: 'Faltan tu teléfono o tu fecha de nacimiento', hecho: 'Listo', cta: 'Completar', href: RUTA_PERFIL },
   talleres: { titulo: 'Talleres de crecimiento', pendiente: 'Inscripciones abiertas', hecho: 'Listo', cta: 'Ver talleres', href: RUTA_TALLERES },
-  'servir-dream-team': { titulo: 'Servir en Dream Team', pendiente: 'Ya puedes postularte', hecho: 'Listo', cta: 'Ver equipos', href: RUTA_DREAM_TEAM },
 }
 
 export type TextoTile = { titulo: string; detalle: string; href: string; icono: LucideIcon }
@@ -100,6 +102,18 @@ export function fechaLarga(fecha: string): string {
 export function fechaCorta(fecha: string): string {
   const p = partes(fecha)
   return p ? `${p.dia} ${p.numero} ${MESES[p.mes].slice(0, 3)}` : ''
+}
+
+/** «Hoy», «Mañana», «Ayer», else `2026-11-12` → «jue 12 nov». */
+export function diaRelativo(fecha: string, hoy: string): string {
+  const p = partes(fecha)
+  const h = partes(hoy)
+  if (!p || !h) return ''
+  const dias = Math.round((Date.parse(`${fecha}T00:00:00Z`) - Date.parse(`${hoy}T00:00:00Z`)) / 86_400_000)
+  if (dias === 0) return 'Hoy'
+  if (dias === 1) return 'Mañana'
+  if (dias === -1) return 'Ayer'
+  return `${p.dia.slice(0, 3).toLowerCase()} ${p.numero} ${MESES[p.mes].slice(0, 3)}`
 }
 
 /** `19:30` → «7:30 pm». */

@@ -14,6 +14,7 @@ const cargarVisionGeneral = jest.fn()
 const cargarACargo = jest.fn()
 const cargarMisHijosDashboard = jest.fn()
 const cargarMisServiciosPanel = jest.fn()
+const cargarNotasLideres = jest.fn()
 const getUser = jest.fn()
 const supabase = { auth: { getUser } }
 const redirect = jest.fn((ruta: string) => {
@@ -34,6 +35,7 @@ jest.mock('@/app/(auth)/dashboard/tablero', () => ({
   cargarVisionGeneral: (...a: unknown[]) => cargarVisionGeneral(...a),
 }))
 jest.mock('@/lib/inicio/cargar-a-cargo', () => ({ ...jest.requireActual('@/lib/inicio/cargar-a-cargo'), cargarACargo: (...a: unknown[]) => cargarACargo(...a) }))
+jest.mock('@/lib/inicio/cargar-notas-lideres', () => ({ cargarNotasLideres: (...a: unknown[]) => cargarNotasLideres(...a) }))
 jest.mock('@/app/(auth)/dashboard/mis-hijos-dashboard', () => ({ cargarMisHijosDashboard: () => cargarMisHijosDashboard() }))
 jest.mock('@/components/mis-servicios/cargar-mis-servicios', () => ({ cargarMisServiciosPanel: () => cargarMisServiciosPanel() }))
 jest.mock('@/components/mis-servicios/tarjeta-mis-servicios', () => ({
@@ -59,6 +61,7 @@ describe('PaginaInicio', () => {
     cargarACargo.mockResolvedValue([])
     cargarMisHijosDashboard.mockResolvedValue(null)
     cargarMisServiciosPanel.mockResolvedValue(null)
+    cargarNotasLideres.mockResolvedValue([])
   })
 
   it('miembro de un grupo: carga su grupo y no el tablero', async () => {
@@ -91,7 +94,7 @@ describe('PaginaInicio', () => {
   it('líder: carga sus cargos y muestra su grupo', async () => {
     cargarHechosInicio.mockResolvedValue(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'Hombres +36', rol: 'Líder' }] }))
     cargarACargo.mockResolvedValue([
-      { tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'Hombres +36', proximaReunion: null, lugar: null, miembros: 12, ultimaReunion: null, ausentes: [], nuevos: 0, cumpleanos: [] },
+      { tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'Hombres +36', proximaReunion: null, lugar: null, miembros: 12, ultimaReunion: null, ausentes: [], nuevos: 0 },
     ])
 
     render(await PaginaInicio())
@@ -101,10 +104,67 @@ describe('PaginaInicio', () => {
       usuarioId: 'u-1',
       hoy: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       cargos: [{ tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'Hombres +36' }],
-      tablero: expect.any(Promise),
     })
     expect(cargarVisionGeneral).not.toHaveBeenCalled()
+    expect(cargarNotasLideres).not.toHaveBeenCalled()
     expect(screen.getByRole('heading', { level: 2, name: 'Grupo que lidero' })).toBeInTheDocument()
+  })
+
+  it('líder: los cumpleaños de su grupo en su propia sección, con el grupo como contexto (S12)', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'Hombres +36', rol: 'Líder' }] }))
+    cargarTablero.mockResolvedValue({
+      rol: 'lider',
+      widgets: { proximos_cumpleanos_grupo: [{ id: 'u-9', nombre_completo: 'Ramón Pérez', proximo: '2026-11-12' }] },
+      campusId: null,
+      contextos: null,
+    })
+
+    render(await PaginaInicio())
+
+    const cumpleanos = screen.getByRole('region', { name: 'Próximos cumpleaños' })
+    expect(within(cumpleanos).getByText('Ramón Pérez')).toBeInTheDocument()
+    expect(within(cumpleanos).getByText('Hombres +36')).toBeInTheDocument()
+  })
+
+  it('directora de etapa: carga las notas de líderes y los cumpleaños de su alcance (S11, S12)', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({ etapasDirigidas: ['sl-1'] }))
+    cargarTablero.mockResolvedValue({
+      rol: 'director-etapa',
+      widgets: { proximos_cumpleanos_alcance: [{ id: 'u-9', nombre_completo: 'Gladys Piña', proximo: '2026-11-12' }] },
+      campusId: null,
+      contextos: null,
+    })
+    cargarNotasLideres.mockResolvedValue([
+      { eventoId: 'e-1', grupoId: 'g-1', grupo: 'El Ujano', nota: 'Oramos por Gladys', lider: 'Yelitza Rodríguez', presentes: 9, total: 12, fecha: '2026-11-05' },
+    ])
+
+    render(await PaginaInicio())
+
+    expect(cargarNotasLideres).toHaveBeenCalledWith(supabase, 'auth-1')
+    expect(within(screen.getByRole('region', { name: 'Notas de líderes' })).getByText('Oramos por Gladys')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Próximos cumpleaños' })).getByText('Gladys Piña')).toBeInTheDocument()
+  })
+
+  it('si las notas no cargan, solo se oculta ese bloque; si el tablero falla, solo los cumpleaños', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({ segmentosDirigidos: ['seg-1'] }))
+    cargarTablero.mockResolvedValue({ rol: 'director-general', widgets: { proximos_cumpleanos: [{ id: 'u-9', nombre_completo: 'Ana Pérez', proximo: '2026-11-12' }] }, campusId: null, contextos: null })
+    cargarNotasLideres.mockResolvedValue([])
+
+    const { unmount } = render(await PaginaInicio())
+
+    expect(screen.queryByRole('region', { name: 'Notas de líderes' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Próximos cumpleaños' })).toBeInTheDocument()
+    unmount()
+
+    cargarTablero.mockResolvedValue(null)
+    cargarNotasLideres.mockResolvedValue([
+      { eventoId: 'e-1', grupoId: 'g-1', grupo: 'El Ujano', nota: 'Oramos por Gladys', lider: null, presentes: null, total: null, fecha: '2026-11-05' },
+    ])
+
+    render(await PaginaInicio())
+
+    expect(screen.getByRole('region', { name: 'Notas de líderes' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Próximos cumpleaños' })).not.toBeInTheDocument()
   })
 
   it('si el tablero no carga, los cargos y el resto siguen', async () => {

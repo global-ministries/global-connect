@@ -12,6 +12,8 @@ const CLAVE: Record<string, SeccionInicio['id']> = {
   '4b': 'grupo-miembro',
   '5': 'vision-general',
   '6': 'proximos-pasos',
+  n: 'notas-lideres',
+  c: 'cumpleanos',
   x: 'explorar',
 }
 
@@ -155,7 +157,7 @@ describe('decidirSecciones · grupo donde soy miembro (S6)', () => {
 
   it('un líder que es miembro de otro grupo ve las dos tarjetas', () => {
     const h = hechos({ grupos: [{ grupoId: 'g-1', nombre: 'Hombres', rol: 'Líder' }, { grupoId: 'g-2', nombre: 'Matrimonios', rol: 'Miembro' }] })
-    expect(ids(h)).toEqual(['a-cargo', 'grupo-miembro', 'explorar'])
+    expect(ids(h)).toEqual(['a-cargo', 'grupo-miembro', 'cumpleanos', 'explorar'])
     expect(seccion(h, 'grupo-miembro')?.grupoId).toBe('g-2')
   })
 
@@ -192,11 +194,11 @@ describe('decidirSecciones · próximos pasos (S3)', () => {
     expect(pasos.map((p) => p.id)).toEqual(['proximo-paso', 'completar-perfil', 'talleres'])
   })
 
-  it('quien hizo Próximo Paso y no sirve ve «Servir en Dream Team»', () => {
-    expect(seccion(hechos({ hizoProximoPaso: true }), 'proximos-pasos')?.pasos).toEqual([
-      { id: 'completar-perfil', hecho: true },
+  it('quien hizo Próximo Paso y no sirve no ve un paso de Dream Team (S13)', () => {
+    expect(ids(hechos({ hizoProximoPaso: true }))).not.toContain('proximos-pasos')
+    expect(seccion(hechos({ hizoProximoPaso: true, perfilCompleto: false }), 'proximos-pasos')?.pasos).toEqual([
+      { id: 'completar-perfil', hecho: false },
       { id: 'proximo-paso', hecho: true },
-      { id: 'servir-dream-team', hecho: false },
     ])
   })
 
@@ -231,7 +233,8 @@ describe('decidirSecciones · datos heredados sin el hito de Próximo Paso (L8)'
     const pastor = hechos({ hizoProximoPaso: false, esAdminOPastor: true })
     expect(seccion(lider, 'proximos-pasos')).toBeUndefined()
     expect(seccion(pastor, 'proximos-pasos')).toBeUndefined()
-    expect(seccion(pastor, 'explorar')?.tiles).toContain('dream-team')
+    // Without a servicio, not even admin or pastor see the Dream Team tile (S13).
+    expect(seccion(pastor, 'explorar')?.tiles).not.toContain('dream-team')
   })
 
   it('el miembro que no sirve ni tiene cargo sí lo ve destacado', () => {
@@ -251,8 +254,69 @@ describe('decidirSecciones · explorar (S1, S3)', () => {
     expect(seccion(hechos({ hizoProximoPaso: false }), 'explorar')?.tiles).toEqual(['proximo-paso', 'talleres', 'grupos-vida', 'ninos'])
   })
 
-  it('con Próximo Paso ofrece Dream Team', () => {
-    expect(seccion(hechos({ hizoProximoPaso: true }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'dream-team', 'ninos'])
+})
+
+describe('decidirSecciones · Dream Team solo con servicio (S13)', () => {
+  it('sin servicio nadie ve Dream Team: ni el paso ni el acceso de Explorar', () => {
+    for (const h of [
+      hechos({ hizoProximoPaso: true }),
+      hechos({ hizoProximoPaso: null }),
+      hechos({ hizoProximoPaso: true, grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Colíder' }] }),
+      hechos({ hizoProximoPaso: true, grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Líder' }] }),
+      hechos({ esAdminOPastor: true }),
+    ]) {
+      expect(JSON.stringify(decidirSecciones(h))).not.toMatch(/dream-team/)
+    }
+    expect(seccion(hechos({ hizoProximoPaso: true }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'ninos'])
+  })
+
+  it('con un servicio de Dream Team Explorar lo ofrece', () => {
+    expect(seccion(hechos({ serviciosActivos: [servicio()] }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'dream-team', 'ninos'])
+  })
+
+  it('convocado en DPS también lo ve', () => {
+    expect(seccion(hechos({ convocadoEnDps: true }), 'explorar')?.tiles).toContain('dream-team')
+  })
+})
+
+describe('decidirSecciones · notas de líderes (S11)', () => {
+  it('las ven la directora de etapa, el director general y admin/pastor', () => {
+    expect(ids(hechos({ etapasDirigidas: ['sl-1'] }))).toContain('notas-lideres')
+    expect(ids(hechos({ segmentosDirigidos: ['seg-1'] }))).toContain('notas-lideres')
+    expect(ids(hechos({ esAdminOPastor: true }))).toContain('notas-lideres')
+  })
+
+  it('no las ven el líder, el colíder, el miembro ni el director de área', () => {
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Líder' }] }))).not.toContain('notas-lideres')
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Colíder' }] }))).not.toContain('notas-lideres')
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }))).not.toContain('notas-lideres')
+    expect(ids(hechos({ serviciosActivos: [servicio('director')] }))).not.toContain('notas-lideres')
+  })
+
+  it('van justo después de «A tu cargo»', () => {
+    const h = hechos({ segmentosDirigidos: ['seg-1'], grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] })
+    expect(ids(h)).toEqual(['a-cargo', 'notas-lideres', 'grupo-miembro', 'cumpleanos', 'explorar'])
+  })
+})
+
+describe('decidirSecciones · próximos cumpleaños (S12)', () => {
+  it('los ven el líder, la directora de etapa, el director general y admin/pastor', () => {
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Líder' }] }))).toContain('cumpleanos')
+    expect(ids(hechos({ etapasDirigidas: ['sl-1'] }))).toContain('cumpleanos')
+    expect(ids(hechos({ segmentosDirigidos: ['seg-1'] }))).toContain('cumpleanos')
+    expect(ids(hechos({ esAdminOPastor: true }))).toContain('cumpleanos')
+  })
+
+  it('el miembro, el colíder y el director de área no los ven todavía', () => {
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }))).not.toContain('cumpleanos')
+    expect(ids(hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Colíder' }] }))).not.toContain('cumpleanos')
+    expect(ids(hechos({ serviciosActivos: [servicio('director')] }))).not.toContain('cumpleanos')
+  })
+
+  it('van después de los grupos y antes de Visión general', () => {
+    expect(ids(hechos({ esAdminOPastor: true }))).toEqual(['notas-lideres', 'cumpleanos', 'vision-general', 'explorar'])
+    const lider = hechos({ grupos: [{ grupoId: 'g-1', nombre: 'A', rol: 'Líder' }, { grupoId: 'g-2', nombre: 'B', rol: 'Miembro' }] })
+    expect(ids(lider)).toEqual(['a-cargo', 'grupo-miembro', 'cumpleanos', 'explorar'])
   })
 })
 
@@ -269,21 +333,22 @@ const PERFILES: Array<[string, HechosInicio, string[]]> = [
     serviciosActivos: [servicio('voluntario', 'eq-bienvenida')], serviciosPorConfirmar: 1,
     grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Líder' }, { grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }],
     pendientes: { reportesSinCargar: 1, solicitudesGrupo: 2 },
-  }), ['1', '2', '4', '4b', 'x']],
+  }), ['1', '2', '4', '4b', 'c', 'x']],
   ['06 Directora de área', hechos({
     serviciosActivos: [servicio('director', 'eq-ninos')], hijos: 1, pendientes: { dreamTeam: 16 },
   }), ['1', '2', '3', '4', 'x']],
   ['07 Admin o pastor', hechos({
     esAdminOPastor: true, pendientes: { casasPorRevisar: 3, solicitudesGrupo: 5, reportesSinCargar: 11, ticketsAbiertos: 2 },
-  }), ['1', '5', 'x']],
-  ['08 Colíder de grupo', hechos({ grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Colíder' }] }), ['4b', '6', 'x']],
+  }), ['1', 'n', 'c', '5', 'x']],
+  // Hizo Próximo Paso and has the profile complete: without «Servir en Dream Team» (S13) nothing is pending.
+  ['08 Colíder de grupo', hechos({ grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Colíder' }] }), ['4b', 'x']],
   ['09 Directora de etapa', hechos({
     etapasDirigidas: ['sl-mujeres36'], pendientes: { reportesSinCargar: 4, solicitudesGrupo: 2, gruposSinCasa: 1 },
-  }), ['1', '4', 'x']],
+  }), ['1', '4', 'n', 'c', 'x']],
   ['10 Director general', hechos({
     segmentosDirigidos: ['seg-matrimonios'], grupos: [{ grupoId: 'g-ros', nombre: 'Matrimonios +36 · La Rosaleda', rol: 'Miembro' }],
     pendientes: { solicitudesGrupo: 5, casasPorRevisar: 2, reportesSinCargar: 7 },
-  }), ['1', '4', '4b', 'x']],
+  }), ['1', '4', 'n', '4b', 'c', 'x']],
 ]
 
 describe('decidirSecciones · perfiles del diseño', () => {

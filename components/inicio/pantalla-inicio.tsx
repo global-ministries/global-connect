@@ -6,20 +6,25 @@
  * share a row (7 + 5); phone: one column.
  *
  * Server-safe. The page loads the data: «A tu cargo» gets one entry per
- * cargo (null where it did not load, T4) and «Visión general» the campus
- * numbers; «Mis hijos» and «Mis servicios» arrive as nodes.
+ * cargo (null where it did not load, T4), «Visión general» the campus
+ * numbers, «Notas de líderes» and «Próximos cumpleaños» their lists (T7,
+ * hidden when empty); «Mis hijos» and «Mis servicios» arrive as nodes.
  */
 import { Fragment, type ReactElement, type ReactNode } from 'react'
 
 import type { DatosCargo } from '@/lib/inicio/cargar-a-cargo'
+import type { Cumpleanos } from '@/lib/inicio/cargar-cumpleanos'
 import type { DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
+import type { NotaLider } from '@/lib/inicio/cargar-notas-lideres'
 import type { SeccionInicio } from '@/lib/inicio/decidir-secciones'
 
 import { HeroInicio, resumenInicio } from './hero-inicio'
 import { RanuraMisServicios } from './ranura-mis-servicios'
 import { SeccionesACargo } from './seccion-a-cargo'
+import { SeccionCumpleanos } from './seccion-cumpleanos'
 import { SeccionExplorar } from './seccion-explorar'
 import { SeccionGrupoMiembro } from './seccion-grupo-miembro'
+import { SeccionNotasLideres } from './seccion-notas-lideres'
 import { SeccionParaResponder } from './seccion-para-responder'
 import { SeccionProximosPasos } from './seccion-proximos-pasos'
 import { SeccionVisionGeneral, type DatosVisionGeneral } from './seccion-vision-general'
@@ -36,6 +41,8 @@ export type PantallaInicioProps = {
   /** One entry per cargo of the «a-cargo» section, in its order; null where it did not load. */
   readonly aCargo?: readonly (DatosCargo | null)[]
   readonly visionGeneral?: DatosVisionGeneral | null
+  readonly notasLideres?: readonly NotaLider[]
+  readonly cumpleanos?: readonly Cumpleanos[]
   /** «Contextos visibles» of the platform navigation, after Visión general or the cargos. */
   readonly contextos?: ReactNode
 }
@@ -49,7 +56,7 @@ const CLASE_ANCHO: Record<Ancho, string> = {
 }
 
 // Sections that fit half a desktop row; the rest always take the whole row.
-const ANGOSTAS = new Set<SeccionInicio['id']>(['mis-hijos', 'grupo-miembro', 'proximos-pasos', 'explorar'])
+const ANGOSTAS = new Set<SeccionInicio['id']>(['mis-hijos', 'notas-lideres', 'grupo-miembro', 'cumpleanos', 'proximos-pasos', 'explorar'])
 
 /** Pairs consecutive narrow sections (7 + 5); a narrow section alone takes the row. */
 function anchos(secciones: SeccionInicio[]): Ancho[] {
@@ -66,11 +73,28 @@ function anchos(secciones: SeccionInicio[]): Ancho[] {
   return resultado
 }
 
-export function PantallaInicio({ nombre, hoy, secciones, gruposMiembro = {}, misServicios, misHijos, aCargo = [], visionGeneral, contextos }: PantallaInicioProps): ReactElement {
+export function PantallaInicio({
+  nombre,
+  hoy,
+  secciones,
+  gruposMiembro = {},
+  misServicios,
+  misHijos,
+  aCargo = [],
+  visionGeneral,
+  notasLideres = [],
+  cumpleanos = [],
+  contextos,
+}: PantallaInicioProps): ReactElement {
   const conCargos = aCargo.some((c) => c !== null)
-  // Sections whose content is loaded elsewhere and did not arrive are left out (S1).
+  // Sections whose content is loaded elsewhere and did not arrive (or is empty) are left out (S1).
   const visibles = secciones.filter(
-    (s) => (s.id !== 'mis-hijos' || misHijos) && (s.id !== 'a-cargo' || conCargos) && (s.id !== 'vision-general' || visionGeneral),
+    (s) =>
+      (s.id !== 'mis-hijos' || misHijos) &&
+      (s.id !== 'a-cargo' || conCargos) &&
+      (s.id !== 'vision-general' || visionGeneral) &&
+      (s.id !== 'notas-lideres' || notasLideres.length > 0) &&
+      (s.id !== 'cumpleanos' || cumpleanos.length > 0),
   )
   // The contexts go with the campus view, else after the cargos.
   const contextosEn = visibles.some((s) => s.id === 'vision-general') ? 'vision-general' : 'a-cargo'
@@ -104,6 +128,10 @@ export function PantallaInicio({ nombre, hoy, secciones, gruposMiembro = {}, mis
                 {contextos && contextosEn === 'a-cargo' && <div className={clase}>{contextos}</div>}
               </Fragment>
             )
+          case 'notas-lideres':
+            return <SeccionNotasLideres key={s.id} notas={notasLideres} hoy={hoy} className={clase} />
+          case 'cumpleanos':
+            return <SeccionCumpleanos key={s.id} cumpleanos={cumpleanos} hoy={hoy} className={clase} />
           case 'grupo-miembro':
             return (
               <SeccionGrupoMiembro

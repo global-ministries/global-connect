@@ -86,17 +86,18 @@ describe('PantallaInicio', () => {
   })
 
   it('08 colíder: su grupo en solo lectura, sin acciones de edición', () => {
-    pintar(COLIDER, 'Ramón Pérez')
+    const { container } = pintar(COLIDER, 'Ramón Pérez')
 
-    expect(titulosSecciones()).toEqual(['Mi grupo de vida', 'Tus próximos pasos', 'Explorar'])
+    // Hizo Próximo Paso and has nothing pending: without «Servir en Dream Team» (S13) the steps go away.
+    expect(titulosSecciones()).toEqual(['Mi grupo de vida', 'Explorar'])
     const grupo = screen.getByRole('region', { name: 'Mi grupo de vida' })
     expect(within(grupo).getByText('Colíder · solo lectura')).toBeInTheDocument()
     expect(within(grupo).getByRole('link', { name: 'Ver asistencia y miembros' })).toHaveAttribute('href', '/grupos-vida/g-1')
     expect(within(grupo).queryByRole('button')).not.toBeInTheDocument()
     expect(within(grupo).queryByText(/editar|pasar asistencia/i)).not.toBeInTheDocument()
-    // Hizo Próximo Paso: now it is offered to serve.
     expect(screen.queryByRole('article', { name: 'Próximo Paso' })).not.toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Tus próximos pasos' })).getByText('Servir en Dream Team')).toBeInTheDocument()
+    // Without a servicio Dream Team is not named anywhere (S13).
+    expect(container.textContent).not.toMatch(/Dream Team/)
   })
 
   it('para responder enlaza cada cola con su cantidad', () => {

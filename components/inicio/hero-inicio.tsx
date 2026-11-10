@@ -50,8 +50,6 @@ export function resumenInicio(secciones: SeccionInicio[], grupos: Record<string,
         Tu siguiente paso es <strong>Próximo Paso</strong>.
       </span>,
     )
-  } else if (pasos?.pasos.some((p) => p.id === 'servir-dream-team' && !p.hecho)) {
-    frases.push(<span key="servir">Ya puedes postularte para servir.</span>)
   }
   return frases.length > 0 ? frases : 'Estás al día.'
 }
