@@ -176,6 +176,8 @@ AS $function$
     (SELECT (t.avisos_config -> p_tipo) IS DISTINCT FROM 'false'::jsonb FROM public.talleres t WHERE t.id = p_taller_id),
     true);
 $function$;
+REVOKE ALL ON FUNCTION public.talleres_aviso_activo(uuid, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.talleres_aviso_activo(uuid, text) TO service_role;
 
 -- The one writer of an automatic notice. With the taller's switch on it
 -- writes the in-app row (when p_persona_id is set) and the outbox row,
