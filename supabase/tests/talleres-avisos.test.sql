@@ -27,6 +27,14 @@
 --   programada, once); 8 a switched-off notice writes nothing, and its
 --   switch's authority; 9 «Avísame» notifies everyone once; 10 certificado;
 --   11 outbox lease, result and daily cap; 12 cleanup; 13 notices center.
+--
+-- 20261110240000_talleres_avisos_ajustes.sql (L24, S6), run after it:
+--   1 anon cannot run talleres_aviso_activo; 4 the rechazada never carries
+--   the motivo (case 4 used to expect «Motivo: …», the old behaviour); 14
+--   the message for the person (mensaje_no_aprobado) travels, the motivo
+--   never does; 15 expired rows are marked fallido 'vencido' before the
+--   lease, recordatorio_clase goes first, the daily cap counts the rows
+--   in lease.
 
 BEGIN;
 
@@ -259,6 +267,10 @@ SELECT pg_temp.check('1: the panel and the switch are callable by authenticated'
 SELECT pg_temp.check('1: the outbox is not readable by authenticated or anon',
   $chk$NOT has_table_privilege('authenticated', 'public.taller_avisos_envios', 'SELECT')
   AND NOT has_table_privilege('anon', 'public.taller_avisos_envios', 'SELECT')$chk$);
+SET LOCAL ROLE anon;
+SELECT pg_temp.assert_error('1: anon cannot run talleres_aviso_activo',
+  $$SELECT public.talleres_aviso_activo('cf7a0000-0000-4000-8000-000000000010', 'inscripcion_recibida')$$, '42501');
+RESET ROLE;
 SELECT pg_temp.check('1: avisos_config defaults to {} (everything on)',
   $chk$(SELECT avisos_config = '{}'::jsonb FROM public.talleres WHERE id = 'cf7a0000-0000-4000-8000-000000000010')$chk$);
 
@@ -310,10 +322,10 @@ SELECT pg_temp.assert_rows('4: each partner gets one aprobada',
 SELECT pg_temp.run('4: reject P2 with a motivo',
   $$UPDATE public.taller_inscripciones SET estado = 'no_aprobado', motivo_no_aprobado = 'El grupo es solo para mujeres casadas'
      WHERE id = 'cf7a0000-0000-4000-8000-000000000052'$$);
-SELECT pg_temp.assert_rows('4: the rechazada carries the motivo and no link',
+SELECT pg_temp.assert_rows('4: the rechazada has no link and, without a message for the person, no motivo',
   $$SELECT 1 FROM public.avisos_persona WHERE persona_id = 'cf7a0000-0000-4000-8000-000000000025'
      AND tipo = 'inscripcion_rechazada' AND url IS NULL
-     AND cuerpo = 'No pudimos aprobar tu inscripción en ZZ 7A Uno. Motivo: El grupo es solo para mujeres casadas. Si tienes dudas, habla con la coordinación del taller.'$$, 1);
+     AND cuerpo = 'No pudimos aprobar tu inscripción en ZZ 7A Uno. Si tienes dudas, habla con la coordinación del taller.'$$, 1);
 
 -- ── 5. grupo asignado ───────────────────────────────────────────────
 
@@ -550,6 +562,107 @@ SELECT pg_temp.check('13: Ana''s aprobada, read in section 6, joins its outbox r
   $chk$(SELECT ap.leido_at IS NOT NULL FROM public.taller_avisos_envios e
      JOIN public.avisos_persona ap ON ap.persona_id = e.persona_id AND ap.clave = e.clave
     WHERE e.clave = 'inscripcion_aprobada:cf7a0000-0000-4000-8000-000000000051:cf7a0000-0000-4000-8000-000000000027')$chk$);
+
+-- ── 14. the message for the person, never the motivo (L24) ──────────
+
+SELECT pg_temp.run('14: P1 and P2 ask for E2 (T_dos)',
+  $$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES
+      ('cf7a0000-0000-4000-8000-000000000058', 'cf7a0000-0000-4000-8000-000000000092', 'cf7a0000-0000-4000-8000-0000000000c2', 'cf7a0000-0000-4000-8000-000000000024', 'pendiente'),
+      ('cf7a0000-0000-4000-8000-000000000059', 'cf7a0000-0000-4000-8000-000000000092', 'cf7a0000-0000-4000-8000-0000000000c2', 'cf7a0000-0000-4000-8000-000000000025', 'pendiente')$$);
+SELECT pg_temp.assert_error('14: a message longer than 600 characters is refused',
+  $$UPDATE public.taller_inscripciones SET estado = 'no_aprobado', motivo_no_aprobado = 'Largo', mensaje_no_aprobado = repeat('m', 601)
+     WHERE id = 'cf7a0000-0000-4000-8000-000000000058'$$, '23514');
+SELECT pg_temp.run('14: reject P1 with an internal motivo and a message for her',
+  $$UPDATE public.taller_inscripciones
+       SET estado = 'no_aprobado', motivo_no_aprobado = 'ZZSECRETO ya lo hizo en otra sede',
+           mensaje_no_aprobado = '  Te esperamos en la próxima edición  '
+     WHERE id = 'cf7a0000-0000-4000-8000-000000000058'$$);
+SELECT pg_temp.check('14: the message is stored as given, the motivo too',
+  $chk$(SELECT mensaje_no_aprobado = '  Te esperamos en la próxima edición  ' AND motivo_no_aprobado = 'ZZSECRETO ya lo hizo en otra sede'
+     FROM public.taller_inscripciones WHERE id = 'cf7a0000-0000-4000-8000-000000000058')$chk$);
+SELECT pg_temp.assert_rows('14: the in-app rechazada carries the message (trimmed, with a period)',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE clave = 'inscripcion_rechazada:cf7a0000-0000-4000-8000-000000000058:cf7a0000-0000-4000-8000-000000000024'
+       AND cuerpo = 'No pudimos aprobar tu inscripción en ZZ 7A Dos. Te esperamos en la próxima edición. Si tienes dudas, habla con la coordinación del taller.'$$, 1);
+SELECT pg_temp.assert_rows('14: the email carries the same text',
+  $$SELECT 1 FROM public.taller_avisos_envios
+     WHERE clave = 'inscripcion_rechazada:cf7a0000-0000-4000-8000-000000000058:cf7a0000-0000-4000-8000-000000000024'
+       AND datos ->> 'cuerpo' = 'No pudimos aprobar tu inscripción en ZZ 7A Dos. Te esperamos en la próxima edición. Si tienes dudas, habla con la coordinación del taller.'$$, 1);
+SELECT pg_temp.run('14: reject P2 with a motivo and a blank message',
+  $$UPDATE public.taller_inscripciones SET estado = 'no_aprobado', motivo_no_aprobado = 'ZZSECRETO dos', mensaje_no_aprobado = '   '
+     WHERE id = 'cf7a0000-0000-4000-8000-000000000059'$$);
+SELECT pg_temp.assert_rows('14: a blank message is left out',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE clave = 'inscripcion_rechazada:cf7a0000-0000-4000-8000-000000000059:cf7a0000-0000-4000-8000-000000000025'
+       AND cuerpo = 'No pudimos aprobar tu inscripción en ZZ 7A Dos. Si tienes dudas, habla con la coordinación del taller.'$$, 1);
+SELECT pg_temp.capture('14: a caller passing a motivo by hand cannot put it in the notice', 'rechazada_mano',
+  $$SELECT to_jsonb(public.talleres_aviso_inscripcion('cf7a0000-0000-4000-8000-000000000056', 'rechazada', 'ZZSECRETO a mano'))$$, '1');
+SELECT pg_temp.assert_rows('14: that notice has no message and no motivo',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE clave = 'inscripcion_rechazada:cf7a0000-0000-4000-8000-000000000056:cf7a0000-0000-4000-8000-000000000026'
+       AND cuerpo = 'No pudimos aprobar tu inscripción en ZZ 7A Dos. Si tienes dudas, habla con la coordinación del taller.'$$, 1);
+SELECT pg_temp.assert_rows('14: no notice (in-app or email) of the fixture ever shows a motivo',
+  $$SELECT 1 FROM public.avisos_persona a
+     WHERE a.persona_id::text LIKE 'cf7a0000-%'
+       AND concat_ws(' ', a.titulo, a.cuerpo, a.datos::text) ~ '(ZZSECRETO|solo para mujeres casadas|Duplicada|Motivo:)'
+    UNION ALL
+    SELECT 1 FROM public.taller_avisos_envios e
+     WHERE e.clave LIKE '%cf7a0000-%'
+       AND concat_ws(' ', e.asunto, e.datos::text) ~ '(ZZSECRETO|solo para mujeres casadas|Duplicada|Motivo:)'$$, 0);
+
+-- ── 15. outbox: expired rows, reminders first, cap with leases ──────
+
+-- Rows of this section: clave zz7a15:<n>. All due now (default
+-- disponible_en); created_at spreads their age.
+INSERT INTO public.taller_avisos_envios (id, clave, tipo, taller_id, email, asunto, datos, estado, created_at) VALUES
+  ('cf7a0000-0000-4000-8000-000000000151', 'zz7a15:1', 'recordatorio_clase', 'cf7a0000-0000-4000-8000-000000000010', 'cf7a-15@example.test', 'Vencido',
+   jsonb_build_object('expira_at', now() - interval '1 minute'), 'pendiente', now() - interval '3 days'),
+  ('cf7a0000-0000-4000-8000-000000000152', 'zz7a15:2', 'recordatorio_clase', 'cf7a0000-0000-4000-8000-000000000010', 'cf7a-15@example.test', 'Mañana',
+   jsonb_build_object('expira_at', now() + interval '1 day'), 'pendiente', now() - interval '1 minute'),
+  ('cf7a0000-0000-4000-8000-000000000153', 'zz7a15:3', 'inscripcion_recibida', 'cf7a0000-0000-4000-8000-000000000010', 'cf7a-15@example.test', 'Antiguo',
+   '{}'::jsonb, 'pendiente', now() - interval '2 days'),
+  ('cf7a0000-0000-4000-8000-000000000154', 'zz7a15:4', 'recordatorio_clase', 'cf7a0000-0000-4000-8000-000000000010', NULL, 'Sin correo vencido',
+   jsonb_build_object('expira_at', now() - interval '1 minute'), 'sin_correo', now() - interval '3 days');
+
+SELECT pg_temp.capture('15: with a daily cap of 0 nothing is leased', 'r15_tope0',
+  $$SELECT to_jsonb(count(*)) FROM public.talleres_avisos_envios_reclamar(10, 0)$$, '0');
+SELECT pg_temp.assert_rows('15: but the expired row is already fallido «vencido», without an attempt',
+  $$SELECT 1 FROM public.taller_avisos_envios WHERE clave = 'zz7a15:1'
+     AND estado = 'fallido' AND error = 'vencido' AND intentos = 0$$, 1);
+SELECT pg_temp.assert_rows('15: a sin_correo row stays sin_correo, a live reminder and a row without expira_at stay pendiente',
+  $$SELECT 1 FROM public.taller_avisos_envios
+     WHERE (clave = 'zz7a15:4' AND estado = 'sin_correo')
+        OR (clave IN ('zz7a15:2', 'zz7a15:3') AND estado = 'pendiente' AND intentos = 0)$$, 3);
+SELECT pg_temp.run('15: lease everything due', $$CREATE TEMP TABLE t_7a_lote15 ON COMMIT DROP AS
+    SELECT o.clave, o.tipo, o.n
+      FROM public.talleres_avisos_envios_reclamar(100, 10000) WITH ORDINALITY AS o(id, clave, tipo, email, nombre, asunto, datos, intentos, n)$$);
+SELECT pg_temp.check('15: the expired row is never returned; the two live ones are',
+  $chk$NOT EXISTS (SELECT 1 FROM t_7a_lote15 WHERE clave = 'zz7a15:1')
+  AND (SELECT count(*) FROM t_7a_lote15 WHERE clave IN ('zz7a15:2', 'zz7a15:3')) = 2$chk$);
+SELECT pg_temp.check('15: within the batch the reminder comes before the older notice',
+  $chk$(SELECT n FROM t_7a_lote15 WHERE clave = 'zz7a15:2') < (SELECT n FROM t_7a_lote15 WHERE clave = 'zz7a15:3')
+  AND NOT EXISTS (SELECT 1 FROM t_7a_lote15 a JOIN t_7a_lote15 b ON a.n < b.n
+                   WHERE a.tipo <> 'recordatorio_clase' AND b.tipo = 'recordatorio_clase')$chk$);
+
+INSERT INTO public.taller_avisos_envios (id, clave, tipo, taller_id, email, asunto, datos, estado, created_at) VALUES
+  ('cf7a0000-0000-4000-8000-000000000155', 'zz7a15:5', 'inscripcion_aprobada', 'cf7a0000-0000-4000-8000-000000000010', 'cf7a-15@example.test', 'Viejo',
+   '{}'::jsonb, 'pendiente', now() - interval '5 days'),
+  ('cf7a0000-0000-4000-8000-000000000156', 'zz7a15:6', 'recordatorio_clase', 'cf7a0000-0000-4000-8000-000000000010', 'cf7a-15@example.test', 'Nuevo',
+   jsonb_build_object('expira_at', now() + interval '1 day'), 'pendiente', now());
+-- Busy = sent today + leased right now (the rows sections 11 and 15 took).
+SELECT set_config('zz_7a.ocupados', (
+  SELECT count(*) FROM public.taller_avisos_envios e
+   WHERE (e.estado = 'enviado' AND (e.enviado_en AT TIME ZONE 'UTC')::date = (now() AT TIME ZONE 'UTC')::date)
+      OR (e.estado = 'pendiente' AND e.intentos > 0 AND e.disponible_en > now()))::text, true);
+SELECT pg_temp.check('15: there are rows in lease (otherwise the cap case proves nothing)',
+  $chk$current_setting('zz_7a.ocupados')::int > 0$chk$);
+SELECT pg_temp.capture('15: a cap equal to sent + leased leases nothing', 'r15_tope_lleno',
+  $$SELECT to_jsonb(count(*)) FROM public.talleres_avisos_envios_reclamar(10, current_setting('zz_7a.ocupados')::int)$$, '0');
+SELECT pg_temp.capture('15: one more place takes one row, a reminder before an older notice', 'r15_uno',
+  $$SELECT jsonb_agg(tipo) FROM public.talleres_avisos_envios_reclamar(10, current_setting('zz_7a.ocupados')::int + 1)$$,
+  '["recordatorio_clase"]');
+SELECT pg_temp.assert_rows('15: the older notice waits',
+  $$SELECT 1 FROM public.taller_avisos_envios WHERE clave = 'zz7a15:5' AND estado = 'pendiente' AND intentos = 0$$, 1);
 
 SELECT pg_temp.report();
 

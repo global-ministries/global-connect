@@ -8,7 +8,10 @@
  * Resend with the idempotency key `talleres-aviso/<row id>` (a retried row
  * never reaches the person twice), and records each result
  * (`talleres_avisos_envios_resultado`: enviado, or retried with a growing
- * wait, fallido after 5 attempts).
+ * wait, fallido after 5 attempts). Since 20261110240000 the lease itself
+ * marks expired rows (a class reminder after its class day) fallido
+ * 'vencido' so they are never sent late, returns recordatorio_clase first,
+ * and counts the rows already in lease toward the daily cap.
  *
  * Callers: the daily route app/api/cron/talleres and, right after a
  * coordinator approves or rejects, `despacharAvisosTalleres()` so the email

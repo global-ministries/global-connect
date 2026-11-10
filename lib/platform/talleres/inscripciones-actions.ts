@@ -16,10 +16,12 @@
  *
  * Two actions are exposed:
  *   - approveInscripcionAction(inscripcionId): flip pendiente → aprobado.
- *   - rejectInscripcionAction(inscripcionId, motivo): flip pendiente
- *     → no_aprobado. The motivo is REQUIRED by the
+ *   - rejectInscripcionAction(inscripcionId, motivo, mensaje?): flip
+ *     pendiente → no_aprobado. The motivo is REQUIRED by the
  *     `trg_taller_inscripciones_couple_unit` trigger (otherwise
- *     the UPDATE is rejected with a CHECK violation).
+ *     the UPDATE is rejected with a CHECK violation) and is internal;
+ *     the optional mensaje (<= 600) is the only text the person reads
+ *     (odd/tasks/talleres-reserva-publica.md L24).
  *
  * Talleres — ficha nueva del cónyuge (odd/tasks/talleres-conyuge-invitacion.md
  * C2): a successful approval runs the access sender (the database decides
@@ -72,6 +74,7 @@ export type InscripcionError =
   | 'UPDATE_FAILED'
   | 'NOT_FOUND_OR_NOT_PENDIENTE'
   | 'INVALID_MOTIVO'
+  | 'INVALID_MENSAJE'
   | 'ACCESO_NO_DISPONIBLE'
   | 'ENVIO_FALLIDO'
 
@@ -262,6 +265,9 @@ export async function reenviarAccesoAction(inscripcionId: string): Promise<Inscr
   return { ok: false, error: 'ENVIO_FALLIDO', message: 'No se pudo enviar el correo. Inténtalo de nuevo más tarde.' }
 }
 
+/** The column CHECK of taller_inscripciones.mensaje_no_aprobado. */
+const MENSAJE_NO_APROBADO_MAX = 600
+
 /**
  * Reject a pendiente inscripcion. Transitions the row to
  * `estado='no_aprobado'` and writes `motivo_no_aprobado` (REQUIRED by
@@ -269,10 +275,16 @@ export async function reenviarAccesoAction(inscripcionId: string): Promise<Inscr
  *
  * The trigger rejects the UPDATE when motivo is NULL/empty/whitespace,
  * so the action validates the input client-side as well.
+ *
+ * L24: the motivo is internal (only the team reads it). `mensaje` is the
+ * optional message for the person, stored in `mensaje_no_aprobado`
+ * (blank → null); the «No aprobada» notice (email + app, principal and
+ * companero) carries only that message.
  */
 export async function rejectInscripcionAction(
   inscripcionId: string,
   motivo: string,
+  mensaje?: string,
 ): Promise<InscripcionActionResult> {
   const trimmedMotivo = (motivo ?? '').trim()
   if (!trimmedMotivo) {
@@ -280,6 +292,14 @@ export async function rejectInscripcionAction(
       ok: false,
       error: 'INVALID_MOTIVO',
       message: 'El motivo de rechazo es obligatorio.',
+    }
+  }
+  const trimmedMensaje = (mensaje ?? '').trim()
+  if (trimmedMensaje.length > MENSAJE_NO_APROBADO_MAX) {
+    return {
+      ok: false,
+      error: 'INVALID_MENSAJE',
+      message: `El mensaje para la persona no puede pasar de ${MENSAJE_NO_APROBADO_MAX} caracteres.`,
     }
   }
 
@@ -293,7 +313,11 @@ export async function rejectInscripcionAction(
 
   const { data, error } = await client
     .from('taller_inscripciones')
-    .update({ estado: 'no_aprobado', motivo_no_aprobado: trimmedMotivo })
+    .update({
+      estado: 'no_aprobado',
+      motivo_no_aprobado: trimmedMotivo,
+      mensaje_no_aprobado: trimmedMensaje || null,
+    })
     .eq('id', inscripcionId)
     .eq('estado', 'pendiente')
     .select('id')
@@ -315,7 +339,8 @@ export async function rejectInscripcionAction(
     }
   }
 
-  // The «No aprobada» notice (with the motivo) was written with the update.
+  // The «No aprobada» notice (with the message, never the motivo) was
+  // written with the update.
   await despacharAvisosTalleres()
 
   revalidateInscripcionSurfaces()

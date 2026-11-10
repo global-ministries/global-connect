@@ -90,9 +90,14 @@
  * view when there is something to recover or already recovered (otherwise
  * the read view stays as it was): a recovered absence reads «R ·
  * Recuperada», and whoever may
- * register (miRol 'lider' or permisos.gestionarGrupos, only while the
- * taller allows recoveries) gets «Recuperar clase» / «Anular»; the RPC is
- * the authority. «Su gente» shows each person's progress toward the
+ * register gets «Recuperar clase» / «Anular»; the RPC is the authority.
+ * Follow-up (L24): «may register» mirrors talleres_registrar_recuperacion
+ * exactly — the taller allows recoveries, the edición is not closed
+ * (cerrada_en), and the caller is the grupo's líder or holds
+ * director.write / coordinator.write on the grupo's node
+ * (auth_has_talleres_capability_scoped on talleres_equipo_de_grupo).
+ * permisos.gestionarGrupos is NOT enough: it also includes admin.manage
+ * alone, which the RPC refuses. «Su gente» shows each person's progress toward the
  * certificate (presentes + recuperadas, the cierre's own rule) to whoever
  * reads the grupo's attendance.
  */
@@ -342,7 +347,10 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
   // T8b — recuperar clase. Reads fail soft (no migration → no controls).
   const sesionIds = sesiones.map((s) => s.id)
   const permiteRecuperar = !modoLimitado && (await loadPermiteRecuperar(client, taller.id))
-  const puedeRecuperar = permiteRecuperar && (miRol === 'lider' || permisos.gestionarGrupos)
+  const puedeRecuperar =
+    permiteRecuperar &&
+    edicion?.cerrada_en == null &&
+    (miRol === 'lider' || (await puedeRegistrarRecuperacionEnNodo(client, grupoId)))
   const leeAsistencia = !modoLimitado && (permisos.ver || esMiembro)
   const [recuperaciones, marcasGrupo] = leeAsistencia
     ? await Promise.all([loadRecuperacionesGrupo(client, sesionIds), loadMarcasGrupo(client, sesionIds)])
@@ -752,6 +760,36 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
       </section>
     </PaginaSistema>
   )
+}
+
+interface CapacidadClient {
+  rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+/**
+ * T8b follow-up — the capability half of talleres_registrar_recuperacion's
+ * authority: director.write or coordinator.write on the grupo's node (the
+ * cohorte's equipo, as the RPC resolves it), ancestors included. Fails soft
+ * to false, so a missing RPC only hides the control.
+ */
+async function puedeRegistrarRecuperacionEnNodo(client: CapacidadClient, grupoId: string): Promise<boolean> {
+  try {
+    const equipoId = await resolveEquipoDeGrupo(client, grupoId)
+    if (!equipoId) return false
+    for (const capacidad of [
+      'talleres_crecimiento.director.write',
+      'talleres_crecimiento.coordinator.write',
+    ]) {
+      const { data, error } = await client.rpc('auth_has_talleres_capability_scoped', {
+        p_capability_key: capacidad,
+        p_equipo_id: equipoId,
+      })
+      if (!error && data === true) return true
+    }
+    return false
+  } catch {
+    return false
+  }
 }
 
 /**
