@@ -2,7 +2,7 @@
  * Public QR page of Próximo Paso (odd/tasks/proximo-paso.md T2, S3): pick the
  * edición, then create the account (or, signed in, just enroll).
  */
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 
 import { RegistroProximoPaso } from '@/components/proximo-paso/registro-proximo-paso'
 import type { EdicionProximoPaso } from '@/lib/platform/talleres/proximo-paso-registro'
@@ -114,10 +114,10 @@ describe('RegistroProximoPaso', () => {
     expect(await screen.findByRole('heading', { name: 'Revisa tu correo' })).toBeInTheDocument()
     expect(screen.getByText(/Te enviamos un código de 6 dígitos a ana@example\.com/)).toBeInTheDocument()
     expect(screen.getByText(/Diciembre 2026/)).toBeInTheDocument()
-    const codigo = screen.getByLabelText('Código de 6 dígitos')
-    expect(codigo).toHaveAttribute('inputmode', 'numeric')
-    expect(codigo).toHaveAttribute('autocomplete', 'one-time-code')
-    expect(codigo).toHaveAttribute('maxlength', '6')
+    const cajas = within(screen.getByRole('group', { name: 'Código de 6 dígitos' })).getAllByRole('textbox')
+    expect(cajas).toHaveLength(6)
+    expect(cajas[0]).toHaveAttribute('inputmode', 'numeric')
+    expect(cajas[0]).toHaveAttribute('autocomplete', 'one-time-code')
     expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Reenviar código en 60 s/ })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cambiar correo' })).toBeInTheDocument()
@@ -134,22 +134,24 @@ describe('RegistroProximoPaso', () => {
     render(<RegistroProximoPaso ediciones={ediciones} conSesion={false} />)
     llenarFormulario()
     fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta e inscribirme' }))
-    return screen.findByLabelText('Código de 6 dígitos')
+    const grupo = await screen.findByRole('group', { name: 'Código de 6 dígitos' })
+    return within(grupo).getAllByRole('textbox')[0]
   }
 
-  it('takes a pasted code with spaces and enrolls once it is confirmed', async () => {
+  const pegar = (caja: HTMLElement, texto: string) => fireEvent.paste(caja, { clipboardData: { getData: () => texto } })
+
+  it('takes a pasted code with spaces and enrolls once it is confirmed, without «Confirmar»', async () => {
     confirmarCodigoProximoPaso.mockResolvedValue({ ok: true, estado: 'inscrito', edicion: RESUMEN })
     const codigo = await alPasoCodigo()
 
-    fireEvent.change(codigo, { target: { value: '123 456' } })
-    expect(codigo).toHaveValue('123456')
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    pegar(codigo, '123 456')
 
     expect(
       await screen.findByRole('heading', {
         name: 'Quedaste inscrito en Próximo Paso — Diciembre 2026, primera clase el domingo 6 de diciembre',
       }),
     ).toBeInTheDocument()
+    expect(confirmarCodigoProximoPaso).toHaveBeenCalledTimes(1)
     expect(confirmarCodigoProximoPaso).toHaveBeenCalledWith({ email: 'ana@example.com', token: '123456', edicionId: 'ed-dic' })
     expect(screen.getByRole('link', { name: 'Ver mis clases' })).toHaveAttribute('href', '/talleres/mi-recorrido')
   })
@@ -157,7 +159,7 @@ describe('RegistroProximoPaso', () => {
   it('asks for the 6 digits without calling the server', async () => {
     const codigo = await alPasoCodigo()
 
-    fireEvent.change(codigo, { target: { value: '1234' } })
+    pegar(codigo, '1234')
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     expect(await screen.findByText('Escribe los 6 dígitos del código.')).toBeInTheDocument()
@@ -165,21 +167,20 @@ describe('RegistroProximoPaso', () => {
   })
 
   it('stays on the code step with the message of a wrong code', async () => {
-    const message = 'El código no es válido o ya venció. Revisa el último correo o pide uno nuevo.'
+    const message = 'Ese código no funcionó. Usa el código del correo más reciente: cuando pides uno nuevo, los anteriores dejan de servir.'
     confirmarCodigoProximoPaso.mockResolvedValue({ ok: false, error: 'CODIGO_INVALIDO', message })
     const codigo = await alPasoCodigo()
 
-    fireEvent.change(codigo, { target: { value: '000000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    pegar(codigo, '000000')
 
     expect(await screen.findByText(message)).toBeInTheDocument()
-    expect(screen.getByLabelText('Código de 6 dígitos')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Código de 6 dígitos' })).toBeInTheDocument()
   })
 
   it('lets the person resend the code after the cooldown', async () => {
     jest.useFakeTimers()
     try {
-      reenviarCodigoProximoPaso.mockResolvedValue({ ok: true, message: 'Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.' })
+      reenviarCodigoProximoPaso.mockResolvedValue({ ok: true, message: 'Te enviamos un código nuevo. Usa solo el de este último correo.' })
       await alPasoCodigo()
 
       act(() => jest.advanceTimersByTime(30_000))
@@ -187,7 +188,7 @@ describe('RegistroProximoPaso', () => {
       act(() => jest.advanceTimersByTime(30_000))
       fireEvent.click(screen.getByRole('button', { name: 'Reenviar código' }))
 
-      expect(await screen.findByText('Te enviamos un código nuevo. Revisa tu correo, también la carpeta de spam.')).toBeInTheDocument()
+      expect(await screen.findByText('Te enviamos un código nuevo. Usa solo el de este último correo.')).toBeInTheDocument()
       expect(reenviarCodigoProximoPaso).toHaveBeenCalledWith({ email: 'ana@example.com', edicionId: 'ed-dic' })
       expect(screen.getByRole('button', { name: /Reenviar código en 60 s/ })).toBeDisabled()
     } finally {
@@ -205,7 +206,7 @@ describe('RegistroProximoPaso', () => {
     expect(screen.getByLabelText('Correo electrónico')).toHaveValue('ana@example.com')
     expect(screen.getByLabelText('Nombre')).toHaveValue('Ana')
     expect(screen.getByRole('radio', { name: /Enero 2027/ })).toBeChecked()
-    expect(screen.queryByLabelText('Código de 6 dígitos')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Código de 6 dígitos' })).not.toBeInTheDocument()
   })
 
   it('continues signed in when the code was right but the enrollment did not go through', async () => {
@@ -217,8 +218,7 @@ describe('RegistroProximoPaso', () => {
     })
     const codigo = await alPasoCodigo()
 
-    fireEvent.change(codigo, { target: { value: '123456' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    pegar(codigo, '123456')
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Esa fecha ya no está disponible. Elige otra.')
     expect(screen.getByRole('button', { name: 'Inscribirme' })).toBeInTheDocument()
