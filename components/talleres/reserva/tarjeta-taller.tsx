@@ -24,7 +24,8 @@ export function IconoTaller({ taller, className }: { taller: TallerPublico; clas
   return <Sprout aria-hidden="true" className={className} />
 }
 
-export function TarjetaTaller({ taller }: { taller: TallerPublico }) {
+/** `href`: the embedded catalog keeps its mode (T6); by default the public page. */
+export function TarjetaTaller({ taller, href }: { taller: TallerPublico; href?: string }) {
   const conLugar = edicionesConLugar(taller)
   const proxima = conLugar[0] ?? taller.ediciones[0] ?? null
   const cupo = proxima ? estadoCupo(proxima) : null
@@ -38,7 +39,7 @@ export function TarjetaTaller({ taller }: { taller: TallerPublico }) {
 
   return (
     <Link
-      href={`/talleres/reservar/${taller.slug}`}
+      href={href ?? `/talleres/reservar/${taller.slug}`}
       aria-describedby={idEstado}
       className="group focus-ring press-scale grid h-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 rounded-2xl border border-border bg-card p-4 transition-colors hover:bg-accent"
     >

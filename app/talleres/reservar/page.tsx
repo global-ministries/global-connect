@@ -4,11 +4,16 @@
  * S1). Read with the service-role RPC talleres_publico_catalogo: public
  * talleres and their open ediciones, with no personal data beyond the first
  * names of the leaders. Places change by the minute, so it renders per request.
+ *
+ * `?embed=1` (T6, S2 S18) renders only the cards, for public/embed.js's
+ * catalog; each card keeps the embedded mode.
  */
 import type { Metadata } from 'next'
 import { ShieldCheck, Sprout } from 'lucide-react'
 
 import { EncabezadoPublico, PiePublico } from '@/components/talleres/reserva/encabezado-publico'
+import { MarcoIncrustado } from '@/components/talleres/reserva/incrustado'
+import { leerModoIncrustado, rutaTallerDe } from '@/components/talleres/reserva/modo-incrustado'
 import { ListaPasos } from '@/components/talleres/reserva/piezas'
 import { TarjetaTaller } from '@/components/talleres/reserva/tarjeta-taller'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
@@ -23,10 +28,34 @@ export const dynamic = 'force-dynamic'
 
 const encabezadoSeccion = 'px-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground'
 
-export default async function CatalogoTalleresPage() {
+type Props = { readonly searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+export default async function CatalogoTalleresPage({ searchParams }: Props) {
   const talleres = await leerCatalogoPublico(rpcServicio())
   const abiertos = talleres.filter((t) => edicionesConLugar(t).length > 0)
   const otros = talleres.filter((t) => edicionesConLugar(t).length === 0)
+
+  const modo = leerModoIncrustado(await searchParams)
+  if (modo.incrustado) {
+    return (
+      <MarcoIncrustado modo={modo} paginaPublica="/talleres/reservar">
+        <h1 className="sr-only">Grupos de Corto Plazo</h1>
+        {talleres.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-card">
+            <EstadoVacioSistema icono={Sprout} titulo="No hay talleres abiertos ahora" subtitulo="Vuelve pronto: las nuevas ediciones aparecen aquí." />
+          </div>
+        ) : (
+          <ul className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+            {[...abiertos, ...otros].map((t) => (
+              <li key={t.slug}>
+                <TarjetaTaller taller={t} href={rutaTallerDe(t.slug, modo)} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </MarcoIncrustado>
+    )
+  }
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-background">

@@ -61,15 +61,20 @@
  *   - `?creadas=N` (redirected here when "crear también las próximas"
  *     created more than one edición) shows a BadgeSistema notice.
  *   - Ediciones rows show "{inicio} → {fin}" alongside the estado badge.
+ *
+ * T6 (odd/tasks/talleres-reserva-publica.md, S2 S18) — "Compartir" (the
+ * public link, QR and embed code, ./compartir) is one secondary action,
+ * shown only with editarTaller, the same predicate that page checks.
  */
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, Layers, Lock, Users } from 'lucide-react'
+import { ChevronRight, Layers, Lock, Share2, Users } from 'lucide-react'
 
 import {
   PaginaSistema,
   BadgeSistema,
+  BotonSistema,
   EnlaceSistema,
   TarjetaSistema,
   TextoSistema,
@@ -106,7 +111,7 @@ import {
 } from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
-import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo, rutaEdicion, rutaTaller } from '@/lib/platform/talleres/rutas'
 import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
@@ -245,10 +250,17 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     servidorPersonaIds,
   )
 
+  const accionCompartir = (className?: string) => (
+    <BotonSistema asChild variante="outline" tamaño="sm" icono={Share2} className={className}>
+      <Link href={`${rutaTaller(taller.slug)}/compartir`}>Compartir</Link>
+    </BotonSistema>
+  )
+
   return (
     <PaginaSistema
       titulo={taller.nombre}
       regreso={{ href: rutaCatalogo(), texto: 'Talleres' }}
+      acciones={permisos.editarTaller ? accionCompartir() : undefined}
     >
       <TarjetaSistema variante="outlined" className="p-4">
         <div className="flex flex-wrap items-start gap-3">
@@ -293,6 +305,8 @@ export default async function TallerDetallePage(ctx: RouteContext) {
           <BadgeSistema variante={tallerEstadoBadgeVariante(taller.estado)}>
             {tallerEstadoLabel(taller.estado)}
           </BadgeSistema>
+          {/* Phones have no desktop header: the same action lives here. */}
+          {permisos.editarTaller && accionCompartir('w-full md:hidden')}
         </div>
       </TarjetaSistema>
 

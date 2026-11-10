@@ -64,6 +64,9 @@ const migratedToDesignSystem = [
   // Talleres › Reserva pública (T5b of odd/tasks/talleres-reserva-publica.md), v2 from the start.
   'app/talleres/reservar/**',
   'components/talleres/reserva/**',
+  // Talleres › Compartir (enlace, QR y código para incrustar; T6), v2 from the start.
+  'app/(auth)/talleres/[[]taller]/compartir/**',
+  'components/talleres/compartir/**',
 ]
 
 const legacyUiImports = {

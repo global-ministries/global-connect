@@ -3,9 +3,24 @@
  * skeletons, so nothing jumps when the catalog arrives.
  */
 import { EncabezadoPublico } from '@/components/talleres/reserva/encabezado-publico'
+import { SegunIncrustado } from '@/components/talleres/reserva/incrustado'
 import { SkeletonSistema } from '@/components/ui/sistema-diseno'
 
+/** Embedded (T6): only a card-sized skeleton, no header. */
+const INCRUSTADO = (
+  <div role="status" aria-busy="true" className="grid gap-3 rounded-2xl border border-border bg-card p-4">
+    <span className="sr-only">Cargando talleres</span>
+    <SkeletonSistema ancho="10rem" alto="0.75rem" />
+    <SkeletonSistema ancho="14rem" alto="1.5rem" />
+    <SkeletonSistema alto="5rem" className="rounded-2xl" />
+  </div>
+)
+
 export default function CargandoCatalogo() {
+  return <SegunIncrustado incrustado={INCRUSTADO} normal={<Normal />} />
+}
+
+function Normal() {
   return (
     <div className="min-h-dvh bg-background">
       <EncabezadoPublico migas={[{ etiqueta: 'Grupos de Corto Plazo' }]} />

@@ -15,11 +15,16 @@ import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import { MENSAJES, edicionesConLugar, estadoCupo, fechaCorta, horaLegible, tituloEdicion } from '@/lib/platform/talleres/reserva-publica'
 import { cn } from '@/lib/utils'
 
+import { useModoIncrustado } from './incrustado'
 import type { FlujoReserva } from './use-flujo-reserva'
 
-export const RUTA_CATALOGO = '/talleres/reservar'
 /** "Mis talleres" of the member app; the login keeps it as the redirect. */
 export const RUTA_MIS_TALLERES = '/talleres/mi-recorrido'
+
+/** From an embed (T6) the member app opens in a new tab: only the reservation is embeddable. */
+function usePropsEnlaceApp() {
+  return useModoIncrustado().incrustado ? { target: '_blank', rel: 'noopener noreferrer' } : {}
+}
 
 function Cabecera({ icono, tono, titulo, children }: { icono: React.ReactNode; tono: 'success' | 'warning' | 'danger' | 'muted'; titulo: string; children: React.ReactNode }) {
   const fondo = { success: 'bg-success/15 text-success-text', warning: 'bg-warning/15 text-warning-text', danger: 'bg-danger/10 text-danger-text', muted: 'bg-muted text-muted-foreground' }[tono]
@@ -63,6 +68,7 @@ function Paso({ estado, titulo, detalle }: { estado: 'hecho' | 'actual' | 'sigui
 
 /** Request received (design 05 state 1). */
 export function VistaListo({ f, nombre, email }: { f: FlujoReserva; nombre: string; email: string }) {
+  const enlaceApp = usePropsEnlaceApp()
   const e = f.taller.ediciones.find((x) => x.id === f.edicionId)
   const r = f.resultado
   const persona = f.taller.generoRequerido === 'Femenino' ? 'facilitadora' : 'facilitador'
@@ -131,7 +137,9 @@ export function VistaListo({ f, nombre, email }: { f: FlujoReserva; nombre: stri
           <b className="text-[15px] font-semibold text-foreground">Síguela en la app</b>
           <p className="text-[14px] text-muted-foreground">En Mis talleres ves el estado de tu solicitud y, al aprobarla, tu grupo y tu {persona}.</p>
           <BotonSistema asChild variante="outline" className="justify-self-start">
-            <Link href={RUTA_MIS_TALLERES}>Abrir Global</Link>
+            <Link href={RUTA_MIS_TALLERES} {...enlaceApp}>
+              Abrir Global
+            </Link>
           </BotonSistema>
         </div>
       )}
@@ -258,6 +266,7 @@ export function VistaCerrada({ f }: { f: FlujoReserva }) {
 }
 
 export function VistaYaInscrito({ f, nombre }: { f: FlujoReserva; nombre: string }) {
+  const enlaceApp = usePropsEnlaceApp()
   return (
     <div className="grid gap-6">
       <Cabecera icono={<CheckCircle2 className="size-7" />} tono="warning" titulo="Ya tienes una solicitud">
@@ -266,7 +275,9 @@ export function VistaYaInscrito({ f, nombre }: { f: FlujoReserva; nombre: string
       <div className="grid gap-3 rounded-2xl border border-border bg-card p-4">
         <p className="text-[14px] text-muted-foreground">¿Quieres otro horario? Escribe a la coordinación y te lo cambian si hay lugar. En Mis talleres ves el estado de tu solicitud.</p>
         <BotonSistema asChild variante="outline" className="justify-self-start">
-          <Link href={RUTA_MIS_TALLERES}>Ver en la app</Link>
+          <Link href={RUTA_MIS_TALLERES} {...enlaceApp}>
+            Ver en la app
+          </Link>
         </BotonSistema>
       </div>
     </div>

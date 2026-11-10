@@ -55,7 +55,7 @@ jest.mock('next/server', () => ({
   },
 }))
 
-import { middleware, isPublicPath } from '@/middleware'
+import { config, middleware, isPublicPath } from '@/middleware'
 import { AUTH_FETCH_TIMEOUT_MS } from '@/lib/platform/auth-timeout'
 
 describe('middleware isPublicPath (legacy)', () => {
@@ -370,6 +370,47 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
       expect(isPublicPath('/talleres/reservar/parejas')).toBe(true)
       expect(isPublicPath('/talleres/reservar/parejas/x')).toBe(false)
       expect(isPublicPath('/talleres')).toBe(false)
+    })
+  })
+
+  // T6 (S2, S18): the reservation pages are embedded with an iframe on any
+  // church site, so only they answer frame-ancestors *; every other route
+  // keeps its framing policy (no header from the middleware).
+  describe('framing of the embeddable reservation pages', () => {
+    it.each(['/talleres/reservar', '/talleres/reservar/mujer-de-hoy'])('lets any site frame %s', async (path) => {
+      const result = (await middleware(createMockRequest(path) as unknown as Parameters<typeof middleware>[0])) as unknown as {
+        headers: Headers
+      }
+
+      expect(result.headers.get('Content-Security-Policy')).toBe('frame-ancestors *')
+      expect(result.headers.get('X-Frame-Options')).toBeNull()
+    })
+
+    it.each(['/dashboard', '/users', '/talleres/reservar/mujer-de-hoy/extra'])('does not open %s to framing', async (path) => {
+      queueFastResult({ id: 'auth-member' })
+
+      const result = (await middleware(createMockRequest(path) as unknown as Parameters<typeof middleware>[0])) as unknown as {
+        headers: Headers
+      }
+
+      expect(result.headers.get('Content-Security-Policy')).toBeNull()
+    })
+  })
+
+  // /embed.js is loaded by a <script> on any site, without our session cookie:
+  // the middleware must not send it to the login.
+  describe('embed script', () => {
+    // eslint-disable-next-line security/detect-non-literal-regexp -- the matcher is our own constant
+    const patron = new RegExp(`^${config.matcher[0]}$`)
+
+    it('keeps /embed.js out of the middleware', () => {
+      expect(patron.test('/embed.js')).toBe(false)
+    })
+
+    it('still runs on app pages', () => {
+      expect(patron.test('/dashboard')).toBe(true)
+      expect(patron.test('/talleres/reservar')).toBe(true)
+      expect(patron.test('/embed.jsx')).toBe(true)
     })
   })
 
