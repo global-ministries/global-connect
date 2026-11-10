@@ -55,6 +55,12 @@
 -- and the calls after the migration block run the new bodies.
 --
 -- The migration is copied byte for byte between the two marker comments below.
+-- After it, es_lider_de_grupo is replaced again with its current body from
+-- 20261110120000_colider_solo_lectura.sql (Líder only; the Colíder is
+-- read-only, odd/tasks/home-por-rol.md S6), also between marker comments, so
+-- "after" is the state of the repository. Run it once that migration is
+-- applied: before, the live es_lider_de_grupo still answers true for a
+-- Colíder and case a reports those pairs.
 --
 -- Run against STAGING inside BEGIN...ROLLBACK: nothing here is kept and no row
 -- is written outside temporary tables. The last statement returns the failing
@@ -272,7 +278,7 @@ INSERT INTO t_ap_edge_groups(ord, label, grupo)
 SELECT 1, 'led by the leader',
        (SELECT gm.grupo_id FROM public.grupo_miembros gm
          WHERE gm.usuario_id = (SELECT uid FROM t_ap_who WHERE who = 'leader')
-           AND gm.rol IN ('Líder', 'Colíder')
+           AND gm.rol = 'Líder'
          ORDER BY gm.grupo_id LIMIT 1);
 INSERT INTO t_ap_edge_groups(ord, label, grupo)
 SELECT 2, 'directed by the de',
@@ -820,6 +826,40 @@ GRANT EXECUTE ON FUNCTION public.puede_ver_grupo(uuid, uuid) TO authenticated, s
 GRANT EXECUTE ON FUNCTION public.es_director_de_grupo(uuid, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.es_lider_de_grupo(uuid, uuid) TO authenticated, service_role;
 -- <<< END migration 20261003120000_ayudantes_persona_sesion.sql
+
+-- >>> BEGIN es_lider_de_grupo from migration 20261110120000_colider_solo_lectura.sql (byte-identical copy)
+CREATE OR REPLACE FUNCTION public.es_lider_de_grupo(p_user_id uuid, p_grupo_id uuid)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  -- auth.role() reads the request role from either PostgREST claim format.
+  v_request_role text := auth.role();
+BEGIN
+  -- Only about the person in the session; only service_role may ask about
+  -- somebody else.
+  IF coalesce(v_request_role, '') <> 'service_role'
+     AND (auth.uid() IS NULL
+          OR p_user_id IS DISTINCT FROM (SELECT u.id FROM public.usuarios u WHERE u.auth_id = auth.uid())) THEN
+    RETURN false;
+  END IF;
+
+  -- Only the Líder: the Colíder is read-only (S6).
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.grupo_miembros gm
+    WHERE gm.usuario_id = p_user_id
+      AND gm.grupo_id = p_grupo_id
+      AND gm.rol = 'Líder'
+  );
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.es_lider_de_grupo(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.es_lider_de_grupo(uuid, uuid) TO authenticated, service_role;
+-- <<< END es_lider_de_grupo from migration 20261110120000_colider_solo_lectura.sql
 
 -- ---------------------------------------------------------------------------
 -- AFTER the migration.
