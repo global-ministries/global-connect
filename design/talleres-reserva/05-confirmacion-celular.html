@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Reservar · solicitud recibida y otros estados · celular — Global</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/04. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-sm:calc(var(--radius) - 4px);--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--tinte:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--surface-tertiary:#EEECEA;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-foreground:oklch(.98 0 0);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--surface-tertiary:#202028;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-foreground:oklch(.15 0 0);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--surface-tertiary:#202028;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-foreground:oklch(.15 0 0);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--surface-tertiary);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}
+a,button,label{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+[hidden]{display:none!important}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}svg.s24{width:24px;height:24px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+/* Artboard: four phone frames */
+.tablero-h{display:flex;align-items:baseline;gap:16px;padding:18px 40px 0}
+.tablero-h h1{font-size:18px;font-weight:650}.tablero-h p{font-size:13px;color:var(--muted-foreground)}
+.tablero{display:flex;gap:20px;justify-content:center;padding:14px 24px 24px}
+.marco{display:grid;gap:8px;align-content:start}
+.marco>h2{display:flex;align-items:center;gap:8px;padding:0 4px;font-size:13px;font-weight:600}
+.marco>h2 .k{min-width:22px;height:22px;padding:0 6px;display:inline-grid;place-items:center;border-radius:9999px;background:var(--brand-strong);color:var(--brand-primary-foreground);font-family:var(--font-mono);font-size:12px}
+.marco>p{padding:0 4px;max-width:330px;font-size:12px;color:var(--muted-foreground)}
+.marco>p button{min-height:32px;padding:0;border:0;background:none;color:var(--brand-text);font-size:12px;font-weight:600;text-decoration:underline;cursor:pointer}
+.phone{zoom:.84;position:relative;width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden;border-radius:44px;background:var(--background);border:1px solid var(--border)}
+.scroll{flex:1;min-height:0;overflow-y:auto}
+/* Nav bar */
+.nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-height:48px;padding:10px 8px 0;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.nav .ttl{grid-column:2;font-size:16px;font-weight:600}
+.nav .acts{grid-column:3;justify-self:end}
+.back{grid-column:1;justify-self:start;display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:130px;padding:0 8px;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);font-size:16px;text-decoration:none;white-space:nowrap}
+.back svg{width:24px;height:24px;margin-left:-4px}.back span{overflow:hidden;text-overflow:ellipsis}
+.lnk{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);font-size:16px;font-weight:500;text-decoration:none;cursor:pointer}
+.cuerpo{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;padding:4px 16px 24px}
+.large{display:grid;gap:6px;padding:0 4px}
+.large h1{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.large p{font-size:15px;color:var(--muted-foreground)}.large p strong{color:var(--foreground);font-weight:600}
+.sello{width:56px;height:56px;margin:4px 4px 0;display:grid;place-items:center;border-radius:9999px;background:color-mix(in oklab,var(--success) var(--tinte),transparent);color:var(--success-text)}
+.sello svg{width:28px;height:28px;stroke-width:2.2}
+.sec-hd{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 4px}
+.sec-h{flex:1;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+/* Status (PuntoEstado) */
+.st{display:inline-flex;align-items:center;gap:7px;padding:0 4px;font-size:13px;font-weight:500}
+.st i{width:8px;height:8px;flex:none;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st[data-t=warning]{--t:var(--warning);color:var(--warning-text)}.st[data-t=success]{--t:var(--success);color:var(--success-text)}.st[data-t=danger]{--t:var(--danger);color:var(--danger-text)}.st[data-t=muted]{--t:var(--muted-foreground);color:var(--muted-foreground)}
+/* Summary card */
+.resumen{display:grid;gap:10px;padding:14px;border-radius:var(--r-2xl);background:var(--card)}
+.resumen .top{display:flex;align-items:center;gap:12px}
+.tile{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:var(--radius);background:var(--brand-accent-strong);color:var(--brand-text)}
+.resumen b{display:block;font-size:16px;font-weight:600}.resumen .top small{display:block;font-size:13px;color:var(--muted-foreground)}
+.hechos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.hecho{padding:8px 10px;border-radius:var(--r-xl);border:1px solid color-mix(in oklab,var(--border) 70%,transparent)}
+.hecho small{display:block;font-size:12px;color:var(--muted-foreground)}.hecho span{font-size:15px;font-weight:600}
+/* Timeline */
+.tl{padding:4px 14px;border-radius:var(--r-2xl);background:var(--card)}
+.tl li{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;padding:12px 0}
+.tl li:not(:last-child)::after{content:"";position:absolute;left:11px;top:40px;bottom:-8px;width:2px;border-radius:2px;background:var(--border)}
+.tl .m{width:24px;height:24px;display:grid;place-items:center;border-radius:9999px;border:2px solid var(--border);background:var(--card)}
+.tl .hecho-p .m{border-color:var(--success);background:var(--success);color:var(--success-foreground)}
+.tl .hecho-p .m svg{width:14px;height:14px;stroke-width:2.6}
+.tl .ahora .m{border-color:var(--warning)}.tl .ahora .m::after{content:"";width:8px;height:8px;border-radius:9999px;background:var(--warning)}
+.tl b{display:block;font-size:15px;font-weight:600}.tl small{display:block;margin-top:2px;font-size:13px;color:var(--muted-foreground)}
+.tl .ahora b{color:var(--foreground)}.tl li:not(.hecho-p):not(.ahora) b{color:var(--muted-foreground);font-weight:500}
+/* Account card */
+.cuenta{display:grid;gap:12px;padding:16px;border-radius:var(--r-2xl);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--brand-primary);position:relative}
+.cuenta::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--brand-accent-strong);pointer-events:none}
+.cuenta>*{position:relative}
+.cuenta h2{font-size:18px;font-weight:650}
+.cuenta p{font-size:14px;color:var(--muted-foreground)}.cuenta p strong{color:var(--foreground);font-weight:600;overflow-wrap:anywhere}
+.cuenta ul{display:grid;gap:8px}
+.cuenta li{display:flex;gap:10px;align-items:center;font-size:15px}
+.cuenta li svg{color:var(--brand-text)}
+.cuenta .acc{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 -8px -4px}
+.cuenta .acc span{font-size:13px;color:var(--muted-foreground);padding-right:8px}
+/* Inset grouped list + options */
+.lista{background:var(--card);border-radius:var(--r-2xl);overflow:hidden}
+.op{position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 14px;cursor:pointer}
+.lista>li+li .op::before,.lista>li+li .fila::before{content:"";position:absolute;top:0;left:14px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.op input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--brand-strong)}
+.op .tx{flex:1;min-width:0}.op b{display:block;font-size:16px;font-weight:600}.op small{display:block;margin-top:2px;font-size:13px;color:var(--muted-foreground)}
+.op .st{padding:0;margin-top:3px}
+.op.off{cursor:default}.op.off b{color:var(--muted-foreground)}
+.op:has(input:focus-visible){box-shadow:inset 0 0 0 2px var(--brand-primary);border-radius:var(--r-2xl)}
+.fila{position:relative;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 12px 8px 14px;text-decoration:none;font-size:15px}
+.fila .ic{color:var(--brand-text)}.fila .tx{flex:1;min-width:0}.fila .tx small{display:block;font-size:13px;color:var(--muted-foreground)}.fila .go{color:var(--muted-foreground)}
+.hint{padding:0 4px;font-size:13px;color:var(--muted-foreground)}
+.ok-msg{display:flex;gap:8px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-xl);background:var(--card);font-size:14px}
+.ok-msg svg{color:var(--success-text)}
+/* Buttons (BotonSistema) + bottom bar */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;color:var(--foreground);font-size:16px;font-weight:500;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.sec{border-color:transparent;background:var(--secondary)}
+.btn.lg{min-height:48px}.btn.full{width:100%}
+.btn.link{border-color:transparent;color:var(--brand-text);padding:0 8px;font-size:15px}
+.btn:disabled{opacity:.5;cursor:default}
+.cta{display:grid;gap:8px;padding:10px 16px 28px;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-mujer" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+<symbol id="i-lista" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+<symbol id="i-premio" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 7 5-3 5 3-1.5-7"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></symbol>
+<symbol id="i-campana" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+<symbol id="i-app" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></symbol>
+</defs></svg>
+
+<header class="tablero-h">
+  <h1>Reservar · después de enviar</h1>
+  <p>Toda inscripción queda pendiente hasta que la coordinación la aprueba. Nada se aprueba solo.</p>
+</header>
+
+<div class="tablero">
+
+  <!-- 1 · Recibida -->
+  <section class="marco" aria-labelledby="m1-h">
+    <h2 id="m1-h"><span class="k">1</span>Solicitud recibida</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><p class="ttl">Reserva</p><span class="acts"><a class="lnk" href="01-catalogo-publico-celular.html">Cerrar</a></span></nav>
+        <div class="cuerpo">
+          <span class="sello" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>
+          <div class="large"><h1>Solicitud recibida</h1><p id="saludo">Gracias, Daniela. La coordinación de Mujer de Hoy revisa cada solicitud y te avisa por correo y en la app.</p></div>
+          <span class="st" data-t="warning"><i aria-hidden="true"></i>Pendiente de aprobación</span>
+          <div class="resumen">
+            <div class="top"><span class="tile" aria-hidden="true"><svg class="i"><use href="#i-mujer"/></svg></span><span><b>Mujer de Hoy</b><small>Jueves <span class="num">7:00</span> p.m. · <span class="num">6</span> clases</small></span></div>
+            <div class="hechos"><div class="hecho"><small>Primera clase</small><span>Jue <span class="num">19</span> nov</span></div><div class="hecho"><small>Lugar</small><span>Salón <span class="num">4</span></span></div></div>
+          </div>
+          <section aria-labelledby="qs-h">
+            <div class="sec-hd"><h2 class="sec-h" id="qs-h">Qué sigue</h2></div>
+            <ol class="tl">
+              <li class="hecho-p"><span class="m" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span><span><b>Recibida</b><small>Hoy, <span class="num">10:42</span> a.m.<span class="sr">. Hecho.</span></small></span></li>
+              <li class="ahora"><span class="m" aria-hidden="true"></span><span><b>Aprobada por la coordinación</b><small>Te avisamos por correo y en la app.<span class="sr"> Paso actual.</span></small></span></li>
+              <li><span class="m" aria-hidden="true"></span><span><b>Te asignamos grupo y facilitadora</b><small>Verás su nombre y su contacto.</small></span></li>
+              <li><span class="m" aria-hidden="true"></span><span><b>Primera clase</b><small>Jueves <span class="num">19</span> nov · <span class="num">7:00</span> p.m. · Salón <span class="num">4</span></small></span></li>
+            </ol>
+          </section>
+          <div>
+            <button class="btn full" type="button" id="cal"><svg class="i" aria-hidden="true"><use href="#i-cal"/></svg>Guardar la fecha en mi calendario</button>
+            <p class="hint" style="margin-top:6px">Se guarda como tentativa hasta que te aprueben.</p>
+          </div>
+
+          <section class="cuenta" id="c-nueva" aria-labelledby="cn-h">
+            <h2 id="cn-h">Activa tu cuenta Global</h2>
+            <p>Te enviamos un enlace a <strong class="num">daniela.mujica@gmail.com</strong>. Con tu cuenta:</p>
+            <ul>
+              <li><svg class="i" aria-hidden="true"><use href="#i-users"/></svg>Ves tu grupo y a tu facilitadora</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-lista"/></svg>Llevas tu asistencia clase por clase</li>
+              <li><svg class="i" aria-hidden="true"><use href="#i-premio"/></svg>Descargas tu certificado al terminar</li>
+            </ul>
+            <div class="acc"><button class="btn link" type="button" id="reenv">Reenviar enlace</button><span>¿No llegó? Mira en spam.</span></div>
+          </section>
+          <section class="cuenta" id="c-miembro" aria-labelledby="cm-h" hidden>
+            <h2 id="cm-h">Síguela en la app</h2>
+            <p>En <strong>Inicio › Mis talleres</strong> ves el estado de tu solicitud y, al aprobarla, tu grupo y tu facilitadora.</p>
+            <a class="btn pri full" href="#"><svg class="i" aria-hidden="true"><use href="#i-app"/></svg>Abrir Global</a>
+          </section>
+        </div>
+      </div>
+      <div class="cta"><a class="btn sec lg" href="01-catalogo-publico-celular.html">Ver otros talleres</a></div>
+    </div>
+    <p>Persona nueva: tarjeta para activar la cuenta. <button type="button" id="alternar" aria-pressed="false">Ver como persona ya registrada</button></p>
+  </section>
+
+  <!-- 2 · Llena -->
+  <section class="marco" aria-labelledby="m2-h">
+    <h2 id="m2-h"><span class="k">2</span>Edición llena</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><a class="back" href="02-taller-publico-escritorio.html" aria-label="Volver a Mujer de Hoy"><svg class="i"><use href="#i-back"/></svg><span>Mujer de Hoy</span></a><p class="ttl">Reservar</p></nav>
+        <div class="cuerpo">
+          <span class="st" data-t="danger"><i aria-hidden="true"></i>Lleno</span>
+          <div class="large"><h1>El jueves se llenó</h1><p>Mientras completabas tus datos se ocupó el último lugar de <strong>Jueves <span class="num">7:00</span> p.m.</strong> Tus datos quedaron guardados.</p></div>
+          <fieldset style="border:0;margin:0;padding:0;min-width:0">
+            <legend class="sec-hd" style="width:100%"><span class="sec-h">Otros horarios de Mujer de Hoy</span></legend>
+            <ul class="lista">
+              <li><label class="op"><input type="radio" name="otro" checked><span class="tx"><b>Sábado · <span class="num">9:00</span> a.m.</b><small>Inicia sáb <span class="num">21</span> nov · Salón <span class="num">2</span></small><span class="st" data-t="success"><i aria-hidden="true"></i>Quedan&nbsp;<span class="num">14</span>&nbsp;lugares</span></span></label></li>
+              <li><label class="op off"><input type="radio" name="otro" disabled><span class="tx"><b>Martes · <span class="num">7:00</span> p.m.</b><small>Desde el <span class="num">12</span> ene · Salón <span class="num">4</span></small><span class="st" data-t="muted"><i aria-hidden="true"></i>Abre el&nbsp;<span class="num">1</span>&nbsp;dic</span></span></label></li>
+            </ul>
+          </fieldset>
+          <div class="ok-msg" id="espera-ok" role="status" hidden><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span>Listo. Si se abre un lugar el jueves, te avisamos a ti y a las demás personas anotadas; el primero que reserve se queda con el lugar.</span></div>
+          <p class="hint" id="espera-h">Avisarte no es una reserva ni un turno: si se abre un lugar, te avisamos a ti y a las demás personas anotadas por correo y en la app, al mismo tiempo. El primero que reserve se queda con el lugar.</p>
+        </div>
+      </div>
+      <div class="cta">
+        <a class="btn pri lg" href="#">Reservar el sábado</a>
+        <button class="btn" type="button" id="espera"><svg class="i" aria-hidden="true"><use href="#i-campana"/></svg>Avísame si se abre un lugar</button>
+      </div>
+    </div>
+    <p>Puede pasar al enviar: el cupo se valida en el servidor. Los datos no se pierden. Sin lista ordenada: el aviso llega a todos a la vez.</p>
+  </section>
+
+  <!-- 3 · Cerrada -->
+  <section class="marco" aria-labelledby="m3-h">
+    <h2 id="m3-h"><span class="k">3</span>Inscripción cerrada</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><a class="back" href="02-taller-publico-escritorio.html" aria-label="Volver a Mujer de Hoy"><svg class="i"><use href="#i-back"/></svg><span>Mujer de Hoy</span></a><p class="ttl">Reservar</p></nav>
+        <div class="cuerpo">
+          <span class="st" data-t="muted"><i aria-hidden="true"></i>Inscripción cerrada</span>
+          <div class="large"><h1>Las inscripciones cerraron</h1><p>La inscripción de <strong>Jueves <span class="num">7:00</span> p.m.</strong> cerró el martes <span class="num">17</span> nov, dos días antes de la primera clase.</p></div>
+          <section aria-labelledby="pe-h">
+            <div class="sec-hd"><h2 class="sec-h" id="pe-h">Próxima edición</h2></div>
+            <div class="resumen">
+              <div class="top"><span class="tile" aria-hidden="true"><svg class="i"><use href="#i-cal"/></svg></span><span><b>Martes · <span class="num">7:00</span> p.m.</b><small>Desde el <span class="num">12</span> ene <span class="num">2027</span> · Salón <span class="num">4</span></small></span></div>
+              <span class="st" data-t="muted" style="padding:0"><i aria-hidden="true"></i>Las inscripciones abren el&nbsp;<span class="num">1</span>&nbsp;dic</span>
+            </div>
+          </section>
+          <ul class="lista">
+            <li><a class="fila" href="#"><svg class="i ic" aria-hidden="true"><use href="#i-chat"/></svg><span class="tx">Escribir a la coordinación<small>Por WhatsApp, de lunes a viernes</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+            <li><a class="fila" href="01-catalogo-publico-celular.html"><svg class="i ic" aria-hidden="true"><use href="#i-lista"/></svg><span class="tx">Ver otros talleres<small>Parejas sigue abierto</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="cta"><button class="btn pri lg" type="button" data-avisar>Avísame cuando abran</button></div>
+    </div>
+    <p>Se ve al abrir el enlace después del cierre, antes de pedir datos.</p>
+  </section>
+
+  <!-- 4 · Ya inscrita -->
+  <section class="marco" aria-labelledby="m4-h">
+    <h2 id="m4-h"><span class="k">4</span>Ya inscrita</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><a class="back" href="02-taller-publico-escritorio.html" aria-label="Volver a Mujer de Hoy"><svg class="i"><use href="#i-back"/></svg><span>Mujer de Hoy</span></a><p class="ttl">Reservar</p></nav>
+        <div class="cuerpo">
+          <div class="large"><h1>Ya tienes una solicitud</h1><p>Valentina, ya pediste un lugar en Mujer de Hoy el <span class="num">2</span> nov. No hace falta enviarla otra vez.</p></div>
+          <div class="resumen">
+            <div class="top"><span class="tile" aria-hidden="true"><svg class="i"><use href="#i-mujer"/></svg></span><span><b>Mujer de Hoy</b><small>Jueves <span class="num">7:00</span> p.m. · inicia <span class="num">19</span> nov</small></span></div>
+            <span class="st" data-t="warning" style="padding:0"><i aria-hidden="true"></i>Pendiente de aprobación</span>
+          </div>
+          <p class="hint">¿Quieres otro horario? Escribe a la coordinación y te lo cambian si hay lugar.</p>
+          <ul class="lista">
+            <li><a class="fila" href="#"><svg class="i ic" aria-hidden="true"><use href="#i-chat"/></svg><span class="tx">Escribir a la coordinación<small>Por WhatsApp</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="cta"><a class="btn pri lg" href="#">Ver en la app</a></div>
+    </div>
+    <p>Solo después de confirmar el código. Sin código, la coordinación ve el duplicado al revisar.</p>
+  </section>
+</div>
+<p class="sr" role="status" aria-live="polite" id="live"></p>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+$('alternar').addEventListener('click',e=>{const miembro=e.currentTarget.getAttribute('aria-pressed')!=='true';e.currentTarget.setAttribute('aria-pressed',miembro);
+  $('c-nueva').hidden=miembro;$('c-miembro').hidden=!miembro;
+  $('saludo').textContent=miembro?'Gracias, Valentina. La coordinación de Mujer de Hoy revisa cada solicitud y te avisa por correo y en la app.':'Gracias, Daniela. La coordinación de Mujer de Hoy revisa cada solicitud y te avisa por correo y en la app.'});
+$('cal').addEventListener('click',()=>live('Descargamos el evento para tu calendario.'));
+$('reenv').addEventListener('click',e=>{e.currentTarget.disabled=true;live('Te enviamos el enlace otra vez.')});
+$('espera').addEventListener('click',e=>{e.currentTarget.disabled=true;$('espera-ok').hidden=false;$('espera-h').hidden=true;live('Listo. Si se abre un lugar, avisamos a todas las personas anotadas a la vez.')});
+document.querySelector('[data-avisar]').addEventListener('click',e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Te avisaremos el 1 dic';live('Te avisaremos cuando abran las inscripciones.')});
+</script>
+</body>
+</html>

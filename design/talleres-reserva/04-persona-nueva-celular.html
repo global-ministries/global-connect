@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1];if(/(?:^#|,)parejas(?:,|$)/.test(location.hash))document.documentElement.dataset.taller='parejas'})();</script>
+<title>Reservar · persona nueva · celular — Global</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/04. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-sm:calc(var(--radius) - 4px);--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent:rgba(233,108,32,.08);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent:rgba(233,108,32,.12);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--warning:oklch(.70 .16 80);--warning-text:oklch(.8 .14 80)}}
+:root[data-tema=oscuro]{color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent:rgba(233,108,32,.12);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--warning:oklch(.70 .16 80);--warning-text:oklch(.8 .14 80)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input,select{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}
+a,button,label{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+[hidden]{display:none!important}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+/* Variant switch: Mujer de Hoy (default) vs Parejas (#parejas) */
+:root:not([data-taller=parejas]) .solo-parejas,:root[data-taller=parejas] .solo-mujer{display:none!important}
+/* Nav bar (BarraNavegacionMovil) */
+.nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-height:48px;padding:env(safe-area-inset-top) 8px 0;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color var(--duration-normal) var(--ease-out-quint)}
+.nav.sc{border-bottom-color:var(--border)}
+.nav .ttl{grid-column:2;font-size:16px;font-weight:600;opacity:0;transition:opacity 200ms var(--ease-out-quint)}.nav.sc .ttl{opacity:1}
+.back{grid-column:1;justify-self:start;display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:120px;padding:0 8px;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);font-size:16px;text-decoration:none}
+.back svg{width:24px;height:24px;margin-left:-4px}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;padding:4px 16px 24px;min-width:0}
+.paso-n{padding:0 4px;font-size:13px;font-weight:500;color:var(--muted-foreground)}
+.large{display:grid;gap:6px;padding:0 4px}
+.large h1{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.large p{font-size:15px;color:var(--muted-foreground)}
+.sec-hd{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 4px}
+.sec-h{flex:1;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.ctx{display:flex;align-items:center;gap:12px;padding:12px 8px 12px 14px;border-radius:var(--r-2xl);background:var(--card)}
+.tile{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:var(--radius);background:var(--brand-accent-strong);color:var(--brand-text)}
+.ctx .tx{flex:1;min-width:0}.ctx b{display:block;font-size:15px;font-weight:600}.ctx .tx>span{display:block;font-size:13px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lnk{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);font-size:15px;font-weight:500;text-decoration:none;cursor:pointer}
+/* Fields (CamposSistema inside inset cards) */
+.grupo{background:var(--card);border-radius:var(--r-2xl);padding:2px 14px}
+.campo{display:grid;gap:6px;padding:12px 0;min-width:0}
+.grupo>.campo+.campo,.grupo>.dos+.campo,.grupo>.campo+.dos{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.dos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.campo label,.campo .lb{font-size:14px;font-weight:600}
+.in{width:100%;min-width:0;height:44px;padding:0 14px;border:1px solid var(--border);border-radius:var(--r-xl);background:color-mix(in oklab,var(--card) 50%,transparent);font-size:16px}
+.in:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.in[aria-invalid=true],.pref:has([aria-invalid=true]){border-color:var(--danger)}
+.in[readonly]{background:var(--muted);color:var(--muted-foreground)}
+.pref{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;border:1px solid var(--border);border-radius:var(--r-xl);background:color-mix(in oklab,var(--card) 50%,transparent)}
+.pref>span{padding:0 4px 0 14px;font-family:var(--font-mono);font-size:16px;color:var(--muted-foreground)}
+.pref .in{border:0;background:none;padding-left:6px}.pref:focus-within{border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}.pref .in:focus{box-shadow:none}
+.con-btn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.err{display:flex;gap:6px;align-items:flex-start;font-size:13px;color:var(--danger-text)}
+.err a{color:inherit}
+.hint{font-size:13px;color:var(--muted-foreground)}
+/* ControlSegmentado */
+.seg{display:flex;padding:3px;border-radius:var(--r-xl);border:1px solid var(--border);background:var(--card)}
+.seg button{flex:1;min-height:44px;border:0;border-radius:var(--r-md);background:none;color:var(--muted-foreground);font-size:15px;font-weight:500;cursor:pointer;transition:background-color var(--duration-fast) var(--ease-expo),color var(--duration-fast) var(--ease-expo)}
+.seg button[aria-pressed=true]{background:var(--foreground);color:var(--background)}
+.seg.mal{border-color:var(--danger)}
+/* AvisoFormulario */
+.aviso{display:flex;gap:10px;padding:14px;border-radius:var(--r-xl);border:1px solid;font-size:14px}
+.aviso.error{border-color:color-mix(in oklab,var(--danger) 30%,transparent);background:color-mix(in oklab,var(--danger) 10%,transparent);color:var(--danger-text)}
+.aviso.error ul{margin-top:4px;display:grid;gap:2px}.aviso.error a{color:inherit;font-weight:500;display:inline-flex;min-height:32px;align-items:center}
+.aviso.info{border-color:color-mix(in oklab,var(--info) 30%,transparent);background:color-mix(in oklab,var(--info) 5%,transparent)}.aviso.info svg{color:var(--info-text)}
+.aviso.marca{border-color:color-mix(in oklab,var(--brand-primary) 20%,transparent);background:var(--brand-accent);color:var(--brand-text)}
+/* Estado (punto + texto) */
+.st{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
+.st i{width:8px;height:8px;flex:none;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st[data-t=warning]{--t:var(--warning);color:var(--warning-text)}
+/* Pasos de la confirmación del cónyuge */
+.pasos{display:grid;gap:10px;padding:2px 0}
+.pasos li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;align-items:start;font-size:14px}
+.pasos .n{width:24px;height:24px;display:grid;place-items:center;border-radius:9999px;background:var(--muted);font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--muted-foreground)}
+.pasos b{display:block;font-weight:600}.pasos small{display:block;font-size:13px;color:var(--muted-foreground)}
+.check{display:flex;gap:12px;align-items:flex-start;padding:12px 4px;font-size:13px;color:var(--muted-foreground);cursor:pointer}
+.check input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--brand-strong)}
+.check a{color:var(--brand-text)}
+/* Honeypot: off-screen, hidden from assistive tech, skipped by keyboard */
+.hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+/* Buttons (BotonSistema) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;color:var(--foreground);font-size:16px;font-weight:500;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.lg{min-height:48px;width:100%}
+.cta{position:sticky;bottom:0;z-index:5;display:grid;gap:6px;padding:10px 16px max(12px,env(safe-area-inset-bottom));background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border)}
+.cta .hint{text-align:center}
+.proto{display:grid;gap:8px;padding:12px;border-radius:var(--r-2xl);border:1px dashed var(--border);font-size:13px;color:var(--muted-foreground)}
+.proto .fila{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="i-mujer" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></symbol>
+<symbol id="i-pareja" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+<symbol id="i-alerta" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+<symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6Z"/><path d="m9 12 2 2 4-4"/></symbol>
+</defs></svg>
+
+<nav class="nav" id="nav" aria-label="Barra de navegación">
+  <a class="back" href="03-identificarse-celular.html" aria-label="Volver a la cédula"><svg class="i"><use href="#i-back"/></svg><span>Cédula</span></a>
+  <p class="ttl" aria-hidden="true"><span class="solo-mujer">Tus datos</span><span class="solo-parejas">Sus datos</span></p>
+</nav>
+
+<form id="f" novalidate>
+<main>
+  <p class="paso-n">Paso <span class="num">2</span> de <span class="num">3</span></p>
+  <div class="large">
+    <h1 id="t"><span class="solo-mujer">Tus datos</span><span class="solo-parejas">Sus datos</span></h1>
+    <p><span class="solo-mujer">Con esto creamos tu ficha en Global.</span><span class="solo-parejas">En Parejas se inscriben los dos. Creamos la ficha de quien no esté en Global.</span> Solo la coordinación del taller los ve.</p>
+  </div>
+
+  <div class="aviso error" id="resumen" role="alert" tabindex="-1" hidden><svg class="i" aria-hidden="true"><use href="#i-alerta"/></svg><div><b id="resumen-t">Revisa 3 datos</b><ul id="resumen-l"></ul></div></div>
+
+  <div class="ctx">
+    <span class="tile" aria-hidden="true"><svg class="i solo-mujer"><use href="#i-mujer"/></svg><svg class="i solo-parejas"><use href="#i-pareja"/></svg></span>
+    <span class="tx"><b class="solo-mujer">Mujer de Hoy</b><b class="solo-parejas">Parejas</b><span class="solo-mujer">Jueves <span class="num">7:00</span> p.m. · inicia <span class="num">19</span> nov</span><span class="solo-parejas">Viernes <span class="num">7:30</span> p.m. · inicia <span class="num">27</span> nov</span></span>
+    <a class="lnk" href="02-taller-publico-escritorio.html">Cambiar</a>
+  </div>
+
+  <section aria-labelledby="yo-h">
+    <div class="sec-hd"><h2 class="sec-h" id="yo-h"><span class="solo-mujer">Datos personales</span><span class="solo-parejas">Tú</span></h2></div>
+    <div class="grupo">
+      <div class="dos">
+        <div class="campo"><label for="nom">Nombre</label><input class="in" id="nom" autocomplete="given-name" value="Daniela" data-req="Escribe tu nombre." aria-describedby="nom-e"><p class="err" id="nom-e" hidden></p></div>
+        <div class="campo"><label for="ape">Apellido</label><input class="in" id="ape" autocomplete="family-name" data-req="Escribe tu apellido." aria-describedby="ape-e"><p class="err" id="ape-e" hidden></p></div>
+      </div>
+      <div class="campo"><label for="ced">Cédula</label><div class="con-btn"><input class="in num" id="ced" value="V-27.441.903" readonly aria-describedby="ced-h"><a class="lnk" href="03-identificarse-celular.html">Cambiar</a></div><p class="hint" id="ced-h">La escribiste en el paso anterior.</p></div>
+      <div class="campo"><label for="nac">Fecha de nacimiento</label><input class="in num" id="nac" type="date" autocomplete="bday" max="2008-11-09" data-req="Indica tu fecha de nacimiento." aria-describedby="nac-e"><p class="err" id="nac-e" hidden></p></div>
+      <div class="campo solo-mujer" id="sexo-c">
+        <span class="lb" id="sexo-l">Sexo</span>
+        <div class="seg" role="group" aria-labelledby="sexo-l" id="sexo"><button type="button" aria-pressed="true" data-v="F">Mujer</button><button type="button" aria-pressed="false" data-v="M">Hombre</button></div>
+        <p class="hint" id="sexo-h">Mujer de Hoy es un taller para mujeres.</p>
+        <p class="err" id="sexo-e" role="alert" hidden><svg class="i s16" aria-hidden="true"><use href="#i-alerta"/></svg><span>Este taller es solo para mujeres. Mira <a href="01-catalogo-publico-celular.html">De Hombre a Hombre</a>.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="co-h">
+    <div class="sec-hd"><h2 class="sec-h" id="co-h">Cómo te contactamos</h2></div>
+    <div class="grupo">
+      <div class="campo"><label for="tel">Teléfono con WhatsApp</label><div class="pref"><span aria-hidden="true">+58</span><input class="in num" id="tel" type="tel" autocomplete="tel-national" value="412 763 90 15" data-req="Escribe un teléfono con WhatsApp." aria-describedby="tel-h tel-e" aria-label="Teléfono con WhatsApp, código +58"></div><p class="hint" id="tel-h">La coordinación te escribe por aquí si necesita contactarte. Los avisos llegan por correo.</p><p class="err" id="tel-e" hidden></p></div>
+      <div class="campo"><label for="mail">Correo</label><input class="in" id="mail" type="email" autocomplete="email" inputmode="email" value="daniela.mujica@gmail" data-req="Escribe tu correo." aria-describedby="mail-h mail-e"><p class="hint" id="mail-h">Te enviamos el enlace para activar tu cuenta Global.</p><p class="err" id="mail-e" hidden></p></div>
+    </div>
+  </section>
+
+  <section class="solo-parejas" aria-labelledby="cy-h">
+    <div class="sec-hd"><h2 class="sec-h" id="cy-h">Tu cónyuge</h2></div>
+    <div class="grupo">
+      <div class="campo"><label for="cy-ced">Cédula de tu cónyuge</label>
+        <div class="con-btn"><input class="in num" id="cy-ced" inputmode="numeric" value="18339027" aria-describedby="cy-h"><button class="btn" type="button" id="buscar">Buscar</button></div>
+        <p class="hint" id="cy-h">Prueba: <span class="num">12345678</span> está en Global; cualquier otra es nueva.</p>
+      </div>
+      <div id="cy-esta" hidden class="campo">
+        <div class="aviso marca" role="status"><svg class="i" aria-hidden="true"><use href="#i-escudo"/></svg><span>Esta cédula ya está en Global. Tu cónyuge confirma con <b>su propio código</b>: se lo enviamos a su correo y a sus avisos de la app Global.</span></div>
+        <span class="st" data-t="warning"><i aria-hidden="true"></i>Esperando que tu cónyuge confirme con su código</span>
+        <ol class="pasos" aria-label="Cómo sigue la inscripción">
+          <li><span class="n" aria-hidden="true">1</span><span><b>Envías la solicitud</b><small>No mostramos sus datos aquí.</small></span></li>
+          <li><span class="n" aria-hidden="true">2</span><span><b>Tu cónyuge escribe su código</b><small>Le llega a su correo y a sus avisos de la app. Hasta entonces la inscripción queda pendiente.</small></span></li>
+          <li><span class="n" aria-hidden="true">3</span><span><b>La coordinación la aprueba</b><small>Los dos reciben el aviso.</small></span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="aviso info" id="cy-ficha" style="margin-top:10px" hidden><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span>Esta cédula no está en Global. Le creamos su ficha; puede activar su cuenta cuando quiera y ya tendrá su historial.</span></div>
+    <div class="grupo" id="cy-nuevo" style="margin-top:10px" hidden>
+      <div class="dos">
+        <div class="campo"><label for="cy-nom">Nombre</label><input class="in" id="cy-nom" value="Luis" aria-describedby="cy-nom-e"><p class="err" id="cy-nom-e" hidden></p></div>
+        <div class="campo"><label for="cy-ape">Apellido</label><input class="in" id="cy-ape" value="Castillo" aria-describedby="cy-ape-e"><p class="err" id="cy-ape-e" hidden></p></div>
+      </div>
+      <div class="campo"><label for="cy-nac">Fecha de nacimiento</label><input class="in num" id="cy-nac" type="date" value="1989-03-14"></div>
+      <div class="campo"><label for="cy-tel">Teléfono con WhatsApp</label><div class="pref"><span aria-hidden="true">+58</span><input class="in num" id="cy-tel" type="tel" value="414 552 08 71" aria-label="Teléfono con WhatsApp de tu cónyuge, código +58"></div></div>
+      <div class="campo"><label for="cy-mail">Correo <span class="hint">(opcional)</span></label><input class="in" id="cy-mail" type="email" value="luiscastillo.bqto@gmail.com" aria-describedby="cy-mail-h"><p class="hint" id="cy-mail-h">Si lo escribes, le enviamos su enlace para activar la cuenta. No tiene que hacerlo ahora.</p></div>
+    </div>
+  </section>
+
+  <div class="hp" aria-hidden="true"><label for="web">Deja este campo vacío</label><input id="web" name="sitio_web" tabindex="-1" autocomplete="off"></div>
+
+  <div>
+    <label class="check"><input type="checkbox" id="ok" aria-describedby="ok-e">Acepto que Iglesia Global guarde estos datos para la inscripción y me contacte por WhatsApp y correo. <a href="#">Cómo usamos tus datos</a></label>
+    <p class="err" id="ok-e" hidden></p>
+  </div>
+
+  <div class="proto" aria-label="Controles del prototipo" role="group">
+    <span>Prototipo · variante del taller</span>
+    <span class="fila"><a class="btn" href="#" id="v-mujer">Mujer de Hoy</a><a class="btn" href="#parejas" id="v-parejas">Parejas</a></span>
+    <span>Toca «Enviar solicitud» para ver los errores: falta el apellido, la fecha, el correo está incompleto y falta aceptar.</span>
+  </div>
+</main>
+<div class="cta">
+  <button class="btn pri lg" type="submit">Enviar solicitud</button>
+  <p class="hint" id="cta-h">Queda pendiente hasta que la coordinación la apruebe.</p>
+</div>
+</form>
+
+<script>
+const $=i=>document.getElementById(i);
+new IntersectionObserver(([e])=>$('nav').classList.toggle('sc',!e.isIntersecting),{rootMargin:'-48px 0px 0px 0px'}).observe($('t'));
+const parejas=()=>document.documentElement.dataset.taller==='parejas';
+$('v-mujer').addEventListener('click',e=>{e.preventDefault();delete document.documentElement.dataset.taller;history.replaceState(null,'','#')});
+$('v-parejas').addEventListener('click',e=>{e.preventDefault();document.documentElement.dataset.taller='parejas';history.replaceState(null,'','#parejas')});
+// Sexo (only where the taller requires it)
+$('sexo').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('sexo').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));const mal=b.dataset.v==='M';$('sexo-e').hidden=!mal;$('sexo-h').hidden=mal;$('sexo').classList.toggle('mal',mal)});
+// Spouse lookup: never shows the found person's name
+$('buscar').addEventListener('click',()=>{const v=$('cy-ced').value.replace(/\D/g,'');const esta=v==='12345678';$('cy-esta').hidden=!esta;$('cy-nuevo').hidden=$('cy-ficha').hidden=esta||v.length<6;
+  $('cta-h').textContent=esta?'Queda pendiente hasta que tu cónyuge confirme con su código y la coordinación la apruebe.':'Queda pendiente hasta que la coordinación la apruebe.';if(!esta)$('cy-nom').focus()});
+function marcar(id,msg){const el=$(id),e=$(id+'-e');el.setAttribute('aria-invalid',!!msg);e.hidden=!msg;e.innerHTML=msg?`<svg class="i s16" aria-hidden="true"><use href="#i-alerta"/></svg><span>${msg}</span>`:'';return msg?{id,msg}:null}
+document.querySelectorAll('.in[data-req]').forEach(el=>el.addEventListener('input',()=>{if(el.getAttribute('aria-invalid')==='true')marcar(el.id,'')}));
+$('ok').addEventListener('change',()=>{if($('ok').checked)marcar('ok','')});
+$('f').addEventListener('submit',e=>{e.preventDefault();
+  if($('web').value)return; // honeypot filled: silently drop
+  const errs=[];
+  ['nom','ape','nac','tel'].forEach(id=>{errs.push(marcar(id,$(id).value.trim()?'':$(id).dataset.req))});
+  const m=$('mail').value.trim();errs.push(marcar('mail',!m?$('mail').dataset.req:(/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(m)?'':'Falta el final del correo, por ejemplo <span class="num">@gmail.com</span>.')));
+  errs.push(marcar('ok',$('ok').checked?'':'Necesitamos tu permiso para guardar tus datos.'));
+  if(!parejas()&&$('sexo').querySelector('[aria-pressed=true]').dataset.v==='M')errs.push({id:'sexo',msg:'Este taller es solo para mujeres.'});
+  const lst=errs.filter(Boolean);
+  if(!lst.length){location.href='05-confirmacion-celular.html';return}
+  $('resumen-t').textContent=`Revisa ${lst.length} ${lst.length===1?'dato':'datos'}`;
+  $('resumen-l').innerHTML=lst.map(x=>`<li><a href="#${x.id}">${x.msg.replace(/<[^>]+>/g,'')}</a></li>`).join('');
+  $('resumen').hidden=false;$('resumen').focus();
+});
+$('resumen-l').addEventListener('click',e=>{const a=e.target.closest('a');if(!a)return;e.preventDefault();const t=$(a.getAttribute('href').slice(1));(t.matches('input,button')?t:t.querySelector('button,input')).focus()});
+</script>
+</body>
+</html>

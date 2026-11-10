@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Reservar · ¿Ya eres parte de Global? · celular — Global</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/04. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-sm:calc(var(--radius) - 4px);--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--tinte:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--surface-primary:#FAFAF8;--surface-tertiary:#EEECEA;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--surface-primary:#0E0E12;--surface-tertiary:#202028;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--surface-primary:#0E0E12;--surface-tertiary:#202028;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--surface-tertiary);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input,select{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}
+a,button,label{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+[hidden]{display:none!important}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}svg.s24{width:24px;height:24px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+/* Artboard: four phone frames side by side */
+.tablero-h{display:flex;align-items:baseline;gap:16px;padding:18px 40px 0}
+.tablero-h h1{font-size:18px;font-weight:650}
+.tablero-h p{font-size:13px;color:var(--muted-foreground)}
+.tablero{display:flex;gap:20px;justify-content:center;padding:14px 24px 24px}
+.marco{display:grid;gap:8px;align-content:start}
+.marco>h2{display:flex;align-items:center;gap:8px;padding:0 4px;font-size:13px;font-weight:600}
+.marco>h2 .k{min-width:26px;height:22px;padding:0 6px;display:inline-grid;place-items:center;border-radius:9999px;background:var(--brand-strong);color:var(--brand-primary-foreground);font-family:var(--font-mono);font-size:12px}
+.marco>p{padding:0 4px;max-width:330px;font-size:12px;color:var(--muted-foreground)}
+.phone{zoom:.84;position:relative;width:390px;height:844px;display:flex;flex-direction:column;overflow:hidden;border-radius:44px;background:var(--background);border:1px solid var(--border);transition:box-shadow var(--duration-normal) var(--ease-out-quint)}
+.marco.foco .phone{box-shadow:0 0 0 4px var(--brand-primary)}
+.scroll{flex:1;min-height:0;overflow-y:auto}
+/* Nav bar (BarraNavegacionMovil) */
+.nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-height:48px;padding:10px 8px 0;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.nav .ttl{grid-column:2;font-size:16px;font-weight:600}
+.back{grid-column:1;justify-self:start;display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:120px;padding:0 8px;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);font-size:16px;text-decoration:none;cursor:pointer;white-space:nowrap}
+.back svg{width:24px;height:24px;margin-left:-4px}
+.back span{overflow:hidden;text-overflow:ellipsis}
+.cuerpo{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;padding:4px 16px 24px}
+.paso-n{padding:0 4px;font-size:13px;font-weight:500;color:var(--muted-foreground)}
+.large{display:grid;gap:6px;padding:0 4px}
+.large h1{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.large p{font-size:15px;color:var(--muted-foreground)}.large p strong{color:var(--foreground);font-weight:600}
+/* Status (PuntoEstado) */
+.st{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
+.st i{width:8px;height:8px;flex:none;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st[data-t=warning]{--t:var(--warning);color:var(--warning-text)}.st[data-t=success]{--t:var(--success);color:var(--success-text)}
+/* Context card (chosen edición) */
+.ctx{display:flex;align-items:center;gap:12px;padding:12px 8px 12px 14px;border-radius:var(--r-2xl);background:var(--card)}
+.tile{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:var(--radius);background:var(--brand-accent-strong);color:var(--brand-text)}
+.ctx .tx{flex:1;min-width:0}.ctx b{display:block;font-size:15px;font-weight:600}.ctx span span{display:block;font-size:13px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lnk{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);font-size:15px;font-weight:500;text-decoration:none;cursor:pointer}
+/* Fields (CamposSistema inside an inset card) */
+.grupo{background:var(--card);border-radius:var(--r-2xl);padding:2px 14px}
+.campo{display:grid;gap:6px;padding:12px 0}
+.campo+.campo{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.campo label,.campo .lb{font-size:14px;font-weight:600}
+.in{width:100%;min-width:0;height:44px;padding:0 14px;border:1px solid var(--border);border-radius:var(--r-xl);background:color-mix(in oklab,var(--card) 50%,transparent);font-size:16px}
+.in:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.in[aria-invalid=true]{border-color:var(--danger)}
+.fila-in{display:grid;grid-template-columns:76px minmax(0,1fr);gap:8px}
+.sel-w{position:relative}.sel-w select{appearance:none;padding-right:28px;font-weight:500}.sel-w svg{position:absolute;right:10px;top:14px;color:var(--muted-foreground);pointer-events:none}
+.pref{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;border:1px solid var(--border);border-radius:var(--r-xl);background:color-mix(in oklab,var(--card) 50%,transparent)}
+.pref span{padding:0 4px 0 14px;font-family:var(--font-mono);font-size:16px;color:var(--muted-foreground)}
+.pref .in{border:0;background:none;padding-left:6px}.pref:focus-within{border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}.pref .in:focus{box-shadow:none}
+.err{display:flex;gap:6px;align-items:flex-start;font-size:13px;color:var(--danger-text)}
+.hint{display:flex;gap:8px;align-items:flex-start;padding:0 4px;font-size:13px;color:var(--muted-foreground)}
+.hint svg{margin-top:1px}
+/* OTP: one real input, six painted boxes */
+.otp{position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.otp .caja{height:58px;display:grid;place-items:center;border-radius:var(--r-xl);border:1px solid var(--border);background:var(--card);font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:26px;font-weight:600;transition:border-color var(--duration-fast) var(--ease-expo),box-shadow var(--duration-fast) var(--ease-expo)}
+.otp:focus-within .caja.act{border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.otp.mal .caja{border-color:var(--danger)}
+.otp input{position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;border:0;caret-color:transparent;cursor:text}
+.reenviar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 4px;font-size:14px;color:var(--muted-foreground)}
+.reenviar .lnk:disabled{color:var(--muted-foreground);cursor:default}
+/* Inset grouped rows */
+.lista{background:var(--card);border-radius:var(--r-2xl);overflow:hidden}
+.fila{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 12px 8px 14px;border:0;background:none;text-align:left;text-decoration:none;cursor:pointer;font-size:15px}
+.fila:active{background:var(--accent)}
+.lista>li+li .fila::before{content:"";position:absolute;top:0;left:50px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.fila .ic{color:var(--brand-text)}
+.fila .tx{flex:1;min-width:0}.fila .tx small{display:block;font-size:13px;color:var(--muted-foreground)}
+.fila .go{color:var(--muted-foreground)}
+.fila:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--brand-primary);border-radius:var(--r-2xl)}
+.pasos .paso{position:relative;display:flex;gap:12px;align-items:flex-start;padding:12px 14px}
+.pasos .paso+.paso::before{content:"";position:absolute;top:0;left:58px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.pasos .n{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:9999px;background:var(--muted);font-family:var(--font-mono);font-size:14px;font-weight:600}
+.pasos b{display:block;font-size:15px;font-weight:600}.pasos span span{display:block;margin-top:2px;font-size:13px;color:var(--muted-foreground)}
+/* AvisoFormulario */
+.aviso{display:flex;gap:10px;padding:14px;border-radius:var(--r-xl);border:1px solid;font-size:14px}
+.aviso.info{border-color:color-mix(in oklab,var(--info) 30%,transparent);background:color-mix(in oklab,var(--info) 5%,transparent)}
+.aviso.info svg{color:var(--info-text)}
+.aviso.error{border-color:color-mix(in oklab,var(--danger) 30%,transparent);background:color-mix(in oklab,var(--danger) 10%,transparent);color:var(--danger-text)}
+/* Identity confirmed */
+.yo{display:flex;align-items:center;gap:12px;padding:14px;border-radius:var(--r-2xl);background:var(--card)}
+.avatar{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:14px;font-weight:600;background:color-mix(in oklab,var(--chart-1) 26%,var(--card));border:1px solid color-mix(in oklab,var(--chart-1) 40%,transparent)}
+.yo b{display:block;font-size:16px;font-weight:600}.yo small{display:block;font-size:13px;color:var(--muted-foreground)}
+.check{display:flex;gap:12px;align-items:flex-start;padding:12px 4px;font-size:13px;color:var(--muted-foreground);cursor:pointer}
+.check input{width:22px;height:22px;margin:0;flex:none;accent-color:var(--brand-strong)}
+.check a{color:var(--brand-text)}
+/* Bottom bar with primary action + safe area */
+.cta{display:grid;gap:4px;padding:10px 16px 28px;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;color:var(--foreground);font-size:16px;font-weight:500;cursor:pointer;text-decoration:none;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.lg{min-height:48px}.btn.ghost{border-color:transparent;color:var(--muted-foreground)}
+.btn:disabled{opacity:.5;cursor:default}
+/* Bottom sheet inside the frame (HojaInferior) */
+.velo{position:absolute;inset:0;z-index:8;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity var(--duration-normal) var(--ease-out-quint)}
+.hoja{position:absolute;left:0;right:0;bottom:0;z-index:9;padding:0 0 28px;border-radius:26px 26px 0 0;background:var(--card);box-shadow:var(--shadow-sheet);transform:translateY(105%);transition:transform var(--duration-normal) var(--ease-out-quint)}
+.phone.hoja-abierta .velo{opacity:1;pointer-events:auto}.phone.hoja-abierta .hoja{transform:none}
+.grab{width:38px;height:5px;border-radius:9999px;background:var(--border);margin:8px auto 4px}
+.sh-h{display:flex;align-items:center;padding:4px 8px 4px 18px}.sh-h h2{flex:1;font-size:18px;font-weight:650}
+.sh-x{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;color:var(--muted-foreground);cursor:pointer}
+.sh-b{display:grid;gap:12px;padding:4px 18px 16px;font-size:15px}.sh-b p{color:var(--muted-foreground)}.sh-b p b{color:var(--foreground)}
+.sh-f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:0 18px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-mujer" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></symbol>
+<symbol id="i-escudo" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6Z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-tel" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></symbol>
+<symbol id="i-ayuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+<symbol id="i-alerta" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16h.01"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+</defs></svg>
+
+<header class="tablero-h">
+  <h1>Reservar · ¿Ya eres parte de Global?</h1>
+  <p>Primero la cédula. Nunca mostramos el nombre ni los datos de la ficha antes de confirmar el código.</p>
+</header>
+
+<div class="tablero">
+
+  <!-- 1 · Cédula -->
+  <section class="marco" id="m1" aria-labelledby="m1-h">
+    <h2 id="m1-h"><span class="k">1</span>Pide la cédula</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><a class="back" href="02-taller-publico-escritorio.html" aria-label="Volver a Mujer de Hoy"><svg class="i"><use href="#i-back"/></svg><span>Mujer de Hoy</span></a><p class="ttl">Reservar</p></nav>
+        <form class="cuerpo" id="f-ced" novalidate>
+          <p class="paso-n">Paso <span class="num">1</span> de <span class="num">3</span></p>
+          <div class="large"><h1>¿Ya eres parte de Global?</h1><p>Escribe tu cédula. Si ya estás en Global, te enviamos un código para confirmar que eres tú.</p></div>
+          <div class="ctx">
+            <span class="tile" aria-hidden="true"><svg class="i"><use href="#i-mujer"/></svg></span>
+            <span class="tx"><b>Mujer de Hoy</b><span>Jueves <span class="num">7:00</span> p.m. · inicia <span class="num">19</span> nov</span></span>
+            <a class="lnk" href="02-taller-publico-escritorio.html">Cambiar</a>
+          </div>
+          <div class="grupo">
+            <div class="campo">
+              <label for="ced">Cédula</label>
+              <div class="fila-in">
+                <span class="sel-w"><select class="in" id="nac" aria-label="Nacionalidad"><option>V</option><option>E</option></select><svg class="i s16" aria-hidden="true"><use href="#i-chev-d"/></svg></span>
+                <input class="in num" id="ced" inputmode="numeric" autocomplete="off" value="15598745" aria-describedby="ced-h ced-e">
+              </div>
+              <p class="err" id="ced-e" hidden><svg class="i s16" aria-hidden="true"><use href="#i-alerta"/></svg><span>Escribe solo los números de tu cédula, por ejemplo <span class="num">15598745</span>.</span></p>
+            </div>
+          </div>
+          <p class="hint" id="ced-h"><svg class="i s16" aria-hidden="true"><use href="#i-escudo"/></svg>Solo la usamos para buscarte. No mostramos ningún dato tuyo hasta que confirmes el código.</p>
+        </form>
+      </div>
+      <div class="cta"><button class="btn pri lg" type="submit" form="f-ced">Continuar</button></div>
+    </div>
+    <p>Prueba: <span class="num">15598745</span> va a 2a; cualquier otra cédula va a 2b.</p>
+  </section>
+
+  <!-- 2a · Code -->
+  <section class="marco" id="m2" aria-labelledby="m2-h">
+    <h2 id="m2-h"><span class="k">2a</span>Está en Global: código</h2>
+    <div class="phone" id="ph2">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><button class="back" type="button" aria-label="Volver a la cédula"><svg class="i"><use href="#i-back"/></svg><span>Cédula</span></button><p class="ttl">Reservar</p></nav>
+        <div class="cuerpo" id="v-codigo">
+          <p class="paso-n">Paso <span class="num">1</span> de <span class="num">3</span></p>
+          <div class="large"><h1>Revisa tu correo</h1><p>Te enviamos un código de <span class="num">6</span> dígitos a <strong class="num">m•••••@gmail.com</strong> y a tus avisos de la app Global. Vence en <span class="num">10</span> minutos.</p></div>
+          <div>
+            <div class="otp" id="otp">
+              <label class="sr" for="cod">Código de 6 dígitos</label>
+              <span class="caja act" aria-hidden="true"></span><span class="caja" aria-hidden="true"></span><span class="caja" aria-hidden="true"></span><span class="caja" aria-hidden="true"></span><span class="caja" aria-hidden="true"></span><span class="caja" aria-hidden="true"></span>
+              <input id="cod" inputmode="numeric" autocomplete="one-time-code" maxlength="6" aria-describedby="cod-e">
+            </div>
+            <p class="err" id="cod-e" role="alert" style="margin-top:8px" hidden><svg class="i s16" aria-hidden="true"><use href="#i-alerta"/></svg><span>Ese código no coincide. Te quedan <span class="num">4</span> intentos.</span></p>
+          </div>
+          <div class="reenviar"><span>¿No llegó? Mira en spam.</span><button class="lnk" type="button" id="reenv" disabled>Reenviar en <span class="num" id="seg">0:45</span></button></div>
+          <ul class="lista">
+            <li><a class="fila" href="#"><svg class="i ic" aria-hidden="true"><use href="#i-tel"/></svg><span class="tx">Verlo en la app Global<small>Está en tus avisos si ya tienes cuenta</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+            <li><button class="fila" type="button" id="sin-acceso" aria-haspopup="dialog"><svg class="i ic" aria-hidden="true"><use href="#i-ayuda"/></svg><span class="tx">No tengo acceso a ese correo<small>Ni a la app. Puedes seguir sin código</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></button></li>
+          </ul>
+        </div>
+        <div class="cuerpo" id="v-ok" hidden tabindex="-1">
+          <p class="paso-n">Paso <span class="num">2</span> de <span class="num">3</span></p>
+          <span class="st" data-t="success" style="padding:0 4px"><i aria-hidden="true"></i>Identidad confirmada</span>
+          <div class="large"><h1>¡Hola, Valentina!</h1><p>Usamos los datos de tu ficha. No tienes que escribir nada más.</p></div>
+          <div class="yo"><span class="avatar" aria-hidden="true">VR</span><span><b>Valentina Rodríguez</b><small>Cédula <span class="num">V-15.598.745</span> · <span class="num">+58 412 •••45 67</span></small></span></div>
+          <div class="ctx">
+            <span class="tile" aria-hidden="true"><svg class="i"><use href="#i-mujer"/></svg></span>
+            <span class="tx"><b>Mujer de Hoy</b><span>Jueves <span class="num">7:00</span> p.m. · Salón <span class="num">4</span> · inicia <span class="num">19</span> nov</span></span>
+          </div>
+          <p class="hint"><svg class="i s16" aria-hidden="true"><use href="#i-info"/></svg>¿Cambió tu teléfono o tu correo? Actualízalo en la app después de reservar.</p>
+        </div>
+      </div>
+      <div class="cta" id="cta2"><button class="btn pri lg" type="button" id="verificar" disabled>Verificar código</button></div>
+      <div class="velo" data-cerrar></div>
+      <div class="hoja" role="dialog" aria-modal="true" aria-labelledby="sh-t" id="hoja" hidden>
+        <div class="grab" aria-hidden="true"></div>
+        <div class="sh-h"><h2 id="sh-t">¿Sin acceso al correo?</h2><button class="sh-x" type="button" data-cerrar aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="sh-b">
+          <p>Si tampoco ves el código en tus avisos de la app, puedes seguir sin código. Tu solicitud llegará como <b>por verificar</b> y la coordinación confirmará que eres tú antes de aprobarla.</p>
+          <p>No cambiamos ningún dato de tu ficha.</p>
+        </div>
+        <div class="sh-f"><button class="btn" type="button" data-cerrar>Volver</button><button class="btn pri" type="button" id="seguir-sin">Seguir sin código</button></div>
+      </div>
+    </div>
+    <p>Prueba: escribe cualquier código; <span class="num">000000</span> muestra el error. El nombre solo aparece después del código.</p>
+  </section>
+
+  <!-- 2a' · No access -->
+  <section class="marco" id="m3" aria-labelledby="m3-h">
+    <h2 id="m3-h"><span class="k">2a′</span>Sin acceso: por verificar</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><button class="back" type="button" aria-label="Volver al código"><svg class="i"><use href="#i-back"/></svg><span>Código</span></button><p class="ttl">Reservar</p></nav>
+        <form class="cuerpo" id="f-pv" novalidate>
+          <p class="paso-n">Paso <span class="num">2</span> de <span class="num">3</span></p>
+          <span class="st" data-t="warning" style="padding:0 4px"><i aria-hidden="true"></i>Por verificar</span>
+          <div class="large"><h1>Sigue sin código</h1><p>Déjanos tu nombre y un teléfono. La coordinación te escribe para confirmar que eres tú.</p></div>
+          <div class="aviso info"><svg class="i" aria-hidden="true"><use href="#i-info"/></svg><span>Esto no cambia tu ficha de Global. Si tu correo cambió, la coordinación lo actualiza cuando te contacte.</span></div>
+          <div class="grupo">
+            <div class="campo"><label for="pv-n">Nombre y apellido</label><input class="in" id="pv-n" autocomplete="name" value="Valentina Rodríguez"></div>
+            <div class="campo"><label for="pv-t">Teléfono con WhatsApp</label><div class="pref"><span aria-hidden="true">+58</span><input class="in num" id="pv-t" type="tel" autocomplete="tel-national" value="424 518 20 33" aria-label="Teléfono con WhatsApp, código +58"></div></div>
+          </div>
+          <label class="check"><input type="checkbox" checked>Acepto que Iglesia Global use estos datos para mi inscripción y me contacte por WhatsApp. <a href="#">Cómo usamos tus datos</a></label>
+        </form>
+      </div>
+      <div class="cta"><a class="btn pri lg" href="05-confirmacion-celular.html">Enviar solicitud</a></div>
+    </div>
+    <p>La solicitud llega a la coordinación marcada «por verificar», además de pendiente de aprobación.</p>
+  </section>
+
+  <!-- 2b · Not found -->
+  <section class="marco" id="m4" aria-labelledby="m4-h">
+    <h2 id="m4-h"><span class="k">2b</span>No está en Global</h2>
+    <div class="phone">
+      <div class="scroll">
+        <nav class="nav" aria-label="Barra de navegación"><button class="back" type="button" aria-label="Volver a la cédula"><svg class="i"><use href="#i-back"/></svg><span>Cédula</span></button><p class="ttl">Reservar</p></nav>
+        <div class="cuerpo">
+          <p class="paso-n">Paso <span class="num">2</span> de <span class="num">3</span></p>
+          <div class="large"><h1>Aún no estás en Global</h1><p>No encontramos la cédula <strong class="num" id="ced-nueva">V-27.441.903</strong>. Crea tu ficha y sigue con tu reserva: toma unos <span class="num">2</span> minutos.</p></div>
+          <ul class="lista"><li><button class="fila" type="button"><svg class="i ic" aria-hidden="true"><use href="#i-ayuda"/></svg><span class="tx">¿La escribiste bien?<small>Corregir la cédula</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></button></li></ul>
+          <ol class="lista pasos" aria-label="Lo que sigue">
+            <li class="paso"><span class="n" aria-hidden="true">1</span><span><b>Tus datos</b><span>Nombre, fecha de nacimiento, WhatsApp y correo.</span></span></li>
+            <li class="paso"><span class="n" aria-hidden="true">2</span><span><b>Envías tu solicitud</b><span>La coordinación la revisa y la aprueba.</span></span></li>
+            <li class="paso"><span class="n" aria-hidden="true">3</span><span><b>Activas tu cuenta Global</b><span>Te enviamos un enlace. Desde la app ves tu grupo, tu asistencia y tu certificado.</span></span></li>
+          </ol>
+        </div>
+      </div>
+      <div class="cta"><a class="btn pri lg" href="04-persona-nueva-celular.html">Crear mi ficha</a></div>
+    </div>
+    <p>Mismo mensaje para cualquier cédula que no exista. No sugerimos nombres parecidos.</p>
+  </section>
+</div>
+<p class="sr" role="status" aria-live="polite" id="live"></p>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+function enfocar(id){document.querySelectorAll('.marco').forEach(m=>m.classList.toggle('foco',m.id===id));$(id).scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+// 1 · cédula
+$('f-ced').addEventListener('submit',e=>{e.preventDefault();const v=$('ced').value.replace(/\D/g,''),bad=v.length<6||v.length>9;
+  $('ced-e').hidden=!bad;$('ced').setAttribute('aria-invalid',bad);if(bad){$('ced').focus();return}
+  if(v==='15598745'){enfocar('m2');live('Cédula encontrada. Te enviamos un código a tu correo y a tus avisos de la app.');$('cod').focus({preventScroll:true})}
+  else{$('ced-nueva').textContent=$('nac').value+'-'+v.replace(/\B(?=(\d{3})+(?!\d))/g,'.');enfocar('m4');live('No encontramos esa cédula. Puedes crear tu ficha.')}});
+// 2a · OTP
+const cajas=[...document.querySelectorAll('#otp .caja')];
+function pintar(){const v=$('cod').value;cajas.forEach((c,i)=>{c.textContent=v[i]||'';c.classList.toggle('act',i===Math.min(v.length,5))});$('verificar').disabled=v.length<6}
+$('cod').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6);$('otp').classList.remove('mal');$('cod-e').hidden=true;$('cod').removeAttribute('aria-invalid');pintar();if(e.target.value.length===6)verificar()});
+function verificar(){if($('cod').value==='000000'){$('otp').classList.add('mal');$('cod-e').hidden=false;$('cod').setAttribute('aria-invalid','true');return}
+  $('v-codigo').hidden=true;$('v-ok').hidden=false;$('cta2').innerHTML='<a class="btn pri lg" href="05-confirmacion-celular.html">Enviar solicitud</a>';$('v-ok').focus();live('Identidad confirmada.')}
+$('verificar').addEventListener('click',verificar);
+let s=45;const t=setInterval(()=>{s--;$('seg').textContent='0:'+String(s).padStart(2,'0');if(s<=0){clearInterval(t);$('reenv').disabled=false;$('reenv').textContent='Reenviar código'}},1000);
+$('reenv').addEventListener('click',()=>live('Te enviamos un código nuevo.'));
+// Sheet: no access to email
+const ph=$('ph2');let disparador=null;
+function abrir(){disparador=document.activeElement;$('hoja').hidden=false;requestAnimationFrame(()=>ph.classList.add('hoja-abierta'));$('seguir-sin').focus()}
+function cerrar(){ph.classList.remove('hoja-abierta');setTimeout(()=>{$('hoja').hidden=true},250);disparador&&disparador.focus()}
+$('sin-acceso').addEventListener('click',abrir);
+ph.addEventListener('click',e=>{if(e.target.closest('[data-cerrar]'))cerrar()});
+$('hoja').addEventListener('keydown',e=>{if(e.key==='Escape')cerrar()});
+$('seguir-sin').addEventListener('click',()=>{cerrar();enfocar('m3');live('Seguirás sin código. Tu solicitud quedará por verificar.')});
+pintar();
+</script>
+</body>
+</html>

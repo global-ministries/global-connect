@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Mujer de Hoy · mi taller · celular — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/05. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-foreground:oklch(.98 0 0);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-foreground:oklch(.98 0 0);--danger-text:oklch(.52 .21 27);--chart-2:oklch(.6 .118 184.704);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-foreground:oklch(.15 0 0);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-foreground:oklch(.15 0 0);--danger-text:oklch(.72 .17 25);--chart-2:oklch(.696 .17 162.48);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-foreground:oklch(.15 0 0);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-foreground:oklch(.15 0 0);--danger-text:oklch(.72 .17 25);--chart-2:oklch(.696 .17 162.48);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input,textarea{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}fieldset{margin:0;padding:0;border:0;min-width:0}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}svg.s24{width:24px;height:24px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+/* Nav bar (BarraNavegacionMovil) + large title */
+.nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-height:48px;padding:env(safe-area-inset-top) 8px 0;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color var(--duration-normal) var(--ease-out-quint)}
+.nav.sc{border-bottom-color:var(--border)}
+.nav .ttl{grid-column:2;font-size:16px;font-weight:600;opacity:0;transition:opacity 200ms var(--ease-out-quint)}.nav.sc .ttl{opacity:1}
+.back{grid-column:1;justify-self:start;display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:150px;padding:0 8px 0 2px;border-radius:var(--r-xl);color:var(--brand-text);font-size:16px;text-decoration:none;white-space:nowrap}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;padding:4px 16px 140px;min-width:0}
+.large small{display:block;font-size:13px;color:var(--muted-foreground);margin-bottom:2px}
+.large h1{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.large p{margin-top:4px;font-size:15px;color:var(--muted-foreground)}
+.large .st{margin-top:10px}
+.sec-hd{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 4px}
+.sec-h{flex:1;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.sec-c{font-size:13px;color:var(--muted-foreground)}
+.lnk{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 4px;border:0;background:none;color:var(--brand-text);font-size:15px;font-weight:500;text-decoration:none;cursor:pointer}
+.st{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
+.st i{width:8px;height:8px;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st[data-t=warning]{--t:var(--warning);color:var(--warning-text)}.st[data-t=success]{--t:var(--success);color:var(--success-text)}.st[data-t=info]{--t:var(--info);color:var(--info-text)}.st[data-t=muted]{--t:var(--muted-foreground);color:var(--muted-foreground)}.st[data-t=danger]{--t:var(--danger);color:var(--danger-text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border-radius:var(--r-xl);border:2px solid var(--border);background:var(--card);color:var(--foreground);font-size:15px;font-weight:500;cursor:pointer;text-decoration:none;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.sec{border-color:transparent;background:var(--secondary)}
+.btn.peligro{border-color:transparent;background:var(--danger);color:var(--danger-foreground)}
+/* Próxima clase (destacada) */
+.prox{position:relative;padding:14px;border-radius:var(--r-2xl);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--brand-primary)}
+.prox::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--brand-accent-strong);pointer-events:none}
+.prox>*{position:relative}
+.p-top{display:flex;gap:12px;align-items:center}
+.cal{width:48px;height:52px;flex:none;display:grid;align-content:center;justify-items:center;border-radius:var(--r-md);background:var(--card);border:1px solid color-mix(in oklab,var(--border) 70%,transparent);line-height:1}
+.cal small{font-size:12px;font-weight:600;text-transform:uppercase;color:var(--brand-text)}.cal b{font-size:20px;font-weight:650;margin-top:3px}
+.p-top .tx{flex:1;min-width:0}.p-top small{display:block;font-size:13px;color:var(--muted-foreground)}.p-top h3{font-size:18px;font-weight:650;line-height:1.2}
+.p-top p{font-size:14px;margin-top:2px}
+.lugar{display:flex;gap:10px;margin-top:12px;padding:10px 12px;border-radius:var(--r-xl);background:var(--card);border:1px solid color-mix(in oklab,var(--border) 70%,transparent);font-size:14px}
+.lugar svg{color:var(--muted-foreground);margin-top:1px}.lugar b{display:block;font-weight:600}.lugar span{color:var(--muted-foreground)}
+.acts2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:12px}
+.no-ir{display:flex;justify-content:center;margin-top:4px}
+.aviso-ok{display:flex;gap:10px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:var(--r-xl);background:var(--card);font-size:14px}
+.aviso-ok svg{color:var(--success-text)}.aviso-ok .tx{flex:1;min-width:0}
+/* Asistencia */
+.prog{padding:14px;border-radius:var(--r-2xl) var(--r-2xl) 0 0;background:var(--card)}
+.prog .row{display:flex;align-items:baseline;gap:8px}.prog b{flex:1;font-size:16px;font-weight:600}.prog .meta{font-size:13px;color:var(--muted-foreground)}
+.bar{position:relative;height:8px;margin-top:10px;border-radius:9999px;background:var(--muted);overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;width:66.6%;background:var(--success);border-radius:9999px}
+.bar .meta-mk{position:absolute;top:-3px;bottom:-3px;left:83.3%;width:2px;background:var(--foreground)}
+.prog p{margin-top:8px;font-size:13px;color:var(--muted-foreground)}.prog p strong{color:var(--brand-text);font-weight:600}
+.clases{background:var(--card);border-radius:0 0 var(--r-2xl) var(--r-2xl);overflow:hidden;border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.cl{position:relative;display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 14px}
+.cl+.cl::before{content:"";position:absolute;top:0;left:56px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.cl .n{width:30px;height:30px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:13px;font-weight:600;background:var(--muted);color:var(--muted-foreground)}
+.cl .tx{flex:1;min-width:0}.cl b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cl small{display:block;font-size:13px;color:var(--muted-foreground)}
+.mk{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:500;white-space:nowrap}
+.mk.ok{color:var(--success-text)}.mk.no{color:var(--danger-text)}.mk.rc{color:var(--info-text)}
+.recup{display:flex;gap:10px;margin-top:10px;padding:10px 12px;border-radius:var(--r-xl);background:color-mix(in oklab,var(--info) 10%,transparent);border:1px solid color-mix(in oklab,var(--info) 30%,transparent);font-size:14px}
+.recup>svg{color:var(--info-text);margin-top:1px}.recup .tx{flex:1;min-width:0}.recup b{font-weight:600}.recup p{margin-top:2px;color:var(--muted-foreground);font-size:13px}
+.recup .btn{min-height:44px;margin-top:8px;font-size:14px}.mk.pr{color:var(--brand-text)}.mk.fu{color:var(--muted-foreground)}
+.cl.ahora{background:var(--brand-accent-strong)}.cl.ahora .n{background:var(--brand-strong);color:var(--brand-primary-foreground)}
+/* Facilitadora y acciones */
+.lista{background:var(--card);border-radius:var(--r-2xl);overflow:hidden}
+.per{display:flex;align-items:center;gap:12px;min-height:72px;padding:10px 10px 10px 14px}
+.av{width:44px;height:44px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:13px;font-weight:650;background:color-mix(in oklab,var(--chart-2) 26%,var(--card));border:1px solid color-mix(in oklab,var(--chart-2) 40%,transparent)}
+.per .tx{flex:1;min-width:0}.per b{display:block;font-size:16px;font-weight:600}.per small{display:block;font-size:13px;color:var(--muted-foreground)}
+.ib{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-xl);background:var(--secondary);color:var(--foreground);text-decoration:none}
+.per .acts{display:flex;gap:8px}
+.fila{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:56px;padding:8px 14px;border:0;background:none;text-align:left;cursor:pointer;font-size:16px;text-decoration:none}
+.fila+.fila::before{content:"";position:absolute;top:0;left:14px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.fila .tx{flex:1;min-width:0}.fila small{display:block;font-size:13px;color:var(--muted-foreground)}
+.fila.peligro{color:var(--danger-text)}
+.fila:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--brand-primary);border-radius:var(--r-2xl)}
+.fila .go{color:var(--muted-foreground)}
+.retiro{display:flex;gap:10px;padding:12px 14px;border-radius:var(--r-2xl);background:color-mix(in oklab,var(--warning) 10%,transparent);border:1px solid color-mix(in oklab,var(--warning) 35%,transparent);font-size:14px}
+.retiro b{display:block;font-weight:600}.retiro .tx{flex:1;min-width:0}.retiro p{color:var(--muted-foreground);margin-top:2px}
+.retiro[hidden]{display:none}
+/* Tab bar */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:8px 6px max(8px,env(safe-area-inset-bottom));background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border)}
+.tabs a{position:relative;min-width:0;min-height:56px;display:grid;justify-items:center;align-content:center;gap:4px;font-size:12px;font-weight:500;color:var(--muted-foreground);text-decoration:none;border-radius:var(--r-xl)}
+.tabs a[aria-current]{color:var(--brand-text);font-weight:600}
+/* Bottom sheet */
+dialog{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-width:100%;max-height:90vh;overflow-y:auto;padding:0 0 max(12px,env(safe-area-inset-bottom));border:0;border-radius:26px 26px 0 0;background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sheet)}dialog::backdrop{background:rgba(0,0,0,.5)}
+.grab{width:38px;height:5px;border-radius:9999px;background:var(--border);margin:8px auto 4px}
+.sh-h{display:flex;align-items:center;padding:4px 8px 4px 18px}.sh-h h2{flex:1;font-size:18px;font-weight:650}
+.sh-x{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;color:var(--muted-foreground);cursor:pointer}
+.sh-b{display:grid;gap:14px;padding:4px 18px 16px}.sh-b>p{font-size:14px;color:var(--muted-foreground)}
+.campo label,.campo legend{display:block;margin-bottom:6px;font-size:14px;font-weight:600}.campo label span{font-weight:400;color:var(--muted-foreground)}
+textarea{width:100%;min-height:88px;padding:12px 14px;border:1px solid var(--border);border-radius:var(--r-xl);background:color-mix(in oklab,var(--card) 50%,transparent);font-size:16px;resize:vertical}
+textarea:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.hint{font-size:13px;color:var(--muted-foreground)}
+.alerta{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r-xl);background:color-mix(in oklab,var(--warning) 10%,transparent);border:1px solid color-mix(in oklab,var(--warning) 35%,transparent);font-size:14px}
+.alerta svg{color:var(--warning-text);margin-top:1px}.alerta b{font-weight:600}
+.opc{display:grid;background:var(--background);border-radius:var(--r-xl);border:1px solid var(--border);overflow:hidden}
+.opc label{position:relative;display:flex;align-items:center;gap:12px;min-height:48px;padding:0 14px;font-size:15px;cursor:pointer}
+.opc label+label{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.opc input{width:20px;height:20px;margin:0;accent-color:var(--brand-strong)}
+.sh-f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:8px 18px 0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></symbol>
+<symbol id="i-gdv" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+<symbol id="i-equipo" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+<symbol id="i-talleres" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/></symbol>
+<symbol id="i-mas" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-mapa" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Z"/><path d="M9 3v15M15 6v15"/></symbol>
+<symbol id="i-calmas" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></symbol>
+<symbol id="i-wa" viewBox="0 0 24 24"><path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3.3 3.2Z"/><path d="M9 9.2c.2 2.6 2.3 4.9 5 5.4l1.1-1.3-1.9-1-.8.8c-.9-.4-1.7-1.2-2.1-2.1l.8-.8-1-1.9Z"/></symbol>
+<symbol id="i-tel" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></symbol>
+<symbol id="i-alerta" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+<symbol id="i-salir" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></symbol>
+<symbol id="i-cert" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/></symbol>
+<symbol id="i-recup" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+</defs></svg>
+
+<nav class="nav" id="nav" aria-label="Barra de navegación">
+  <a class="back" href="09-mis-talleres-celular.html" aria-label="Volver a Mis talleres"><svg class="i s24" aria-hidden="true"><use href="#i-back"/></svg><span aria-hidden="true">Mis talleres</span></a>
+  <p class="ttl" aria-hidden="true">Mujer de Hoy</p>
+  <span></span>
+</nav>
+
+<main id="main">
+  <div class="large">
+    <small>Grupo Jueves noche · Edición octubre 2026</small>
+    <h1 id="t">Mujer de Hoy</h1>
+    <p>Grupos de Corto Plazo · Global Barquisimeto</p>
+    <span class="st" data-t="success" id="st"><i aria-hidden="true"></i>En curso · última clase el jueves</span>
+  </div>
+
+  <div class="retiro" id="retiro" role="status" hidden>
+    <svg class="i" aria-hidden="true"><use href="#i-reloj"/></svg>
+    <div class="tx"><b>Pediste retirarte del taller</b><p id="retiro-p">La coordinación lo revisa y te avisa. Mientras tanto sigues inscrita.</p></div>
+  </div>
+
+  <section aria-labelledby="prox-h">
+    <div class="sec-hd"><h2 class="sec-h" id="prox-h">Próxima clase</h2></div>
+    <article class="prox">
+      <div class="p-top">
+        <span class="cal" aria-hidden="true"><small>Nov</small><b class="num">12</b></span>
+        <div class="tx"><small>Clase <span class="num">6</span> de <span class="num">6</span></small><h3>Una mujer que deja huella</h3><p>Jueves 12 de noviembre · <span class="num">7:00</span> a <span class="num">8:30</span> pm</p></div>
+      </div>
+      <div class="lugar"><svg class="i s16" aria-hidden="true"><use href="#i-pin"/></svg><div><b>Salón 2, planta alta</b><span>Global Barquisimeto · Av. Los Leones con calle 3</span></div></div>
+      <div class="acts2">
+        <a class="btn sec" href="https://maps.google.com/?q=Global+Barquisimeto"><svg class="i s16" aria-hidden="true"><use href="#i-mapa"/></svg>Cómo llegar</a>
+        <a class="btn sec" href="#" download="mujer-de-hoy-clase-6.ics"><svg class="i s16" aria-hidden="true"><use href="#i-calmas"/></svg>Al calendario</a>
+      </div>
+      <div id="noir-wrap" class="no-ir"><button class="lnk" type="button" id="b-noir" aria-haspopup="dialog">No puedo ir a esta clase</button></div>
+    </article>
+  </section>
+
+  <section aria-labelledby="as-h">
+    <div class="sec-hd"><h2 class="sec-h" id="as-h">Tu asistencia</h2><span class="sec-c">La toma tu facilitadora</span></div>
+    <div class="prog">
+      <div class="row"><b>Asististe a <span class="num">4</span> de <span class="num">6</span></b><span class="meta">Mínimo <span class="num">5</span></span></div>
+      <div class="bar" role="img" aria-label="4 clases de 6, una de ellas recuperada; el mínimo para el certificado es 5"><i></i><span class="meta-mk"></span></div>
+      <p><strong>Te falta 1 clase para tu certificado.</strong> Cuenta la clase 2 que recuperaste. Si vas el jueves o recuperas la clase 3, lo recibes al cerrar el taller.</p>
+      <div class="recup" role="note"><svg class="i s16" aria-hidden="true"><use href="#i-recup"/></svg><div class="tx"><b>Faltaste a la clase 3 — puedes recuperarla; habla con tu facilitadora.</b><p>Yusmary agenda la recuperación aparte y la anota. Cuenta como asistida para tu certificado.</p>
+        <a class="btn sec" href="https://wa.me/584125550147?text=Hola%20Yusmary%2C%20quiero%20recuperar%20la%20clase%203%20de%20Mujer%20de%20Hoy."><svg class="i s16" aria-hidden="true"><use href="#i-wa"/></svg>Escribirle por WhatsApp</a></div></div>
+    </div>
+    <ol class="clases" aria-label="Clases">
+      <li class="cl"><span class="n num" aria-hidden="true">1</span><span class="tx"><b>Mi identidad en Dios</b><small>Jue 8 oct</small></span><span class="mk ok"><svg class="i s16" aria-hidden="true"><use href="#i-check"/></svg>Asististe</span></li>
+      <li class="cl"><span class="n num" aria-hidden="true">2</span><span class="tx"><b>Mis emociones</b><small>Jue 15 oct · la recuperaste el sáb 24 oct con Yusmary</small></span><span class="mk rc"><svg class="i s16" aria-hidden="true"><use href="#i-recup"/></svg>Recuperada</span></li>
+      <li class="cl"><span class="n num" aria-hidden="true">3</span><span class="tx"><b>Mis relaciones</b><small>Jue 22 oct · puedes recuperarla</small></span><span class="mk no"><svg class="i s16" aria-hidden="true"><use href="#i-x"/></svg>Faltaste</span></li>
+      <li class="cl"><span class="n num" aria-hidden="true">4</span><span class="tx"><b>Mi propósito</b><small>Jue 29 oct</small></span><span class="mk ok"><svg class="i s16" aria-hidden="true"><use href="#i-check"/></svg>Asististe</span></li>
+      <li class="cl"><span class="n num" aria-hidden="true">5</span><span class="tx"><b>Mi familia</b><small>Jue 5 nov</small></span><span class="mk ok"><svg class="i s16" aria-hidden="true"><use href="#i-check"/></svg>Asististe</span></li>
+      <li class="cl ahora"><span class="n num" aria-hidden="true">6</span><span class="tx"><b>Una mujer que deja huella</b><small>Jue 12 nov · <span class="num">7:00</span> pm</small></span><span class="mk pr" id="mk6"><svg class="i s16" aria-hidden="true"><use href="#i-reloj"/></svg>Próxima</span></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="fa-h">
+    <div class="sec-hd"><h2 class="sec-h" id="fa-h">Tu facilitadora</h2></div>
+    <div class="lista">
+      <div class="per">
+        <span class="av" aria-hidden="true">YM</span>
+        <span class="tx"><b>Yusmary Mendoza</b><small class="num">+58 412 555 0147</small></span>
+        <span class="acts">
+          <a class="ib" href="https://wa.me/584125550147" aria-label="Escribir a Yusmary por WhatsApp"><svg class="i" aria-hidden="true"><use href="#i-wa"/></svg></a>
+          <a class="ib" href="tel:+584125550147" aria-label="Llamar a Yusmary"><svg class="i" aria-hidden="true"><use href="#i-tel"/></svg></a>
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="mas-h">
+    <div class="sec-hd"><h2 class="sec-h" id="mas-h">Tu inscripción</h2></div>
+    <div class="lista">
+      <a class="fila" href="#"><svg class="i" aria-hidden="true" style="color:var(--muted-foreground)"><use href="#i-cert"/></svg><span class="tx">Cómo se gana el certificado<small>Asistir a <span class="num">5</span> de <span class="num">6</span> clases · una falta se puede recuperar aparte</small></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a>
+      <button class="fila peligro" type="button" id="b-retiro" aria-haspopup="dialog"><svg class="i" aria-hidden="true"><use href="#i-salir"/></svg><span class="tx">Retirarme del taller<small>Lo revisa la coordinación</small></span></button>
+    </div>
+  </section>
+  <p class="sr" role="status" aria-live="polite" id="live"></p>
+</main>
+
+<nav class="tabs" aria-label="Navegación inferior">
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-home"/></svg><span>Inicio</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-gdv"/></svg><span>Grupos</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-equipo"/></svg><span>Equipo</span></a>
+  <a href="09-mis-talleres-celular.html" aria-current="page"><svg class="i s24" aria-hidden="true"><use href="#i-talleres"/></svg><span>Talleres</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-mas"/></svg><span>Más</span></a>
+</nav>
+
+<dialog id="sh-noir" aria-labelledby="noir-t" aria-describedby="noir-d">
+  <div class="grab" aria-hidden="true"></div>
+  <div class="sh-h"><h2 id="noir-t">No puedo ir a la clase</h2><button class="sh-x" type="button" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <form class="sh-b" id="f-noir">
+    <p id="noir-d">Clase <span class="num">6</span> · jueves 12 de noviembre · <span class="num">7:00</span> pm. Le avisamos a Yusmary.</p>
+    <div class="alerta"><svg class="i s16" aria-hidden="true"><use href="#i-alerta"/></svg><span><b>Es tu última clase y la necesitas para el certificado.</b> Yusmary puede ofrecerte recuperarla con otro grupo.</span></div>
+    <div class="campo"><label for="m-noir">Mensaje para Yusmary <span>(opcional)</span></label><textarea id="m-noir" placeholder="Ej.: tengo guardia en el trabajo ese jueves"></textarea></div>
+    <label class="campo" style="display:flex;gap:12px;align-items:center;min-height:44px;font-size:15px;cursor:pointer"><input type="checkbox" id="recup" checked style="width:22px;height:22px;margin:0;accent-color:var(--brand-strong)"><span>Quiero recuperar la clase<small class="hint" style="display:block">Yusmary te escribe con las opciones.</small></span></label>
+  </form>
+  <div class="sh-f"><button class="btn" type="button" data-close>Cancelar</button><button class="btn pri" type="submit" form="f-noir">Avisar a Yusmary</button></div>
+</dialog>
+
+<dialog id="sh-ret" aria-labelledby="ret-t" aria-describedby="ret-d">
+  <div class="grab" aria-hidden="true"></div>
+  <div class="sh-h"><h2 id="ret-t">Retirarme de Mujer de Hoy</h2><button class="sh-x" type="button" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <form class="sh-b" id="f-ret">
+    <p id="ret-d">Es una solicitud. La coordinación de Grupos de Corto Plazo la revisa y te avisa. Hasta entonces sigues inscrita.</p>
+    <fieldset class="campo"><legend>¿Por qué te retiras?</legend>
+      <div class="opc">
+        <label><input type="radio" name="mot" value="Cambió mi horario" checked>Cambió mi horario</label>
+        <label><input type="radio" name="mot" value="Salud o familia">Salud o familia</label>
+        <label><input type="radio" name="mot" value="Me mudé o viajo">Me mudé o viajo</label>
+        <label><input type="radio" name="mot" value="Otro motivo">Otro motivo</label>
+      </div>
+    </fieldset>
+    <div class="campo"><label for="m-ret">Cuéntanos más <span>(opcional)</span></label><textarea id="m-ret" placeholder="Solo lo ven la coordinación y tu facilitadora"></textarea></div>
+    <p class="hint">Si te retiras no recibes el certificado de esta edición. Puedes inscribirte en otra.</p>
+  </form>
+  <div class="sh-f"><button class="btn" type="button" data-close>No, seguir</button><button class="btn peligro" type="submit" form="f-ret">Enviar solicitud</button></div>
+</dialog>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+new IntersectionObserver(([e])=>$('nav').classList.toggle('sc',!e.isIntersecting),{rootMargin:'-48px 0px 0px 0px'}).observe($('t'));
+let origen=null;
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='b-noir'){origen=b;$('sh-noir').showModal()}
+  else if(b.id==='b-retiro'){origen=b;$('sh-ret').showModal()}
+  else if(b.id==='b-deshacer'){$('noir-wrap').className='no-ir';$('noir-wrap').innerHTML='<button class="lnk" type="button" id="b-noir" aria-haspopup="dialog">No puedo ir a esta clase</button>';$('mk6').className='mk pr';$('mk6').innerHTML='<svg class="i s16" aria-hidden="true"><use href="#i-reloj"/></svg>Próxima';live('Avisamos a Yusmary que sí vas.');$('b-noir').focus()}
+  else if('close' in b.dataset){b.closest('dialog').close();origen&&origen.focus()}
+});
+$('f-noir').addEventListener('submit',e=>{e.preventDefault();$('sh-noir').close();const rec=$('recup').checked;
+  $('noir-wrap').className='';$('noir-wrap').innerHTML=`<div class="aviso-ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="tx">Avisamos a Yusmary${rec?'. Te escribirá para recuperar la clase.':'.'}</span><button class="lnk" type="button" id="b-deshacer">Sí voy</button></div>`;
+  $('mk6').className='mk fu';$('mk6').innerHTML='<svg class="i s16" aria-hidden="true"><use href="#i-x"/></svg>No irás';
+  live('Avisamos a Yusmary que no vas el jueves 12.');$('b-deshacer').focus()});
+$('f-ret').addEventListener('submit',e=>{e.preventDefault();$('sh-ret').close();const m=document.querySelector('input[name=mot]:checked').value;
+  $('retiro').hidden=false;$('retiro-p').innerHTML='Motivo: '+esc(m)+'. La coordinación lo revisa y te avisa. Mientras tanto sigues inscrita.';
+  $('st').dataset.t='warning';$('st').innerHTML='<i aria-hidden="true"></i>Retiro solicitado';
+  const r=$('b-retiro');r.disabled=true;r.querySelector('.tx').innerHTML='Retiro solicitado<small>Esperando a la coordinación</small>';
+  live('Enviaste tu solicitud de retiro.');$('retiro').setAttribute('tabindex','-1');$('retiro').focus()});
+[$('sh-noir'),$('sh-ret')].forEach(d=>d.addEventListener('cancel',()=>setTimeout(()=>origen&&origen.focus())));
+if(/retiro/.test(location.hash))$('sh-ret').showModal();
+if(/no-puedo/.test(location.hash))$('sh-noir').showModal();
+</script>
+</body>
+</html>

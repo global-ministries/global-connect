@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Inscripción incrustada en yosoyglobal.org · escritorio — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/07. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-sm:calc(var(--radius) - 4px);--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28);--surface-tertiary:#EEECEA}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7);--surface-tertiary:#202028}}
+:root[data-tema=oscuro]{color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7);--surface-tertiary:#202028}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--surface-tertiary);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input{font:inherit;color:inherit}h1,h2,h3,h4{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+[hidden]{display:none!important}
+/* Artboard frame */
+.tablero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 210px;grid-template-rows:auto minmax(0,1fr);gap:14px 20px;height:100vh;min-height:900px;padding:20px 24px 24px}
+.rotulo{display:flex;align-items:baseline;gap:10px;min-width:0}
+.rotulo .k{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:9999px;background:var(--foreground);color:var(--background);font-size:13px;font-weight:700}
+.rotulo b{font-size:15px;font-weight:650;white-space:nowrap}.rotulo span{font-size:13px;color:var(--muted-foreground)}
+/* Browser chrome */
+.nav-w{display:flex;flex-direction:column;min-height:0;border-radius:var(--r-xl);overflow:hidden;background:var(--card);border:1px solid var(--border);box-shadow:var(--shadow-sheet)}
+.chrome{display:flex;align-items:center;gap:8px;height:38px;padding:0 12px;background:var(--muted);border-bottom:1px solid var(--border)}
+.chrome i{width:10px;height:10px;border-radius:9999px;background:var(--border)}
+.chrome .url{flex:1;margin-left:8px;height:24px;display:flex;align-items:center;padding:0 10px;border-radius:9999px;background:var(--card);font-family:var(--font-mono);font-size:12px;color:var(--muted-foreground)}
+/* The church site (external, neutral): square corners, uppercase nav, dark band */
+.sitio{position:relative;flex:1;min-height:0;overflow:hidden;background:var(--background)}
+.s-top{display:flex;align-items:center;gap:18px;height:56px;padding:0 24px;border-bottom:1px solid var(--border);background:var(--card)}
+.s-top .marca{flex:1;font-size:18px;font-weight:800;letter-spacing:.22em}
+.s-top a{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;text-decoration:none;color:var(--muted-foreground)}
+.s-top a[aria-current]{color:var(--foreground)}
+.banda{padding:26px 24px 28px;background:var(--foreground);color:var(--background)}
+.banda small{font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;opacity:.7}
+.banda h2{margin-top:6px;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.banda p{margin-top:8px;font-size:14px;opacity:.8;max-width:420px}
+.s-sec{padding:22px 24px}
+.s-sec h3{font-size:20px;font-weight:750;letter-spacing:-.01em}
+.s-sec .lead{margin-top:6px;font-size:14px;color:var(--muted-foreground)}
+.s-dos{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:20px;align-items:start}
+.s-txt p{margin-top:10px;font-size:14px;line-height:1.55;color:var(--muted-foreground)}
+.s-txt ul{margin-top:12px;display:grid;gap:6px;font-size:13px}
+.s-txt li{padding-left:14px;position:relative}.s-txt li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;background:var(--foreground)}
+.s-lista{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:16px}
+.s-item{padding:14px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--card)}
+.s-item small{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted-foreground)}
+.s-item h4{margin-top:4px;font-size:16px;font-weight:750}.s-item p{margin-top:4px;font-size:13px;color:var(--muted-foreground)}
+/* Global Connect embed button (data-estilo="naranja") */
+.boton-emb{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin-top:12px;padding:0 16px;border:0;border-radius:var(--r-xl);background:var(--brand-strong);color:var(--brand-primary-foreground);font-size:14px;font-weight:600;cursor:pointer;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.boton-emb:hover{background:var(--brand-strong-hover)}.boton-emb:active{transform:scale(.97)}
+.s-item .proximamente{display:inline-flex;align-items:center;min-height:44px;margin-top:12px;font-size:13px;color:var(--muted-foreground)}
+/* Marker around our iframe */
+.iframe{position:relative;border-radius:var(--r-2xl);outline:2px dashed color-mix(in oklab,var(--brand-primary) 60%,transparent);outline-offset:6px}
+.iframe-tag{position:absolute;top:-24px;right:-6px;padding:1px 8px;border-radius:9999px;background:var(--brand-strong);color:var(--brand-primary-foreground);font-family:var(--font-mono);font-size:11px;font-weight:600}
+/* Our embedded UI (Global Connect components) */
+.gc{padding:16px;border-radius:var(--r-2xl);background:var(--card);border:1px solid var(--border);font-size:14px}
+.gc .k{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--brand-text)}
+.gc h4{margin-top:4px;font-size:18px;font-weight:650;letter-spacing:-.01em}
+.gc .sub{margin-top:2px;font-size:13px;color:var(--muted-foreground)}
+.opciones{display:grid;gap:8px;margin-top:12px}
+.op{display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 12px;border-radius:var(--r-xl);border:1.5px solid var(--border);cursor:pointer}
+.op:has(input:checked){border-color:var(--brand-primary);background:var(--brand-accent-strong)}
+.op input{width:18px;height:18px;margin:0;accent-color:var(--brand-strong)}
+.op .tx{flex:1;min-width:0}.op b{display:block;font-size:14px;font-weight:600}.op small{display:block;font-size:12px;color:var(--muted-foreground)}
+.op .cup{font-size:12px;color:var(--success-text);white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-xl);border:2px solid var(--border);background:var(--card);color:var(--foreground);font-size:15px;font-weight:500;cursor:pointer;text-decoration:none;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.full{width:100%;margin-top:12px}
+.btn.lnk{border:0;background:none;color:var(--brand-text);padding:0 4px;min-height:44px;font-size:14px}
+.gc-pie{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--muted-foreground)}
+.gc-pie i{width:12px;height:12px;border-radius:4px;background:var(--brand-primary)}
+.campo{display:grid;gap:6px;margin-top:12px}.campo label{font-size:13px;font-weight:600}
+.input{min-height:44px;width:100%;padding:0 12px;border-radius:var(--r-xl);border:1px solid var(--border);background:color-mix(in oklab,var(--card) 50%,transparent);font-size:15px}
+.input:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.hint{font-size:12px;color:var(--muted-foreground)}
+.resumen{display:flex;align-items:center;gap:10px;margin-top:12px;padding:8px 8px 8px 12px;border-radius:var(--r-xl);background:var(--muted);font-size:13px}
+.resumen .tx{flex:1;min-width:0}.resumen b{font-weight:600}
+.codigo{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:6px}
+.codigo input{height:48px;text-align:center;border-radius:var(--r-md);border:1px solid var(--border);background:var(--card);font-family:var(--font-mono);font-size:20px;font-weight:600;min-width:0}
+.codigo input:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.ok-id{display:flex;gap:8px;margin-top:12px;padding:10px 12px;border-radius:var(--r-xl);background:color-mix(in oklab,var(--success) 10%,transparent);border:1px solid color-mix(in oklab,var(--success) 30%,transparent);font-size:13px}
+.ok-id svg{color:var(--success-text)}.ok-id b{font-weight:600}
+.pasos{display:flex;gap:4px;margin-top:10px}.pasos i{flex:1;height:4px;border-radius:9999px;background:var(--muted)}.pasos i.on{background:var(--brand-primary)}
+/* Modal over the site (Church Center style) */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.modal{position:absolute;left:50%;top:34px;transform:translateX(-50%);width:min(420px,calc(100% - 40px));max-height:calc(100% - 60px);overflow:auto;padding:18px;border-radius:var(--r-2xl);background:var(--card);box-shadow:var(--shadow-sheet)}
+.m-hd{display:flex;align-items:flex-start;gap:8px}.m-hd .tx{flex:1;min-width:0}.m-hd small{font-size:12px;color:var(--muted-foreground)}.m-hd h4{font-size:18px;font-weight:650}
+.x{width:44px;height:44px;margin:-10px -10px 0 0;display:grid;place-items:center;border:0;background:none;border-radius:9999px;color:var(--muted-foreground);cursor:pointer}.x:hover{background:var(--accent)}
+.alt{margin-top:12px;padding-top:12px;border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent);font-size:13px;color:var(--muted-foreground)}
+.alt b{color:var(--foreground);font-weight:600}
+/* Phone column */
+.cel-col{display:grid;align-content:start;gap:12px}
+.cel{width:190px;height:390px;border-radius:30px;border:7px solid var(--foreground);background:var(--background);overflow:hidden;display:flex;flex-direction:column}
+.cel .barra{display:flex;align-items:center;gap:6px;height:44px;padding:16px 10px 4px;background:var(--muted);font-family:var(--font-mono);font-size:10px;color:var(--muted-foreground)}
+.cel .barra span{flex:1;height:20px;display:flex;align-items:center;padding:0 8px;border-radius:9999px;background:var(--card);overflow:hidden;white-space:nowrap}
+.cel .pest{display:flex;gap:4px;padding:6px 8px;background:var(--muted);border-bottom:1px solid var(--border);font-size:9px;color:var(--muted-foreground)}
+.cel .pest b{padding:2px 6px;border-radius:6px;background:var(--card);color:var(--foreground);font-weight:600}
+.cel .bd{flex:1;padding:12px 10px;display:grid;align-content:start;gap:6px}
+.cel .bd .t{font-size:16px;font-weight:700;letter-spacing:-.02em}.cel .bd .s{font-size:10px;color:var(--muted-foreground)}
+.cel .bd .o{height:34px;border-radius:10px;border:1.5px solid var(--border)}.cel .bd .o.on{border-color:var(--brand-primary);background:var(--brand-accent-strong)}
+.cel .bd .b{height:34px;border-radius:10px;background:var(--brand-strong);margin-top:4px}
+.cel-txt{font-size:13px;color:var(--muted-foreground);line-height:1.45}.cel-txt b{color:var(--foreground);font-weight:600}
+.nota{padding:10px 12px;border-radius:var(--r-xl);border:1px dashed var(--border);background:var(--card);font-size:12px;color:var(--muted-foreground);line-height:1.45}
+.nota b{color:var(--foreground);font-weight:600}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-flecha" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+</defs></svg>
+
+<main class="tablero" id="main">
+  <p class="rotulo"><span class="k" aria-hidden="true">A</span><b>Tarjeta incrustada</b><span>Un iframe dentro de la página. La inscripción sigue dentro de la tarjeta.</span></p>
+  <p class="rotulo"><span class="k" aria-hidden="true">B</span><b>Botón con ventana</b><span>Un botón en el sitio; la inscripción se abre encima, como Church Center.</span></p>
+  <p class="rotulo"><b>En celular</b></p>
+
+  <!-- A · Tarjeta incrustada -->
+  <section class="nav-w" aria-label="Variante A: tarjeta incrustada en yosoyglobal.org">
+    <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span class="url">yosoyglobal.org/grupos/mujer-de-hoy</span></div>
+    <div class="sitio">
+      <header class="s-top"><span class="marca">GLOBAL</span><a href="#">Conócenos</a><a href="#" aria-current="page">Grupos</a><a href="#">Dar</a></header>
+      <div class="banda"><small>Grupos de Corto Plazo</small><h2>Mujer de Hoy</h2><p>Seis semanas para crecer en identidad, propósito y relaciones junto a otras mujeres de Global.</p></div>
+      <div class="s-sec s-dos">
+        <div class="s-txt">
+          <h3>¿Qué vas a vivir?</h3>
+          <p>Un grupo pequeño con una facilitadora, una clase por semana y un certificado al terminar.</p>
+          <ul><li>6 clases presenciales</li><li>Grupos de 10 a 14 mujeres</li><li>Sin costo</li></ul>
+        </div>
+        <div class="iframe">
+          <span class="iframe-tag" aria-hidden="true">iframe · Global Connect</span>
+          <div class="gc" id="a-gc" role="region" aria-label="Inscripción de Mujer de Hoy, Global Connect">
+            <!-- step 1 -->
+            <form id="a-p1">
+              <span class="k">Edición enero 2027</span>
+              <h4>Elige tu horario</h4>
+              <p class="sub">Empieza la semana del 14 de enero · Global Barquisimeto</p>
+              <fieldset class="opciones" style="border:0;padding:0;margin:12px 0 0"><legend class="sr">Horario</legend>
+                <label class="op"><input type="radio" name="a-h" checked><span class="tx"><b>Jueves noche</b><small>Desde el 14 ene · <span class="num">7:00</span> pm · Salón 2</small></span><span class="cup"><span class="num">8</span> libres</span></label>
+                <label class="op"><input type="radio" name="a-h"><span class="tx"><b>Sábado mañana</b><small>Desde el 16 ene · <span class="num">9:00</span> am · Salón 1</small></span><span class="cup"><span class="num">6</span> libres</span></label>
+              </fieldset>
+              <button class="btn pri full" type="submit">Reservar mi lugar</button>
+              <p class="gc-pie"><i aria-hidden="true"></i>La coordinación aprueba cada inscripción</p>
+            </form>
+            <!-- step 2: identity -->
+            <form id="a-p2" hidden>
+              <button class="btn lnk" type="button" id="a-volver" style="margin:-10px 0 0 -6px"><svg class="i s16" aria-hidden="true"><use href="#i-back"/></svg>Horario</button>
+              <h4>¿Quién se inscribe?</h4>
+              <div class="pasos" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></div>
+              <div class="campo"><label for="a-id">Tu cédula</label><input class="input" id="a-id" type="text" inputmode="numeric" autocomplete="off" placeholder="V-15.598.745"></div>
+              <p class="hint" style="margin-top:6px">Si ya eres parte de Global, te enviamos un código para confirmar. Si eres nueva, te pedimos tus datos.</p>
+              <button class="btn pri full" type="submit">Continuar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B · Botón con ventana -->
+  <section class="nav-w" aria-label="Variante B: botón con ventana sobre yosoyglobal.org">
+    <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span class="url">yosoyglobal.org/grupos</span></div>
+    <div class="sitio">
+      <div id="b-sitio">
+        <header class="s-top"><span class="marca">GLOBAL</span><a href="#">Conócenos</a><a href="#" aria-current="page">Grupos</a><a href="#">Dar</a></header>
+        <div class="banda"><small>Conexión</small><h2>Grupos de Corto Plazo</h2><p>Talleres de seis semanas para dar tu siguiente paso.</p></div>
+        <div class="s-sec">
+          <div class="s-lista">
+            <article class="s-item"><small>Mujeres</small><h4>Mujer de Hoy</h4><p>Desde el 14 de enero</p><button class="boton-emb" type="button" data-abrir="Mujer de Hoy">Reservar mi lugar</button></article>
+            <article class="s-item"><small>Matrimonios</small><h4>Parejas</h4><p>Desde el 6 de febrero</p><button class="boton-emb" type="button" data-abrir="Parejas">Reservar mi lugar</button></article>
+            <article class="s-item"><small>Hombres</small><h4>De Hombre a Hombre</h4><p>Desde el 19 de enero</p><button class="boton-emb" type="button" data-abrir="De Hombre a Hombre">Reservar mi lugar</button></article>
+            <article class="s-item"><small>Para empezar</small><h4>Punto de Partida</h4><p>Nueva edición en marzo</p><span class="proximamente">Próximamente</span></article>
+          </div>
+        </div>
+      </div>
+      <div id="b-modal">
+        <div class="scrim" id="b-scrim" aria-hidden="true"></div>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="b-t" id="b-dlg">
+          <div class="m-hd"><div class="tx"><small>Paso <span class="num">2</span> de <span class="num">3</span> · Global Connect</small><h4 id="b-t">Mujer de Hoy</h4></div><button class="x" type="button" id="b-cerrar" aria-label="Cerrar inscripción"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          <div class="pasos" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></div>
+          <div class="resumen"><span class="tx"><b>Jueves noche</b> · desde el 14 ene · <span class="num">7:00</span> pm</span><button class="btn lnk" type="button">Cambiar</button></div>
+          <div class="campo"><label for="b-id">Tu cédula</label><input class="input" id="b-id" type="text" inputmode="numeric" value="V-18.432.907"></div>
+          <div class="ok-id" role="status"><svg class="i s16" aria-hidden="true"><use href="#i-check"/></svg><span><b>Ya eres parte de Global.</b> Te enviamos un código de 6 dígitos a <span class="num">an•••••@gmail.com</span> y a tus avisos de la app Global.</span></div>
+          <div class="campo"><label id="cod-l">Código</label>
+            <div class="codigo" role="group" aria-labelledby="cod-l"><input inputmode="numeric" maxlength="1" aria-label="Dígito 1" value="4"><input inputmode="numeric" maxlength="1" aria-label="Dígito 2" value="8"><input inputmode="numeric" maxlength="1" aria-label="Dígito 3" value="1"><input inputmode="numeric" maxlength="1" aria-label="Dígito 4"><input inputmode="numeric" maxlength="1" aria-label="Dígito 5"><input inputmode="numeric" maxlength="1" aria-label="Dígito 6"></div>
+            <p class="hint">¿No llegó? Mira en spam o en tus avisos de la app. <button class="btn lnk" type="button" style="min-height:32px;font-size:12px">Reenviar código</button></p>
+          </div>
+          <button class="btn pri full" type="button">Confirmar y seguir</button>
+          <p class="alt">No usamos lo que escribas aquí para cambiar tu ficha. <b>¿Es tu primera vez?</b> Si no te encontramos, te pedimos tus datos y creamos tu cuenta en Global Connect.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Celular -->
+  <aside class="cel-col" aria-label="Comportamiento en celular">
+    <div class="cel" role="img" aria-label="Celular con la inscripción abierta en una pestaña nueva de miembros.yosoyglobal.org">
+      <div class="barra"><span>miembros.yosoyglobal.org/talleres/mujer-de-hoy</span></div>
+      <div class="pest"><span>yosoyglobal.org</span><b>Mujer de Hoy</b></div>
+      <div class="bd"><span class="s">Edición enero 2027</span><span class="t">Elige tu horario</span><span class="o on"></span><span class="o"></span><span class="b"></span></div>
+    </div>
+    <p class="cel-txt"><b>El botón abre una pestaña nueva</b> con la misma inscripción, a pantalla completa. Al terminar, «Volver a yosoyglobal.org».</p>
+    <p class="cel-txt"><b>La tarjeta (A)</b> se queda en la página y crece hacia abajo; no abre ventanas.</p>
+    <p class="nota" role="note"><b>Nota de diseño.</b> Todo lo que está dentro del borde punteado o de la ventana es Global Connect. El resto es el sitio de la iglesia y no lo controlamos.</p>
+  </aside>
+  <p class="sr" role="status" aria-live="polite" id="live"></p>
+</main>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+// A: step 1 → step 2 inside the iframe card
+$('a-p1').addEventListener('submit',e=>{e.preventDefault();$('a-p1').hidden=true;$('a-p2').hidden=false;$('a-id').focus()});
+$('a-volver').addEventListener('click',()=>{$('a-p2').hidden=true;$('a-p1').hidden=false;$('a-p1').querySelector('input:checked').focus()});
+$('a-p2').addEventListener('submit',e=>{e.preventDefault();live('Te enviamos un código para confirmar tu identidad.')});
+// B: modal over the site
+let origen=null;const sitio=$('b-sitio');
+function cerrar(){$('b-modal').hidden=true;sitio.inert=false;(origen||document.querySelector('[data-abrir]')).focus()}
+function abrir(b){origen=b;$('b-t').textContent=b.dataset.abrir;$('b-modal').hidden=false;sitio.inert=true;$('b-cerrar').focus()}
+sitio.inert=true;
+$('b-cerrar').addEventListener('click',cerrar);$('b-scrim').addEventListener('click',cerrar);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('b-modal').hidden)cerrar()});
+document.querySelectorAll('[data-abrir]').forEach(b=>b.addEventListener('click',()=>abrir(b)));
+</script>
+</body>
+</html>

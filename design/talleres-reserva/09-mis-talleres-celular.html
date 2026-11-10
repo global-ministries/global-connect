@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Mis talleres · celular — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/05. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-foreground:oklch(.98 0 0);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-foreground:oklch(.98 0 0);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--chart-2:oklch(.6 .118 184.704);--chart-3:oklch(.398 .07 227.392);--chart-4:oklch(.828 .189 84.429);--chart-5:oklch(.769 .188 70.08);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-foreground:oklch(.15 0 0);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-foreground:oklch(.15 0 0);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-foreground:oklch(.15 0 0);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-foreground:oklch(.15 0 0);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input,textarea{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}svg.s24{width:24px;height:24px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+/* Shell header (HeaderMovil) */
+.hm{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:4px;min-height:52px;padding:env(safe-area-inset-top) 8px 0 16px;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color var(--duration-normal) var(--ease-out-quint)}
+.hm.sc{border-bottom-color:var(--border)}
+.hm .logo{flex:1;display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px}.hm .logo i{width:24px;height:24px;border-radius:7px;background:var(--brand-primary)}
+.ib{position:relative;width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:var(--r-xl);background:none;color:var(--brand-text);cursor:pointer;text-decoration:none}
+.yo{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;cursor:pointer}
+.yo span{width:32px;height:32px;display:grid;place-items:center;border-radius:9999px;background:var(--brand-accent-strong);border:1px solid color-mix(in oklab,var(--brand-primary) 40%,transparent);font-size:12px;font-weight:600}
+.bdg{position:absolute;top:4px;right:4px;min-width:20px;height:20px;padding:0 6px;display:grid;place-items:center;border-radius:9999px;background:var(--brand-strong);color:var(--brand-primary-foreground);font-family:var(--font-mono);font-size:12px;font-weight:600;line-height:1;box-shadow:0 0 0 2px var(--background)}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:22px;padding:4px 16px 140px;min-width:0}
+.large h1{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.large p{margin-top:4px;font-size:15px;color:var(--muted-foreground)}.large p strong{color:var(--foreground);font-weight:600}
+.nota-rev{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r-xl);border:1px dashed var(--border);font-size:13px;color:var(--muted-foreground)}
+.nota-rev b{color:var(--foreground);font-weight:600}
+.sec-hd{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 4px}
+.sec-h{flex:1;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.sec-c{font-size:13px;color:var(--muted-foreground)}
+.lnk{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 4px;border:0;background:none;color:var(--brand-text);font-size:15px;font-weight:500;text-decoration:none;cursor:pointer}
+/* Status: dot + label (PuntoEstado) */
+.st{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
+.st i{width:8px;height:8px;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st[data-t=warning]{--t:var(--warning);color:var(--warning-text)}.st[data-t=success]{--t:var(--success);color:var(--success-text)}.st[data-t=info]{--t:var(--info);color:var(--info-text)}.st[data-t=muted]{--t:var(--muted-foreground);color:var(--muted-foreground)}.st[data-t=danger]{--t:var(--danger);color:var(--danger-text)}
+/* Buttons (BotonSistema) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-xl);border:2px solid var(--border);background:var(--card);color:var(--foreground);font-size:15px;font-weight:500;cursor:pointer;text-decoration:none;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.sec{border-color:transparent;background:var(--secondary)}
+.btn.peligro{border-color:transparent;background:var(--danger);color:var(--danger-foreground)}
+/* En curso (destacado, same as DPS .pend) */
+.curso{position:relative;padding:14px;border-radius:var(--r-2xl);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--brand-primary)}
+.curso::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--brand-accent-strong);pointer-events:none}
+.curso>*{position:relative}
+.top{display:flex;align-items:center;gap:8px}.top .st{flex:1}.top .hint{font-size:13px;color:var(--muted-foreground)}
+.curso h3,.card h3{margin-top:8px;font-size:19px;font-weight:650;letter-spacing:-.01em;line-height:1.2}
+.sub{margin-top:2px;font-size:14px;color:var(--muted-foreground)}
+.facts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-top:12px}
+.fact{padding:8px 10px;border-radius:var(--r-xl);background:var(--card);border:1px solid color-mix(in oklab,var(--border) 70%,transparent);min-width:0}
+.fact small{display:block;font-size:12px;color:var(--muted-foreground)}.fact b{display:block;font-size:15px;font-weight:600}
+.fact b span.l{display:block;font-size:13px;font-weight:400;color:var(--muted-foreground)}
+/* Asistencia: dots, never color alone (icon inside + text) */
+.asis{margin-top:12px;padding:10px 12px;border-radius:var(--r-xl);background:var(--card);border:1px solid color-mix(in oklab,var(--border) 70%,transparent)}
+.asis .row{display:flex;align-items:center;gap:10px}
+.dots{display:flex;gap:6px;flex:none}
+.dot{width:22px;height:22px;display:grid;place-items:center;border-radius:9999px;font-size:0}
+.dot svg{width:13px;height:13px;stroke-width:2.6}
+.dot.ok{background:var(--success);color:var(--success-foreground)}
+.dot.no{background:color-mix(in oklab,var(--danger) 14%,transparent);color:var(--danger-text)}
+.dot.prox{box-shadow:inset 0 0 0 2px var(--brand-primary);background:var(--brand-accent-strong)}
+.dot.fut{box-shadow:inset 0 0 0 1.5px var(--border)}
+.asis b{font-size:15px;font-weight:600}
+.asis p{margin-top:6px;font-size:13px;color:var(--muted-foreground)}.asis p strong{color:var(--brand-text);font-weight:600}
+.persona{display:flex;align-items:center;gap:12px;margin-top:12px}
+.av{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:13px;font-weight:650;background:color-mix(in oklab,var(--chart-2) 26%,var(--card));border:1px solid color-mix(in oklab,var(--chart-2) 40%,transparent)}
+.persona .tx{flex:1;min-width:0}.persona b{display:block;font-size:15px;font-weight:600}.persona small{display:block;font-size:13px;color:var(--muted-foreground)}
+.ib.cont{background:var(--card);border:1px solid color-mix(in oklab,var(--border) 70%,transparent);color:var(--foreground)}
+.ver{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;min-height:44px;margin-top:6px;color:var(--brand-text);font-size:15px;font-weight:500;text-decoration:none;border-radius:var(--r-xl)}
+/* Plain cards */
+.card{padding:14px;border-radius:var(--r-2xl);background:var(--card)}
+.card .msg{margin-top:10px;font-size:14px;color:var(--muted-foreground)}
+.card .msg strong{color:var(--foreground);font-weight:600}
+.cambio{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border-radius:var(--r-xl);background:color-mix(in oklab,var(--info) 8%,transparent);border:1px solid color-mix(in oklab,var(--info) 30%,transparent);font-size:14px}
+.cambio svg{color:var(--info-text);margin-top:1px}.cambio .tx{flex:1;min-width:0}.cambio b{font-weight:600}.cambio s{color:var(--muted-foreground)}
+.cambio .lnk{min-height:32px;padding:0;font-size:14px;position:relative}.cambio .lnk::after{content:"";position:absolute;inset:-6px -4px}
+.pasos{display:grid;gap:0;margin-top:12px}
+.paso{display:flex;gap:10px;align-items:center;min-height:32px;font-size:14px}
+.paso .ck{width:20px;height:20px;flex:none;display:grid;place-items:center;border-radius:9999px}
+.paso.hecho .ck{background:var(--success);color:var(--success-foreground)}.paso.hecho .ck svg{width:12px;height:12px;stroke-width:2.6}
+.paso.ahora .ck{box-shadow:inset 0 0 0 2px var(--brand-primary)}
+.paso.luego .ck{box-shadow:inset 0 0 0 1.5px var(--border)}
+.paso.luego{color:var(--muted-foreground)}
+.acts2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:12px}
+.btn.gh{border-color:transparent;background:none;color:var(--brand-text)}
+/* Inset grouped list */
+.lista{background:var(--card);border-radius:var(--r-2xl);overflow:hidden}
+.fila{position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 12px 10px 14px;text-decoration:none;width:100%;border:0;background:none;text-align:left;cursor:pointer}
+.lista li+li .fila::before{content:"";position:absolute;top:0;left:66px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.fila:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--brand-primary);border-radius:var(--r-2xl)}
+.tile{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:var(--radius);background:var(--brand-accent-strong);color:var(--brand-text)}
+.tile.ok{background:color-mix(in oklab,var(--success) 12%,transparent);color:var(--success-text)}
+.fila .tx{flex:1;min-width:0}
+.fila .nm{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila .t2{display:block;margin-top:2px;font-size:13px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila .go{color:var(--muted-foreground)}
+.fila .st{margin-top:3px}
+.cert{display:flex;gap:10px;padding:0 14px 14px 66px}
+.cert .btn{min-height:44px;padding:0 12px;font-size:14px}
+/* Tab bar (MenuInferiorMovil) */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:8px 6px max(8px,env(safe-area-inset-bottom));background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border)}
+.tabs a{position:relative;min-width:0;min-height:56px;display:grid;justify-items:center;align-content:center;gap:4px;font-size:12px;font-weight:500;color:var(--muted-foreground);text-decoration:none;border-radius:var(--r-xl)}
+.tabs a[aria-current]{color:var(--brand-text);font-weight:600}
+/* Bottom sheet (HojaInferior) */
+dialog{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-width:100%;max-height:90vh;padding:0 0 max(12px,env(safe-area-inset-bottom));border:0;border-radius:26px 26px 0 0;background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sheet)}dialog::backdrop{background:rgba(0,0,0,.5)}
+.grab{width:38px;height:5px;border-radius:9999px;background:var(--border);margin:8px auto 4px}
+.sh-h{display:flex;align-items:center;padding:4px 8px 4px 18px}.sh-h h2{flex:1;font-size:18px;font-weight:650}
+.sh-x{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;color:var(--muted-foreground);cursor:pointer}
+.sh-b{display:grid;gap:12px;padding:4px 18px 16px}.sh-b>p{font-size:14px;color:var(--muted-foreground)}
+.sh-f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;padding:8px 18px 0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></symbol>
+<symbol id="i-gdv" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+<symbol id="i-equipo" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+<symbol id="i-talleres" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/></symbol>
+<symbol id="i-mas" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+<symbol id="i-campana" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-wa" viewBox="0 0 24 24"><path d="M3.5 20.5 5 16a8.5 8.5 0 1 1 3.3 3.2Z"/><path d="M9 9.2c.2 2.6 2.3 4.9 5 5.4l1.1-1.3-1.9-1-.8.8c-.9-.4-1.7-1.2-2.1-2.1l.8-.8-1-1.9Z"/></symbol>
+<symbol id="i-cert" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/></symbol>
+<symbol id="i-buscar" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+<symbol id="i-cambio" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
+<symbol id="i-pareja" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/></symbol>
+<symbol id="i-desc" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+</defs></svg>
+
+<header class="hm" id="hm">
+  <span class="logo"><i aria-hidden="true"></i>Global Connect</span>
+  <a class="ib" href="11-avisos-miembro-celular.html" aria-label="Avisos, 2 sin leer"><svg class="i s24" aria-hidden="true"><use href="#i-campana"/></svg><span class="bdg" aria-hidden="true">2</span></a>
+  <button class="yo" type="button" aria-label="Tu cuenta: Andreína Colmenárez"><span aria-hidden="true">AC</span></button>
+</header>
+
+<main id="main">
+  <div class="large">
+    <h1 id="t">Mis talleres</h1>
+    <p>Tienes <strong class="num">1</strong> taller en curso y <strong class="num">1</strong> solicitud esperando aprobación.</p>
+  </div>
+
+  <p class="nota-rev" role="note"><span><b>Vista de revisión.</b> Muestra los cuatro estados a la vez. Parejas aparece dos veces: recién inscrita y ya aprobada.</span></p>
+
+  <!-- 1 · En curso: lo que pide acción esta semana va primero -->
+  <section aria-labelledby="curso-h">
+    <div class="sec-hd"><h2 class="sec-h" id="curso-h">En curso</h2></div>
+    <article class="curso" aria-labelledby="mdh-h">
+      <div class="top"><span class="st" data-t="success"><i aria-hidden="true"></i>En curso · clase <span class="num">6</span> de <span class="num">6</span></span></div>
+      <h3 id="mdh-h">Mujer de Hoy</h3>
+      <p class="sub">Grupo Jueves noche · Edición octubre 2026</p>
+      <div class="facts">
+        <div class="fact"><small>Próxima clase</small><b>Jue 12 nov<span class="l"><span class="num">7:00</span> a <span class="num">8:30</span> pm</span></b></div>
+        <div class="fact"><small>Lugar</small><b>Salón 2<span class="l">Global Barquisimeto</span></b></div>
+      </div>
+      <div class="asis">
+        <div class="row">
+          <ol class="dots" aria-label="Tu asistencia por clase">
+            <li class="dot ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="sr">Clase 1, asististe</span></li>
+            <li class="dot ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="sr">Clase 2, recuperada</span></li>
+            <li class="dot no"><svg class="i" aria-hidden="true"><use href="#i-x"/></svg><span class="sr">Clase 3, faltaste</span></li>
+            <li class="dot ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="sr">Clase 4, asististe</span></li>
+            <li class="dot ok"><svg class="i" aria-hidden="true"><use href="#i-check"/></svg><span class="sr">Clase 5, asististe</span></li>
+            <li class="dot prox"><span class="sr">Clase 6, próxima</span></li>
+          </ol>
+          <b>Asististe a <span class="num">4</span> de <span class="num">6</span></b>
+        </div>
+        <p><strong>Te falta 1 clase para tu certificado.</strong> Necesitas <span class="num">5</span>: ve el jueves o recupera la clase <span class="num">3</span> con tu facilitadora.</p>
+      </div>
+      <div class="persona">
+        <span class="av" aria-hidden="true">YM</span>
+        <span class="tx"><b>Yusmary Mendoza</b><small>Tu facilitadora · <span class="num">+58 412 555 0147</span></small></span>
+        <a class="ib cont" href="https://wa.me/584125550147" aria-label="Escribir a Yusmary Mendoza por WhatsApp"><svg class="i" aria-hidden="true"><use href="#i-wa"/></svg></a>
+      </div>
+      <a class="ver" href="10-detalle-taller-miembro-celular.html">Ver clases y asistencia<svg class="i s16" aria-hidden="true"><use href="#i-chev"/></svg></a>
+    </article>
+  </section>
+
+  <!-- 2 · Pendiente de aprobación -->
+  <section aria-labelledby="pend-h">
+    <div class="sec-hd"><h2 class="sec-h" id="pend-h">Pendiente de aprobación</h2></div>
+    <article class="card" id="c-pend" aria-labelledby="par-h">
+      <div class="top"><span class="st" data-t="warning" id="pend-st"><i aria-hidden="true"></i>Esperando aprobación</span><span class="hint">Desde el sáb 7 nov</span></div>
+      <h3 id="par-h">Parejas</h3>
+      <p class="sub">Con Rafael Colmenárez · Edición enero 2027</p>
+      <div class="cambio">
+        <svg class="i s16" aria-hidden="true"><use href="#i-cambio"/></svg>
+        <span class="tx"><b>Cambió la fecha de inicio.</b> No se llegó al mínimo para el <s>sáb 16 ene</s>. Ahora empieza el <b>sáb 6 feb</b>, <span class="num">9:00</span> am. <b>Confirma antes del mar 2 feb para mantener tu lugar</b>; si no, salen de la edición. <a class="lnk" href="11-avisos-miembro-celular.html">Confirmar</a></span>
+      </div>
+      <ol class="pasos" aria-label="Cómo sigue tu inscripción">
+        <li class="paso hecho"><span class="ck" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>Recibimos tu solicitud y la de Rafael<span class="sr"> (hecho)</span></li>
+        <li class="paso ahora"><span class="ck" aria-hidden="true"></span>La coordinación la revisa<span class="sr"> (ahora)</span></li>
+        <li class="paso luego"><span class="ck" aria-hidden="true"></span>Te asignamos grupo y facilitadores</li>
+      </ol>
+      <div class="acts2" style="grid-template-columns:minmax(0,1fr)"><button class="btn gh" type="button" id="b-cancelar" aria-haspopup="dialog">Cancelar mi solicitud</button></div>
+    </article>
+  </section>
+
+  <!-- 3 · Aprobado, sin grupo aún -->
+  <section aria-labelledby="apr-h">
+    <div class="sec-hd"><h2 class="sec-h" id="apr-h">Aprobado · sin grupo aún</h2></div>
+    <article class="card" aria-labelledby="par2-h">
+      <div class="top"><span class="st" data-t="info"><i aria-hidden="true"></i>Aprobada</span><span class="hint">Empieza el sáb 6 feb</span></div>
+      <h3 id="par2-h">Parejas</h3>
+      <p class="sub">Con Rafael Colmenárez · Edición enero 2027</p>
+      <p class="msg">Ya tienen su lugar. <strong>Una semana antes de empezar</strong> les avisamos su grupo, los facilitadores y dónde se reúnen.</p>
+      <ol class="pasos" aria-label="Cómo sigue tu inscripción">
+        <li class="paso hecho"><span class="ck" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>Solicitud recibida<span class="sr"> (hecho)</span></li>
+        <li class="paso hecho"><span class="ck" aria-hidden="true"><svg class="i"><use href="#i-check"/></svg></span>Aprobada por la coordinación<span class="sr"> (hecho)</span></li>
+        <li class="paso ahora"><span class="ck" aria-hidden="true"></span>Grupo y facilitadores: hacia el sáb 30 ene<span class="sr"> (siguiente)</span></li>
+      </ol>
+    </article>
+  </section>
+
+  <!-- 4 · Terminados -->
+  <section aria-labelledby="fin-h">
+    <div class="sec-hd"><h2 class="sec-h" id="fin-h">Terminados</h2><span class="sec-c num">1</span></div>
+    <ul class="lista">
+      <li>
+        <a class="fila" href="#"><span class="tile ok" aria-hidden="true"><svg class="i"><use href="#i-cert"/></svg></span><span class="tx"><span class="nm">Punto de Partida</span><span class="t2">Abril 2026 · asististe a <span class="num">6</span> de <span class="num">6</span></span><span class="st" data-t="success"><i aria-hidden="true"></i>Certificado listo</span></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a>
+        <div class="cert"><a class="btn sec" href="#"><svg class="i s16" aria-hidden="true"><use href="#i-desc"/></svg>Descargar certificado</a></div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- 5 · Explorar -->
+  <section aria-labelledby="exp-h">
+    <div class="sec-hd"><h2 class="sec-h" id="exp-h">Grupos de Corto Plazo</h2></div>
+    <ul class="lista">
+      <li><a class="fila" href="#"><span class="tile" aria-hidden="true"><svg class="i"><use href="#i-buscar"/></svg></span><span class="tx"><span class="nm">Explorar talleres</span><span class="t2"><span class="num">3</span> con inscripciones abiertas en Barquisimeto</span></span><svg class="i s16 go" aria-hidden="true"><use href="#i-chev"/></svg></a></li>
+    </ul>
+  </section>
+  <p class="sr" role="status" aria-live="polite" id="live"></p>
+</main>
+
+<nav class="tabs" aria-label="Navegación inferior">
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-home"/></svg><span>Inicio</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-gdv"/></svg><span>Grupos</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-equipo"/></svg><span>Equipo</span></a>
+  <a href="#" aria-current="page"><svg class="i s24" aria-hidden="true"><use href="#i-talleres"/></svg><span>Talleres</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-mas"/></svg><span>Más</span></a>
+</nav>
+
+<dialog id="sh" aria-labelledby="sh-t" aria-describedby="sh-d">
+  <div class="grab" aria-hidden="true"></div>
+  <div class="sh-h"><h2 id="sh-t">¿Cancelar tu solicitud?</h2><button class="sh-x" type="button" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="sh-b">
+    <p id="sh-d">Parejas · Edición enero 2027. Como se inscribieron juntos, también se cancela la de Rafael. Pueden volver a inscribirse mientras haya cupo.</p>
+  </div>
+  <div class="sh-f"><button class="btn" type="button" data-close>No, seguir</button><button class="btn peligro" type="button" id="b-conf-cancel">Sí, cancelar</button></div>
+</dialog>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+new IntersectionObserver(([e])=>$('hm').classList.toggle('sc',!e.isIntersecting),{rootMargin:'-52px 0px 0px 0px'}).observe($('t'));
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.id==='b-cancelar')$('sh').showModal();
+  else if(b.id==='b-conf-cancel'){$('sh').close();const st=$('pend-st');st.dataset.t='muted';st.innerHTML='<i aria-hidden="true"></i>Solicitud cancelada';$('b-cancelar').replaceWith(Object.assign(document.createElement('p'),{className:'msg',textContent:'Cancelaste la solicitud. Avisamos a la coordinación.'}));live('Cancelaste tu solicitud de Parejas.')}
+  else if('close' in b.dataset){$('sh').close();$('b-cancelar')&&$('b-cancelar').focus()}
+});
+$('sh').addEventListener('cancel',()=>setTimeout(()=>$('b-cancelar')&&$('b-cancelar').focus()));
+</script>
+</body>
+</html>
