@@ -356,6 +356,53 @@ const MAPA: Readonly<Record<string, Entrada>> = {
     error: 'conflict',
     message: 'Una edición en borrador o cancelada no se puede cerrar.',
   },
+  // T8a (odd/tasks/talleres-reserva-publica.md, S9 S15 S16) — the minimum of
+  // inscritos (20261110200000_talleres_minimo_suspension.sql).
+  EDICION_NO_BAJO_MINIMO: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta edición no está por debajo del mínimo de inscritos.',
+  },
+  NUEVA_FECHA_NO_FUTURA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'La nueva primera clase debe ser después de hoy.',
+  },
+  CIERRE_FUERA_DE_RANGO: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'El nuevo cierre debe ser después de hoy y no después de la nueva primera clase.',
+  },
+  TEXTO_DEMASIADO_LARGO: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'El texto es demasiado largo.',
+  },
+  RESPUESTA_INVALIDA: {
+    status: 400,
+    error: 'invalid-input',
+    message: 'Elige una respuesta.',
+  },
+  CONFIRMACION_NO_PENDIENTE: {
+    status: 409,
+    error: 'conflict',
+    message: 'Esta inscripción ya no tiene una confirmación pendiente.',
+  },
+  CONFIRMACION_VENCIDA: {
+    status: 409,
+    error: 'conflict',
+    message: 'El plazo para confirmar ya venció.',
+  },
+  sin_permisos_para_esta_inscripcion: {
+    status: 403,
+    error: 'forbidden',
+    message: 'No tienes permisos para esta inscripción.',
+  },
+  sin_permisos_para_abrir_igual: {
+    status: 403,
+    error: 'forbidden',
+    message: 'Solo la dirección y el coordinador del taller pueden abrir por debajo del mínimo.',
+  },
 }
 
 /** Ordered longest-first so a substring match can't pick the wrong entry. */

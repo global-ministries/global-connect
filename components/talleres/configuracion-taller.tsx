@@ -27,6 +27,10 @@
  * Ficha nueva del cónyuge (odd/tasks/talleres-conyuge-invitacion.md C2) —
  * couple talleres also choose when a partner ficha created at enrollment
  * gets its access email: al aprobar (default) or al inscribirse.
+ *
+ * Mínimo de inscritos (odd/tasks/talleres-reserva-publica.md T8a, S9 S16) —
+ * «Mínimo de inscritos para abrir» renders here with its own read and save
+ * (MinimoInscritosCampo) until T9 folds it into «Guardar configuración».
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -40,6 +44,7 @@ import {
   vinculoLabel,
 } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
+import { MinimoInscritosCampo } from '@/components/talleres/minimo/minimo-inscritos-campo'
 
 export interface ConfiguracionTallerProps {
   readonly tallerId: string
@@ -265,6 +270,10 @@ export function ConfiguracionTaller({
           </div>
 
           <div className="md:col-span-2">
+            <MinimoInscritosCampo tallerId={tallerId} tallerSlug={tallerSlug} tipo={tipo} puedeEditar />
+          </div>
+
+          <div className="md:col-span-2">
             <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarConfiguracion}>
               Guardar configuración
             </BotonSistema>
@@ -310,6 +319,7 @@ export function ConfiguracionTaller({
           <Campo titulo="Cadencia y duración">
             {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
           </Campo>
+          <MinimoInscritosCampo tallerId={tallerId} tallerSlug={tallerSlug} tipo={tipo} puedeEditar={false} />
         </dl>
       )}
     </section>

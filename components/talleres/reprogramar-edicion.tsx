@@ -48,17 +48,21 @@ interface Input {
   readonly primeraClaseCerrada: boolean
 }
 
+// T8a (odd/tasks/talleres-reserva-publica.md) — the date math is shared with
+// the suspension panel (components/talleres/minimo/), which moves the same
+// clases by the same delta.
+
 /** Parses a `YYYY-MM-DD` (or an ISO timestamp's date part) as a UTC midnight Date, so day-math never shifts with the viewer's timezone. */
-function parseDateOnly(value: string): Date {
+export function parseDateOnly(value: string): Date {
   const [y, m, d] = value.slice(0, 10).split('-').map(Number)
   return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1))
 }
 
-function addDays(value: string, days: number): Date {
+export function addDays(value: string, days: number): Date {
   return new Date(parseDateOnly(value).getTime() + days * 86_400_000)
 }
 
-function diffDays(a: string, b: string): number {
+export function diffDays(a: string, b: string): number {
   return Math.round((parseDateOnly(a).getTime() - parseDateOnly(b).getTime()) / 86_400_000)
 }
 

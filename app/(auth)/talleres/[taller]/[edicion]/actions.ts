@@ -30,6 +30,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaEdicion, rutaGrupo, rutaTaller } from '@/lib/platform/talleres/rutas'
+import { loadPanelMinimo } from '@/lib/platform/talleres/minimo-suspension'
 import {
   parseResumenCierre,
   parseVistaPreviaCierre,
@@ -249,6 +250,13 @@ export async function quitarFacilitadorGrupo(
 // non-empty check every other RLS-direct mutation in this feature uses.
 // Cancelling with inscritos is ALLOWED (the confirm dialog just warns);
 // the DB itself never blocks it — see the button's own confirm copy.
+//
+// T8a (odd/tasks/talleres-reserva-publica.md, S9): an edición below its
+// minimum has a date-derived estado (cerrado between the cierre and the
+// first clase, en_curso from then on) and the banner offers «Cancelar
+// edición» there too. Only when the first update matched nothing AND
+// talleres_minimo_panel says it is below the minimum, the update is retried
+// for en_curso/cerrado without cerrada_en (a real close is never cancelled).
 
 export interface CancelarEdicionInput {
   readonly tallerSlug: string
@@ -275,7 +283,24 @@ export async function cancelarEdicion(
     return { ok: false, error: traducido.error, message: traducido.message }
   }
   if (!data || data.length === 0) {
-    return { ok: false, ...forbiddenByRls('No se pudo cancelar la edición.') }
+    const bajoMinimo = (await loadPanelMinimo(client, input.edicionId))?.bajoMinimo === true
+    if (!bajoMinimo) {
+      return { ok: false, ...forbiddenByRls('No se pudo cancelar la edición.') }
+    }
+    const reintento = await client
+      .from('taller_ediciones')
+      .update({ estado: 'cancelado' })
+      .eq('id', input.edicionId)
+      .in('estado', ['en_curso', 'cerrado'])
+      .is('cerrada_en', null)
+      .select('id')
+    if (reintento.error) {
+      const traducido = traducirErrorTalleres(reintento.error, 'No se pudo cancelar la edición.')
+      return { ok: false, error: traducido.error, message: traducido.message }
+    }
+    if (!reintento.data || reintento.data.length === 0) {
+      return { ok: false, ...forbiddenByRls('No se pudo cancelar la edición.') }
+    }
   }
 
   revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
