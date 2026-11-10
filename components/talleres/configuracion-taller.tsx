@@ -27,11 +27,27 @@
  * Ficha nueva del cónyuge (odd/tasks/talleres-conyuge-invitacion.md C2) —
  * couple talleres also choose when a partner ficha created at enrollment
  * gets its access email: al aprobar (default) or al inscribirse.
+ *
+ * Próximo Paso (odd/tasks/proximo-paso.md T1) — a régimen=cadencia taller
+ * picks how its ediciones start: "Primer domingo de cada mes"
+ * (talleres.ancla_ediciones) or "Cada N días" (the intervalo field, only
+ * shown for that choice). Saved in the same `updateTallerConfiguracion`.
+ *
+ * Inscripción automática (odd/tasks/proximo-paso.md T2b, L6.2) — an
+ * individual taller can approve each inscripción on the spot when the
+ * edición has cupo (talleres.inscripcion_automatica, an `Interruptor`),
+ * saved in the same `updateTallerConfiguracion`. Couples always wait for
+ * the coordinación, so the switch is not offered to them.
+ *
+ * Registro por QR (odd/tasks/proximo-paso.md T2) — on Próximo Paso itself,
+ * whoever edits the taller also gets its "Enlace de inscripción" (public
+ * URL, copy and QR) for the announcement.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 
+import { Interruptor } from '@/components/ui/interruptor'
 import { BotonSistema, InputSistema, SelectSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import {
   cierreRelativoLabel,
@@ -40,6 +56,9 @@ import {
   vinculoLabel,
 } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
+import type { AnclaEdiciones } from '@/lib/platform/talleres/ancla-ediciones'
+import { PROXIMO_PASO_SLUG } from '@/lib/platform/talleres/proximo-paso-registro'
+import { EnlaceInscripcionProximoPaso } from '@/components/talleres/enlace-inscripcion-proximo-paso'
 
 export interface ConfiguracionTallerProps {
   readonly tallerId: string
@@ -49,10 +68,14 @@ export interface ConfiguracionTallerProps {
   readonly regimen: 'temporada' | 'cadencia'
   readonly cierreInscripcionOffsetDias: number
   readonly intervaloEdicionesDias: number | null
+  /** talleres.ancla_ediciones; null/omitted = sin ancla. */
+  readonly anclaEdiciones?: AnclaEdiciones | null
   /** null = todas las clases dictadas. */
   readonly clasesMinimasParaCompletar: number | null
   /** talleres.momento_envio_acceso; defaults to 'al_aprobar'. */
   readonly momentoEnvioAcceso?: MomentoEnvioAcceso
+  /** talleres.inscripcion_automatica; defaults to false. */
+  readonly inscripcionAutomatica?: boolean
   readonly cadenciaDias: number
   readonly duracionMinutos: number | null
   readonly puedeEditar: boolean
@@ -63,6 +86,15 @@ type MomentoEnvioAcceso = 'al_aprobar' | 'al_inscribirse'
 const MOMENTO_ENVIO_LABEL: Record<MomentoEnvioAcceso, string> = {
   al_aprobar: 'Al aprobar',
   al_inscribirse: 'Al inscribirse',
+}
+
+const INSCRIPCION_AUTOMATICA_LABEL = 'Inscripción automática si hay cupo'
+
+type InicioEdicion = AnclaEdiciones | 'cada_n_dias'
+
+const INICIO_EDICION_LABEL: Record<InicioEdicion, string> = {
+  primer_domingo_mes: 'Primer domingo de cada mes',
+  cada_n_dias: 'Cada N días',
 }
 
 const REGIMEN_EXPLICACION: Record<'temporada' | 'cadencia', string> = {
@@ -78,8 +110,10 @@ export function ConfiguracionTaller({
   regimen,
   cierreInscripcionOffsetDias,
   intervaloEdicionesDias,
+  anclaEdiciones = null,
   clasesMinimasParaCompletar,
   momentoEnvioAcceso = 'al_aprobar',
+  inscripcionAutomatica = false,
   cadenciaDias,
   duracionMinutos,
   puedeEditar,
@@ -95,11 +129,13 @@ export function ConfiguracionTaller({
   const [intervaloSel, setIntervaloSel] = useState(
     intervaloEdicionesDias !== null ? String(intervaloEdicionesDias) : '',
   )
+  const [inicioSel, setInicioSel] = useState<InicioEdicion>(anclaEdiciones ?? 'cada_n_dias')
   const [clasesMinimasSel, setClasesMinimasSel] = useState(
     clasesMinimasParaCompletar !== null ? String(clasesMinimasParaCompletar) : '',
   )
 
   const [momentoSel, setMomentoSel] = useState<MomentoEnvioAcceso>(momentoEnvioAcceso)
+  const [automaticaSel, setAutomaticaSel] = useState(inscripcionAutomatica)
 
   const [cadencia, setCadencia] = useState(String(cadenciaDias))
   const [duracion, setDuracion] = useState(duracionMinutos !== null ? String(duracionMinutos) : '')
@@ -107,7 +143,8 @@ export function ConfiguracionTaller({
   function guardarConfiguracion(): void {
     setError(null)
     const cierreNum = Number(cierreSel)
-    const intervaloNum = intervaloSel.trim() === '' ? null : Number(intervaloSel)
+    const ancla = regimenSel === 'cadencia' && inicioSel !== 'cada_n_dias' ? inicioSel : null
+    const intervaloNum = ancla !== null || intervaloSel.trim() === '' ? null : Number(intervaloSel)
     const clasesMinimasNum = clasesMinimasSel.trim() === '' ? null : Number(clasesMinimasSel)
     startTransition(async () => {
       const result = await updateTallerConfiguracion({
@@ -118,8 +155,9 @@ export function ConfiguracionTaller({
         regimen: regimenSel,
         cierreInscripcionOffsetDias: cierreNum,
         intervaloEdicionesDias: intervaloNum,
+        anclaEdiciones: ancla,
         clasesMinimasParaCompletar: clasesMinimasNum,
-        ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : {}),
+        ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : { inscripcionAutomatica: automaticaSel }),
       })
       if (result.ok) {
         router.refresh()
@@ -203,6 +241,18 @@ export function ConfiguracionTaller({
             />
           )}
 
+          {tipoSel === 'individual' && (
+            <div className="flex items-start justify-between gap-3 md:col-span-2">
+              <div className="grid gap-1">
+                <TextoSistema className="block font-medium">{INSCRIPCION_AUTOMATICA_LABEL}</TextoSistema>
+                <TextoSistema variante="sutil" tamaño="sm" className="block">
+                  Con cupo, la inscripción queda aprobada al momento, sin pasar por Pendientes.
+                </TextoSistema>
+              </div>
+              <Interruptor activo={automaticaSel} onCambio={setAutomaticaSel} aria-label={INSCRIPCION_AUTOMATICA_LABEL} />
+            </div>
+          )}
+
           <div>
             <SelectSistema
               label="Régimen"
@@ -233,6 +283,25 @@ export function ConfiguracionTaller({
           </div>
 
           {regimenSel === 'cadencia' && (
+            <div>
+              <SelectSistema
+                label="Inicio de cada edición"
+                value={inicioSel}
+                onValueChange={(v) => setInicioSel(v as InicioEdicion)}
+                opciones={[
+                  { valor: 'primer_domingo_mes', etiqueta: INICIO_EDICION_LABEL.primer_domingo_mes },
+                  { valor: 'cada_n_dias', etiqueta: INICIO_EDICION_LABEL.cada_n_dias },
+                ]}
+              />
+              {inicioSel === 'primer_domingo_mes' && (
+                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                  Cada edición empieza el primer domingo de su mes, una por mes.
+                </TextoSistema>
+              )}
+            </div>
+          )}
+
+          {regimenSel === 'cadencia' && inicioSel === 'cada_n_dias' && (
             <div>
               <InputSistema
                 label="Intervalo entre ediciones (días)"
@@ -299,9 +368,15 @@ export function ConfiguracionTaller({
           {tipo === 'pareja' && (
             <Campo titulo="Envío del acceso al cónyuge nuevo">{MOMENTO_ENVIO_LABEL[momentoEnvioAcceso]}</Campo>
           )}
+          {tipo === 'individual' && (
+            <Campo titulo={INSCRIPCION_AUTOMATICA_LABEL}>{inscripcionAutomatica ? 'Sí' : 'No'}</Campo>
+          )}
           <Campo titulo="Régimen">{regimenLabel(regimen)}</Campo>
           <Campo titulo="Cierre de inscripción">{cierreRelativoLabel(cierreInscripcionOffsetDias)}</Campo>
-          {regimen === 'cadencia' && intervaloEdicionesDias !== null && (
+          {regimen === 'cadencia' && anclaEdiciones !== null && (
+            <Campo titulo="Inicio de cada edición">{INICIO_EDICION_LABEL[anclaEdiciones]}</Campo>
+          )}
+          {regimen === 'cadencia' && anclaEdiciones === null && intervaloEdicionesDias !== null && (
             <Campo titulo="Intervalo entre ediciones">{`Cada ${intervaloEdicionesDias} días`}</Campo>
           )}
           <Campo titulo="Clases mínimas para completar">
@@ -312,6 +387,8 @@ export function ConfiguracionTaller({
           </Campo>
         </dl>
       )}
+
+      {puedeEditar && tallerSlug === PROXIMO_PASO_SLUG && <EnlaceInscripcionProximoPaso />}
     </section>
   )
 }
