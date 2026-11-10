@@ -30,7 +30,7 @@ descubre siguiendo el hilo hasta la base de datos.
 | **El líder no toma asistencia** | La pantalla le pide escribir a mano el identificador de la sesión en la URL, muestra códigos en vez de nombres y no tiene control para marcar. El guardado exige un permiso de coordinador que un líder nunca tiene. |
 | **El cupo no se respeta** | `taller_grupos.capacidad` existe y nunca se valida: ni disparador, ni verificación. Hoy se puede inscribir gente de más sin que nada se queje. |
 | **Las temporadas no hacen nada** | `talleres_temporadas` y su pantalla existen; nadie las lee. Cerrar una temporada no cierra nada. La propia pantalla promete «marcá los talleres que abren inscripción cuando esta temporada esté abierta»: sin implementar. |
-| **Inscribirse sin cuenta** | No existe, ni a medias. Sin token, sin política para visitantes, sin página pública. La etapa `public` de la bandera no desbloquea nada porque nadie la lee. |
+| **Inscribirse sin cuenta** | No existe, ni a medias. Sin token, sin política para visitantes, sin página pública. La etapa `public` de la bandera no desbloquea nada porque nadie la lee. *(Próximo Paso ya tiene su página pública `/proximo-paso`, que crea la cuenta y la inscribe; ver §4. El resto de los talleres sigue igual.)* |
 | **El prefijo de rol en la URL no controla nada** | `requireOperacionalRole()` (`lib/platform/talleres/operacional.ts:137`) **no recibe ningún argumento**: ni ruta, ni capacidad. Sólo pregunta «¿tiene algún rol operacional?». No puede saber si estás en `/direccion` o en `/coordinacion`. Un líder que escribe `/talleres/direccion/talleres` entra. |
 | **La base tampoco acota** | En la política de `taller_grupos` sólo la rama del coordinador está acotada; `lead.read`, `volunteer.read`, `participation.read` y `metrics.read` son chequeos pelados. En `taller_ediciones` **ninguna** de las siete ramas está acotada. Y aunque los otorgamientos tienen `scope_id`, `auth_has_talleres_capability` lo **ignora**: registra el alcance y no lo usa. |
 
@@ -126,8 +126,9 @@ taller declara cómo se abre con su propia columna `regimen` (`temporada` |
 `cadencia`), editable en la pantalla del taller, sección **"Configuración"**,
 junto con el resto de su configuración: `tipo` (`individual` | `pareja`),
 `vinculo` (`matrimonio` | `novios` | ninguno = cualquiera), `cierre_inscripcion_offset_dias`
-(la ventana relativa, §5), `intervalo_ediciones_dias` y, heredados de la
-pantalla de Clases, `cadencia_dias` y `duracion_minutos`.
+(la ventana relativa, §5), el inicio de cada edición (`ancla_ediciones` o
+`intervalo_ediciones_dias`) y, heredados de la pantalla de Clases,
+`cadencia_dias` y `duracion_minutos`.
 
 **Régimen 1 — por temporada** (`regimen = 'temporada'`). Abre cuando abre la
 temporada de talleres, *si está marcado en esa temporada*, y dentro de su
@@ -150,29 +151,96 @@ Cómo nace una edición depende del régimen del taller:
   existente crea su edición del mismo modo; quitarlo **cancela** esa edición
   (nunca la borra) si no tiene inscritos, y se niega si los tiene.
 - **Por cadencia.** La pantalla "Crear edición" pide sólo la fecha de la
-  primera clase y ofrece, opcional, "crear también las próximas N" (`N` ≤ 6),
-  espaciadas por el `intervalo_ediciones_dias` del taller (Próximo Paso: 28
-  días). El RPC `talleres_crear_edicion` las crea todas de una vez, en
-  borrador; cada nombre es "Mes Año" en español, y si dos caen en el mismo mes
-  la segunda agrega el día de su primera clase.
+  primera clase y ofrece, opcional, "crear también las próximas N" (`N` ≤ 6).
+  El taller elige en "Configuración" cómo empieza cada edición ("Inicio de
+  cada edición"):
+  - **Primer domingo de cada mes** (`ancla_ediciones = 'primer_domingo_mes'`).
+    La primera clase tiene que ser un primer domingo (si no, el RPC responde
+    `FECHA_NO_ES_PRIMER_DOMINGO` y la pantalla lo avisa antes de enviar), y
+    cada edición adelantada empieza el primer domingo del mes siguiente: una
+    por mes. Si el mes tiene cinco domingos, el quinto queda libre. No usa
+    `intervalo_ediciones_dias` (las dos opciones no conviven).
+  - **Cada N días** (`intervalo_ediciones_dias`, sin ancla). Las adelantadas
+    se espacian por ese intervalo; sin intervalo, no se adelanta.
 
-Quedan a la vista y en borrador —nadie las publica solo—, se corrigen a mano
-si un domingo cae feriado, y no hace falta ningún trabajo programado.
+  El RPC `talleres_crear_edicion` las crea todas de una vez, en borrador; cada
+  nombre es "Mes Año" en español, y si dos caen en el mismo mes la segunda
+  agrega el día de su primera clase.
 
-Próximo Paso, con "crear también las próximas 6" desde el domingo 4 de
-octubre:
+Quedan a la vista y en borrador —nadie las publica solo—, y no hace falta
+ningún trabajo programado. Si un primer domingo cae feriado, la serie se crea
+igual desde el primer domingo real y esa edición se mueve después con
+"Reprogramar" (`talleres_reprogramar_edicion`).
+
+Próximo Paso está anclado al primer domingo (migración
+`20261110150000_talleres_ancla_ediciones.sql`): cuatro clases semanales
+(`cadencia_dias` 7) y la inscripción cierra al comenzar la clase 1. Con "crear
+también las próximas 3" desde el domingo 4 de octubre:
 
 | Edición (nombre) | Clase 1 | Clase 4 | Cierra inscripción |
 |---|---|---|---|
 | Octubre 2026 | dom 4 oct | dom 25 oct | al comenzar la clase 1 |
 | Noviembre 2026 | dom 1 nov | dom 22 nov | al comenzar la clase 1 |
-| Noviembre 2026 (29) | dom 29 nov | dom 20 dic | al comenzar la clase 1 |
-| Diciembre 2026 | dom 27 dic | dom 17 ene | al comenzar la clase 1 |
-| Enero 2027 | dom 24 ene | dom 14 feb | al comenzar la clase 1 |
-| Febrero 2027 | dom 21 feb | dom 14 mar | al comenzar la clase 1 |
+| Diciembre 2026 | dom 6 dic | dom 27 dic | al comenzar la clase 1 |
+| Enero 2027 | dom 3 ene | dom 24 ene | al comenzar la clase 1 |
 
-La tercera fila es el caso real que cubre la prueba de esta migración: dos
-ediciones caen en noviembre, y la segunda se distingue agregando el día.
+**Registro por QR (Próximo Paso, T2 de `odd/tasks/proximo-paso.md`).** El QR
+del anuncio apunta a `/proximo-paso`, una página pública (está en
+`SKIP_AUTH_PATHS` del middleware). Lista las ediciones abiertas de Próximo
+Paso con `proximo_paso_ediciones_abiertas()` (migración
+`20261110160000_proximo_paso_ediciones_abiertas.sql`): la puede ejecutar
+`anon`, sólo mira el taller `proximo-paso`, sólo ediciones individuales con
+cohorte y estado efectivo `abierto`, y devuelve sólo nombre, fechas, clases y
+cupo restante —nunca personas—. La persona elige el mes y escribe nombre,
+apellido, teléfono, correo y contraseña; la acción del servidor
+(`app/proximo-paso/actions.ts`) vuelve a buscar la edición en esa lista, crea
+la cuenta igual que `/signup` (`supabase.auth.signUp`, la ficha se vincula con
+`vincularFichaConfirmada` sólo con el correo confirmado) y la inscribe con
+`talleres_inscribirme`, como cualquier miembro. Si el proyecto pide confirmar
+el correo (T2c), el formulario cambia en la misma pantalla al paso del código:
+"Te enviamos un código de 6 dígitos a …", la casilla del código, "Confirmar",
+"Reenviar código" (tras 60 segundos) y "Cambiar correo". Con el código bien
+escrito, `confirmarCodigoProximoPaso` hace `verifyOtp` (tipo `signup`) en el
+cliente del servidor —la sesión queda en las cookies— y recién entonces vincula
+la ficha, guarda el teléfono, vuelve a revisar la edición y la inscribe. Una
+ficha que ya existía sólo se vincula cuando el código se confirma. Un código
+equivocado o vencido dice siempre lo mismo, y "Reenviar código" responde igual
+exista o no el correo. Supabase limita cuántas veces se pide y se prueba un
+código; la página lo traduce a "Hiciste muchos intentos…". El código sale en el
+correo por la plantilla "Confirm signup" (`docs/auth/plantilla-confirmar-registro.md`),
+que mantiene el enlace: abrirlo trae de vuelta a `/proximo-paso?edicion=…` con
+la sesión abierta y un toque en "Inscribirme" termina. La página nunca dice si
+un correo ya tiene cuenta: un correo existente recibe el mismo paso del código
+que uno nuevo, y quien ya tenía cuenta entra por "¿Ya tienes cuenta? Inicia
+sesión", que vuelve a la misma edición; quien ya tiene sesión sólo elige y se
+inscribe. El
+teléfono se guarda en la ficha si no tenía. Quien edita Próximo Paso ve en su
+"Configuración" el "Enlace de inscripción" con botón de copiar y el QR para
+descargar.
+
+**Inscripción automática si hay cupo (T2b).** `talleres.inscripcion_automatica`
+(migración `20261110170000_talleres_inscripcion_automatica.sql`, apagada por
+defecto y encendida en Próximo Paso). Con la opción encendida,
+`talleres_inscribirme` aprueba la inscripción de una edición individual en el
+momento, con el mismo `UPDATE` pendiente → aprobado que hace la coordinación
+desde Pendientes (mismos disparadores; no asigna grupo, igual que la
+aprobación manual). Hay cupo exactamente cuando el `INSERT` pasa la compuerta
+de cupo; una edición llena sigue respondiendo `CUPO_LLENO`. Las ediciones de
+pareja siempre quedan `pendiente`. La página de Próximo Paso dice "Quedaste
+inscrito…" sólo si quedó aprobada; si no, "Recibimos tu inscripción… La
+coordinación la confirmará". Se cambia en "Configuración" con el interruptor
+"Inscripción automática si hay cupo" (sólo talleres individuales).
+La migración no recrea `talleres_inscribirme`: lee su definición viva
+(`pg_get_functiondef`), agrega el bloque antes del `RETURN` final y la vuelve
+a ejecutar; si el bloque ya está, no hace nada, y si no encuentra ese
+`RETURN`, falla. Quien recree `talleres_inscribirme` más adelante debe
+conservar el bloque "Inscripción automática".
+
+Noviembre tiene cinco domingos: el 29 queda libre. Un taller sin ancla con
+intervalo de 28 días, en cambio, pondría la tercera edición el 29 de
+noviembre y la llamaría "Noviembre 2026 (29)" — el caso que cubren
+`supabase/tests/talleres-crear-edicion.test.sql` y
+`supabase/tests/talleres-cadencia-ancla.test.sql`.
 
 ### Las dos tablas que había, y la que ganó
 
@@ -722,12 +790,12 @@ Certificado, y la persona tiene una Inscripción.
 
 | Cosa | Tabla | Estado real |
 |---|---|---|
-| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, cadencia_dias, duracion_minutos, clases_minimas_para_completar` (vacío = todas las clases dictadas). Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
+| Taller | `talleres` | `slug, nombre, descripcion, modalidad_default, estado, dream_team_equipo_id`, y desde su "Configuración": `tipo, vinculo, regimen, cierre_inscripcion_offset_dias, intervalo_ediciones_dias, ancla_ediciones, cadencia_dias, duracion_minutos, clases_minimas_para_completar` (vacío = todas las clases dictadas). Sus clases y grupos viven en su propia plantilla (`taller_plantilla_clases`, `taller_plantilla_grupos` + `taller_plantilla_facilitadores`): ya no hay que declarar cuántas clases tiene al abrir cada edición. |
 | Edición | `taller_ediciones` | Sigue guardando `sesiones_snapshot`, `firmantes`, `temporada_id` (nullable, ahora acotado al árbol de la temporada), `recurrence_rule` (**sigue inerte**). Ganó `fecha_inicio`, `fecha_fin`, `cierre_inscripcion`: su `estado` se deriva de esas fechas, salvo `borrador`/`cancelado`, que siguen siendo manuales. Desde el cierre, `cerrada_en`/`cerrada_por`: una edición cerrada lee `cerrado` siempre, y esas dos columnas sólo las escribe `talleres_cerrar_edicion` (`EDICION_CIERRE_SOLO_POR_RPC`); reabrir no está diseñado. |
 | Cohorte | `talleres_crecimiento_cohortes` | Sin cambios: 1:1 con la edición en la práctica; la crea `talleres_instanciar_edicion` (antes `open_edicion`). Capa vestigial. |
 | Grupo | `taller_grupos` | Sigue colgando de la cohorte, pero ya no se arma a mano: nace **instanciado desde la plantilla del taller** al abrir la edición, con su `capacidad` y sus facilitadores ya puestos. Sin día/hora, sin cambios ahí. |
 | Equipo del grupo | `taller_grupo_asignaciones` | Sus filas se instancian desde `taller_plantilla_facilitadores`, y sólo puede asignarse —en la plantilla o en el grupo ya abierto— a alguien que sea **servidor activo de Dream Team en el nodo del taller** (`talleres_es_servidor_activo_del_taller`), no cualquier persona de la iglesia. |
-| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
+| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia — cargadas en su plantilla por `20261110150500_proximo_paso_plantilla_clases.sql`). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
 | Asistencia | `taller_asistencias` | Sin cambios: `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` sigue huérfana. |
 | Reporte | `taller_reportes` | Ya no hay que crearlo a mano: **el borrador nace junto con el grupo**, al instanciar la edición. "Enviar" sigue exigiendo que ya exista, y ahora siempre existe. |
 | Certificado | `taller_certificados` | **Hecho (cierre de edición)**: 1 por persona (`UNIQUE (inscripcion_id, persona_id)`). En pareja, cada uno recibe el suyo y lleva el nombre del otro en `nombre_pareja_snapshot`, visible también en la verificación pública. Lo emite el cierre de la edición; `emit_taller_certificado` emite los dos y conserva su respuesta. |
