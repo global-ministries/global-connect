@@ -31,7 +31,7 @@ const reporte = {
 
 describe('HistorialAsistencia on the design system', () => {
   it('labels the view and edit links of each event', () => {
-    render(<HistorialAsistenciaClient grupoId="g1" reporte={reporte} />)
+    render(<HistorialAsistenciaClient grupoId="g1" reporte={reporte} puedeEditar />)
 
     for (const enlace of screen.getAllByRole('link', { name: 'Ver evento' })) {
       expect(enlace.getAttribute('href')).toBe('/grupos-vida/g1/asistencia/e1')
@@ -42,7 +42,7 @@ describe('HistorialAsistencia on the design system', () => {
   })
 
   it('links the member KPI cards to their rankings', () => {
-    render(<HistorialAsistenciaClient grupoId="g1" reporte={reporte} />)
+    render(<HistorialAsistenciaClient grupoId="g1" reporte={reporte} puedeEditar />)
 
     expect(screen.getByRole('link', { name: /Más Constante/ }).getAttribute('href')).toBe('/grupos-vida/g1/asistencia/historial/mas-constantes')
     expect(screen.getByRole('link', { name: /Más Ausencias/ }).getAttribute('href')).toBe('/grupos-vida/g1/asistencia/historial/mas-ausencias')
