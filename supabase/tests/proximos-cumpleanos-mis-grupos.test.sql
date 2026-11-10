@@ -223,7 +223,7 @@ SELECT pg_temp.assert_eq('f: anon and PUBLIC cannot execute; authenticated can',
                   AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'))$q$,
   'f|t|f');
 SELECT pg_temp.assert_eq('f: definer, stable, empty search_path',
-  $q$SELECT p.prosecdef || ':' || p.provolatile || ':' || array_to_string(p.proconfig, ',')
+  $q$SELECT p.prosecdef || ':' || p.provolatile::text || ':' || array_to_string(p.proconfig, ',')
        FROM pg_proc p WHERE p.oid = 'public.proximos_cumpleanos_mis_grupos(integer)'::regprocedure$q$,
   'true:s:search_path=""');
 
