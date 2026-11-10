@@ -49,13 +49,16 @@ interface HistorialAsistenciaClientProps {
   reporte: ReporteAsistencia
   fechaInicio?: string
   fechaFin?: string
+  /** Shows the edit link of each event; false for read-only viewers (Colíder). */
+  puedeEditar?: boolean
 }
 
 export default function HistorialAsistenciaClient({
   grupoId,
   reporte,
   fechaInicio,
-  fechaFin
+  fechaFin,
+  puedeEditar = false
 }: HistorialAsistenciaClientProps) {
   const router = useRouter()
 
@@ -178,7 +181,7 @@ export default function HistorialAsistenciaClient({
                         {evento.presentes}/{evento.total} presentes
                       </p>
                     </div>
-                    <AccionesEvento grupoId={grupoId} eventoId={evento.id} compactas />
+                    <AccionesEvento grupoId={grupoId} eventoId={evento.id} puedeEditar={puedeEditar} compactas />
                   </div>
 
                   {/* Ancho: columnas */}
@@ -197,7 +200,7 @@ export default function HistorialAsistenciaClient({
                     </span>
                   </div>
                   <div className="hidden items-center justify-center @xl:flex">
-                    <AccionesEvento grupoId={grupoId} eventoId={evento.id} />
+                    <AccionesEvento grupoId={grupoId} eventoId={evento.id} puedeEditar={puedeEditar} />
                   </div>
                 </li>
               ))
@@ -219,8 +222,8 @@ export default function HistorialAsistenciaClient({
 
 const COLUMNAS_EVENTO = "@xl:grid-cols-[7rem_minmax(0,1fr)_6rem_4rem_8.5rem] @xl:gap-3"
 
-/** View and edit links of one event; icon-only when `compactas`. */
-function AccionesEvento({ grupoId, eventoId, compactas = false }: { grupoId: string; eventoId: string; compactas?: boolean }) {
+/** View link of one event, and edit link when `puedeEditar`; icon-only when `compactas`. */
+function AccionesEvento({ grupoId, eventoId, puedeEditar, compactas = false }: { grupoId: string; eventoId: string; puedeEditar: boolean; compactas?: boolean }) {
   const hrefVer = `/grupos-vida/${grupoId}/asistencia/${eventoId}`
   return (
     <div className="flex shrink-0 gap-1">
@@ -233,9 +236,11 @@ function AccionesEvento({ grupoId, eventoId, compactas = false }: { grupoId: str
           <Link href={hrefVer} aria-label="Ver evento">Ver</Link>
         </BotonSistema>
       )}
-      <BotonSistema asChild variante="ghost" tamaño="sm" soloIcono icono={Edit} aria-label="Editar evento">
-        <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${eventoId}`} />
-      </BotonSistema>
+      {puedeEditar && (
+        <BotonSistema asChild variante="ghost" tamaño="sm" soloIcono icono={Edit} aria-label="Editar evento">
+          <Link href={`/grupos-vida/${grupoId}/asistencia/editar/${eventoId}`} />
+        </BotonSistema>
+      )}
     </div>
   )
 }

@@ -7,6 +7,8 @@ import security from 'eslint-plugin-security'
 // legacy primitives. Scoped to migrated files so the rule adds no warnings to
 // the existing lint budget.
 const migratedToDesignSystem = [
+  'app/(auth)/dashboard/**',
+  'components/inicio/**',
   'app/(auth)/grupos-vida/**',
   'components/grupos/**',
   'components/grupos-vida/**',
