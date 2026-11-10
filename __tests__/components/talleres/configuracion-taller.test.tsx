@@ -130,6 +130,7 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
         regimen: 'cadencia',
         cierreInscripcionOffsetDias: -5,
         intervaloEdicionesDias: 28,
+        anclaEdiciones: null,
         clasesMinimasParaCompletar: null,
         minimoInscritos: null,
         permiteRecuperarClases: true,
@@ -160,6 +161,81 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/-60 y 60/)
+  })
+})
+
+// T1 (odd/tasks/proximo-paso.md, S1) — a cadencia taller chooses how its
+// ediciones start: on the first Sunday of each month, or every N días.
+describe('ConfiguracionTaller — inicio de cada edición', () => {
+  it('editor: offers the choice only for régimen=cadencia', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'temporada' })} />)
+    expect(screen.queryByLabelText(/inicio de cada edición/i)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'cadencia' } })
+    expect(screen.getByLabelText(/inicio de cada edición/i)).toHaveValue('cada_n_dias')
+  })
+
+  it('editor: "Primer domingo de cada mes" hides the intervalo and saves the anchor', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'cadencia', intervaloEdicionesDias: 28 })} />)
+
+    fireEvent.change(screen.getByLabelText(/inicio de cada edición/i), { target: { value: 'primer_domingo_mes' } })
+    expect(screen.queryByLabelText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Cada edición empieza el primer domingo de su mes, una por mes.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          regimen: 'cadencia',
+          anclaEdiciones: 'primer_domingo_mes',
+          intervaloEdicionesDias: null,
+        }),
+      ),
+    )
+  })
+
+  it('editor: an anchored taller opens on "Primer domingo de cada mes" and can go back to Cada N días', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(
+      <ConfiguracionTaller
+        {...baseProps({ puedeEditar: true, regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })}
+      />,
+    )
+    expect(screen.getByLabelText(/inicio de cada edición/i)).toHaveValue('primer_domingo_mes')
+    expect(screen.queryByLabelText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/inicio de cada edición/i), { target: { value: 'cada_n_dias' } })
+    fireEvent.change(screen.getByLabelText(/intervalo entre ediciones/i), { target: { value: '28' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ anclaEdiciones: null, intervaloEdicionesDias: 28 }),
+      ),
+    )
+  })
+
+  it('editor: switching to régimen=temporada sends no anchor', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(
+      <ConfiguracionTaller
+        {...baseProps({ puedeEditar: true, regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })}
+      />,
+    )
+    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'temporada' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ regimen: 'temporada', anclaEdiciones: null }),
+      ),
+    )
+  })
+
+  it('read-only: shows "Primer domingo de cada mes" for an anchored taller, no intervalo', () => {
+    render(<ConfiguracionTaller {...baseProps({ regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })} />)
+    expect(screen.getByText('Inicio de cada edición')).toBeInTheDocument()
+    expect(screen.getByText('Primer domingo de cada mes')).toBeInTheDocument()
+    expect(screen.queryByText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
   })
 })
 
@@ -317,5 +393,76 @@ describe('ConfiguracionTaller — recuperar clases y mínimo de inscritos (un so
     expect(screen.getByText('Sí')).toBeInTheDocument()
     expect(screen.getByText('8 personas')).toBeInTheDocument()
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+  })
+})
+
+// T2b (odd/tasks/proximo-paso.md, L6.2) — "Inscripción automática si hay
+// cupo": individual talleres only; saved with the rest of the configuration.
+describe('ConfiguracionTaller — inscripción automática', () => {
+  it('editor: shows the switch with its current value and saves the change', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, inscripcionAutomatica: false })} />)
+
+    const interruptor = screen.getByRole('switch', { name: 'Inscripción automática si hay cupo' })
+    expect(interruptor).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByText(/Con cupo, la inscripción queda aprobada al momento/)).toBeInTheDocument()
+
+    fireEvent.click(interruptor)
+    expect(interruptor).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ tipo: 'individual', inscripcionAutomatica: true }),
+      ),
+    )
+  })
+
+  it('editor: an enabled taller opens with the switch on and keeps it when saving', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, inscripcionAutomatica: true })} />)
+
+    expect(screen.getByRole('switch', { name: 'Inscripción automática si hay cupo' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(expect.objectContaining({ inscripcionAutomatica: true })),
+    )
+  })
+
+  it('editor: hides the switch and sends nothing for a couple taller', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, tipo: 'pareja', inscripcionAutomatica: true })} />)
+
+    expect(screen.queryByRole('switch', { name: 'Inscripción automática si hay cupo' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() => expect(updateTallerConfiguracionMock).toHaveBeenCalled())
+    expect(updateTallerConfiguracionMock.mock.calls[0][0]).not.toHaveProperty('inscripcionAutomatica')
+  })
+
+  it('read-only: says whether it is on, only for an individual taller', () => {
+    // permiteRecuperarClases false so «Recuperar clases aparte» reads «No» and the only «Sí» is this row.
+    const { unmount } = render(
+      <ConfiguracionTaller {...baseProps({ inscripcionAutomatica: true, permiteRecuperarClases: false })} />,
+    )
+    expect(screen.getByText('Inscripción automática si hay cupo')).toBeInTheDocument()
+    expect(screen.getByText('Sí')).toBeInTheDocument()
+    unmount()
+    render(<ConfiguracionTaller {...baseProps({ tipo: 'pareja', inscripcionAutomatica: true })} />)
+    expect(screen.queryByText('Inscripción automática si hay cupo')).not.toBeInTheDocument()
+  })
+})
+
+describe('ConfiguracionTaller — Próximo Paso registration link (odd/tasks/proximo-paso.md T2)', () => {
+  it('shows the registration link to whoever edits Próximo Paso', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    expect(screen.getByRole('heading', { name: 'Enlace de inscripción' })).toBeInTheDocument()
+  })
+
+  it('does not show it on another taller nor to a read-only viewer', () => {
+    const { unmount } = render(<ConfiguracionTaller {...baseProps({ tallerSlug: 'otro-taller', puedeEditar: true })} />)
+    expect(screen.queryByRole('heading', { name: 'Enlace de inscripción' })).not.toBeInTheDocument()
+    unmount()
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: false })} />)
+    expect(screen.queryByRole('heading', { name: 'Enlace de inscripción' })).not.toBeInTheDocument()
   })
 })

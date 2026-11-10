@@ -27,6 +27,10 @@ const SKIP_AUTH_PATHS = new Set([
   // odd/tasks/ninos-checkin.md). The page reads only campus names and posts
   // to /api/ninos/preregistro, which api/ already keeps out of the matcher.
   '/ninos/registro',
+  // Public Próximo Paso registration (QR of the announcement; T2 of
+  // odd/tasks/proximo-paso.md). The page reads only the open ediciones
+  // (proximo_paso_ediciones_abiertas) and its server actions re-check them.
+  '/proximo-paso',
 ])
 
 /**

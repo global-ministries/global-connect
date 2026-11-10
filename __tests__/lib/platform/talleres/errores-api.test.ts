@@ -57,6 +57,15 @@ describe('traducirErrorTalleres — new T3 branches', () => {
 // talleres_crear_edicion's own P0001 codes, translated to neutral Spanish
 // (no voseo).
 describe('traducirErrorTalleres — talleres_crear_edicion branches', () => {
+  // T1 (odd/tasks/proximo-paso.md, S1): an anchored taller's first clase.
+  it('explains FECHA_NO_ES_PRIMER_DOMINGO with the fix', () => {
+    expect(traducirErrorTalleres({ code: 'P0001', message: 'FECHA_NO_ES_PRIMER_DOMINGO' })).toEqual({
+      status: 400,
+      error: 'invalid-input',
+      message: 'La primera clase debe ser el primer domingo del mes. Para un feriado, crea la edición y luego reprográmala.',
+    })
+  })
+
   it.each([
     ['TEMPORADA_REQUERIDA', 'invalid-input'],
     ['FECHA_REQUERIDA', 'invalid-input'],
@@ -66,6 +75,7 @@ describe('traducirErrorTalleres — talleres_crear_edicion branches', () => {
     ['TEMPORADA_NO_PERMITIDA', 'invalid-input'],
     ['ADELANTAR_INVALIDO', 'invalid-input'],
     ['TEMPORADA_NOT_FOUND', 'not-found'],
+    ['FECHA_NO_ES_PRIMER_DOMINGO', 'invalid-input'],
   ] as const)('maps P0001/P0002 %s to error %s with a neutral Spanish message', (code, expectedError) => {
     const result = traducirErrorTalleres({ code: 'P0001', message: code })
     expect(result.error).toBe(expectedError)

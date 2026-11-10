@@ -28,6 +28,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
+import { ANCLAS_EDICIONES, type AnclaEdiciones } from '@/lib/platform/talleres/ancla-ediciones'
 
 export type TallerActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -610,6 +611,12 @@ export interface UpdateTallerConfiguracionInput {
   readonly regimen: 'temporada' | 'cadencia'
   readonly cierreInscripcionOffsetDias: number
   readonly intervaloEdicionesDias: number | null
+  /**
+   * T1 (odd/tasks/proximo-paso.md, S1) — régimen=cadencia only:
+   * 'primer_domingo_mes' or null ("Cada N días"). Omitted = null. Never
+   * stored together with an intervalo, nor on a régimen=temporada taller.
+   */
+  readonly anclaEdiciones?: AnclaEdiciones | null
   /** null = todas las clases dictadas; otherwise an integer 1..50. */
   readonly clasesMinimasParaCompletar: number | null
   /**
@@ -626,6 +633,13 @@ export interface UpdateTallerConfiguracionInput {
   readonly minimoInscritos?: number | null
   /** «Recuperar clases aparte» (talleres.permite_recuperar_clases, T8b/T9). Omitted = left as it is. */
   readonly permiteRecuperarClases?: boolean
+  /**
+   * T2b (odd/tasks/proximo-paso.md, L6.2) — talleres.inscripcion_automatica:
+   * an individual inscripción is approved on the spot when there is cupo.
+   * Written only for tipo=individual (couples always stay pendiente);
+   * omitted = the column is left as it is.
+   */
+  readonly inscripcionAutomatica?: boolean
 }
 
 const MOMENTOS_ENVIO_ACCESO = ['al_aprobar', 'al_inscribirse'] as const
@@ -665,11 +679,17 @@ export async function updateTallerConfiguracion(
       message: 'El cierre de inscripción debe ser un entero entre -60 y 60 días.',
     }
   }
+  const anclaEdiciones = input.regimen === 'cadencia' ? (input.anclaEdiciones ?? null) : null
+  if (anclaEdiciones !== null && !ANCLAS_EDICIONES.includes(anclaEdiciones)) {
+    return { ok: false, error: 'invalid-input', message: 'El inicio de cada edición no es válido.' }
+  }
+  // The DB CHECKs refuse an anchor together with an intervalo; the anchor wins.
+  const intervaloEdicionesDias = anclaEdiciones !== null ? null : input.intervaloEdicionesDias
   if (
-    input.intervaloEdicionesDias !== null &&
-    (!Number.isInteger(input.intervaloEdicionesDias) ||
-      input.intervaloEdicionesDias < 1 ||
-      input.intervaloEdicionesDias > 365)
+    intervaloEdicionesDias !== null &&
+    (!Number.isInteger(intervaloEdicionesDias) ||
+      intervaloEdicionesDias < 1 ||
+      intervaloEdicionesDias > 365)
   ) {
     return {
       ok: false,
@@ -714,6 +734,14 @@ export async function updateTallerConfiguracion(
   if (input.permiteRecuperarClases !== undefined && typeof input.permiteRecuperarClases !== 'boolean') {
     return { ok: false, error: 'invalid-input', message: 'Valor inválido para recuperar clases aparte.' }
   }
+  if (input.inscripcionAutomatica !== undefined && typeof input.inscripcionAutomatica !== 'boolean') {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: 'La inscripción automática debe estar activada o desactivada.',
+    }
+  }
+  const inscripcionAutomatica = input.tipo === 'individual' ? input.inscripcionAutomatica : undefined
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = gated.supabase
@@ -724,13 +752,15 @@ export async function updateTallerConfiguracion(
       vinculo,
       regimen: input.regimen,
       cierre_inscripcion_offset_dias: input.cierreInscripcionOffsetDias,
-      intervalo_ediciones_dias: input.intervaloEdicionesDias,
+      intervalo_ediciones_dias: intervaloEdicionesDias,
+      ancla_ediciones: anclaEdiciones,
       clases_minimas_para_completar: clasesMinimas,
       ...(input.momentoEnvioAcceso !== undefined ? { momento_envio_acceso: input.momentoEnvioAcceso } : {}),
       ...(minimo !== undefined ? { minimo_inscritos: minimo } : {}),
       ...(input.permiteRecuperarClases !== undefined
         ? { permite_recuperar_clases: input.permiteRecuperarClases }
         : {}),
+      ...(inscripcionAutomatica !== undefined ? { inscripcion_automatica: inscripcionAutomatica } : {}),
     })
     .eq('id', input.tallerId)
     .select('id')
@@ -763,7 +793,7 @@ export interface CrearEdicionInput {
   readonly fechaInicio: string | null
   /** Régimen=temporada only — the RPC requires this; ignored (sent as null) for régimen=cadencia. */
   readonly temporadaId: string | null
-  /** Régimen=cadencia only, 0..6 — how many additional ediciones to create spaced by the taller's intervalo_ediciones_dias. */
+  /** Régimen=cadencia only, 0..6 — how many additional ediciones to create: every intervalo_ediciones_dias, or on the first Sunday of each following month when the taller is anchored. */
   readonly adelantar: number
 }
 

@@ -30,9 +30,15 @@
  * On success: exactly one edición created → redirect straight to it
  * (rutaEdicion); more than one (cadencia + adelantar) → redirect to the
  * taller page with `?creadas=N`, which shows a BadgeSistema notice.
+ *
+ * Próximo Paso (odd/tasks/proximo-paso.md T1) — a taller anchored to the
+ * first Sunday of each month (`anclaEdiciones`) asks for a first Sunday
+ * (anything else is refused inline, before the RPC refuses it with
+ * FECHA_NO_ES_PRIMER_DOMINGO), offers "crear también las próximas" without
+ * an intervalo, and previews each edición's own first Sunday.
  */
 
-import { useMemo, useState, useTransition, type ReactElement } from 'react'
+import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Send } from 'lucide-react'
 
@@ -50,6 +56,11 @@ import { crearEdicion } from '@/app/(auth)/talleres/[taller]/actions'
 import { rutaEdicion, rutaTaller, rutaTemporadaCrear } from '@/lib/platform/talleres/rutas'
 import type { TemporadaOption } from '@/lib/platform/talleres/temporadas'
 import type { FacilitadorOmitidoPreview } from '@/lib/platform/talleres/plantilla'
+import {
+  esPrimerDomingoDelMes,
+  fechasEdicionesAncladas,
+  type AnclaEdiciones,
+} from '@/lib/platform/talleres/ancla-ediciones'
 
 const ADELANTAR_OPCIONES = [0, 1, 2, 3, 4, 5, 6]
 
@@ -62,6 +73,8 @@ interface Input {
   readonly temporadasDisponibles: readonly TemporadaOption[]
   /** Only meaningful for régimen=cadencia: null hides "Crear también las próximas". */
   readonly intervaloEdicionesDias: number | null
+  /** Régimen=cadencia only: 'primer_domingo_mes' = one edición per month on its first Sunday (no intervalo needed). */
+  readonly anclaEdiciones?: AnclaEdiciones | null
   readonly cadenciaDias: number
   readonly cierreInscripcionOffsetDias: number
   /** Active plantilla clases count, or 1 when the taller has none yet (the same fallback talleres_instanciar_edicion applies). */
@@ -91,6 +104,7 @@ export function OpenEdicionForm({
   regimen,
   temporadasDisponibles,
   intervaloEdicionesDias,
+  anclaEdiciones = null,
   cadenciaDias,
   cierreInscripcionOffsetDias,
   clasesPorGrupo,
@@ -106,8 +120,13 @@ export function OpenEdicionForm({
   const [fechaInicio, setFechaInicio] = useState('')
   const [adelantar, setAdelantar] = useState('0')
 
+  const anclado = regimen === 'cadencia' && anclaEdiciones === 'primer_domingo_mes'
+  const fechaFueraDeAncla = anclado && fechaInicio !== '' && !esPrimerDomingoDelMes(fechaInicio)
+  const puedeAdelantar = anclado || intervaloEdicionesDias !== null
+
   const canSubmit =
-    !pending && (regimen === 'temporada' ? temporadaId !== '' : fechaInicio !== '')
+    !pending &&
+    (regimen === 'temporada' ? temporadaId !== '' : fechaInicio !== '' && !fechaFueraDeAncla)
 
   function abrirDialogo(): void {
     setOpen(true)
@@ -122,19 +141,23 @@ export function OpenEdicionForm({
   const fechaBaseInicio: string | null =
     regimen === 'temporada'
       ? temporadasDisponibles.find((t) => t.id === temporadaId)?.fecha_apertura ?? null
-      : fechaInicio || null
+      : fechaFueraDeAncla
+        ? null
+        : fechaInicio || null
 
-  const preview = useMemo(() => {
-    if (!fechaBaseInicio) return null
-    const inicio = parseDateOnly(fechaBaseInicio)
-    const fin = addDays(fechaBaseInicio, (clasesPorGrupo - 1) * cadenciaDias)
-    const cierre = addDays(fechaBaseInicio, cierreInscripcionOffsetDias)
-    return {
-      inicio: formatFechaCorta(inicio),
-      fin: formatFechaCorta(fin),
-      cierre: formatFechaCorta(cierre),
-    }
-  }, [fechaBaseInicio, clasesPorGrupo, cadenciaDias, cierreInscripcionOffsetDias])
+  const fechasAncladas =
+    anclado && fechaBaseInicio && Number(adelantar) > 0
+      ? fechasEdicionesAncladas(fechaBaseInicio, Number(adelantar))
+      : null
+
+  // Plain derivation: the React Compiler memoizes it.
+  const preview = fechaBaseInicio
+    ? {
+        inicio: formatFechaCorta(parseDateOnly(fechaBaseInicio)),
+        fin: formatFechaCorta(addDays(fechaBaseInicio, (clasesPorGrupo - 1) * cadenciaDias)),
+        cierre: formatFechaCorta(addDays(fechaBaseInicio, cierreInscripcionOffsetDias)),
+      }
+    : null
 
   function submit(): void {
     if (!canSubmit) return
@@ -200,13 +223,25 @@ export function OpenEdicionForm({
             )
           ) : (
             <div className="grid gap-4">
-              <InputSistema
-                label="Primera clase"
-                type="date"
-                value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
-              />
-              {intervaloEdicionesDias !== null && (
+              <div>
+                <InputSistema
+                  label="Primera clase"
+                  type="date"
+                  value={fechaInicio}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                />
+                {anclado && (
+                  <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                    Elige el primer domingo del mes.
+                  </TextoSistema>
+                )}
+                {fechaFueraDeAncla && (
+                  <TextoSistema role="alert" tamaño="sm" className="mt-1 block text-destructive">
+                    La primera clase debe ser el primer domingo del mes.
+                  </TextoSistema>
+                )}
+              </div>
+              {puedeAdelantar && (
                 <div>
                   <SelectSistema
                     label="Crear también las próximas"
@@ -215,7 +250,7 @@ export function OpenEdicionForm({
                     opciones={ADELANTAR_OPCIONES.map((n) => ({ valor: String(n), etiqueta: String(n) }))}
                   />
                   <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                    una cada {intervaloEdicionesDias} días
+                    {anclado ? 'una por mes, el primer domingo' : `una cada ${intervaloEdicionesDias} días`}
                   </TextoSistema>
                 </div>
               )}
@@ -228,6 +263,13 @@ export function OpenEdicionForm({
                 Se crearán {gruposPlantillaActivos} grupos y {clasesPorGrupo} clases por grupo; primera clase{' '}
                 {preview.inicio}; última {preview.fin}; inscripción cierra {preview.cierre}.
               </TextoSistema>
+              {fechasAncladas && (
+                <TextoSistema tamaño="sm" className="mt-2 block">
+                  {`Se crearán ${fechasAncladas.length} ediciones, una el primer domingo de cada mes: ${fechasAncladas
+                    .map((f) => formatFechaCorta(parseDateOnly(f)))
+                    .join(', ')}.`}
+                </TextoSistema>
+              )}
               {facilitadoresOmitidosPreview.length > 0 && (
                 <TextoSistema role="alert" tamaño="sm" className="mt-2 block text-warning-text">
                   No se asignarán porque ya no sirven en este equipo:{' '}
