@@ -3,6 +3,7 @@ import { buildEstudiantesMenuItem, getEstudiantesNavItems } from '@/components/e
 import { buildNinosMenuItem, getNinosNavItems } from '@/components/ninos/ninos-menu-item'
 import { componerNavegacion, paginasTalleres } from '@/components/navegacion/componer-navegacion'
 import { buildDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
+import { buildTalleresMenuItem } from '@/components/ui/talleres-menu-item'
 import { resolvePlatformNavigationViewItems, type PlatformNavigationViewItem } from '@/components/ui/platform-navigation-view-items'
 import { buildUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import { getDreamTeamNavItems } from '@/lib/platform/dream-team/navigation'
@@ -56,7 +57,10 @@ function sesion(rol: Rol): PlatformSession {
   return { personaId: 'persona-1', subjectAuthId: 'auth-1', globalRoles: rol.roles, contexts: [], capabilities: rol.capabilities ?? [] }
 }
 
-async function navegacionDe(nombre: string, { plataforma = true, dps }: { plataforma?: boolean; dps?: DpsAcceso } = {}) {
+async function navegacionDe(
+  nombre: string,
+  { plataforma = true, dps, talleresMenu = false }: { plataforma?: boolean; dps?: DpsAcceso; talleresMenu?: boolean } = {},
+) {
   const rol = ROLES[nombre] ?? ROLES_ESTUDIANTES[nombre]
   const platformSession = sesion(rol)
   const items: PlatformNavigationViewItem[] = plataforma
@@ -73,6 +77,7 @@ async function navegacionDe(nombre: string, { plataforma = true, dps }: { plataf
     plataforma: items,
     talleres: paginasTalleres(platformSession.capabilities.map((capacidad) => capacidad.key)),
     ...(dps ? { dps: buildDpsMenuItem(getDpsNavItems(dps, platformSession)) } : {}),
+    ...(talleresMenu ? { talleresMenu: buildTalleresMenuItem(true) } : {}),
   })
 }
 
@@ -273,5 +278,39 @@ describe('the DPS section', () => {
     expect(mas.subpaginas.find((bloque) => bloque.grupo.label === 'DPS')?.paginas.map((pagina) => pagina.href)).toEqual([
       '/dps/plan', '/dps/programacion', '/dps/asistencia', '/dps/configuracion',
     ])
+  })
+})
+
+// «Talleres» as its own entry (odd/tasks/proximo-paso.md, T6, L18): on with talleres, without platform navigation.
+describe('the Talleres entry', () => {
+  const ministeriosDe = (secciones: Awaited<ReturnType<typeof navegacionDe>>['secciones']) =>
+    ids(secciones.find((grupo) => grupo.seccion === 'ministerios')!.entradas)
+
+  it('is built only when talleres is on', () => {
+    expect(buildTalleresMenuItem(false)).toBeNull()
+    expect(buildTalleresMenuItem(true)).toMatchObject({ id: 'talleres', label: 'Talleres', href: '/talleres/explorar' })
+  })
+
+  it('sits in Ministerios after DPS without platform navigation', async () => {
+    const conDps = await navegacionDe('admin', { plataforma: false, talleresMenu: true, dps: { ver: true, planificar: true } })
+    expect(ministeriosDe(conDps.secciones)).toEqual(['grupos-vida', 'ninos', 'dps', 'talleres'])
+    const sinDps = await navegacionDe('admin', { plataforma: false, talleresMenu: true })
+    expect(ministeriosDe(sinDps.secciones)).toEqual(['grupos-vida', 'ninos', 'talleres'])
+  })
+
+  it('replaces the platform Talleres item, so only one shows', async () => {
+    const { principales, secciones } = await navegacionDe('admin', { talleresMenu: true, dps: { ver: true, planificar: true } })
+    expect(ids(principales).filter((id) => id.includes('talleres'))).toEqual(['talleres'])
+    expect(ministeriosDe(secciones)).toEqual(['grupos-vida', 'ninos', 'dps', 'talleres'])
+  })
+
+  it('keeps the Talleres tab and the "Más" block it had as a platform item', async () => {
+    const lider = await navegacionDe('lider', { plataforma: false, talleresMenu: true })
+    expect(lider.pestanas.map((pestana) => pestana.labelMovil)).toEqual(['Inicio', 'Grupos', 'Talleres', 'Ayuda'])
+    expect(lider.mas.subpaginas).toEqual([])
+    const admin = await navegacionDe('admin', { plataforma: false, talleresMenu: true })
+    expect(admin.mas.subpaginas.find((bloque) => bloque.grupo.label === 'Talleres')?.paginas.map((pagina) => pagina.href)).toEqual(
+      paginasTalleres([]).map((pagina) => pagina.href),
+    )
   })
 })

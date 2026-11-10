@@ -6,6 +6,7 @@ import {
   seccionDePlatformNavigationViewItem,
   type PlatformNavigationViewItem,
 } from '@/components/ui/platform-navigation-view-items'
+import { esEntradaTalleres, insertTalleresMenuItem, type TalleresMenuItem } from '@/components/ui/talleres-menu-item'
 import { insertUnoAUnoMenuItem, type UnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import {
   entradasDeSecciones,
@@ -24,7 +25,7 @@ import {
   SECCIONES_PRINCIPALES,
 } from '@/lib/navegacion/secciones'
 
-/** One entry as the menus render it (registry, Dream Team, Niños, Estudiantes, DPS, Mis 1 a 1 or platform). */
+/** One entry as the menus render it (registry, Dream Team, Niños, Estudiantes, DPS, Talleres, Mis 1 a 1 or platform). */
 export type EntradaMenu = Pick<
   EntradaNavegacion,
   'id' | 'label' | 'href' | 'icon' | 'roles' | 'capabilities' | 'children' | 'seccion' | 'labelMovil' | 'hrefRaiz'
@@ -39,13 +40,18 @@ export interface FuentesNavegacion {
   /** The DPS section (components/dps/dps-menu-item.ts); none when left out. */
   dps?: DpsMenuItem | null
   unoAUno: UnoAUnoMenuItem | null
+  /**
+   * The Talleres entry (components/ui/talleres-menu-item.ts); none when left
+   * out. When present it replaces the platform Talleres item, so one shows.
+   */
+  talleresMenu?: TalleresMenuItem | null
   plataforma: readonly PlatformNavigationViewItem[]
   /** The Talleres pages the sidebar's TalleresNavSubmenu lists ({@link paginasTalleres}); "Más" shows them when Talleres is not a tab. */
   talleres?: readonly SubEntradaNavegacion[]
 }
 
 /**
- * The pages under a Talleres platform item, as the sidebar's TalleresNavSubmenu
+ * The pages under the Talleres entry, as the sidebar's TalleresNavSubmenu
  * (components/talleres/nav-submenu.tsx) lists them: none with the kill switch
  * on, else by capability and in role-group order. "Mis grupos" is data-gated
  * there and the sidebar passes no counters, so it is left out here too.
@@ -55,10 +61,6 @@ export function paginasTalleres(capacidades: readonly string[]): SubEntradaNaveg
   return groupTalleresNavItems(getTalleresNavItems(capacidades, { isEnabled: true }))
     .flatMap((grupo) => grupo.items)
     .map(({ id, label, href }) => ({ id, label, href }))
-}
-
-function esTalleres(entrada: { id: string }): boolean {
-  return entrada.id.startsWith('platform-talleres_')
 }
 
 /**
@@ -76,31 +78,39 @@ function pestanaPendientes(dreamTeam: DreamTeamMenuItem | null): EntradaMenu[] {
  * Everything the shell renders, from the user's sources (pure; the hook is
  * components/navegacion/use-entradas-navegacion.ts):
  * - principales: the main list in its current order — "Mis 1 a 1" right after
- *   Inicio, Dream Team, Niños, Estudiantes and DPS right after Grupos de Vida, then
- *   the platform items — each filtered by the registry role rule;
+ *   Inicio, Dream Team, Niños, Estudiantes, DPS and Talleres right after Grupos
+ *   de Vida, then the platform items (without their Talleres item when Talleres
+ *   has its own entry) — each filtered by the registry role rule;
  * - pie and cuenta: the footer and account links;
  * - secciones: every visible entry grouped by section (lib/navegacion/secciones.ts);
  * - pestanas and mas: the phone tab bar (where Pendientes may take a tab of
  *   its own) and the "Más" sheet (where a Talleres item carries its
  *   `talleres` pages, so it gets a block when not a tab).
  */
-export function componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes = null, dps = null, unoAUno, plataforma, talleres = [] }: FuentesNavegacion) {
+export function componerNavegacion({
+  credenciales, dreamTeam, ninos, estudiantes = null, dps = null, unoAUno, talleresMenu = null, plataforma, talleres = [],
+}: FuentesNavegacion) {
   const principales = filtrarVisibles<EntradaMenu>(
     [
       ...insertUnoAUnoMenuItem<EntradaMenu>(
-        insertDpsMenuItem<EntradaMenu>(
-          insertEstudiantesMenuItem<EntradaMenu>(
-            insertNinosMenuItem<EntradaMenu>(
-              insertDreamTeamMenuItem<EntradaMenu>(entradasDeSecciones(...SECCIONES_PRINCIPALES), dreamTeam),
-              ninos && { ...ninos, seccion: 'ministerios' },
+        insertTalleresMenuItem<EntradaMenu>(
+          insertDpsMenuItem<EntradaMenu>(
+            insertEstudiantesMenuItem<EntradaMenu>(
+              insertNinosMenuItem<EntradaMenu>(
+                insertDreamTeamMenuItem<EntradaMenu>(entradasDeSecciones(...SECCIONES_PRINCIPALES), dreamTeam),
+                ninos && { ...ninos, seccion: 'ministerios' },
+              ),
+              estudiantes && { ...estudiantes, seccion: 'ministerios' },
             ),
-            estudiantes && { ...estudiantes, seccion: 'ministerios' },
+            dps && { ...dps, seccion: 'ministerios' },
           ),
-          dps && { ...dps, seccion: 'ministerios' },
+          talleresMenu && { ...talleresMenu, seccion: 'ministerios' },
         ),
         unoAUno && { ...unoAUno, seccion: 'general' },
       ),
-      ...plataforma.map((item) => ({ ...item, seccion: seccionDePlatformNavigationViewItem(item) })),
+      ...plataforma
+        .filter((item) => !(talleresMenu && esEntradaTalleres(item)))
+        .map((item) => ({ ...item, seccion: seccionDePlatformNavigationViewItem(item) })),
     ],
     credenciales,
   )
@@ -116,7 +126,7 @@ export function componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes
     secciones: agruparPorSeccion(todas),
     pestanas,
     mas: contenidoMas(
-      talleres.length > 0 ? todas.map((entrada) => (esTalleres(entrada) ? { ...entrada, children: [...talleres] } : entrada)) : todas,
+      talleres.length > 0 ? todas.map((entrada) => (esEntradaTalleres(entrada) ? { ...entrada, children: [...talleres] } : entrada)) : todas,
       pestanas,
     ),
   }

@@ -5,6 +5,8 @@
  */
 
 import { execSync } from 'child_process'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import { resolveMainRef } from '../../../../tests/helpers/git-ref'
 import {
   getTalleresFlags,
@@ -254,5 +256,22 @@ describe('byte-identity of protected flags files (I-7)', () => {
       { encoding: 'utf-8', cwd: process.cwd() },
     )
     expect(diff.trim()).toBe('')
+  })
+})
+
+// The sidebar reads these flags in the browser (components/ui/talleres-menu-item.ts):
+// Next.js only inlines literal `process.env.NEXT_PUBLIC_X` reads into client
+// bundles, so a read through another object comes back undefined there.
+describe('client bundles (odd/tasks/proximo-paso.md, T6)', () => {
+  it('reads each NEXT_PUBLIC_TALLERES_* flag with a literal process.env access', () => {
+    const fuente = readFileSync(join(process.cwd(), 'lib/platform/talleres/flags.ts'), 'utf8')
+    for (const flag of ['ENABLED', 'STAGE', 'KILL_SWITCH', 'MIN_APP_VERSION']) {
+      expect(fuente).toContain(`process.env.NEXT_PUBLIC_TALLERES_${flag}`)
+    }
+  })
+
+  it('still takes an explicit env', () => {
+    expect(isTalleresEnabled({ NEXT_PUBLIC_TALLERES_ENABLED: 'true', NEXT_PUBLIC_TALLERES_STAGE: 'internal' } as unknown as NodeJS.ProcessEnv)).toBe(true)
+    expect(isTalleresEnabled({ NEXT_PUBLIC_TALLERES_ENABLED: 'true', NEXT_PUBLIC_TALLERES_STAGE: 'internal', NEXT_PUBLIC_TALLERES_KILL_SWITCH: 'on' } as unknown as NodeJS.ProcessEnv)).toBe(false)
   })
 })

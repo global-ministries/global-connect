@@ -3,8 +3,9 @@
 /**
  * PR20 — Talleres nav sub-menu component (sidebar wire).
  *
- * Renders the role-grouped sub-items inside the existing
- * `talleres_participation` top-level entry of the sidebar. The sidebar
+ * Renders the role-grouped sub-items inside the «Talleres» top-level entry
+ * of the sidebar (components/ui/talleres-menu-item.ts, or the platform's
+ * `talleres_participation` item when Talleres has no entry of its own). The sidebar
  * already has the parent entry rendered (PR17 added the capability
  * filtering); this component supplies the children rendering + counter
  * badges.
