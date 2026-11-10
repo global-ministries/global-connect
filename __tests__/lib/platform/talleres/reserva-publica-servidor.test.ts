@@ -103,8 +103,23 @@ describe('identificarReserva', () => {
     expect(args?.p_aviso_texto).toBe('Tu código para reservar en Mujer de Hoy: 042917. Vence en 10 minutos.')
     expect(enviarCorreo).toHaveBeenCalledTimes(1)
     expect(enviarCorreo.mock.calls[0]).toEqual([
-      expect.objectContaining({ to: 'valentina@gmail.com', subject: 'Tu código para reservar en Mujer de Hoy: 042917' }),
+      expect.objectContaining({ to: 'valentina@gmail.com', subject: 'Tu código para reservar en Mujer de Hoy' }),
     ])
+  })
+
+  it('keeps the code out of the subject (send.ts logs subjects): only the body carries it', async () => {
+    const { deps, enviarCorreo } = preparar({
+      talleres_publico_taller: { data: taller, error: null },
+      talleres_reserva_identificar: {
+        data: { estado: 'codigo', codigo_id: CODIGO_ID, email_mascara: 'v***@g***.com', envio: { email: 'valentina@gmail.com', nombre: 'Valentina' } },
+        error: null,
+      },
+    })
+    await identificarReserva(deps, cuerpo, IP)
+    const correo = (enviarCorreo.mock.calls as unknown as [{ subject: string; template: { props: { codigo: string } } }][])[0][0]
+    expect(correo.subject).not.toMatch(/\d{6}/)
+    expect(correo.subject).not.toContain('042917')
+    expect(correo.template.props.codigo).toBe('042917')
   })
 
   it.each(['nuevo', 'sin_correo'])('passes %s through without sending email', async (estado) => {
@@ -204,7 +219,9 @@ describe('reenviarCodigoReserva', () => {
     const r = await reenviarCodigoReserva(deps, { codigoId: CODIGO_ID, slug: 'mujer-de-hoy' }, IP)
     expect(r).toEqual({ status: 200, body: { estado: 'codigo', codigoId: CODIGO_ID, emailMascara: 'v***@g***.com' } })
     expect(llamada(rpc, 'talleres_reserva_codigo_reenviar')).toMatchObject({ p_codigo_hash_nuevo: hashCodigo('042917', 'sal-de-prueba') })
-    expect(enviarCorreo).toHaveBeenCalledWith(expect.objectContaining({ to: 'v@gmail.com' }))
+    expect(enviarCorreo).toHaveBeenCalledWith(expect.objectContaining({ to: 'v@gmail.com', subject: 'Tu código para reservar en Mujer de Hoy' }))
+    const correo = (enviarCorreo.mock.calls as unknown as [{ subject: string }][])[0][0]
+    expect(correo.subject).not.toMatch(/\d{6}/)
   })
 
   it('a resend too soon answers 429 with the seconds to wait', async () => {

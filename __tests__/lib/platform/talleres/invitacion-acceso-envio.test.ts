@@ -23,12 +23,16 @@ function crearDeps(respuestas: Record<string, Respuesta | ((args: Record<string,
     if (typeof r === 'function') return Promise.resolve(r(args ?? {}))
     return Promise.resolve(r ?? { data: null, error: null })
   })
+  // A spouse invitation unless a test says otherwise (the copy follows origen).
+  const from = jest.fn(() => ({
+    select: () => ({ eq: (_c: string, id: string) => ({ maybeSingle: async () => ({ data: { id, origen: 'taller_pareja' }, error: null }) }) }),
+  }))
   const enviarCorreo = jest.fn().mockResolvedValue({ success: true, id: 'mail-1' })
   return {
     rpc,
     enviarCorreo,
     deps: {
-      admin: { rpc },
+      admin: { rpc, from },
       enviarCorreo,
       ahora: () => new Date('2026-10-04T12:00:00Z'),
       urlBase: 'https://connect.example.org',

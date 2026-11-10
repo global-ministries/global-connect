@@ -152,7 +152,8 @@ async function enviarCodigo(deps: DependenciasReserva, data: Objeto, taller: str
   try {
     const r = await deps.enviarCorreo({
       to: email,
-      subject: `Tu código para reservar en ${taller}: ${codigo}`,
+      // Never the code: send.ts logs the subject of a failed email.
+      subject: `Tu código para reservar en ${taller}`,
       template: createElement(CodigoReservaTallerEmail, {
         nombre: typeof envio?.nombre === 'string' ? envio.nombre : '',
         tallerNombre: taller,

@@ -160,7 +160,7 @@ export function CampoCedula({
           ]}
           valor={tipo}
           onCambio={onTipo}
-          className="shrink-0 [&>button]:min-h-[2.375rem] [&>button]:w-10"
+          className="shrink-0 [&>button]:w-10"
         />
         <div className="min-w-0 flex-1">
           <InputSistema
@@ -256,7 +256,7 @@ export function CamposFicha({
             opciones={OPCIONES_GENERO}
             valor={ficha.genero as Genero | ''}
             onCambio={(v) => onCambio('genero', v)}
-            className="flex w-full [&>button]:min-h-[2.375rem] [&>button]:flex-1"
+            className="flex w-full [&>button]:flex-1"
           />
           {notaGenero && !errores.genero && <p className="text-[13px] text-muted-foreground">{notaGenero}</p>}
           {errores.genero && (
