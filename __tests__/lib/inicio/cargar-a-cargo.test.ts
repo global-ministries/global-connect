@@ -2,12 +2,20 @@
  * cargarACargo (lib/inicio/cargar-a-cargo.ts; odd/tasks/home-por-rol.md T4,
  * S5–S7) with a mocked session client: each cargo reads only its own scope,
  * and a cargo whose read fails comes back null without taking the others.
+ * «Con permisos reales» (T9, L22): where RLS hides the rows, the scope comes
+ * from the session person and the rows from the service client.
  */
 import { cargarACargo, semanaAnterior } from '@/lib/inicio/cargar-a-cargo'
 import type { ClienteInicio } from '@/lib/inicio/cargar-hechos'
 
 const cargarGruposMiembro = jest.fn()
 jest.mock('@/lib/inicio/cargar-grupos-miembro', () => ({ cargarGruposMiembro: (...a: unknown[]) => cargarGruposMiembro(...a) }))
+
+// Without a service key (as in every other test) the session reads stay.
+const crearAdmin = jest.fn((): unknown => {
+  throw new Error('Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY')
+})
+jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: () => crearAdmin() }))
 
 type Resultado = { data?: unknown; error?: unknown; count?: number | null }
 type Llamada = [metodo: string, ...args: unknown[]]
@@ -28,13 +36,47 @@ function cliente(responder: Responder, rpcs: Record<string, Resultado> = {}) {
       })
     }
     const resolver = () => ({ data: null, error: null, ...responder(tabla, llamadas) })
-    q.maybeSingle = jest.fn(() => Promise.resolve().then(resolver))
+    q.maybeSingle = jest.fn(() =>
+      Promise.resolve()
+        .then(resolver)
+        .then((r) => (Array.isArray(r.data) ? { ...r, data: r.data[0] ?? null } : r)),
+    )
     q.then = (ok: (r: unknown) => unknown, mal: (e: unknown) => unknown) => Promise.resolve().then(resolver).then(ok, mal)
     return q
   })
   const rpc = jest.fn((nombre: string) => Promise.resolve({ data: null, error: null, ...rpcs[nombre] }))
-  return { from, rpc, consultas }
+  const auth = { getUser: jest.fn(() => Promise.resolve({ data: { user: { id: 'auth-1' } }, error: null })) }
+  return { from, rpc, auth, consultas }
 }
+
+type Fila = Record<string, unknown>
+
+/** A client over in-memory tables that applies the query's own filters, so a read only gets what it asked for. */
+function tablas(datos: Record<string, Fila[]>) {
+  return cliente((tabla, llamadas) => {
+    let resultado = datos[tabla] ?? []
+    for (const [m, columna, valor] of llamadas) {
+      const c = columna as string
+      if (m === 'eq') resultado = resultado.filter((f) => f[c] === valor)
+      if (m === 'in') resultado = resultado.filter((f) => (valor as unknown[]).includes(f[c]))
+      if (m === 'is') resultado = resultado.filter((f) => (f[c] ?? null) === valor)
+      if (m === 'gte') resultado = resultado.filter((f) => String(f[c]) >= String(valor))
+      if (m === 'lte') resultado = resultado.filter((f) => String(f[c]) <= String(valor))
+    }
+    if (esConteo(llamadas)) return { count: resultado.length }
+    return { data: llamadas.some(([m]) => m === 'limit') ? resultado.slice(0, Number(llamadas.find(([m]) => m === 'limit')![1])) : resultado }
+  })
+}
+
+/** As RLS for these readers (L22): the links, meetings and health come back empty or denied. */
+const sesionConRls = () =>
+  cliente((tabla, llamadas) => {
+    if (tabla === 'v_salud_miembros_grupo') return { error: { message: 'permission denied for view v_salud_miembros_grupo' } }
+    if (tabla === 'grupo_miembros' && esConteo(llamadas)) return { count: 0 }
+    if (tabla === 'segmento_lideres' && tiene(llamadas, 'eq', 'id', 'sl-1')) return { data: { id: 'sl-1', segmento: { nombre: 'Mujeres +36' } } }
+    if (tabla === 'director_general_segmentos') return { data: { alcance: 'directores' } }
+    return { data: [] }
+  })
 
 const tiene = (llamadas: Llamada[], metodo: string, ...args: unknown[]) => llamadas.some(([m, ...a]) => m === metodo && args.every((v, i) => JSON.stringify(a[i]) === JSON.stringify(v)))
 const esConteo = (llamadas: Llamada[]) => llamadas.some(([m, , opciones]) => m === 'select' && (opciones as { head?: boolean } | undefined)?.head === true)
@@ -271,5 +313,160 @@ describe('cargarACargo', () => {
     expect(datos[0]).toMatchObject({ tipo: 'grupo-lider', grupoId: 'g-1' })
     expect(datos[1]).toBeNull()
     expect(consola).toHaveBeenCalledWith('Inicio: no se pudo leer etapa:sl-1:', 'permission denied')
+    // Without a service key it says so and reads with the session.
+    expect(consola).toHaveBeenCalledWith('Inicio: sin cliente de servicio, se lee con la sesión:', 'Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY')
+    expect(c.consultas.some((q) => q.tabla === 'director_etapa_grupos')).toBe(true)
+  })
+})
+
+describe('cargarACargo con permisos reales (L22)', () => {
+  let consola: jest.SpyInstance
+  let admin: ReturnType<typeof tablas>
+
+  const usuario = (nombre: string, apellido: string) => ({ nombre, apellido })
+  const BASE_DATOS: Record<string, Fila[]> = {
+    usuarios: [
+      { id: 'u-1', auth_id: 'auth-1' },
+      { id: 'u-2', auth_id: 'auth-2' },
+    ],
+    segmentos: [{ id: 'seg-1', nombre: 'Mujeres' }],
+    segmento_lideres: [
+      { id: 'sl-1', usuario_id: 'u-1', tipo_lider: 'director_etapa', segmento_id: 'seg-1', segmento: { nombre: 'Mujeres +36' }, usuario: usuario('Yelitza', 'Rodríguez') },
+      { id: 'sl-2', usuario_id: 'u-2', tipo_lider: 'director_etapa', segmento_id: 'seg-1', segmento: { nombre: 'Mujeres +50' }, usuario: usuario('Carmen', 'Oropeza') },
+    ],
+    director_etapa_grupos: [
+      { director_etapa_id: 'sl-1', grupo_id: 'g-1' },
+      { director_etapa_id: 'sl-1', grupo_id: 'g-2' },
+      { director_etapa_id: 'sl-1', grupo_id: 'g-fuera' },
+      { director_etapa_id: 'sl-2', grupo_id: 'g-9' },
+    ],
+    grupos: [
+      { id: 'g-1', nombre: 'El Ujano', activo: true, eliminado: false, segmento_id: 'seg-1' },
+      { id: 'g-2', nombre: 'Centro', activo: true, eliminado: false, segmento_id: 'seg-1' },
+      { id: 'g-9', nombre: 'De otra etapa', activo: true, eliminado: false, segmento_id: 'seg-1' },
+      { id: 'g-fuera', nombre: 'De otro segmento', activo: true, eliminado: false, segmento_id: 'seg-2' },
+    ],
+    eventos_grupo: [
+      { id: 'e-1', grupo_id: 'g-1', fecha: '2026-11-04', no_hubo_reunion: false },
+      { id: 'e-9', grupo_id: 'g-9', fecha: '2026-11-04', no_hubo_reunion: false },
+      { id: 'e-f', grupo_id: 'g-fuera', fecha: '2026-11-04', no_hubo_reunion: false },
+    ],
+    asistencia: [
+      { id: 'a1', evento_grupo_id: 'e-1', presente: true },
+      { id: 'a2', evento_grupo_id: 'e-1', presente: true },
+      { id: 'a3', evento_grupo_id: 'e-1', presente: false },
+      { id: 'a9', evento_grupo_id: 'e-9', presente: false },
+      { id: 'af', evento_grupo_id: 'e-f', presente: false },
+    ],
+    grupo_miembros: [
+      { id: 'gm-1', grupo_id: 'g-1', usuario_id: 'u-1', rol: 'Líder', fecha_salida: null, usuario: usuario('Yelitza', 'Rodríguez') },
+      { id: 'gm-2', grupo_id: 'g-2', usuario_id: 'u-1', rol: 'Colíder', fecha_salida: null, usuario: usuario('Yelitza', 'Rodríguez') },
+      { id: 'gm-3', grupo_id: 'g-1', usuario_id: 'u-3', rol: 'Miembro', fecha_salida: null, usuario: usuario('Pedro', 'Linárez') },
+    ],
+    director_general_segmentos: [{ usuario_id: 'u-1', segmento_id: 'seg-1', alcance: 'directores' }],
+    dg_directores_etapa: [
+      { dg_usuario_id: 'u-1', segmento_lider_id: 'sl-1' },
+      { dg_usuario_id: 'u-2', segmento_lider_id: 'sl-2' },
+    ],
+    v_salud_miembros_grupo: [
+      { grupo_id: 'g-1', usuario_id: 'u-3', nombre_completo: 'Pedro Linárez', semanas_ausente: 4 },
+      { grupo_id: 'g-1', usuario_id: 'u-1', nombre_completo: 'Yelitza Rodríguez', semanas_ausente: 0 },
+      { grupo_id: 'g-2', usuario_id: 'u-4', nombre_completo: 'Ana Pérez', semanas_ausente: 6 },
+    ],
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    consola = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    cargarGruposMiembro.mockResolvedValue({})
+    admin = tablas(BASE_DATOS)
+    crearAdmin.mockImplementation(() => admin)
+  })
+
+  afterEach(() => {
+    consola.mockRestore()
+    crearAdmin.mockImplementation(() => {
+      throw new Error('Faltan variables de entorno SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY')
+    })
+  })
+
+  const lecturas = (c: ReturnType<typeof cliente>, tabla: string) => c.consultas.filter((q) => q.tabla === tabla)
+
+  it('directora de etapa: sus grupos, reuniones y asistencia con el cliente de servicio, sin los de otra etapa', async () => {
+    const sesion = sesionConRls()
+
+    const [etapa, ajena] = await cargar(sesion, [
+      { tipo: 'etapa', directorEtapaId: 'sl-1' },
+      { tipo: 'etapa', directorEtapaId: 'sl-2' },
+    ])
+
+    expect(etapa).toMatchObject({
+      tipo: 'etapa',
+      directorEtapaId: 'sl-1',
+      nombre: 'Mujeres +36',
+      grupos: [
+        { grupoId: 'g-1', nombre: 'El Ujano', lideres: ['Yelitza Rodríguez'], asistencia: 67, reporto: true },
+        { grupoId: 'g-2', nombre: 'Centro', lideres: [], asistencia: null, reporto: false },
+        // As the director-etapa rule: every group linked to her etapa.
+        { grupoId: 'g-fuera', asistencia: 0, reporto: true },
+      ],
+      asistencia: 34,
+      enRiesgo: 1,
+      sinReporte: 1,
+    })
+    // An etapa of another person is not read with the service client: its block is hidden.
+    expect(ajena).toBeNull()
+    expect(lecturas(admin, 'director_etapa_grupos').some((q) => tiene(q.llamadas, 'in', 'director_etapa_id', ['sl-2']))).toBe(false)
+    // The person comes from the session's auth id, never from the request.
+    expect(sesion.auth.getUser).toHaveBeenCalled()
+    expect(tiene(lecturas(admin, 'usuarios')[0].llamadas, 'eq', 'auth_id', 'auth-1')).toBe(true)
+  })
+
+  it('director general: los grupos visibles de su segmento con sus reuniones, solo las etapas marcadas y del segmento', async () => {
+    const sesion = sesionConRls()
+
+    const [segmento] = await cargar(sesion, [{ tipo: 'segmento', segmentoId: 'seg-1' }])
+
+    expect(segmento).toMatchObject({
+      tipo: 'segmento',
+      nombre: 'Mujeres',
+      grupos: [
+        { grupoId: 'g-1', asistencia: 67, reporto: true },
+        { grupoId: 'g-2', reporto: false },
+      ],
+      asistencia: 67,
+      enRiesgo: 0,
+      sinReporte: 1,
+      etapas: [{ directorEtapaId: 'sl-1', directores: ['Yelitza Rodríguez'], grupos: [{ grupoId: 'g-1' }, { grupoId: 'g-2' }] }],
+    })
+    // The marked etapas are the caller's, by the usuarios.id derived from the session.
+    expect(tiene(lecturas(admin, 'dg_directores_etapa')[0].llamadas, 'eq', 'dg_usuario_id', 'u-1')).toBe(true)
+    expect(tiene(lecturas(admin, 'director_general_segmentos')[0].llamadas, 'eq', 'usuario_id', 'u-1')).toBe(true)
+  })
+
+  it('un segmento que la persona no dirige no se lee', async () => {
+    const [segmento] = await cargar(sesionConRls(), [{ tipo: 'segmento', segmentoId: 'seg-2' }])
+
+    expect(segmento).toBeNull()
+    expect(lecturas(admin, 'eventos_grupo')).toEqual([])
+  })
+
+  it('líder: ausentes de v_salud_miembros_grupo con el cliente de servicio, solo del grupo que lidera', async () => {
+    const sesion = sesionConRls()
+
+    const [lidera, colidera] = await cargar(sesion, [
+      { tipo: 'grupo-lider', grupoId: 'g-1', nombre: 'El Ujano' },
+      { tipo: 'grupo-lider', grupoId: 'g-2', nombre: 'Centro' },
+    ])
+
+    expect(lidera).toMatchObject({ grupoId: 'g-1', miembros: 2, ausentes: ['Pedro Linárez'] })
+    // Colíder of g-2, not Líder: no health rows.
+    expect(colidera).toMatchObject({ grupoId: 'g-2', miembros: null, ausentes: null })
+    const salud = lecturas(admin, 'v_salud_miembros_grupo')
+    expect(salud).toHaveLength(1)
+    expect(tiene(salud[0].llamadas, 'eq', 'grupo_id', 'g-1')).toBe(true)
+    // The rest of the leader's block stays with the session.
+    expect(lecturas(sesion, 'eventos_grupo').length).toBe(2)
+    expect(lecturas(admin, 'eventos_grupo')).toEqual([])
   })
 })
