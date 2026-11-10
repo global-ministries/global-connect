@@ -5538,6 +5538,45 @@ export type Database = {
           },
         ]
       }
+      personas_proximo_paso: {
+        Row: {
+          fuente: string
+          marcado_en: string
+          marcado_por: string | null
+          nota: string | null
+          usuario_id: string
+        }
+        Insert: {
+          fuente?: string
+          marcado_en?: string
+          marcado_por?: string | null
+          nota?: string | null
+          usuario_id: string
+        }
+        Update: {
+          fuente?: string
+          marcado_en?: string
+          marcado_por?: string | null
+          nota?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personas_proximo_paso_marcado_por_fkey"
+            columns: ["marcado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personas_proximo_paso_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profesiones: {
         Row: {
           id: string
@@ -10739,6 +10778,7 @@ export type Database = {
         Args: { p_capability: string; p_target_usuario_id: string }
         Returns: undefined
       }
+      hizo_proximo_paso: { Args: { p_usuario_id: string }; Returns: boolean }
       invitacion_acceso_consultar: {
         Args: { p_token_hash: string }
         Returns: Json
@@ -10885,6 +10925,10 @@ export type Database = {
           telefono: string
           total_count: number
         }[]
+      }
+      marcar_proximo_paso: {
+        Args: { p_hecho: boolean; p_nota?: string; p_usuario_id: string }
+        Returns: Json
       }
       mark_operating_core_notification_outbox_dispatched: {
         Args: { p_dispatched_at?: string; p_id: string }
@@ -11718,6 +11762,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      personas_con_proximo_paso: {
+        Args: { p_ids: string[] }
+        Returns: string[]
+      }
       planner_directores_etapa_elegibles: {
         Args: never
         Returns: {
@@ -11770,6 +11818,14 @@ export type Database = {
           p_solicitud_id: string
         }
         Returns: Json
+      }
+      proximo_paso_puede_marcar: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
+      }
+      proximo_paso_puede_ver: {
+        Args: { p_usuario_id: string }
+        Returns: boolean
       }
       puede_aprobar_casa_anfitriona: {
         Args: { p_auth_id: string; p_casa_id: string }
