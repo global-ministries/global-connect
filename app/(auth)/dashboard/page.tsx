@@ -1,160 +1,77 @@
-import Link from 'next/link'
-import { cookies } from 'next/headers'
+/**
+ * Inicio (/dashboard) by person (odd/tasks/home-por-rol.md T3): the facts of
+ * the person decide the sections (decidirSecciones) and each section loads
+ * only when present. The previous per-role dashboard stays inside «A tu
+ * cargo» and «Visión general» until T4 replaces it.
+ */
+import { redirect } from 'next/navigation'
 
-import { ContenedorDashboard, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
-import { obtenerDatosDashboard } from '@/lib/dashboard/obtenerDatosDashboard'
-import { getDashboardPlatformNavigationFlags, resolveDashboardContextualAccess, type DashboardContextualShortcut } from '@/lib/dashboard/contextual-navigation'
-import DashboardAdmin from '@/components/dashboard/roles/DashboardAdmin'
-import DashboardDirector from '@/components/dashboard/roles/DashboardDirector'
-import DashboardLider from '@/components/dashboard/roles/DashboardLider'
-import DashboardMiembro from '@/components/dashboard/roles/DashboardMiembro'
-import { obtenerCasasRevisionPendiente, obtenerGruposSinCasaAnfitriona } from '@/lib/actions/casas-anfitrionas.actions'
-import { canReviewHostHomes } from '@/lib/casas-anfitrionas/review-roles'
-import type { HostHomeQueuesData, PendingHostHomeReviewItem } from '@/components/dashboard/widgets/HostHomeQueuesWidget'
 import { TarjetaMisHijosDashboard } from '@/components/dashboard/TarjetaMisHijosDashboard'
-import { cargarMisHijosDashboard } from './mis-hijos-dashboard'
-import { cargarMisServiciosPanel } from '@/components/mis-servicios/cargar-mis-servicios'
-import { TarjetaMisServicios } from '@/components/mis-servicios/tarjeta-mis-servicios'
+import { PantallaInicio } from '@/components/inicio/pantalla-inicio'
+import { MigasInicio } from '@/components/inicio/partes-inicio'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
+import { cargarGruposMiembro, type DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
+import { cargarHechosInicio } from '@/lib/inicio/cargar-hechos'
+import { decidirSecciones } from '@/lib/inicio/decidir-secciones'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+
+import { cargarMisHijosDashboard } from './mis-hijos-dashboard'
+import { cargarTableroAnterior, type TableroAnterior } from './tablero-anterior'
 
 export const dynamic = 'force-dynamic'
 
-const operationalDashboardRoles = new Set(['admin', 'pastor', 'director-general', 'director-etapa', 'lider'])
-export const HOST_HOME_QUEUE_FETCH_TIMEOUT_MS = 3000
-
-// Written by CampusProvider (hooks/useCampus.tsx) when the person picks a campus.
-const CAMPUS_COOKIE = 'gc_campus_activo'
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-// The cookie is client-controlled, so only a well-formed uuid is accepted; it narrows the
-// first paint to the selected campus and is never used for access control.
-async function leerCampusInicial(): Promise<string | null> {
-  const valor = (await cookies()).get(CAMPUS_COOKIE)?.value
-  return valor && UUID_RE.test(valor) ? valor : null
-}
-
-type QueueActionResult<T> = {
-  success: boolean
-  data?: T[]
-  degraded?: boolean
-  error?: string
-}
-
-function degradedQueueResult<T>(): QueueActionResult<T> {
-  return { success: false, data: [], degraded: true, error: 'No pudimos cargar esta cola' }
-}
-
-function withQueueFallback<T>(operation: Promise<QueueActionResult<T>>, queueName: string): Promise<QueueActionResult<T>> {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      console.warn('Casa host-home queue fetch timed out; using degraded fallback.', {
-        queueName,
-        timeoutMs: HOST_HOME_QUEUE_FETCH_TIMEOUT_MS,
-      })
-      resolve(degradedQueueResult<T>())
-    }, HOST_HOME_QUEUE_FETCH_TIMEOUT_MS)
-
-    operation
-      .then((result) => {
-        clearTimeout(timeout)
-        resolve(result)
-      })
-      .catch((error) => {
-        clearTimeout(timeout)
-        console.error('Error cargando colas de Casas Anfitrionas:', error)
-        resolve(degradedQueueResult<T>())
-      })
-  })
-}
-
-async function obtenerColasCasasAnfitrionas(rol: string): Promise<HostHomeQueuesData | undefined> {
-  if (!operationalDashboardRoles.has(rol)) return undefined
-
-  const canReviewHostHomeQueue = canReviewHostHomes(rol)
-  const [missingResult, pendingResult] = await Promise.all([
-    withQueueFallback(obtenerGruposSinCasaAnfitriona({ scope: 'active' }), 'missing-host-home-groups'),
-    canReviewHostHomeQueue
-      ? withQueueFallback(obtenerCasasRevisionPendiente(), 'pending-host-home-reviews')
-      : Promise.resolve<QueueActionResult<PendingHostHomeReviewItem>>({ success: true, data: [] }),
-  ])
-
-  return {
-    missingGroups: missingResult.success ? missingResult.data ?? [] : [],
-    missingGroupsDegraded: !missingResult.success,
-    pendingReviews: pendingResult.success ? pendingResult.data ?? [] : [],
-    pendingReviewsDegraded: canReviewHostHomeQueue && !pendingResult.success,
+// First name for the greeting: one column of the own row by auth_id, as cargarHechosInicio.
+async function leerNombre(authId: string): Promise<string | null> {
+  try {
+    const { data } = await createSupabaseAdminClient().from('usuarios').select('nombre').eq('auth_id', authId).maybeSingle()
+    return data?.nombre ?? null
+  } catch (error) {
+    console.error('Inicio: no se pudo leer el nombre:', error)
+    return null
   }
 }
 
-export default async function PaginaTablero() {
-  // Started first so it runs alongside the role data instead of after it.
+export default async function PaginaInicio() {
+  // Started first so it runs alongside the facts; shown only when «Mis hijos» is decided.
   const misHijosPromesa = cargarMisHijosDashboard()
-  const misServiciosPromesa = cargarMisServiciosPanel()
-  const data = await obtenerDatosDashboard(await leerCampusInicial())
-  const hostHomeQueues = await obtenerColasCasasAnfitrionas(data.rol)
-  const widgets = hostHomeQueues
-    ? { ...data.widgets, casas_anfitrionas_queues: hostHomeQueues }
-    : data.widgets
-  const contextualAccess = await resolveDashboardContextualAccess(data.platformSession, getDashboardPlatformNavigationFlags())
-  const misHijos = await misHijosPromesa
-  const misServicios = await misServiciosPromesa
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-  const titulo = 'Dashboard'
-  const descripcion =
-    data.rol === 'admin' || data.rol === 'pastor'
-      ? 'Visión estratégica global de la organización'
-      : data.rol === 'director-general'
-      ? 'Visión de tus segmentos asignados'
-      : data.rol === 'director-etapa'
-      ? 'Supervisión y gestión de tu etapa'
-      : data.rol === 'lider'
-      ? 'Gestión operativa de tu(s) grupo(s)'
-      : 'Conexión e información personal'
+  const hoy = hoyEnCaracas()
+  const [hechos, nombre] = await Promise.all([cargarHechosInicio(supabase, user), leerNombre(user.id)])
+  const secciones = decidirSecciones(hechos)
 
-  return (
-<ContenedorDashboard titulo={titulo} descripcion={descripcion}>
-        {misServicios && <TarjetaMisServicios inicial={misServicios} hoy={hoyEnCaracas()} />}
-        {misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
-        {data.rol === 'admin' || data.rol === 'pastor' || data.rol === 'director-general' ? (
-          <DashboardAdmin data={widgets} rol={data.rol} campusInicialId={data.campusId ?? null} />
-        ) : data.rol === 'director-etapa' ? (
-          <DashboardDirector data={widgets} />
-        ) : data.rol === 'lider' ? (
-          <DashboardLider data={widgets} />
-        ) : (
-          <DashboardMiembro data={widgets} />
-        )}
-        <ContextosVisiblesDashboard items={contextualAccess} />
-      </ContenedorDashboard>
-)
-}
+  const grupos = secciones.flatMap((s) => (s.id === 'grupo-miembro' ? [{ grupoId: s.grupoId, nombre: s.nombre }] : []))
+  const aCargo = secciones.find((s) => s.id === 'a-cargo')
+  const conVision = secciones.some((s) => s.id === 'vision-general')
 
-function ContextosVisiblesDashboard({ items }: { items: DashboardContextualShortcut[] }) {
-  if (items.length === 0) return null
+  const [gruposMiembro, tablero, misHijos] = await Promise.all([
+    hechos.usuarioId && grupos.length > 0
+      ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId: hechos.usuarioId, hoy, grupos })
+      : Promise.resolve<Record<string, DatosGrupoMiembro>>({}),
+    aCargo || conVision ? cargarTableroAnterior({ cargos: aCargo?.cargos ?? null, conVision }) : Promise.resolve<TableroAnterior>({}),
+    misHijosPromesa,
+  ])
 
   return (
-    <TarjetaSistema className="p-4 md:p-5">
-      <section aria-labelledby="contextos-visibles-dashboard" className="space-y-3">
-        <div className="space-y-1">
-          <TituloSistema id="contextos-visibles-dashboard" nivel={2}>Contextos visibles</TituloSistema>
-          <TextoSistema variante="sutil" tamaño="sm">
-            Accesos disponibles para tu sesión actual.
-          </TextoSistema>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {items.map((item) => (
-            <Link
-              key={item.id}
-              href={item.href}
-              aria-label={`Abrir ${item.label}`}
-              className="rounded-xl border border-border bg-card/60 px-4 py-3 transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/30"
-            >
-              <span className="block text-sm font-medium text-foreground">{item.label}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{item.description}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-    </TarjetaSistema>
+    <PaginaSistema breadcrumbs={<MigasInicio />}>
+      <PantallaInicio
+        nombre={nombre}
+        hoy={hoy}
+        secciones={secciones}
+        gruposMiembro={gruposMiembro}
+        // «Mis servicios» (S2) mounts here when feat/dps-avisos is merged: add cargarMisServiciosPanel()
+        // to the Promise.all above when the section is present, then
+        // misServicios={misServicios && <TarjetaMisServicios inicial={misServicios} hoy={hoy} />}
+        misHijos={misHijos && <TarjetaMisHijosDashboard hijos={misHijos.hijos} prechecks={misHijos.prechecks} />}
+        aCargo={tablero.aCargo}
+        visionGeneral={tablero.visionGeneral}
+      />
+    </PaginaSistema>
   )
 }
