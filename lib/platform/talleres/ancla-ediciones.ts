@@ -1,6 +1,6 @@
 /**
  * T1 (odd/tasks/proximo-paso.md, S1) — the cadencia anchor of a taller
- * (talleres.ancla_ediciones, migration 20261107100000_talleres_ancla_
+ * (talleres.ancla_ediciones, migration 20261110150000_talleres_ancla_
  * ediciones.sql). Anchored to `primer_domingo_mes`, every edición starts on
  * the first Sunday of its month, one per month.
  *
