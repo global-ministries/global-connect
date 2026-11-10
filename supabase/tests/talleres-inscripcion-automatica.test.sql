@@ -1,6 +1,6 @@
 -- T2b (odd/tasks/proximo-paso.md, S3 / L6.2) — RED->GREEN for
 -- talleres.inscripcion_automatica and talleres_inscribirme
--- (20261107120000_talleres_inscripcion_automatica.sql). Run against STAGING
+-- (20261110170000_talleres_inscripcion_automatica.sql). Run against STAGING
 -- inside BEGIN…ROLLBACK — nothing here is kept; every fixture id lives under
 -- this file's own c7c00000-... namespace.
 -- 'e524ea89-d3a7-45fc-be00-5a6e7452434e' (Grupos de Corto Plazo) is

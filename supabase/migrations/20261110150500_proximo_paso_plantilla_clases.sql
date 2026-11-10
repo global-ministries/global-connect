@@ -1,7 +1,7 @@
 -- T1 (odd/tasks/proximo-paso.md, S2) — Próximo Paso's plantilla has its
 -- 4 clases, in order: Sígueme, Intimidad con Dios, Compañerismo,
 -- Influencia (one per Sunday, cadencia_dias 7 — set by
--- 20261107100000_talleres_ancla_ediciones.sql).
+-- 20261110150000_talleres_ancla_ediciones.sql).
 --
 -- WHY
 --   talleres_instanciar_edicion copies the taller's ACTIVE plantilla

@@ -173,7 +173,7 @@ igual desde el primer domingo real y esa edición se mueve después con
 "Reprogramar" (`talleres_reprogramar_edicion`).
 
 Próximo Paso está anclado al primer domingo (migración
-`20261107100000_talleres_ancla_ediciones.sql`): cuatro clases semanales
+`20261110150000_talleres_ancla_ediciones.sql`): cuatro clases semanales
 (`cadencia_dias` 7) y la inscripción cierra al comenzar la clase 1. Con "crear
 también las próximas 3" desde el domingo 4 de octubre:
 
@@ -188,7 +188,7 @@ también las próximas 3" desde el domingo 4 de octubre:
 del anuncio apunta a `/proximo-paso`, una página pública (está en
 `SKIP_AUTH_PATHS` del middleware). Lista las ediciones abiertas de Próximo
 Paso con `proximo_paso_ediciones_abiertas()` (migración
-`20261107110000_proximo_paso_ediciones_abiertas.sql`): la puede ejecutar
+`20261110160000_proximo_paso_ediciones_abiertas.sql`): la puede ejecutar
 `anon`, sólo mira el taller `proximo-paso`, sólo ediciones individuales con
 cohorte y estado efectivo `abierto`, y devuelve sólo nombre, fechas, clases y
 cupo restante —nunca personas—. La persona elige el mes y escribe nombre,
@@ -219,7 +219,7 @@ teléfono se guarda en la ficha si no tenía. Quien edita Próximo Paso ve en su
 descargar.
 
 **Inscripción automática si hay cupo (T2b).** `talleres.inscripcion_automatica`
-(migración `20261107120000_talleres_inscripcion_automatica.sql`, apagada por
+(migración `20261110170000_talleres_inscripcion_automatica.sql`, apagada por
 defecto y encendida en Próximo Paso). Con la opción encendida,
 `talleres_inscribirme` aprueba la inscripción de una edición individual en el
 momento, con el mismo `UPDATE` pendiente → aprobado que hace la coordinación
@@ -230,6 +230,11 @@ pareja siempre quedan `pendiente`. La página de Próximo Paso dice "Quedaste
 inscrito…" sólo si quedó aprobada; si no, "Recibimos tu inscripción… La
 coordinación la confirmará". Se cambia en "Configuración" con el interruptor
 "Inscripción automática si hay cupo" (sólo talleres individuales).
+La migración no recrea `talleres_inscribirme`: lee su definición viva
+(`pg_get_functiondef`), agrega el bloque antes del `RETURN` final y la vuelve
+a ejecutar; si el bloque ya está, no hace nada, y si no encuentra ese
+`RETURN`, falla. Quien recree `talleres_inscribirme` más adelante debe
+conservar el bloque "Inscripción automática".
 
 Noviembre tiene cinco domingos: el 29 queda libre. Un taller sin ancla con
 intervalo de 28 días, en cambio, pondría la tercera edición el 29 de
@@ -790,7 +795,7 @@ Certificado, y la persona tiene una Inscripción.
 | Cohorte | `talleres_crecimiento_cohortes` | Sin cambios: 1:1 con la edición en la práctica; la crea `talleres_instanciar_edicion` (antes `open_edicion`). Capa vestigial. |
 | Grupo | `taller_grupos` | Sigue colgando de la cohorte, pero ya no se arma a mano: nace **instanciado desde la plantilla del taller** al abrir la edición, con su `capacidad` y sus facilitadores ya puestos. Sin día/hora, sin cambios ahí. |
 | Equipo del grupo | `taller_grupo_asignaciones` | Sus filas se instancian desde `taller_plantilla_facilitadores`, y sólo puede asignarse —en la plantilla o en el grupo ya abierto— a alguien que sea **servidor activo de Dream Team en el nodo del taller** (`talleres_es_servidor_activo_del_taller`), no cualquier persona de la iglesia. |
-| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia — cargadas en su plantilla por `20261107100500_proximo_paso_plantilla_clases.sql`). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
+| Clase | `taller_sesiones` | `numero`, fechas, `estado`, y ahora `tema`: `generate_taller_sesiones` lo copia de la plantilla del taller cuando existe una activa (Próximo Paso instancia sus 4 clases con nombre: Sígueme, Intimidad con Dios, Compañerismo, Influencia — cargadas en su plantilla por `20261110150500_proximo_paso_plantilla_clases.sql`). Sin plantilla activa, sigue el numerado sin nombre de siempre. |
 | Asistencia | `taller_asistencias` | Sin cambios: `presente/ausente/no_aplica` + `motivo`. Upsert por el líder/voluntario. `correccion_de_asistencia_id` sigue huérfana. |
 | Reporte | `taller_reportes` | Ya no hay que crearlo a mano: **el borrador nace junto con el grupo**, al instanciar la edición. "Enviar" sigue exigiendo que ya exista, y ahora siempre existe. |
 | Certificado | `taller_certificados` | **Hecho (cierre de edición)**: 1 por persona (`UNIQUE (inscripcion_id, persona_id)`). En pareja, cada uno recibe el suyo y lleva el nombre del otro en `nombre_pareja_snapshot`, visible también en la verificación pública. Lo emite el cierre de la edición; `emit_taller_certificado` emite los dos y conserva su respuesta. |
