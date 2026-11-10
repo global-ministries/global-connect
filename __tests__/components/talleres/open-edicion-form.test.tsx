@@ -217,6 +217,81 @@ describe('OpenEdicionForm — régimen=cadencia', () => {
   })
 })
 
+// T1 (odd/tasks/proximo-paso.md, S1) — a taller anchored to the first
+// Sunday of each month (Próximo Paso).
+describe('OpenEdicionForm — régimen=cadencia anclado al primer domingo', () => {
+  const anclado = { regimen: 'cadencia' as const, anclaEdiciones: 'primer_domingo_mes' as const, intervaloEdicionesDias: null }
+
+  it('asks for a first Sunday and offers adelantar without an intervalo', () => {
+    render(<OpenEdicionForm {...baseProps(anclado)} />)
+    openForm()
+    expect(screen.getByText('Elige el primer domingo del mes.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/crear también las próximas/i)).toBeInTheDocument()
+    expect(screen.getByText('una por mes, el primer domingo')).toBeInTheDocument()
+  })
+
+  it('previews every edición on the first Sunday of its month', () => {
+    render(<OpenEdicionForm {...baseProps({ ...anclado, clasesPorGrupo: 4, cadenciaDias: 7 })} />)
+    openForm()
+    fireEvent.change(screen.getByLabelText(/primera clase/i), { target: { value: '2026-10-04' } })
+    fireEvent.change(screen.getByLabelText(/crear también las próximas/i), { target: { value: '3' } })
+    expect(screen.getByText(/se crearán 2 grupos y 4 clases por grupo/i)).toHaveTextContent(
+      `primera clase ${fmt('2026-10-04')}; última ${fmt('2026-10-25')}`,
+    )
+    expect(
+      screen.getByText(
+        `Se crearán 4 ediciones, una el primer domingo de cada mes: ${fmt('2026-10-04')}, ${fmt('2026-11-01')}, ${fmt('2026-12-06')}, ${fmt('2027-01-03')}.`,
+      ),
+    ).toBeInTheDocument()
+  })
+
+  it('refuses a date that is not a first Sunday before sending anything', () => {
+    render(<OpenEdicionForm {...baseProps(anclado)} />)
+    openForm()
+    fireEvent.change(screen.getByLabelText(/primera clase/i), { target: { value: '2026-10-11' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('La primera clase debe ser el primer domingo del mes.')
+    expect(screen.queryByText(/se crearán/i)).not.toBeInTheDocument()
+    const submit = screen.getByRole('button', { name: /^crear edición$/i })
+    expect(submit).toBeDisabled()
+    fireEvent.click(submit)
+    expect(crearEdicionMock).not.toHaveBeenCalled()
+  })
+
+  it('sends p_fecha_inicio and p_adelantar on submit', async () => {
+    crearEdicionMock.mockResolvedValue({
+      ok: true,
+      ediciones: [
+        { edicionId: 'e-1', nombre: 'Octubre 2026' },
+        { edicionId: 'e-2', nombre: 'Noviembre 2026' },
+      ],
+    })
+    render(<OpenEdicionForm {...baseProps(anclado)} />)
+    openForm()
+    fireEvent.change(screen.getByLabelText(/primera clase/i), { target: { value: '2026-10-04' } })
+    fireEvent.change(screen.getByLabelText(/crear también las próximas/i), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: /^crear edición$/i }))
+    await waitFor(() =>
+      expect(crearEdicionMock).toHaveBeenCalledWith({
+        tallerId: 't-1',
+        tallerSlug: 'proximo-paso',
+        fechaInicio: '2026-10-04',
+        temporadaId: null,
+        adelantar: 1,
+      }),
+    )
+  })
+
+  it('unanchored: keeps any date and shows no per-month list', () => {
+    render(<OpenEdicionForm {...baseProps({ regimen: 'cadencia', intervaloEdicionesDias: 28 })} />)
+    openForm()
+    fireEvent.change(screen.getByLabelText(/primera clase/i), { target: { value: '2026-10-11' } })
+    fireEvent.change(screen.getByLabelText(/crear también las próximas/i), { target: { value: '2' } })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/primer domingo/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^crear edición$/i })).toBeEnabled()
+  })
+})
+
 describe('OpenEdicionForm — omitted-facilitadores preview', () => {
   it('shows the warning with its exact copy when non-empty', () => {
     render(

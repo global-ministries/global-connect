@@ -235,6 +235,41 @@ describe('loadTallerDetalle', () => {
     expect(result?.clases_minimas_para_completar).toBeNull()
   })
 
+  // T1 (odd/tasks/proximo-paso.md, S1) — the cadencia anchor.
+  it('selects and maps ancla_ediciones, defaulting to null', async () => {
+    const anclado = buildTallerDetalleClientMock({
+      id: 't-3', slug: 'proximo-paso', nombre: 'Próximo Paso', estado: 'active',
+      dream_team_equipo_id: 'eq-1', modalidad_default: 'permanente_custom', ediciones: [],
+      regimen: 'cadencia', ancla_ediciones: 'primer_domingo_mes',
+    })
+    const result = await loadTallerDetalle(anclado.client, 'proximo-paso')
+    expect(anclado.selectCols[0]).toMatch(/ancla_ediciones/)
+    expect(result?.ancla_ediciones).toBe('primer_domingo_mes')
+
+    const sinAncla = buildTallerDetalleClientMock({
+      id: 't-4', slug: 'otro', nombre: 'Otro', estado: 'active',
+      dream_team_equipo_id: null, modalidad_default: 'periodo_general', ediciones: [],
+    })
+    expect((await loadTallerDetalle(sinAncla.client, 'otro'))?.ancla_ediciones).toBeNull()
+  })
+
+  // T2b (odd/tasks/proximo-paso.md, L6.2)
+  it('selects and maps inscripcion_automatica, defaulting to false', async () => {
+    const activa = buildTallerDetalleClientMock({
+      id: 't-5', slug: 'proximo-paso', nombre: 'Próximo Paso', estado: 'active',
+      dream_team_equipo_id: 'eq-1', modalidad_default: 'permanente_custom', ediciones: [],
+      inscripcion_automatica: true,
+    })
+    expect((await loadTallerDetalle(activa.client, 'proximo-paso'))?.inscripcion_automatica).toBe(true)
+    expect(activa.selectCols[0]).toMatch(/inscripcion_automatica/)
+
+    const sinValor = buildTallerDetalleClientMock({
+      id: 't-6', slug: 'otro', nombre: 'Otro', estado: 'active',
+      dream_team_equipo_id: null, modalidad_default: 'periodo_general', ediciones: [],
+    })
+    expect((await loadTallerDetalle(sinValor.client, 'otro'))?.inscripcion_automatica).toBe(false)
+  })
+
   it('returns null when no taller matches the slug', async () => {
     const { client } = buildTallerDetalleClientMock(null)
     const result = await loadTallerDetalle(client, 'no-existe')
