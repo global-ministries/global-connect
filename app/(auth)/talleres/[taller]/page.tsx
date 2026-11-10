@@ -313,8 +313,10 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         regimen={taller.regimen}
         cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
         intervaloEdicionesDias={taller.intervalo_ediciones_dias}
+        anclaEdiciones={taller.ancla_ediciones ?? null}
         clasesMinimasParaCompletar={taller.clases_minimas_para_completar}
         momentoEnvioAcceso={taller.momento_envio_acceso}
+        inscripcionAutomatica={taller.inscripcion_automatica}
         cadenciaDias={taller.cadencia_dias}
         duracionMinutos={taller.duracion_minutos}
         puedeEditar={permisos.editarTaller}
@@ -488,6 +490,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             regimen={taller.regimen}
             temporadasDisponibles={temporadasDisponibles}
             intervaloEdicionesDias={taller.intervalo_ediciones_dias}
+            anclaEdiciones={taller.ancla_ediciones ?? null}
             cadenciaDias={taller.cadencia_dias}
             cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
             clasesPorGrupo={clasesPorGrupo}
