@@ -30,12 +30,28 @@ export function parseFlag(value: string | undefined | null): boolean {
 }
 
 /**
+ * The Talleres env vars, each read with a literal `process.env.NEXT_PUBLIC_*`
+ * access: Next.js only inlines those into client bundles (the sidebar reads
+ * these flags in the browser), so a read through another object would come
+ * back undefined there. Next inlines them at build time, so a change of
+ * value needs a redeploy (as for every NEXT_PUBLIC_* var).
+ */
+function entornoTalleres(): NodeJS.ProcessEnv {
+  return {
+    NEXT_PUBLIC_TALLERES_ENABLED: process.env.NEXT_PUBLIC_TALLERES_ENABLED,
+    NEXT_PUBLIC_TALLERES_STAGE: process.env.NEXT_PUBLIC_TALLERES_STAGE,
+    NEXT_PUBLIC_TALLERES_KILL_SWITCH: process.env.NEXT_PUBLIC_TALLERES_KILL_SWITCH,
+    NEXT_PUBLIC_TALLERES_MIN_APP_VERSION: process.env.NEXT_PUBLIC_TALLERES_MIN_APP_VERSION,
+  } as unknown as NodeJS.ProcessEnv
+}
+
+/**
  * Reads the Talleres feature flags at call time.
  *
- * Values are read from NEXT_PUBLIC_* env vars when called, not inlined at
- * build time, so server and client callers see the runtime value.
+ * Values are read from NEXT_PUBLIC_* env vars when called (see
+ * {@link entornoTalleres}), so server and client callers see the same value.
  */
-export function getTalleresFlags(env: NodeJS.ProcessEnv = process.env): TalleresFlags {
+export function getTalleresFlags(env: NodeJS.ProcessEnv = entornoTalleres()): TalleresFlags {
   const enabled = parseFlag(env.NEXT_PUBLIC_TALLERES_ENABLED)
   const stage = (env.NEXT_PUBLIC_TALLERES_STAGE ?? 'off') as TalleresRolloutStage
   const killSwitch = parseFlag(env.NEXT_PUBLIC_TALLERES_KILL_SWITCH)
@@ -55,7 +71,7 @@ export function getTalleresFlags(env: NodeJS.ProcessEnv = process.env): Talleres
 /**
  * Returns true when talleres features are enabled (flag on, stage not off, no killSwitch).
  */
-export function isTalleresEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isTalleresEnabled(env: NodeJS.ProcessEnv = entornoTalleres()): boolean {
   const flags = getTalleresFlags(env)
   return flags.enabled && flags.stage !== 'off' && !flags.killSwitch
 }
@@ -63,7 +79,7 @@ export function isTalleresEnabled(env: NodeJS.ProcessEnv = process.env): boolean
 /**
  * Returns the current talleres rollout stage.
  */
-export function getTalleresStage(env: NodeJS.ProcessEnv = process.env): TalleresRolloutStage {
+export function getTalleresStage(env: NodeJS.ProcessEnv = entornoTalleres()): TalleresRolloutStage {
   const flags = getTalleresFlags(env)
   return flags.stage
 }
@@ -72,7 +88,7 @@ export function getTalleresStage(env: NodeJS.ProcessEnv = process.env): Talleres
  * Returns true when talleres is at the public stage gate (no killSwitch, stage = public).
  * Convenience for route-level gating decisions.
  */
-export function getTalleresStageGate(env: NodeJS.ProcessEnv = process.env): boolean {
+export function getTalleresStageGate(env: NodeJS.ProcessEnv = entornoTalleres()): boolean {
   const flags = getTalleresFlags(env)
   return flags.enabled && flags.stage === 'public' && !flags.killSwitch
 }
