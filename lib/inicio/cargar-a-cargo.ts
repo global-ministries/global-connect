@@ -1,7 +1,11 @@
 /**
  * What the home shows of each cargo in «A tu cargo» (odd/tasks/home-por-rol.md
- * T4, S5–S7; design/home-por-rol 05, 06, 09, 10). One loader per cargo, all
- * through the session client, so RLS still decides what each person reads:
+ * T4, S5–S7; design/home-por-rol 05, 06, 09, 10). One loader per cargo,
+ * through the session client except where RLS hides what the cargo needs
+ * (T9, L22): the etapa and segmento blocks and the leader's health rows. There,
+ * as resolverLectorSalud, the scope comes only from the session person's own
+ * rows (resolverLector) and the scoped rows are read with the service client;
+ * without a service client those reads stay with the session.
  *
  * - grupo-lider: next meeting and place (cargarGruposMiembro), members,
  *   attendance of the last meeting, absent 3+ weeks (v_salud_miembros_grupo)
@@ -22,6 +26,7 @@
 import { cache } from 'react'
 
 import { fetchResumenPendientes } from '@/lib/platform/dream-team/pendientes'
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 import type { ClienteInicio } from './cargar-hechos'
 import { cargarGruposMiembro, type ReunionGrupo } from './cargar-grupos-miembro'
@@ -185,6 +190,38 @@ export function semanaAnterior(hoy: string): { desde: string; hasta: string } {
 
 const porcentaje = (parte: number, total: number): number => Math.round((parte / total) * 100)
 
+// ── Who reads ─────────────────────────────────────────────────────────────────
+
+/** The session person (usuarios.id) and the service client to read their scope with. */
+type Lector = { usuarioId: string; db: ClienteInicio }
+
+/**
+ * RLS hides from a director de etapa the links of her groups, from a director
+ * general the meetings of his segment, and v_salud_miembros_grupo has no grant
+ * for authenticated (L22). The person comes from the session's own auth user,
+ * never from a parameter. null (logged) without a service client or a person.
+ */
+const resolverLector = cache(async (supabase: ClienteInicio): Promise<Lector | null> => {
+  let admin: ReturnType<typeof createSupabaseAdminClient>
+  try {
+    admin = createSupabaseAdminClient()
+  } catch (error) {
+    console.error('Inicio: sin cliente de servicio, se lee con la sesión:', error instanceof Error ? error.message : error)
+    return null
+  }
+  return intentar<Lector | null>(
+    'persona de la sesión',
+    async () => {
+      const { data, error } = await supabase.auth.getUser()
+      if (error || !data.user) throw new Error(error?.message ?? 'sin sesión')
+      const usuarioId = texto(objeto(await datos(admin.from('usuarios').select('id').eq('auth_id', data.user.id).maybeSingle()))?.id)
+      if (!usuarioId) throw new Error('sin fila en usuarios')
+      return { usuarioId, db: admin }
+    },
+    null,
+  )
+})
+
 // ── Groups of an etapa or segmento ───────────────────────────────────
 
 /** Name, leaders and last week's attendance of each active group. */
@@ -296,20 +333,28 @@ async function gruposDeEtapas(supabase: ClienteInicio, etapaIds: string[]): Prom
 const clave = (ids: string[]): string => [...new Set(ids)].sort().join(',')
 
 export const cargarEtapa = cache(async (supabase: ClienteInicio, directorEtapaId: string, hoy: string): Promise<DatosEtapa> => {
-  const [fila, porEtapa] = await Promise.all([
-    datos(supabase.from('segmento_lideres').select('id, segmento:segmentos!segmento_lideres_segmento_id_fkey(nombre)').eq('id', directorEtapaId).maybeSingle()),
-    gruposDeEtapas(supabase, [directorEtapaId]),
-  ])
-  const resumen = await resumirGrupos(supabase, clave(porEtapa.get(directorEtapaId) ?? []), hoy)
+  const lector = await resolverLector(supabase)
+  const db = lector?.db ?? supabase
+  const etapa = db.from('segmento_lideres').select('id, segmento:segmentos!segmento_lideres_segmento_id_fkey(nombre)').eq('id', directorEtapaId)
+  // With the service client, only an etapa the session person directs.
+  const fila = await datos((lector ? etapa.eq('usuario_id', lector.usuarioId).eq('tipo_lider', 'director_etapa') : etapa).maybeSingle())
+  if (lector && !fila) throw new Error('la etapa no es de la persona')
+  const porEtapa = await gruposDeEtapas(db, [directorEtapaId])
+  const resumen = await resumirGrupos(db, clave(porEtapa.get(directorEtapaId) ?? []), hoy)
   return { tipo: 'etapa', directorEtapaId, nombre: texto(objeto(objeto(fila)?.segmento)?.nombre), ...resumen }
 })
 
 export const cargarSegmento = cache(async (supabase: ClienteInicio, segmentoId: string, usuarioId: string, hoy: string): Promise<DatosSegmento> => {
-  const [segmento, alcance, etapas] = await Promise.all([
-    datos(supabase.from('segmentos').select('nombre').eq('id', segmentoId).maybeSingle()),
-    datos(supabase.from('director_general_segmentos').select('alcance').eq('usuario_id', usuarioId).eq('segmento_id', segmentoId).maybeSingle()),
+  const lector = await resolverLector(supabase)
+  const db = lector?.db ?? supabase
+  const quien = lector?.usuarioId ?? usuarioId
+  const alcance = await datos(db.from('director_general_segmentos').select('alcance').eq('usuario_id', quien).eq('segmento_id', segmentoId).maybeSingle())
+  // With the service client nothing else limits the read: without the person's row there is no segment.
+  if (lector && !objeto(alcance)) throw new Error('el segmento no es de la persona')
+  const [segmento, etapas] = await Promise.all([
+    datos(db.from('segmentos').select('nombre').eq('id', segmentoId).maybeSingle()),
     datos(
-      supabase
+      db
         .from('segmento_lideres')
         .select('id, usuario:usuarios!segmento_lideres_usuario_id_fkey(nombre, apellido)')
         .eq('segmento_id', segmentoId)
@@ -321,7 +366,7 @@ export const cargarSegmento = cache(async (supabase: ClienteInicio, segmentoId: 
   const todo = texto(objeto(alcance)?.alcance) === 'segmento'
   const marcadas = todo
     ? null
-    : new Set(filas(await datos(supabase.from('dg_directores_etapa').select('segmento_lider_id').eq('dg_usuario_id', usuarioId))).map((f) => texto(f.segmento_lider_id)))
+    : new Set(filas(await datos(db.from('dg_directores_etapa').select('segmento_lider_id').eq('dg_usuario_id', quien))).map((f) => texto(f.segmento_lider_id)))
   const directoresPorEtapa = new Map<string, string[]>()
   for (const f of filas(etapas)) {
     const id = texto(f.id)
@@ -330,16 +375,19 @@ export const cargarSegmento = cache(async (supabase: ClienteInicio, segmentoId: 
     directoresPorEtapa.set(id, [...(directoresPorEtapa.get(id) ?? []), ...(nombre ? [nombre] : [])])
   }
   const etapaIds = [...directoresPorEtapa.keys()]
-  const porEtapa = await gruposDeEtapas(supabase, etapaIds)
-  const delSegmento = todo
-    ? unicos(
-        (await paginado((desde, hasta) => supabase.from('grupos').select('id').eq('segmento_id', segmentoId).order('id').range(desde, hasta))).map((g) => texto(g.id)),
-      )
-    : [...new Set([...porEtapa.values()].flat())]
+  const porEtapa = await gruposDeEtapas(db, etapaIds)
+  // As gdv_dg_grupos_visibles, a group counts only while it belongs to the segment
+  // (always checked with the service client; the session path keeps its reads).
+  const enSegmento =
+    todo || lector
+      ? new Set(unicos((await paginado((desde, hasta) => db.from('grupos').select('id').eq('segmento_id', segmentoId).order('id').range(desde, hasta))).map((g) => texto(g.id))))
+      : null
+  const dentro = (ids: string[]): string[] => (enSegmento ? ids.filter((id) => enSegmento.has(id)) : ids)
+  const delSegmento = todo && enSegmento ? [...enSegmento] : dentro([...new Set([...porEtapa.values()].flat())])
 
   const [resumen, ...porCadaEtapa] = await Promise.all([
-    resumirGrupos(supabase, clave(delSegmento), hoy),
-    ...etapaIds.map((id) => resumirGrupos(supabase, clave(porEtapa.get(id) ?? []), hoy)),
+    resumirGrupos(db, clave(delSegmento), hoy),
+    ...etapaIds.map((id) => resumirGrupos(db, clave(dentro(porEtapa.get(id) ?? [])), hoy)),
   ])
   return {
     tipo: 'segmento',
@@ -362,7 +410,20 @@ async function cargarGrupoLider(
     cargarGruposMiembro(supabase, { authId: pedido.authId, usuarioId: pedido.usuarioId, hoy: pedido.hoy, grupos: [{ grupoId, nombre: cargo.nombre }] }).then((r) => r[grupoId]),
     intentar<Record<string, unknown>[] | null>(
       'v_salud_miembros_grupo',
-      async () => filas(await datos(supabase.from('v_salud_miembros_grupo').select('usuario_id, nombre_completo, semanas_ausente').eq('grupo_id', grupoId))),
+      async () => {
+        const lector = await resolverLector(supabase)
+        if (lector) {
+          // Only for a group the session person leads.
+          const lidera = filas(
+            await datos(
+              lector.db.from('grupo_miembros').select('id').eq('grupo_id', grupoId).eq('usuario_id', lector.usuarioId).eq('rol', 'Líder').is('fecha_salida', null).limit(1),
+            ),
+          )
+          if (lidera.length === 0) return null
+        }
+        const db = lector?.db ?? supabase
+        return filas(await datos(db.from('v_salud_miembros_grupo').select('usuario_id, nombre_completo, semanas_ausente').eq('grupo_id', grupoId)))
+      },
       null,
     ),
     intentar<DatosGrupoLider['ultimaReunion']>(

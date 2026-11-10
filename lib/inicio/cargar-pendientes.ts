@@ -4,9 +4,10 @@
  * week, leaders of their etapas or segmentos without last week's report,
  * and volunteers of their Dream Team areas still without Próximo Paso (S5).
  * The last two read the same memoized loaders as «A tu cargo», so the
- * blocks and the counts always agree. Each count degrades to 0 on its own.
+ * blocks and the counts always agree, including their service-client reads
+ * scoped to the session person (T9, L22). Each count degrades to 0 on its own.
  */
-import { cargarArea, cargarEtapa, cargarSegmento, intentar, semanaAnterior, TIEMPO_MAXIMO_CARGO_MS } from './cargar-a-cargo'
+import { cargarArea, cargarEtapa, cargarSegmento, claveCargo, intentar, semanaAnterior, TIEMPO_MAXIMO_CARGO_MS, type ResumenGrupos } from './cargar-a-cargo'
 import type { ClienteInicio } from './cargar-hechos'
 import type { PendientesInicio } from './hechos'
 
@@ -33,12 +34,17 @@ async function reportesSinCargar(supabase: ClienteInicio, { gruposLider, hoy }: 
 }
 
 async function lideresSinReporte(supabase: ClienteInicio, pedido: PedidoPendientes): Promise<number> {
+  // As the blocks: an etapa or segmento that fails is left out, the others still count.
   const resumenes = await Promise.all([
-    ...pedido.etapas.map((id) => cargarEtapa(supabase, id, pedido.hoy)),
-    ...pedido.segmentos.map((id) => cargarSegmento(supabase, id, pedido.usuarioId, pedido.hoy)),
+    ...pedido.etapas.map((id) =>
+      intentar<ResumenGrupos | null>(claveCargo({ tipo: 'etapa', directorEtapaId: id }), () => cargarEtapa(supabase, id, pedido.hoy), null, TIEMPO_MAXIMO_CARGO_MS),
+    ),
+    ...pedido.segmentos.map((id) =>
+      intentar<ResumenGrupos | null>(claveCargo({ tipo: 'segmento', segmentoId: id }), () => cargarSegmento(supabase, id, pedido.usuarioId, pedido.hoy), null, TIEMPO_MAXIMO_CARGO_MS),
+    ),
   ])
   // A group under both an etapa and a segmento of the person counts once.
-  return new Set(resumenes.flatMap((r) => r.grupos.filter((g) => !g.reporto).map((g) => g.grupoId))).size
+  return new Set(resumenes.flatMap((r) => (r ? r.grupos.filter((g) => !g.reporto).map((g) => g.grupoId) : []))).size
 }
 
 async function marcarProximoPaso(supabase: ClienteInicio, { areas }: PedidoPendientes): Promise<number> {
