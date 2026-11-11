@@ -218,6 +218,26 @@ teléfono se guarda en la ficha si no tenía. Quien edita Próximo Paso ve en su
 "Configuración" el "Enlace de inscripción" con botón de copiar y el QR para
 descargar.
 
+**Rediseño, hora y lugar, y tarjeta del inicio (T8).** `/proximo-paso` es un
+flujo tipo app (diseños aprobados `design/proximo-paso` 01–09): inicio con la
+próxima edición y los 4 domingos; "Elegir fecha" sólo si hay más de una
+abierta; "Tus datos"; el código; "¡Listo!" con los 4 domingos para agregar al
+calendario (un `.ics` por clase o los 4 juntos, y Google Calendar); con sesión,
+un toque; y los estados sin fechas, cupo lleno (los datos se quedan y se ofrece
+la siguiente fecha), cerradas, código incorrecto, demasiados intentos y ya
+inscrito. La migración `20261111120000_proximo_paso_ediciones_detalle.sql`
+agrega a `proximo_paso_ediciones_abiertas()` la `hora` (la de la primera clase
+en `taller_sesiones.meeting_time_override`, si no `recurrence_rule.start_time`),
+el `lugar` (`taller_ediciones.lugar`) y las `indicaciones`
+(`taller_ediciones.indicaciones`, leídas con `to_jsonb` para no depender del
+orden de las migraciones); se muestran donde se muestra la fecha y no se
+muestra nada si faltan. En el inicio, quien no hizo Próximo Paso ve la tarjeta
+en "Tus próximos pasos": con fecha abierta, borde naranja y "Inscribirme" en
+un diálogo (hoja inferior en el celular) que llama a
+`inscribirmeEnProximoPaso`; ya inscrito, el recordatorio de la próxima clase
+con hora y lugar; sin fecha, una tarjeta suave. Desaparece con el hito "hizo
+Próximo Paso".
+
 **Inscripción automática si hay cupo (T2b).** `talleres.inscripcion_automatica`
 (migración `20261110170000_talleres_inscripcion_automatica.sql`, apagada por
 defecto y encendida en Próximo Paso). Con la opción encendida,

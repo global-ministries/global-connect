@@ -124,4 +124,23 @@ describe('PantallaInicio', () => {
 
     expect(titulosSecciones()).toEqual(['Explorar'])
   })
+
+  // T8 (odd/tasks/proximo-paso.md, design/proximo-paso 08–09): the Próximo Paso card fills the slot.
+  describe('tarjeta de Próximo Paso', () => {
+    const tarjeta = <article aria-label="Tarjeta Próximo Paso">Inscripciones abiertas</article>
+
+    it('ocupa el lugar del destacado dentro de «Tus próximos pasos»', () => {
+      render(<PantallaInicio nombre="Ana" hoy="2026-11-09" secciones={decidirSecciones(NUEVO)} proximoPaso={tarjeta} />)
+
+      const seccion = screen.getByRole('region', { name: 'Tus próximos pasos' })
+      expect(within(seccion).getByRole('article', { name: 'Tarjeta Próximo Paso' })).toBeInTheDocument()
+      expect(screen.queryByRole('article', { name: 'Próximo Paso' })).not.toBeInTheDocument()
+    })
+
+    it('no aparece cuando la persona ya hizo Próximo Paso', () => {
+      render(<PantallaInicio nombre="Ana" hoy="2026-11-09" secciones={decidirSecciones(COLIDER)} proximoPaso={tarjeta} />)
+
+      expect(screen.queryByRole('article', { name: 'Tarjeta Próximo Paso' })).not.toBeInTheDocument()
+    })
+  })
 })

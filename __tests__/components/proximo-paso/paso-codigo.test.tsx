@@ -184,6 +184,36 @@ describe('PasoCodigo', () => {
     expect(cajas[5]).toHaveFocus()
   })
 
+  // T8 (design/proximo-paso 07 · 5): too many attempts lock the boxes with a countdown, nothing typed is lost.
+  it('locks the boxes with a countdown after too many attempts and offers a new code when it ends', async () => {
+    jest.useFakeTimers()
+    try {
+      confirmarCodigoProximoPaso.mockResolvedValue({ ok: false, error: 'LIMITE', message: 'Hiciste muchos intentos. Espera un momento y vuelve a intentarlo.' })
+      reenviarCodigoProximoPaso.mockResolvedValue({ ok: true, message: 'Te enviamos un código nuevo. Usa solo el de este último correo.' })
+      const cajas = renderPaso()
+
+      pegar(cajas[0], '123456')
+
+      expect(await screen.findByRole('heading', { name: 'Espera un momento' })).toBeInTheDocument()
+      expect(screen.getByText(/Podrás escribir el código otra vez en/)).toHaveTextContent('5:00')
+      expect(screen.getByText('Tu inscripción no se perdió. Cuando termine la espera, pide un código nuevo y usa ese.')).toBeInTheDocument()
+      cajas.forEach((c) => expect(c).toBeDisabled())
+      expect(screen.getByRole('button', { name: /Pedir código nuevo en 5:00/ })).toBeDisabled()
+
+      act(() => jest.advanceTimersByTime(300_000))
+      fireEvent.click(screen.getByRole('button', { name: 'Pedir código nuevo' }))
+
+      expect(await screen.findByText('Te enviamos un código nuevo. Usa solo el de este último correo.')).toBeInTheDocument()
+      expect(reenviarCodigoProximoPaso).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('heading', { name: 'Espera un momento' })).not.toBeInTheDocument()
+      within(screen.getByRole('group', { name: 'Código de 6 dígitos' }))
+        .getAllByRole('textbox')
+        .forEach((c) => expect(c).toBeEnabled())
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it('says to use only the newest email after a resend', async () => {
     jest.useFakeTimers()
     try {

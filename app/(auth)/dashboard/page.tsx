@@ -7,10 +7,16 @@
  * T7, plus the groups where the person is Miembro or Colíder, T8).
  * obtener_datos_dashboard (tablero.tsx) is read only where needed; each
  * section degrades on its own.
+ *
+ * Próximo Paso (odd/tasks/proximo-paso.md T8, design/proximo-paso 08–09):
+ * only where «Tus próximos pasos» highlights it (who has not done it), the
+ * open ediciones and the own inscripción are read with the person's client
+ * and the live card takes the highlight's place; a failed read keeps it.
  */
 import { redirect } from 'next/navigation'
 
 import { TarjetaMisHijosDashboard } from '@/components/dashboard/TarjetaMisHijosDashboard'
+import { TarjetaProximoPaso } from '@/components/dashboard/tarjeta-proximo-paso'
 import { PantallaInicio } from '@/components/inicio/pantalla-inicio'
 import { cargarMisServiciosPanel } from '@/components/mis-servicios/cargar-mis-servicios'
 import { TarjetaMisServicios } from '@/components/mis-servicios/tarjeta-mis-servicios'
@@ -23,6 +29,8 @@ import { cargarHechosInicio } from '@/lib/inicio/cargar-hechos'
 import { cargarNotasLideres, type NotaLider } from '@/lib/inicio/cargar-notas-lideres'
 import { decidirSecciones } from '@/lib/inicio/decidir-secciones'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import { cargarEstadoProximoPaso, varianteProximoPaso, type ClienteProximoPaso, type EstadoProximoPaso } from '@/lib/platform/proximo-paso/estado'
+import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
@@ -75,9 +83,18 @@ export default async function PaginaInicio() {
   const grupoCumpleanos = gruposLider.length === 1 ? gruposLider[0] : null
 
   const usuarioId = hechos.usuarioId
+  // The highlight is decidirSecciones' rule: never for who already did Próximo Paso.
+  const pideProximoPaso = secciones.some((s) => s.id === 'proximos-pasos' && s.pasos.some((p) => p.destacado))
+  const proximoPasoPromesa: Promise<EstadoProximoPaso | null> =
+    pideProximoPaso && isTalleresEnabled()
+      ? cargarEstadoProximoPaso(supabase as unknown as ClienteProximoPaso, { usuarioId, hoy }).catch((error: unknown) => {
+          console.error('Inicio: no se pudo leer Próximo Paso:', error)
+          return null
+        })
+      : Promise.resolve(null)
   // The tablero has birthdays only for who leads or oversees, and they all have a cargo or the campus view.
   const tableroPromesa = aCargo || conVision ? cargarTablero() : Promise.resolve(null)
-  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres, cumpleanosGrupos] = await Promise.all([
+  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres, cumpleanosGrupos, proximoPaso] = await Promise.all([
     usuarioId && grupos.length > 0
       ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Record<string, DatosGrupoMiembro>>({}),
@@ -91,6 +108,7 @@ export default async function PaginaInicio() {
     usuarioId && conCumpleanos && grupos.length > 0
       ? cargarCumpleanosGrupos(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Cumpleanos[]>([]),
+    proximoPasoPromesa,
   ])
   // A leader who is also a member elsewhere sees both groups in one list, each person once (S14a).
   const cumpleanos = conCumpleanos ? unirCumpleanos(cumpleanosDelTablero(tablero, grupoCumpleanos), cumpleanosGrupos) : []
@@ -109,6 +127,11 @@ export default async function PaginaInicio() {
         notasLideres={notasLideres}
         cumpleanos={cumpleanos}
         contextos={tablero?.contextos}
+        proximoPaso={
+          proximoPaso && (
+            <TarjetaProximoPaso estado={varianteProximoPaso(proximoPaso)} hoy={hoy} nombre={nombre?.trim().split(/\s+/)[0] ?? null} />
+          )
+        }
       />
     </PaginaSistema>
   )

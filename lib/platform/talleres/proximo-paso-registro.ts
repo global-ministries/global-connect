@@ -30,6 +30,12 @@ export interface EdicionProximoPaso {
   /** null = sin cupo definido. */
   readonly cupoRestante: number | null
   readonly clases: readonly ClaseProximoPaso[]
+  /** T8 (L24.3): HH:MM (24 h) of the first clase; null when the edición has none. */
+  readonly hora: string | null
+  /** T8: where the clases are (taller_ediciones.lugar); null when not set. */
+  readonly lugar: string | null
+  /** T8: practical notes of the edición; null until set. */
+  readonly indicaciones: string | null
 }
 
 /** What the confirmation needs from an edición. */
@@ -38,6 +44,12 @@ export type EdicionResumen = Pick<EdicionProximoPaso, 'id' | 'nombre' | 'fechaIn
 function texto(valor: unknown): string | null {
   return typeof valor === 'string' && valor.trim() !== '' ? valor : null
 }
+
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/
+
+const hora = (valor: unknown): string | null => (typeof valor === 'string' && HORA.test(valor) ? valor : null)
+
+const textoLimpio = (valor: unknown): string | null => texto(valor)?.trim() ?? null
 
 function parseClases(raw: unknown): ClaseProximoPaso[] {
   if (!Array.isArray(raw)) return []
@@ -69,6 +81,9 @@ export function parseEdicionesProximoPaso(raw: unknown): EdicionProximoPaso[] {
       fechaFin: texto(f.fecha_fin),
       cupoRestante: typeof f.cupo_restante === 'number' ? f.cupo_restante : null,
       clases: parseClases(f.clases),
+      hora: hora(f.hora),
+      lugar: textoLimpio(f.lugar),
+      indicaciones: textoLimpio(f.indicaciones),
     })
   }
   return ediciones
