@@ -8,12 +8,14 @@ import { componerNavegacion, paginasTalleres, type EntradaMenu } from '@/compone
 import { useNinosMenuItem } from '@/components/ninos/ninos-menu-item'
 import { useDreamTeamMenuItem } from '@/components/ui/dream-team-menu-item'
 import { usePlatformNavigationViewItems } from '@/components/ui/platform-navigation-view-items'
+import { useTalleresMenuItem } from '@/components/ui/talleres-menu-item'
 import { useUnoAUnoMenuItem } from '@/components/uno-a-uno/uno-a-uno-menu-item'
 import { useCachedAccessCredentials } from '@/hooks/useCachedAccessCredentials'
 import { useCurrentUser } from '@/hooks/useCurrentUser'
 import type { CredencialesNavegacion } from '@/lib/navegacion/registro'
 
 export type { EntradaMenu }
+export { esEntradaTalleres } from '@/components/ui/talleres-menu-item'
 
 /**
  * The signed-in user's roles and support capabilities, keeping the last known
@@ -38,7 +40,7 @@ export function useCredencialesNavegacion(): CredencialesNavegacion {
  * phone tabs and the "Más" sheet contents.
  */
 export function useEntradasNavegacion() {
-  const { platformSession } = useCurrentUser()
+  const { usuario, platformSession } = useCurrentUser()
   const credenciales = useCredencialesNavegacion()
   const plataforma = usePlatformNavigationViewItems(platformSession)
   const dreamTeam = useDreamTeamMenuItem(platformSession)
@@ -49,20 +51,17 @@ export function useEntradasNavegacion() {
   const dps = useDpsMenuItem(platformSession)
   // Server-fed flags (hooks/useUnoAUnoAcceso): whoever leads, supervises or takes part in a 1:1.
   const unoAUno = useUnoAUnoMenuItem()
+  // Talleres' own flags (NEXT_PUBLIC_TALLERES_*), not the platform navigation flag: any signed-in user.
+  const talleresMenu = useTalleresMenuItem(!!usuario || !!platformSession)
   const talleres = useMemo(
     () => paginasTalleres((platformSession?.capabilities ?? []).map((capacidad) => capacidad.key)),
     [platformSession],
   )
 
   const navegacion = useMemo(
-    () => componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes, dps, unoAUno, plataforma, talleres }),
-    [credenciales, dreamTeam, ninos, estudiantes, dps, unoAUno, plataforma, talleres],
+    () => componerNavegacion({ credenciales, dreamTeam, ninos, estudiantes, dps, unoAUno, talleresMenu, plataforma, talleres }),
+    [credenciales, dreamTeam, ninos, estudiantes, dps, unoAUno, talleresMenu, plataforma, talleres],
   )
 
   return { ...navegacion, platformSession }
-}
-
-/** Talleres platform items open the role-grouped TalleresNavSubmenu instead of plain children. */
-export function esEntradaTalleres(entrada: { id: string }): boolean {
-  return entrada.id.startsWith('platform-talleres_')
 }

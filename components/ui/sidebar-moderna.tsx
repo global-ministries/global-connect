@@ -66,7 +66,7 @@ function useModoSidebar(): ModoSidebar {
 /**
  * PR51 — the talleres submenu (TalleresNavSubmenu) aggregates links across the
  * WHOLE talleres route family: the participant tree (/talleres/*) AND the
- * admin tree (/admin/talleres/*). The platform parent's own href is only the
+ * admin tree (/admin/talleres/*). The Talleres entry's own href is only the
  * participant landing (/talleres/explorar), so the group counts as holding the
  * current page anywhere in the family.
  */
@@ -81,9 +81,9 @@ function enFamiliaTalleres(pathname: string | null): boolean {
 }
 
 /**
- * A group entry opens a submenu: entries with children, and the talleres
- * platform items (PR27: their view-item type has `children?: never`, but they
- * open the role-grouped TalleresNavSubmenu).
+ * A group entry opens a submenu: entries with children, and the Talleres
+ * entry (its own or the platform's, PR27: no children, but it opens the
+ * role-grouped TalleresNavSubmenu).
  */
 function esGrupo(entrada: EntradaMenu): boolean {
   return (entrada.children?.length ?? 0) > 0 || esEntradaTalleres(entrada)
@@ -235,7 +235,7 @@ export function SidebarModerna({ className }: SidebarModernaProps) {
 
   const renderSubmenu = (entrada: EntradaMenu) =>
     esEntradaTalleres(entrada) ? (
-      /* PR27 — the Talleres platform item renders the role-grouped sub-menu. */
+      /* PR27 — the Talleres entry renders the role-grouped sub-menu. */
       <TalleresNavSubmenu
         sessionCapabilities={(platformSession?.capabilities ?? []).map((c) => c.key)}
         counters={{}}
