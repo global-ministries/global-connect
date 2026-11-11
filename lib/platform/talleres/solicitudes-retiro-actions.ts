@@ -77,14 +77,14 @@ function mapRpcError(error: RpcError): SolicitudRetiroActionResult {
         ok: false,
         error: 'FORBIDDEN',
         message:
-          'No tenés permiso para resolver esta solicitud (fuera de tus talleres asignados).',
+          'No tienes permiso para resolver esta solicitud (fuera de tus talleres asignados).',
       }
     case 'P0002':
       return {
         ok: false,
         error: 'NOT_FOUND_OR_NOT_PENDIENTE',
         message:
-          'La solicitud no existe o ya fue procesada. Refrescá la página.',
+          'La solicitud no existe o ya fue procesada. Recarga la página.',
       }
     case '22023':
       return {

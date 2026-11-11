@@ -29,7 +29,7 @@
  *
  * PERMISSIONS: one cargarPermisos(client, taller.dream_team_equipo_id)
  * call for the whole page. permisos.verReportes only drives the reporte
- * section's honest empty-state copy ("aún no hay reporte" vs. "no tenés
+ * section's honest empty-state copy ("aún no hay reporte" vs. "no tienes
  * permiso para verlo") since RLS already decides what data arrives either
  * way.
  *
@@ -65,7 +65,7 @@
  * question for a different kind of node) used only to keep the
  * asistencia/reporte empty-state copy honest: `permisos.ver/verReportes
  * || esMiembro`, so a capability-less member sees "aún no hay ..." and
- * never a false "no tenés permiso". Fails soft to false (RPC missing,
+ * never a false "no tienes permiso". Fails soft to false (RPC missing,
  * e.g. production pre-T3), which just keeps pre-T2 behaviour.
  *
  * T4 (odd/tasks/talleres-configuracion-del-taller.md): each clase gets an

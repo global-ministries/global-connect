@@ -58,12 +58,12 @@ export type CreateTallerAbstractResult =
  */
 const RPC_ERROR_MESSAGES: Readonly<Record<string, string>> = {
   MUST_CHOOSE_EXACTLY_ONE_MODE:
-    'Elegí un nodo del árbol para vincular, o un padre para crear uno nuevo — no ambos ni ninguno.',
+    'Elige un nodo del árbol para vincular, o un padre para crear uno nuevo — no ambos ni ninguno.',
   EQUIPO_NOT_FOUND: 'El equipo elegido ya no existe.',
   EQUIPO_INACTIVE: 'El equipo elegido está inactivo.',
-  EQUIPO_WRONG_EXPERIENCE: 'Ese nodo no pertenece a talleres — elegí otro.',
-  EQUIPO_IS_ROOT: 'No podés vincular un nodo raíz del organigrama.',
-  EQUIPO_HAS_CHILDREN: 'Ese nodo tiene hijos — elegí una hoja del árbol.',
+  EQUIPO_WRONG_EXPERIENCE: 'Ese nodo no pertenece a talleres — elige otro.',
+  EQUIPO_IS_ROOT: 'No puedes vincular un nodo raíz del organigrama.',
+  EQUIPO_HAS_CHILDREN: 'Ese nodo tiene hijos — elige una hoja del árbol.',
   EQUIPO_ALREADY_LINKED: 'Ese equipo ya está vinculado a otro taller.',
   PARENT_EQUIPO_NOT_FOUND: 'El nodo padre elegido ya no existe.',
   PARENT_EQUIPO_INACTIVE: 'El nodo padre elegido está inactivo.',

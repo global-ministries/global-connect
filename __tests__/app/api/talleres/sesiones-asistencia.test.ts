@@ -158,7 +158,7 @@ describe('POST asistencia/cerrar — portón (kill switch + sesión)', () => {
 
 describe('POST asistencia — traduce los errores de la función a HTTP + español', () => {
   it.each([
-    { mensaje: 'sin_permisos_para_este_grupo', code: '42501', status: 403, mensajeEs: 'No tenés permisos para este grupo.' },
+    { mensaje: 'sin_permisos_para_este_grupo', code: '42501', status: 403, mensajeEs: 'No tienes permisos para este grupo.' },
     { mensaje: 'SESION_NO_ENCONTRADA', code: 'P0001', status: 404, mensajeEs: 'No existe esa clase.' },
     { mensaje: 'CLASE_CERRADA', code: 'P0001', status: 409, mensajeEs: 'Esta clase ya está cerrada; no admite cambios.' },
     { mensaje: 'MARCAS_INVALIDAS', code: 'P0001', status: 400, mensajeEs: 'La lista de marcas no es válida.' },
@@ -186,7 +186,7 @@ describe('POST asistencia — traduce los errores de la función a HTTP + españ
 
 describe('POST cerrar — traduce los errores de la función a HTTP + español', () => {
   it.each([
-    { mensaje: 'sin_permisos_para_este_grupo', code: '42501', status: 403, mensajeEs: 'No tenés permisos para este grupo.' },
+    { mensaje: 'sin_permisos_para_este_grupo', code: '42501', status: 403, mensajeEs: 'No tienes permisos para este grupo.' },
     { mensaje: 'solo_el_lider_puede_cerrar_la_clase', code: '42501', status: 403, mensajeEs: 'Sólo el líder de este grupo puede cerrar la clase.' },
     { mensaje: 'SESION_NO_ENCONTRADA', code: 'P0001', status: 404, mensajeEs: 'No existe esa clase.' },
   ])('$mensaje ($code) → $status', async ({ mensaje, code, status, mensajeEs }) => {

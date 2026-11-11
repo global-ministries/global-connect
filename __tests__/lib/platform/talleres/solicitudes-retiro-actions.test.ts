@@ -191,6 +191,18 @@ describe('solicitudes-retiro-actions — RPC error mapping', () => {
     expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 
+  // R3h (odd/tasks/talleres-rediseno.md, S2) — neutral «tú», never voseo.
+  it.each([
+    { code: '42501', message: 'No tienes permiso para resolver esta solicitud (fuera de tus talleres asignados).' },
+    { code: 'P0002', message: 'La solicitud no existe o ya fue procesada. Recarga la página.' },
+  ])('$code message has no voseo: «$message»', async ({ code, message }) => {
+    setupMocks({ rpcData: null, rpcError: { code, message: 'x' } })
+
+    const result = await aprobarSolicitudRetiroAction(SOLICITUD_ID)
+
+    expect(result.message).toBe(message)
+  })
+
   it('maps 22023 → INVALID_ACCION', async () => {
     setupMocks({ rpcData: null, rpcError: { code: '22023', message: 'accion_invalida' } })
 

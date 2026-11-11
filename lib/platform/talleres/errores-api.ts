@@ -43,7 +43,7 @@ const MAPA: Readonly<Record<string, Entrada>> = {
   sin_permisos_para_este_grupo: {
     status: 403,
     error: 'forbidden',
-    message: 'No tenés permisos para este grupo.',
+    message: 'No tienes permisos para este grupo.',
   },
   INSCRIPCION_NO_ENCONTRADA: {
     status: 404,

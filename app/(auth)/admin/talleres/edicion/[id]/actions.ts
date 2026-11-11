@@ -193,7 +193,7 @@ export async function openExistingEdicionAction(
       ok: false,
       error: 'NOT_FOUND_OR_NOT_BORRADOR',
       message:
-        'La edición no existe o no está en estado borrador. Refrescá la página.',
+        'La edición no existe o no está en estado borrador. Recarga la página.',
     }
   }
 

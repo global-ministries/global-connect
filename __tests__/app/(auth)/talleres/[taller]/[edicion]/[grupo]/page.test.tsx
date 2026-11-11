@@ -588,7 +588,7 @@ describe('GrupoDetallePage — su gente (T4, participantes reales)', () => {
 // T2 (odd/tasks/talleres-lider-identidad.md) — the líder gets identity in
 // the app: membership (talleres_es_miembro_del_grupo) renders the full
 // read view instead of the degraded state, and drives honest copy in
-// sections that would otherwise say "no tenés permiso" to someone who
+// sections that would otherwise say "no tienes permiso" to someone who
 // genuinely can read by relation, just holds zero capabilities.
 describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
   it('renders the full read view (no modoLimitado banner) for a member without any capability', async () => {

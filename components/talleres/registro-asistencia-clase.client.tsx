@@ -165,7 +165,7 @@ export function RegistroAsistenciaClase({
           {titulo}
         </TituloSistema>
         <TextoSistema variante="sutil" tamaño="sm">
-          No hay participantes aprobados en este grupo todavía; pasá la lista cuando se sumen.
+          No hay participantes aprobados en este grupo todavía; pasa la lista cuando se sumen.
         </TextoSistema>
       </div>
     );

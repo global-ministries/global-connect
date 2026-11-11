@@ -293,6 +293,22 @@ describe('POST /api/talleres/inscripciones/asignar-grupo — error mapping', () 
   })
 })
 
+// R3h (odd/tasks/talleres-rediseno.md, S2) — every message is neutral
+// Spanish with «tú», never voseo.
+describe('POST /api/talleres/inscripciones/asignar-grupo — mensajes sin voseo', () => {
+  it.each([
+    { rpcError: { code: '42501', message: 'sin_permisos_para_este_grupo' }, error: 'FORBIDDEN', message: 'No tienes permiso para asignar inscripciones a este grupo.' },
+    { rpcError: { code: 'P0002' }, error: 'NOT_FOUND', message: 'Una o más inscripciones no existen. Recarga la página.' },
+    { rpcError: { code: '22023' }, error: 'MISSING_IDS', message: 'Selecciona al menos una inscripción.' },
+    { rpcError: { code: '42883', message: 'function does not exist' }, error: 'FAILED', message: 'No se pudo asignar el grupo. Intenta de nuevo.' },
+  ])('$error → «$message»', async ({ rpcError, error, message }) => {
+    state.rpcResult = { data: null, error: rpcError }
+    const res = await asignarGrupo(makeReq({ inscripcion_ids: ['i-1'], grupo_id: 'g-1' }))
+    expect(res.status).toBe(422)
+    expect(await res.json()).toEqual({ error, message })
+  })
+})
+
 // T9 (odd/tasks/talleres-reserva-publica.md, S6, L22) — the «Grupo y líder
 // asignados» notice is written by the assignment; its email goes out right
 // after the response instead of at the daily cron.
