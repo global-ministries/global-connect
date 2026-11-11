@@ -36,8 +36,27 @@ describe('parseEdicionesProximoPaso', () => {
           { numero: 1, tema: 'Sígueme', fecha: '2026-12-06' },
           { numero: 2, tema: 'Intimidad con Dios', fecha: '2026-12-13' },
         ],
+        hora: null,
+        lugar: null,
+        indicaciones: null,
       },
     ])
+  })
+
+  // T8 (L24.3): hora, lugar and indicaciones of 20261111120000; nothing when absent or malformed.
+  it('reads the hora, the lugar and the indicaciones of the edición', () => {
+    const [e] = parseEdicionesProximoPaso([
+      { ...fila, hora: '10:00', lugar: '  Auditorio principal ', indicaciones: 'Entra por la puerta lateral.' },
+    ])
+    expect([e.hora, e.lugar, e.indicaciones]).toEqual(['10:00', 'Auditorio principal', 'Entra por la puerta lateral.'])
+  })
+
+  it.each([['25:00'], ['10:00:00'], [''], [null], [930]])('drops the hora %j', (valor) => {
+    expect(parseEdicionesProximoPaso([{ ...fila, hora: valor, lugar: ' ', indicaciones: null }])[0]).toMatchObject({
+      hora: null,
+      lugar: null,
+      indicaciones: null,
+    })
   })
 
   it('keeps a numeric cupo and drops rows without id or fecha de inicio', () => {

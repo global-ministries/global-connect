@@ -11833,6 +11833,9 @@ export type Database = {
           edicion_id: string
           fecha_fin: string | null
           fecha_inicio: string | null
+          hora: string | null
+          indicaciones: string | null
+          lugar: string | null
           nombre: string
         }[]
       }

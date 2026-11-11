@@ -218,9 +218,16 @@ SELECT pg_temp.assert_rows('fixture: 5 Próximo Paso ediciones and 1 of taller X
 SELECT pg_temp.assert_rows('(b) only public fields are returned',
   $$SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'public' AND p.proname = 'proximo_paso_ediciones_abiertas'
-       AND pg_get_function_result(p.oid) = 'TABLE(edicion_id uuid, nombre text, fecha_inicio date, fecha_fin date, cupo_restante integer, clases jsonb)'$$, 1);
+       AND pg_get_function_result(p.oid) = 'TABLE(edicion_id uuid, nombre text, fecha_inicio date, fecha_fin date, cupo_restante integer, clases jsonb, hora text, lugar text, indicaciones text)'$$, 1);
 
 -- ══ (a), (c), (d) as anon ══
+
+-- cupo is the sum of the live plantilla grupos (staging may hold real ones): measured as postgres.
+CREATE TEMP TABLE t_pr_cupo ON COMMIT DROP AS
+SELECT greatest(k.cupo - k.ocupados, 0) AS base
+  FROM t_pr_fixture f, public.talleres_cupo_edicion_calculo(f.id) k
+ WHERE f.key = 'pp_jun';
+GRANT SELECT ON t_pr_cupo TO anon, authenticated;
 
 SET LOCAL ROLE anon;
 SELECT pg_temp.as_anon();
@@ -241,7 +248,7 @@ SELECT pg_temp.assert_rows('(c) Jun: nombre, fechas, cupo 12 and the 4 named cla
        AND e.nombre = 'Junio 2031'
        AND e.fecha_inicio = DATE '2031-06-01'
        AND e.fecha_fin = DATE '2031-06-22'
-       AND e.cupo_restante = 12
+       AND e.cupo_restante = (SELECT base FROM t_pr_cupo) AND e.cupo_restante > 0
        AND jsonb_array_length(e.clases) = 4
        AND (SELECT string_agg((c ->> 'tema') || '@' || (c ->> 'fecha'), ' | ' ORDER BY (c ->> 'numero')::int)
               FROM jsonb_array_elements(e.clases) c)
@@ -304,7 +311,7 @@ SET LOCAL ROLE anon;
 SELECT pg_temp.as_anon();
 SELECT pg_temp.assert_rows('(e) anon now reads cupo_restante 11 for Jun',
   $$SELECT 1 FROM public.proximo_paso_ediciones_abiertas() e
-     WHERE e.edicion_id = (SELECT id FROM t_pr_fixture WHERE key = 'pp_jun') AND e.cupo_restante = 11$$, 1);
+     WHERE e.edicion_id = (SELECT id FROM t_pr_fixture WHERE key = 'pp_jun') AND e.cupo_restante = (SELECT base - 1 FROM t_pr_cupo)$$, 1);
 RESET ROLE;
 
 -- ══ structural ══
