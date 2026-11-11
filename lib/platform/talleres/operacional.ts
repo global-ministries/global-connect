@@ -715,6 +715,13 @@ export interface EdicionLocalDetalle {
    * still have it null: that edición is over but its results are not computed.
    */
   readonly cerrada_en: string | null
+  /**
+   * T10 (odd/tasks/talleres-reserva-publica.md, S6) — where the edición
+   * meets and what the participants should know (what to bring, where to
+   * enter, parking). Both travel in the notices; null when not set.
+   */
+  readonly lugar: string | null
+  readonly indicaciones: string | null
   readonly inscripciones_count: number
   readonly inscripciones_aprobadas_count: number
   readonly certificados_count: number
@@ -732,7 +739,7 @@ export async function loadEdicionLocalDetalle(
     .select(
       `id, taller_id, nombre_snapshot, tipo, link_type, modalidad_inscripcion,
        estado, sesiones_snapshot, duracion_estimada_minutos_snapshot, firmantes,
-       fecha_inicio, fecha_fin, cierre_inscripcion, cerrada_en,
+       fecha_inicio, fecha_fin, cierre_inscripcion, cerrada_en, lugar, indicaciones,
        talleres:talleres!inner(id, slug, nombre, estado)`,
     )
     .eq('id', edicionId)
@@ -814,6 +821,8 @@ export async function loadEdicionLocalDetalle(
     fecha_fin: (edicionRow.fecha_fin as string | null) ?? null,
     cierre_inscripcion: (edicionRow.cierre_inscripcion as string | null) ?? null,
     cerrada_en: (edicionRow.cerrada_en as string | null | undefined) ?? null,
+    lugar: (edicionRow.lugar as string | null | undefined) ?? null,
+    indicaciones: (edicionRow.indicaciones as string | null | undefined) ?? null,
     inscripciones_count: totalCount ?? 0,
     inscripciones_aprobadas_count: aprobadasCount ?? 0,
     certificados_count: certificadosCount ?? 0,

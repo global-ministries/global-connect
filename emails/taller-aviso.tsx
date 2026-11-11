@@ -7,7 +7,7 @@ export interface TallerAvisoEmailProps {
   readonly nombre: string
   readonly titulo: string
   readonly cuerpo: string
-  /** Label/value pairs under the text (Grupo, Facilita, Cuándo…). */
+  /** Label/value pairs under the text (Grupo, Facilita, Cuándo, Lugar, Indicaciones…). */
   readonly filas?: readonly (readonly [string, string])[]
   /** Absolute link and its button label; no button without both. */
   readonly url?: string | null
@@ -94,6 +94,8 @@ const styles = {
   },
   valor: {
     color: '#ffffff',
+    // T10: «Indicaciones» may have line breaks; keep them.
+    whiteSpace: 'pre-line' as const,
   },
   hint: {
     fontSize: '13px',

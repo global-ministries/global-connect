@@ -35,6 +35,15 @@
 --   never does; 15 expired rows are marked fallido 'vencido' before the
 --   lease, recordatorio_clase goes first, the daily cap counts the rows
 --   in lease.
+--
+-- 20261111130000_talleres_avisos_detalles.sql (T10, S6, L30), run after
+--   them: 16 recibida, aprobada and grupo carry the first clase (fecha,
+--   hora from the sesión override or the recurrence start_time), the lugar
+--   and the indicaciones, body and rows, and leave out what is NULL; the
+--   class reminder carries the indicaciones; talleres_primeras_clases
+--   gives Explorar the first clase. Case 5 «a started edición gives no
+--   start date» used to expect no lugar (old behaviour): it now expects
+--   «Las clases son en Salón 2.».
 
 BEGIN;
 
@@ -337,10 +346,10 @@ SELECT pg_temp.run('5: P3 approved in E0 and put in G0',
 SELECT pg_temp.assert_rows('5: an inscription inserted as aprobado gets aprobada',
   $$SELECT 1 FROM public.avisos_persona
      WHERE clave = 'inscripcion_aprobada:cf7a0000-0000-4000-8000-000000000053:cf7a0000-0000-4000-8000-000000000026'$$, 1);
-SELECT pg_temp.assert_rows('5: a started edición gives no start date',
+SELECT pg_temp.assert_rows('5: a started edición gives no start date (T10: it names the lugar)',
   $$SELECT 1 FROM public.avisos_persona
      WHERE clave = 'inscripcion_aprobada:cf7a0000-0000-4000-8000-000000000053:cf7a0000-0000-4000-8000-000000000026'
-       AND cuerpo = 'Tienes tu lugar en ZZ 7A Uno. Pronto te avisamos tu grupo y quién lo facilita.'$$, 1);
+       AND cuerpo = 'Tienes tu lugar en ZZ 7A Uno. Las clases son en Salón 2. Pronto te avisamos tu grupo y quién lo facilita.'$$, 1);
 SELECT pg_temp.assert_rows('5: and no recibida',
   $$SELECT 1 FROM public.avisos_persona
      WHERE clave LIKE 'inscripcion_recibida:cf7a0000-0000-4000-8000-000000000053:%'$$, 0);
@@ -663,6 +672,174 @@ SELECT pg_temp.capture('15: one more place takes one row, a reminder before an o
   '["recordatorio_clase"]');
 SELECT pg_temp.assert_rows('15: the older notice waits',
   $$SELECT 1 FROM public.taller_avisos_envios WHERE clave = 'zz7a15:5' AND estado = 'pendiente' AND intentos = 0$$, 1);
+
+-- ── 16. practical details: hora, lugar, indicaciones (T10, L30) ─────
+
+-- E4 94 (T_uno) abierto from H+8: lugar, indicaciones (two lines),
+--   recurrence 19:00; grupo G4 …44: sesión 1 cancelada at H+8, sesión 2
+--   programada at H+9 with override 13:30 (the first clase: «a la 1:30»).
+-- E5 95 (T_uno) abierto from H+10: recurrence 19:00, no sesiones, no lugar,
+--   no indicaciones. E6 96 (T_uno) abierto from H+12: nothing else.
+-- E7 97 (T_uno) borrador from H+8 (Explorar never sees it).
+INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata)
+SELECT ('cf7a0000-0000-4000-8000-00000000008' || n)::uuid, 'workshop', 'active', 'ZZ 7A Evento ' || n, CURRENT_DATE, 'talleres_crecimiento', '{}'::jsonb
+  FROM generate_series(4, 7) AS n;
+
+INSERT INTO public.taller_ediciones (
+  id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+  nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+  fecha_inicio, cierre_inscripcion, fecha_fin, lugar, indicaciones, recurrence_rule
+)
+SELECT ('cf7a0000-0000-4000-8000-00000000009' || x.n)::uuid, ('cf7a0000-0000-4000-8000-00000000008' || x.n)::uuid,
+       'cf7a0000-0000-4000-8000-000000000010', 'individual', NULL, 'permanente_custom', x.estado, 'ZZ 7A E' || x.n, 3, 90,
+       'permanente_custom', pg_temp.h() + x.inicio, pg_temp.h() + 5, pg_temp.h() + 30, x.lugar, x.indicaciones, x.regla::jsonb
+  FROM (VALUES
+    (4, 'abierto', 8, 'Templo principal', E'Trae tu Biblia\ny un cuaderno', '{"start_time":"19:00"}'),
+    (5, 'abierto', 10, NULL, NULL, '{"start_time":"19:00:00"}'),
+    (6, 'abierto', 12, NULL, NULL, NULL),
+    (7, 'borrador', 8, NULL, NULL, NULL)
+  ) AS x(n, estado, inicio, lugar, indicaciones, regla);
+
+INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion, started_at)
+SELECT ('cf7a0000-0000-4000-8000-0000000000c' || n)::uuid, ('cf7a0000-0000-4000-8000-00000000009' || n)::uuid,
+       'cf7a0000-0000-4000-8000-000000000002', 'ZZ 7A Cohorte ' || n, (pg_temp.h() + 8)::timestamptz
+  FROM generate_series(4, 7) AS n;
+
+INSERT INTO public.taller_grupos (id, cohorte_id, nombre, capacidad, estado) VALUES
+  ('cf7a0000-0000-4000-8000-000000000044', 'cf7a0000-0000-4000-8000-0000000000c4', 'ZZ 7A G4', 10, 'activo');
+
+INSERT INTO public.taller_sesiones (id, grupo_id, numero, fecha_programada, estado, meeting_time_override) VALUES
+  ('cf7a0000-0000-4000-8000-000000000161', 'cf7a0000-0000-4000-8000-000000000044', 1, pg_temp.h() + 8, 'programada', '08:00'),
+  ('cf7a0000-0000-4000-8000-000000000162', 'cf7a0000-0000-4000-8000-000000000044', 2, pg_temp.h() + 9, 'programada', '13:30');
+UPDATE public.taller_sesiones SET estado = 'cancelada' WHERE id = 'cf7a0000-0000-4000-8000-000000000161';
+
+SELECT pg_temp.assert_error('16: indicaciones longer than 500 characters are refused (23514)',
+  $$UPDATE public.taller_ediciones SET indicaciones = repeat('i', 501) WHERE id = 'cf7a0000-0000-4000-8000-000000000095'$$, '23514');
+
+SELECT pg_temp.check('16: the new helpers are internal; talleres_primeras_clases is for signed-in users only',
+  $chk$NOT has_function_privilege('authenticated', 'public.talleres_aviso_detalles(uuid)', 'EXECUTE')
+  AND NOT has_function_privilege('anon', 'public.talleres_aviso_detalles(uuid)', 'EXECUTE')
+  AND NOT has_function_privilege('authenticated', 'public.talleres_aviso_detalles_texto(jsonb)', 'EXECUTE')
+  AND has_function_privilege('authenticated', 'public.talleres_primeras_clases(uuid[])', 'EXECUTE')
+  AND NOT has_function_privilege('anon', 'public.talleres_primeras_clases(uuid[])', 'EXECUTE')$chk$);
+
+SELECT set_config('zz_7a.f9', public.talleres_aviso_fecha(pg_temp.h() + 9), true);
+SELECT set_config('zz_7a.f10', public.talleres_aviso_fecha(pg_temp.h() + 10), true);
+SELECT set_config('zz_7a.f12', public.talleres_aviso_fecha(pg_temp.h() + 12), true);
+
+SELECT pg_temp.run('16: P1 asks for E4, P3 for E5; P3 is put straight in E6 as aprobada',
+  $$INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES
+      ('cf7a0000-0000-4000-8000-000000000064', 'cf7a0000-0000-4000-8000-000000000094', 'cf7a0000-0000-4000-8000-0000000000c4', 'cf7a0000-0000-4000-8000-000000000024', 'pendiente'),
+      ('cf7a0000-0000-4000-8000-000000000065', 'cf7a0000-0000-4000-8000-000000000095', 'cf7a0000-0000-4000-8000-0000000000c5', 'cf7a0000-0000-4000-8000-000000000026', 'pendiente'),
+      ('cf7a0000-0000-4000-8000-000000000066', 'cf7a0000-0000-4000-8000-000000000096', 'cf7a0000-0000-4000-8000-0000000000c6', 'cf7a0000-0000-4000-8000-000000000026', 'aprobado')$$);
+
+SELECT pg_temp.assert_rows('16: recibida (app) has the first clase (sesión date, override hour «a la»), the lugar and the indicaciones on one line',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE clave = 'inscripcion_recibida:cf7a0000-0000-4000-8000-000000000064:cf7a0000-0000-4000-8000-000000000024'
+       AND cuerpo = 'Recibimos tu inscripción en ZZ 7A Uno. La coordinación revisa cada inscripción y te avisa en unos días. Empieza el '
+                    || current_setting('zz_7a.f9') || ' a la 1:30 p. m. en Templo principal. Indicaciones: Trae tu Biblia y un cuaderno.'$$, 1);
+SELECT pg_temp.assert_rows('16: recibida (email) has the same text and the rows Empieza, Lugar and Indicaciones',
+  $$SELECT 1 FROM public.taller_avisos_envios e JOIN public.avisos_persona a ON a.clave = e.clave
+     WHERE e.clave = 'inscripcion_recibida:cf7a0000-0000-4000-8000-000000000064:cf7a0000-0000-4000-8000-000000000024'
+       AND e.datos ->> 'cuerpo' = a.cuerpo
+       AND e.datos -> 'filas' = jsonb_build_array(
+             jsonb_build_array('Taller', 'ZZ 7A E4'), jsonb_build_array('Estado', 'Esperando aprobación'),
+             jsonb_build_array('Empieza', current_setting('zz_7a.f9') || ' · 1:30 p. m.'),
+             jsonb_build_array('Lugar', 'Templo principal'),
+             jsonb_build_array('Indicaciones', E'Trae tu Biblia\ny un cuaderno'))$$, 1);
+SELECT pg_temp.assert_rows('16: without a sesión the hour comes from the recurrence; no lugar nor indicaciones, so neither is named',
+  $$SELECT 1 FROM public.taller_avisos_envios e JOIN public.avisos_persona a ON a.clave = e.clave
+     WHERE e.clave = 'inscripcion_recibida:cf7a0000-0000-4000-8000-000000000065:cf7a0000-0000-4000-8000-000000000026'
+       AND a.cuerpo = 'Recibimos tu inscripción en ZZ 7A Uno. La coordinación revisa cada inscripción y te avisa en unos días. Empieza el '
+                      || current_setting('zz_7a.f10') || ' a las 7:00 p. m.'
+       AND e.datos ->> 'cuerpo' = a.cuerpo
+       AND e.datos -> 'filas' = jsonb_build_array(
+             jsonb_build_array('Taller', 'ZZ 7A E5'), jsonb_build_array('Estado', 'Esperando aprobación'),
+             jsonb_build_array('Empieza', current_setting('zz_7a.f10') || ' · 7:00 p. m.'))$$, 1);
+SELECT pg_temp.assert_rows('16: aprobada with nothing but the date: only «Empieza el <fecha>.», no hour, no lugar, no indicaciones',
+  $$SELECT 1 FROM public.taller_avisos_envios e JOIN public.avisos_persona a ON a.clave = e.clave
+     WHERE e.clave = 'inscripcion_aprobada:cf7a0000-0000-4000-8000-000000000066:cf7a0000-0000-4000-8000-000000000026'
+       AND a.cuerpo = 'Tienes tu lugar en ZZ 7A Uno. Empieza el ' || current_setting('zz_7a.f12')
+                      || '. Pronto te avisamos tu grupo y quién lo facilita.'
+       AND e.datos ->> 'cuerpo' = a.cuerpo
+       AND e.datos -> 'filas' = jsonb_build_array(
+             jsonb_build_array('Taller', 'ZZ 7A E6'), jsonb_build_array('Empieza', current_setting('zz_7a.f12')))$$, 1);
+
+SELECT pg_temp.run('16: approve P1 in E4',
+  $$UPDATE public.taller_inscripciones SET estado = 'aprobado' WHERE id = 'cf7a0000-0000-4000-8000-000000000064'$$);
+SELECT pg_temp.assert_rows('16: aprobada (app and email) has hora, lugar and indicaciones',
+  $$SELECT 1 FROM public.taller_avisos_envios e JOIN public.avisos_persona a ON a.clave = e.clave
+     WHERE e.clave = 'inscripcion_aprobada:cf7a0000-0000-4000-8000-000000000064:cf7a0000-0000-4000-8000-000000000024'
+       AND a.cuerpo = 'Tienes tu lugar en ZZ 7A Uno. Empieza el ' || current_setting('zz_7a.f9')
+                      || ' a la 1:30 p. m. en Templo principal. Indicaciones: Trae tu Biblia y un cuaderno. Pronto te avisamos tu grupo y quién lo facilita.'
+       AND e.datos ->> 'cuerpo' = a.cuerpo
+       AND e.datos -> 'filas' = jsonb_build_array(
+             jsonb_build_array('Taller', 'ZZ 7A E4'),
+             jsonb_build_array('Empieza', current_setting('zz_7a.f9') || ' · 1:30 p. m.'),
+             jsonb_build_array('Lugar', 'Templo principal'),
+             jsonb_build_array('Indicaciones', E'Trae tu Biblia\ny un cuaderno'))$$, 1);
+SELECT pg_temp.run('16: put P1 in G4',
+  $$UPDATE public.taller_inscripciones SET grupo_id = 'cf7a0000-0000-4000-8000-000000000044' WHERE id = 'cf7a0000-0000-4000-8000-000000000064'$$);
+SELECT pg_temp.assert_rows('16: grupo asignado adds the indicaciones (sentence and row)',
+  $$SELECT 1 FROM public.taller_avisos_envios e JOIN public.avisos_persona a ON a.clave = e.clave
+     WHERE e.clave = 'grupo_asignado:cf7a0000-0000-4000-8000-000000000064:cf7a0000-0000-4000-8000-000000000044:cf7a0000-0000-4000-8000-000000000024'
+       AND a.cuerpo = 'Ya tienes grupo en ZZ 7A Uno: ZZ 7A G4. Empieza el ' || current_setting('zz_7a.f9')
+                      || ' · 1:30 p. m. · Templo principal. Indicaciones: Trae tu Biblia y un cuaderno.'
+       AND e.datos -> 'filas' -> -1 = jsonb_build_array('Indicaciones', E'Trae tu Biblia\ny un cuaderno')$$, 1);
+SELECT pg_temp.assert_rows('16: grupo asignado without indicaciones names none (section 5)',
+  $$SELECT 1 FROM public.taller_avisos_envios e
+     WHERE e.tipo = 'grupo_asignado' AND e.persona_id = 'cf7a0000-0000-4000-8000-000000000026'
+       AND e.datos ->> 'cuerpo' NOT LIKE '%Indicaciones%'
+       AND NOT (e.datos -> 'filas') @> '[["Indicaciones"]]'::jsonb$$, 1);
+
+-- Reminder: E0 gets indicaciones and G0 a clase 4 tomorrow.
+UPDATE public.taller_ediciones SET indicaciones = 'Entra por la puerta lateral'
+ WHERE id = 'cf7a0000-0000-4000-8000-000000000090';
+INSERT INTO public.taller_sesiones (id, grupo_id, numero, fecha_programada, estado) VALUES
+  ('cf7a0000-0000-4000-8000-0000000000e5', 'cf7a0000-0000-4000-8000-000000000040', 4, pg_temp.h() + 1, 'programada');
+SELECT pg_temp.capture('16: queuing reminders writes only the new clase', 'rec16',
+  $$SELECT to_jsonb(public.talleres_avisos_recordatorios_encolar(now()))$$, '1');
+SELECT pg_temp.assert_rows('16: the reminder carries the indicaciones (sentence and last row)',
+  $$SELECT 1 FROM public.taller_avisos_envios e JOIN public.avisos_persona a ON a.clave = e.clave
+     WHERE e.clave = 'recordatorio_clase:cf7a0000-0000-4000-8000-0000000000e5:cf7a0000-0000-4000-8000-000000000026'
+       AND a.cuerpo LIKE 'Clase 4 de ZZ 7A Uno · %Salón 2. Facilita Gina y Hugo. Indicaciones: Entra por la puerta lateral.'
+       AND e.datos ->> 'cuerpo' = a.cuerpo
+       AND e.datos -> 'filas' -> -1 = '["Indicaciones", "Entra por la puerta lateral"]'::jsonb$$, 1);
+SELECT pg_temp.assert_rows('16: the reminder written without indicaciones (section 7) has no Indicaciones row',
+  $$SELECT 1 FROM public.taller_avisos_envios e
+     WHERE e.clave = 'recordatorio_clase:cf7a0000-0000-4000-8000-0000000000e1:cf7a0000-0000-4000-8000-000000000026'
+       AND NOT (e.datos -> 'filas') @> '[["Indicaciones"]]'::jsonb
+       AND e.datos ->> 'cuerpo' NOT LIKE '%Indicaciones%'$$, 1);
+
+-- Explorar: talleres_primeras_clases.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona('cf7a0000-0000-4000-8000-0000000000a4');
+SELECT pg_temp.capture('16: a member gets the first clase of the open ediciones (sesión, else fecha_inicio; borrador left out)', 'primeras',
+  $$SELECT jsonb_object_agg(edicion_id, fecha - pg_temp.h()) FROM public.talleres_primeras_clases(ARRAY[
+      'cf7a0000-0000-4000-8000-000000000094', 'cf7a0000-0000-4000-8000-000000000095',
+      'cf7a0000-0000-4000-8000-000000000090', 'cf7a0000-0000-4000-8000-000000000097']::uuid[])$$,
+  jsonb_build_object('cf7a0000-0000-4000-8000-000000000094', 9, 'cf7a0000-0000-4000-8000-000000000095', 10,
+                     'cf7a0000-0000-4000-8000-000000000090', 1));
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT pg_temp.assert_rows('16: without a signed-in user nothing comes back',
+  $$SELECT 1 FROM public.talleres_primeras_clases(ARRAY['cf7a0000-0000-4000-8000-000000000094']::uuid[])$$, 0);
+RESET ROLE;
+
+-- Without a lugar the hour ends the sentence with a single period.
+INSERT INTO public.taller_grupos (id, cohorte_id, nombre, capacidad, estado) VALUES
+  ('cf7a0000-0000-4000-8000-000000000045', 'cf7a0000-0000-4000-8000-0000000000c5', 'ZZ 7A G5', 10, 'activo');
+INSERT INTO public.taller_sesiones (id, grupo_id, numero, fecha_programada, estado, meeting_time_override) VALUES
+  ('cf7a0000-0000-4000-8000-000000000163', 'cf7a0000-0000-4000-8000-000000000045', 1, pg_temp.h() + 1, 'programada', '19:00');
+SELECT pg_temp.run('16: approve P3 in E5 (no lugar) and put her in G5, then queue reminders',
+  $$UPDATE public.taller_inscripciones SET estado = 'aprobado', grupo_id = 'cf7a0000-0000-4000-8000-000000000045'
+     WHERE id = 'cf7a0000-0000-4000-8000-000000000065';
+    SELECT public.talleres_avisos_recordatorios_encolar(now())$$);
+SELECT pg_temp.assert_rows('16: grupo asignado and the reminder end «7:00 p. m.» with one period',
+  $$SELECT 1 FROM public.avisos_persona
+     WHERE (clave = 'grupo_asignado:cf7a0000-0000-4000-8000-000000000065:cf7a0000-0000-4000-8000-000000000045:cf7a0000-0000-4000-8000-000000000026'
+            AND cuerpo = 'Ya tienes grupo en ZZ 7A Uno: ZZ 7A G5. Empieza el ' || public.talleres_aviso_fecha(pg_temp.h() + 1) || ' · 7:00 p. m.')
+        OR (clave = 'recordatorio_clase:cf7a0000-0000-4000-8000-000000000163:cf7a0000-0000-4000-8000-000000000026'
+            AND cuerpo = 'Clase 1 de ZZ 7A Uno · ' || public.talleres_aviso_fecha(pg_temp.h() + 1) || ' · 7:00 p. m.')$$, 2);
 
 SELECT pg_temp.report();
 

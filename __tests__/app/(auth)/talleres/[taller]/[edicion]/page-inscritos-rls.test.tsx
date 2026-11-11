@@ -129,6 +129,8 @@ const EDICION: EdicionLocalDetalle = {
   inscripciones_aprobadas_count: 0,
   certificados_count: 0,
   cerrada_en: null,
+  lugar: null,
+  indicaciones: null,
 }
 
 // The row exactly as PostgREST returns it to a plain coordinador under

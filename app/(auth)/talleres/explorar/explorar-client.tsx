@@ -31,6 +31,10 @@
  * right away. The action only returns the inscripción id, but it revalidates
  * this path, so the rows arrive again with the new estado and the message is
  * derived from them. Neutral Spanish (tú) and no modality jargon.
+ *
+ * T10 (odd/tasks/talleres-reserva-publica.md, S6) — each card says when the
+ * first clase is («Empieza el 5 de noviembre de 2026»: the first programada
+ * sesión, else fecha_inicio), except for an edición already en curso.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -73,6 +77,8 @@ interface TallerRow {
    * {fecha}" when present (never the deprecated periodo dates above).
    */
   readonly cierre_inscripcion: string | null
+  /** T10 — first clase (`YYYY-MM-DD`), or null when unknown. */
+  readonly primera_clase?: string | null
   /**
    * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — this
    * edición's cupo (if defined) is already full. The card + FAB disable
@@ -196,6 +202,11 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
                       Edición {t.edicion} ·{' '}
                       {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
                     </TextoSistema>
+                    {t.primera_clase && t.estado !== 'en_curso' && (
+                      <TextoSistema className="mt-1 block text-sm">
+                        Empieza el {formatDate(t.primera_clase)}
+                      </TextoSistema>
+                    )}
                     {t.fecha_apertura && t.fecha_cierre && (
                       <TextoSistema
                         variante="sutil"

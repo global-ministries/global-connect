@@ -16,8 +16,12 @@
  * members no longer INSERT into taller_inscripciones: the member branch of
  * its policy is gone and `talleres_inscribirme` is the security wall. It
  * resolves the caller from auth.uid(), the cohorte from the edición and the
- * partner from `p_pareja`, and forces estado 'pendiente'. Approval still
- * needs a write cap.
+ * partner from `p_pareja`. The inscription is written as 'pendiente'; when
+ * the taller has inscripción automática and the edición is individual
+ * (20261110170000, re-applied by 20261111100000) the same call approves it
+ * right away, otherwise a
+ * coordinator approves it later (that needs a write cap). The page reads
+ * the real estado back after the revalidation.
  *
  * Revalidates /talleres/explorar and /talleres/mi-recorrido after a
  * successful enrollment so the participant's views reflect it, and sends the
