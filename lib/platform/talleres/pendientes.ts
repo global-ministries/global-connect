@@ -85,10 +85,53 @@ function toLegacyCtx(client: AnyClient): OperacionalContext {
 
 // ─── Inscripciones ──────────────────────────────────────────────────────
 
+export type OrigenInscripcion = 'app' | 'admin' | 'publico'
+
+/**
+ * R3e (odd/tasks/talleres-rediseno.md) — the three columns the v2 inbox
+ * needs that `loadCoordInscripcionesPendientes` does not select: where the
+ * inscription came from, whether a public reservation left its identity
+ * unconfirmed (`por_verificar`, 20261110121000_talleres_inscripcion_core)
+ * and its grupo (for «Sin grupo»).
+ */
+export interface ExtraInscripcion {
+  readonly origen: OrigenInscripcion | null
+  readonly porVerificar: boolean
+  readonly grupoId: string | null
+}
+
 export interface PendientesInscripcionesResult {
   readonly rows: readonly InscripcionAdminRow[]
   /** `taller.id` (the abstract taller, same value as `row.taller_id`) -> `taller.dream_team_equipo_id`. */
   readonly equipoIdByTallerId: ReadonlyMap<string, string | null>
+  /** inscripción id -> origen / por_verificar / grupo_id; empty when the lookup fails (never drops rows). */
+  readonly extraPorInscripcion: ReadonlyMap<string, ExtraInscripcion>
+}
+
+const ORIGENES: readonly string[] = ['app', 'admin', 'publico']
+
+/**
+ * One batched read of the extra columns, under the caller's own RLS (the
+ * same `taller_inscripciones_select` that already returned the rows). A
+ * failure leaves the map empty: the rows still show, without the flags.
+ */
+async function cargarExtras(client: AnyClient, ids: readonly string[]): Promise<Map<string, ExtraInscripcion>> {
+  const extras = new Map<string, ExtraInscripcion>()
+  if (ids.length === 0) return extras
+  const { data, error } = await client
+    .from('taller_inscripciones')
+    .select('id, origen, por_verificar, grupo_id')
+    .in('id', ids)
+  if (error) return extras
+  for (const r of (data ?? []) as Array<Record<string, unknown>>) {
+    if (typeof r.id !== 'string') continue
+    extras.set(r.id, {
+      origen: typeof r.origen === 'string' && ORIGENES.includes(r.origen) ? (r.origen as OrigenInscripcion) : null,
+      porVerificar: r.por_verificar === true,
+      grupoId: typeof r.grupo_id === 'string' ? r.grupo_id : null,
+    })
+  }
+  return extras
 }
 
 export async function loadPendientesInscripciones(
@@ -112,7 +155,12 @@ export async function loadPendientesInscripciones(
     }
   }
 
-  return { rows, equipoIdByTallerId }
+  const extraPorInscripcion = await cargarExtras(
+    client,
+    rows.map((r) => r.id),
+  )
+
+  return { rows, equipoIdByTallerId, extraPorInscripcion }
 }
 
 // ─── Solicitudes de retiro ──────────────────────────────────────────────
@@ -121,6 +169,54 @@ export interface PendienteSolicitudRow extends CoordSolicitudRow {
   readonly equipoId: string | null
   readonly tallerNombre: string | null
   readonly tallerSlug: string | null
+  /**
+   * R3e — who asks to leave and from which edición, for a participante
+   * retiro (null for an equipo retiro, or when the lookup misses).
+   */
+  readonly personaNombre?: string | null
+  readonly personaCorreo?: string | null
+  readonly edicionId?: string | null
+}
+
+/**
+ * Names and edición of the inscripciones targeted by participante retiros:
+ * the SECURITY DEFINER RPC `talleres_coord_inscripciones_personas` (the
+ * same name resolver `loadCoordInscripcionesPendientes` uses, which
+ * re-applies `taller_inscripciones_select`) and one batched read of
+ * `taller_inscripciones.taller_id` (the edición). Misses stay null.
+ */
+async function cargarPersonasDeRetiros(
+  client: AnyClient,
+  inscripcionIds: readonly string[],
+): Promise<{
+  readonly personas: Map<string, { nombre: string | null; correo: string | null }>
+  readonly ediciones: Map<string, string>
+}> {
+  const personas = new Map<string, { nombre: string | null; correo: string | null }>()
+  const ediciones = new Map<string, string>()
+  if (inscripcionIds.length === 0) return { personas, ediciones }
+
+  const [pRes, eRes] = await Promise.all([
+    client.rpc('talleres_coord_inscripciones_personas', { p_inscripcion_ids: inscripcionIds }),
+    client.from('taller_inscripciones').select('id, taller_id').in('id', inscripcionIds),
+  ])
+  const pData: unknown = pRes?.data
+  if (Array.isArray(pData)) {
+    for (const p of pData as Array<Record<string, unknown>>) {
+      if (typeof p.inscripcion_id !== 'string') continue
+      const nombre = [p.pp_nombre, p.pp_apellido].filter((x) => typeof x === 'string' && x.length > 0).join(' ')
+      personas.set(p.inscripcion_id, {
+        nombre: nombre || null,
+        correo: typeof p.pp_email === 'string' ? p.pp_email : null,
+      })
+    }
+  }
+  if (!eRes?.error) {
+    for (const e of (eRes?.data ?? []) as Array<Record<string, unknown>>) {
+      if (typeof e.id === 'string' && typeof e.taller_id === 'string') ediciones.set(e.id, e.taller_id)
+    }
+  }
+  return { personas, ediciones }
 }
 
 export async function loadPendientesSolicitudes(
@@ -161,14 +257,27 @@ export async function loadPendientesSolicitudes(
     }
   }
 
+  const inscripcionIds = Array.from(
+    new Set(
+      pendientes
+        .filter((s) => s.tipo === 'participante_retiro' && s.inscripcion_id)
+        .map((s) => s.inscripcion_id as string),
+    ),
+  )
+  const { personas, ediciones } = await cargarPersonasDeRetiros(client, inscripcionIds)
+
   return pendientes.map((s) => {
     const equipoId = equipoIdBySolicitud.get(s.id) ?? null
     const taller = equipoId ? tallerByEquipoId.get(equipoId) : undefined
+    const persona = s.inscripcion_id ? personas.get(s.inscripcion_id) : undefined
     return {
       ...s,
       equipoId,
       tallerNombre: taller?.nombre ?? null,
       tallerSlug: taller?.slug ?? null,
+      personaNombre: persona?.nombre ?? null,
+      personaCorreo: persona?.correo ?? null,
+      edicionId: s.inscripcion_id ? (ediciones.get(s.inscripcion_id) ?? null) : null,
     }
   })
 }

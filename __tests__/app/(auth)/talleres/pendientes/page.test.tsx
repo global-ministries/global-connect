@@ -1,31 +1,29 @@
 /**
  * @jest-environment node
  *
- * T6 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/pendientes,
- * the coordinator's cross-taller inbox. Replaces
- * /talleres/coordinacion/inscripciones, /talleres/coordinacion/solicitudes,
- * /talleres/direccion/solicitudes and the cross-edición half of
- * /admin/talleres/inscripciones.
+ * /talleres/pendientes — the coordinator's cross-taller inbox (T6,
+ * odd/tasks/talleres-consolidar-pantallas.md), rebuilt on the v2 anatomy in
+ * R3e (odd/tasks/talleres-rediseno.md, S1, S2, S4; artboard
+ * design/talleres-interior/23).
  *
- * Mirrors the gate + structural-inspection pattern of
- * __tests__/app/(auth)/talleres/[taller]/[edicion]/page.test.tsx (flag ->
- * user -> session, each an informational card, inspected via
- * extractText/findByType rather than full rendering).
- *
- * The heart of this file: per-row permission resolution. Rows come from
- * SEVERAL equipos; a coordinador scoped to equipo A must see A's rows
- * WITH controls and B's rows WITHOUT controls, in the very same table —
- * never a flat page-level canWrite.
+ * The page gates (flag -> user -> session), loads the three sources
+ * (pendiente inscripciones, aprobada ones for «Sin grupo», pending retiros),
+ * resolves permisos ONCE PER DISTINCT EQUIPO and hands plain items to the
+ * client island. The heart of this file is still per-row authority: a
+ * coordinador scoped to equipo A may decide A's items and not B's, in the
+ * same list.
  */
 
 import PendientesPage from '@/app/(auth)/talleres/pendientes/page'
-import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
-import { ResolverSolicitudRetiroControls } from '@/components/talleres/resolver-solicitud-retiro-controls'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { PaginaSistema } from '@/components/ui/sistema-diseno'
+import { PendientesClient } from '@/components/talleres/pendientes/pendientes-client'
+import type { ItemPendiente } from '@/components/talleres/pendientes/vista-pendientes'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { InscripcionAdminRow } from '@/lib/platform/talleres/inscripciones-types'
-import type { PendienteSolicitudRow } from '@/lib/platform/talleres/pendientes'
+import type {
+  ExtraInscripcion,
+  PendienteSolicitudRow,
+  PendientesInscripcionesResult,
+} from '@/lib/platform/talleres/pendientes'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
   isTalleresEnabled: jest.fn(),
@@ -101,7 +99,7 @@ function makeInscripcionRow(overrides: Partial<InscripcionAdminRow> = {}): Inscr
 function makeSolicitudRow(overrides: Partial<PendienteSolicitudRow> = {}): PendienteSolicitudRow {
   return {
     id: 'sol-1',
-    inscripcion_id: 'insc-1',
+    inscripcion_id: 'insc-9',
     grupo_asignacion_id: null,
     tipo: 'participante_retiro',
     estado: 'pendiente',
@@ -114,18 +112,34 @@ function makeSolicitudRow(overrides: Partial<PendienteSolicitudRow> = {}): Pendi
   }
 }
 
+function fuente(
+  rows: readonly InscripcionAdminRow[],
+  equipos: Record<string, string | null> = {},
+  extras: Record<string, ExtraInscripcion> = {},
+): PendientesInscripcionesResult {
+  return {
+    rows,
+    equipoIdByTallerId: new Map(Object.entries(equipos)),
+    extraPorInscripcion: new Map(Object.entries(extras)),
+  }
+}
+
+const VACIA = fuente([])
+
 const PERMISOS_FULL: PermisosTaller = {
   ...PERMISOS_TALLER_ALL_FALSE,
   ver: true,
   aprobarInscripciones: true,
   resolverRetiros: true,
+  gestionarGrupos: true,
 }
 
 interface SetupOpts {
   isEnabled?: boolean
   user?: { id: string } | null
   hasSession?: boolean
-  inscripciones?: { rows: readonly InscripcionAdminRow[]; equipoIdByTallerId: ReadonlyMap<string, string | null> }
+  pendientes?: PendientesInscripcionesResult
+  aprobadas?: PendientesInscripcionesResult
   solicitudes?: readonly PendienteSolicitudRow[]
   permisosPorEquipo?: ReadonlyMap<string | null, PermisosTaller>
 }
@@ -151,7 +165,9 @@ function setup(opts: SetupOpts): void {
 
   loadPendientesInscripcionesMock
     .mockReset()
-    .mockResolvedValue(opts.inscripciones ?? { rows: [], equipoIdByTallerId: new Map() })
+    .mockImplementation(async (_client: unknown, estados: readonly string[]) =>
+      estados[0] === 'aprobado' ? (opts.aprobadas ?? VACIA) : (opts.pendientes ?? VACIA),
+    )
   loadPendientesSolicitudesMock.mockReset().mockResolvedValue(opts.solicitudes ?? [])
   cargarPermisosPorEquiposMock.mockReset().mockResolvedValue(opts.permisosPorEquipo ?? new Map())
 }
@@ -168,274 +184,164 @@ function extractText(node: unknown): string {
   return ''
 }
 
-/** Finds EVERY element of the given type in the tree, WITHOUT executing it. */
-function findAllByType(node: unknown, type: unknown, acc: Array<{ props: Record<string, unknown> }> = []): Array<{ props: Record<string, unknown> }> {
-  if (node === null || node === undefined || typeof node === 'boolean') return acc
-  if (Array.isArray(node)) {
-    for (const child of node) findAllByType(child, type, acc)
-    return acc
+interface ClientElement {
+  readonly type: unknown
+  readonly props: {
+    readonly items: readonly ItemPendiente[]
+    readonly hoy: string
+    readonly filtrosIniciales: unknown
+    readonly itemInicial: string | null
   }
-  if (typeof node === 'object' && node !== null && 'type' in node) {
-    const el = node as { type: unknown; props?: { children?: unknown } }
-    if (el.type === type) acc.push(el as { props: Record<string, unknown> })
-    findAllByType(el.props?.children, type, acc)
-    return acc
-  }
-  return acc
 }
 
-function findByType(node: unknown, type: unknown): { props: Record<string, unknown> } | null {
-  return findAllByType(node, type)[0] ?? null
+const SIN_PARAMS = { searchParams: Promise.resolve({}) }
+
+async function renderClient(ctx: Parameters<typeof PendientesPage>[0] = SIN_PARAMS): Promise<ClientElement> {
+  const element = (await PendientesPage(ctx)) as unknown as ClientElement
+  expect(element.type).toBe(PendientesClient)
+  return element
 }
 
 describe('PendientesPage — gate', () => {
   it('shows the disabled message and resolves nothing when the flag is off', async () => {
     setup({ isEnabled: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
+    const element = await PendientesPage(SIN_PARAMS)
     expect(extractText(element)).toMatch(/deshabilitado/i)
     expect(loadPendientesInscripcionesMock).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to log in (neutral «tú») and resolves nothing when there is no user', async () => {
     setup({ user: null })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
+    const element = await PendientesPage(SIN_PARAMS)
+    expect(extractText(element)).toContain('Necesitas iniciar sesión.')
     expect(loadPendientesInscripcionesMock).not.toHaveBeenCalled()
   })
 
   it('shows a session-resolution message when the session cannot be resolved', async () => {
     setup({ hasSession: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
+    const element = await PendientesPage(SIN_PARAMS)
     expect(extractText(element)).toMatch(/no se pudo resolver tu sesión/i)
     expect(loadPendientesInscripcionesMock).not.toHaveBeenCalled()
   })
 })
 
-describe('PendientesPage — nothing pending', () => {
-  it('shows a calm EstadoVacioSistema, not an error, when both sections are empty', async () => {
+describe('PendientesPage — sources', () => {
+  it('loads pendiente inscripciones, aprobada ones (for «Sin grupo») and the retiros', async () => {
     setup({})
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    const vacio = findByType(element, EstadoVacioSistema)
-    expect(vacio).not.toBeNull()
-    expect(String(vacio?.props.titulo)).toMatch(/no tenés nada pendiente/i)
-    expect(findByType(element, TablaInscripciones)).toBeNull()
-  })
-})
-
-describe('PendientesPage — T10 estado filter (odd/tasks/talleres-consolidar-pantallas.md)', () => {
-  // T10: /admin/talleres/inscripciones's full multi-estado audit had no
-  // 1:1 replacement — this filter closes that gap without a new route.
-  // Default (no ?estado=, or an unrecognized value) stays "pendiente",
-  // so the plain inbox view is unchanged for everyone who never touches
-  // the filter.
-
-  function searchParamsOf(estado: string | undefined) {
-    return { searchParams: Promise.resolve(estado === undefined ? {} : { estado }) }
-  }
-
-  it('defaults to estado=pendiente when no filter is given', async () => {
-    setup({})
-    await PendientesPage(searchParamsOf(undefined))
+    const element = await renderClient()
     expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(expect.anything(), ['pendiente'])
-  })
-
-  it('?estado=aprobado filters to that single estado', async () => {
-    setup({})
-    await PendientesPage(searchParamsOf('aprobado'))
     expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(expect.anything(), ['aprobado'])
+    expect(loadPendientesSolicitudesMock).toHaveBeenCalledTimes(1)
+    expect(element.props.items).toEqual([])
   })
 
-  it('?estado=todas requests every real estado (the cross-edición audit view)', async () => {
+  it('reads the filters and the open item from the URL', async () => {
     setup({})
-    await PendientesPage(searchParamsOf('todas'))
-    expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(
-      expect.anything(),
-      ['pendiente', 'aprobado', 'no_aprobado', 'retirado'],
-    )
-  })
-
-  it('an unrecognized ?estado= value falls back to pendiente instead of crashing or querying unfiltered', async () => {
-    setup({})
-    await PendientesPage(searchParamsOf('not-a-real-estado'))
-    expect(loadPendientesInscripcionesMock).toHaveBeenCalledWith(expect.anything(), ['pendiente'])
-  })
-
-  it('renders every filter option as a link carrying its own ?estado= value', async () => {
-    setup({})
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage(searchParamsOf(undefined))) as any
-    const text = extractText(element)
-    for (const label of ['Pendientes', 'Aprobadas', 'No aprobadas', 'Retiradas', 'Todas']) {
-      expect(text).toContain(label)
-    }
-  })
-})
-
-describe('PendientesPage — per-row permission resolution (the heart of T6)', () => {
-  it('shows controls for taller A rows and hides them for taller B rows, in the same table', async () => {
-    const rowA = makeInscripcionRow({ id: 'insc-a', taller_id: 't-a' })
-    const rowB = makeInscripcionRow({ id: 'insc-b', taller_id: 't-b', taller_nombre: 'Taller B' })
-    setup({
-      inscripciones: {
-        rows: [rowA, rowB],
-        equipoIdByTallerId: new Map([
-          ['t-a', 'eq-a'],
-          ['t-b', 'eq-b'],
-        ]),
-      },
-      permisosPorEquipo: new Map([
-        ['eq-a', PERMISOS_FULL],
-        ['eq-b', PERMISOS_TALLER_ALL_FALSE],
-      ]),
+    const element = await renderClient({
+      searchParams: Promise.resolve({ atencion: 'identidad', taller: 'taller-a', q: 'ana', item: 'aprobar:insc-1' }),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    const tabla = findByType(element, TablaInscripciones)
-    expect(tabla).not.toBeNull()
-    // CORRECTION (post-T4 review, item 1): canWrite must be a plain,
-    // JSON-serializable array of ids, never a function — TablaInscripciones
-    // is a client component (T3), and Next.js refuses a function prop
-    // crossing from this server component into it ("Functions cannot be
-    // passed directly to Client Components"), crashing the page at render.
-    const canWrite = tabla?.props.canWrite
-    expect(Array.isArray(canWrite)).toBe(true)
-    expect(canWrite).toContain('insc-a')
-    expect(canWrite).not.toContain('insc-b')
+    expect(element.props.filtrosIniciales).toEqual({ atencion: 'identidad', taller: 'taller-a', q: 'ana' })
+    expect(element.props.itemInicial).toBe('aprobar:insc-1')
   })
 
-  // CORRECTION (post-T4 review, item 1) — a REGRESSION GUARD: this page
-  // is a server component; TablaInscripciones is a client component
-  // (T3). Next.js refuses ANY function prop crossing that boundary
-  // (server actions are the one sanctioned exception — onApprove/
-  // onReject are intentional and excluded below). Jest never crosses the
-  // real RSC serialization boundary, so a regression here would NOT show
-  // up as a thrown error in this suite — this test exists specifically
-  // to catch it structurally instead.
-  it('REGRESSION GUARD — every non-server-action prop passed to TablaInscripciones is JSON-serializable (no functions)', async () => {
-    const rowA = makeInscripcionRow({ id: 'insc-a', taller_id: 't-a' })
+  it('ignores an unknown atencion value instead of filtering by it', async () => {
+    setup({})
+    const element = await renderClient({ searchParams: Promise.resolve({ atencion: 'todas' }) })
+    expect(element.props.filtrosIniciales).toEqual({ atencion: null, taller: null, q: '' })
+  })
+
+  it('marks por_verificar inscripciones and turns aprobada ones without grupo into «sin-grupo» items', async () => {
     setup({
-      inscripciones: {
-        rows: [rowA],
-        equipoIdByTallerId: new Map([['t-a', 'eq-a']]),
-      },
+      pendientes: fuente([makeInscripcionRow({ id: 'insc-pv' })], { 't-a': 'eq-a' }, {
+        'insc-pv': { origen: 'publico', porVerificar: true, grupoId: null },
+      }),
+      aprobadas: fuente(
+        [
+          makeInscripcionRow({ id: 'insc-sg', estado: 'aprobado' }),
+          makeInscripcionRow({ id: 'insc-cg', estado: 'aprobado' }),
+        ],
+        { 't-a': 'eq-a' },
+        {
+          'insc-sg': { origen: 'app', porVerificar: false, grupoId: null },
+          'insc-cg': { origen: 'app', porVerificar: false, grupoId: 'g-1' },
+        },
+      ),
       permisosPorEquipo: new Map([['eq-a', PERMISOS_FULL]]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    const tabla = findByType(element, TablaInscripciones)
-    expect(tabla).not.toBeNull()
-    const SERVER_ACTION_PROPS = new Set(['onApprove', 'onReject'])
-    for (const [key, value] of Object.entries(tabla!.props)) {
-      if (SERVER_ACTION_PROPS.has(key)) continue
-      expect(() => JSON.stringify(value)).not.toThrow()
-      expect(typeof value).not.toBe('function')
-      const serialized = JSON.stringify(value)
-      // JSON.stringify silently drops function-valued object properties —
-      // walk the structure to catch a function nested one level deep too
-      // (e.g. an array of per-row resolvers).
-      const containsFunction = (v: unknown): boolean => {
-        if (typeof v === 'function') return true
-        if (Array.isArray(v)) return v.some(containsFunction)
-        if (v && typeof v === 'object') return Object.values(v).some(containsFunction)
-        return false
-      }
-      expect(containsFunction(value)).toBe(false)
-      void serialized
-    }
+    const { props } = await renderClient()
+    expect(props.items.map((i) => i.clave).sort()).toEqual(['aprobar:insc-pv', 'sin-grupo:insc-sg'])
+    expect(props.items.find((i) => i.clave === 'aprobar:insc-pv')).toMatchObject({ porVerificar: true, origen: 'publico' })
   })
+})
 
-  it('resolves permisos once per DISTINCT equipo, not once per row', async () => {
-    const rows = [
-      makeInscripcionRow({ id: 'insc-1', taller_id: 't-a' }),
-      makeInscripcionRow({ id: 'insc-2', taller_id: 't-a' }),
-      makeInscripcionRow({ id: 'insc-3', taller_id: 't-b' }),
-    ]
+describe('PendientesPage — per-item permission resolution (the heart of T6)', () => {
+  it('lets the viewer decide taller A items and not taller B items, in the same list', async () => {
     setup({
-      inscripciones: {
-        rows,
-        equipoIdByTallerId: new Map([
-          ['t-a', 'eq-a'],
-          ['t-b', 'eq-b'],
-        ]),
-      },
-    })
-    await PendientesPage()
-    expect(cargarPermisosPorEquiposMock).toHaveBeenCalledTimes(1)
-    const [, equipoIdsArg] = cargarPermisosPorEquiposMock.mock.calls[0]
-    expect(new Set(equipoIdsArg)).toEqual(new Set(['eq-a', 'eq-b']))
-  })
-
-  it('retiro controls appear only when resolverRetiros is granted for that row\'s equipo', async () => {
-    const rowA = makeSolicitudRow({ id: 'sol-a', equipoId: 'eq-a' })
-    const rowB = makeSolicitudRow({ id: 'sol-b', equipoId: 'eq-b' })
-    setup({
-      solicitudes: [rowA, rowB],
+      pendientes: fuente(
+        [
+          makeInscripcionRow({ id: 'insc-a', taller_id: 't-a' }),
+          makeInscripcionRow({ id: 'insc-b', taller_id: 't-b', taller_nombre: 'Taller B', taller_slug: 'taller-b' }),
+        ],
+        { 't-a': 'eq-a', 't-b': 'eq-b' },
+      ),
+      solicitudes: [makeSolicitudRow({ id: 'sol-a', equipoId: 'eq-a' }), makeSolicitudRow({ id: 'sol-b', equipoId: 'eq-b' })],
       permisosPorEquipo: new Map([
         ['eq-a', PERMISOS_FULL],
         ['eq-b', PERMISOS_TALLER_ALL_FALSE],
       ]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    const controls = findAllByType(element, ResolverSolicitudRetiroControls)
-    expect(controls).toHaveLength(1)
-    expect(controls[0]?.props.solicitudId).toBe('sol-a')
-  })
-
-  it('a row whose equipo cannot be resolved (equipoId: null) never shows retiro controls', async () => {
-    setup({
-      solicitudes: [makeSolicitudRow({ id: 'sol-orphan', equipoId: null })],
-      permisosPorEquipo: new Map([[null, PERMISOS_FULL]]),
+    const { props } = await renderClient()
+    const puede = Object.fromEntries(props.items.map((i) => [i.clave, i.puedeDecidir]))
+    expect(puede).toEqual({
+      'aprobar:insc-a': true,
+      'aprobar:insc-b': false,
+      'retiro:sol-a': true,
+      'retiro:sol-b': false,
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    // Even if a caller mis-configured the null-equipo entry as fully
-    // permitted, an orphan row still renders (never dropped) — this just
-    // documents current behavior rather than asserting a specific choice.
-    expect(extractText(element)).toMatch(/mudanza/i)
   })
-})
 
-describe('PendientesPage — sections', () => {
-  it('shows both section headings when both have rows', async () => {
+  it('a retiro whose equipo cannot be resolved is kept, and is not decidable without that permission', async () => {
+    setup({ solicitudes: [makeSolicitudRow({ id: 'sol-orphan', equipoId: null })] })
+    const { props } = await renderClient()
+    expect(props.items).toHaveLength(1)
+    expect(props.items[0]).toMatchObject({ clave: 'retiro:sol-orphan', motivo: 'Mudanza', puedeDecidir: false })
+  })
+
+  it('resolves permisos once, for the DISTINCT equipos of every source', async () => {
     setup({
-      inscripciones: {
-        rows: [makeInscripcionRow()],
-        equipoIdByTallerId: new Map([['t-a', 'eq-a']]),
-      },
+      pendientes: fuente(
+        [
+          makeInscripcionRow({ id: 'insc-1', taller_id: 't-a' }),
+          makeInscripcionRow({ id: 'insc-2', taller_id: 't-a' }),
+          makeInscripcionRow({ id: 'insc-3', taller_id: 't-b' }),
+        ],
+        { 't-a': 'eq-a', 't-b': 'eq-b' },
+      ),
+      aprobadas: fuente([makeInscripcionRow({ id: 'insc-4', taller_id: 't-c', estado: 'aprobado' })], { 't-c': 'eq-c' }),
+      solicitudes: [makeSolicitudRow({ equipoId: 'eq-a' })],
+    })
+    await renderClient()
+    expect(cargarPermisosPorEquiposMock).toHaveBeenCalledTimes(1)
+    const [, equipoIdsArg] = cargarPermisosPorEquiposMock.mock.calls[0]
+    expect(new Set(equipoIdsArg)).toEqual(new Set(['eq-a', 'eq-b', 'eq-c']))
+  })
+
+  it('REGRESSION GUARD — every prop handed to the client island is plain data (no functions)', async () => {
+    setup({
+      pendientes: fuente([makeInscripcionRow()], { 't-a': 'eq-a' }),
       solicitudes: [makeSolicitudRow()],
+      permisosPorEquipo: new Map([['eq-a', PERMISOS_FULL]]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    const text = extractText(element)
-    expect(text).toMatch(/inscripciones por aprobar/i)
-    expect(text).toMatch(/retiros por resolver/i)
-  })
-
-  it('shows a section-local empty state for retiros when only inscripciones has rows', async () => {
-    setup({
-      inscripciones: {
-        rows: [makeInscripcionRow()],
-        equipoIdByTallerId: new Map([['t-a', 'eq-a']]),
-      },
-      solicitudes: [],
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    expect(findByType(element, TablaInscripciones)).not.toBeNull()
-    const vacios = findAllByType(element, EstadoVacioSistema)
-    expect(vacios.some((v) => /no hay retiros pendientes/i.test(String(v.props.titulo)))).toBe(true)
-  })
-
-  it('titles the page "Pendientes"', async () => {
-    setup({})
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await PendientesPage()) as any
-    const dashboard = findByType(element, PaginaSistema)
-    expect(dashboard?.props.titulo).toBe('Pendientes')
+    const { props } = await renderClient()
+    const containsFunction = (v: unknown): boolean => {
+      if (typeof v === 'function') return true
+      if (Array.isArray(v)) return v.some(containsFunction)
+      if (v && typeof v === 'object') return Object.values(v).some(containsFunction)
+      return false
+    }
+    for (const value of Object.values(props)) {
+      expect(containsFunction(value)).toBe(false)
+      expect(() => JSON.stringify(value)).not.toThrow()
+    }
   })
 })

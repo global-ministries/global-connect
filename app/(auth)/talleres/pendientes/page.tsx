@@ -1,55 +1,35 @@
 /**
- * T6 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/pendientes,
- * the coordinator's cross-taller inbox: "¿qué espera mi decisión?", across
- * every taller the viewer reaches. Replaces
- * app/(auth)/talleres/coordinacion/inscripciones/page.tsx,
- * app/(auth)/talleres/coordinacion/solicitudes/page.tsx,
- * app/(auth)/talleres/direccion/solicitudes/page.tsx and the
- * cross-edición half of app/(auth)/admin/talleres/inscripciones/page.tsx
- * (that page's full multi-estado audit filter has no 1:1 replacement here
- * — see lib/platform/talleres/rutas.ts). All four keep working unmodified
- * until T10 deletes them.
+ * /talleres/pendientes — the coordinator's cross-taller inbox: «¿qué espera
+ * mi decisión?», across every taller the viewer reaches.
  *
- * GATE, same shape as the other new pages: flag -> user -> session, each
- * an informational card. No role is required (unlike the old L/C/D
- * `requireOperacionalRole()` pattern) — RLS alone decides which rows come
- * back, per docs/talleres-de-punta-a-punta.md's "el rol deja de vivir en
- * la URL". A viewer with nothing pending sees EstadoVacio, not an error.
+ * R3e (odd/tasks/talleres-rediseno.md, S1, S2, S4): v2 list anatomy after
+ * artboard design/talleres-interior/23 (approved in L6). The page loads and
+ * gates; components/talleres/pendientes/pendientes-client.tsx renders.
  *
- * PERMISSIONS: rows here come from SEVERAL equipos (unlike every other
- * T2-T5 page, which is scoped to exactly one taller from its URL), so a
- * single `cargarPermisos(client, equipoId)` call is wrong. Permisos are
- * resolved ONCE PER DISTINCT EQUIPO present across both sections
- * (`cargarPermisosPorEquipos` — batched, deduped, cached in a Map) and
- * applied PER ROW:
- *   - aprobarInscripciones -> TablaInscripciones's canWrite, now given a
- *     per-row resolver function instead of one flat boolean (see
- *     components/talleres/tabla-inscripciones.tsx). A row whose equipo
- *     the viewer cannot act on shows its estado badge instead of
- *     buttons — TablaInscripciones's existing canWrite=false fallback,
- *     just resolved per row now.
- *   - resolverRetiros -> whether ResolverSolicitudRetiroControls renders
- *     for that solicitud row at all (docs §8: "es un booleano, no una
- *     página" — direccion/solicitudes was read-only, coordinacion/
- *     solicitudes had the controls; here the controls simply appear
- *     when the viewer may act, per row).
+ * GATE (unchanged since T6, odd/tasks/talleres-consolidar-pantallas.md):
+ * flag -> user -> session, each an informational card. No role is required
+ * — RLS alone decides which rows come back («el rol deja de vivir en la
+ * URL»). A viewer with nothing pending sees the empty state, not an error.
  *
- * NAMES: inscripciones rows resolve persona names via the SECURITY
- * DEFINER RPC talleres_coord_inscripciones_personas (see
- * lib/platform/talleres/pendientes.ts's header for why this reuses
- * loadCoordInscripcionesPendientes and NOT loadAdminInscripciones). That
- * RPC is NOT deployed to production yet (#442) — until then, names
- * degrade to "—" quietly (TablaInscripciones's own existing rendering),
- * never an error toast.
+ * WHAT IS PENDING (vista-pendientes.ts builds the items):
+ *   - pendiente inscripciones (por verificar when a public reservation could
+ *     not confirm the identity: taller_inscripciones.por_verificar),
+ *   - pending solicitudes de retiro,
+ *   - aprobada inscripciones without grupo in an abierta / en curso edición.
+ * T10's estado audit filter (?estado=) is gone: the approved design is the
+ * inbox only, and per-edición auditing lives in /talleres/[taller]/[edicion].
+ *
+ * PERMISSIONS: rows come from SEVERAL equipos, so permisos are resolved ONCE
+ * PER DISTINCT EQUIPO (`cargarPermisosPorEquipos`, one batched call) and
+ * applied PER ITEM as a plain boolean (`puedeDecidir`): aprobarInscripciones
+ * for an inscripción, resolverRetiros for a retiro, gestionarGrupos for «sin
+ * grupo». Only data crosses into the client island (no functions); the
+ * server actions and RPCs check again.
  */
 
-import { LogOut, Users as UsersIcon } from 'lucide-react'
-import Link from 'next/link'
-
-import { PaginaSistema, BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
-import { ResolverSolicitudRetiroControls } from '@/components/talleres/resolver-solicitud-retiro-controls'
+import { PendientesClient } from '@/components/talleres/pendientes/pendientes-client'
+import { construirItems, leerFiltros } from '@/components/talleres/pendientes/vista-pendientes'
+import { PaginaSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -57,273 +37,82 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
-import {
-  loadPendientesInscripciones,
-  loadPendientesSolicitudes,
-  type PendienteSolicitudRow,
-} from '@/lib/platform/talleres/pendientes'
+import { loadPendientesInscripciones, loadPendientesSolicitudes } from '@/lib/platform/talleres/pendientes'
 import { cargarPermisosPorEquipos, PERMISOS_TALLER_ALL_FALSE } from '@/lib/platform/talleres/permisos'
-import {
-  approveInscripcionAction,
-  reenviarAccesoAction,
-  rejectInscripcionAction,
-} from '@/lib/platform/talleres/inscripciones-actions'
-import { conEstadoAcceso } from '@/lib/platform/talleres/invitacion-acceso-estado'
-import {
-  aprobarSolicitudRetiroAction,
-  rechazarSolicitudRetiroAction,
-} from '@/lib/platform/talleres/solicitudes-retiro-actions'
 
 export const metadata = { title: 'Pendientes' }
 
-// ─── T10 (odd/tasks/talleres-consolidar-pantallas.md) — estado filter ──────
-//
-// Parent's decision: /admin/talleres/inscripciones's full multi-estado
-// audit (todas/aprobadas/no aprobadas/completadas) had no 1:1 replacement
-// in this consolidation — the only gap was auditing by estado ACROSS
-// ediciones (per-edición auditing already lives in the Inscritos section
-// of /talleres/[taller]/[edicion], T4). Closing that gap with a filter
-// here, defaulting to "pendiente", avoids adding a 13th route to the
-// approved tree while keeping the full view one click away.
-const ESTADO_FILTRO_VALUES = ['pendiente', 'aprobado', 'no_aprobado', 'retirado', 'todas'] as const
-type EstadoFiltro = (typeof ESTADO_FILTRO_VALUES)[number]
+type Params = Record<string, string | string[] | undefined>
 
-const ESTADO_FILTRO_LABELS: Record<EstadoFiltro, string> = {
-  pendiente: 'Pendientes',
-  aprobado: 'Aprobadas',
-  no_aprobado: 'No aprobadas',
-  retirado: 'Retiradas',
-  todas: 'Todas',
+interface PageProps {
+  readonly searchParams: Promise<Params>
 }
 
-/** Every real `taller_inscripciones.estado` value (the table's own CHECK constraint) — what "todas" expands to. */
-const TODOS_LOS_ESTADOS_REALES = ['pendiente', 'aprobado', 'no_aprobado', 'retirado'] as const
-
-function esEstadoFiltroValido(value: string | undefined): value is EstadoFiltro {
-  return (ESTADO_FILTRO_VALUES as readonly string[]).includes(value ?? '')
+function primero(valor: string | string[] | undefined): string | undefined {
+  return Array.isArray(valor) ? valor[0] : valor
 }
 
-/** An unrecognized or missing value NEVER falls through to an unfiltered query — it defaults to "pendiente", same as before this filter existed. */
-function parseEstadoFiltro(value: string | undefined): EstadoFiltro {
-  return esEstadoFiltroValido(value) ? value : 'pendiente'
+/** The gate's informational card. */
+function aviso(texto: string) {
+  return (
+    <PaginaSistema titulo="Pendientes">
+      <TarjetaSistema variante="outlined" className="p-6 text-center">
+        <TextoSistema variante="sutil">{texto}</TextoSistema>
+      </TarjetaSistema>
+    </PaginaSistema>
+  )
 }
 
-function estadosParaLoader(filtro: EstadoFiltro): readonly string[] {
-  return filtro === 'todas' ? TODOS_LOS_ESTADOS_REALES : [filtro]
-}
-
-interface RouteContext {
-  readonly searchParams?: Promise<{ readonly estado?: string }>
-}
-
-export default async function PendientesPage(ctx?: RouteContext) {
-  if (!isTalleresEnabled()) {
-    return (
-      <PaginaSistema titulo="Pendientes">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+export default async function PendientesPage({ searchParams }: PageProps) {
+  if (!isTalleresEnabled()) return aviso('El módulo de talleres está deshabilitado.')
 
   const supabase = await createSupabaseServerClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const { data: { user } } = await (supabase as any).auth.getUser()
-  if (!user) {
-    return (
-      <PaginaSistema titulo="Pendientes">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+  if (!user) return aviso('Necesitas iniciar sesión.')
 
   const session = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
     capabilitySupabase: supabase,
   })
-  if (!session) {
-    return (
-      <PaginaSistema titulo="Pendientes">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+  if (!session) return aviso('No se pudo resolver tu sesión.')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
+  const params = await searchParams
 
-  const sp = ctx?.searchParams ? await ctx.searchParams : {}
-  const estadoFiltro = parseEstadoFiltro(sp.estado)
-
-  const [inscripciones, solicitudes] = await Promise.all([
-    loadPendientesInscripciones(client, estadosParaLoader(estadoFiltro)),
+  const [pendientes, aprobadas, solicitudes] = await Promise.all([
+    loadPendientesInscripciones(client, ['pendiente']),
+    loadPendientesInscripciones(client, ['aprobado']),
     loadPendientesSolicitudes(client),
   ])
-  // Access status for the inscriptions whose partner ficha the member created.
-  const filasInscripciones = await conEstadoAcceso(inscripciones.rows)
 
-  // One distinct-equipo set across BOTH sections, so a viewer who is
-  // e.g. coordinador of the same equipo for both an inscripcion and a
-  // retiro only costs one RPC call for that equipo (cargarPermisosPorEquipos
-  // dedupes internally too, but building one combined set keeps this to
-  // exactly one batching call for the whole page).
+  // One distinct-equipo set across every source, one batched call.
   const equipoIds = new Set<string | null>()
-  for (const row of inscripciones.rows) {
-    equipoIds.add(inscripciones.equipoIdByTallerId.get(row.taller_id) ?? null)
+  for (const fuente of [pendientes, aprobadas]) {
+    for (const row of fuente.rows) equipoIds.add(fuente.equipoIdByTallerId.get(row.taller_id) ?? null)
   }
-  for (const solicitud of solicitudes) {
-    equipoIds.add(solicitud.equipoId)
-  }
-
+  for (const solicitud of solicitudes) equipoIds.add(solicitud.equipoId)
   const permisosPorEquipo = await cargarPermisosPorEquipos(client, Array.from(equipoIds))
 
-  function permisosParaEquipo(equipoId: string | null) {
-    return permisosPorEquipo.get(equipoId) ?? PERMISOS_TALLER_ALL_FALSE
-  }
-
-  const nadaPendiente = inscripciones.rows.length === 0 && solicitudes.length === 0
-  const inscripcionesHeading =
-    estadoFiltro === 'pendiente' ? 'Inscripciones por aprobar' : 'Inscripciones'
-
-  // CORRECTION (post-T4 review, item 1) — resolved server-side into a
-  // plain array of ids, NEVER a function: TablaInscripciones is a client
-  // component (T3), and a function prop crossing from this server
-  // component into it crashes at render ("Functions cannot be passed
-  // directly to Client Components"). See tabla-inscripciones.tsx's
-  // CanWriteInscripcion doc for the full story.
-  const writableInscripcionIds: readonly string[] = inscripciones.rows
-    .filter(
-      (row) =>
-        permisosParaEquipo(inscripciones.equipoIdByTallerId.get(row.taller_id) ?? null)
-          .aprobarInscripciones,
-    )
-    .map((row) => row.id)
+  const items = construirItems({
+    pendientes,
+    aprobadas,
+    solicitudes,
+    permisosDe: (equipoId) => permisosPorEquipo.get(equipoId) ?? PERMISOS_TALLER_ALL_FALSE,
+  })
 
   return (
-    <PaginaSistema
-      titulo="Pendientes"
-      descripcion="Lo que espera tu decisión, en todos tus talleres."
-    >
-      <nav aria-label="Filtrar inscripciones por estado" className="mb-4 flex flex-wrap gap-2">
-        {ESTADO_FILTRO_VALUES.map((valor) => (
-          <Link
-            key={valor}
-            href={`/talleres/pendientes?estado=${valor}`}
-            aria-current={estadoFiltro === valor ? 'true' : undefined}
-            className={`rounded-full border px-3 py-1 text-sm transition-colors ${
-              estadoFiltro === valor
-                ? 'border-brand bg-[var(--brand-accent)] font-medium text-brand-text'
-                : 'border-border text-muted-foreground hover:bg-[var(--brand-accent)] hover:text-foreground'
-            }`}
-          >
-            {ESTADO_FILTRO_LABELS[valor]}
-          </Link>
-        ))}
-      </nav>
-
-      {nadaPendiente ? (
-        <TarjetaSistema className="p-0">
-          <EstadoVacioSistema
-            icono={UsersIcon}
-            titulo="No tenés nada pendiente"
-            subtitulo="Cuando algo necesite tu decisión, va a aparecer acá."
-          />
-        </TarjetaSistema>
-      ) : (
-        <div className="space-y-6">
-          <section aria-labelledby="inscripciones-heading">
-            <h2 id="inscripciones-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
-              {inscripcionesHeading}
-            </h2>
-            <div className="mt-3">
-              {inscripciones.rows.length === 0 ? (
-                <TarjetaSistema className="p-0">
-                  <EstadoVacioSistema
-                    icono={UsersIcon}
-                    titulo={
-                      estadoFiltro === 'pendiente'
-                        ? 'No hay inscripciones pendientes'
-                        : `No hay inscripciones en estado "${ESTADO_FILTRO_LABELS[estadoFiltro].toLowerCase()}"`
-                    }
-                  />
-                </TarjetaSistema>
-              ) : (
-                <TablaInscripciones
-                  rows={filasInscripciones}
-                  canWrite={writableInscripcionIds}
-                  onApprove={approveInscripcionAction}
-                  onReject={rejectInscripcionAction}
-                  onReenviarAcceso={reenviarAccesoAction}
-                />
-              )}
-            </div>
-          </section>
-
-          <section aria-labelledby="retiros-heading">
-            <h2 id="retiros-heading" className="text-lg font-semibold tracking-tight sm:text-xl">
-              Retiros por resolver
-            </h2>
-            <div className="mt-3">
-              {solicitudes.length === 0 ? (
-                <TarjetaSistema className="p-0">
-                  <EstadoVacioSistema icono={LogOut} titulo="No hay retiros pendientes" />
-                </TarjetaSistema>
-              ) : (
-                <ul className="grid gap-3">
-                  {solicitudes.map((solicitud) => {
-                    const puedeResolver = permisosParaEquipo(solicitud.equipoId).resolverRetiros
-                    return (
-                      <li key={solicitud.id}>
-                        <TarjetaSistema variante="outlined" className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <TextoSistema className="font-medium">{tipoLabel(solicitud.tipo)}</TextoSistema>
-                              <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                                {solicitud.tallerNombre ?? 'Taller no disponible'} · {formatFecha(solicitud.created_at)}
-                              </TextoSistema>
-                            </div>
-                            <BadgeSistema variante="warning" tamaño="sm">
-                              Pendiente
-                            </BadgeSistema>
-                          </div>
-                          <TextoSistema className="mt-2 block text-sm">{solicitud.motivo}</TextoSistema>
-                          {puedeResolver && (
-                            <div className="mt-3 flex justify-end">
-                              <ResolverSolicitudRetiroControls
-                                solicitudId={solicitud.id}
-                                onAprobar={aprobarSolicitudRetiroAction}
-                                onRechazar={rechazarSolicitudRetiroAction}
-                              />
-                            </div>
-                          )}
-                        </TarjetaSistema>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
-    </PaginaSistema>
+    <PendientesClient
+      items={items}
+      hoy={new Date().toISOString()}
+      filtrosIniciales={leerFiltros({
+        atencion: primero(params.atencion),
+        taller: primero(params.taller),
+        q: primero(params.q),
+      })}
+      itemInicial={primero(params.item) ?? null}
+    />
   )
-}
-
-function tipoLabel(tipo: PendienteSolicitudRow['tipo']): string {
-  return tipo === 'participante_retiro' ? 'Retiro de participante' : 'Retiro definitivo del equipo'
-}
-
-function formatFecha(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' })
-  } catch {
-    return iso
-  }
 }
