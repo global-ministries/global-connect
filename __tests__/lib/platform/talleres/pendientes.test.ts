@@ -276,3 +276,117 @@ describe('loadPendientesSolicitudes', () => {
     expect(capturedRpc).toHaveLength(0)
   })
 })
+
+// ─── R3e (odd/tasks/talleres-rediseno.md) — what the v2 inbox needs ───────
+
+/** A client that answers each table / RPC with its own data and records the calls. */
+function makeTablaClient(opts: {
+  readonly tablas?: Record<string, unknown[] | { error: { message: string } }>
+  readonly rpcs?: Record<string, unknown>
+}) {
+  const capturedIn: CapturedInClause[] = []
+  const capturedRpc: CapturedRpcCall[] = []
+  const client = {
+    from: (table: string) => {
+      const chain = {
+        select: () => chain,
+        in: (column: string, value: readonly unknown[]) => {
+          capturedIn.push({ table, column, value })
+          return chain
+        },
+        then: (resolve: (v: { data: unknown[] | null; error: { message: string } | null }) => unknown) => {
+          const tabla = opts.tablas?.[table]
+          const res =
+            tabla && !Array.isArray(tabla) ? { data: null, error: tabla.error } : { data: tabla ?? [], error: null }
+          return Promise.resolve(res).then(resolve)
+        },
+      }
+      return chain
+    },
+    rpc: (fn: string, args: Record<string, unknown>) => {
+      capturedRpc.push({ fn, args })
+      return Promise.resolve({ data: opts.rpcs?.[fn] ?? null, error: null })
+    },
+  }
+  return { client, capturedIn, capturedRpc }
+}
+
+describe('loadPendientesInscripciones — origen, por_verificar y grupo (R3e)', () => {
+  it('reads origen, por_verificar and grupo_id of the returned rows in one batched taller_inscripciones lookup', async () => {
+    loadCoordInscripcionesPendientesMock.mockResolvedValue([
+      makeInscripcionRow({ id: 'insc-1' }),
+      makeInscripcionRow({ id: 'insc-2' }),
+    ])
+    const { client, capturedIn } = makeTablaClient({
+      tablas: {
+        talleres: [{ id: 't-1', dream_team_equipo_id: 'eq-1' }],
+        taller_inscripciones: [
+          { id: 'insc-1', origen: 'publico', por_verificar: true, grupo_id: null },
+          { id: 'insc-2', origen: 'app', por_verificar: false, grupo_id: 'g-1' },
+        ],
+      },
+    })
+    const result = await loadPendientesInscripciones(client)
+
+    const lookups = capturedIn.filter((c) => c.table === 'taller_inscripciones')
+    expect(lookups).toHaveLength(1)
+    expect(lookups[0]?.column).toBe('id')
+    expect(new Set(lookups[0]?.value)).toEqual(new Set(['insc-1', 'insc-2']))
+    expect(result.extraPorInscripcion.get('insc-1')).toEqual({ origen: 'publico', porVerificar: true, grupoId: null })
+    expect(result.extraPorInscripcion.get('insc-2')).toEqual({ origen: 'app', porVerificar: false, grupoId: 'g-1' })
+  })
+
+  it('degrades quietly (empty map, rows kept) when the lookup fails', async () => {
+    const row = makeInscripcionRow()
+    loadCoordInscripcionesPendientesMock.mockResolvedValue([row])
+    const { client } = makeTablaClient({ tablas: { taller_inscripciones: { error: { message: 'boom' } } } })
+    const result = await loadPendientesInscripciones(client)
+    expect(result.rows).toEqual([row])
+    expect(result.extraPorInscripcion.size).toBe(0)
+  })
+
+  it('makes no taller_inscripciones lookup when there are zero rows', async () => {
+    loadCoordInscripcionesPendientesMock.mockResolvedValue([])
+    const { client, capturedIn } = makeTablaClient({})
+    const result = await loadPendientesInscripciones(client)
+    expect(result.extraPorInscripcion.size).toBe(0)
+    expect(capturedIn).toHaveLength(0)
+  })
+})
+
+describe('loadPendientesSolicitudes — persona y edición del retiro (R3e)', () => {
+  it('names the persona and the edición of a participante retiro through the existing RPC and one batched lookup', async () => {
+    loadCoordSolicitudesMock.mockResolvedValue([
+      makeSolicitudRow({ id: 'sol-1', inscripcion_id: 'insc-1' }),
+      makeSolicitudRow({ id: 'sol-2', tipo: 'equipo_retiro_definitivo', inscripcion_id: null, grupo_asignacion_id: 'ga-1' }),
+    ])
+    const { client, capturedRpc, capturedIn } = makeTablaClient({
+      rpcs: {
+        talleres_equipo_de_solicitud: 'eq-1',
+        talleres_coord_inscripciones_personas: [
+          { inscripcion_id: 'insc-1', pp_nombre: 'Andreína', pp_apellido: 'Colmenárez', pp_email: 'a@example.com', comp_nombre: null, comp_apellido: null },
+        ],
+      },
+      tablas: {
+        talleres: [{ nombre: 'Mujer de Hoy', slug: 'mujer-de-hoy', dream_team_equipo_id: 'eq-1' }],
+        taller_inscripciones: [{ id: 'insc-1', taller_id: 'ed-1' }],
+      },
+    })
+    const result = await loadPendientesSolicitudes(client)
+
+    const personas = capturedRpc.filter((c) => c.fn === 'talleres_coord_inscripciones_personas')
+    expect(personas).toEqual([{ fn: 'talleres_coord_inscripciones_personas', args: { p_inscripcion_ids: ['insc-1'] } }])
+    expect(capturedIn.filter((c) => c.table === 'taller_inscripciones')).toEqual([
+      { table: 'taller_inscripciones', column: 'id', value: ['insc-1'] },
+    ])
+    expect(result[0]).toMatchObject({ personaNombre: 'Andreína Colmenárez', personaCorreo: 'a@example.com', edicionId: 'ed-1' })
+    expect(result[1]).toMatchObject({ personaNombre: null, personaCorreo: null, edicionId: null })
+  })
+
+  it('keeps the row with null persona and edición when the RPC returns nothing', async () => {
+    loadCoordSolicitudesMock.mockResolvedValue([makeSolicitudRow({ id: 'sol-1' })])
+    const { client } = makeTablaClient({ rpcs: { talleres_equipo_de_solicitud: 'eq-1' } })
+    const [row] = await loadPendientesSolicitudes(client)
+    expect(row).toMatchObject({ id: 'sol-1', personaNombre: null, edicionId: null })
+  })
+})
