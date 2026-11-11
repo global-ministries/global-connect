@@ -69,34 +69,52 @@
  * T9 (same doc, S8) — "Avisos" (the notices center, ./avisos) sits next to
  * Compartir with the same editarTaller gate; the avisos page and its RPC
  * still check their own authority.
+ *
+ * R3d (odd/tasks/talleres-rediseno.md, S1, S2, S4) — rebuilt on the v2
+ * anatomy of artboard design/talleres-interior/22 (approved in L6), with the
+ * same gate, loads and permission checks as above:
+ *   - header actions Compartir · Avisos · Configuración (editarTaller;
+ *     Configuración jumps to #configuracion-heading on this page) and the
+ *     primary «Abrir edición» (abrirEdicion), which opens the existing
+ *     OpenEdicionForm in a DetalleResponsivo (components/talleres/taller/
+ *     abrir-edicion.tsx); on phones the same actions sit under the title;
+ *   - under the title: estado, one summary line with the ediciones by
+ *     estado, the org-chart path, tipo and régimen, and the descripción;
+ *   - main column: Ediciones (id="ediciones", the catálogo's and the
+ *     checklist's anchor) as a ListaResponsiva split Abiertas · En curso ·
+ *     Cerradas (components/talleres/taller/ediciones-taller.tsx), then the
+ *     plantilla de grupos;
+ *   - side column: «Pasos para abrir una edición» (editarTaller), plantilla
+ *     de clases, Equipo (coordinación first, facilitadores of the plantilla
+ *     grupos) and Página pública (talleres.publico, read-only; one extra
+ *     select by id, the same one /compartir does — hidden if it fails);
+ *   - Configuración (ConfiguracionTaller, id="configuracion-heading") below,
+ *     full width.
  */
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Bell, ChevronRight, Layers, Lock, Share2, Users } from 'lucide-react'
+import { Bell, Settings, Share2 } from 'lucide-react'
 
 import {
   PaginaSistema,
   BadgeSistema,
   BotonSistema,
-  EnlaceSistema,
   TarjetaSistema,
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
+import { PuntoEstado } from '@/components/ui/punto-estado'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
 import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
 import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
-import {
-  edicionEstadoBadgeVariante,
-  edicionEstadoLabel,
-  tallerEstadoBadgeVariante,
-  tallerEstadoLabel,
-} from '@/components/talleres/labels'
+import { AbrirEdicionProvider, BotonAbrirEdicion } from '@/components/talleres/taller/abrir-edicion'
+import { EdicionesTaller } from '@/components/talleres/taller/ediciones-taller'
+import { EquipoTaller, PaginaPublicaTaller, PasosAbrirEdicion } from '@/components/talleres/taller/partes-taller'
+import { plural, resumenEdiciones } from '@/components/talleres/taller/vista-taller'
+import { regimenLabel, tallerEstadoLabel, tipoTallerLabel } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -107,7 +125,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { loadTallerDetalle } from '@/lib/platform/talleres/catalogo'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { fetchRutaEquipo } from '@/lib/platform/talleres/equipo-organigrama'
-import { loadServidoresDelTaller, nombreCompletoServidor } from '@/lib/platform/talleres/servidores-del-taller'
+import { loadServidoresDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
 import {
   loadPlantillaClases,
   loadPlantillaGrupos,
@@ -115,7 +133,7 @@ import {
 } from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
-import { rutaCatalogo, rutaEdicion, rutaTaller } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo, rutaTaller } from '@/lib/platform/talleres/rutas'
 import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
@@ -127,12 +145,26 @@ interface RouteContext {
   readonly searchParams: Promise<{ readonly creadas?: string }>
 }
 
-/** Same UTC-anchored formatting OpenEdicionForm's own preview uses, for a `date`-only column (never a timestamptz shift). */
-function formatFechaCorta(value: string | null): string {
-  if (!value) return '—'
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return value
-  return d.toLocaleDateString('es', { timeZone: 'UTC' })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+type ClienteServidor = any
+
+/**
+ * talleres.publico, the same select by id /compartir does. `null` when it
+ * cannot be read: the «Página pública» section then stays hidden instead of
+ * claiming a state it does not know.
+ */
+async function leerPublico(client: ClienteServidor, tallerId: string): Promise<boolean | null> {
+  try {
+    const { data, error } = await client.from('talleres').select('publico').eq('id', tallerId).maybeSingle()
+    if (error || !data) return null
+    return (data as { publico?: unknown }).publico === true
+  } catch {
+    return null
+  }
+}
+
+function Num({ children }: { readonly children: number }) {
+  return <strong className="font-mono font-semibold tabular-nums text-foreground">{children}</strong>
 }
 
 export default async function TallerDetallePage(ctx: RouteContext) {
@@ -205,12 +237,13 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   // régimen=cadencia taller never pays for this query.
   const debeCargarTemporadas = permisos.abrirEdicion && taller.regimen === 'temporada'
 
-  const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos] = await Promise.all([
+  const [rutaEquipo, temporadasAbiertas, cargaServidores, plantillaClases, plantillaGrupos, publico] = await Promise.all([
     equipoId ? fetchRutaEquipo(client, equipoId) : Promise.resolve(null),
     debeCargarTemporadas ? loadTemporadasAbiertas(client, taller.id) : Promise.resolve([]),
     equipoId ? loadServidoresDelTaller(client, taller.id) : Promise.resolve({ ok: true, servidores: [] } as const),
     loadPlantillaClases(client, taller.id),
     loadPlantillaGrupos(client, taller.id),
+    leerPublico(client, taller.id),
   ])
 
   // T4 — "Crear edición" (régimen=temporada) excludes temporadas this
@@ -254,25 +287,51 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     servidorPersonaIds,
   )
 
+  const rutaBase = rutaTaller(taller.slug)
+  const resumen = resumenEdiciones(taller.ediciones)
+  const puedeVerDreamTeam = hasDreamTeamReadCapability(session)
+
+  // Artboard 22 order: Compartir · Avisos · Configuración, then the primary «Abrir edición».
   const accionesTaller = (className: string, claseBoton?: string) => (
     <div className={className}>
-      <BotonSistema asChild variante="outline" tamaño="sm" icono={Bell} className={claseBoton}>
-        <Link href={`${rutaTaller(taller.slug)}/avisos`}>Avisos</Link>
-      </BotonSistema>
-      <BotonSistema asChild variante="outline" tamaño="sm" icono={Share2} className={claseBoton}>
-        <Link href={`${rutaTaller(taller.slug)}/compartir`}>Compartir</Link>
-      </BotonSistema>
+      {permisos.editarTaller && (
+        <>
+          <BotonSistema asChild variante="outline" tamaño="sm" icono={Share2} className={claseBoton}>
+            <Link href={`${rutaBase}/compartir`}>Compartir</Link>
+          </BotonSistema>
+          <BotonSistema asChild variante="outline" tamaño="sm" icono={Bell} className={claseBoton}>
+            <Link href={`${rutaBase}/avisos`}>Avisos</Link>
+          </BotonSistema>
+          <BotonSistema asChild variante="outline" tamaño="sm" icono={Settings} className={claseBoton}>
+            <Link href="#configuracion-heading">Configuración</Link>
+          </BotonSistema>
+        </>
+      )}
+      <BotonAbrirEdicion className={claseBoton} />
     </div>
   )
+  const hayAcciones = permisos.editarTaller || permisos.abrirEdicion
 
-  return (
+  const textoResumen =
+    taller.ediciones.length === 0 ? (
+      'Todavía sin ediciones'
+    ) : (
+      <>
+        <Num>{resumen.abiertas}</Num>{' '}
+        {plural(resumen.abiertas, 'edición con inscripción abierta', 'ediciones con inscripción abierta')} ·{' '}
+        <Num>{resumen.enCurso}</Num> en curso · <Num>{resumen.cerradas}</Num>{' '}
+        {plural(resumen.cerradas, 'cerrada', 'cerradas')}
+      </>
+    )
+
+  const pagina = (
     <PaginaSistema
       titulo={taller.nombre}
       regreso={{ href: rutaCatalogo(), texto: 'Talleres' }}
-      acciones={permisos.editarTaller ? accionesTaller('flex items-center gap-2') : undefined}
+      acciones={hayAcciones ? accionesTaller('flex items-center gap-2') : undefined}
     >
-      <TarjetaSistema variante="outlined" className="p-4">
-        <div className="flex flex-wrap items-start gap-3">
+      <section aria-label="Resumen del taller" className="grid min-w-0 gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
           <div className="min-w-0 flex-1">
             {permisos.editarTaller ? (
               <EditarNombreTaller tallerId={taller.id} tallerSlug={taller.slug} nombre={taller.nombre} />
@@ -283,41 +342,38 @@ export default async function TallerDetallePage(ctx: RouteContext) {
               // gone (it was only ever an internal identifier).
               <TituloSistema nivel={2}>{taller.nombre}</TituloSistema>
             )}
-            {permisos.editarTaller ? (
-              <EditarDescripcionTaller
-                tallerId={taller.id}
-                tallerSlug={taller.slug}
-                descripcion={taller.descripcion}
-              />
-            ) : (
-              taller.descripcion && (
-                <TextoSistema className="mt-2 block">{taller.descripcion}</TextoSistema>
-              )
-            )}
-            {rutaEquipo && (
-              // T11 (flow audit) — taller -> node: a link back to the
-              // org chart when the viewer can actually see it (same
-              // hasDreamTeamReadCapability gate as "Gestionar en
-              // Servidores" above), plain text otherwise — a link that
-              // 404s is worse than no link.
-              <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
-                {hasDreamTeamReadCapability(session) ? (
-                  <Link href="/admin/dream-team/estructura" className="hover:underline">
-                    {rutaEquipo}
-                  </Link>
-                ) : (
-                  rutaEquipo
-                )}
-              </TextoSistema>
-            )}
           </div>
-          <BadgeSistema variante={tallerEstadoBadgeVariante(taller.estado)}>
-            {tallerEstadoLabel(taller.estado)}
-          </BadgeSistema>
-          {/* Phones have no desktop header: the same actions live here. */}
-          {permisos.editarTaller && accionesTaller('grid w-full grid-cols-2 gap-2 md:hidden', 'w-full')}
+          <PuntoEstado tono={taller.estado === 'active' ? 'success' : 'muted'} etiqueta={tallerEstadoLabel(taller.estado)} />
         </div>
-      </TarjetaSistema>
+        <p className="text-[15px] text-muted-foreground">{textoResumen}</p>
+        <p className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground">
+          {rutaEquipo && (
+            // T11 (flow audit) — taller -> node: a link back to the
+            // org chart when the viewer can actually see it (same
+            // hasDreamTeamReadCapability gate as "Gestionar en
+            // Servidores"), plain text otherwise — a link that
+            // 404s is worse than no link.
+            <span className="min-w-0">
+              {puedeVerDreamTeam ? (
+                <Link href="/admin/dream-team/estructura" className="focus-ring rounded-sm hover:underline">
+                  {rutaEquipo}
+                </Link>
+              ) : (
+                rutaEquipo
+              )}
+            </span>
+          )}
+          <span>{tipoTallerLabel(taller.tipo)}</span>
+          <span>{regimenLabel(taller.regimen)}</span>
+        </p>
+        {permisos.editarTaller ? (
+          <EditarDescripcionTaller tallerId={taller.id} tallerSlug={taller.slug} descripcion={taller.descripcion} />
+        ) : (
+          taller.descripcion && <TextoSistema className="block max-w-3xl">{taller.descripcion}</TextoSistema>
+        )}
+        {/* Phones have no desktop header: the same actions live here. */}
+        {hayAcciones && accionesTaller('mt-2 grid grid-cols-2 gap-2 md:hidden', 'w-full')}
+      </section>
 
       {/* T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
           redirected here from OpenEdicionForm after "crear también las
@@ -328,209 +384,108 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         </BadgeSistema>
       )}
 
-      <ConfiguracionTaller
-        tallerId={taller.id}
-        tallerSlug={taller.slug}
-        tipo={taller.tipo}
-        vinculo={taller.vinculo}
-        regimen={taller.regimen}
-        cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
-        intervaloEdicionesDias={taller.intervalo_ediciones_dias}
-        anclaEdiciones={taller.ancla_ediciones ?? null}
-        clasesMinimasParaCompletar={taller.clases_minimas_para_completar}
-        minimoInscritos={taller.minimo_inscritos ?? null}
-        permiteRecuperarClases={taller.permite_recuperar_clases ?? true}
-        momentoEnvioAcceso={taller.momento_envio_acceso}
-        inscripcionAutomatica={taller.inscripcion_automatica}
-        cadenciaDias={taller.cadencia_dias}
-        duracionMinutos={taller.duracion_minutos}
-        puedeEditar={permisos.editarTaller}
-      />
+      <div className="grid min-w-0 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)]">
+        <div className="grid min-w-0 gap-8">
+          {/* id="ediciones": the anchor of the catálogo's «Abrir edición» and of the checklist. */}
+          <section aria-labelledby="ediciones-heading" id="ediciones" className="scroll-mt-24">
+            <EdicionesTaller tallerSlug={taller.slug} tallerNombre={taller.nombre} ediciones={taller.ediciones} />
+          </section>
 
-      {/* T11 (flow audit) — "Pasos para abrir una edición": right under the
-          header, so a director sees at a glance what's left before "Crear
-          edición" makes sense to press. Only for editarTaller — the same
-          capacity that gates the plantilla edit controls below. */}
-      {permisos.editarTaller && (
-        <TarjetaSistema className="p-0">
-          <div className="p-4 pb-0">
-            <TituloSistema nivel={2}>Pasos para abrir una edición</TituloSistema>
-          </div>
-          <div className="divide-y divide-border">
-            {[
-              { etiqueta: 'Equipo del nodo', listo: servidores.length > 0 },
-              { etiqueta: 'Plantilla de clases', listo: clasesActivas > 0 },
-              { etiqueta: 'Plantilla de grupos', listo: gruposPlantillaActivosList.length > 0 },
-            ].map((paso) => (
-              <div key={paso.etiqueta} className="flex items-center justify-between gap-3 p-4">
-                <TextoSistema>{paso.etiqueta}</TextoSistema>
-                <BadgeSistema variante={paso.listo ? 'success' : 'warning'}>
-                  {paso.listo ? 'Listo' : 'Pendiente'}
-                </BadgeSistema>
-              </div>
-            ))}
-            <Link
-              href="#ediciones"
-              className="flex items-center justify-between gap-3 p-4 transition-colors hover:bg-accent"
-            >
-              <TextoSistema className="font-medium">
-                {/* T4 — the checklist's own final step names the ONE
-                    question "Crear edición" will actually ask, by régimen. */}
-                {taller.regimen === 'cadencia' ? 'Crear edición (primera clase)' : 'Crear edición (elige la temporada)'}
-              </TextoSistema>
-              <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-            </Link>
-          </div>
-        </TarjetaSistema>
-      )}
-
-      <section aria-labelledby="equipo-heading">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <TituloSistema nivel={2} id="equipo-heading">
-              Equipo del nodo
-            </TituloSistema>
-            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-              Servidores activos; se gestionan en Dream Team.
-            </TextoSistema>
-          </div>
-          {puedeGestionarServidores && (
-            <EnlaceSistema
-              href={`${RUTA_SERVIDORES}?equipo=${equipoId}`}
-              variante="marca"
-              className="inline-flex min-h-[44px] items-center text-sm"
-            >
-              Gestionar en Servidores
-            </EnlaceSistema>
-          )}
-        </div>
-
-        {sinAutoridadEquipo ? (
-          <div className="mt-3">
-            <TarjetaSistema className="p-0">
-              <EstadoVacioSistema
-                icono={Lock}
-                titulo="No tienes autoridad para ver el equipo de este taller."
-              />
-            </TarjetaSistema>
-          </div>
-        ) : servidores.length === 0 ? (
-          <div className="mt-3">
-            <TarjetaSistema className="p-0">
-              <EstadoVacioSistema
-                icono={Users}
-                titulo="Sin servidores activos en este equipo"
-                subtitulo="Asigna servidores en Dream Team → Servidores para que aparezcan acá."
-              />
-            </TarjetaSistema>
-          </div>
-        ) : (
-          <ul className="mt-3 grid gap-2">
-            {servidores.map((servidor) => (
-              <li key={servidor.personaId}>
-                <TarjetaSistema variante="outlined" className="flex items-center justify-between gap-3 p-3">
-                  <TextoSistema className="min-w-0 truncate font-medium">
-                    {nombreCompletoServidor(servidor)}
-                  </TextoSistema>
-                  <TextoSistema variante="sutil" tamaño="sm">
-                    {servidor.rolServicio ?? '—'}
-                  </TextoSistema>
-                </TarjetaSistema>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <PlantillaClasesSection
-        tallerId={taller.id}
-        tallerSlug={taller.slug}
-        clases={plantillaClases}
-        puedeEditar={permisos.editarTaller}
-      />
-
-      <PlantillaGruposSection
-        tallerId={taller.id}
-        tallerSlug={taller.slug}
-        grupos={plantillaGrupos}
-        servidores={servidores}
-        puedeEditar={permisos.editarTaller}
-      />
-
-      {/* T11 — id="ediciones" is the checklist's "Crear edición" #ediciones anchor landing target. */}
-      <section aria-labelledby="ediciones-heading" id="ediciones">
-        <TituloSistema nivel={2} id="ediciones-heading">
-          Ediciones
-        </TituloSistema>
-
-        {taller.ediciones.length === 0 ? (
-          <div className="mt-3">
-            <TarjetaSistema className="p-0">
-              <EstadoVacioSistema
-                icono={Layers}
-                titulo="Este taller todavía no tiene ediciones"
-                subtitulo="Usa «Abrir edición» más abajo para abrir la primera."
-              />
-            </TarjetaSistema>
-          </div>
-        ) : (
-          // T10 (design audit) — the ediciones used to be a `grid gap-3` of
-          // separate elevated cards; now ONE TarjetaSistema p-0 with
-          // divide-y rows, the same list pattern the rest of the system
-          // uses (estructura-client.tsx / nodo-fila.tsx).
-          <TarjetaSistema className="mt-3 p-0">
-            <div className="divide-y divide-border">
-              {taller.ediciones.map((edicion) => (
-                <Link
-                  key={edicion.id}
-                  href={rutaEdicion(taller.slug, edicion.id)}
-                  className="flex items-center gap-3 p-4 transition-colors hover:bg-accent"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="min-w-0 break-words font-medium text-foreground">
-                        {edicion.nombre_snapshot}
-                      </span>
-                      <BadgeSistema variante={edicionEstadoBadgeVariante(edicion.estado)} tamaño="sm">
-                        {edicionEstadoLabel(edicion.estado)}
-                      </BadgeSistema>
-                    </div>
-                    <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                      {/* T4 — "{inicio} → {fin}" from the edición's own real
-                          dates (CatalogoEdicion), never a periodo snapshot. */}
-                      {formatFechaCorta(edicion.fecha_inicio)} → {formatFechaCorta(edicion.fecha_fin)}
-                      {' · '}
-                      {edicion.total_inscripciones}{' '}
-                      {edicion.total_inscripciones === 1 ? 'inscrito' : 'inscritos'}
-                    </TextoSistema>
-                  </div>
-                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-                </Link>
-              ))}
-            </div>
-          </TarjetaSistema>
-        )}
-      </section>
-
-      {permisos.abrirEdicion && (
-        <div>
-          <OpenEdicionForm
+          <PlantillaGruposSection
             tallerId={taller.id}
             tallerSlug={taller.slug}
-            tallerNombre={taller.nombre}
-            regimen={taller.regimen}
-            temporadasDisponibles={temporadasDisponibles}
-            intervaloEdicionesDias={taller.intervalo_ediciones_dias}
-            anclaEdiciones={taller.ancla_ediciones ?? null}
-            cadenciaDias={taller.cadencia_dias}
-            cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
-            clasesPorGrupo={clasesPorGrupo}
-            gruposPlantillaActivos={gruposPlantillaActivosList.length}
-            facilitadoresOmitidosPreview={facilitadoresOmitidosPreview}
+            grupos={plantillaGrupos}
+            servidores={servidores}
+            puedeEditar={permisos.editarTaller}
           />
         </div>
-      )}
 
+        <aside aria-label="Plantilla, equipo y página pública" className="grid min-w-0 gap-8">
+          {/* T11 (flow audit) — what's left before «Abrir edición» makes
+              sense. Only for editarTaller, the capacity that gates the
+              plantilla edit controls. */}
+          {permisos.editarTaller && (
+            <PasosAbrirEdicion
+              pasos={[
+                { etiqueta: 'Equipo del nodo', listo: servidores.length > 0 },
+                { etiqueta: 'Plantilla de clases', listo: clasesActivas > 0 },
+                { etiqueta: 'Plantilla de grupos', listo: gruposPlantillaActivosList.length > 0 },
+              ]}
+              // T4 — the checklist's own final step names the ONE question
+              // «Abrir edición» will actually ask, by régimen.
+              textoFinal={
+                taller.regimen === 'cadencia' ? 'Crear edición (primera clase)' : 'Crear edición (elige la temporada)'
+              }
+            />
+          )}
+
+          <PlantillaClasesSection
+            tallerId={taller.id}
+            tallerSlug={taller.slug}
+            clases={plantillaClases}
+            puedeEditar={permisos.editarTaller}
+          />
+
+          <EquipoTaller
+            servidores={servidores}
+            sinAutoridad={sinAutoridadEquipo}
+            grupos={plantillaGrupos}
+            enlaceServidores={puedeGestionarServidores ? `${RUTA_SERVIDORES}?equipo=${equipoId}` : null}
+          />
+
+          {publico !== null && (
+            <PaginaPublicaTaller
+              slug={taller.slug}
+              publico={publico}
+              enlaceCompartir={permisos.editarTaller ? `${rutaBase}/compartir` : null}
+            />
+          )}
+        </aside>
+      </div>
+
+      <TarjetaSistema className="scroll-mt-24 p-4 sm:p-6" id="configuracion">
+        <ConfiguracionTaller
+          tallerId={taller.id}
+          tallerSlug={taller.slug}
+          tipo={taller.tipo}
+          vinculo={taller.vinculo}
+          regimen={taller.regimen}
+          cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
+          intervaloEdicionesDias={taller.intervalo_ediciones_dias}
+          anclaEdiciones={taller.ancla_ediciones ?? null}
+          clasesMinimasParaCompletar={taller.clases_minimas_para_completar}
+          minimoInscritos={taller.minimo_inscritos ?? null}
+          permiteRecuperarClases={taller.permite_recuperar_clases ?? true}
+          momentoEnvioAcceso={taller.momento_envio_acceso}
+          inscripcionAutomatica={taller.inscripcion_automatica}
+          cadenciaDias={taller.cadencia_dias}
+          duracionMinutos={taller.duracion_minutos}
+          puedeEditar={permisos.editarTaller}
+        />
+      </TarjetaSistema>
     </PaginaSistema>
+  )
+
+  if (!permisos.abrirEdicion) return pagina
+
+  return (
+    <AbrirEdicionProvider
+      formulario={{
+        tallerId: taller.id,
+        tallerSlug: taller.slug,
+        tallerNombre: taller.nombre,
+        regimen: taller.regimen,
+        temporadasDisponibles,
+        intervaloEdicionesDias: taller.intervalo_ediciones_dias,
+        anclaEdiciones: taller.ancla_ediciones ?? null,
+        cadenciaDias: taller.cadencia_dias,
+        cierreInscripcionOffsetDias: taller.cierre_inscripcion_offset_dias,
+        clasesPorGrupo,
+        gruposPlantillaActivos: gruposPlantillaActivosList.length,
+        facilitadoresOmitidosPreview,
+      }}
+    >
+      {pagina}
+    </AbrirEdicionProvider>
   )
 }

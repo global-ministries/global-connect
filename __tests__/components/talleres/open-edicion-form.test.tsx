@@ -57,7 +57,7 @@ beforeEach(() => {
 })
 
 function openForm() {
-  fireEvent.click(screen.getByRole('button', { name: /^crear edición$/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^abrir edición$/i }))
 }
 
 describe('OpenEdicionForm — trigger and dialog', () => {
@@ -66,11 +66,24 @@ describe('OpenEdicionForm — trigger and dialog', () => {
     expect(screen.queryByLabelText(/primera clase/i)).not.toBeInTheDocument()
   })
 
-  it('opens the form inside a dialog titled with the taller name', () => {
+  it('opens the form inside a panel titled «Abrir edición» that names the taller', () => {
     render(<OpenEdicionForm {...baseProps()} />)
     openForm()
-    expect(screen.getByRole('dialog')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: /crear edición de próximo paso/i })).toBeInTheDocument()
+    const panel = screen.getByRole('dialog')
+    expect(panel).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /^abrir edición$/i })).toBeInTheDocument()
+    expect(panel).toHaveTextContent(/Próximo Paso · se copian la plantilla de clases y los grupos/)
+  })
+
+  it('is controlled by abierto/onCambioAbierto without its own trigger, and Cancelar asks to close', () => {
+    const onCambioAbierto = jest.fn()
+    const { rerender } = render(<OpenEdicionForm {...baseProps()} abierto={false} onCambioAbierto={onCambioAbierto} />)
+    expect(screen.queryByRole('button', { name: /^abrir edición$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    rerender(<OpenEdicionForm {...baseProps()} abierto onCambioAbierto={onCambioAbierto} />)
+    expect(screen.getByLabelText(/primera clase/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^cancelar$/i }))
+    expect(onCambioAbierto).toHaveBeenCalledWith(false)
   })
 
   it('uses neutral Spanish copy (no voseo)', () => {
