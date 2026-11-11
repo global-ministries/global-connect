@@ -23,22 +23,32 @@
  * The core of this test: every control's visibility is wired straight to
  * cargarPermisos()'s booleans, never a flat capability array, and
  * "Asignar coordinador" is gone from every render path.
+ *
+ * R3d (odd/tasks/talleres-rediseno.md) — the v2 page (artboard 22) moves the
+ * ediciones list, «Abrir edición» and the side column into components of
+ * components/talleres/taller/. This RSC test checks what the page hands
+ * them (props), and __tests__/components/talleres/taller/ renders them.
  */
 
 import TallerDetallePage from '@/app/(auth)/talleres/[taller]/page'
-import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
+import { AbrirEdicionProvider, BotonAbrirEdicion } from '@/components/talleres/taller/abrir-edicion'
+import { PuntoEstado } from '@/components/ui/punto-estado'
+import { EdicionesTaller } from '@/components/talleres/taller/ediciones-taller'
+import {
+  EquipoTaller,
+  PaginaPublicaTaller,
+  PasosAbrirEdicion,
+} from '@/components/talleres/taller/partes-taller'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
 import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { PaginaSistema, EnlaceSistema, TarjetaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
-import { ChevronRight } from 'lucide-react'
+import { PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { CargaServidoresDelTaller, ServidorDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
-import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo } from '@/lib/platform/talleres/rutas'
 import Link from 'next/link'
 
 jest.mock('@/lib/platform/talleres/flags', () => ({
@@ -85,8 +95,13 @@ jest.mock('@/lib/platform/talleres/refrescar-estados', () => ({
   refrescarEstadosEdiciones: jest.fn(),
 }))
 
-jest.mock('@/components/talleres/open-edicion-form', () => ({
-  OpenEdicionForm: () => null,
+jest.mock('@/components/talleres/taller/abrir-edicion', () => ({
+  AbrirEdicionProvider: () => null,
+  BotonAbrirEdicion: () => null,
+}))
+
+jest.mock('@/components/talleres/taller/ediciones-taller', () => ({
+  EdicionesTaller: () => null,
 }))
 
 jest.mock('@/components/talleres/configuracion-taller', () => ({
@@ -130,6 +145,8 @@ const loadTemporadasAbiertasMock = jest.requireMock('@/lib/platform/talleres/tem
   .loadTemporadasAbiertas as jest.Mock
 const refrescarEstadosEdicionesMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados')
   .refrescarEstadosEdiciones as jest.Mock
+
+const fromMock = jest.fn()
 
 const TALLER: TallerDetalle = {
   id: 't-1',
@@ -188,12 +205,28 @@ interface SetupOpts {
   }[]
   /** T11 — Dream Team capability keys for the viewer (gates "Gestionar en Servidores"). */
   capabilities?: readonly string[]
+  /** R3d — talleres.publico as the select returns it; 'error' makes the select fail. */
+  publico?: boolean | 'error'
 }
 
 function setup(opts: SetupOpts): void {
   flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
 
+  const publico = opts.publico ?? false
+  fromMock.mockReset().mockReturnValue({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: () =>
+          Promise.resolve(
+            publico === 'error'
+              ? { data: null, error: { message: 'boom' } }
+              : { data: { publico }, error: null },
+          ),
+      }),
+    }),
+  })
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    from: fromMock,
     auth: {
       getUser: jest.fn().mockResolvedValue({
         data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
@@ -264,6 +297,12 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
     return findByType(el.props?.children, type)
   }
   return null
+}
+
+/** The props AbrirEdicionProvider hands OpenEdicionForm (null without the provider). */
+function formulario(node: unknown): { props: Record<string, unknown> } | null {
+  const provider = findByType(node, AbrirEdicionProvider)
+  return provider ? { props: provider.props.formulario as Record<string, unknown> } : null
 }
 
 /** Finds EVERY element of the given type in the tree, WITHOUT executing it. */
@@ -383,76 +422,57 @@ describe('TallerDetallePage — cabecera', () => {
 })
 
 describe('TallerDetallePage — Equipo', () => {
-  it('lists active servidores with their rol', async () => {
-    setup({ servidores: [SERVIDOR_LIDER] })
+  it('hands the active servidores and the plantilla grupos to EquipoTaller', async () => {
+    const grupos = [{ id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] }]
+    setup({ servidores: [SERVIDOR_LIDER], plantillaGrupos: grupos })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const text = extractText(element)
-    expect(text).toMatch(/Ana Gómez/)
-    expect(text).toMatch(/Líder/)
+    const equipo = findByType(element, EquipoTaller)
+    expect(equipo?.props.servidores).toEqual([SERVIDOR_LIDER])
+    expect(equipo?.props.sinAutoridad).toBe(false)
+    expect(equipo?.props.grupos).toEqual(grupos)
     expect(loadServidoresDelTallerMock).toHaveBeenCalledWith(expect.anything(), 't-1')
   })
 
-  // T10 (odd/tasks/talleres-configuracion-del-taller.md, design audit) — this
-  // used to be a hand-styled `<Link className="... text-[var(--brand-primary)]
-  // hover:underline">`; it is now an EnlaceSistema variante="marca".
-  //
-  // T11 (flow audit) — the link used to be unconditional and could 404 for
-  // a viewer with no Dream Team authority; it now renders only when the
-  // viewer has a Dream Team read capability (the same
-  // hasDreamTeamReadCapability check /admin/dream-team/servidores/page.tsx
-  // itself gates on), and links straight to this taller's equipo
-  // (?equipo=<nodeId>) so Servidores lands pre-filtered.
-  it('links to Gestionar en Servidores through EnlaceSistema, filtered to this taller\'s equipo, when the viewer has Dream Team read capability', async () => {
+  // T11 (flow audit) — «Gestionar en Servidores» only with a Dream Team read
+  // capability (the check /admin/dream-team/servidores itself gates on),
+  // filtered to this taller's equipo.
+  it('links to Gestionar en Servidores, filtered to this taller\'s equipo, when the viewer has Dream Team read capability', async () => {
     setup({ servidores: [SERVIDOR_LIDER], capabilities: ['dream_team.org.manage'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
-      String(l.props.href).startsWith('/admin/dream-team/servidores'),
-    )
-    expect(servidoresLink).toBeDefined()
-    expect(servidoresLink?.props.href).toBe('/admin/dream-team/servidores?equipo=eq-1')
-    expect(servidoresLink?.props.variante).toBe('marca')
+    expect(findByType(element, EquipoTaller)?.props.enlaceServidores).toBe('/admin/dream-team/servidores?equipo=eq-1')
   })
 
   it('hides Gestionar en Servidores when the viewer has no Dream Team read capability', async () => {
     setup({ servidores: [SERVIDOR_LIDER], capabilities: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
-      String(l.props.href).startsWith('/admin/dream-team/servidores'),
-    )
-    expect(servidoresLink).toBeUndefined()
+    expect(findByType(element, EquipoTaller)?.props.enlaceServidores).toBeNull()
   })
 
   it('hides Gestionar en Servidores when the taller has no dream_team_equipo_id yet, even with capability', async () => {
     setup({ taller: { ...TALLER, dream_team_equipo_id: null }, capabilities: ['dream_team.org.manage'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const servidoresLink = findAllByType(element, EnlaceSistema).find((l) =>
-      String(l.props.href).startsWith('/admin/dream-team/servidores'),
-    )
-    expect(servidoresLink).toBeUndefined()
+    expect(findByType(element, EquipoTaller)?.props.enlaceServidores).toBeNull()
   })
 
-  it('shows an empty state when there are no active servidores', async () => {
-    setup({ servidores: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacioSistema)
-    expect(vacio?.props.titulo).toBe('Sin servidores activos en este equipo')
-  })
-
-  // B2 correction (T7, odd/tasks/talleres-configuracion-del-taller.md) — a
-  // 42501 from talleres_servidores_del_taller used to collapse to the SAME
-  // empty state as a taller with genuinely zero active servidores. It now
-  // renders a distinct access state instead.
-  it('shows an access state, not the empty one, when the viewer has no authority over the equipo', async () => {
+  // B2 correction (T7) — a 42501 is an access state, never the empty one.
+  it('marks the access state, not the empty one, when the viewer has no authority over the equipo', async () => {
     setup({ cargaServidores: { ok: false, reason: 'sin_autoridad' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacioSistema)
-    expect(vacio?.props.titulo).toBe('No tienes autoridad para ver el equipo de este taller.')
+    const equipo = findByType(element, EquipoTaller)
+    expect(equipo?.props.sinAutoridad).toBe(true)
+    expect(equipo?.props.servidores).toEqual([])
+  })
+
+  it('a load error is not the access state', async () => {
+    setup({ cargaServidores: { ok: false, reason: 'error' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, EquipoTaller)?.props.sinAutoridad).toBe(false)
   })
 
   it('passes an empty servidores list to PlantillaGruposSection when the viewer has no authority over the equipo', async () => {
@@ -531,19 +551,19 @@ describe('TallerDetallePage — Clases y Grupos (plantilla)', () => {
 })
 
 describe('TallerDetallePage — permission wiring', () => {
-  it('shows OpenEdicionForm when cargarPermisos grants abrirEdicion', async () => {
+  it('mounts «Abrir edición» (AbrirEdicionProvider) when cargarPermisos grants abrirEdicion', async () => {
     setup({ permisos: { abrirEdicion: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)).not.toBeNull()
+    expect(formulario(element)).not.toBeNull()
     expect(loadTemporadasAbiertasMock).toHaveBeenCalledTimes(1)
   })
 
-  it('hides OpenEdicionForm when cargarPermisos denies abrirEdicion', async () => {
+  it('never mounts «Abrir edición» when cargarPermisos denies abrirEdicion', async () => {
     setup({ permisos: { abrirEdicion: false } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)).toBeNull()
+    expect(formulario(element)).toBeNull()
     expect(loadTemporadasAbiertasMock).not.toHaveBeenCalled()
   })
 
@@ -564,14 +584,14 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.clasesPorGrupo).toBe(2)
+    expect(formulario(element)?.props.clasesPorGrupo).toBe(2)
   })
 
   it('passes clasesPorGrupo as 1 (never null) when the taller has no active plantilla clases', async () => {
     setup({ permisos: { abrirEdicion: true }, plantillaClases: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.clasesPorGrupo).toBe(1)
+    expect(formulario(element)?.props.clasesPorGrupo).toBe(1)
   })
 
   it('passes clasesPorGrupo as 1 when every plantilla clase is inactive', async () => {
@@ -581,7 +601,7 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.clasesPorGrupo).toBe(1)
+    expect(formulario(element)?.props.clasesPorGrupo).toBe(1)
   })
 
   // T11 (odd/tasks/talleres-configuracion-del-taller.md) — "Crear edición"
@@ -592,7 +612,7 @@ describe('TallerDetallePage — permission wiring', () => {
     setup({ permisos: { abrirEdicion: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
+    expect(formulario(element)?.props.tallerSlug).toBe('matrimonio-sobre-la-roca')
   })
 
   // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) —
@@ -606,7 +626,7 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const form = findByType(element, OpenEdicionForm)
+    const form = formulario(element)
     expect(form?.props.cadenciaDias).toBe(14)
     expect(form?.props.cierreInscripcionOffsetDias).toBe(-5)
   })
@@ -618,7 +638,7 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const form = findByType(element, OpenEdicionForm)
+    const form = formulario(element)
     expect(form?.props.regimen).toBe('cadencia')
     expect(form?.props.intervaloEdicionesDias).toBe(28)
   })
@@ -632,7 +652,7 @@ describe('TallerDetallePage — permission wiring', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, ConfiguracionTaller)?.props.anclaEdiciones).toBe('primer_domingo_mes')
-    expect(findByType(element, OpenEdicionForm)?.props.anclaEdiciones).toBe('primer_domingo_mes')
+    expect(formulario(element)?.props.anclaEdiciones).toBe('primer_domingo_mes')
   })
 
   // T2b (odd/tasks/proximo-paso.md, L6.2)
@@ -703,7 +723,7 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.gruposPlantillaActivos).toBe(2)
+    expect(formulario(element)?.props.gruposPlantillaActivos).toBe(2)
   })
 
   it('passes facilitadoresOmitidosPreview naming a plantilla facilitador who is no longer an active servidor, only from ACTIVE grupos', async () => {
@@ -734,7 +754,7 @@ describe('TallerDetallePage — permission wiring', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.facilitadoresOmitidosPreview).toEqual([
+    expect(formulario(element)?.props.facilitadoresOmitidosPreview).toEqual([
       { personaId: 'p-9', nombre: 'Marta Díaz', plantillaGrupo: 'Grupo Alfa' },
     ])
   })
@@ -793,7 +813,7 @@ describe('TallerDetallePage — T4: refresh and temporadas wiring', () => {
     ])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.temporadasDisponibles).toEqual([
+    expect(formulario(element)?.props.temporadasDisponibles).toEqual([
       { id: 'temp-2', nombre: 'Primavera 2027', fecha_apertura: '2027-03-01' },
     ])
   })
@@ -812,7 +832,7 @@ describe('TallerDetallePage — T4: refresh and temporadas wiring', () => {
     loadTemporadasAbiertasMock.mockResolvedValue([{ id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' }])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, OpenEdicionForm)?.props.temporadasDisponibles).toEqual([
+    expect(formulario(element)?.props.temporadasDisponibles).toEqual([
       { id: 'temp-1', nombre: 'Otoño 2026', fecha_apertura: '2026-09-01' },
     ])
   })
@@ -837,185 +857,170 @@ describe('TallerDetallePage — T4: ?creadas=N notice', () => {
   })
 })
 
-// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — a
-// "Pasos para abrir una edición" checklist right under the header, so a
-// director sees at a glance what's left before creating one. Only for
-// editarTaller (the same capacity that gates the plantilla edit controls).
+// T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) — the
+// "Pasos para abrir una edición" checklist, only for editarTaller (the same
+// capacity that gates the plantilla edit controls). R3d: it sits in the side
+// column (PasosAbrirEdicion; its rendering is in partes-taller.test.tsx).
 describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
+  function pasos(element: unknown): Record<string, boolean> {
+    const lista = findByType(element, PasosAbrirEdicion)?.props.pasos as { etiqueta: string; listo: boolean }[]
+    return Object.fromEntries(lista.map((p) => [p.etiqueta, p.listo]))
+  }
+
   it('shows the checklist when editarTaller is granted', async () => {
     setup({ permisos: { editarTaller: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Pasos para abrir una edición/i)
+    expect(findByType(element, PasosAbrirEdicion)).not.toBeNull()
   })
 
   it('hides the checklist when editarTaller is denied', async () => {
     setup({ permisos: { editarTaller: false } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).not.toMatch(/Pasos para abrir una edición/i)
+    expect(findByType(element, PasosAbrirEdicion)).toBeNull()
   })
 
-  it('marks Equipo del nodo Listo when there is at least one servidor activo', async () => {
-    setup({ permisos: { editarTaller: true }, servidores: [SERVIDOR_LIDER] })
+  it('marks every step Pendiente when there is no equipo, clase or grupo', async () => {
+    setup({ permisos: { editarTaller: true }, servidores: [], plantillaClases: [], plantillaGrupos: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Equipo del nodo\s+Listo/)
+    expect(pasos(element)).toEqual({
+      'Equipo del nodo': false,
+      'Plantilla de clases': false,
+      'Plantilla de grupos': false,
+    })
   })
 
-  it('marks Equipo del nodo Pendiente when there are no servidores activos', async () => {
-    setup({ permisos: { editarTaller: true }, servidores: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Equipo del nodo\s+Pendiente/)
-  })
-
-  it('marks Plantilla de clases Listo when there is at least one active plantilla clase', async () => {
+  it('marks each step Listo with an active servidor, an active clase and an active grupo', async () => {
     setup({
       permisos: { editarTaller: true },
+      servidores: [SERVIDOR_LIDER],
       plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: true }],
+      plantillaGrupos: [{ id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Plantilla de clases\s+Listo/)
+    expect(pasos(element)).toEqual({
+      'Equipo del nodo': true,
+      'Plantilla de clases': true,
+      'Plantilla de grupos': true,
+    })
   })
 
-  it('marks Plantilla de clases Pendiente when there is none active', async () => {
-    setup({ permisos: { editarTaller: true }, plantillaClases: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Plantilla de clases\s+Pendiente/)
-  })
-
-  it('marks Plantilla de grupos Listo when there is at least one active plantilla grupo', async () => {
+  it('does not count inactive clases or grupos as Listo', async () => {
     setup({
       permisos: { editarTaller: true },
-      plantillaGrupos: [
-        { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] },
-      ],
+      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: false }],
+      plantillaGrupos: [{ id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: false, facilitadores: [] }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Plantilla de grupos\s+Listo/)
+    expect(pasos(element)['Plantilla de clases']).toBe(false)
+    expect(pasos(element)['Plantilla de grupos']).toBe(false)
   })
 
-  it('marks Plantilla de grupos Pendiente when there is none active', async () => {
-    setup({ permisos: { editarTaller: true }, plantillaGrupos: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/Plantilla de grupos\s+Pendiente/)
-  })
-
-  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — the
-  // checklist's final step names the ONE question "Crear edición" will
-  // actually ask, by régimen.
-  it('links its "Crear edición (elige la temporada)" row to #ediciones for régimen=temporada', async () => {
+  // T4 — the final step names the ONE question «Abrir edición» will ask, by régimen.
+  it('names the temporada question for régimen=temporada and the primera clase for régimen=cadencia', async () => {
     setup({ permisos: { editarTaller: true }, taller: { ...TALLER, regimen: 'temporada' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    const links = findAllByType(element, Link)
-    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición (elige la temporada)')
-    expect(crearEdicion?.props.href).toBe('#ediciones')
-  })
-
-  it('links its "Crear edición (primera clase)" row to #ediciones for régimen=cadencia', async () => {
+    let element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PasosAbrirEdicion)?.props.textoFinal).toBe('Crear edición (elige la temporada)')
     setup({ permisos: { editarTaller: true }, taller: { ...TALLER, regimen: 'cadencia' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    const links = findAllByType(element, Link)
-    const crearEdicion = links.find((l) => extractText(l).trim() === 'Crear edición (primera clase)')
-    expect(crearEdicion?.props.href).toBe('#ediciones')
+    element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PasosAbrirEdicion)?.props.textoFinal).toBe('Crear edición (primera clase)')
   })
 
-  it('the Ediciones section carries id="ediciones" for the checklist anchor', async () => {
+  it('the Ediciones section carries id="ediciones" (the checklist\'s and the catálogo\'s anchor)', async () => {
     setup({ permisos: { editarTaller: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     const sections = findAllByType(element, 'section')
     const ediciones = sections.find((s) => s.props['aria-labelledby'] === 'ediciones-heading')
     expect(ediciones?.props.id).toBe('ediciones')
+    expect(findByType(ediciones, EdicionesTaller)).not.toBeNull()
   })
 })
 
 describe('TallerDetallePage — headings (design audit)', () => {
-  // T10 — "Equipo" and "Ediciones" used to be hand-rolled `<h2>`s; both are
-  // now TituloSistema nivel={2}, and no raw h2 is left on the page.
-  //
-  // T11 (flow audit) — "Equipo" is renamed "Equipo del nodo" (one
-  // vocabulary: it was ambiguous with the grupo page's own facilitador
-  // list), with a one-line hint naming where it's managed.
-  it('renders Equipo del nodo and Ediciones through TituloSistema nivel={2}, never a raw h2', async () => {
+  it('never renders a raw h1 or h2 on the page itself', async () => {
     setup({ servidores: [SERVIDOR_LIDER] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, 'h1')).toBeNull()
     expect(findByType(element, 'h2')).toBeNull()
-    const titulos = findAllByType(element, TituloSistema)
-    expect(
-      titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Equipo del nodo'),
-    ).toBe(true)
-    expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Ediciones')).toBe(true)
-  })
-
-  it('shows a hint under "Equipo del nodo" naming where it is managed', async () => {
-    setup({ servidores: [SERVIDOR_LIDER] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    expect(extractText(element)).toMatch(/servidores activos; se gestionan en dream team/i)
   })
 })
 
-describe('TallerDetallePage — Ediciones (design audit)', () => {
-  const DOS_EDICIONES = {
-    ...TALLER,
-    ediciones: [
-      {
-        id: 'e-1',
-        nombre_snapshot: 'Septiembre 2026',
-        tipo: 'pareja' as const,
-        estado: 'abierto' as const,
-        total_inscripciones: 3,
-        temporada_id: null,
-        fecha_inicio: '2026-09-01',
-        fecha_fin: '2026-09-22',
-      },
-      {
-        id: 'e-2',
-        nombre_snapshot: 'Marzo 2026',
-        tipo: 'pareja' as const,
-        estado: 'cerrado' as const,
-        total_inscripciones: 1,
-        temporada_id: null,
-        fecha_inicio: '2026-03-01',
-        fecha_fin: '2026-03-22',
-      },
-    ],
-  }
-
-  // T10 — the ediciones used to be a `grid gap-3` of separate elevated
-  // cards; they are now rows of ONE TarjetaSistema p-0, divide-y, each
-  // ending in a ChevronRight (the shared list pattern the rest of the
-  // system uses — see estructura-client.tsx / nodo-fila.tsx).
-  it('lists every edición as a row inside ONE TarjetaSistema p-0, each with a trailing ChevronRight', async () => {
-    setup({ taller: DOS_EDICIONES })
+describe('TallerDetallePage — Ediciones (R3d)', () => {
+  it('hands every edición of the taller to EdicionesTaller with the slug and name', async () => {
+    setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const cards = findAllByType(element, TarjetaSistema).filter((c) =>
-      String(c.props.className ?? '').includes('p-0'),
-    )
-    // one of the p-0 cards is the ediciones list
-    expect(cards.length).toBeGreaterThan(0)
-    expect(findAllByType(element, ChevronRight)).toHaveLength(2)
+    const lista = findByType(element, EdicionesTaller)
+    expect(lista?.props).toEqual({
+      tallerSlug: 'matrimonio-sobre-la-roca',
+      tallerNombre: 'Matrimonio sobre la Roca',
+      ediciones: TALLER.ediciones,
+    })
   })
 
-  // T4 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — each row
-  // shows "{inicio} → {fin}" from the edición's own real dates.
-  it('shows "{inicio} → {fin}" on each edición row', async () => {
-    setup({ taller: DOS_EDICIONES })
+  it('summarises the ediciones by estado under the title', async () => {
+    setup({
+      taller: {
+        ...TALLER,
+        ediciones: [
+          { ...TALLER.ediciones[0]!, id: 'a', estado: 'abierto' },
+          { ...TALLER.ediciones[0]!, id: 'b', estado: 'en_curso' },
+          { ...TALLER.ediciones[0]!, id: 'c', estado: 'cerrado' },
+          { ...TALLER.ediciones[0]!, id: 'd', estado: 'cerrado' },
+        ],
+      },
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const text = extractText(element)
-    expect(text).toMatch(/→/)
-    expect(text).toMatch(/2026/)
+    const texto = extractText(element).replace(/\s+/g, ' ')
+    expect(texto).toMatch(/1 edición con inscripción abierta · 1 en curso · 2 cerradas/)
+  })
+
+  it('says it has no ediciones yet when the taller has none', async () => {
+    setup({ taller: { ...TALLER, ediciones: [] } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(extractText(element)).toMatch(/Todavía sin ediciones/)
+  })
+})
+
+describe('TallerDetallePage — Página pública (R3d)', () => {
+  it('shows talleres.publico read from the taller row by id', async () => {
+    setup({ publico: true, permisos: { editarTaller: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(fromMock).toHaveBeenCalledWith('talleres')
+    expect(findByType(element, PaginaPublicaTaller)?.props).toEqual({
+      slug: 'matrimonio-sobre-la-roca',
+      publico: true,
+      enlaceCompartir: '/talleres/matrimonio-sobre-la-roca/compartir',
+    })
+  })
+
+  it('shows a non-public taller without the Compartir link to a read-only viewer', async () => {
+    setup({ publico: false })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PaginaPublicaTaller)?.props).toEqual({
+      slug: 'matrimonio-sobre-la-roca',
+      publico: false,
+      enlaceCompartir: null,
+    })
+  })
+
+  it('hides the section when talleres.publico cannot be read', async () => {
+    setup({ publico: 'error' })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PaginaPublicaTaller)).toBeNull()
   })
 })
 
@@ -1029,13 +1034,14 @@ describe('TallerDetallePage — content', () => {
     expect(dashboard?.props.regreso).toEqual({ href: rutaCatalogo(), texto: 'Talleres' })
   })
 
-  it('shows its ediciones with their estado label', async () => {
+  it('shows the taller estado, tipo and régimen under the title', async () => {
     setup({})
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const text = extractText(element)
-    expect(text).toMatch(/Septiembre 2026/)
-    expect(text).toMatch(/Abierta/)
+    const estado = findAllByType(element, PuntoEstado).find((p) => p.props.etiqueta === 'Activo')
+    expect(estado?.props.tono).toBe('success')
+    expect(extractText(element)).toMatch(/Parejas/)
+    expect(extractText(element)).toMatch(/Por temporada de la dirección/)
   })
 
   it('shows the org-chart path line only when fetchRutaEquipo resolves one', async () => {
@@ -1053,10 +1059,8 @@ describe('TallerDetallePage — content', () => {
     expect(fetchRutaEquipoMock).not.toHaveBeenCalled()
   })
 
-  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
-  // taller -> node: the org-chart path becomes a link to
-  // /admin/dream-team/estructura for a viewer with Dream Team read
-  // capability, plain text otherwise (never a link that 404s).
+  // T11 (flow audit) — the org-chart path links to /admin/dream-team/estructura
+  // with Dream Team read capability, plain text otherwise.
   it('links the org-chart path to /admin/dream-team/estructura when the viewer has Dream Team read capability', async () => {
     setup({ capabilities: ['dream_team.org.manage'] })
     fetchRutaEquipoMock.mockResolvedValue('Dirección de Conexión › Grupos de Corto Plazo')
@@ -1077,47 +1081,57 @@ describe('TallerDetallePage — content', () => {
     expect(link).toBeUndefined()
   })
 
-  it('links each edición row to /talleres/[taller]/[edicion]', async () => {
-    setup({})
+  it('keeps ConfiguracionTaller on the page under id="configuracion-heading" (the catálogo\'s anchor)', async () => {
+    setup({ permisos: { editarTaller: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    const links = findAllByType(element, Link)
-    const edicionLink = links.find(
-      (l) => l.props.href === rutaEdicion('matrimonio-sobre-la-roca', 'e-1'),
-    )
-    expect(edicionLink).toBeDefined()
+    expect(findByType(element, ConfiguracionTaller)).not.toBeNull()
   })
 })
 
-// T9 (odd/tasks/talleres-reserva-publica.md, S8) — "Avisos" (./avisos) sits
-// next to "Compartir" (./compartir): same editarTaller gate, both in the
-// desktop header and in the phone block of the cabecera.
-describe('TallerDetallePage — Avisos y Compartir', () => {
+// T6/T9 (odd/tasks/talleres-reserva-publica.md) and R3d — header actions in
+// artboard 22 order: Compartir · Avisos · Configuración (editarTaller) and
+// «Abrir edición» (BotonAbrirEdicion, only inside AbrirEdicionProvider), in
+// the desktop header and again under the title on phones.
+describe('TallerDetallePage — acciones del encabezado', () => {
   const AVISOS = '/talleres/matrimonio-sobre-la-roca/avisos'
   const COMPARTIR = '/talleres/matrimonio-sobre-la-roca/compartir'
+  const CONFIGURACION = '#configuracion-heading'
 
   function hrefs(node: unknown): string[] {
     return findAllByType(node, Link).map((l) => String(l.props.href))
   }
 
-  it('shows Avisos next to Compartir in the desktop header and on the phone with editarTaller', async () => {
+  it('shows Compartir, Avisos and Configuración in the desktop header and on the phone with editarTaller', async () => {
     setup({ permisos: { editarTaller: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     const acciones = findByType(element, PaginaSistema)?.props.acciones
-    expect(hrefs(acciones)).toEqual([AVISOS, COMPARTIR])
-    expect(extractText(acciones)).toMatch(/Avisos.*Compartir/)
-    // Phone copy inside the cabecera card (hidden from md).
-    const enCuerpo = hrefs(element).filter((h) => h === AVISOS || h === COMPARTIR)
-    expect(enCuerpo).toEqual([AVISOS, COMPARTIR])
+    expect(hrefs(acciones)).toEqual([COMPARTIR, AVISOS, CONFIGURACION])
+    expect(extractText(acciones)).toMatch(/Compartir.*Avisos.*Configuración/)
+    expect(findByType(acciones, BotonAbrirEdicion)).not.toBeNull()
+    const enCuerpo = hrefs(findByType(element, PaginaSistema)?.props.children).filter((h) =>
+      [AVISOS, COMPARTIR, CONFIGURACION].includes(h),
+    )
+    expect(enCuerpo).toEqual([COMPARTIR, AVISOS, CONFIGURACION])
   })
 
-  it('hides Avisos and Compartir without editarTaller', async () => {
+  it('shows only «Abrir edición» with abrirEdicion and without editarTaller', async () => {
+    setup({ permisos: { editarTaller: false, abrirEdicion: true } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const acciones = findByType(element, PaginaSistema)?.props.acciones
+    expect(hrefs(acciones)).toEqual([])
+    expect(findByType(acciones, BotonAbrirEdicion)).not.toBeNull()
+  })
+
+  it('has no header actions without editarTaller nor abrirEdicion', async () => {
     setup({ permisos: { editarTaller: false } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, PaginaSistema)?.props.acciones).toBeUndefined()
     expect(hrefs(element)).not.toContain(AVISOS)
     expect(hrefs(element)).not.toContain(COMPARTIR)
+    expect(hrefs(element)).not.toContain(CONFIGURACION)
   })
 })

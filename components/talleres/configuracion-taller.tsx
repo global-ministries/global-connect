@@ -52,9 +52,15 @@
  * Registro por QR (odd/tasks/proximo-paso.md T2) — on Próximo Paso itself,
  * whoever edits the taller also gets its "Enlace de inscripción" (public
  * URL, copy and QR) for the announcement.
+ *
+ * R3d (odd/tasks/talleres-rediseno.md, S1, S2) — restyled after artboard
+ * design/talleres-reserva/14: the editor groups its fields in «Inscripción»,
+ * «Ediciones» and «Clases y certificado», with the one primary «Guardar
+ * configuración» at the end; «Cadencia y duración» keeps its own save
+ * (updateCadenciaYDuracion), as before. Same fields, labels and writes.
  */
 
-import { useState, useTransition, type ReactElement } from 'react'
+import { useState, useTransition, type ReactElement, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { Interruptor } from '@/components/ui/interruptor'
@@ -214,187 +220,201 @@ export function ConfiguracionTaller({
 
   return (
     <section aria-labelledby="configuracion-heading">
-      <TituloSistema nivel={2} id="configuracion-heading">
+      <TituloSistema nivel={2} id="configuracion-heading" className="scroll-mt-24">
         Configuración
       </TituloSistema>
+      <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+        Lo que se copia en cada edición nueva de este taller.
+      </TextoSistema>
 
       {error && (
-        <TextoSistema role="alert" className="mt-3 block text-destructive">
+        <TextoSistema role="alert" className="mt-3 block text-danger-text">
           {error}
         </TextoSistema>
       )}
 
       {puedeEditar ? (
-        <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <SelectSistema
-            label="Tipo"
-            value={tipoSel}
-            onValueChange={(v) => {
-              const value = v as 'individual' | 'pareja'
-              setTipoSel(value)
-              if (value === 'individual') setVinculoSel('')
-            }}
-            opciones={[
-              { valor: 'individual', etiqueta: 'Individual' },
-              { valor: 'pareja', etiqueta: 'Parejas' },
-            ]}
-          />
-
-          {tipoSel === 'pareja' && (
+        <div className="mt-5 grid gap-6">
+          <GrupoConfiguracion id="config-inscripcion" titulo="Inscripción" descripcion="Para quién es, cuándo se cierra y el mínimo para abrir.">
             <SelectSistema
-              label="Vínculo"
-              value={vinculoSel}
-              onValueChange={(v) => setVinculoSel(v as 'matrimonio' | 'novios' | '')}
-              placeholder="— Cualquiera —"
+              label="Tipo"
+              value={tipoSel}
+              onValueChange={(v) => {
+                const value = v as 'individual' | 'pareja'
+                setTipoSel(value)
+                if (value === 'individual') setVinculoSel('')
+              }}
               opciones={[
-                { valor: 'matrimonio', etiqueta: 'Matrimonios' },
-                { valor: 'novios', etiqueta: 'Novios' },
+                { valor: 'individual', etiqueta: 'Individual' },
+                { valor: 'pareja', etiqueta: 'Parejas' },
               ]}
             />
-          )}
 
-          {tipoSel === 'pareja' && (
-            <SelectSistema
-              label="Envío del acceso al cónyuge nuevo"
-              value={momentoSel}
-              onValueChange={(v) => setMomentoSel(v as MomentoEnvioAcceso)}
-              opciones={[
-                { valor: 'al_aprobar', etiqueta: MOMENTO_ENVIO_LABEL.al_aprobar },
-                { valor: 'al_inscribirse', etiqueta: MOMENTO_ENVIO_LABEL.al_inscribirse },
-              ]}
-            />
-          )}
-
-          {tipoSel === 'individual' && (
-            <div className="flex items-start justify-between gap-3 md:col-span-2">
-              <div className="grid gap-1">
-                <TextoSistema className="block font-medium">{INSCRIPCION_AUTOMATICA_LABEL}</TextoSistema>
-                <TextoSistema variante="sutil" tamaño="sm" className="block">
-                  Con cupo, la inscripción queda aprobada al momento, sin pasar por Pendientes.
-                </TextoSistema>
-              </div>
-              <Interruptor activo={automaticaSel} onCambio={setAutomaticaSel} aria-label={INSCRIPCION_AUTOMATICA_LABEL} />
-            </div>
-          )}
-
-          <div>
-            <SelectSistema
-              label="Régimen"
-              value={regimenSel}
-              onValueChange={(v) => setRegimenSel(v as 'temporada' | 'cadencia')}
-              opciones={[
-                { valor: 'temporada', etiqueta: 'Por temporada de la dirección' },
-                { valor: 'cadencia', etiqueta: 'Por cadencia propia' },
-              ]}
-            />
-            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-              {REGIMEN_EXPLICACION[regimenSel]}
-            </TextoSistema>
-          </div>
-
-          <div>
-            <InputSistema
-              label="Cierre de inscripción (días relativos a la primera clase)"
-              type="number"
-              min={-60}
-              max={60}
-              value={cierreSel}
-              onChange={(e) => setCierreSel(e.target.value)}
-            />
-            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-              {Number.isFinite(cierreNumParaLabel) ? cierreRelativoLabel(cierreNumParaLabel) : ''}
-            </TextoSistema>
-          </div>
-
-          {regimenSel === 'cadencia' && (
-            <div>
+            {tipoSel === 'pareja' && (
               <SelectSistema
-                label="Inicio de cada edición"
-                value={inicioSel}
-                onValueChange={(v) => setInicioSel(v as InicioEdicion)}
+                label="Vínculo"
+                value={vinculoSel}
+                onValueChange={(v) => setVinculoSel(v as 'matrimonio' | 'novios' | '')}
+                placeholder="— Cualquiera —"
                 opciones={[
-                  { valor: 'primer_domingo_mes', etiqueta: INICIO_EDICION_LABEL.primer_domingo_mes },
-                  { valor: 'cada_n_dias', etiqueta: INICIO_EDICION_LABEL.cada_n_dias },
+                  { valor: 'matrimonio', etiqueta: 'Matrimonios' },
+                  { valor: 'novios', etiqueta: 'Novios' },
                 ]}
               />
-              {inicioSel === 'primer_domingo_mes' && (
-                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                  Cada edición empieza el primer domingo de su mes, una por mes.
-                </TextoSistema>
-              )}
-            </div>
-          )}
+            )}
 
-          {regimenSel === 'cadencia' && inicioSel === 'cada_n_dias' && (
+            {tipoSel === 'pareja' && (
+              <SelectSistema
+                label="Envío del acceso al cónyuge nuevo"
+                value={momentoSel}
+                onValueChange={(v) => setMomentoSel(v as MomentoEnvioAcceso)}
+                opciones={[
+                  { valor: 'al_aprobar', etiqueta: MOMENTO_ENVIO_LABEL.al_aprobar },
+                  { valor: 'al_inscribirse', etiqueta: MOMENTO_ENVIO_LABEL.al_inscribirse },
+                ]}
+              />
+            )}
+
             <div>
               <InputSistema
-                label="Intervalo entre ediciones (días)"
+                label="Cierre de inscripción (días relativos a la primera clase)"
                 type="number"
-                min={1}
-                max={365}
-                value={intervaloSel}
-                onChange={(e) => setIntervaloSel(e.target.value)}
-                placeholder="Sin intervalo"
+                min={-60}
+                max={60}
+                value={cierreSel}
+                onChange={(e) => setCierreSel(e.target.value)}
+                className="font-mono tabular-nums"
               />
               <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                28 = mensual
+                {Number.isFinite(cierreNumParaLabel) ? cierreRelativoLabel(cierreNumParaLabel) : ''}
               </TextoSistema>
             </div>
-          )}
 
-          <div>
-            <InputSistema
-              label="Clases mínimas para el certificado"
-              type="number"
-              min={1}
-              max={50}
-              value={clasesMinimasSel}
-              onChange={(e) => setClasesMinimasSel(e.target.value)}
-              placeholder="Todas"
-            />
-            <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-              Vacío = todas las clases dictadas
-            </TextoSistema>
-          </div>
+            <div className="md:col-span-2">
+              <MinimoInscritosCampo tipo={tipoSel} valor={minimoSel} onCambio={setMinimoSel} puedeEditar />
+            </div>
 
-          <div className="md:col-span-2">
-            <RecuperarClasesCampo permite={recuperarSel} onCambio={setRecuperarSel} puedeEditar />
-          </div>
+            {tipoSel === 'individual' && (
+              <div className="flex items-start justify-between gap-3 border-t border-border/60 pt-4 md:col-span-2">
+                <div className="grid gap-1">
+                  <TextoSistema className="block font-medium">{INSCRIPCION_AUTOMATICA_LABEL}</TextoSistema>
+                  <TextoSistema variante="sutil" tamaño="sm" className="block">
+                    Con cupo, la inscripción queda aprobada al momento, sin pasar por Pendientes.
+                  </TextoSistema>
+                </div>
+                <Interruptor activo={automaticaSel} onCambio={setAutomaticaSel} aria-label={INSCRIPCION_AUTOMATICA_LABEL} />
+              </div>
+            )}
+          </GrupoConfiguracion>
 
-          <div className="md:col-span-2">
-            <MinimoInscritosCampo tipo={tipoSel} valor={minimoSel} onCambio={setMinimoSel} puedeEditar />
-          </div>
+          <GrupoConfiguracion id="config-ediciones" titulo="Ediciones" descripcion="Cómo se crean y cuándo empieza cada una.">
+            <div>
+              <SelectSistema
+                label="Régimen"
+                value={regimenSel}
+                onValueChange={(v) => setRegimenSel(v as 'temporada' | 'cadencia')}
+                opciones={[
+                  { valor: 'temporada', etiqueta: 'Por temporada de la dirección' },
+                  { valor: 'cadencia', etiqueta: 'Por cadencia propia' },
+                ]}
+              />
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                {REGIMEN_EXPLICACION[regimenSel]}
+              </TextoSistema>
+            </div>
 
-          <div className="md:col-span-2">
-            <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarConfiguracion}>
+            {regimenSel === 'cadencia' && (
+              <div>
+                <SelectSistema
+                  label="Inicio de cada edición"
+                  value={inicioSel}
+                  onValueChange={(v) => setInicioSel(v as InicioEdicion)}
+                  opciones={[
+                    { valor: 'primer_domingo_mes', etiqueta: INICIO_EDICION_LABEL.primer_domingo_mes },
+                    { valor: 'cada_n_dias', etiqueta: INICIO_EDICION_LABEL.cada_n_dias },
+                  ]}
+                />
+                {inicioSel === 'primer_domingo_mes' && (
+                  <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                    Cada edición empieza el primer domingo de su mes, una por mes.
+                  </TextoSistema>
+                )}
+              </div>
+            )}
+
+            {regimenSel === 'cadencia' && inicioSel === 'cada_n_dias' && (
+              <div>
+                <InputSistema
+                  label="Intervalo entre ediciones (días)"
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={intervaloSel}
+                  onChange={(e) => setIntervaloSel(e.target.value)}
+                  placeholder="Sin intervalo"
+                  className="font-mono tabular-nums"
+                />
+                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                  28 = mensual
+                </TextoSistema>
+              </div>
+            )}
+          </GrupoConfiguracion>
+
+          <GrupoConfiguracion id="config-clases" titulo="Clases y certificado" descripcion="Cuántas clases hacen falta para el certificado.">
+            <div>
+              <InputSistema
+                label="Clases mínimas para el certificado"
+                type="number"
+                min={1}
+                max={50}
+                value={clasesMinimasSel}
+                onChange={(e) => setClasesMinimasSel(e.target.value)}
+                placeholder="Todas"
+                className="font-mono tabular-nums"
+              />
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                Vacío = todas las clases dictadas
+              </TextoSistema>
+            </div>
+
+            <div className="md:col-span-2">
+              <RecuperarClasesCampo permite={recuperarSel} onCambio={setRecuperarSel} puedeEditar />
+            </div>
+          </GrupoConfiguracion>
+
+          <div className="flex justify-end border-t border-border/60 pt-4">
+            <BotonSistema type="button" variante="primario" onClick={guardarConfiguracion} className="w-full sm:w-auto">
               Guardar configuración
             </BotonSistema>
           </div>
 
-          <InputSistema
-            label="Cada N días"
-            type="number"
-            min={1}
-            value={cadencia}
-            onChange={(e) => setCadencia(e.target.value)}
-            className="w-28"
-          />
-          <InputSistema
-            label="Duración (min)"
-            type="number"
-            min={1}
-            value={duracion}
-            onChange={(e) => setDuracion(e.target.value)}
-            className="w-28"
-          />
-          <div className="md:col-span-2">
-            <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarCadencia}>
-              Guardar cadencia
-            </BotonSistema>
-          </div>
+          <GrupoConfiguracion id="config-cadencia" titulo="Cadencia y duración" descripcion="Días entre clases y cuánto dura cada una; se guardan aparte.">
+            <InputSistema
+              label="Cada N días"
+              type="number"
+              min={1}
+              value={cadencia}
+              onChange={(e) => setCadencia(e.target.value)}
+              className="font-mono tabular-nums"
+            />
+            <InputSistema
+              label="Duración (min)"
+              type="number"
+              min={1}
+              value={duracion}
+              onChange={(e) => setDuracion(e.target.value)}
+              className="font-mono tabular-nums"
+            />
+            <div className="md:col-span-2">
+              <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarCadencia}>
+                Guardar cadencia
+              </BotonSistema>
+            </div>
+          </GrupoConfiguracion>
         </div>
       ) : (
-        <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Campo titulo="Tipo">{tipoTallerLabel(tipo)}</Campo>
           {tipo === 'pareja' && <Campo titulo="Vínculo">{vinculoLabel(vinculo)}</Campo>}
           {tipo === 'pareja' && (
@@ -428,6 +448,32 @@ export function ConfiguracionTaller({
       )}
 
       {puedeEditar && tallerSlug === PROXIMO_PASO_SLUG && <EnlaceInscripcionProximoPaso />}
+    </section>
+  )
+}
+
+function GrupoConfiguracion({
+  id,
+  titulo,
+  descripcion,
+  children,
+}: {
+  readonly id: string
+  readonly titulo: string
+  readonly descripcion: string
+  readonly children: ReactNode
+}): ReactElement {
+  return (
+    <section aria-labelledby={id} className="grid gap-4 border-t border-border/60 pt-5 first:border-t-0 first:pt-0">
+      <div>
+        <TituloSistema nivel={3} id={id}>
+          {titulo}
+        </TituloSistema>
+        <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+          {descripcion}
+        </TextoSistema>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </section>
   )
 }
