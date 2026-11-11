@@ -8,12 +8,19 @@
  * clases, cupo restante; nothing personal). ?edicion= preselects one: the
  * login and the confirmation email come back with it. The middleware lets the
  * path through without a session (SKIP_AUTH_PATHS).
+ *
+ * T8 (design/proximo-paso, L24): the RPC also brings hora, lugar and
+ * indicaciones (20261111120000). A signed-in visitor, read within a time
+ * bound, also gets their first name and their own Próximo Paso inscripción
+ * (usuarios and taller_inscripciones with their own client, under RLS): the
+ * one-tap landing or «Ya tienes tu lugar». Never the service role.
  */
 import { RegistroProximoPaso } from '@/components/proximo-paso/registro-proximo-paso'
 import { TextoSistema } from '@/components/ui/sistema-diseno'
-import { tieneSesionAcotada } from '@/lib/auth/sesion-acotada'
+import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
+import { cargarEstadoProximoPaso, type ClienteProximoPaso } from '@/lib/platform/proximo-paso/estado'
+import { leerSesionProximoPaso, type ClienteSesionProximoPaso } from '@/lib/platform/proximo-paso/sesion'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
-import { parseEdicionesProximoPaso } from '@/lib/platform/talleres/proximo-paso-registro'
 import { createSupabaseServerClientOrNull } from '@/lib/supabase/server'
 
 export const metadata = { title: 'Inscríbete en Próximo Paso' }
@@ -26,7 +33,7 @@ function Marco({ children }: { readonly children: React.ReactNode }) {
     // Same frame as /ninos/registro: one flat background so the sticky send bar
     // blends in, overflow-x-clip so it can still stick.
     <main className="min-h-dvh overflow-x-clip bg-background">
-      <div className="relative mx-auto flex min-h-dvh w-full min-w-0 max-w-2xl flex-col px-4 pt-6 sm:px-6 sm:py-12">{children}</div>
+      <div className="relative mx-auto flex min-h-dvh w-full min-w-0 max-w-2xl flex-col px-4 sm:px-6">{children}</div>
     </main>
   )
 }
@@ -38,21 +45,30 @@ export default async function ProximoPasoPage({ searchParams }: Props) {
   if (!isTalleresEnabled() || !client) {
     return (
       <Marco>
-        <TextoSistema className="text-center">Las inscripciones no están disponibles en este momento. Pregunta en la mesa de bienvenida.</TextoSistema>
+        <TextoSistema className="pt-6 text-center">Las inscripciones no están disponibles en este momento. Pregunta en la mesa de bienvenida.</TextoSistema>
       </Marco>
     )
   }
 
-  const { data, error } = await client.rpc('proximo_paso_ediciones_abiertas')
   // Bounded: a failed or slow session lookup counts as signed out, so the page always renders.
-  const conSesion = await tieneSesionAcotada(client)
+  const sesion = await leerSesionProximoPaso(client as unknown as ClienteSesionProximoPaso)
+  const estado = await cargarEstadoProximoPaso(client as unknown as ClienteProximoPaso, {
+    usuarioId: sesion?.usuarioId ?? null,
+    hoy: hoyEnCaracas(),
+  })
 
   return (
     <Marco>
-      {error ? (
-        <TextoSistema className="text-center">No pudimos cargar las fechas. Recarga la página en un momento.</TextoSistema>
+      {!estado ? (
+        <TextoSistema className="pt-6 text-center">No pudimos cargar las fechas. Recarga la página en un momento.</TextoSistema>
       ) : (
-        <RegistroProximoPaso ediciones={parseEdicionesProximoPaso(data)} conSesion={conSesion} edicionInicial={edicion ?? null} />
+        <RegistroProximoPaso
+          ediciones={estado.ediciones}
+          conSesion={sesion !== null}
+          edicionInicial={edicion ?? null}
+          persona={sesion ? { nombre: sesion.nombre } : null}
+          inscripcion={estado.inscripcion}
+        />
       )}
     </Marco>
   )
