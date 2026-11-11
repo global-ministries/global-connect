@@ -19,6 +19,12 @@
  * `.props`, which the page computed. The component's own rendering
  * behavior given those props is covered separately in
  * __tests__/components/talleres/catalogo-talleres-client.test.tsx.
+ *
+ * R3c (odd/tasks/talleres-rediseno.md) — the client now renders the whole
+ * v2 page (header actions included: the always-visible Explorar link is
+ * asserted in the client test). Here: the one batched grupos select over
+ * the vigente ediciones, the route tabs from route-access.ts, the URL
+ * filters, and «tú» in the gate messages.
  */
 
 import { CatalogoTalleresClient } from '@/components/talleres/catalogo-talleres-client'
@@ -39,6 +45,7 @@ jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
 
 jest.mock('@/lib/platform/talleres/catalogo', () => ({
   loadCatalogoTalleres: jest.fn(),
+  loadGruposDeEdiciones: jest.fn(),
   loadMisGruposResumen: jest.fn(),
   loadMisTalleres: jest.fn(),
 }))
@@ -64,6 +71,8 @@ const loadMisGruposResumenMock = jest.requireMock('@/lib/platform/talleres/catal
   .loadMisGruposResumen as jest.Mock
 const loadMisTalleresMock = jest.requireMock('@/lib/platform/talleres/catalogo')
   .loadMisTalleres as jest.Mock
+const loadGruposDeEdicionesMock = jest.requireMock('@/lib/platform/talleres/catalogo')
+  .loadGruposDeEdiciones as jest.Mock
 const fetchOpcionesMock = jest.requireMock('@/lib/platform/talleres/equipo-organigrama')
   .fetchOpcionesEquipoTaller as jest.Mock
 const refrescarEstadosEdicionesMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados')
@@ -77,6 +86,7 @@ interface SetupOpts {
   catalogo?: unknown[]
   misGrupos?: unknown[]
   misTalleres?: unknown[]
+  grupos?: Map<string, unknown> | null
 }
 
 function setup(opts: SetupOpts): void {
@@ -112,8 +122,13 @@ function setup(opts: SetupOpts): void {
   loadCatalogoTalleresMock.mockReset().mockResolvedValue(opts.catalogo ?? [])
   loadMisGruposResumenMock.mockReset().mockResolvedValue(opts.misGrupos ?? [])
   loadMisTalleresMock.mockReset().mockResolvedValue(opts.misTalleres ?? [])
+  loadGruposDeEdicionesMock.mockReset().mockResolvedValue(opts.grupos === undefined ? new Map() : opts.grupos)
   fetchOpcionesMock.mockReset().mockResolvedValue({ vincular: [], crearBajo: [] })
   refrescarEstadosEdicionesMock.mockReset().mockResolvedValue(undefined)
+}
+
+function pagina(params: Record<string, string> = {}) {
+  return { searchParams: Promise.resolve(params) }
 }
 
 /** Walks a React element tree's `.props.children` without rendering it. */
@@ -146,29 +161,11 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
   return null
 }
 
-/**
- * True when the tree contains an <a>/<Link> whose href is the given
- * path. Walks EVERY prop value, not just `children` — the explorar
- * link is passed as `acciones` to `<PaginaSistema>`, a
- * sibling prop to `children`, which a children-only walk would miss.
- */
-function containsHref(node: unknown, href: string): boolean {
-  if (node === null || node === undefined || typeof node === 'boolean') return false
-  if (Array.isArray(node)) return node.some((n) => containsHref(n, href))
-  if (typeof node === 'object' && node !== null && 'props' in node) {
-    const props = (node as { props?: Record<string, unknown> }).props
-    if (!props) return false
-    if (props.href === href) return true
-    return Object.values(props).some((value) => containsHref(value, href))
-  }
-  return false
-}
-
 describe('TalleresCatalogoPage — gate', () => {
   it('shows the disabled message and loads nothing when the flag is off', async () => {
     setup({ isEnabled: false })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     expect(extractText(element)).toMatch(/deshabilitado/i)
     expect(loadCatalogoTalleresMock).not.toHaveBeenCalled()
     expect(loadMisGruposResumenMock).not.toHaveBeenCalled()
@@ -177,7 +174,7 @@ describe('TalleresCatalogoPage — gate', () => {
   it('asks to log in and loads nothing when there is no user', async () => {
     setup({ user: null })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     expect(extractText(element)).toMatch(/iniciar sesión/i)
     expect(loadCatalogoTalleresMock).not.toHaveBeenCalled()
   })
@@ -185,7 +182,7 @@ describe('TalleresCatalogoPage — gate', () => {
   it('shows a session-resolution message and loads nothing when the session cannot be resolved', async () => {
     setup({ hasSession: false })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     expect(extractText(element)).toMatch(/no se pudo resolver tu sesión/i)
     expect(loadCatalogoTalleresMock).not.toHaveBeenCalled()
   })
@@ -193,7 +190,7 @@ describe('TalleresCatalogoPage — gate', () => {
   it('does NOT gate on a capability card — any signed-in user with zero capabilities reaches the catalog', async () => {
     setup({ capabilities: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     expect(loadCatalogoTalleresMock).toHaveBeenCalledTimes(1)
     expect(findByType(element, CatalogoTalleresClient)).not.toBeNull()
   })
@@ -202,18 +199,75 @@ describe('TalleresCatalogoPage — gate', () => {
 describe('TalleresCatalogoPage — estado derivado (T5)', () => {
   it('calls refrescarEstadosEdiciones (unscoped) before loadCatalogoTalleres reads', async () => {
     setup({})
-    await TalleresCatalogoPage()
+    await TalleresCatalogoPage(pagina())
     expect(refrescarEstadosEdicionesMock).toHaveBeenCalledWith(expect.anything())
     expect(loadCatalogoTalleresMock).toHaveBeenCalled()
   })
 })
 
-describe('TalleresCatalogoPage — always-visible explorar link', () => {
-  it('renders a link to /talleres/explorar regardless of role', async () => {
-    setup({ capabilities: ['talleres_crecimiento.director.write'] })
+describe('TalleresCatalogoPage — R3c wiring', () => {
+  const EDICION = (id: string, estado: string) => ({ id, estado, nombre_snapshot: id, tipo: 'individual', total_inscripciones: 0 })
+
+  it('reads the grupos of the vigente ediciones only, in one batched call, and passes them by edición id', async () => {
+    setup({
+      capabilities: ['talleres_crecimiento.director.write'],
+      catalogo: [
+        {
+          id: 't-1', slug: 'x', nombre: 'X', estado: 'active', dream_team_equipo_id: 'eq-1', minimo_inscritos: null,
+          ediciones: [EDICION('e-a', 'abierto'), EDICION('e-b', 'borrador'), EDICION('e-c', 'en_curso'), EDICION('e-x', 'cerrado'), EDICION('e-y', 'cancelado')],
+        },
+      ],
+      grupos: new Map([['e-a', { cupo: 20, gruposSinFacilitador: 1 }]]),
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
-    expect(containsHref(element, '/talleres/explorar')).toBe(true)
+    const element = (await TalleresCatalogoPage(pagina())) as any
+    expect(loadGruposDeEdicionesMock).toHaveBeenCalledTimes(1)
+    expect(loadGruposDeEdicionesMock).toHaveBeenCalledWith(expect.anything(), ['e-a', 'e-b', 'e-c'])
+    const node = findByType(element, CatalogoTalleresClient)
+    expect(node?.props.grupos).toEqual({ 'e-a': { cupo: 20, gruposSinFacilitador: 1 } })
+  })
+
+  it('passes grupos as null when the batched select failed', async () => {
+    setup({ grupos: null })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TalleresCatalogoPage(pagina())) as any
+    expect(findByType(element, CatalogoTalleresClient)?.props.grupos).toBeNull()
+  })
+
+  it('shows each tab only with the capability route-access.ts declares for its route', async () => {
+    setup({ capabilities: ['talleres_crecimiento.metrics.read'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    let element = (await TalleresCatalogoPage(pagina())) as any
+    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: true, temporadas: false, reportes: true })
+
+    setup({ capabilities: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    element = (await TalleresCatalogoPage(pagina())) as any
+    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: false, temporadas: false, reportes: false })
+  })
+
+  it('reads ?atencion, ?direccion, ?q, ?taller and ?nuevo from the URL, ignoring unknown values', async () => {
+    setup({})
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    let element = (await TalleresCatalogoPage(pagina({ atencion: 'minimo', direccion: 'dps', q: 'pa', taller: 'parejas', nuevo: '1' }))) as any
+    let node = findByType(element, CatalogoTalleresClient)
+    expect(node?.props.filtrosIniciales).toEqual({ atencion: 'minimo', direccion: 'dps', q: 'pa' })
+    expect(node?.props.tallerInicial).toBe('parejas')
+    expect(node?.props.nuevoInicial).toBe(true)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    element = (await TalleresCatalogoPage(pagina({ atencion: 'otra' }))) as any
+    node = findByType(element, CatalogoTalleresClient)
+    expect(node?.props.filtrosIniciales).toEqual({ atencion: null, direccion: null, q: '' })
+    expect(node?.props.tallerInicial).toBeNull()
+    expect(node?.props.nuevoInicial).toBe(false)
+  })
+
+  it('asks to log in with «tú» (no voseo)', async () => {
+    setup({ user: null })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TalleresCatalogoPage(pagina())) as any
+    expect(extractText(element)).toContain('Necesitas iniciar sesión.')
   })
 })
 
@@ -224,7 +278,7 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
       misGrupos: [{ id: 'g-1', nombre: 'Grupo A', estado: 'activo', tallerNombre: null, edicionNombre: null, proximaClase: null }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     const node = findByType(element, CatalogoTalleresClient)
     expect(node).not.toBeNull()
     expect((node?.props.misGrupos as unknown[]).length).toBe(1)
@@ -238,7 +292,7 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
       catalogo: [{ id: 't-1', slug: 'x', nombre: 'X', estado: 'active', dream_team_equipo_id: null, ediciones: [] }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     const node = findByType(element, CatalogoTalleresClient)
     expect(node?.props.puedeCrear).toBe(true)
     expect((node?.props.catalogo as unknown[]).length).toBe(1)
@@ -248,7 +302,7 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
   it('admin.manage also grants puedeCrear (mirrors create_taller_abstract\'s own gate)', async () => {
     setup({ capabilities: ['talleres_crecimiento.admin.manage'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     const node = findByType(element, CatalogoTalleresClient)
     expect(node?.props.puedeCrear).toBe(true)
   })
@@ -259,7 +313,7 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
       catalogo: [{ id: 't-1', slug: 'x', nombre: 'X', estado: 'active', dream_team_equipo_id: null, ediciones: [] }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     const node = findByType(element, CatalogoTalleresClient)
     expect(node?.props.puedeCrear).toBe(false)
     expect((node?.props.catalogo as unknown[]).length).toBe(1)
@@ -277,21 +331,20 @@ describe('TalleresCatalogoPage — section wiring per role', () => {
       misTalleres: [{ id: 't-1', slug: 'x', nombre: 'X' }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     const node = findByType(element, CatalogoTalleresClient)
     expect(node?.props.misTalleres).toEqual([{ id: 't-1', slug: 'x', nombre: 'X' }])
     expect(loadMisTalleresMock).toHaveBeenCalledWith(expect.anything(), catalogo)
   })
 
-  it('member (zero capabilities): empty catálogo and misGrupos, no create — and the explorar link is present', async () => {
+  it('member (zero capabilities): empty catálogo and misGrupos, no create', async () => {
     setup({ capabilities: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TalleresCatalogoPage()) as any
+    const element = (await TalleresCatalogoPage(pagina())) as any
     const node = findByType(element, CatalogoTalleresClient)
     expect(node?.props.misGrupos).toEqual([])
     expect(node?.props.catalogo).toEqual([])
     expect(node?.props.misTalleres).toEqual([])
     expect(node?.props.puedeCrear).toBe(false)
-    expect(containsHref(element, '/talleres/explorar')).toBe(true)
   })
 })

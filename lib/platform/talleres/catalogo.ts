@@ -64,27 +64,58 @@ export interface CatalogoTaller {
   readonly ediciones: readonly CatalogoEdicion[]
 }
 
+/**
+ * R3c (odd/tasks/talleres-rediseno.md) — what the v2 catálogo reads on top
+ * of CatalogoEdicion, from the SAME query (each inscripción's estado and the
+ * edición's cierre_inscripcion), so no other caller's fixtures change.
+ */
+export interface CatalogoEdicionPanel extends CatalogoEdicion {
+  /** estado 'pendiente': waiting for a decision («Por aprobar»). */
+  readonly pendientes: number
+  /** estado 'aprobado': the unit talleres_minimo_aprobados counts. */
+  readonly aprobados: number
+  /** pendiente + aprobado: the seats talleres_cupo_edicion_calculo counts. */
+  readonly ocupados: number
+  readonly cierre_inscripcion: string | null
+}
+
+/** CatalogoTaller as loadCatalogoTalleres returns it (R3c): counted ediciones and the taller's mínimo. */
+export interface CatalogoTallerPanel extends CatalogoTaller {
+  readonly ediciones: readonly CatalogoEdicionPanel[]
+  /** talleres.minimo_inscritos; null = sin mínimo. */
+  readonly minimo_inscritos: number | null
+}
+
 const TALLER_CON_EDICIONES_SELECT = `id, slug, nombre, estado, dream_team_equipo_id,
        ediciones:taller_ediciones (
-         id, nombre_snapshot, tipo, estado, temporada_id, fecha_inicio, fecha_fin,
-         inscripciones:taller_inscripciones (id)
+         id, nombre_snapshot, tipo, estado, temporada_id, fecha_inicio, fecha_fin, cierre_inscripcion,
+         inscripciones:taller_inscripciones (id, estado)
        )`
 
+function contarEstado(inscripciones: readonly unknown[], estados: readonly string[]): number {
+  return inscripciones.filter((i) => estados.includes((i as { estado?: unknown }).estado as string)).length
+}
+
 /** Shared row → CatalogoTaller mapping for both loaders below (T2's list query and T3's single-slug lookup select the exact same shape). */
-function mapCatalogoTallerRow(row: Record<string, unknown>): CatalogoTaller {
+function mapCatalogoTallerRow(row: Record<string, unknown>): CatalogoTallerPanel {
   const edicionesRaw = (row.ediciones ?? []) as unknown[]
-  const ediciones: CatalogoEdicion[] = edicionesRaw
+  const ediciones: CatalogoEdicionPanel[] = edicionesRaw
     .map((e) => {
       const edicion = e as Record<string, unknown>
+      const inscripciones = ((edicion.inscripciones as unknown[]) ?? [])
       return {
         id: edicion.id as string,
         nombre_snapshot: edicion.nombre_snapshot as string,
         tipo: edicion.tipo as CatalogoEdicion['tipo'],
         estado: edicion.estado as CatalogoEdicion['estado'],
-        total_inscripciones: ((edicion.inscripciones as unknown[]) ?? []).length,
+        total_inscripciones: inscripciones.length,
         temporada_id: (edicion.temporada_id as string | null) ?? null,
         fecha_inicio: (edicion.fecha_inicio as string | null) ?? null,
         fecha_fin: (edicion.fecha_fin as string | null) ?? null,
+        pendientes: contarEstado(inscripciones, ['pendiente']),
+        aprobados: contarEstado(inscripciones, ['aprobado']),
+        ocupados: contarEstado(inscripciones, ['pendiente', 'aprobado']),
+        cierre_inscripcion: (edicion.cierre_inscripcion as string | null | undefined) ?? null,
       }
     })
     .sort((a, b) => a.nombre_snapshot.localeCompare(b.nombre_snapshot))
@@ -96,6 +127,7 @@ function mapCatalogoTallerRow(row: Record<string, unknown>): CatalogoTaller {
     estado: row.estado as CatalogoTaller['estado'],
     dream_team_equipo_id: (row.dream_team_equipo_id as string | null) ?? null,
     ediciones,
+    minimo_inscritos: typeof row.minimo_inscritos === 'number' ? row.minimo_inscritos : null,
   }
 }
 
@@ -112,15 +144,74 @@ interface CatalogoQueryClient {
 
 export async function loadCatalogoTalleres(
   client: CatalogoQueryClient,
-): Promise<readonly CatalogoTaller[]> {
+): Promise<readonly CatalogoTallerPanel[]> {
   const { data, error } = await client
     .from('talleres')
-    .select(TALLER_CON_EDICIONES_SELECT)
+    .select(`${TALLER_CON_EDICIONES_SELECT}, minimo_inscritos`)
     .order('nombre', { ascending: true })
 
   if (error) return []
 
   return ((data ?? []) as unknown[]).map((row) => mapCatalogoTallerRow(row as Record<string, unknown>))
+}
+
+// ─── Grupos de las ediciones (R3c — cupo y «Sin facilitador») ───────────
+
+export interface GruposEdicion {
+  /** Sum of the non-cancelled grupos' capacidad (talleres_cupo_edicion_calculo); 0 = sin cupo definido. */
+  readonly cupo: number
+  /** Active grupos with no active taller_grupo_asignaciones row (no líder nor voluntario). */
+  readonly gruposSinFacilitador: number
+}
+
+interface GruposEdicionQueryClient {
+  from(table: 'talleres_crecimiento_cohortes'): {
+    select(columns: string): {
+      in(column: string, values: readonly string[]): PromiseLike<{
+        data: unknown[] | null
+        error: { message: string } | null
+      }>
+    }
+  }
+}
+
+/**
+ * R3c (odd/tasks/talleres-rediseno.md) — ONE batched select for the
+ * catálogo's cupo line and its «Sin facilitador» metric: cohortes of the
+ * given ediciones (talleres_crecimiento_cohortes.taller_id is the edición
+ * id) with their grupos and each grupo's asignaciones embedded, the same
+ * embeds loadNombresPorCohorte and grupo-detalle.ts already read under RLS.
+ * `null` on a query error: the screen then shows no cupo and hides the
+ * metric instead of a misreported 0.
+ */
+export async function loadGruposDeEdiciones(
+  client: GruposEdicionQueryClient,
+  edicionIds: readonly string[],
+): Promise<ReadonlyMap<string, GruposEdicion> | null> {
+  const resultado = new Map<string, GruposEdicion>()
+  const ids = Array.from(new Set(edicionIds))
+  if (ids.length === 0) return resultado
+
+  const { data, error } = await client
+    .from('talleres_crecimiento_cohortes')
+    .select('taller_id, grupos:taller_grupos (capacidad, estado, asignaciones:taller_grupo_asignaciones (activo))')
+    .in('taller_id', ids)
+  if (error) return null
+
+  for (const raw of (data ?? []) as Array<Record<string, unknown>>) {
+    const edicionId = raw.taller_id as string | null
+    if (!edicionId) continue
+    const previo = resultado.get(edicionId) ?? { cupo: 0, gruposSinFacilitador: 0 }
+    let cupo = previo.cupo
+    let sinFacilitador = previo.gruposSinFacilitador
+    for (const g of (raw.grupos ?? []) as Array<Record<string, unknown>>) {
+      if (g.estado !== 'cancelado') cupo += typeof g.capacidad === 'number' ? g.capacidad : 0
+      const asignaciones = (g.asignaciones ?? []) as Array<{ activo?: unknown }>
+      if (g.estado === 'activo' && !asignaciones.some((a) => a.activo === true)) sinFacilitador += 1
+    }
+    resultado.set(edicionId, { cupo, gruposSinFacilitador: sinFacilitador })
+  }
+  return resultado
 }
 
 // ─── Un taller (T3 — /talleres/[taller]) ────────────────────────────────
@@ -385,6 +476,8 @@ export interface MiTallerResumen {
   readonly id: string
   readonly slug: string
   readonly nombre: string
+  /** R3c — talleres_mis_permisos(equipo).abrir_edicion, the taller page's own «Abrir edición» gate. */
+  readonly puedeAbrirEdicion: boolean
 }
 
 /**
@@ -410,7 +503,12 @@ export async function loadMisTalleres(
 
   return catalogo
     .filter((t) => permisosPorEquipo.get(t.dream_team_equipo_id)?.editarTaller === true)
-    .map((t) => ({ id: t.id, slug: t.slug, nombre: t.nombre }))
+    .map((t) => ({
+      id: t.id,
+      slug: t.slug,
+      nombre: t.nombre,
+      puedeAbrirEdicion: permisosPorEquipo.get(t.dream_team_equipo_id)?.abrirEdicion === true,
+    }))
 }
 
 export async function loadMisGruposCount(ctx: OperacionalContext): Promise<number> {
