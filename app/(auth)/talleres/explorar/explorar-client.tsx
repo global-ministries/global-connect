@@ -24,6 +24,13 @@
  * Couple ediciones open the partner picker (components/talleres/selector-
  * pareja.tsx: registered spouse first, then cédula) instead of the
  * leaders-only SelectLeaderModal.
+ *
+ * T9 (odd/tasks/proximo-paso.md, L21–L23) — the confirmation and the badge
+ * follow the real estado of the viewer's inscripción (`estado_inscripcion`,
+ * loaded by the page): an edición with inscripción automática approves it
+ * right away. The action only returns the inscripción id, but it revalidates
+ * this path, so the rows arrive again with the new estado and the message is
+ * derived from them. Neutral Spanish (tú) and no modality jargon.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -54,6 +61,8 @@ interface TallerRow {
   readonly edicion: string
   readonly estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
   readonly ya_inscrito: boolean
+  /** Estado of the viewer's own active inscripción in this edición, if any. */
+  readonly estado_inscripcion?: 'pendiente' | 'aprobado' | null
   readonly modalidad: 'periodo_general' | 'permanente_custom' | null
   readonly descripcion: string | null
   readonly fecha_apertura: string | null
@@ -78,35 +87,36 @@ interface Input {
 }
 
 /**
- * Format a date (ISO string or Date) as a short locale string for
- * the card subtitle. Returns "—" for invalid/null input.
+ * Format a date as "3 de enero de 2027". A date-only value ("2027-01-03")
+ * is that calendar day, never shifted by the UTC parse. "—" when invalid.
  */
 function formatDate(value: string | null): string {
   if (!value) return '—'
-  const d = new Date(value)
+  const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  const d = soloFecha
+    ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
+    : new Date(value)
   if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
+  return d.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-/**
- * Map a modality enum to a human label.
- */
-function formatModalidad(
-  modalidad: 'periodo_general' | 'permanente_custom' | null,
-): string {
-  if (modalidad === 'periodo_general') return 'Periodo general'
-  if (modalidad === 'permanente_custom') return 'Permanente custom'
-  return 'Sin modalidad'
+const MENSAJE_INSCRITO = '¡Listo, ya estás inscrito!'
+const MENSAJE_PENDIENTE = 'Recibimos tu inscripción. La coordinación la confirmará.'
+/** While the revalidated rows have not arrived yet. */
+const MENSAJE_RECIBIDA = 'Recibimos tu inscripción.'
+
+function mensajeInscripcion(fila: TallerRow | undefined): string {
+  if (fila?.estado_inscripcion === 'aprobado') return MENSAJE_INSCRITO
+  if (fila?.estado_inscripcion === 'pendiente') return MENSAJE_PENDIENTE
+  return MENSAJE_RECIBIDA
 }
 
 export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<string | null>(null)
+  // The edición just enrolled in; its confirmation follows the row's estado.
+  const [inscritaId, setInscritaId] = useState<string | null>(null)
   // Partner picker visibility for `tipo === 'pareja'` ediciones.
   const [pickerOpen, setPickerOpen] = useState(false)
 
@@ -114,7 +124,8 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
 
   /** Shared success path for individual and couple enrollments. */
   function confirmarInscripcion(): void {
-    setFeedback('¡Inscripción enviada! Pendiente de aprobación.')
+    setFeedback(null)
+    setInscritaId(selected?.id ?? null)
     setPickerOpen(false)
     setSelectedId(null)
   }
@@ -126,6 +137,7 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
   async function handleInscribirse(): Promise<{ ok: boolean; error?: string }> {
     if (!selected) return { ok: false, error: 'no-selection' }
     setFeedback(null)
+    setInscritaId(null)
     if (selected.tipo === 'pareja') {
       setPickerOpen(true)
       return { ok: true }
@@ -149,11 +161,14 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
     )
   }
 
+  const aviso =
+    feedback ?? (inscritaId ? mensajeInscripcion(talleres.find((t) => t.id === inscritaId)) : null)
+
   return (
     <>
-      {feedback && (
-        <TarjetaSistema variante="outlined" className="p-3 text-sm">
-          <TextoSistema>{feedback}</TextoSistema>
+      {aviso && (
+        <TarjetaSistema variante="outlined" className="p-3 text-sm" role="status">
+          <TextoSistema>{aviso}</TextoSistema>
         </TarjetaSistema>
       )}
       <ul className="grid gap-4 md:grid-cols-2">
@@ -181,12 +196,6 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
                       Edición {t.edicion} ·{' '}
                       {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
                     </TextoSistema>
-                    <TextoSistema
-                      variante="sutil"
-                      className="mt-1 block text-xs"
-                    >
-                      Modalidad: {formatModalidad(t.modalidad)}
-                    </TextoSistema>
                     {t.fecha_apertura && t.fecha_cierre && (
                       <TextoSistema
                         variante="sutil"
@@ -201,16 +210,19 @@ export function ExplorarTalleresClient({ talleres }: Input): ReactElement {
                         variante="sutil"
                         className="mt-1 block text-xs"
                       >
-                        Inscripción hasta {formatDate(t.cierre_inscripcion)}
+                        Inscripción hasta el {formatDate(t.cierre_inscripcion)}
                       </TextoSistema>
                     )}
                     <div className="mt-2 flex flex-wrap gap-2">
                       <BadgeSistema variante={edicionEstadoBadgeVariante(t.estado)}>
                         {edicionEstadoLabel(t.estado)}
                       </BadgeSistema>
-                      {t.ya_inscrito && (
-                        <BadgeSistema variante="success">Ya inscripto</BadgeSistema>
-                      )}
+                      {t.ya_inscrito &&
+                        (t.estado_inscripcion === 'pendiente' ? (
+                          <BadgeSistema variante="warning">Pendiente</BadgeSistema>
+                        ) : (
+                          <BadgeSistema variante="success">Ya inscrito</BadgeSistema>
+                        ))}
                       {!t.ya_inscrito && t.cupo_completo && (
                         <BadgeSistema variante="warning">Cupo completo</BadgeSistema>
                       )}
