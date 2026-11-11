@@ -4,7 +4,7 @@
  * yet. `taller_avisame_lugar` is revoked for `authenticated`, so the count
  * comes from talleres_avisame_lugar_contar
  * (20261111140000_talleres_origen_admin_y_avisame_conteo): count only, no
- * names or emails, and only for ediciones the caller reads as staff (no row
+ * names or emails, and only for ediciones the caller directs or coordinates (no row
  * otherwise).
  *
  * Best effort: an error, a thrown call, a missing row or a malformed value

@@ -17,7 +17,7 @@
 --      taller_avisame_lugar stays revoked for anon and authenticated; this
 --      SECURITY DEFINER function is the one read. It returns a row only
 --      for the ediciones the caller directs or coordinates (user decision
---      L9: dirección and coordinación only, not lead or volunteer), i.e.
+--      «restringirlo»: dirección and coordinación only, not lead or volunteer), i.e.
 --      auth_has_talleres_capability_scoped with director.read/write,
 --      coordinator.read/write or admin.manage on the edición's equipo (talleres_equipo_de_edicion, the same resolver
 --      talleres_inscribir_sobre_cupo and talleres_minimo_panel use for the
@@ -169,7 +169,7 @@ AS $function$
              AND a.notificado_en IS NULL) AS pendientes
     FROM public.taller_ediciones te
    WHERE te.id = ANY (coalesce(p_edicion_ids, '{}'::uuid[]))
-     -- The staff branches of taller_inscripciones_select (20261003140000 H).
+     -- Direccion and coordinacion only (read or write) or admin.manage.
      AND (
           public.auth_has_talleres_capability_scoped('talleres_crecimiento.director.read'::text, public.talleres_equipo_de_edicion(te.id))
        OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.director.write'::text, public.talleres_equipo_de_edicion(te.id))
