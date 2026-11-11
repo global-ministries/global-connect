@@ -15,11 +15,17 @@
  * Backspace on an empty box goes back, the arrows move. Once the six digits
  * are there the code goes on its own, once; «Confirmar» stays as the
  * fallback. A wrong code clears the boxes and points to the newest email.
+ *
+ * T8 (design/proximo-paso 04, 07 · 4–5): the native-app look — step header,
+ * seal, the boxes, one status line, the help rows and the sticky
+ * «Confirmar». Too many attempts (Supabase's limit, LIMITE) lock the boxes
+ * with a countdown and then offer «Pedir código nuevo»; nothing typed in
+ * «Tus datos» is lost.
  */
 
 import { useEffect, useRef, useState, type ClipboardEvent, type FormEvent, type KeyboardEvent, type ReactElement } from 'react'
 import Link from 'next/link'
-import { Mail } from 'lucide-react'
+import { AlertCircle, Clock, Info, Mail } from 'lucide-react'
 
 import {
   confirmarCodigoProximoPaso,
@@ -28,11 +34,18 @@ import {
   type ResultadoInscripcion,
 } from '@/app/proximo-paso/actions'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
-import { BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema } from '@/components/ui/sistema-diseno'
 import { loginProximoPaso, type EdicionResumen } from '@/lib/platform/talleres/proximo-paso-registro'
+import { cn } from '@/lib/utils'
+
+import { BarraInferior, Cabecera, EncabezadoPaso, Num, Sello } from './partes'
 
 /** Seconds before «Reenviar código» can be used again; Supabase keeps its own limit. */
 export const ESPERA_REENVIO_S = 60
+/** Seconds the boxes stay locked after too many attempts (LIMITE). */
+export const ESPERA_LIMITE_S = 300
+
+const minutos = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 const LARGO_CODIGO = 6
 const VACIO: readonly string[] = Array.from({ length: LARGO_CODIGO }, () => '')
@@ -59,9 +72,11 @@ export interface PasoCodigoProps {
   /** The code was right but the enrollment did not go through: the person is signed in. */
   readonly onSesionAbierta: (fallo: FalloProximoPaso) => void
   readonly onCambiarCorreo: () => void
+  /** "Paso 3 de 3": where this step sits in the flow (2 of 2 when the date was skipped). */
+  readonly paso?: { readonly numero: number; readonly total: number }
 }
 
-export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCambiarCorreo }: PasoCodigoProps): ReactElement {
+export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCambiarCorreo, paso }: PasoCodigoProps): ReactElement {
   const [digitos, setDigitos] = useState<readonly string[]>(VACIO)
   const [fallo, setFallo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -77,12 +92,24 @@ export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCamb
   const [enfocar, setEnfocar] = useState<number | null>(null)
   const restante = Math.max(0, Math.ceil((reenvioDesde - ahora) / 1000))
   const enEspera = restante > 0
+  // LIMITE: until this moment the boxes are locked.
+  const [bloqueoHasta, setBloqueoHasta] = useState<number | null>(null)
+  const bloqueoRestante = bloqueoHasta === null ? 0 : Math.max(0, Math.ceil((bloqueoHasta - ahora) / 1000))
+  const bloqueado = bloqueoHasta !== null
 
   useEffect(() => {
-    if (!enEspera) return
+    if (!enEspera && bloqueoRestante === 0) return
     const t = setInterval(() => setAhora(Date.now()), 1000)
     return () => clearInterval(t)
-  }, [enEspera])
+  }, [enEspera, bloqueoRestante])
+
+  function bloquear() {
+    const desde = Date.now()
+    setAhora(desde)
+    setBloqueoHasta(desde + ESPERA_LIMITE_S * 1000)
+    setFallo(null)
+    setDigitos(VACIO)
+  }
 
   // Focus after the render, once the boxes are enabled again.
   useEffect(() => {
@@ -105,6 +132,7 @@ export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCamb
       const r = await confirmarCodigoProximoPaso({ email, token: codigo, edicionId: edicion.id })
       if (r.ok) onInscrito(r)
       else if (r.sesionAbierta) onSesionAbierta(r)
+      else if (r.error === 'LIMITE') bloquear()
       else {
         setFallo(r.message)
         if (r.error === 'CODIGO_INVALIDO') {
@@ -173,7 +201,7 @@ export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCamb
   }
 
   async function reenviar() {
-    if (reenviando || enEspera) return
+    if (reenviando || (enEspera && !bloqueado) || bloqueoRestante > 0) return
     setFallo(null)
     setAviso(null)
     setReenviando(true)
@@ -181,10 +209,13 @@ export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCamb
       const r = await reenviarCodigoProximoPaso({ email, edicionId: edicion.id })
       if (r.ok) {
         setAviso(r.message)
+        setBloqueoHasta(null)
         const desde = Date.now()
         setAhora(desde)
         setReenvioDesde(desde + ESPERA_REENVIO_S * 1000)
-      } else setFallo(r.message)
+        setEnfocar(0)
+      } else if (r.error === 'LIMITE') bloquear()
+      else setFallo(r.message)
     } catch {
       setFallo('No se pudo reenviar el código. Inténtalo de nuevo.')
     } finally {
@@ -193,78 +224,134 @@ export function PasoCodigo({ email, edicion, onInscrito, onSesionAbierta, onCamb
   }
 
   return (
-    <TarjetaSistema className="grid gap-5 p-5">
-      <form onSubmit={confirmar} noValidate aria-labelledby="proximo-paso-codigo" className="grid gap-5">
-        <div className="grid gap-2 text-center">
-          <Mail className="mx-auto size-10 text-brand" aria-hidden />
-          <h2 id="proximo-paso-codigo" className="text-xl font-bold tracking-tight text-foreground">
-            Revisa tu correo
-          </h2>
-          <TextoSistema variante="sutil">
-            {`Te enviamos un código de 6 dígitos a ${email}. Escríbelo aquí para terminar tu inscripción en ${edicion.nombre}.`}
-          </TextoSistema>
-        </div>
+    <form onSubmit={confirmar} noValidate aria-labelledby="proximo-paso-codigo" className="flex min-w-0 flex-1 flex-col gap-5">
+      {paso && <EncabezadoPaso paso={paso.numero} total={paso.total} etiqueta="Confirmar correo" />}
+      <div className="px-1">
+        <Sello icono={bloqueado ? Clock : Mail} tono={bloqueado ? 'warning' : 'marca'} />
+      </div>
+      {bloqueado ? (
+        <Cabecera id="proximo-paso-codigo" titulo="Espera un momento">
+          Hubo muchos intentos seguidos.{' '}
+          {bloqueoRestante > 0 ? (
+            <>
+              Podrás escribir el código otra vez en{' '}
+              <strong>
+                <Num>{minutos(bloqueoRestante)}</Num>
+              </strong>
+              .
+            </>
+          ) : (
+            'Ya puedes pedir un código nuevo.'
+          )}
+        </Cabecera>
+      ) : (
+        <Cabecera id="proximo-paso-codigo" titulo="Revisa tu correo">
+          Escribe el código de <Num>6</Num> dígitos que enviamos a <strong className="break-all text-foreground">{email}</strong> para
+          terminar tu inscripción en {edicion.nombre}.
+        </Cabecera>
+      )}
 
-        <div className="grid gap-2">
-          <p id="proximo-paso-codigo-campo" className="text-center text-sm font-medium text-foreground">
-            Código de 6 dígitos
-          </p>
-          <div role="group" aria-labelledby="proximo-paso-codigo-campo" className="mx-auto grid w-full max-w-[22rem] grid-cols-6 gap-2">
-            {digitos.map((d, i) => (
-              <InputSistema
-                key={i}
-                ref={(el) => {
-                  cajas.current[i] = el
-                }}
-                aria-label={`Dígito ${i + 1} de 6`}
-                name={i === 0 ? 'codigo' : undefined}
-                inputMode="numeric"
-                autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                pattern="[0-9]*"
-                className="h-14 px-0 text-center font-mono text-2xl font-semibold tabular-nums"
-                value={d}
-                onChange={(e) => cambiar(i, e.target.value)}
-                onPaste={(e) => pegar(i, e)}
-                onKeyDown={(e) => tecla(i, e)}
-                onFocus={(e) => e.target.select()}
-                disabled={enviando}
-              />
-            ))}
-          </div>
+      <div className="grid gap-2">
+        <p id="proximo-paso-codigo-campo" className="sr-only">
+          Código de 6 dígitos
+        </p>
+        <div role="group" aria-labelledby="proximo-paso-codigo-campo" className={cn('mx-auto grid w-full max-w-[22rem] grid-cols-6 gap-2', bloqueado && 'opacity-50')}>
+          {digitos.map((d, i) => (
+            <InputSistema
+              key={i}
+              ref={(el) => {
+                cajas.current[i] = el
+              }}
+              aria-label={`Dígito ${i + 1} de 6`}
+              name={i === 0 ? 'codigo' : undefined}
+              inputMode="numeric"
+              autoComplete={i === 0 ? 'one-time-code' : 'off'}
+              pattern="[0-9]*"
+              className="h-14 px-0 text-center font-mono text-2xl font-semibold tabular-nums"
+              value={d}
+              onChange={(e) => cambiar(i, e.target.value)}
+              onPaste={(e) => pegar(i, e)}
+              onKeyDown={(e) => tecla(i, e)}
+              onFocus={(e) => e.target.select()}
+              disabled={enviando || bloqueado}
+            />
+          ))}
+        </div>
+        {!bloqueado && (
           <p aria-live="polite" className="min-h-5 text-center text-sm text-muted-foreground">
-            {enviando ? 'Revisando tu código…' : ''}
+            {enviando ? 'Revisando tu código…' : 'Se confirma solo al escribir el último número.'}
           </p>
-        </div>
+        )}
+        {fallo && (
+          <p role="alert" className="flex items-start justify-center gap-1.5 text-center text-sm font-medium text-danger-text">
+            <AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <span>{fallo}</span>
+          </p>
+        )}
+      </div>
 
-        {fallo && <AvisoFormulario tono="error">{fallo}</AvisoFormulario>}
-        {aviso && <AvisoFormulario tono="marca">{aviso}</AvisoFormulario>}
+      {aviso && <AvisoFormulario tono="marca">{aviso}</AvisoFormulario>}
 
-        <BotonSistema type="submit" tamaño="lg" className="w-full" cargando={enviando}>
-          Confirmar
-        </BotonSistema>
+      {bloqueado ? (
+        <p className="flex gap-2.5 rounded-xl border border-info/30 bg-info/5 p-3.5 text-sm text-foreground">
+          <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info-text" />
+          <span>Tu inscripción no se perdió. Cuando termine la espera, pide un código nuevo y usa ese.</span>
+        </p>
+      ) : (
+        <>
+          <div className="rounded-2xl bg-card px-3.5 text-sm">
+            <div className="flex min-h-14 items-center justify-between gap-2 py-1.5">
+              <span className="min-w-0 text-muted-foreground">¿No llegó? Mira en spam o promociones.</span>
+              <BotonSistema type="button" variante="ghost" tamaño="sm" cargando={reenviando} disabled={enEspera || enviando} onClick={reenviar} className="shrink-0">
+                {enEspera ? (
+                  <>
+                    Reenviar código en <span className="font-mono tabular-nums">{restante}</span> s
+                  </>
+                ) : (
+                  'Reenviar código'
+                )}
+              </BotonSistema>
+            </div>
+            <div className="flex min-h-14 items-center justify-between gap-2 border-t border-border/60 py-1.5">
+              <span className="min-w-0 text-muted-foreground">¿Escribiste mal el correo?</span>
+              <BotonSistema type="button" variante="ghost" tamaño="sm" disabled={enviando} onClick={onCambiarCorreo} className="shrink-0">
+                Cambiar correo
+              </BotonSistema>
+            </div>
+          </div>
+          <p className="flex gap-2.5 rounded-xl border border-info/30 bg-info/5 p-3.5 text-sm text-foreground">
+            <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info-text" />
+            <span>Si pediste más de un código, usa el del correo más reciente.</span>
+          </p>
+          <p className="px-1 text-center text-sm text-muted-foreground">
+            También puedes abrir el enlace que viene en el correo. ¿Ya tenías cuenta con ese correo?{' '}
+            <Link href={loginProximoPaso(edicion.id)} className={enlace}>
+              Inicia sesión
+            </Link>
+          </p>
+        </>
+      )}
 
-        <div className="flex flex-wrap justify-center gap-2">
-          <BotonSistema type="button" variante="ghost" cargando={reenviando} disabled={enEspera || enviando} onClick={reenviar}>
-            {enEspera ? (
+      <BarraInferior>
+        {bloqueado ? (
+          <BotonSistema type="button" tamaño="lg" className="w-full" cargando={reenviando} disabled={bloqueoRestante > 0} onClick={reenviar}>
+            {bloqueoRestante > 0 ? (
               <>
-                Reenviar código en <span className="font-mono tabular-nums">{restante}</span> s
+                Pedir código nuevo en <Num>{minutos(bloqueoRestante)}</Num>
               </>
             ) : (
-              'Reenviar código'
+              'Pedir código nuevo'
             )}
           </BotonSistema>
-          <BotonSistema type="button" variante="ghost" disabled={enviando} onClick={onCambiarCorreo}>
-            Cambiar correo
-          </BotonSistema>
-        </div>
-
-        <p className="text-center text-sm text-muted-foreground">
-          También puedes abrir el enlace que viene en el correo. ¿Ya tenías cuenta con ese correo?{' '}
-          <Link href={loginProximoPaso(edicion.id)} className={enlace}>
-            Inicia sesión
-          </Link>
-        </p>
-      </form>
-    </TarjetaSistema>
+        ) : (
+          <>
+            <BotonSistema type="submit" tamaño="lg" className="w-full" cargando={enviando}>
+              Confirmar
+            </BotonSistema>
+            <p className="text-center text-[13px] text-muted-foreground">No hace falta tocarlo: se confirma solo.</p>
+          </>
+        )}
+      </BarraInferior>
+    </form>
   )
 }
