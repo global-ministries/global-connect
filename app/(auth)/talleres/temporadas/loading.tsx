@@ -1,38 +1,24 @@
 /**
- * T8 (odd/tasks/talleres-consolidar-pantallas.md) — loading skeleton for
- * /talleres/temporadas. Mirrors the real page's table→cards shape (docs/
- * talleres-de-punta-a-punta.md §9's loading.tsx pattern: imitate the real
- * shape, not a spinner), same as /talleres/reportes' loading.tsx (T7).
+ * Loading frame of /talleres/temporadas (R3b, odd/tasks/talleres-rediseno.md):
+ * the v2 shape — hero, the four attention metrics and the list rows.
  */
-import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+import { SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 
 export default function LoadingTemporadas() {
   return (
-    <PaginaSistema titulo="Temporadas">
-      {/* Desktop — table shape */}
-      <div className="hidden md:block">
-        <TarjetaSistema className="p-0">
-          <div className="divide-y divide-border">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center justify-between gap-4 p-4">
-                <SkeletonSistema ancho="40%" alto="14px" />
-                <SkeletonSistema ancho="30%" alto="12px" />
-                <SkeletonSistema ancho="70px" alto="20px" className="rounded-full" />
-              </div>
-            ))}
-          </div>
-        </TarjetaSistema>
+    <PaginaSistema>
+      <div className="grid gap-2">
+        <SkeletonSistema ancho="180px" alto="28px" />
+        <SkeletonSistema ancho="60%" alto="16px" />
       </div>
-
-      {/* Mobile — card shape */}
-      <div className="md:hidden space-y-3">
-        {[...Array(3)].map((_, i) => (
-          <TarjetaSistema key={i} variante="outlined" className="p-4">
-            <SkeletonSistema ancho="60%" alto="14px" />
-            <SkeletonSistema ancho="80%" alto="12px" className="mt-3" />
-            <SkeletonSistema ancho="70px" alto="20px" className="mt-3 rounded-full" />
-          </TarjetaSistema>
+      <div className="grid grid-cols-2 gap-2.5 md:gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <SkeletonSistema key={i} alto="96px" className="rounded-2xl" />
         ))}
+      </div>
+      <div className="min-w-0 overflow-hidden rounded-2xl bg-card md:border md:border-border/60">
+        <SkeletonLista filas={5} />
       </div>
     </PaginaSistema>
   )

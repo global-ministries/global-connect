@@ -1,296 +1,164 @@
 /**
  * @jest-environment node
  *
- * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — /talleres/
- * temporadas rewritten to list temporadas GROUPED BY DIRECCIÓN (root Dream
- * Team node label), replacing the old flat table (T8, odd/tasks/talleres-
- * consolidar-pantallas.md).
- *
- * Mirrors the gate + structural-inspection pattern of
- * __tests__/app/(auth)/talleres/reportes/page.test.tsx (flag -> user ->
- * session, each an informational card, inspected via extractText/
- * findByType rather than full rendering).
- *
- * PERMISSIONS: `puedeCrear` ("Crear Temporada" header CTA) is no longer a
- * flat capability check — it is true when `loadDireccionesConTalleres`
- * returns at least one dirección with `puedeEditar` (that loader's own
- * `cargarPermisos(client, raiz.id).editarTaller`, see temporadas.ts).
- * "Hide the control, never disable it" still holds.
+ * R3b (odd/tasks/talleres-rediseno.md, S5) — /talleres/temporadas on the v2
+ * list anatomy. The server page keeps its gate (flag -> user -> session, each
+ * an informational card) and its permission checks, and hands the client
+ * island (TemporadasClient) the temporadas, the write check, the direcciones
+ * where the viewer may create (with their talleres) and the URL state.
  */
 
 import TemporadasPage from '@/app/(auth)/talleres/temporadas/page'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
-import type { TemporadaRow, DireccionConTalleres } from '@/lib/platform/talleres/temporadas'
+import { TemporadasClient } from '@/components/talleres/temporadas/temporadas-client'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
+import type { DireccionConTalleres, TemporadaPanel } from '@/lib/platform/talleres/temporadas'
 
-jest.mock('@/lib/platform/talleres/flags', () => ({
-  isTalleresEnabled: jest.fn(),
-}))
-
-jest.mock('@/lib/supabase/server', () => ({
-  createSupabaseServerClient: jest.fn(),
-}))
-
+jest.mock('@/lib/platform/talleres/flags', () => ({ isTalleresEnabled: jest.fn() }))
+jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn() }))
 jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
   findPlatformSessionPersonaByAuthId: jest.fn(),
   resolveReadOnlyPlatformSession: jest.fn(),
 }))
-
+jest.mock('@/lib/platform/talleres/refrescar-estados', () => ({ refrescarEstadosEdiciones: jest.fn() }))
 jest.mock('@/lib/platform/talleres/temporadas', () => ({
-  loadTemporadas: jest.fn(),
+  loadPanelTemporadas: jest.fn(),
   loadDireccionesConTalleres: jest.fn(),
+  loadTalleresDeDireccion: jest.fn(),
 }))
+jest.mock('@/components/talleres/temporadas/temporadas-client', () => ({ TemporadasClient: () => null }))
 
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
-const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
-  .createSupabaseServerClient as jest.Mock
-const resolveSessionMock = jest.requireMock('@/lib/auth/platformSessionReadOnly')
-  .resolveReadOnlyPlatformSession as jest.Mock
-const loadTemporadasMock = jest.requireMock('@/lib/platform/talleres/temporadas')
-  .loadTemporadas as jest.Mock
-const loadDireccionesConTalleresMock = jest.requireMock('@/lib/platform/talleres/temporadas')
-  .loadDireccionesConTalleres as jest.Mock
+const crearClienteMock = jest.requireMock('@/lib/supabase/server').createSupabaseServerClient as jest.Mock
+const sesionMock = jest.requireMock('@/lib/auth/platformSessionReadOnly').resolveReadOnlyPlatformSession as jest.Mock
+const refrescarMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados').refrescarEstadosEdiciones as jest.Mock
+const loaders = jest.requireMock('@/lib/platform/talleres/temporadas') as Record<string, jest.Mock>
 
-function makeTemporadaRow(overrides: Partial<TemporadaRow> = {}): TemporadaRow {
-  return {
-    id: 'temp-1',
-    nombre: 'Temporada Otoño 2026',
-    slug: 'otono-2026',
-    estado: 'abierto',
-    fecha_apertura: '2026-09-01T00:00:00.000Z',
-    fecha_cierre: '2026-12-15T00:00:00.000Z',
-    dream_team_equipo_id: 'root-conexion',
-    tallerCount: 3,
-    edicionCount: 3,
-    ...overrides,
-  }
+const TEMPORADA: TemporadaPanel = {
+  id: 'temp-1',
+  nombre: 'Temporada 2027-I',
+  estado: 'abierto',
+  fecha_apertura: '2027-01-11',
+  fecha_cierre: '2027-03-27',
+  dream_team_equipo_id: 'root-con',
+  direccionLabel: 'Dirección de Conexión',
+  ediciones: [],
+  talleresDisponibles: [],
 }
 
-function makeDireccion(overrides: Partial<DireccionConTalleres> = {}): DireccionConTalleres {
-  return { id: 'root-conexion', label: 'Dirección de Conexión', puedeEditar: false, ...overrides }
+interface Setup {
+  readonly enabled?: boolean
+  readonly user?: { id: string } | null
+  readonly session?: boolean
+  readonly caps?: readonly string[]
+  readonly direcciones?: readonly DireccionConTalleres[]
 }
 
-interface SetupOpts {
-  isEnabled?: boolean
-  user?: { id: string } | null
-  hasSession?: boolean
-  rows?: readonly TemporadaRow[]
-  direcciones?: readonly DireccionConTalleres[]
-}
-
-function setup(opts: SetupOpts): void {
-  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
-
-  createSupabaseServerClientMock.mockReset().mockResolvedValue({
-    auth: {
-      getUser: jest.fn().mockResolvedValue({
-        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
-        error: null,
-      }),
-    },
+function setup(opts: Setup = {}): void {
+  flagsMock.mockReset().mockReturnValue(opts.enabled ?? true)
+  crearClienteMock.mockReset().mockResolvedValue({
+    auth: { getUser: jest.fn().mockResolvedValue({ data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user } }) },
   })
-
-  const hasSession = opts.hasSession ?? true
-  resolveSessionMock.mockReset().mockResolvedValue(
-    hasSession
-      ? {
-          personaId: 'p-1',
-          subjectAuthId: 'auth-1',
-          globalRoles: [],
-          contexts: [],
-          capabilities: [],
-        }
-      : null,
+  sesionMock.mockReset().mockResolvedValue(
+    opts.session === false ? null : { personaId: 'p-1', capabilities: (opts.caps ?? []).map((key) => ({ key })) },
   )
-
-  loadTemporadasMock.mockReset().mockResolvedValue(opts.rows ?? [])
-  loadDireccionesConTalleresMock.mockReset().mockResolvedValue(opts.direcciones ?? [makeDireccion()])
+  refrescarMock.mockReset().mockResolvedValue(undefined)
+  loaders.loadPanelTemporadas!.mockReset().mockResolvedValue([TEMPORADA])
+  loaders.loadDireccionesConTalleres!.mockReset().mockResolvedValue(
+    opts.direcciones ?? [{ id: 'root-con', label: 'Dirección de Conexión', puedeEditar: false }],
+  )
+  loaders.loadTalleresDeDireccion!.mockReset().mockResolvedValue([
+    { id: 't-1', nombre: 'Parejas', nodoLabel: 'GCP', regimen: 'temporada' },
+  ])
 }
 
-/** Walks a React element tree's `.props.children` without rendering it. */
-function extractText(node: unknown): string {
-  if (node === null || node === undefined || typeof node === 'boolean') return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(extractText).join(' ')
-  if (typeof node === 'object' && node !== null && 'props' in node) {
-    const props = (node as { props?: { children?: unknown } }).props
-    return extractText(props?.children)
-  }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- element props
+async function renderizar(searchParams: Record<string, string> = {}): Promise<any> {
+  return TemporadasPage({ searchParams: Promise.resolve(searchParams) })
+}
+
+function textoDe(nodo: unknown): string {
+  if (nodo === null || nodo === undefined || typeof nodo === 'boolean') return ''
+  if (typeof nodo === 'string' || typeof nodo === 'number') return String(nodo)
+  if (Array.isArray(nodo)) return nodo.map(textoDe).join(' ')
+  if (typeof nodo === 'object' && 'props' in nodo) return textoDe((nodo as { props: { children?: unknown } }).props.children)
   return ''
 }
 
-/** Finds EVERY element of the given type in the tree, WITHOUT executing it. */
-function findAllByType(
-  node: unknown,
-  type: unknown,
-  acc: Array<{ props: Record<string, unknown> }> = [],
-): Array<{ props: Record<string, unknown> }> {
-  if (node === null || node === undefined || typeof node === 'boolean') return acc
-  if (Array.isArray(node)) {
-    for (const child of node) findAllByType(child, type, acc)
-    return acc
-  }
-  if (typeof node === 'object' && node !== null && 'type' in node) {
-    const el = node as { type: unknown; props?: { children?: unknown } }
-    if (el.type === type) acc.push(el as { props: Record<string, unknown> })
-    findAllByType(el.props?.children, type, acc)
-    return acc
-  }
-  return acc
-}
-
-function findByType(node: unknown, type: unknown): { props: Record<string, unknown> } | null {
-  return findAllByType(node, type)[0] ?? null
-}
-
-describe('TemporadasPage — gate', () => {
-  it('shows the disabled message and resolves nothing when the flag is off', async () => {
-    setup({ isEnabled: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    expect(extractText(element)).toMatch(/deshabilitado/i)
-    expect(loadTemporadasMock).not.toHaveBeenCalled()
+describe('/talleres/temporadas — gate', () => {
+  it('shows the disabled card when the module is off', async () => {
+    setup({ enabled: false })
+    const el = await renderizar()
+    expect(el.props.titulo).toBe('Temporadas')
+    expect(textoDe(el)).toContain('El módulo de talleres está deshabilitado.')
+    expect(loaders.loadPanelTemporadas).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to sign in without a user', async () => {
     setup({ user: null })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
-    expect(loadTemporadasMock).not.toHaveBeenCalled()
+    expect(textoDe(await renderizar())).toContain('Necesitas iniciar sesión.')
   })
 
-  it('shows a session-resolution message when the session cannot be resolved', async () => {
-    setup({ hasSession: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    expect(extractText(element)).toMatch(/no se pudo resolver tu sesión/i)
-    expect(loadTemporadasMock).not.toHaveBeenCalled()
+  it('says the session could not be resolved', async () => {
+    setup({ session: false })
+    const el = await renderizar()
+    expect(el.type).toBe(PaginaSistema)
+    expect(textoDe(el)).toContain('No se pudo resolver tu sesión.')
   })
 })
 
-describe('TemporadasPage — empty state', () => {
-  it('shows EstadoVacioSistema with the exact copy when no dirección has any temporada', async () => {
-    setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: true })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const vacio = findByType(element, EstadoVacioSistema)
-    expect(vacio).not.toBeNull()
-    expect(String(vacio?.props.titulo)).toBe('Tu dirección todavía no tiene temporadas')
+describe('/talleres/temporadas — data and permissions', () => {
+  it('refreshes edición states before reading and passes the temporadas to the client', async () => {
+    setup()
+    const el = await renderizar()
+    expect(el.type).toBe(TemporadasClient)
+    expect(refrescarMock).toHaveBeenCalledTimes(1)
+    expect(refrescarMock.mock.invocationCallOrder[0]).toBeLessThan(loaders.loadPanelTemporadas!.mock.invocationCallOrder[0]!)
+    expect(el.props.temporadas).toEqual([TEMPORADA])
   })
 
-  it('offers the CTA subtitle only when puedeCrear', async () => {
-    setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: false })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const vacio = findByType(element, EstadoVacioSistema)
-    expect(vacio?.props.subtitulo).toBeUndefined()
-  })
-})
-
-describe('TemporadasPage — puedeCrear (hide the control, never disable it)', () => {
-  it('hides "Crear Temporada" when no dirección has puedeEditar', async () => {
-    setup({ rows: [], direcciones: [makeDireccion({ puedeEditar: false })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, PaginaSistema)
-    expect(dashboard?.props.acciones).toBeUndefined()
+  it('without director.write or admin.manage the drawer is read-only', async () => {
+    setup({ caps: ['talleres_crecimiento.director.read'] })
+    expect((await renderizar()).props.puedeEditar).toBe(false)
   })
 
-  it('shows "Crear Temporada" when at least one dirección has puedeEditar', async () => {
-    setup({
-      rows: [],
-      direcciones: [
-        makeDireccion({ id: 'root-a', puedeEditar: false }),
-        makeDireccion({ id: 'root-b', puedeEditar: true }),
-      ],
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, PaginaSistema)
-    expect(extractText(dashboard?.props.acciones)).toMatch(/crear temporada/i)
+  it.each(['talleres_crecimiento.director.write', 'talleres_crecimiento.admin.manage'])('%s may act in the drawer', async (cap) => {
+    setup({ caps: [cap] })
+    expect((await renderizar()).props.puedeEditar).toBe(true)
   })
-})
 
-describe('TemporadasPage — grouping by dirección', () => {
-  it('groups temporada rows under their own dirección label', async () => {
+  it('offers «Crear temporada» only in direcciones with puedeEditar, with their talleres', async () => {
     setup({
       direcciones: [
-        makeDireccion({ id: 'root-conexion', label: 'Dirección de Conexión' }),
-        makeDireccion({ id: 'root-experiencia', label: 'Dirección de Experiencia' }),
-      ],
-      rows: [
-        makeTemporadaRow({ id: 'temp-1', nombre: 'Temporada Conexión', dream_team_equipo_id: 'root-conexion' }),
-        makeTemporadaRow({ id: 'temp-2', nombre: 'Temporada Experiencia', dream_team_equipo_id: 'root-experiencia' }),
+        { id: 'root-con', label: 'Dirección de Conexión', puedeEditar: true },
+        { id: 'root-dps', label: 'DPS', puedeEditar: false },
       ],
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const text = extractText(element)
-    expect(text).toMatch(/dirección de conexión/i)
-    expect(text).toMatch(/dirección de experiencia/i)
-    expect(text).toMatch(/temporada conexión/i)
-    expect(text).toMatch(/temporada experiencia/i)
+    const el = await renderizar()
+    expect(el.props.direccionesCrear).toEqual([
+      { id: 'root-con', label: 'Dirección de Conexión', talleres: [{ id: 't-1', nombre: 'Parejas', nodoLabel: 'GCP', regimen: 'temporada' }] },
+    ])
+    expect(loaders.loadTalleresDeDireccion).toHaveBeenCalledTimes(1)
   })
 
-  it('omits a dirección heading entirely when it has zero temporadas', async () => {
-    setup({
-      direcciones: [
-        makeDireccion({ id: 'root-conexion', label: 'Dirección de Conexión' }),
-        makeDireccion({ id: 'root-vacia', label: 'Dirección Sin Temporadas' }),
-      ],
-      rows: [makeTemporadaRow({ dream_team_equipo_id: 'root-conexion' })],
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const text = extractText(element)
-    expect(text).not.toMatch(/dirección sin temporadas/i)
-  })
-})
-
-describe('TemporadasPage — rows', () => {
-  it('never renders a raw estado key — always through temporadaEstadoLabel', async () => {
-    setup({ rows: [makeTemporadaRow({ estado: 'abierto' })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const badges = findAllByType(element, BadgeSistema)
-    expect(badges.some((b) => /abierta/i.test(extractText(b.props.children)))).toBe(true)
+  it('hides «Crear temporada» when no dirección allows it', async () => {
+    setup()
+    expect((await renderizar()).props.direccionesCrear).toEqual([])
+    expect(loaders.loadTalleresDeDireccion).not.toHaveBeenCalled()
   })
 
-  it('renders the temporada nombre and dates', async () => {
-    setup({ rows: [makeTemporadaRow({ nombre: 'Temporada Primavera' })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const text = extractText(element)
-    expect(text).toMatch(/temporada primavera/i)
+  it('reads the URL state: filters, the open temporada and the create form', async () => {
+    setup()
+    const el = await renderizar({ vista: 'historial', atencion: 'minimo', direccion: 'root-con', q: 'parejas', temporada: 'temp-1', crear: '1' })
+    expect(el.props.filtrosIniciales).toEqual({ vista: 'historial', atencion: 'minimo', direccion: 'root-con', q: 'parejas' })
+    expect(el.props.temporadaInicial).toBe('temp-1')
+    expect(el.props.crearInicial).toBe(true)
   })
 
-  it('shows "N talleres · M ediciones" from the row own counts', async () => {
-    setup({ rows: [makeTemporadaRow({ tallerCount: 3, edicionCount: 2 })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const text = extractText(element)
-    expect(text).toMatch(/3 talleres/i)
-    expect(text).toMatch(/2 ediciones/i)
-  })
-
-  it('singularizes "1 taller · 1 edición"', async () => {
-    setup({ rows: [makeTemporadaRow({ tallerCount: 1, edicionCount: 1 })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const text = extractText(element)
-    expect(text).toMatch(/1 taller\b/i)
-    expect(text).toMatch(/1 edición\b/i)
-  })
-})
-
-describe('TemporadasPage — page shell', () => {
-  it('titles the page "Temporadas"', async () => {
-    setup({ rows: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TemporadasPage()) as any
-    const dashboard = findByType(element, PaginaSistema)
-    expect(dashboard?.props.titulo).toBe('Temporadas')
-    expect(dashboard?.props.ancho ?? 'default').toBe('default')
+  it('defaults to Vigentes with nothing open', async () => {
+    setup()
+    const el = await renderizar()
+    expect(el.props.filtrosIniciales).toEqual({ vista: 'vigentes', atencion: null, direccion: null, q: '' })
+    expect(el.props.temporadaInicial).toBeNull()
+    expect(el.props.crearInicial).toBe(false)
   })
 })

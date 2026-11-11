@@ -1,41 +1,32 @@
 /**
- * T8 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/temporadas,
- * replacing app/(auth)/admin/talleres/temporadas/page.tsx (kept alive,
- * unmodified, until T10 deletes it — see lib/platform/talleres/rutas.ts).
+ * /talleres/temporadas — R3b (odd/tasks/talleres-rediseno.md, S1, S2, S5):
+ * rebuilt on the v2 list anatomy (artboards design/talleres-interior/26 and
+ * 27). One screen holds the list, the drawer of each temporada and the
+ * «Crear temporada» form; the old /talleres/temporadas/[id] and /crear routes
+ * redirect here (`?temporada=<id>`, `?crear=1`).
  *
- * T5 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — rewritten to
- * list temporadas GROUPED BY DIRECCIÓN (root Dream Team node label), now
- * that talleres_temporadas has an owner (T3, migration
- * 20260928120000_talleres_temporadas_por_direccion.sql): each dirección
- * gets its own heading, then a `TarjetaSistema p-0 divide-y` of its own
- * temporadas — nombre, state badge, "{apertura} → {cierre}", and
- * "N talleres · M ediciones" (loadTemporadas' own per-temporada counts).
- * A dirección with zero temporadas is simply never shown (RLS on
- * talleres_temporadas still decides which rows a caller sees at all).
+ * GATE, unchanged: flag -> user -> session, each an informational card. No
+ * role required: RLS on talleres_temporadas decides which rows come back.
  *
- * GATE, same shape as T2/T6/T7: flag -> user -> session, each an
- * informational card. No role required.
+ * PERMISSIONS, unchanged:
+ * - «Crear temporada» shows when some dirección from
+ *   `loadDireccionesConTalleres` carries `puedeEditar` (cargarPermisos(...)
+ *   .editarTaller); the form only offers those direcciones.
+ * - The drawer's write controls (Abrir, Cerrar, Cancelar, Agregar, Quitar)
+ *   use the old detail page's check: talleres_crecimiento.director.write OR
+ *   admin.manage. The server actions and their RPCs / RLS check again.
  *
- * PERMISSIONS: `puedeCrear` (the header's "Crear Temporada" CTA) is true
- * when at least one dirección from `loadDireccionesConTalleres` carries
- * `puedeEditar` — that loader's own `cargarPermisos(client,
- * raiz.id).editarTaller`, the SAME predicate /talleres/[taller] uses for
- * its own `editarTaller`, never a flat `caps.includes(...)` check.
+ * Before reading, `refrescarEstadosEdiciones(client)` (unscoped, as the old
+ * detail page did) so every edición shows its effective estado.
  */
-
-import Link from 'next/link'
-import { CalendarRange, ChevronRight } from 'lucide-react'
 
 import {
   PaginaSistema,
-  BotonSistema,
   TarjetaSistema,
   TextoSistema,
-  TituloSistema,
-  BadgeSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { temporadaEstadoLabel, temporadaEstadoBadgeVariante } from '@/components/talleres/labels'
+import { TemporadasClient } from '@/components/talleres/temporadas/temporadas-client'
+import { leerFiltros } from '@/components/talleres/temporadas/vista-temporadas'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -43,147 +34,85 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
+import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import {
-  loadTemporadas,
   loadDireccionesConTalleres,
-  type TemporadaRow,
+  loadPanelTemporadas,
+  loadTalleresDeDireccion,
 } from '@/lib/platform/talleres/temporadas'
-import { rutaTemporada, rutaTemporadaCrear } from '@/lib/platform/talleres/rutas'
 
 export const metadata = { title: 'Temporadas' }
 
-function formatFecha(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('es', { year: 'numeric', month: 'short', day: 'numeric' })
-  } catch {
-    return iso
-  }
+type Params = Record<string, string | string[] | undefined>
+
+interface PageProps {
+  readonly searchParams: Promise<Params>
 }
 
-function contarLabel(n: number, singular: string, plural: string): string {
-  return `${n} ${n === 1 ? singular : plural}`
+function primero(valor: string | string[] | undefined): string | undefined {
+  return Array.isArray(valor) ? valor[0] : valor
 }
 
-export default async function TemporadasPage() {
-  if (!isTalleresEnabled()) {
-    return (
-      <PaginaSistema titulo="Temporadas">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+/** The gate's informational card, as an element (not a component) so the page returns PaginaSistema itself. */
+function aviso(texto: string) {
+  return (
+    <PaginaSistema titulo="Temporadas">
+      <TarjetaSistema variante="outlined" className="p-6 text-center">
+        <TextoSistema variante="sutil">{texto}</TextoSistema>
+      </TarjetaSistema>
+    </PaginaSistema>
+  )
+}
+
+export default async function TemporadasPage({ searchParams }: PageProps) {
+  if (!isTalleresEnabled()) return aviso('El módulo de talleres está deshabilitado.')
 
   const supabase = await createSupabaseServerClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const { data: { user } } = await (supabase as any).auth.getUser()
-  if (!user) {
-    return (
-      <PaginaSistema titulo="Temporadas">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitas iniciar sesión.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+  if (!user) return aviso('Necesitas iniciar sesión.')
 
   const session = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
     capabilitySupabase: supabase,
   })
-  if (!session) {
-    return (
-      <PaginaSistema titulo="Temporadas">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+  if (!session) return aviso('No se pudo resolver tu sesión.')
+
+  const caps = session.capabilities.map((c) => c.key)
+  const puedeEditar =
+    caps.includes('talleres_crecimiento.director.write') ||
+    caps.includes('talleres_crecimiento.admin.manage')
+
+  const params = await searchParams
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const client: any = supabase
-  const [direcciones, rows] = await Promise.all([
+  await refrescarEstadosEdiciones(client)
+  const [direcciones, temporadas] = await Promise.all([
     loadDireccionesConTalleres(client),
-    loadTemporadas(client),
+    loadPanelTemporadas(client),
   ])
 
-  const puedeCrear = direcciones.some((d) => d.puedeEditar)
-
-  const rowsPorDireccion = new Map<string, TemporadaRow[]>()
-  for (const row of rows) {
-    const lista = rowsPorDireccion.get(row.dream_team_equipo_id)
-    if (lista) lista.push(row)
-    else rowsPorDireccion.set(row.dream_team_equipo_id, [row])
-  }
-
-  const grupos = direcciones
-    .map((direccion) => ({ direccion, temporadas: rowsPorDireccion.get(direccion.id) ?? [] }))
-    .filter((grupo) => grupo.temporadas.length > 0)
+  const direccionesCrear = await Promise.all(
+    direcciones
+      .filter((d) => d.puedeEditar)
+      .map(async (d) => ({ id: d.id, label: d.label, talleres: await loadTalleresDeDireccion(client, d.id) })),
+  )
 
   return (
-    <PaginaSistema
-      titulo="Temporadas"
-      descripcion="Qué talleres abren inscripción a la vez, por dirección."
-      acciones={
-        puedeCrear ? (
-          <Link href={rutaTemporadaCrear()}>
-            <BotonSistema type="button" variante="primario">
-              Crear Temporada
-            </BotonSistema>
-          </Link>
-        ) : undefined
-      }
-    >
-      {grupos.length === 0 ? (
-        <TarjetaSistema className="p-0">
-          <EstadoVacioSistema
-            icono={CalendarRange}
-            titulo="Tu dirección todavía no tiene temporadas"
-            subtitulo={puedeCrear ? 'Usa "Crear Temporada" para abrir la primera.' : undefined}
-          />
-        </TarjetaSistema>
-      ) : (
-        <div className="grid gap-6">
-          {grupos.map(({ direccion, temporadas }) => (
-            <section key={direccion.id} aria-labelledby={`direccion-${direccion.id}-heading`}>
-              <TituloSistema nivel={2} id={`direccion-${direccion.id}-heading`}>
-                {direccion.label}
-              </TituloSistema>
-              <TarjetaSistema className="mt-3 p-0">
-                <div className="divide-y divide-border">
-                  {temporadas.map((t) => (
-                    <Link
-                      key={t.id}
-                      href={rutaTemporada(t.id)}
-                      className="flex items-center gap-3 p-4 transition-colors hover:bg-accent"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="min-w-0 break-words font-medium text-foreground">{t.nombre}</span>
-                          <BadgeSistema variante={temporadaEstadoBadgeVariante(t.estado)} tamaño="sm">
-                            {temporadaEstadoLabel(t.estado)}
-                          </BadgeSistema>
-                        </div>
-                        <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                          {formatFecha(t.fecha_apertura)} → {formatFecha(t.fecha_cierre)}
-                          {' · '}
-                          {contarLabel(t.tallerCount, 'taller', 'talleres')}
-                          {' · '}
-                          {contarLabel(t.edicionCount, 'edición', 'ediciones')}
-                        </TextoSistema>
-                      </div>
-                      <ChevronRight className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-                    </Link>
-                  ))}
-                </div>
-              </TarjetaSistema>
-            </section>
-          ))}
-        </div>
-      )}
-    </PaginaSistema>
+    <TemporadasClient
+      temporadas={temporadas}
+      puedeEditar={puedeEditar}
+      direccionesCrear={direccionesCrear}
+      filtrosIniciales={leerFiltros({
+        vista: primero(params.vista),
+        atencion: primero(params.atencion),
+        direccion: primero(params.direccion),
+        q: primero(params.q),
+      })}
+      temporadaInicial={primero(params.temporada) ?? null}
+      crearInicial={primero(params.crear) === '1'}
+    />
   )
 }
