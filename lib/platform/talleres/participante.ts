@@ -383,6 +383,36 @@ export interface ParticipanteExplorarRow {
    * letting the RLS gate raise CUPO_LLENO after the fact.
    */
   readonly cupo_completo: boolean
+  /**
+   * R3a (odd/tasks/talleres-rediseno.md, S1) — what each Explorar card shows
+   * besides the date: the hora (`HH:MM`, recurrence_rule.start_time), the
+   * lugar (taller_ediciones.lugar, trimmed), the clases (sesiones_snapshot,
+   * null when 0), the cupo (talleres_cupo_edicion; null without a cupo), who
+   * the taller is for (talleres.genero_requerido) and whether the inscripción
+   * is approved right away (talleres.inscripcion_automatica).
+   */
+  readonly hora: string | null
+  readonly lugar: string | null
+  readonly clases: number | null
+  readonly cupo: CupoExplorar | null
+  readonly genero_requerido: 'Masculino' | 'Femenino' | null
+  readonly inscripcion_automatica: boolean
+}
+
+export interface CupoExplorar {
+  readonly total: number
+  readonly ocupados: number
+  readonly disponibles: number
+  readonly unidad: 'personas' | 'parejas'
+}
+
+/** `HH:MM` of recurrence_rule.start_time, as the avisos read it; null otherwise. */
+function horaDeRegla(regla: unknown): string | null {
+  if (!regla || typeof regla !== 'object') return null
+  const inicio = (regla as Record<string, unknown>).start_time
+  if (typeof inicio !== 'string') return null
+  const hora = /^(\d{2}):(\d{2})/.exec(inicio)
+  return hora ? `${hora[1]}:${hora[2]}` : null
 }
 
 /**
@@ -423,7 +453,9 @@ export async function loadParticipanteExplorar(
     .from('taller_ediciones')
     .select(
       `id, nombre_snapshot, tipo, link_type, estado, taller_id, cierre_inscripcion, fecha_inicio,
-       taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion, momento_envio_acceso)`,
+       lugar, recurrence_rule, sesiones_snapshot,
+       taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion, momento_envio_acceso,
+         genero_requerido, inscripcion_automatica)`,
     )
     .in('estado', ['abierto', 'en_curso'])
     .order('created_at', { ascending: false })
@@ -438,12 +470,17 @@ export async function loadParticipanteExplorar(
     taller_id: string
     cierre_inscripcion: string | null
     fecha_inicio?: string | null
+    lugar?: string | null
+    recurrence_rule?: unknown
+    sesiones_snapshot?: number | null
     taller: {
       slug: string
       nombre: string
       modalidad_default: 'periodo_general' | 'permanente_custom'
       descripcion: string | null
       momento_envio_acceso?: string | null
+      genero_requerido?: string | null
+      inscripcion_automatica?: boolean | null
     } | null
   }>
 
@@ -529,11 +566,20 @@ export async function loadParticipanteExplorar(
   // dedicated batched RPC). Reuses loadCupoEdicion's own best-effort
   // contract (never throws, degrades to null) instead of duplicating it.
   const cupoCompletoByEdicion = new Map<string, boolean>()
+  const cupoByEdicion = new Map<string, CupoExplorar>()
   const cupoResultados = await Promise.all(
     edicionIds.map(async (id) => ({ id, cupo: await loadCupoEdicion(client, id) })),
   )
   for (const { id, cupo } of cupoResultados) {
     cupoCompletoByEdicion.set(id, Boolean(cupo && cupo.cupo > 0 && cupo.disponibles <= 0))
+    if (cupo && cupo.cupo > 0) {
+      cupoByEdicion.set(id, {
+        total: cupo.cupo,
+        ocupados: cupo.ocupados,
+        disponibles: Math.max(0, cupo.disponibles),
+        unidad: cupo.unidad === 'parejas' ? 'parejas' : 'personas',
+      })
+    }
   }
 
   return ediciones.map((row) => {
@@ -556,6 +602,15 @@ export async function loadParticipanteExplorar(
       cierre_inscripcion: row.cierre_inscripcion ?? null,
       primera_clase: primeraClaseByEdicion.get(row.id) ?? row.fecha_inicio ?? null,
       cupo_completo: cupoCompletoByEdicion.get(row.id) ?? false,
+      hora: horaDeRegla(row.recurrence_rule),
+      lugar: typeof row.lugar === 'string' && row.lugar.trim() !== '' ? row.lugar.trim() : null,
+      clases: typeof row.sesiones_snapshot === 'number' && row.sesiones_snapshot > 0 ? row.sesiones_snapshot : null,
+      cupo: cupoByEdicion.get(row.id) ?? null,
+      genero_requerido:
+        row.taller?.genero_requerido === 'Masculino' || row.taller?.genero_requerido === 'Femenino'
+          ? row.taller.genero_requerido
+          : null,
+      inscripcion_automatica: row.taller?.inscripcion_automatica === true,
     }
   })
 }
