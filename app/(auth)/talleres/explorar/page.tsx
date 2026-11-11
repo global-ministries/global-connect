@@ -15,11 +15,17 @@
  * user, with any role or none. The page guard is `requireExplorarViewer`
  * (no `participation.read` requirement); the RLS layer confines what a
  * viewer can actually read/insert.
+ *
+ * T9 (odd/tasks/proximo-paso.md, L21–L23) — each row also carries the real
+ * estado of the viewer's own inscripción (loadParticipanteActiveTalleres), so
+ * the card and the confirmation say «inscrito» or «pendiente» truthfully. No
+ * instructional banner: the cards and the «Inscribirme» button speak.
  */
 
-import { PaginaSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
 
 import {
+  loadParticipanteActiveTalleres,
   loadParticipanteExplorar,
   requireExplorarViewer,
 } from '@/lib/platform/talleres/participante'
@@ -43,22 +49,27 @@ export default async function ExplorarTalleresPage() {
   // edición badges never show a stale STORED estado.
   await refrescarEstadosEdiciones(client)
 
-  const talleres = await loadParticipanteExplorar(ctx)
+  const [ediciones, inscripciones] = await Promise.all([
+    loadParticipanteExplorar(ctx),
+    loadParticipanteActiveTalleres(ctx),
+  ])
+  const estadoPorEdicion = new Map<string, 'pendiente' | 'aprobado'>()
+  for (const inscripcion of inscripciones) {
+    const estado = inscripcion.estado_inscripcion
+    if (estado === 'pendiente' || estado === 'aprobado') estadoPorEdicion.set(inscripcion.id, estado)
+  }
+  const talleres = ediciones.map((edicion) => ({
+    ...edicion,
+    estado_inscripcion: estadoPorEdicion.get(edicion.id) ?? null,
+  }))
 
   return (
     <PaginaSistema
       titulo="Explorar Talleres"
       regreso={{ href: '/dashboard', texto: 'Inicio' }}
+      descripcion="Talleres con inscripciones abiertas."
     >
       <div className="grid gap-4">
-        <TarjetaSistema variante="outlined" className="p-4 sm:p-5">
-          <TextoSistema variante="sutil">
-            Estos talleres están abiertos para inscripción. Tocá uno para
-            seleccionarlo; el botón &quot;Inscribirme&quot; aparece abajo a la
-            derecha. Si ya estás inscripto/a en uno, su tarjeta está
-            deshabilitada.
-          </TextoSistema>
-        </TarjetaSistema>
         <ExplorarTalleresClient talleres={talleres} />
       </div>
     </PaginaSistema>

@@ -124,8 +124,8 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
       screen.getByText(/Edición Septiembre 2026 · Pareja/),
     ).toBeInTheDocument()
 
-    // New (PR38): modality surfaced as a label.
-    expect(screen.getByText(/Modalidad: Periodo general/)).toBeInTheDocument()
+    // T9 (odd/tasks/proximo-paso.md, L21) — no internal modality jargon.
+    expect(screen.queryByText(/Modalidad/)).not.toBeInTheDocument()
 
     // New (PR38): period dates shown when both apertura + cierre exist.
     const inscrText = screen.getByText(/Inscripciones:.*—/)
@@ -163,7 +163,7 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
     expect(screen.queryByText(/inscripción hasta/i)).not.toBeInTheDocument()
   })
 
-  it('renders the permanente_custom modality label', () => {
+  it('never renders the permanente_custom modality jargon (T9)', () => {
     render(
       <ExplorarTalleresClient
         talleres={[
@@ -172,7 +172,17 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
       />,
     )
 
-    expect(screen.getByText(/Modalidad: Permanente custom/)).toBeInTheDocument()
+    expect(screen.queryByText(/Permanente custom/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Modalidad/)).not.toBeInTheDocument()
+  })
+
+  it('shows a date-only cierre_inscripcion as that same calendar day, in words (T9)', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[{ ...baseRow, id: 'ed-enero', cierre_inscripcion: '2027-01-03' }]}
+      />,
+    )
+    expect(screen.getByText('Inscripción hasta el 3 de enero de 2027')).toBeInTheDocument()
   })
 
   it('does NOT render the period dates block when fecha_apertura or fecha_cierre are null', () => {
@@ -191,8 +201,6 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
 
     // The period block is conditional on both dates being present.
     expect(screen.queryByText(/Inscripciones:.*—/)).not.toBeInTheDocument()
-    // Modality still shows even when dates are absent.
-    expect(screen.getByText(/Modalidad: Periodo general/)).toBeInTheDocument()
   })
 
   it('renders Individual for tipo=individual', () => {
@@ -212,7 +220,7 @@ describe('ExplorarTalleresClient — card content (PR38)', () => {
 
 // T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — when the
 // edición's cupo is full, the card shows "Cupo completo" and self-enroll
-// is disabled, exactly like the pre-existing "Ya inscripto" case.
+// is disabled, exactly like the pre-existing "Ya inscrito" case.
 describe('ExplorarTalleresClient — cupo completo (T6)', () => {
   it('disables the card and shows "Cupo completo" when cupo_completo is true', () => {
     render(
@@ -232,7 +240,7 @@ describe('ExplorarTalleresClient — cupo completo (T6)', () => {
       />,
     )
 
-    expect(screen.getByText('Ya inscripto')).toBeInTheDocument()
+    expect(screen.getByText('Ya inscrito')).toBeInTheDocument()
     expect(screen.queryByText('Cupo completo')).not.toBeInTheDocument()
   })
 
@@ -281,7 +289,7 @@ describe('ExplorarTalleresClient — couple enrollment through the partner picke
     fireEvent.click(await screen.findByTestId('explorar-fab'))
     fireEvent.click(await screen.findByText('pareja-inscrita'))
 
-    expect(await screen.findByText(/Inscripción enviada/)).toBeInTheDocument()
+    expect(await screen.findByText('Recibimos tu inscripción.')).toBeInTheDocument()
     expect(screen.queryByTestId('selector-pareja')).not.toBeInTheDocument()
   })
 
@@ -311,7 +319,7 @@ describe('ExplorarTalleresClient — couple enrollment through the partner picke
     await waitFor(() =>
       expect(inscribirseActionMock).toHaveBeenCalledWith({ edicionId: 'ed-ind', pareja: null }),
     )
-    expect(await screen.findByText(/Inscripción enviada/)).toBeInTheDocument()
+    expect(await screen.findByText('Recibimos tu inscripción.')).toBeInTheDocument()
     expect(screen.queryByTestId('selector-pareja')).not.toBeInTheDocument()
   })
 
@@ -332,5 +340,69 @@ describe('ExplorarTalleresClient — couple enrollment through the partner picke
 
     expect(await screen.findByText('Las inscripciones de esta edición están cerradas.')).toBeInTheDocument()
     expect(screen.queryByText(/EDICION_NO_ABIERTA/)).not.toBeInTheDocument()
+  })
+})
+
+// T9 (odd/tasks/proximo-paso.md, L21–L23) — the confirmation and the badge
+// follow the real estado of the person's inscripción (an edición with
+// inscripción automática approves it right away), and every text is neutral
+// Spanish (tú, never voseo).
+describe('ExplorarTalleresClient — estado real de la inscripción (T9)', () => {
+  const individual = { ...baseRow, id: 'ed-ind', tipo: 'individual' as const, link_type: null }
+
+  async function inscribirYRecargar(estado: 'aprobado' | 'pendiente') {
+    inscribirseActionMock.mockResolvedValue({ ok: true, inscripcionId: 'insc-9' })
+    const { rerender } = render(<ExplorarTalleresClient talleres={[individual]} />)
+    fireEvent.click(screen.getByLabelText(/Seleccionar Matrimonio sobre la Roca/))
+    fireEvent.click(await screen.findByTestId('explorar-fab'))
+    await waitFor(() => expect(inscribirseActionMock).toHaveBeenCalledTimes(1))
+    // The action revalidates /talleres/explorar: the page sends the rows again
+    // with the new inscripción and its estado.
+    rerender(
+      <ExplorarTalleresClient
+        talleres={[{ ...individual, ya_inscrito: true, estado_inscripcion: estado }]}
+      />,
+    )
+  }
+
+  it('approved right away: «¡Listo, ya estás inscrito!»', async () => {
+    await inscribirYRecargar('aprobado')
+    expect(await screen.findByText('¡Listo, ya estás inscrito!')).toBeInTheDocument()
+    expect(screen.queryByText(/Pendiente de aprobación/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Recibimos tu inscripción/)).not.toBeInTheDocument()
+  })
+
+  it('pending: «Recibimos tu inscripción. La coordinación la confirmará.»', async () => {
+    await inscribirYRecargar('pendiente')
+    expect(
+      await screen.findByText('Recibimos tu inscripción. La coordinación la confirmará.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('¡Listo, ya estás inscrito!')).not.toBeInTheDocument()
+  })
+
+  it('badge: «Ya inscrito» when approved, «Pendiente» when it waits for the coordinación', () => {
+    render(
+      <ExplorarTalleresClient
+        talleres={[
+          { ...baseRow, id: 'ed-a', ya_inscrito: true, estado_inscripcion: 'aprobado' as const },
+          { ...baseRow, id: 'ed-p', nombre: 'Próximo Paso', ya_inscrito: true, estado_inscripcion: 'pendiente' as const },
+        ]}
+      />,
+    )
+    expect(screen.getByText('Ya inscrito')).toBeInTheDocument()
+    expect(screen.getByText('Pendiente')).toBeInTheDocument()
+  })
+
+  it('renders no voseo nor «inscripto», and no modality jargon', () => {
+    const { container } = render(
+      <ExplorarTalleresClient
+        talleres={[
+          { ...baseRow, id: 'ed-x', ya_inscrito: true, modalidad: 'permanente_custom' as const },
+          { ...baseRow, id: 'ed-y', nombre: 'Próximo Paso' },
+        ]}
+      />,
+    )
+    const texto = container.textContent ?? ''
+    expect(texto).not.toMatch(/Tocá|inscripto|Permanente custom|Modalidad/)
   })
 })
