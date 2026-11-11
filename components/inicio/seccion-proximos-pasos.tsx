@@ -3,8 +3,12 @@
  * Próximo Paso sees it first and highlighted (S3); the steps decidirSecciones
  * returns are the only ones named. Dream Team is never a step: the way to
  * serve is Próximo Paso (S13).
+ *
+ * T8 of odd/tasks/proximo-paso.md: the page may pass the live Próximo Paso
+ * card (`proximoPaso`, design/proximo-paso 08–09); it takes the place of the
+ * static highlight, only where the highlight would show.
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
 
@@ -31,7 +35,16 @@ function ProximoPasoDestacado(): ReactElement {
   )
 }
 
-export function SeccionProximosPasos({ pasos, className }: { readonly pasos: PasoInicio[]; readonly className?: string }): ReactElement {
+export function SeccionProximosPasos({
+  pasos,
+  className,
+  proximoPaso,
+}: {
+  readonly pasos: PasoInicio[]
+  readonly className?: string
+  /** The Próximo Paso card; without it, the static highlight. */
+  readonly proximoPaso?: ReactNode
+}): ReactElement {
   const hechos = pasos.filter((p) => p.hecho).length
   const destacado = pasos.some((p) => p.destacado)
   const filas = pasos.filter((p) => !p.destacado)
@@ -39,7 +52,7 @@ export function SeccionProximosPasos({ pasos, className }: { readonly pasos: Pas
   return (
     <section aria-labelledby="inicio-proximos-pasos" className={className}>
       <EncabezadoSeccion id="inicio-proximos-pasos" titulo="Tus próximos pasos" />
-      {destacado && <ProximoPasoDestacado />}
+      {destacado && (proximoPaso ?? <ProximoPasoDestacado />)}
       <div className={CLASE_LISTA_INSET}>
         <div className="px-4 pt-3.5 pb-3">
           <p className="text-[15px] font-semibold text-foreground">
