@@ -15,9 +15,10 @@
  * (search, origen switch from md, «Seleccionar»), active chips, the
  * ListaResponsiva and its footer. Each row opens its DetalleInscripcion.
  *
- * «Avisar si se abre lugar» from the artboard is not shown: the
- * taller_avisame_lugar table is revoked for `authenticated`, so the count
- * is not readable from this screen.
+ * «Avisar si se abre lugar» from the artboard is not a filter card here: it
+ * names nobody (taller_avisame_lugar stays revoked for `authenticated`), so
+ * the page shows its count in the hero's summary line instead (R3j,
+ * cargar-esperan.ts).
  *
  * Selection mode («Seleccionar», only with aprobarInscripciones): the list
  * narrows to «Por aprobar»; pendientes with a confirmed identity toggle

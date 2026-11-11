@@ -455,7 +455,7 @@ describe('agregarInscripcion — kill switch, auth & validation', () => {
 })
 
 describe('agregarInscripcion — happy path & cupo lleno', () => {
-  it('inserts estado=pendiente and revalidates the edición page on success', async () => {
+  it('inserts estado=pendiente with origen admin and revalidates the edición page on success', async () => {
     const { insert } = setupInsertSelectSingle({ singleResult: { data: { id: 'i-1' }, error: null } })
     const result = await agregarInscripcion({
       tallerSlug: 'proximo-paso',
@@ -463,11 +463,14 @@ describe('agregarInscripcion — happy path & cupo lleno', () => {
       cohorteId: 'c-1',
       personaId: 'p-1',
     })
+    // R3i (odd/tasks/talleres-rediseno.md, S8): «Inscribir a alguien» is the
+    // team's path, so the row is labeled «Coordinación» (origen admin).
     expect(insert).toHaveBeenCalledWith({
       taller_id: 'e-1',
       cohorte_id: 'c-1',
       persona_principal_id: 'p-1',
       estado: 'pendiente',
+      origen: 'admin',
     })
     expect(result.ok).toBe(true)
     if (result.ok) expect(result.inscripcionId).toBe('i-1')

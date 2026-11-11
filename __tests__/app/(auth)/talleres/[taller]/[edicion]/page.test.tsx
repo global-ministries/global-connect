@@ -250,9 +250,12 @@ interface SetupOpts {
   extras?: Array<Record<string, unknown>> | null
   gruposInstanciados?: unknown[]
   panelMinimo?: unknown
+  /** Rows of talleres_avisame_lugar_contar; null makes the RPC fail. */
+  esperan?: Array<{ edicion_id: string; pendientes: number }> | null
 }
 
 let extrasSelect: jest.Mock
+let rpc: jest.Mock
 
 function setup(opts: SetupOpts): void {
   flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
@@ -262,8 +265,14 @@ function setup(opts: SetupOpts): void {
     opts.extras === null ? { data: null, error: { message: 'boom' } } : { data: opts.extras ?? [], error: null },
   )
   extrasSelect.mockReturnValue({ in: extrasIn })
+  rpc = jest.fn().mockResolvedValue(
+    opts.esperan === null
+      ? { data: null, error: { code: '42501', message: 'sin_permisos' } }
+      : { data: opts.esperan ?? [], error: null },
+  )
   createSupabaseServerClientMock.mockReset().mockResolvedValue({
     from: jest.fn(() => ({ select: extrasSelect })),
+    rpc,
     auth: {
       getUser: jest.fn().mockResolvedValue({
         data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
@@ -685,6 +694,39 @@ describe('EdicionDetallePage — hero', () => {
     const texto = extractText(findByType(await render(), TituloGrande)?.props.resumen)
     expect(texto).toMatch(/mínimo 10/)
     expect(texto).not.toMatch(/alcanzado/)
+  })
+
+  describe('«esperan un lugar» (R3j, S9)', () => {
+    it('loads the count with ONE talleres_avisame_lugar_contar call for this edición', async () => {
+      setup({ esperan: [{ edicion_id: 'e-1', pendientes: 3 }] })
+      await render()
+      const llamadas = rpc.mock.calls.filter(([nombre]) => nombre === 'talleres_avisame_lugar_contar')
+      expect(llamadas).toEqual([['talleres_avisame_lugar_contar', { p_edicion_ids: ['e-1'] }]])
+    })
+
+    it('adds «N esperan un lugar» to the summary line when N > 0', async () => {
+      setup({ esperan: [{ edicion_id: 'e-1', pendientes: 3 }] })
+      const element = await render()
+      expect(extractText(findByType(element, TituloGrande)?.props.resumen)).toMatch(/3 esperan un lugar/)
+      expect(extractText(findByType(element, 'header'))).toMatch(/3 esperan un lugar/)
+    })
+
+    it('says «1 espera un lugar» for one person', async () => {
+      setup({ esperan: [{ edicion_id: 'e-1', pendientes: 1 }] })
+      expect(extractText(findByType(await render(), TituloGrande)?.props.resumen)).toMatch(/1 espera un lugar/)
+    })
+
+    it('shows nothing for 0, for no row (not managed) and on an RPC error', async () => {
+      for (const esperan of [[{ edicion_id: 'e-1', pendientes: 0 }], [], null]) {
+        setup({ esperan })
+        expect(extractText(await render())).not.toMatch(/esper(a|an) un lugar/)
+      }
+    })
+
+    it('ignores a row of another edición', async () => {
+      setup({ esperan: [{ edicion_id: 'e-otra', pendientes: 5 }] })
+      expect(extractText(await render())).not.toMatch(/esper(a|an) un lugar/)
+    })
   })
 
   it('shows the borrador note only for a borrador', async () => {

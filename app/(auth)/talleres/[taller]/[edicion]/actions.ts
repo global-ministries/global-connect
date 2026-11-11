@@ -391,6 +391,9 @@ export async function agregarInscripcion(
       cohorte_id: input.cohorteId,
       persona_principal_id: input.personaId,
       estado: 'pendiente',
+      // R3i (odd/tasks/talleres-rediseno.md, S8): the team's own path is
+      // labeled «Coordinación»; talleres_inscribir_sobre_cupo does the same.
+      origen: 'admin',
     })
     .select('id')
     .single()
