@@ -470,3 +470,162 @@ export async function loadTemporadaDetalle(
     talleresDisponibles,
   }
 }
+
+// ─── R3b (odd/tasks/talleres-rediseno.md, S5) — /talleres/temporadas v2:
+// one list with a drawer per temporada ────────────────────────────────────
+//
+// The v2 screen (design/talleres-interior/26 and 27) shows every temporada
+// with its ediciones in the same page, so the drawer opens at once without a
+// round trip. Instead of one `loadTemporadaDetalle` per row, this batches:
+// the temporadas, ALL their non-cancelled ediciones (with the taller's own
+// minimo_inscritos and each inscription's estado), the dream_team_equipos
+// snapshot and the active régimen=temporada talleres — four queries in total,
+// whatever the number of temporadas. Membership and "Agregar taller"
+// candidates follow loadTemporadaDetalle's own rules (an edición here IS
+// membership; candidates are the temporada's own tree minus those). RLS still
+// decides what comes back.
+
+/** One edición of a temporada, as the v2 list and drawer show it. */
+export interface EdicionPanel {
+  readonly id: string
+  readonly tallerId: string
+  readonly tallerNombre: string
+  readonly tallerSlug: string
+  /** taller_ediciones.nombre_snapshot */
+  readonly nombre: string
+  readonly estado: EdicionDeTemporada['estado']
+  readonly fechaInicio: string | null
+  readonly fechaFin: string | null
+  /** Inscriptions still in play: every estado except no_aprobado and retirado. */
+  readonly inscritos: number
+  /** estado = 'aprobado' only — the unit talleres_minimo_aprobados counts. */
+  readonly aprobados: number
+  /** talleres.minimo_inscritos; null = no minimum. */
+  readonly minimo: number | null
+}
+
+export interface TemporadaPanel {
+  readonly id: string
+  readonly nombre: string
+  readonly estado: TemporadaRow['estado']
+  readonly fecha_apertura: string
+  readonly fecha_cierre: string
+  readonly dream_team_equipo_id: string
+  /** The owning dirección's org-chart label ('' when RLS hides that node). */
+  readonly direccionLabel: string
+  readonly ediciones: readonly EdicionPanel[]
+  /** régimen=temporada talleres of the dirección's own tree with no edición here yet. */
+  readonly talleresDisponibles: readonly TallerOption[]
+}
+
+/**
+ * The screen's "bajo el mínimo": an edición still receiving inscriptions
+ * (estado abierto) whose taller has a minimum its approved inscriptions do not
+ * reach yet. Looser than talleres_edicion_bajo_minimo (which only fires once
+ * the inscription closed) on purpose: the list warns BEFORE the cierre.
+ */
+export function edicionBajoMinimo(edicion: EdicionPanel): boolean {
+  return edicion.estado === 'abierto' && edicion.minimo !== null && edicion.aprobados < edicion.minimo
+}
+
+interface RawEdicionPanelRow {
+  readonly id: string
+  readonly temporada_id: string | null
+  readonly nombre_snapshot: string
+  readonly estado: EdicionDeTemporada['estado']
+  readonly fecha_inicio: string | null
+  readonly fecha_fin: string | null
+  readonly taller_id: string
+  readonly taller: {
+    readonly id: string
+    readonly nombre: string
+    readonly slug: string
+    readonly minimo_inscritos: number | null
+  } | null
+  readonly inscripciones: readonly { readonly estado: string }[] | null
+}
+
+const ESTADOS_FUERA = new Set(['no_aprobado', 'retirado'])
+
+export async function loadPanelTemporadas(client: AnyClient): Promise<readonly TemporadaPanel[]> {
+  const { data, error } = await client
+    .from('talleres_temporadas')
+    .select('id, nombre, estado, fecha_apertura, fecha_cierre, dream_team_equipo_id')
+    .order('fecha_apertura', { ascending: false })
+    .limit(100)
+
+  if (error || !data) return []
+  const temporadas = data as Array<Omit<TemporadaPanel, 'direccionLabel' | 'ediciones' | 'talleresDisponibles'>>
+  if (temporadas.length === 0) return []
+
+  const ids = temporadas.map((t) => t.id)
+  const [{ data: equiposData }, { data: edicionesData }, { data: talleresData }] = await Promise.all([
+    client.from('dream_team_equipos').select('id, label, parent_equipo_id'),
+    client
+      .from('taller_ediciones')
+      .select(
+        `id, temporada_id, nombre_snapshot, estado, fecha_inicio, fecha_fin, taller_id,
+         taller:talleres!taller_id (id, nombre, slug, minimo_inscritos),
+         inscripciones:taller_inscripciones (estado)`,
+      )
+      .in('temporada_id', ids)
+      .neq('estado', 'cancelado'),
+    client
+      .from('talleres')
+      .select('id, nombre, slug, dream_team_equipo_id')
+      .eq('estado', 'active')
+      .eq('regimen', 'temporada')
+      .order('nombre', { ascending: true })
+      .limit(500),
+  ])
+
+  const equipos = (equiposData ?? []) as Array<EquipoArbolRaw & { label: string }>
+  const labelPorId = new Map(equipos.map((e) => [e.id, e.label] as const))
+  const talleres = (talleresData ?? []) as Array<TallerOption & { dream_team_equipo_id: string | null }>
+
+  const edicionesPorTemporada = new Map<string, EdicionPanel[]>()
+  for (const row of (edicionesData ?? []) as RawEdicionPanelRow[]) {
+    if (!row.temporada_id) continue
+    const inscripciones = row.inscripciones ?? []
+    const edicion: EdicionPanel = {
+      id: row.id,
+      tallerId: row.taller?.id ?? row.taller_id,
+      tallerNombre: row.taller?.nombre ?? row.nombre_snapshot,
+      tallerSlug: row.taller?.slug ?? '',
+      nombre: row.nombre_snapshot,
+      estado: row.estado,
+      fechaInicio: row.fecha_inicio,
+      fechaFin: row.fecha_fin,
+      inscritos: inscripciones.filter((i) => !ESTADOS_FUERA.has(i.estado)).length,
+      aprobados: inscripciones.filter((i) => i.estado === 'aprobado').length,
+      minimo: typeof row.taller?.minimo_inscritos === 'number' ? row.taller.minimo_inscritos : null,
+    }
+    const lista = edicionesPorTemporada.get(row.temporada_id)
+    if (lista) lista.push(edicion)
+    else edicionesPorTemporada.set(row.temporada_id, [edicion])
+  }
+
+  const arbolPorEquipo = new Map<string, ReadonlySet<string>>()
+  const arbolDe = (equipoId: string): ReadonlySet<string> => {
+    let arbol = arbolPorEquipo.get(equipoId)
+    if (!arbol) {
+      arbol = idsDelArbol(equipos, equipoId)
+      arbolPorEquipo.set(equipoId, arbol)
+    }
+    return arbol
+  }
+
+  return temporadas.map((temporada) => {
+    const ediciones = edicionesPorTemporada.get(temporada.id) ?? []
+    const conEdicion = new Set(ediciones.map((e) => e.tallerId))
+    const arbol = arbolDe(temporada.dream_team_equipo_id)
+    return {
+      ...temporada,
+      direccionLabel: labelPorId.get(temporada.dream_team_equipo_id) ?? '',
+      ediciones,
+      talleresDisponibles: talleres
+        .filter((t) => t.dream_team_equipo_id !== null && arbol.has(t.dream_team_equipo_id) && !conEdicion.has(t.id))
+        .map(({ id, nombre, slug }) => ({ id, nombre, slug })),
+    }
+  })
+}
