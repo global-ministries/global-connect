@@ -33,6 +33,13 @@
  * puedeEditar (permisos.gestionarGrupos) gates every control; a read-only
  * viewer still sees the full list — nombre, capacidad, ocupación and each
  * facilitador's "Nombre Apellido · Rol" — with no edit affordance at all.
+ *
+ * R3f (odd/tasks/talleres-rediseno.md, S1, S2) — restyled after artboard
+ * design/talleres-reserva/12 #grupos: one card per grupo (name linking to
+ * its lista, facilitadores with their rol, «N de M lugares» with a bar and
+ * the free places, «Ver lista» and «Editar»), cards in a grid, and the
+ * extra-grupo form as the last card. Same actions and permissions as
+ * before; it lives in the edición screen's «Grupos» tab.
  */
 
 import Link from 'next/link'
@@ -40,13 +47,7 @@ import { useCallback, useState, useTransition, type FormEvent, type ReactElement
 import { useRouter } from 'next/navigation'
 import { Check, Pencil, UserMinus, X } from 'lucide-react'
 
-import {
-  BotonSistema,
-  InputSistema,
-  TarjetaSistema,
-  TextoSistema,
-  TituloSistema,
-} from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { ConfirmationModal } from '@/components/modals/ConfirmationModal'
 import { FacilitadorPicker, type ServidorPickerVM } from '@/components/talleres/facilitador-picker'
 import {
@@ -89,6 +90,48 @@ interface Feedback {
 }
 
 const ROL_LABELS: Record<string, string> = { lider: 'Líder', voluntario: 'Voluntario' }
+function iniciales(nombre: string): string {
+  return (
+    nombre
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0])
+      .join('')
+      .toUpperCase() || '·'
+  )
+}
+
+function Ocupacion({ ocupacion, capacidad }: { readonly ocupacion: number | null; readonly capacidad: number }): ReactElement {
+  const encima = typeof ocupacion === 'number' && ocupacion > capacidad
+  const libres = typeof ocupacion === 'number' ? capacidad - ocupacion : null
+  const ancho = typeof ocupacion === 'number' && capacidad > 0 ? Math.min(100, (ocupacion / capacidad) * 100) : 0
+  return (
+    <div className="grid gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+        <span>
+          <strong className="font-mono font-semibold tabular-nums text-foreground">{ocupacion === null ? '—' : ocupacion}</strong> de{' '}
+          <span className="font-mono tabular-nums">{capacidad}</span> lugares
+        </span>
+        {encima ? (
+          <span role="status" className="font-medium text-warning-text">
+            <span className="font-mono tabular-nums">{ocupacion - capacidad}</span> por encima de la capacidad
+          </span>
+        ) : (
+          libres !== null && (
+            <span>
+              <span className="font-mono tabular-nums">{libres}</span> {libres === 1 ? 'libre' : 'libres'}
+            </span>
+          )
+        )}
+      </div>
+      <div aria-hidden="true" className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <span className={encima ? 'block h-full bg-warning' : 'block h-full bg-brand'} style={{ width: `${ancho}%` }} />
+      </div>
+    </div>
+  )
+}
+
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
   return (
     [nombre, apellido].filter((p): p is string => typeof p === 'string' && p.length > 0).join(' ') ||
@@ -205,206 +248,174 @@ export function GruposSection({
   )
 
   return (
-    <TarjetaSistema className="space-y-6">
-      <div className="space-y-1">
-        <TituloSistema nivel={3}>Grupos de esta edición</TituloSistema>
-        <TextoSistema variante="muted">
-          Los grupos de esta edición, con sus facilitadores.
+    <section aria-labelledby="grupos-edicion-titulo" className="grid min-w-0 gap-4">
+      <div className="grid gap-1">
+        <h2 id="grupos-edicion-titulo" className="text-lg font-semibold text-foreground">
+          Grupos de esta edición
+        </h2>
+        <TextoSistema variante="muted" className="text-sm">
+          Cada grupo con su facilitadora y sus lugares.
         </TextoSistema>
       </div>
 
       {feedback && (
         <TextoSistema
           role={feedback.kind === 'error' ? 'alert' : 'status'}
-          className={feedback.kind === 'error' ? 'text-destructive' : undefined}
+          className={feedback.kind === 'error' ? 'text-danger-text' : undefined}
         >
           {feedback.message}
         </TextoSistema>
       )}
 
-      {grupos.length === 0 ? (
+      {grupos.length === 0 && (
         <TextoSistema variante="muted">Esta edición todavía no tiene grupos.</TextoSistema>
-      ) : (
-        <ul className="space-y-3">
-          {grupos.map((grupo) => (
-            <li
-              key={grupo.id}
-              className="rounded-2xl border border-border/60 p-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                {editandoId === grupo.id ? (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <input
-                      value={nombreEditado}
-                      onChange={(e) => setNombreEditado(e.target.value)}
-                      aria-label="Nombre del grupo"
-                      className="h-11 min-w-0 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
-                      autoFocus
-                    />
-                    <input
-                      type="number"
-                      min={1}
-                      value={capacidadEditada}
-                      onChange={(e) => setCapacidadEditada(e.target.value)}
-                      aria-label="Capacidad del grupo"
-                      className="h-11 w-24 rounded-xl border border-border bg-card/50 px-3 py-2 text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
-                    />
-                    <BotonSistema
-                      type="button"
-                      variante="ghost"
-                      soloIcono
-                      icono={Check}
-                      aria-label="Guardar grupo"
-                      title="Guardar grupo"
-                      onClick={() => guardarGrupo(grupo.id)}
-                    />
-                    <BotonSistema
-                      type="button"
-                      variante="ghost"
-                      soloIcono
-                      icono={X}
-                      aria-label="Cancelar edición del grupo"
-                      title="Cancelar"
-                      onClick={() => setEditandoId(null)}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <Link
-                      href={rutaGrupo(tallerSlug, edicionId, grupo.id)}
-                      className="font-medium text-foreground hover:underline"
-                    >
-                      {grupo.nombre}
-                    </Link>
-                    <TextoSistema variante="muted" className="text-sm">
-                      Capacidad {grupo.capacidad} · {grupo.estado}
-                    </TextoSistema>
-                    {grupo.ocupacion !== undefined && (
-                      <TextoSistema
-                        variante={
-                          typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                            ? undefined
-                            : 'muted'
-                        }
-                        className={
-                          typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                            ? 'text-sm font-medium text-warning-text'
-                            : 'text-sm'
-                        }
-                        role={
-                          typeof grupo.ocupacion === 'number' && grupo.ocupacion > grupo.capacidad
-                            ? 'status'
-                            : undefined
-                        }
-                      >
-                        {grupo.ocupacion === null ? '—' : grupo.ocupacion} / {grupo.capacidad}
-                        {typeof grupo.ocupacion === 'number' &&
-                          grupo.ocupacion > grupo.capacidad &&
-                          ` · ${grupo.ocupacion - grupo.capacidad} por encima de la capacidad`}
-                      </TextoSistema>
-                    )}
-                  </div>
-                )}
+      )}
 
-                {puedeEditar && editandoId !== grupo.id && (
-                  <BotonSistema
-                    type="button"
-                    variante="ghost"
-                    soloIcono
-                    icono={Pencil}
-                    aria-label={`Editar grupo ${grupo.nombre}`}
-                    title="Editar grupo"
-                    onClick={() => {
-                      setEditandoId(grupo.id)
-                      setNombreEditado(grupo.nombre)
-                      setCapacidadEditada(String(grupo.capacidad))
-                      setFeedback(null)
-                    }}
-                  />
-                )}
+      <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {grupos.map((grupo) => (
+          <article key={grupo.id} className="grid min-w-0 content-start gap-4 rounded-2xl border border-border/60 bg-card p-4 md:p-5">
+            {editandoId === grupo.id ? (
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]">
+                <InputSistema
+                  label="Nombre del grupo"
+                  value={nombreEditado}
+                  onChange={(e) => setNombreEditado(e.target.value)}
+                  autoFocus
+                />
+                <InputSistema
+                  label="Capacidad del grupo"
+                  type="number"
+                  min={1}
+                  value={capacidadEditada}
+                  onChange={(e) => setCapacidadEditada(e.target.value)}
+                />
+                <div className="flex gap-2 sm:col-span-2">
+                  <BotonSistema type="button" variante="outline" tamaño="sm" icono={X} onClick={() => setEditandoId(null)}>
+                    Cancelar
+                  </BotonSistema>
+                  <BotonSistema type="button" tamaño="sm" icono={Check} onClick={() => guardarGrupo(grupo.id)}>
+                    Guardar grupo
+                  </BotonSistema>
+                </div>
               </div>
+            ) : (
+              <h3 className="min-w-0 text-base font-semibold">
+                <Link
+                  href={rutaGrupo(tallerSlug, edicionId, grupo.id)}
+                  className="focus-ring block truncate rounded-sm text-foreground hover:underline"
+                >
+                  {grupo.nombre}
+                </Link>
+              </h3>
+            )}
 
-              <ul className="mt-3 grid gap-1">
-                {grupo.facilitadores.map((f) => (
-                  <li key={f.id} className="flex items-center justify-between gap-2">
-                    <TextoSistema tamaño="sm">
-                      {nombreCompleto(f.nombre, f.apellido)} · {ROL_LABELS[f.rol] ?? f.rol}
-                    </TextoSistema>
+            <ul className="grid gap-2">
+              {grupo.facilitadores.map((f) => {
+                const nombre = nombreCompleto(f.nombre, f.apellido)
+                return (
+                  <li key={f.id} className="flex min-w-0 items-center gap-3">
+                    <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-brand-tint text-xs font-semibold text-brand-text">
+                      {iniciales(nombre)}
+                    </span>
+                    <span className="grid min-w-0 flex-1">
+                      <span className="truncate text-sm font-medium text-foreground">{nombre}</span>
+                      <span className="text-xs text-muted-foreground">{ROL_LABELS[f.rol] ?? f.rol}</span>
+                    </span>
                     {puedeEditar && (
                       <BotonSistema
                         type="button"
                         variante="ghost"
                         soloIcono
                         icono={UserMinus}
-                        aria-label={`Quitar a ${nombreCompleto(f.nombre, f.apellido)} del grupo`}
+                        aria-label={`Quitar a ${nombre} del grupo`}
                         title="Quitar del grupo"
                         onClick={() =>
-                          setConfirmandoQuitar({
-                            grupoId: grupo.id,
-                            facilitadorId: f.id,
-                            nombre: nombreCompleto(f.nombre, f.apellido),
-                          })
+                          setConfirmandoQuitar({ grupoId: grupo.id, facilitadorId: f.id, nombre })
                         }
                       />
                     )}
                   </li>
-                ))}
-                {grupo.facilitadores.length === 0 && (
-                  <TextoSistema variante="sutil" tamaño="sm">
-                    Sin facilitadores todavía.
-                  </TextoSistema>
-                )}
-              </ul>
-
-              {puedeEditar && servidores.length > 0 && (
-                <FacilitadorPicker
-                  servidores={servidores}
-                  onAgregar={(personaId, rol) =>
-                    agregarFacilitadorGrupo({ tallerSlug, edicionId, grupoId: grupo.id, personaId, rol })
-                  }
-                  onAgregado={() => router.refresh()}
-                  onError={(message) => setFeedback({ kind: 'error', message })}
-                />
+                )
+              })}
+              {grupo.facilitadores.length === 0 && (
+                <li className="text-sm font-medium text-warning-text">Sin facilitadora todavía.</li>
               )}
-            </li>
-          ))}
-        </ul>
-      )}
+            </ul>
 
-      {/* "Agregar un grupo extra" — the declared exception (renamed from
-          "Crear grupo" in T11, flow audit — one vocabulary: the grupos in
-          this list already come from the taller's plantilla, this is the
-          one that doesn't): an extra grupo only for this edición, never
-          touching the taller's plantilla. */}
-      {puedeEditar && (
-        <div className="border-t border-border/60 pt-4">
-          <TextoSistema variante="muted" className="mb-2 block text-sm">
-            Agrega un grupo extra sólo para esta edición — no cambia la plantilla del taller. Genera
-            sus clases semanales al crearse (1 semana = 1 clase).
-          </TextoSistema>
-          <form onSubmit={crearGrupo} className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-            <InputSistema
-              label="Nombre"
-              value={nombreNuevo}
-              onChange={(e) => setNombreNuevo(e.target.value)}
-              placeholder="Grupo Alfa"
-              required
-            />
-            <InputSistema
-              label="Capacidad"
-              type="number"
-              min={1}
-              value={capacidadNueva}
-              onChange={(e) => setCapacidadNueva(e.target.value)}
-              placeholder="12"
-              required
-            />
-            <BotonSistema type="submit" cargando={creating} disabled={!nombreNuevo.trim() || !capacidadNueva}>
-              Agregar un grupo extra
-            </BotonSistema>
-          </form>
-        </div>
-      )}
+            <Ocupacion ocupacion={grupo.ocupacion} capacidad={grupo.capacidad} />
+
+            {puedeEditar && servidores.length > 0 && (
+              <FacilitadorPicker
+                servidores={servidores}
+                onAgregar={(personaId, rol) =>
+                  agregarFacilitadorGrupo({ tallerSlug, edicionId, grupoId: grupo.id, personaId, rol })
+                }
+                onAgregado={() => router.refresh()}
+                onError={(message) => setFeedback({ kind: 'error', message })}
+              />
+            )}
+
+            <div className="flex flex-wrap gap-2 border-t border-border/60 pt-3">
+              <BotonSistema asChild variante="outline" tamaño="sm">
+                <Link href={rutaGrupo(tallerSlug, edicionId, grupo.id)}>Ver lista</Link>
+              </BotonSistema>
+              {puedeEditar && editandoId !== grupo.id && (
+                <BotonSistema
+                  type="button"
+                  variante="ghost"
+                  tamaño="sm"
+                  icono={Pencil}
+                  aria-label={`Editar grupo ${grupo.nombre}`}
+                  onClick={() => {
+                    setEditandoId(grupo.id)
+                    setNombreEditado(grupo.nombre)
+                    setCapacidadEditada(String(grupo.capacidad))
+                    setFeedback(null)
+                  }}
+                >
+                  Editar
+                </BotonSistema>
+              )}
+            </div>
+          </article>
+        ))}
+
+        {/* "Agregar un grupo extra" — the declared exception (renamed from
+            "Crear grupo" in T11, flow audit — one vocabulary: the grupos in
+            this list already come from the taller's plantilla, this is the
+            one that doesn't): an extra grupo only for this edición, never
+            touching the taller's plantilla. */}
+        {puedeEditar && (
+          <article className="grid min-w-0 content-start gap-3 rounded-2xl border border-dashed border-border bg-card p-4 md:p-5">
+            <h3 className="text-base font-semibold text-foreground">Grupo extra</h3>
+            <TextoSistema variante="muted" className="block text-sm">
+              Agrega un grupo extra sólo para esta edición — no cambia la plantilla del taller. Genera
+              sus clases semanales al crearse (1 semana = 1 clase).
+            </TextoSistema>
+            <form onSubmit={crearGrupo} className="grid gap-3">
+              <InputSistema
+                label="Nombre"
+                value={nombreNuevo}
+                onChange={(e) => setNombreNuevo(e.target.value)}
+                placeholder="Grupo 4"
+                required
+              />
+              <InputSistema
+                label="Capacidad"
+                type="number"
+                min={1}
+                value={capacidadNueva}
+                onChange={(e) => setCapacidadNueva(e.target.value)}
+                placeholder="12"
+                required
+              />
+              <BotonSistema type="submit" variante="outline" cargando={creating} disabled={!nombreNuevo.trim() || !capacidadNueva}>
+                Agregar un grupo extra
+              </BotonSistema>
+            </form>
+          </article>
+        )}
+      </div>
 
       <ConfirmationModal
         isOpen={confirmandoQuitar !== null}
@@ -414,6 +425,6 @@ export function GruposSection({
         message={confirmandoQuitar ? `¿Quitar a ${confirmandoQuitar.nombre} de este grupo?` : ''}
         isLoading={quitando}
       />
-    </TarjetaSistema>
+    </section>
   )
 }

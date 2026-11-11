@@ -25,14 +25,15 @@
  *
  * RED (pre-fix): this test fails because the stub's `taller_inscripciones`
  * row (persona_principal embed null, exactly what RLS returns for a
- * coordinador) gets dropped, so EstadoVacioSistema renders instead of
- * TablaInscripciones.
+ * coordinador) gets dropped, so the list renders empty.
  * GREEN (post-fix): the row survives with a degraded '—' name.
+ *
+ * R3f (odd/tasks/talleres-rediseno.md): the list is EdicionCliente now (it
+ * replaced TablaInscripciones); the row must reach its `inscritas`.
  */
 
 import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
-import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
+import { EdicionCliente } from '@/components/talleres/edicion/edicion-cliente'
 import { PERMISOS_TALLER_ALL_FALSE } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
@@ -71,6 +72,10 @@ jest.mock('@/components/talleres/open-edicion-button', () => ({
 
 jest.mock('@/components/talleres/grupos-section', () => ({
   GruposSection: () => null,
+}))
+
+jest.mock('@/components/talleres/edicion/edicion-cliente', () => ({
+  EdicionCliente: () => null,
 }))
 
 // `lib/platform/talleres/admin-inscripciones` is intentionally NOT
@@ -254,9 +259,10 @@ describe('EdicionDetallePage — Inscritos, real loadAdminInscripciones, usuario
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
 
-    expect(findByType(element, EstadoVacioSistema)).toBeNull()
-    const tabla = findByType(element, TablaInscripciones)
-    expect(tabla).not.toBeNull()
-    expect((tabla!.props.rows as unknown[]).length).toBe(1)
+    const cliente = findByType(element, EdicionCliente)
+    expect(cliente).not.toBeNull()
+    const inscritas = cliente!.props.inscritas as Array<{ id: string }>
+    expect(inscritas).toHaveLength(1)
+    expect(inscritas[0].id).toBe('i-1')
   })
 })

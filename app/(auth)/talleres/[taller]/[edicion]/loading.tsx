@@ -1,64 +1,45 @@
 /**
- * T4 (odd/tasks/talleres-consolidar-pantallas.md) — loading skeleton for
- * /talleres/[taller]/[edicion]. Mirrors the real page's four sections per
- * docs/talleres-de-punta-a-punta.md §9's `loading.tsx` pattern (imitate the
- * real shape, not a spinner): the cabecera card, the inscritos table
- * shape, a grupos card, and the ventana card.
+ * Loading skeleton for /talleres/[taller]/[edicion]. R3f
+ * (odd/tasks/talleres-rediseno.md): mirrors the v2 page (artboards
+ * design/talleres-reserva/12 and design/talleres-interior/24) — the hero
+ * with its summary, the tabs, the attention metrics and the list rows —
+ * so nothing jumps when the data arrives.
  */
-import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
 
 export default function LoadingEdicionDetalle() {
   return (
-    <PaginaSistema titulo="Edición">
-      <div className="space-y-6">
-        {/* Cabecera */}
-        <TarjetaSistema variante="outlined" className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 space-y-2">
-              <SkeletonSistema ancho="160px" alto="14px" />
-              <SkeletonSistema ancho="70%" alto="12px" />
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <SkeletonSistema ancho="80px" alto="24px" className="rounded-full" />
-              <SkeletonSistema ancho="140px" alto="36px" className="rounded-xl" />
-            </div>
-          </div>
-        </TarjetaSistema>
-
-        {/* Inscritos */}
-        <div>
-          <SkeletonSistema ancho="100px" alto="24px" className="mb-3" />
-          <TarjetaSistema variante="outlined" className="p-0">
-            <div className="divide-y divide-border">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between gap-4 p-4">
-                  <SkeletonSistema ancho="40%" alto="14px" />
-                  <SkeletonSistema ancho="70px" alto="20px" className="rounded-full" />
-                </div>
-              ))}
-            </div>
-          </TarjetaSistema>
+    <PaginaSistema>
+      <div role="status" aria-label="Cargando la edición" className="grid gap-6">
+        {/* Hero */}
+        <div className="grid gap-2">
+          <SkeletonSistema ancho="min(420px,80%)" alto="28px" />
+          <SkeletonSistema ancho="min(560px,95%)" alto="16px" />
+          <SkeletonSistema ancho="min(320px,70%)" alto="14px" />
         </div>
 
-        {/* Grupos */}
-        <TarjetaSistema variante="outlined" className="p-4">
-          <SkeletonSistema ancho="100px" alto="18px" className="mb-3" />
-          <SkeletonSistema ancho="100%" alto="40px" className="rounded-xl" />
-        </TarjetaSistema>
+        {/* Tabs */}
+        <SkeletonSistema ancho="220px" alto="40px" className="rounded-xl" />
 
-        {/* Ventana */}
-        <div>
-          <SkeletonSistema ancho="100px" alto="24px" className="mb-3" />
-          <TarjetaSistema variante="outlined" className="p-4">
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="space-y-1">
-                  <SkeletonSistema ancho="60%" alto="10px" />
-                  <SkeletonSistema ancho="80%" alto="14px" />
-                </div>
-              ))}
+        {/* Necesita atención */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[...Array(3)].map((_, i) => (
+            <SkeletonSistema key={i} ancho="100%" alto="88px" className="rounded-2xl" />
+          ))}
+        </div>
+
+        {/* Inscritas */}
+        <div className="overflow-hidden rounded-2xl bg-card md:border md:border-border/60">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3 border-b border-border/60 px-4 py-3 last:border-b-0">
+              <SkeletonSistema ancho="40px" alto="40px" className="shrink-0 rounded-full" />
+              <div className="grid flex-1 gap-1.5">
+                <SkeletonSistema ancho="45%" alto="14px" />
+                <SkeletonSistema ancho="30%" alto="12px" />
+              </div>
+              <SkeletonSistema ancho="80px" alto="20px" className="rounded-full" />
             </div>
-          </TarjetaSistema>
+          ))}
         </div>
       </div>
     </PaginaSistema>
