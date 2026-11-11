@@ -8,6 +8,11 @@
  * client-side from `servidores` (talleres_servidores_del_taller), never
  * a free-text search and never talleres_buscar_personas (that RPC stays
  * for Dream Team's own servidor assignment, out of scope here).
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, L10) — the grupo actions (agregar,
+ * editar, desactivar, facilitadores) live behind «Editar» (aria-pressed); the
+ * «Sin servidores activos» warning is gone (Equipo says it once) and only a
+ * short hint remains inside the edit mode.
  */
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
@@ -77,6 +82,11 @@ beforeEach(() => {
   refreshMock.mockReset()
 })
 
+/** Turns on the «Editar» mode of the section. */
+function editar(): void {
+  fireEvent.click(screen.getByRole('button', { name: 'Editar plantilla de grupos' }))
+}
+
 describe('PlantillaGruposSection — rendering', () => {
   it('lists grupos with nombre, capacidad and facilitadores', () => {
     render(<PlantillaGruposSection {...baseProps()} />)
@@ -105,6 +115,7 @@ describe('PlantillaGruposSection — rendering', () => {
 describe('PlantillaGruposSection — read-only viewer', () => {
   it('shows no Agregar grupo, edit, or facilitador picker controls', () => {
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: false })} />)
+    expect(screen.queryByRole('button', { name: /editar plantilla/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /agregar grupo/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /editar grupo/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
@@ -112,9 +123,24 @@ describe('PlantillaGruposSection — read-only viewer', () => {
   })
 })
 
+describe('PlantillaGruposSection — modo editar (R3k)', () => {
+  it('shows no grupo actions until «Editar» is pressed, even for an editor', () => {
+    render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    const boton = screen.getByRole('button', { name: 'Editar plantilla de grupos' })
+    expect(boton).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: /agregar grupo|editar grupo|desactivar|quitar/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
+    fireEvent.click(boton)
+    expect(boton).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^agregar grupo$/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('combobox', { name: /^servidor$/i })).toHaveLength(2)
+  })
+})
+
 describe('PlantillaGruposSection — editor: facilitador picker is bounded', () => {
   it('offers an empty placeholder plus the servidores prop as options, never a free-text search', () => {
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
     // g-2 has no facilitadores yet, so nobody is excluded from its picker.
     const options = within(pickers[1]!).getAllByRole('option').map((o) => o.textContent)
@@ -124,23 +150,27 @@ describe('PlantillaGruposSection — editor: facilitador picker is bounded', () 
 
   it('excludes a grupo\'s own facilitadores from its picker options', () => {
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
     // g-1 already has Ana Gómez (p-1) as a facilitador.
     const options = within(pickers[0]!).getAllByRole('option').map((o) => o.textContent)
     expect(options).toEqual(['Elige un servidor…', 'Carlos Ruiz'])
   })
 
-  it('shows the "Sin servidores activos" empty state with a link to Servidores when there are none', () => {
+  it('never repeats «Sin servidores activos» (Equipo says it); in edit mode a short hint replaces the picker', () => {
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true, servidores: [] })} />)
-    expect(screen.getByText(/Sin servidores activos en este equipo/i)).toBeInTheDocument()
-    const link = screen.getByRole('link', { name: /servidores/i })
-    expect(link).toHaveAttribute('href', '/admin/dream-team/servidores')
+    expect(screen.queryByText(/Sin servidores activos/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    editar()
+    expect(screen.queryByText(/Sin servidores activos/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Para agregar facilitadores, primero asigna servidores al equipo.')).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: /^servidor$/i })).not.toBeInTheDocument()
   })
 
   it('adds a facilitador with the picked persona and rol', async () => {
     agregarFacilitadorMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const pickers = screen.getAllByRole('combobox', { name: /^servidor$/i })
     fireEvent.change(pickers[1]!, { target: { value: 'p-2' } }) // grupo g-2's picker
     const rolSelects = screen.getAllByRole('combobox', { name: /^rol$/i })
@@ -163,6 +193,7 @@ describe('PlantillaGruposSection — editor: facilitador picker is bounded', () 
       message: 'Esa persona no es un servidor activo de este taller. Asígnala primero en Dream Team → Servidores.',
     })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.change(screen.getAllByRole('combobox', { name: /^servidor$/i })[0]!, { target: { value: 'p-2' } })
     fireEvent.click(screen.getAllByRole('button', { name: /agregar facilitador/i })[0]!)
 
@@ -176,6 +207,7 @@ describe('PlantillaGruposSection — editor: quitar facilitador', () => {
   it('asks for confirmation, then removes the facilitador and refreshes', async () => {
     quitarFacilitadorMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.click(screen.getByRole('button', { name: /quitar a ana gómez del grupo/i }))
 
     // Not called yet — the confirm step comes first.
@@ -192,6 +224,7 @@ describe('PlantillaGruposSection — editor: agregar grupo', () => {
   it('opens a dialog from the heading action and adds a grupo', async () => {
     crearPlantillaGrupoMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.click(screen.getByRole('button', { name: /^agregar grupo$/i }))
     fireEvent.change(screen.getByLabelText(/nombre del nuevo grupo/i), { target: { value: 'Grupo Gamma' } })
     fireEvent.change(screen.getByLabelText(/capacidad del nuevo grupo/i), { target: { value: '8' } })
@@ -212,6 +245,7 @@ describe('PlantillaGruposSection — editor: agregar grupo', () => {
       message: 'No tienes permisos para hacer este cambio.',
     })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.click(screen.getByRole('button', { name: /^agregar grupo$/i }))
     fireEvent.change(screen.getByLabelText(/nombre del nuevo grupo/i), { target: { value: 'Grupo Gamma' } })
     fireEvent.change(screen.getByLabelText(/capacidad del nuevo grupo/i), { target: { value: '8' } })
@@ -224,6 +258,7 @@ describe('PlantillaGruposSection — editor: editar grupo en su lugar', () => {
   it('edits nombre and capacidad in place', async () => {
     editarPlantillaGrupoMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.click(screen.getAllByRole('button', { name: /editar grupo/i })[0]!)
     const nombreInput = screen.getByDisplayValue('Grupo Alfa')
     fireEvent.change(nombreInput, { target: { value: 'Grupo Alfa (renombrado)' } })
@@ -242,6 +277,7 @@ describe('PlantillaGruposSection — editor: activar/desactivar', () => {
   it('deactivates an active grupo', async () => {
     toggleActivoPlantillaGrupoMock.mockResolvedValue({ ok: true })
     render(<PlantillaGruposSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const toggles = screen.getAllByRole('button', { name: /desactivar|activar/i })
     fireEvent.click(toggles[0]!)
     expect(toggleActivoPlantillaGrupoMock).toHaveBeenCalledWith({

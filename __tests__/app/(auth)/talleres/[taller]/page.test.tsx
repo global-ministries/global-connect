@@ -28,6 +28,11 @@
  * ediciones list, «Abrir edición» and the side column into components of
  * components/talleres/taller/. This RSC test checks what the page hands
  * them (props), and __tests__/components/talleres/taller/ renders them.
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, L10) — the configuration form left
+ * this page for /talleres/[taller]/configuracion (its own test in
+ * ./configuracion/page.test.tsx); the old anchor is redirected there, and
+ * «Pasos para abrir una edición» only shows when it still helps.
  */
 
 import TallerDetallePage from '@/app/(auth)/talleres/[taller]/page'
@@ -44,6 +49,7 @@ import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcio
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
+import { RedirigirAnclaConfiguracion } from '@/components/talleres/taller/redirigir-configuracion'
 import { PaginaSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
@@ -644,73 +650,18 @@ describe('TallerDetallePage — permission wiring', () => {
   })
 
   // T1 (odd/tasks/proximo-paso.md, S1)
-  it('passes ancla_ediciones to ConfiguracionTaller and OpenEdicionForm', async () => {
+  it('passes ancla_ediciones to OpenEdicionForm', async () => {
     setup({
       permisos: { editarTaller: true, abrirEdicion: true },
       taller: { ...TALLER, regimen: 'cadencia', intervalo_ediciones_dias: null, ancla_ediciones: 'primer_domingo_mes' },
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, ConfiguracionTaller)?.props.anclaEdiciones).toBe('primer_domingo_mes')
     expect(formulario(element)?.props.anclaEdiciones).toBe('primer_domingo_mes')
   })
 
-  // T2b (odd/tasks/proximo-paso.md, L6.2)
-  it('passes inscripcion_automatica to ConfiguracionTaller', async () => {
-    setup({ permisos: { editarTaller: true }, taller: { ...TALLER, inscripcion_automatica: true } })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, ConfiguracionTaller)?.props.inscripcionAutomatica).toBe(true)
-  })
-
-  it('passes every configuration field verbatim to ConfiguracionTaller', async () => {
-    setup({
-      permisos: { editarTaller: true },
-      taller: {
-        ...TALLER,
-        tipo: 'pareja',
-        vinculo: 'novios',
-        regimen: 'cadencia',
-        cierre_inscripcion_offset_dias: -3,
-        intervalo_ediciones_dias: 28,
-        clases_minimas_para_completar: 6,
-        minimo_inscritos: 12,
-        permite_recuperar_clases: false,
-        cadencia_dias: 14,
-        duracion_minutos: 75,
-      },
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    const config = findByType(element, ConfiguracionTaller)
-    expect(config?.props).toEqual({
-      tallerId: 't-1',
-      tallerSlug: 'matrimonio-sobre-la-roca',
-      tipo: 'pareja',
-      vinculo: 'novios',
-      regimen: 'cadencia',
-      cierreInscripcionOffsetDias: -3,
-      intervaloEdicionesDias: 28,
-      anclaEdiciones: null,
-      clasesMinimasParaCompletar: 6,
-      minimoInscritos: 12,
-      permiteRecuperarClases: false,
-      cadenciaDias: 14,
-      duracionMinutos: 75,
-      puedeEditar: true,
-    })
-  })
-
-  // T9 (odd/tasks/talleres-reserva-publica.md) — mínimo and recuperar come
-  // from the loader now; a row without them reads «sin mínimo» and «sí».
-  it('passes minimoInscritos null and permiteRecuperarClases true when the row has neither', async () => {
-    setup({ permisos: { editarTaller: true } })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await TallerDetallePage(params())) as any
-    const config = findByType(element, ConfiguracionTaller)
-    expect(config?.props.minimoInscritos).toBeNull()
-    expect(config?.props.permiteRecuperarClases).toBe(true)
-  })
+  // R3k — the configuration fields go to /talleres/[taller]/configuracion
+  // now (./configuracion/page.test.tsx); this page no longer mounts the form.
 
   it('passes gruposPlantillaActivos as the count of ACTIVE plantilla grupos', async () => {
     setup({
@@ -862,27 +813,66 @@ describe('TallerDetallePage — T4: ?creadas=N notice', () => {
 // capacity that gates the plantilla edit controls). R3d: it sits in the side
 // column (PasosAbrirEdicion; its rendering is in partes-taller.test.tsx).
 describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
+  // R3k (L10) — the checklist only helps before the first open edición: it
+  // shows when no edición is abierta or en curso AND some step is pending.
+  const SIN_ACTIVAS: TallerDetalle = {
+    ...TALLER,
+    ediciones: [{ ...TALLER.ediciones[0]!, id: 'e-0', estado: 'cerrado' }],
+  }
+  const CLASE = { id: 'c-1', numero: 1, tema: 'Sígueme', activo: true }
+  const GRUPO = { id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] }
+
   function pasos(element: unknown): Record<string, boolean> {
     const lista = findByType(element, PasosAbrirEdicion)?.props.pasos as { etiqueta: string; listo: boolean }[]
     return Object.fromEntries(lista.map((p) => [p.etiqueta, p.listo]))
   }
 
-  it('shows the checklist when editarTaller is granted', async () => {
-    setup({ permisos: { editarTaller: true } })
+  it('shows the checklist with editarTaller, no active edición and a pending step', async () => {
+    setup({ permisos: { editarTaller: true }, taller: SIN_ACTIVAS })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, PasosAbrirEdicion)).not.toBeNull()
   })
 
   it('hides the checklist when editarTaller is denied', async () => {
-    setup({ permisos: { editarTaller: false } })
+    setup({ permisos: { editarTaller: false }, taller: SIN_ACTIVAS })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PasosAbrirEdicion)).toBeNull()
+  })
+
+  it('hides the checklist while an edición is abierta, even with pending steps', async () => {
+    setup({ permisos: { editarTaller: true }, servidores: [], plantillaClases: [], plantillaGrupos: [] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PasosAbrirEdicion)).toBeNull()
+  })
+
+  it('hides the checklist while an edición is en curso', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      taller: { ...TALLER, ediciones: [{ ...TALLER.ediciones[0]!, estado: 'en_curso' }] },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, PasosAbrirEdicion)).toBeNull()
+  })
+
+  it('hides the checklist when every step is Listo', async () => {
+    setup({
+      permisos: { editarTaller: true },
+      taller: SIN_ACTIVAS,
+      servidores: [SERVIDOR_LIDER],
+      plantillaClases: [CLASE],
+      plantillaGrupos: [GRUPO],
+    })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, PasosAbrirEdicion)).toBeNull()
   })
 
   it('marks every step Pendiente when there is no equipo, clase or grupo', async () => {
-    setup({ permisos: { editarTaller: true }, servidores: [], plantillaClases: [], plantillaGrupos: [] })
+    setup({ permisos: { editarTaller: true }, taller: SIN_ACTIVAS, servidores: [], plantillaClases: [], plantillaGrupos: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(pasos(element)).toEqual({
@@ -892,27 +882,29 @@ describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
     })
   })
 
-  it('marks each step Listo with an active servidor, an active clase and an active grupo', async () => {
+  it('marks a step Listo with an active servidor and an active clase, the missing grupo Pendiente', async () => {
     setup({
       permisos: { editarTaller: true },
+      taller: SIN_ACTIVAS,
       servidores: [SERVIDOR_LIDER],
-      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: true }],
-      plantillaGrupos: [{ id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: true, facilitadores: [] }],
+      plantillaClases: [CLASE],
+      plantillaGrupos: [],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
     expect(pasos(element)).toEqual({
       'Equipo del nodo': true,
       'Plantilla de clases': true,
-      'Plantilla de grupos': true,
+      'Plantilla de grupos': false,
     })
   })
 
   it('does not count inactive clases or grupos as Listo', async () => {
     setup({
       permisos: { editarTaller: true },
-      plantillaClases: [{ id: 'c-1', numero: 1, tema: 'Sígueme', activo: false }],
-      plantillaGrupos: [{ id: 'g-1', nombre: 'Grupo Alfa', orden: 1, capacidad: 12, activo: false, facilitadores: [] }],
+      taller: SIN_ACTIVAS,
+      plantillaClases: [{ ...CLASE, activo: false }],
+      plantillaGrupos: [{ ...GRUPO, activo: false }],
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
@@ -922,11 +914,11 @@ describe('TallerDetallePage — T11: Pasos para abrir una edición', () => {
 
   // T4 — the final step names the ONE question «Abrir edición» will ask, by régimen.
   it('names the temporada question for régimen=temporada and the primera clase for régimen=cadencia', async () => {
-    setup({ permisos: { editarTaller: true }, taller: { ...TALLER, regimen: 'temporada' } })
+    setup({ permisos: { editarTaller: true }, taller: { ...SIN_ACTIVAS, regimen: 'temporada' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     let element = (await TallerDetallePage(params())) as any
     expect(findByType(element, PasosAbrirEdicion)?.props.textoFinal).toBe('Crear edición (elige la temporada)')
-    setup({ permisos: { editarTaller: true }, taller: { ...TALLER, regimen: 'cadencia' } })
+    setup({ permisos: { editarTaller: true }, taller: { ...SIN_ACTIVAS, regimen: 'cadencia' } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     element = (await TallerDetallePage(params())) as any
     expect(findByType(element, PasosAbrirEdicion)?.props.textoFinal).toBe('Crear edición (primera clase)')
@@ -1022,6 +1014,19 @@ describe('TallerDetallePage — Página pública (R3d)', () => {
     const element = (await TallerDetallePage(params())) as any
     expect(findByType(element, PaginaPublicaTaller)).toBeNull()
   })
+
+  // R3k — Próximo Paso's card carries its registration link (a public link,
+  // for anyone who sees the page), so it shows even if publico cannot be read.
+  it('always shows the card for Próximo Paso, even when talleres.publico cannot be read', async () => {
+    setup({ publico: 'error', taller: { ...TALLER, slug: 'proximo-paso', nombre: 'Próximo Paso' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params('proximo-paso'))) as any
+    expect(findByType(element, PaginaPublicaTaller)?.props).toEqual({
+      slug: 'proximo-paso',
+      publico: false,
+      enlaceCompartir: null,
+    })
+  })
 })
 
 describe('TallerDetallePage — content', () => {
@@ -1081,11 +1086,31 @@ describe('TallerDetallePage — content', () => {
     expect(link).toBeUndefined()
   })
 
-  it('keeps ConfiguracionTaller on the page under id="configuracion-heading" (the catálogo\'s anchor)', async () => {
+  // R3k (L10) — the configuration is its own view; the catálogo's old
+  // anchor (#configuracion-heading) is sent there by RedirigirAnclaConfiguracion.
+  it('never mounts ConfiguracionTaller on the taller page', async () => {
     setup({ permisos: { editarTaller: true } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await TallerDetallePage(params())) as any
-    expect(findByType(element, ConfiguracionTaller)).not.toBeNull()
+    expect(findByType(element, ConfiguracionTaller)).toBeNull()
+    expect(findAllByType(element, 'section').some((s) => s.props.id === 'configuracion')).toBe(false)
+  })
+
+  it('redirects the old #configuracion-heading anchor to the configuration view', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    expect(findByType(element, RedirigirAnclaConfiguracion)?.props).toEqual({
+      href: '/talleres/matrimonio-sobre-la-roca/configuracion',
+    })
+  })
+
+  it('a read-only viewer reaches the read-only configuration through «Ver configuración»', async () => {
+    setup({ permisos: { editarTaller: false } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TallerDetallePage(params())) as any
+    const link = findAllByType(element, Link).find((l) => l.props.href === '/talleres/matrimonio-sobre-la-roca/configuracion')
+    expect(extractText(link)).toBe('Ver configuración')
   })
 })
 
@@ -1096,7 +1121,7 @@ describe('TallerDetallePage — content', () => {
 describe('TallerDetallePage — acciones del encabezado', () => {
   const AVISOS = '/talleres/matrimonio-sobre-la-roca/avisos'
   const COMPARTIR = '/talleres/matrimonio-sobre-la-roca/compartir'
-  const CONFIGURACION = '#configuracion-heading'
+  const CONFIGURACION = '/talleres/matrimonio-sobre-la-roca/configuracion'
 
   function hrefs(node: unknown): string[] {
     return findAllByType(node, Link).map((l) => String(l.props.href))
@@ -1132,6 +1157,7 @@ describe('TallerDetallePage — acciones del encabezado', () => {
     expect(findByType(element, PaginaSistema)?.props.acciones).toBeUndefined()
     expect(hrefs(element)).not.toContain(AVISOS)
     expect(hrefs(element)).not.toContain(COMPARTIR)
-    expect(hrefs(element)).not.toContain(CONFIGURACION)
+    // Only the quiet «Ver configuración» link of the meta line, never a header action.
+    expect(hrefs(element).filter((h) => h === CONFIGURACION)).toHaveLength(1)
   })
 })

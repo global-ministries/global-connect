@@ -3,9 +3,29 @@
  *
  * R3d (odd/tasks/talleres-rediseno.md, S1, S2, S4) — the side column of the
  * v2 taller page: Pasos para abrir una edición, Equipo and Página pública.
+ *
+ * R3k (L10) — Equipo without servidores is one compact line (said once on the
+ * page), a non-public taller is one short line, and Próximo Paso's card shows
+ * its registration link (copy + QR in a DetalleResponsivo).
  */
 
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+
+const writeText = jest.fn()
+const qrSvg = jest.fn()
+
+// qrcode needs TextEncoder, which jsdom lacks; the poster's own helper is mocked, the base URL rule is real.
+jest.mock('@/lib/platform/ninos/cartel', () => ({
+  ...jest.requireActual('@/lib/platform/ninos/cartel'),
+  qrSvg: (texto: string) => qrSvg(texto),
+}))
+
+beforeEach(() => {
+  writeText.mockReset().mockResolvedValue(undefined)
+  qrSvg.mockReset().mockResolvedValue('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
+  Object.assign(navigator, { clipboard: { writeText } })
+  process.env.NEXT_PUBLIC_SITE_URL = 'https://miembros.yosoyglobal.org'
+})
 
 import {
   EquipoTaller,
@@ -62,7 +82,6 @@ describe('EquipoTaller', () => {
   it('lists the coordinación first, with rol and the active plantilla grupos each one facilitates', () => {
     render(<EquipoTaller servidores={[ANA, BELKIS, NEIDA]} sinAutoridad={false} grupos={GRUPOS} enlaceServidores={null} />)
     expect(screen.getByRole('heading', { name: 'Equipo' })).toBeInTheDocument()
-    expect(screen.getByText('Servidores activos; se gestionan en Dream Team.')).toBeInTheDocument()
     const items = screen.getAllByRole('listitem')
     const nombres = ['Neida Castillo', 'Ana Gómez', 'Belkis Arráez']
     nombres.forEach((nombre, i) => expect(within(items[i]!).getByText(nombre)).toBeInTheDocument())
@@ -83,16 +102,27 @@ describe('EquipoTaller', () => {
     )
   })
 
-  it('shows the empty state (neutral Spanish) when there are no active servidores', () => {
+  it('without active servidores: one compact line with the link, said once', () => {
+    render(
+      <EquipoTaller servidores={[]} sinAutoridad={false} grupos={[]} enlaceServidores="/admin/dream-team/servidores?equipo=eq-1" />,
+    )
+    expect(screen.getAllByText(/Sin servidores activos/)).toHaveLength(1)
+    expect(screen.getByText('Sin servidores activos.')).toBeInTheDocument()
+    const enlaces = screen.getAllByRole('link', { name: 'Gestionar en Servidores' })
+    expect(enlaces).toHaveLength(1)
+    expect(enlaces[0]).toHaveAttribute('href', '/admin/dream-team/servidores?equipo=eq-1')
+  })
+
+  it('without active servidores nor the link: just the line', () => {
     render(<EquipoTaller servidores={[]} sinAutoridad={false} grupos={[]} enlaceServidores={null} />)
-    expect(screen.getByText('Sin servidores activos en este equipo')).toBeInTheDocument()
-    expect(screen.getByText(/para que aparezcan aquí\./)).toBeInTheDocument()
+    expect(screen.getByText('Sin servidores activos.')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('shows the access state, not the empty one, without authority over the equipo', () => {
     render(<EquipoTaller servidores={[]} sinAutoridad grupos={[]} enlaceServidores={null} />)
     expect(screen.getByText('No tienes autoridad para ver el equipo de este taller.')).toBeInTheDocument()
-    expect(screen.queryByText('Sin servidores activos en este equipo')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Sin servidores activos/)).not.toBeInTheDocument()
   })
 
   it('ordenarEquipo keeps names in alphabetical order after the coordinación', () => {
@@ -101,7 +131,7 @@ describe('EquipoTaller', () => {
 })
 
 describe('PaginaPublicaTaller', () => {
-  it('a public taller: «Recibe solicitudes», its public path, Ver página and the read-only note', () => {
+  it('a public taller: «Recibe solicitudes», its public path, Ver página and Compartir', () => {
     render(<PaginaPublicaTaller slug="mujer-de-hoy" publico enlaceCompartir="/talleres/mujer-de-hoy/compartir" />)
     expect(screen.getByRole('heading', { name: 'Página pública' })).toBeInTheDocument()
     expect(screen.getByText('Recibe solicitudes')).toBeInTheDocument()
@@ -109,13 +139,52 @@ describe('PaginaPublicaTaller', () => {
     expect(screen.getByRole('link', { name: 'Ver página' })).toHaveAttribute('href', '/talleres/reservar/mujer-de-hoy')
     expect(screen.getByRole('link', { name: 'Ver página' })).toHaveAttribute('target', '_blank')
     expect(screen.getByRole('link', { name: 'Enlace, QR y código' })).toHaveAttribute('href', '/talleres/mujer-de-hoy/compartir')
-    expect(screen.getByText(/Este dato no se cambia desde aquí\./)).toBeInTheDocument()
   })
 
-  it('a non-public taller without Compartir: «No aparece» and no links', () => {
+  it('a non-public taller without Compartir: «No aparece», one short line and no links', () => {
     render(<PaginaPublicaTaller slug="mujer-de-hoy" publico={false} enlaceCompartir={null} />)
     expect(screen.getByText('No aparece')).toBeInTheDocument()
-    expect(screen.getByText(/no aparece en la página pública/)).toBeInTheDocument()
+    expect(screen.getByText('Solo se inscribe desde la app o la coordinación.')).toBeInTheDocument()
+    expect(screen.queryByText(/Este dato no se cambia/)).not.toBeInTheDocument()
+    expect(screen.queryByText('/talleres/reservar/mujer-de-hoy')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('a non-public taller with Compartir keeps the link next to the line', () => {
+    render(<PaginaPublicaTaller slug="mujer-de-hoy" publico={false} enlaceCompartir="/talleres/mujer-de-hoy/compartir" />)
+    expect(screen.getByRole('link', { name: 'Enlace, QR y código' })).toHaveAttribute('href', '/talleres/mujer-de-hoy/compartir')
+  })
+})
+
+describe('PaginaPublicaTaller — Próximo Paso (R3k)', () => {
+  it('shows «Se inscriben con este enlace» and the /proximo-paso URL instead of the public page line', async () => {
+    render(<PaginaPublicaTaller slug="proximo-paso" publico={false} enlaceCompartir="/talleres/proximo-paso/compartir" />)
+    expect(screen.getByRole('heading', { name: 'Página pública' })).toBeInTheDocument()
+    expect(screen.getByText('Se inscriben con este enlace')).toBeInTheDocument()
+    const url = await screen.findByText('https://miembros.yosoyglobal.org/proximo-paso')
+    expect(url.className).toMatch(/truncate/)
+    expect(url.className).toMatch(/font-mono/)
+    expect(screen.queryByText('No aparece')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Solo se inscribe desde la app/)).not.toBeInTheDocument()
+    expect(screen.queryByText('/talleres/reservar/proximo-paso')).not.toBeInTheDocument()
+  })
+
+  it('copies the link, for anyone who sees the page', async () => {
+    render(<PaginaPublicaTaller slug="proximo-paso" publico={false} enlaceCompartir={null} />)
+    await screen.findByText('https://miembros.yosoyglobal.org/proximo-paso')
+    fireEvent.click(screen.getByRole('button', { name: 'Copiar enlace' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://miembros.yosoyglobal.org/proximo-paso'))
+    expect(await screen.findByText('Enlace copiado')).toBeInTheDocument()
+  })
+
+  it('«Ver QR» opens the QR with «Descargar imagen»', async () => {
+    render(<PaginaPublicaTaller slug="proximo-paso" publico={false} enlaceCompartir={null} />)
+    await screen.findByText('https://miembros.yosoyglobal.org/proximo-paso')
+    expect(screen.queryByRole('img', { name: /Código QR/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver QR' }))
+    const qr = await screen.findByRole('img', { name: 'Código QR de https://miembros.yosoyglobal.org/proximo-paso' })
+    expect(qrSvg).toHaveBeenCalledWith('https://miembros.yosoyglobal.org/proximo-paso')
+    expect(qr.getAttribute('src')).toMatch(/^data:image\/svg\+xml/)
+    expect(screen.getByRole('link', { name: 'Descargar imagen' })).toHaveAttribute('download', 'proximo-paso-qr.svg')
   })
 })

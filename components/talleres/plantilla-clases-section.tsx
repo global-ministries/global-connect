@@ -27,6 +27,12 @@
  * action carries an `aria-label` naming the clase ("Subir clase 2",
  * "Editar tema de clase 2", …) plus a `title`, at the shared 44px hit
  * target with `hover:bg-accent`.
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, S1, L10) — compact for the side
+ * column (artboard 22): each row is «1 · Sígueme» on one truncated line;
+ * «Agregar clase», reorder, edit tema and activar/desactivar live behind the
+ * heading's «Editar» toggle (aria-pressed), each on its own line under the
+ * name, so nothing overlaps the text. Same actions and writes.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -73,6 +79,8 @@ export function PlantillaClasesSection({
   const [, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  // R3k — the list stays compact; the controls appear only in «Editar» mode.
+  const [editando, setEditando] = useState(false)
   const [agregando, setAgregando] = useState(false)
   const [nuevoTema, setNuevoTema] = useState('')
   const [editandoId, setEditandoId] = useState<string | null>(null)
@@ -138,8 +146,9 @@ export function PlantillaClasesSection({
 
   return (
     <section aria-labelledby="clases-heading">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
+      {/* «Editar» stays on the title line: the side column is narrow. */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <TituloSistema nivel={2} id="clases-heading">
             Plantilla de clases
           </TituloSistema>
@@ -148,8 +157,19 @@ export function PlantillaClasesSection({
           </TextoSistema>
         </div>
         {puedeEditar && (
-          <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
-            Agregar clase
+          <BotonSistema
+            type="button"
+            variante={editando ? 'outline' : 'ghost'}
+            tamaño="sm"
+            icono={Pencil}
+            aria-pressed={editando}
+            aria-label="Editar plantilla de clases"
+            onClick={() => {
+              setEditando(!editando)
+              setEditandoId(null)
+            }}
+          >
+            Editar
           </BotonSistema>
         )}
       </div>
@@ -160,63 +180,70 @@ export function PlantillaClasesSection({
         </TextoSistema>
       )}
 
-      {ordenadas.length === 0 ? (
+      {ordenadas.length === 0 && !editando ? (
         <TextoSistema variante="sutil" className="mt-3 block">
           Este taller todavía no tiene clases en su plantilla.
         </TextoSistema>
       ) : (
-        <TarjetaSistema className="mt-3 p-0">
-          <div className="divide-y divide-border">
+        <TarjetaSistema className="mt-3 overflow-hidden p-0">
+          <ol className="divide-y divide-border/60">
             {ordenadas.map((clase, index) => (
-              <div key={clase.id} className="flex flex-wrap items-center justify-between gap-2 p-3">
-                <div className="min-w-0 flex-1">
-                  {editandoId === clase.id ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <InputSistema
-                        value={temaEditado}
-                        onChange={(e) => setTemaEditado(e.target.value)}
-                        aria-label={`Tema de la clase ${clase.numero}`}
-                        className="min-w-[10rem] flex-1"
-                        autoFocus
-                      />
-                      <BotonSistema
-                        type="button"
-                        variante="ghost"
-                        soloIcono
-                        icono={Check}
-                        aria-label={`Guardar tema de clase ${clase.numero}`}
-                        title="Guardar tema"
-                        onClick={() => guardarTema(clase.id)}
-                      />
-                      <BotonSistema
-                        type="button"
-                        variante="ghost"
-                        soloIcono
-                        icono={X}
-                        aria-label={`Cancelar edición de clase ${clase.numero}`}
-                        title="Cancelar"
-                        onClick={() => setEditandoId(null)}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TextoSistema className={clase.activo ? 'font-medium' : 'font-medium text-muted-foreground line-through'}>
-                        Clase {clase.numero} · {clase.tema}
-                      </TextoSistema>
-                      {!clase.activo && (
-                        <BadgeSistema variante="warning" tamaño="sm">
-                          Inactiva
-                        </BadgeSistema>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {puedeEditar && editandoId !== clase.id && (
-                  <div className="flex items-center gap-1">
+              <li key={clase.id} className="grid min-w-0 gap-1 px-4 py-2.5">
+                {editandoId === clase.id ? (
+                  <div className="flex min-w-0 items-center gap-1">
+                    <InputSistema
+                      value={temaEditado}
+                      onChange={(e) => setTemaEditado(e.target.value)}
+                      aria-label={`Tema de la clase ${clase.numero}`}
+                      className="min-w-0 flex-1"
+                      autoFocus
+                    />
                     <BotonSistema
                       type="button"
                       variante="ghost"
+                      soloIcono
+                      icono={Check}
+                      aria-label={`Guardar tema de clase ${clase.numero}`}
+                      title="Guardar tema"
+                      onClick={() => guardarTema(clase.id)}
+                    />
+                    <BotonSistema
+                      type="button"
+                      variante="ghost"
+                      soloIcono
+                      icono={X}
+                      aria-label={`Cancelar edición de clase ${clase.numero}`}
+                      title="Cancelar"
+                      onClick={() => setEditandoId(null)}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex min-h-6 min-w-0 items-center gap-2">
+                    <span
+                      className={
+                        clase.activo
+                          ? 'min-w-0 flex-1 truncate text-sm text-foreground'
+                          : 'min-w-0 flex-1 truncate text-sm text-muted-foreground line-through'
+                      }
+                      title={`${clase.numero} · ${clase.tema}`}
+                    >
+                      <span className="font-mono tabular-nums text-muted-foreground">{clase.numero}</span> · {clase.tema}
+                    </span>
+                    {!clase.activo && (
+                      <BadgeSistema variante="warning" tamaño="sm" className="shrink-0">
+                        Inactiva
+                      </BadgeSistema>
+                    )}
+                  </div>
+                )}
+
+                {editando && editandoId !== clase.id && (
+                  // Edit mode: the controls take their own line, so they never cover the name.
+                  <div className="-mr-2 flex items-center justify-end gap-0.5">
+                    <BotonSistema
+                      type="button"
+                      variante="ghost"
+                      tamaño="sm"
                       soloIcono
                       icono={ArrowUp}
                       aria-label={`Subir clase ${clase.numero}`}
@@ -227,6 +254,7 @@ export function PlantillaClasesSection({
                     <BotonSistema
                       type="button"
                       variante="ghost"
+                      tamaño="sm"
                       soloIcono
                       icono={ArrowDown}
                       aria-label={`Bajar clase ${clase.numero}`}
@@ -237,6 +265,7 @@ export function PlantillaClasesSection({
                     <BotonSistema
                       type="button"
                       variante="ghost"
+                      tamaño="sm"
                       soloIcono
                       icono={Pencil}
                       aria-label={`Editar tema de clase ${clase.numero}`}
@@ -249,7 +278,7 @@ export function PlantillaClasesSection({
                     />
                     <BotonSistema
                       type="button"
-                      variante="outline"
+                      variante="ghost"
                       tamaño="sm"
                       onClick={() => toggleActivo(clase.id, !clase.activo)}
                     >
@@ -257,9 +286,16 @@ export function PlantillaClasesSection({
                     </BotonSistema>
                   </div>
                 )}
-              </div>
+              </li>
             ))}
-          </div>
+          </ol>
+          {editando && (
+            <div className={ordenadas.length > 0 ? 'border-t border-border/60 px-2 py-1' : 'px-2 py-1'}>
+              <BotonSistema type="button" variante="ghost" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
+                Agregar clase
+              </BotonSistema>
+            </div>
+          )}
         </TarjetaSistema>
       )}
 

@@ -40,6 +40,12 @@
  * The picker itself excludes whoever is already in the TARGET grupo via
  * `excluirPersonaIds`, so the same person never shows up twice in one
  * grupo's own picker.
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, S1, L10) — the list reads clean by
+ * default: «Agregar grupo», editar, activar/desactivar, quitar facilitador and
+ * the picker live behind the heading's «Editar» toggle (aria-pressed). The
+ * «Sin servidores activos» warning is gone (the Equipo section says it once);
+ * in edit mode a short hint replaces the picker when there are no servidores.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -49,7 +55,6 @@ import { Check, Pencil, Plus, UserMinus, X } from 'lucide-react'
 import {
   BadgeSistema,
   BotonSistema,
-  EnlaceSistema,
   InputSistema,
   TarjetaSistema,
   TextoSistema,
@@ -92,7 +97,6 @@ interface Props {
   readonly puedeEditar: boolean
 }
 
-const RUTA_SERVIDORES = '/admin/dream-team/servidores'
 const ROL_LABELS: Record<string, string> = { lider: 'Líder', voluntario: 'Voluntario' }
 const ROL_BADGE_VARIANTE: Record<string, 'info' | 'default'> = { lider: 'info', voluntario: 'default' }
 function nombreCompleto(nombre: string | null, apellido: string | null): string {
@@ -110,6 +114,8 @@ export function PlantillaGruposSection({
   const [, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
+  // R3k — the controls appear only in «Editar» mode.
+  const [editando, setEditando] = useState(false)
   const [agregando, setAgregando] = useState(false)
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevaCapacidad, setNuevaCapacidad] = useState('')
@@ -203,18 +209,33 @@ export function PlantillaGruposSection({
           </TextoSistema>
         </div>
         {puedeEditar && (
-          <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
-            Agregar grupo
-          </BotonSistema>
+          <div className="flex flex-wrap items-center gap-2">
+            {editando && (
+              <BotonSistema type="button" variante="outline" tamaño="sm" icono={Plus} onClick={() => setAgregando(true)}>
+                Agregar grupo
+              </BotonSistema>
+            )}
+            <BotonSistema
+              type="button"
+              variante={editando ? 'outline' : 'ghost'}
+              tamaño="sm"
+              icono={Pencil}
+              aria-pressed={editando}
+              aria-label="Editar plantilla de grupos"
+              onClick={() => {
+                setEditando(!editando)
+                setEditandoId(null)
+              }}
+            >
+              Editar
+            </BotonSistema>
+          </div>
         )}
       </div>
 
-      {puedeEditar && servidores.length === 0 && (
-        <TextoSistema variante="sutil" className="mt-3 block">
-          Sin servidores activos en este equipo.{' '}
-          <EnlaceSistema href={RUTA_SERVIDORES} variante="marca">
-            Gestionar en Servidores
-          </EnlaceSistema>
+      {editando && servidores.length === 0 && (
+        <TextoSistema variante="sutil" tamaño="sm" className="mt-3 block">
+          Para agregar facilitadores, primero asigna servidores al equipo.
         </TextoSistema>
       )}
 
@@ -284,7 +305,7 @@ export function PlantillaGruposSection({
                     </div>
                   )}
 
-                  {puedeEditar && editandoId !== grupo.id && (
+                  {editando && editandoId !== grupo.id && (
                     <div className="flex flex-shrink-0 items-center gap-1">
                       <BotonSistema
                         type="button"
@@ -302,7 +323,7 @@ export function PlantillaGruposSection({
                       />
                       <BotonSistema
                         type="button"
-                        variante="outline"
+                        variante="ghost"
                         tamaño="sm"
                         onClick={() => toggleActivo(grupo.id, !grupo.activo)}
                       >
@@ -312,7 +333,7 @@ export function PlantillaGruposSection({
                   )}
                 </div>
 
-                <ul className="mt-3 space-y-1.5">
+                <ul className="mt-2 space-y-1.5">
                   {grupo.facilitadores.map((f) => (
                     <li key={f.id} className="flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
@@ -323,7 +344,7 @@ export function PlantillaGruposSection({
                           {ROL_LABELS[f.rol] ?? f.rol}
                         </BadgeSistema>
                       </div>
-                      {puedeEditar && (
+                      {editando && (
                         <BotonSistema
                           type="button"
                           variante="ghost"
@@ -345,7 +366,7 @@ export function PlantillaGruposSection({
                   )}
                 </ul>
 
-                {puedeEditar && servidores.length > 0 && (
+                {editando && servidores.length > 0 && (
                   <FacilitadorPicker
                     servidores={servidores}
                     excluirPersonaIds={grupo.facilitadores.map((f) => f.personaId)}

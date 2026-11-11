@@ -109,7 +109,7 @@ export function DetalleTaller({ fila, abierto, onCambioAbierto, puedeVerPendient
     fila.puedeAbrirEdicion && { href: `${rutaTaller(taller.slug)}#ediciones`, icono: PlusCircle, texto: 'Abrir edición' },
     fila.puedeEditar && { href: `${rutaTaller(taller.slug)}/compartir`, icono: Share2, texto: 'Compartir' },
     fila.puedeEditar && { href: `${rutaTaller(taller.slug)}/avisos`, icono: Bell, texto: 'Avisos' },
-    fila.puedeEditar && { href: `${rutaTaller(taller.slug)}#configuracion-heading`, icono: Settings, texto: 'Configuración' },
+    fila.puedeEditar && { href: `${rutaTaller(taller.slug)}/configuracion`, icono: Settings, texto: 'Configuración' },
   ].filter((a): a is { href: string; icono: typeof Bell; texto: string } => Boolean(a))
 
   return (
