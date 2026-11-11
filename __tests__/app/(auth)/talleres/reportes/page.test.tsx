@@ -20,7 +20,7 @@
  */
 
 import ReportesPage from '@/app/(auth)/talleres/reportes/page'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { ReporteRow } from '@/lib/platform/talleres/reportes'
@@ -165,11 +165,11 @@ describe('ReportesPage — gate', () => {
 })
 
 describe('ReportesPage — empty state', () => {
-  it('shows EstadoVacio, not an error, when there are no reportes', async () => {
+  it('shows EstadoVacioSistema, not an error, when there are no reportes', async () => {
     setup({ rows: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await ReportesPage()) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio).not.toBeNull()
     expect(String(vacio?.props.titulo)).toMatch(/no hay reportes/i)
   })

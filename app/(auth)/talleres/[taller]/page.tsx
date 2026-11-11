@@ -61,21 +61,30 @@
  *   - `?creadas=N` (redirected here when "crear también las próximas"
  *     created more than one edición) shows a BadgeSistema notice.
  *   - Ediciones rows show "{inicio} → {fin}" alongside the estado badge.
+ *
+ * T6 (odd/tasks/talleres-reserva-publica.md, S2 S18) — "Compartir" (the
+ * public link, QR and embed code, ./compartir) is one secondary action,
+ * shown only with editarTaller, the same predicate that page checks.
+ *
+ * T9 (same doc, S8) — "Avisos" (the notices center, ./avisos) sits next to
+ * Compartir with the same editarTaller gate; the avisos page and its RPC
+ * still check their own authority.
  */
 
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, Layers, Lock, Users } from 'lucide-react'
+import { Bell, ChevronRight, Layers, Lock, Share2, Users } from 'lucide-react'
 
 import {
   PaginaSistema,
   BadgeSistema,
+  BotonSistema,
   EnlaceSistema,
   TarjetaSistema,
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { OpenEdicionForm } from '@/components/talleres/open-edicion-form'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
 import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
@@ -106,7 +115,7 @@ import {
 } from '@/lib/platform/talleres/plantilla'
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
-import { rutaCatalogo, rutaEdicion } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo, rutaEdicion, rutaTaller } from '@/lib/platform/talleres/rutas'
 import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
@@ -245,10 +254,22 @@ export default async function TallerDetallePage(ctx: RouteContext) {
     servidorPersonaIds,
   )
 
+  const accionesTaller = (className: string, claseBoton?: string) => (
+    <div className={className}>
+      <BotonSistema asChild variante="outline" tamaño="sm" icono={Bell} className={claseBoton}>
+        <Link href={`${rutaTaller(taller.slug)}/avisos`}>Avisos</Link>
+      </BotonSistema>
+      <BotonSistema asChild variante="outline" tamaño="sm" icono={Share2} className={claseBoton}>
+        <Link href={`${rutaTaller(taller.slug)}/compartir`}>Compartir</Link>
+      </BotonSistema>
+    </div>
+  )
+
   return (
     <PaginaSistema
       titulo={taller.nombre}
       regreso={{ href: rutaCatalogo(), texto: 'Talleres' }}
+      acciones={permisos.editarTaller ? accionesTaller('flex items-center gap-2') : undefined}
     >
       <TarjetaSistema variante="outlined" className="p-4">
         <div className="flex flex-wrap items-start gap-3">
@@ -293,6 +314,8 @@ export default async function TallerDetallePage(ctx: RouteContext) {
           <BadgeSistema variante={tallerEstadoBadgeVariante(taller.estado)}>
             {tallerEstadoLabel(taller.estado)}
           </BadgeSistema>
+          {/* Phones have no desktop header: the same actions live here. */}
+          {permisos.editarTaller && accionesTaller('grid w-full grid-cols-2 gap-2 md:hidden', 'w-full')}
         </div>
       </TarjetaSistema>
 
@@ -315,6 +338,8 @@ export default async function TallerDetallePage(ctx: RouteContext) {
         intervaloEdicionesDias={taller.intervalo_ediciones_dias}
         anclaEdiciones={taller.ancla_ediciones ?? null}
         clasesMinimasParaCompletar={taller.clases_minimas_para_completar}
+        minimoInscritos={taller.minimo_inscritos ?? null}
+        permiteRecuperarClases={taller.permite_recuperar_clases ?? true}
         momentoEnvioAcceso={taller.momento_envio_acceso}
         inscripcionAutomatica={taller.inscripcion_automatica}
         cadenciaDias={taller.cadencia_dias}
@@ -382,18 +407,22 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
         {sinAutoridadEquipo ? (
           <div className="mt-3">
-            <EstadoVacio
-              icono={Lock}
-              titulo="No tienes autoridad para ver el equipo de este taller."
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={Lock}
+                titulo="No tienes autoridad para ver el equipo de este taller."
+              />
+            </TarjetaSistema>
           </div>
         ) : servidores.length === 0 ? (
           <div className="mt-3">
-            <EstadoVacio
-              icono={Users}
-              titulo="Sin servidores activos en este equipo"
-              subtitulo="Asigna servidores en Dream Team → Servidores para que aparezcan acá."
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={Users}
+                titulo="Sin servidores activos en este equipo"
+                subtitulo="Asigna servidores en Dream Team → Servidores para que aparezcan acá."
+              />
+            </TarjetaSistema>
           </div>
         ) : (
           <ul className="mt-3 grid gap-2">
@@ -436,11 +465,13 @@ export default async function TallerDetallePage(ctx: RouteContext) {
 
         {taller.ediciones.length === 0 ? (
           <div className="mt-3">
-            <EstadoVacio
-              icono={Layers}
-              titulo="Este taller todavía no tiene ediciones"
-              subtitulo="Usa «Abrir edición» más abajo para abrir la primera."
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={Layers}
+                titulo="Este taller todavía no tiene ediciones"
+                subtitulo="Usa «Abrir edición» más abajo para abrir la primera."
+              />
+            </TarjetaSistema>
           </div>
         ) : (
           // T10 (design audit) — the ediciones used to be a `grid gap-3` of

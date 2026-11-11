@@ -35,6 +35,8 @@ function baseProps(overrides: Partial<Parameters<typeof ConfiguracionTaller>[0]>
     cierreInscripcionOffsetDias: 0,
     intervaloEdicionesDias: null,
     clasesMinimasParaCompletar: null,
+    minimoInscritos: null,
+    permiteRecuperarClases: true,
     cadenciaDias: 7,
     duracionMinutos: 90,
     puedeEditar: false,
@@ -130,6 +132,8 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
         intervaloEdicionesDias: 28,
         anclaEdiciones: null,
         clasesMinimasParaCompletar: null,
+        minimoInscritos: null,
+        permiteRecuperarClases: true,
         momentoEnvioAcceso: 'al_aprobar',
       }),
     )
@@ -240,7 +244,7 @@ describe('ConfiguracionTaller — inicio de cada edición', () => {
 describe('ConfiguracionTaller — clases mínimas para completar', () => {
   it('read-only: says "Todas las clases dictadas" when no minimum is set', () => {
     render(<ConfiguracionTaller {...baseProps({ clasesMinimasParaCompletar: null })} />)
-    expect(screen.getByText('Clases mínimas para completar')).toBeInTheDocument()
+    expect(screen.getByText('Clases mínimas para el certificado')).toBeInTheDocument()
     expect(screen.getByText('Todas las clases dictadas')).toBeInTheDocument()
   })
 
@@ -251,7 +255,7 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
 
   it('editor: shows the current value and a one-line hint that empty means all clases', () => {
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, clasesMinimasParaCompletar: 6 })} />)
-    const input = screen.getByLabelText(/clases mínimas para completar/i)
+    const input = screen.getByLabelText(/clases mínimas para el certificado/i)
     expect(input).toHaveValue(6)
     expect(input).toHaveAttribute('min', '1')
     expect(input).toHaveAttribute('max', '50')
@@ -261,7 +265,7 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
   it('editor: saves the typed minimum through updateTallerConfiguracion', async () => {
     updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
-    fireEvent.change(screen.getByLabelText(/clases mínimas para completar/i), { target: { value: '7' } })
+    fireEvent.change(screen.getByLabelText(/clases mínimas para el certificado/i), { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     await waitFor(() =>
       expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
@@ -273,7 +277,7 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
   it('editor: sends null when the field is cleared', async () => {
     updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, clasesMinimasParaCompletar: 6 })} />)
-    fireEvent.change(screen.getByLabelText(/clases mínimas para completar/i), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText(/clases mínimas para el certificado/i), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     await waitFor(() =>
       expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
@@ -330,6 +334,68 @@ describe('ConfiguracionTaller — envío del acceso al cónyuge nuevo', () => {
   })
 })
 
+// T8b (odd/tasks/talleres-reserva-publica.md, S17) — artboard 14: the
+// minimum is «para el certificado» and the recovery switch sits with it.
+// T9 (same doc, S8, L16) — the switch and «Mínimo de inscritos para abrir»
+// save with «Guardar configuración»; neither has its own save any more.
+describe('ConfiguracionTaller — recuperar clases y mínimo de inscritos (un solo guardar)', () => {
+  it('editor: shows both saved values and no separate save', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, minimoInscritos: 10, permiteRecuperarClases: false })} />)
+    expect(screen.getByRole('switch', { name: 'Recuperar clases aparte' })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByLabelText('Mínimo de inscritos para abrir (personas)')).toHaveValue(10)
+    expect(screen.queryByRole('button', { name: 'Guardar mínimo' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /guardar/i }).map((b) => b.textContent)).toEqual([
+      'Guardar configuración',
+      'Guardar cadencia',
+    ])
+  })
+
+  it('editor: saves the switch and the mínimo with the rest of the configuration', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, minimoInscritos: 10, permiteRecuperarClases: true })} />)
+    fireEvent.click(screen.getByRole('switch', { name: 'Recuperar clases aparte' }))
+    fireEvent.change(screen.getByLabelText(/mínimo de inscritos para abrir/i), { target: { value: '6' } })
+    expect(updateTallerConfiguracionMock).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ minimoInscritos: 6, permiteRecuperarClases: false }),
+      ),
+    )
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+  })
+
+  it('editor: an emptied mínimo is sent as null', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, minimoInscritos: 10 })} />)
+    fireEvent.change(screen.getByLabelText(/mínimo de inscritos para abrir/i), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(expect.objectContaining({ minimoInscritos: null })),
+    )
+  })
+
+  it('editor: a refused mínimo shows the server message', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({
+      ok: false,
+      error: 'invalid-input',
+      message: 'El mínimo de inscritos debe ser un entero entre 1 y 500, o vacío para no tener mínimo.',
+    })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getByLabelText(/mínimo de inscritos para abrir/i), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/entre 1 y 500/)
+  })
+
+  it('read-only: shows Sí / No and the mínimo', () => {
+    render(<ConfiguracionTaller {...baseProps({ permiteRecuperarClases: true, minimoInscritos: 8 })} />)
+    expect(screen.getByText('Recuperar clases aparte')).toBeInTheDocument()
+    expect(screen.getByText('Sí')).toBeInTheDocument()
+    expect(screen.getByText('8 personas')).toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+  })
+})
+
 // T2b (odd/tasks/proximo-paso.md, L6.2) — "Inscripción automática si hay
 // cupo": individual talleres only; saved with the rest of the configuration.
 describe('ConfiguracionTaller — inscripción automática', () => {
@@ -374,7 +440,10 @@ describe('ConfiguracionTaller — inscripción automática', () => {
   })
 
   it('read-only: says whether it is on, only for an individual taller', () => {
-    const { unmount } = render(<ConfiguracionTaller {...baseProps({ inscripcionAutomatica: true })} />)
+    // permiteRecuperarClases false so «Recuperar clases aparte» reads «No» and the only «Sí» is this row.
+    const { unmount } = render(
+      <ConfiguracionTaller {...baseProps({ inscripcionAutomatica: true, permiteRecuperarClases: false })} />,
+    )
     expect(screen.getByText('Inscripción automática si hay cupo')).toBeInTheDocument()
     expect(screen.getByText('Sí')).toBeInTheDocument()
     unmount()

@@ -39,6 +39,25 @@ jest.mock('@/lib/platform/talleres/invitacion-acceso-envio', () => ({
   enviarInvitacionesPendientes: jest.fn().mockResolvedValue({ enviadas: 0, fallidas: 0, omitidas: 0 }),
 }))
 
+jest.mock('@/lib/platform/talleres/avisos-envio', () => ({
+  despacharAvisosTalleres: jest.fn().mockResolvedValue(undefined),
+}))
+
+const tareasAfter: Array<() => unknown> = []
+jest.mock('next/server', () => ({
+  after: (tarea: () => unknown) => {
+    tareasAfter.push(tarea)
+  },
+}))
+
+/** Runs what the action left for after the response. */
+async function despuesDeResponder() {
+  for (const t of tareasAfter.splice(0)) await t()
+}
+
+const despacharAvisosMock = jest.requireMock('@/lib/platform/talleres/avisos-envio')
+  .despacharAvisosTalleres as jest.Mock
+
 const isTalleresEnabledMock = jest.requireMock('@/lib/platform/talleres/flags')
   .isTalleresEnabled as jest.Mock
 const requireTalleresApiAuthenticatedMock = jest.requireMock(
@@ -54,6 +73,8 @@ beforeEach(() => {
   isTalleresEnabledMock.mockReset().mockReturnValue(true)
   requireTalleresApiAuthenticatedMock.mockReset()
   revalidatePathMock.mockReset()
+  despacharAvisosMock.mockClear()
+  tareasAfter.splice(0)
 })
 
 // ─── inscribirseATaller through talleres_inscribirme ─────────────────────
@@ -429,5 +450,26 @@ describe('inscribirseATaller — ficha_nueva', () => {
     expect(result.error).toBe('LIMITE_ALCANZADO')
     expect(result.message).not.toMatch(/búsquedas/)
     expect(enviarMock).not.toHaveBeenCalled()
+  })
+})
+
+// T9 (odd/tasks/talleres-reserva-publica.md, S6, L22) — the «Inscripción
+// recibida» notice is written with the inscription; its email goes out
+// right after the response instead of at the daily cron.
+describe('inscribirseATaller — avisos', () => {
+  it('sends the due notices after a successful enrollment', async () => {
+    gateConRpc(rpcConResultado(OK))
+    expect((await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })).ok).toBe(true)
+    await despuesDeResponder()
+    expect(despacharAvisosMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not send notices when the RPC refuses or fails', async () => {
+    gateConRpc(rpcConResultado({ ok: false, codigo: 'CUPO_LLENO' }))
+    await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+    gateConRpc(rpcConResultado(null, { code: '42501', message: 'x' }))
+    await inscribirseATaller({ edicionId: TALLER_ID, pareja: null })
+    await despuesDeResponder()
+    expect(despacharAvisosMock).not.toHaveBeenCalled()
   })
 })

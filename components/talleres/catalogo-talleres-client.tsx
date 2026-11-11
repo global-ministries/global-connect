@@ -43,7 +43,7 @@ import Link from 'next/link'
 import { Calendar, LayoutGrid, Users } from 'lucide-react'
 
 import { BadgeSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { CrearTallerAbstractoForm } from './crear-taller-form'
 import {
   edicionEstadoBadgeVariante,
@@ -100,11 +100,13 @@ export function CatalogoTalleresClient({
 
   if (sinNadaEnAbsoluto) {
     return (
-      <EstadoVacio
-        icono={LayoutGrid}
-        titulo="Aún no hay talleres para vos"
-        subtitulo="Explorá los talleres abiertos para inscribirte — el enlace está arriba, en Explorar."
-      />
+      <TarjetaSistema className="p-0">
+        <EstadoVacioSistema
+          icono={LayoutGrid}
+          titulo="Aún no hay talleres para vos"
+          subtitulo="Explorá los talleres abiertos para inscribirte — el enlace está arriba, en Explorar."
+        />
+      </TarjetaSistema>
     )
   }
 
@@ -195,14 +197,16 @@ export function CatalogoTalleresClient({
         )}
 
         {catalogoFiltrado.length === 0 ? (
-          <EstadoVacio
-            icono={LayoutGrid}
-            titulo={
-              filtro === 'abiertas'
-                ? 'No hay ediciones abiertas ahora mismo'
-                : 'Aún no hay talleres registrados'
-            }
-          />
+          <TarjetaSistema className="p-0">
+            <EstadoVacioSistema
+              icono={LayoutGrid}
+              titulo={
+                filtro === 'abiertas'
+                  ? 'No hay ediciones abiertas ahora mismo'
+                  : 'Aún no hay talleres registrados'
+              }
+            />
+          </TarjetaSistema>
         ) : (
           <ul className="grid gap-3">
             {catalogoFiltrado.map((t) => (

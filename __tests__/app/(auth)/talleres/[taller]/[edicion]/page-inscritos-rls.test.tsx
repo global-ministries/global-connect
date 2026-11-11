@@ -25,14 +25,14 @@
  *
  * RED (pre-fix): this test fails because the stub's `taller_inscripciones`
  * row (persona_principal embed null, exactly what RLS returns for a
- * coordinador) gets dropped, so EstadoVacio renders instead of
+ * coordinador) gets dropped, so EstadoVacioSistema renders instead of
  * TablaInscripciones.
  * GREEN (post-fix): the row survives with a degraded '—' name.
  */
 
 import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PERMISOS_TALLER_ALL_FALSE } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
@@ -252,7 +252,7 @@ describe('EdicionDetallePage — Inscritos, real loadAdminInscripciones, usuario
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await EdicionDetallePage(params())) as any
 
-    expect(findByType(element, EstadoVacio)).toBeNull()
+    expect(findByType(element, EstadoVacioSistema)).toBeNull()
     const tabla = findByType(element, TablaInscripciones)
     expect(tabla).not.toBeNull()
     expect((tabla!.props.rows as unknown[]).length).toBe(1)

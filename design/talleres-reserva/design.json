@@ -1,0 +1,24 @@
+{
+  "title": "Talleres · reserva pública, registro y operación",
+  "brief": "Grupos de Corto Plazo (Dirección de Conexión): página pública de reserva, registro de persona existente (código) y nueva, formulario incrustable, app del miembro, aprobación manual, mínimo no alcanzado → suspender y mover de fecha, avisos, lista del facilitador y asistencia. Lenguaje DPS.",
+  "feature": "odd/tasks/talleres-reserva-publica.md",
+  "artboards": [
+    { "file": "01-catalogo-publico-celular.html", "title": "Público · Catálogo de Grupos de Corto Plazo (celular)", "tradeoff": "Se ve de inmediato qué está abierto y cuántos lugares quedan; comparar horarios exige entrar al taller", "width": 390, "height": 844 },
+    { "file": "02-taller-publico-escritorio.html", "title": "Público · Página del taller Mujer de Hoy (escritorio)", "tradeoff": "Horarios como tarjetas y reserva fija al lado; página larga", "width": 1440, "height": 900 },
+    { "file": "03-identificarse-celular.html", "title": "Público · ¿Ya eres parte de Global? Cédula y código (4 celulares)", "tradeoff": "Nunca muestra el nombre antes del código; el correo enmascarado delata que la cédula existe", "width": 1440, "height": 900 },
+    { "file": "04-persona-nueva-celular.html", "title": "Público · Persona nueva (y variante Parejas #parejas)", "tradeoff": "Una sola pantalla con errores en línea; en Parejas se alarga", "width": 390, "height": 844 },
+    { "file": "05-confirmacion-celular.html", "title": "Público · Solicitud recibida y estados (llena, cerrada, ya inscrita)", "tradeoff": "Compara los cuatro estados de un vistazo", "width": 1440, "height": 900 },
+    { "file": "06-flujo-escritorio.html", "title": "Público · Flujo de reserva en escritorio (4 pasos)", "tradeoff": "Mismo flujo que el celular; tapa el taller mientras dura", "width": 1440, "height": 900 },
+    { "file": "07-incrustar-sitio-web.html", "title": "Incrustado · en yosoyglobal.org (tarjeta y modal)", "tradeoff": "Tarjeta: no sale de la página pero ocupa espacio; modal: liviano pero tapa el sitio", "width": 1440, "height": 900 },
+    { "file": "08-codigo-incrustar-escritorio.html", "title": "Admin · Compartir: enlace, QR y código para incrustar", "tradeoff": "El código queda junto a la vista previa; las opciones finas quedan abajo", "width": 1440, "height": 900 },
+    { "file": "09-mis-talleres-celular.html", "title": "Miembro · Mis talleres", "tradeoff": "«En curso» primero porque es lo único accionable esta semana", "width": 390, "height": 844 },
+    { "file": "10-detalle-taller-miembro-celular.html", "title": "Miembro · Mi taller: clases, asistencia, «No puedo ir», retiro", "tradeoff": "Todo en una pantalla larga, sin navegar", "width": 390, "height": 844 },
+    { "file": "11-avisos-miembro-celular.html", "title": "Miembro · Avisos (app, correo, WhatsApp)", "tradeoff": "Un canal por vez con control segmentado, contenido idéntico", "width": 390, "height": 844 },
+    { "file": "12-edicion-escritorio.html", "title": "Admin · Edición: inscripciones y aprobación", "tradeoff": "El lote excluye casos dudosos: un clic más, menos errores", "width": 1440, "height": 900 },
+    { "file": "13-minimo-no-alcanzado-escritorio.html", "title": "Admin · No llegó al mínimo: suspender y mover de fecha", "tradeoff": "Panel de 4 pasos con revisión de avisos; largo, pero nada sale sin revisar", "width": 1440, "height": 900 },
+    { "file": "14-config-taller-escritorio.html", "title": "Admin · Configuración del taller (mínimo, cupo, requisitos)", "tradeoff": "Denso, pero cada regla explicada; aprobación manual fija", "width": 1440, "height": 900 },
+    { "file": "15-avisos-escritorio.html", "title": "Admin · Centro de avisos del taller", "tradeoff": "WhatsApp como enlace honesto, no envío automático", "width": 1440, "height": 900 },
+    { "file": "16-lista-facilitador-celular.html", "title": "Facilitador · Lista y asistencia (celular)", "tradeoff": "Selector Asistencia/Contacto: filas limpias, un toque más para llamar", "width": 390, "height": 844 },
+    { "file": "17-asistencia-reporte-escritorio.html", "title": "Admin · Asistencia de la edición y vista previa del cierre", "tradeoff": "Matriz completa en escritorio; el celular necesitaría su propio diseño", "width": 1440, "height": 900 }
+  ]
+}

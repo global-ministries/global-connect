@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Avisos de talleres · celular — Global Connect</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/05. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.4}
+button,input,textarea{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}a{color:inherit}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}svg.s24{width:24px;height:24px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.nav{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;min-height:48px;padding:env(safe-area-inset-top) 8px 0;background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color var(--duration-normal) var(--ease-out-quint)}
+.nav.sc{border-bottom-color:var(--border)}
+.nav .ttl{grid-column:2;font-size:16px;font-weight:600;opacity:0;transition:opacity 200ms var(--ease-out-quint)}.nav.sc .ttl{opacity:1}
+.back{grid-column:1;justify-self:start;display:inline-flex;align-items:center;gap:2px;min-height:44px;max-width:150px;padding:0 8px 0 2px;border-radius:var(--r-xl);color:var(--brand-text);font-size:16px;text-decoration:none;white-space:nowrap}
+.nav .acts{grid-column:3;justify-self:end}
+.lnk{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 8px;border:0;background:none;color:var(--brand-text);font-size:15px;font-weight:500;text-decoration:none;cursor:pointer;border-radius:var(--r-xl)}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;padding:4px 16px 140px;min-width:0}
+.large h1{font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.large p{margin-top:4px;font-size:15px;color:var(--muted-foreground)}.large p strong{color:var(--foreground);font-weight:600}
+.sec-hd{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 4px}
+.sec-h{flex:1;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+/* ControlSegmentado */
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;padding:3px;border-radius:var(--r-xl);border:1px solid var(--border);background:var(--card)}
+.seg button{min-height:44px;border:0;border-radius:var(--r-md);background:none;font-size:14px;font-weight:500;color:var(--muted-foreground);cursor:pointer;transition:background-color var(--duration-fast) var(--ease-expo),color var(--duration-fast) var(--ease-expo)}
+.seg button[aria-pressed=true]{background:var(--foreground);color:var(--background)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border-radius:var(--r-xl);border:2px solid var(--border);background:var(--card);color:var(--foreground);font-size:15px;font-weight:500;cursor:pointer;text-decoration:none;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:active{transform:scale(.97)}.btn:hover{background:var(--accent)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.acts2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:12px}
+/* (a) Bandeja en la app */
+.responder{position:relative;padding:14px;border-radius:var(--r-2xl);background:var(--card);box-shadow:inset 0 0 0 1.5px var(--brand-primary)}
+.responder::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--brand-accent-strong);pointer-events:none}
+.responder>*{position:relative}
+.r-top{display:flex;gap:12px}
+.ico{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:var(--r-md);background:var(--muted);color:var(--muted-foreground)}
+.ico[data-t=info]{background:color-mix(in oklab,var(--info) 12%,transparent);color:var(--info-text)}
+.ico[data-t=success]{background:color-mix(in oklab,var(--success) 12%,transparent);color:var(--success-text)}
+.ico[data-t=warning]{background:color-mix(in oklab,var(--warning) 14%,transparent);color:var(--warning-text)}
+.ico[data-t=brand]{background:var(--brand-accent-strong);color:var(--brand-text)}
+.r-top .tx{flex:1;min-width:0}.r-top small{display:block;font-size:12px;color:var(--muted-foreground)}
+.r-top b{display:block;font-size:16px;font-weight:650;line-height:1.25}
+.r-top p{margin-top:4px;font-size:14px;color:var(--muted-foreground)}.r-top p strong{color:var(--foreground);font-weight:600}.r-top p s{text-decoration-thickness:1px}
+.hecho{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:var(--r-xl);background:var(--card);font-size:14px}.hecho .tx{flex:1;min-width:0}
+.lista{background:var(--card);border-radius:var(--r-2xl);overflow:hidden}
+.av-row{position:relative;display:flex;gap:12px;width:100%;min-height:72px;padding:12px 14px;border:0;background:none;text-align:left;cursor:pointer}
+.lista li+li .av-row::before{content:"";position:absolute;top:0;left:62px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.av-row:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--brand-primary);border-radius:var(--r-2xl)}
+.av-row .tx{flex:1;min-width:0}
+.av-row .l1{display:flex;align-items:baseline;gap:8px}
+.av-row b{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.3}
+.av-row time{flex:none;font-size:12px;color:var(--muted-foreground)}
+.av-row p{margin-top:2px;font-size:13px;color:var(--muted-foreground);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.av-row .tag{display:inline-block;margin-top:6px;font-size:12px;color:var(--muted-foreground)}
+.nuevo{position:absolute;left:6px;top:28px;width:8px;height:8px;border-radius:9999px;background:var(--brand-primary)}
+.av-row.leido b{font-weight:500}
+/* (b) Correo */
+.pills{display:flex;gap:8px;overflow-x:auto;margin:0 -16px;padding:2px 16px 4px;scrollbar-width:none}
+.pills button{flex:none;min-height:44px;padding:0 14px;border-radius:9999px;border:1.5px solid var(--border);background:none;font-size:14px;font-weight:500;color:var(--muted-foreground);cursor:pointer;white-space:nowrap}
+.pills button[aria-pressed=true]{border-color:var(--brand-primary);background:var(--brand-accent-strong);color:var(--foreground)}
+.mail{border-radius:var(--r-2xl);background:var(--card);border:1px solid var(--border);overflow:hidden}
+.mail-hd{padding:12px 14px;border-bottom:1px solid color-mix(in oklab,var(--border) 60%,transparent);font-size:13px;color:var(--muted-foreground)}
+.mail-hd b{display:block;font-size:16px;font-weight:650;color:var(--foreground);margin-bottom:6px;line-height:1.3}
+.mail-hd .de{display:flex;gap:10px;align-items:center}.mail-hd .de .lg{width:32px;height:32px;flex:none;border-radius:9999px;background:var(--brand-primary)}
+.mail-hd .de span{display:block}.mail-hd .de strong{color:var(--foreground);font-weight:600}
+.mail-bd{padding:18px 16px 20px;background:var(--background)}
+.mail-in{padding:20px 18px;border-radius:var(--r-xl);background:var(--card);border:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.mail-in .marca{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;margin-bottom:16px}.mail-in .marca i{width:20px;height:20px;border-radius:6px;background:var(--brand-primary)}
+.mail-in h2{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+.mail-in p{margin-top:10px;font-size:15px;line-height:1.5}
+.datos{margin-top:14px;border-radius:var(--r-xl);background:var(--muted);padding:4px 12px}
+.datos div{display:flex;gap:10px;padding:8px 0;font-size:14px}.datos div+div{border-top:1px solid color-mix(in oklab,var(--border) 70%,transparent)}
+.datos dt{width:84px;flex:none;color:var(--muted-foreground)}.datos dd{margin:0;font-weight:600;min-width:0}
+.mail-in .btn{width:100%;margin-top:16px}
+.mail-in .btn+.btn{margin-top:8px}
+.pie-mail{margin-top:14px;font-size:12px;color:var(--muted-foreground);line-height:1.5}
+.nota{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r-xl);border:1px dashed var(--border);font-size:13px;color:var(--muted-foreground)}
+.nota b{color:var(--foreground);font-weight:600}
+[hidden]{display:none!important}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding:8px 6px max(8px,env(safe-area-inset-bottom));background:color-mix(in oklab,var(--background) 72%,transparent);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border)}
+.tabs a{position:relative;min-width:0;min-height:56px;display:grid;justify-items:center;align-content:center;gap:4px;font-size:12px;font-weight:500;color:var(--muted-foreground);text-decoration:none;border-radius:var(--r-xl)}
+.tabs a[aria-current]{color:var(--brand-text);font-weight:600}
+/* Bottom sheet: detalle del aviso */
+dialog{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-width:100%;max-height:90vh;padding:0 0 max(12px,env(safe-area-inset-bottom));border:0;border-radius:26px 26px 0 0;background:var(--card);color:var(--foreground);box-shadow:var(--shadow-sheet)}dialog::backdrop{background:rgba(0,0,0,.5)}
+.grab{width:38px;height:5px;border-radius:9999px;background:var(--border);margin:8px auto 4px}
+.sh-h{display:flex;align-items:center;padding:4px 8px 4px 18px}.sh-h h2{flex:1;font-size:18px;font-weight:650}
+.sh-x{width:44px;height:44px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;color:var(--muted-foreground);cursor:pointer}
+.sh-b{display:grid;gap:12px;padding:4px 18px 16px;font-size:15px}.sh-b small{font-size:13px;color:var(--muted-foreground)}
+.sh-f{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding:8px 18px 0}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></symbol>
+<symbol id="i-gdv" viewBox="0 0 24 24"><path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7Z"/></symbol>
+<symbol id="i-equipo" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+<symbol id="i-talleres" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2Z"/><path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7Z"/></symbol>
+<symbol id="i-mas" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-cambio" viewBox="0 0 24 24"><path d="M4 9h13l-3-3M20 15H7l3 3"/></symbol>
+<symbol id="i-sobre" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></symbol>
+<symbol id="i-sello" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16.5 9.5"/></symbol>
+<symbol id="i-grupo" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+<symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-cert" viewBox="0 0 24 24"><circle cx="12" cy="9" r="6"/><path d="M8.5 14 7 22l5-3 5 3-1.5-8"/></symbol>
+</defs></svg>
+
+<nav class="nav" id="nav" aria-label="Barra de navegación">
+  <a class="back" href="09-mis-talleres-celular.html" aria-label="Volver a Mis talleres"><svg class="i s24" aria-hidden="true"><use href="#i-back"/></svg><span aria-hidden="true">Mis talleres</span></a>
+  <p class="ttl" aria-hidden="true">Avisos</p>
+  <span class="acts"><button class="lnk" type="button" id="b-leidos">Marcar leídos</button></span>
+</nav>
+
+<main id="main">
+  <div class="large">
+    <h1 id="t">Avisos</h1>
+    <p id="resumen"><strong class="num">2</strong> sin leer · <strong>1</strong> espera tu respuesta</p>
+  </div>
+
+  <div class="seg" role="group" aria-label="Dónde llega el aviso">
+    <button type="button" aria-pressed="true" data-vista="app">En la app</button>
+    <button type="button" aria-pressed="false" data-vista="correo">Correo</button>
+  </div>
+
+  <!-- (a) En la app -->
+  <div id="v-app" style="display:grid;gap:20px">
+    <section aria-labelledby="hoy-h">
+      <div class="sec-hd"><h2 class="sec-h" id="hoy-h">Espera tu respuesta</h2></div>
+      <article class="responder" aria-labelledby="cam-h">
+        <div class="r-top">
+          <span class="ico" data-t="info" aria-hidden="true"><svg class="i"><use href="#i-cambio"/></svg></span>
+          <div class="tx"><small>Parejas · hoy <span class="num">9:12</span> am</small><b id="cam-h">Tu taller cambió de fecha</b>
+            <p>No llegamos al mínimo de <span class="num">8</span> parejas para el <s>sábado 16 de enero</s>. <strong>Nueva fecha: sábado 6 de febrero, <span class="num">9:00</span> am</strong>, Salón 1.</p>
+            <p><strong>Confirma antes del mar 2 feb para mantener tu lugar.</strong> Si no confirmas, tu solicitud con Rafael sale de la edición y el cupo pasa a otra pareja.</p></div>
+        </div>
+        <div class="acts2" id="cam-acts"><button class="btn pri" type="button" data-resp="si">Mantener mi lugar</button><button class="btn" type="button" data-resp="no">Ya no puedo</button></div>
+        <div id="cam-done" hidden></div>
+      </article>
+    </section>
+
+    <section aria-labelledby="rec-h">
+      <div class="sec-hd"><h2 class="sec-h" id="rec-h">Últimos días</h2></div>
+      <ul class="lista" id="l-rec"></ul>
+    </section>
+    <section aria-labelledby="ant-h">
+      <div class="sec-hd"><h2 class="sec-h" id="ant-h">Antes</h2></div>
+      <ul class="lista" id="l-ant"></ul>
+    </section>
+  </div>
+
+  <!-- (b) Correo -->
+  <div id="v-correo" hidden style="display:grid;gap:14px">
+    <div class="pills" role="group" aria-label="Elegir aviso" id="p-correo"></div>
+    <article class="mail" aria-label="Vista previa del correo" id="mail"></article>
+    <p class="nota" role="note"><span><b>Correo:</b> llega siempre, desde <span class="num">avisos@yosoyglobal.org</span>. Los botones abren la app; si la persona no tiene cuenta, abren la página pública con su código. Los avisos van solo por la app y por correo: no enviamos WhatsApp.</span></p>
+  </div>
+
+  <p class="sr" role="status" aria-live="polite" id="live"></p>
+</main>
+
+<nav class="tabs" aria-label="Navegación inferior">
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-home"/></svg><span>Inicio</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-gdv"/></svg><span>Grupos</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-equipo"/></svg><span>Equipo</span></a>
+  <a href="09-mis-talleres-celular.html" aria-current="page"><svg class="i s24" aria-hidden="true"><use href="#i-talleres"/></svg><span>Talleres</span></a>
+  <a href="#"><svg class="i s24" aria-hidden="true"><use href="#i-mas"/></svg><span>Más</span></a>
+</nav>
+
+<dialog id="sh" aria-labelledby="sh-t">
+  <div class="grab" aria-hidden="true"></div>
+  <div class="sh-h"><h2 id="sh-t"></h2><button class="sh-x" type="button" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button></div>
+  <div class="sh-b" id="sh-b"></div>
+  <div class="sh-f" id="sh-f"></div>
+</dialog>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+new IntersectionObserver(([e])=>$('nav').classList.toggle('sc',!e.isIntersecting),{rootMargin:'-48px 0px 0px 0px'}).observe($('t'));
+/* One source for the three channels: the same six notices */
+const AV={
+  cambio:{ico:'cambio',t:'info',tit:'Tu taller cambió de fecha',tal:'Parejas',cuando:'Hoy',asunto:'Parejas cambió de fecha: ahora empieza el sábado 6 de febrero',
+    cuerpo:'No llegamos al mínimo de 8 parejas para el sábado 16 de enero, así que movimos el inicio. Confirma antes del mar 2 feb para mantener tu lugar; si no confirmas, tu solicitud con Rafael sale de la edición.',
+    datos:[['Antes','Sábado 16 de enero'],['Ahora','Sábado 6 de febrero · 9:00 am'],['Lugar','Salón 1 · Global Barquisimeto'],['Confirma','Antes del martes 2 de febrero']],ctas:['Mantener mi lugar','Ya no puedo']},
+  recibida:{ico:'sobre',t:'brand',tit:'Recibimos tu solicitud',tal:'Parejas',cuando:'Sáb 7 nov',nuevo:1,asunto:'Recibimos tu solicitud para Parejas',
+    cuerpo:'Andreína, recibimos tu inscripción y la de Rafael Colmenárez. La coordinación revisa cada inscripción y te avisa en unos días.',
+    datos:[['Taller','Parejas · Edición enero 2027'],['Con','Rafael Colmenárez'],['Estado','Esperando aprobación']],ctas:['Ver mi inscripción']},
+  recordatorio:{ico:'reloj',t:'warning',tit:'Recordatorio: mañana es tu clase',tal:'Mujer de Hoy',cuando:'Mié 4 nov',asunto:'Mañana es tu clase de Mujer de Hoy',
+    cuerpo:'Clase 5 · Mi familia. Si no puedes ir, avísale a Yusmary desde la app.',
+    datos:[['Cuándo','Jueves 5 nov · 7:00 pm'],['Dónde','Salón 2 · Global Barquisimeto'],['Facilita','Yusmary Mendoza']],ctas:['Cómo llegar','No puedo ir']},
+  grupo:{ico:'grupo',t:'success',tit:'Tu grupo y facilitadora',tal:'Mujer de Hoy',cuando:'Mar 6 oct',asunto:'Tu grupo de Mujer de Hoy: Jueves noche con Yusmary Mendoza',
+    cuerpo:'Ya tienes grupo. Tu facilitadora te escribirá antes de la primera clase.',
+    datos:[['Grupo','Jueves noche'],['Facilita','Yusmary Mendoza · 0412-555-0147'],['Empieza','Jueves 8 oct · 7:00 pm · Salón 2']],ctas:['Ver mi taller']},
+  aprobada:{ico:'sello',t:'success',tit:'Aprobamos tu inscripción',tal:'Mujer de Hoy',cuando:'Vie 2 oct',asunto:'Aprobamos tu inscripción en Mujer de Hoy',
+    cuerpo:'Tienes tu lugar en Mujer de Hoy. Pronto te avisamos tu grupo y tu facilitadora.',
+    datos:[['Taller','Mujer de Hoy · Edición octubre 2026'],['Empieza','Jueves 8 de octubre'],['Duración','6 clases, una por semana']],ctas:['Ver mi taller']},
+  certificado:{ico:'cert',t:'success',tit:'Tu certificado está listo',tal:'Punto de Partida',cuando:'17 abr',asunto:'Completaste Punto de Partida: tu certificado está listo',
+    cuerpo:'Completaste Punto de Partida con 6 de 6 clases. Descarga tu certificado o guárdalo en la app.',
+    datos:[['Taller','Punto de Partida · Abril 2026'],['Asistencia','6 de 6 clases'],['Facilitó','Luis Aponte']],ctas:['Descargar certificado']}};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fila=k=>{const a=AV[k];return `<li><button class="av-row${a.nuevo?'':' leido'}" type="button" data-ver="${k}" aria-haspopup="dialog">${a.nuevo?'<span class="nuevo" aria-hidden="true"></span>':''}<span class="ico" data-t="${a.t}" aria-hidden="true"><svg class="i"><use href="#i-${a.ico}"/></svg></span><span class="tx"><span class="l1"><b>${a.tit}${a.nuevo?'<span class="sr">, sin leer</span>':''}</b><time>${a.cuando}</time></span><p>${esc(a.cuerpo)}</p><span class="tag">${a.tal}</span></span></button></li>`};
+$('l-rec').innerHTML=['recibida','recordatorio'].map(fila).join('');
+$('l-ant').innerHTML=['grupo','aprobada','certificado'].map(fila).join('');
+const ORD=['cambio','recibida','aprobada','grupo','recordatorio','certificado'];
+$('p-correo').innerHTML=ORD.map((k,i)=>`<button type="button" aria-pressed="${i===0}" data-mail="${k}">${AV[k].tit.replace('Recordatorio: ','')}</button>`).join('');
+function mail(k){const a=AV[k];$('mail').innerHTML=`<div class="mail-hd"><b>${a.asunto}</b><div class="de"><span class="lg" aria-hidden="true"></span><span><strong>Global Connect</strong> &lt;avisos@yosoyglobal.org&gt;<span>Para: andreina.colmenarez@gmail.com</span></span></div></div>
+  <div class="mail-bd"><div class="mail-in"><div class="marca"><i aria-hidden="true"></i>Iglesia Global · Grupos de Corto Plazo</div><h2>${a.tit}</h2><p>${esc(a.cuerpo)}</p>
+  <dl class="datos">${a.datos.map(d=>`<div><dt>${d[0]}</dt><dd>${esc(d[1])}</dd></div>`).join('')}</dl>
+  ${a.ctas.map((c,i)=>`<a class="btn${i===0?' pri':''}" href="#">${c}</a>`).join('')}
+  <p class="pie-mail">Recibes este correo porque te inscribiste en ${a.tal}. Iglesia Global · Barquisimeto, Lara. ¿Dudas? Responde este correo.</p></div></div>`}
+mail('cambio');
+function verAviso(k,orig){const a=AV[k];$('sh-t').textContent=a.tit;
+  $('sh-b').innerHTML=`<small>${a.tal} · ${a.cuando}</small><p>${esc(a.cuerpo)}</p><dl class="datos" style="margin:0">${a.datos.map(d=>`<div><dt>${d[0]}</dt><dd>${esc(d[1])}</dd></div>`).join('')}</dl>`;
+  $('sh-f').innerHTML=`<a class="btn pri" href="${k==='recordatorio'?'10-detalle-taller-miembro-celular.html':'09-mis-talleres-celular.html'}">${a.ctas[0]}</a>`;
+  $('sh')._o=orig;$('sh').showModal();
+  if(a.nuevo){a.nuevo=0;orig.classList.add('leido');orig.querySelector('.nuevo')?.remove();orig.querySelector('.sr')?.remove();contar()}}
+let sinLeer=2,pend=1;
+function contar(){sinLeer=Object.values(AV).filter(a=>a.nuevo).length+(pend?1:0);$('resumen').innerHTML=(sinLeer?`<strong class="num">${sinLeer}</strong> sin leer`:'Todo leído')+(pend?' · <strong>1</strong> espera tu respuesta':'')}
+function responder(si){pend=0;contar();
+  $('cam-acts').hidden=true;$('cam-done').hidden=false;
+  $('cam-done').innerHTML=`<div class="hecho"><svg class="i" aria-hidden="true" style="color:var(--success-text)"><use href="#i-check"/></svg><span class="tx">${si?'Listo: mantienes tu lugar para el sábado 6 de febrero.':'Avisamos a la coordinación que ya no pueden. Liberamos el cupo.'}</span></div>`;
+  live(si?'Mantienes tu lugar en Parejas.':'Avisaste que ya no pueden ir a Parejas.')}
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.vista){document.querySelectorAll('[data-vista]').forEach(x=>x.setAttribute('aria-pressed',x===b));['app','correo'].forEach(v=>$('v-'+v).hidden=v!==b.dataset.vista)}
+  else if(b.dataset.mail){document.querySelectorAll('[data-mail]').forEach(x=>x.setAttribute('aria-pressed',x===b));mail(b.dataset.mail)}
+  else if(b.dataset.resp)responder(b.dataset.resp==='si');
+  else if(b.dataset.ver)verAviso(b.dataset.ver,b);
+  else if(b.id==='b-leidos'){Object.values(AV).forEach(a=>a.nuevo=0);document.querySelectorAll('.av-row').forEach(r=>{r.classList.add('leido');r.querySelector('.nuevo')?.remove()});contar();live('Marcaste todo como leído.')}
+  else if('close' in b.dataset){$('sh').close();$('sh')._o&&$('sh')._o.focus()}
+});
+$('sh').addEventListener('cancel',()=>setTimeout(()=>$('sh')._o&&$('sh')._o.focus()));
+if(/correo/.test(location.hash))document.querySelector('[data-vista=correo]').click();
+</script>
+</body>
+</html>

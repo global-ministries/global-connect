@@ -33,7 +33,7 @@ import { RegistroAsistenciaClase } from '@/components/talleres/registro-asistenc
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
 import { EnviarReporte } from '@/components/talleres/enviar-reporte.client'
 import { EditarClaseInstanciada } from '@/components/talleres/editar-clase-instanciada'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { TallerDetalle } from '@/lib/platform/talleres/catalogo'
 import type { EdicionLocalDetalle } from '@/lib/platform/talleres/operacional'
@@ -294,7 +294,7 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
 
 /**
  * Every element of the given type, WITHOUT executing it. The page renders
- * several EstadoVacio (participantes AND asistencia), so "the first one"
+ * several EstadoVacioSistema (participantes AND asistencia), so "the first one"
  * is not necessarily the section under test.
  */
 function findAllByType(node: unknown, type: unknown): Array<{ props: Record<string, unknown> }> {
@@ -435,7 +435,7 @@ describe('GrupoDetallePage — full access', () => {
     setup({ reporte: null, permisos: { verReportes: true }, inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toMatch(/aún no hay reporte/i)
   })
 
@@ -443,7 +443,7 @@ describe('GrupoDetallePage — full access', () => {
     setup({ reporte: null, permisos: { verReportes: false }, inscripcionesGrupo: { aprobadas: [{ id: 'i-1', personaId: 'p-1', nombre: 'Carla Ruiz' }], retiradas: [] } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toMatch(/no tienes permiso/i)
   })
 
@@ -565,14 +565,14 @@ describe('GrupoDetallePage — su gente (T4, participantes reales)', () => {
     expect(text).toMatch(/Retirad/)
   })
 
-  it('shows EstadoVacio when there are no participantes at all', async () => {
+  it('shows EstadoVacioSistema when there are no participantes at all', async () => {
     setup({ inscripcionesGrupo: { aprobadas: [], retiradas: [] } })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     // Equipo's own roster (ASIGNACIONES) is non-empty and reporte is set
-    // (REPORTE, not null) by default, so the only EstadoVacio in the tree
+    // (REPORTE, not null) by default, so the only EstadoVacioSistema in the tree
     // here is su gente's.
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toMatch(/no hay participantes/i)
   })
 
@@ -609,7 +609,7 @@ describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toMatch(/aún no hay asistencia/i)
   })
 
@@ -623,7 +623,7 @@ describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toMatch(/aún no hay reporte/i)
   })
 
@@ -637,7 +637,7 @@ describe('GrupoDetallePage — miembro sin capacidades (T2)', () => {
     })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
-    const vacio = findByType(element, EstadoVacio)
+    const vacio = findByType(element, EstadoVacioSistema)
     expect(vacio?.props.titulo).toMatch(/no tienes permiso/i)
   })
 
@@ -742,9 +742,9 @@ describe('GrupoDetallePage — lectura de una clase marcada (T2)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     const element = (await GrupoDetallePage(params())) as any
     expect(findByType(element, LecturaAsistenciaClase)).toBeNull()
-    // Several EstadoVacio exist on this page (participantes section first);
+    // Several EstadoVacioSistema exist on this page (participantes section first);
     // assert the one the asistencia section actually renders.
-    const vacios = findAllByType(element, EstadoVacio)
+    const vacios = findAllByType(element, EstadoVacioSistema)
     expect(vacios.some((e) => /aún no hay asistencia/i.test(String(e.props.titulo)))).toBe(true)
   })
 

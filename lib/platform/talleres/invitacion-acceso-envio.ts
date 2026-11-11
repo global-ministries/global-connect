@@ -7,6 +7,11 @@
  * `invitacion_acceso_preparar_envio` and records the outcome with
  * `invitacion_acceso_registrar_envio`.
  *
+ * The copy follows `invitaciones_acceso.origen`: taller_publico (a new person
+ * who reserved on the public page, odd/tasks/talleres-reserva-publica.md S4)
+ * gets the public copy; any other origen keeps the cónyuge copy, with "Tu
+ * pareja" when the inviter was deleted.
+ *
  * Server-only (admin client). Never throws: enrollment and approval call it
  * after their own write committed, so a mail failure must not undo them;
  * the invitation stays pending and the coordinator can resend it.
@@ -17,6 +22,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createElement, type ReactElement } from 'react'
 
 import { AccesoTallerConyugeEmail } from '@/emails/acceso-taller-conyuge'
+import { AccesoTallerPublicoEmail } from '@/emails/acceso-taller-publico'
 
 export const VIGENCIA_INVITACION_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -26,8 +32,11 @@ interface RespuestaRpc {
 }
 
 /** The slice of the admin client this module uses. */
-export interface ClienteRpc {
+export interface ClienteAdmin {
   rpc(nombre: string, args?: Record<string, unknown>): PromiseLike<RespuestaRpc>
+  from(tabla: 'invitaciones_acceso'): {
+    select(columnas: string): { eq(columna: string, valor: string): { maybeSingle(): PromiseLike<RespuestaRpc> } }
+  }
 }
 
 export interface CorreoSaliente {
@@ -38,7 +47,7 @@ export interface CorreoSaliente {
 }
 
 export interface DependenciasEnvio {
-  readonly admin: ClienteRpc
+  readonly admin: ClienteAdmin
   readonly enviarCorreo: (correo: CorreoSaliente) => Promise<{ success: boolean; error?: string }>
   readonly ahora?: () => Date
   readonly urlBase?: string
@@ -78,6 +87,12 @@ function parsePreparada(raw: unknown): Preparada | null {
   }
 }
 
+function plantilla(origen: string | null, { nombreInvitado, nombreInvitante, tallerNombre }: Preparada, urlActivar: string): ReactElement {
+  return origen === 'taller_publico'
+    ? createElement(AccesoTallerPublicoEmail, { nombreInvitado, tallerNombre, urlActivar })
+    : createElement(AccesoTallerConyugeEmail, { nombreInvitado, nombreInvitante, tallerNombre, urlActivar })
+}
+
 function mensajeError(error: unknown): string {
   const mensaje = error instanceof Error ? error.message : typeof error === 'string' ? error : 'unknown'
   return mensaje.slice(0, 300)
@@ -92,10 +107,10 @@ async function dependenciasPorDefecto(): Promise<DependenciasEnvio> {
     import('@/lib/supabase/admin'),
     import('@/lib/email/send'),
   ])
-  return { admin: createSupabaseAdminClient() as unknown as ClienteRpc, enviarCorreo: sendEmail }
+  return { admin: createSupabaseAdminClient() as unknown as ClienteAdmin, enviarCorreo: sendEmail }
 }
 
-async function registrar(admin: ClienteRpc, id: string, ok: boolean, error: string | null): Promise<void> {
+async function registrar(admin: ClienteAdmin, id: string, ok: boolean, error: string | null): Promise<void> {
   const { error: fallo } = await admin.rpc('invitacion_acceso_registrar_envio', { p_id: id, p_ok: ok, p_error: error })
   if (fallo) console.error('[invitacion-acceso] registrar_envio failed', { invitacionId: id })
 }
@@ -106,6 +121,14 @@ export async function enviarInvitacionAcceso(id: string, deps?: DependenciasEnvi
     const d = deps ?? (await dependenciasPorDefecto())
     const ahora = d.ahora ? d.ahora() : new Date()
     const token = generarTokenInvitacion()
+
+    // Read before preparing: a failed read leaves no token behind.
+    const lectura = await d.admin.from('invitaciones_acceso').select('id, origen').eq('id', id).maybeSingle()
+    if (lectura.error) {
+      console.error('[invitacion-acceso] origen read failed', { invitacionId: id })
+      return 'fallida'
+    }
+    const origen = texto((lectura.data as { origen?: unknown } | null)?.origen)
 
     const { data, error } = await d.admin.rpc('invitacion_acceso_preparar_envio', {
       p_invitacion_id: id,
@@ -126,7 +149,7 @@ export async function enviarInvitacionAcceso(id: string, deps?: DependenciasEnvi
       envio = await d.enviarCorreo({
         to: preparada.email,
         subject: `Tu acceso al taller ${preparada.tallerNombre}`,
-        template: createElement(AccesoTallerConyugeEmail, { ...preparada, urlActivar }),
+        template: plantilla(origen, preparada, urlActivar),
         idempotencyKey: `invitacion-acceso/${id}/${hashTokenInvitacion(token).slice(0, 16)}`,
       })
     } catch (e) {

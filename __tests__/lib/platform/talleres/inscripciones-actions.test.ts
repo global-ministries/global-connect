@@ -33,6 +33,10 @@ jest.mock('@/lib/platform/talleres/invitacion-acceso-envio', () => ({
   enviarInvitacionAcceso: jest.fn().mockResolvedValue('enviada'),
 }))
 
+jest.mock('@/lib/platform/talleres/avisos-envio', () => ({
+  despacharAvisosTalleres: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('@/lib/supabase/admin', () => ({
   createSupabaseAdminClient: jest.fn(),
 }))
@@ -347,6 +351,7 @@ describe('rejectInscripcionAction — happy path', () => {
     expect(update).toHaveBeenCalledWith({
       estado: 'no_aprobado',
       motivo_no_aprobado: 'cupo lleno', // trimmed
+      mensaje_no_aprobado: null, // no message for the person
     })
     expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/pendientes')
   })
@@ -553,5 +558,108 @@ describe('reenviarAccesoAction', () => {
     setupMocks({ capabilities: ['talleres_crecimiento.coordinator.read'] })
     const result = await reenviarAccesoAction(INSCRIPCION_ID)
     expect(result).toMatchObject({ ok: false, error: 'FORBIDDEN' })
+  })
+})
+
+// ─── T7 avisos: the emails go right after the write ───────────────────────
+
+describe('approve / reject send the due notice emails right away', () => {
+  const despachar = jest.requireMock('@/lib/platform/talleres/avisos-envio').despacharAvisosTalleres as jest.Mock
+
+  function sinFila() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recursive chain mock
+    const updateBuilder: Record<string, any> = {}
+    updateBuilder['eq'] = jest.fn(() => updateBuilder)
+    updateBuilder['select'] = jest.fn(() => updateBuilder)
+    updateBuilder['maybeSingle'] = jest.fn(() => Promise.resolve({ data: null, error: null }))
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: AUTH_UID } }, error: null }) },
+      from: jest.fn(() => ({ update: jest.fn(() => updateBuilder) })),
+    })
+  }
+
+  it('an approval dispatches once', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    await expect(approveInscripcionAction(INSCRIPCION_ID)).resolves.toMatchObject({ ok: true })
+    expect(despachar).toHaveBeenCalledTimes(1)
+  })
+
+  it('a rejection dispatches once', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    await expect(rejectInscripcionAction(INSCRIPCION_ID, 'Cupo lleno')).resolves.toMatchObject({ ok: true })
+    expect(despachar).toHaveBeenCalledTimes(1)
+  })
+
+  it('nothing is dispatched when the row was not pendiente', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    sinFila()
+    await expect(approveInscripcionAction(INSCRIPCION_ID)).resolves.toMatchObject({ ok: false })
+    await expect(rejectInscripcionAction(INSCRIPCION_ID, 'Cupo lleno')).resolves.toMatchObject({ ok: false })
+    expect(despachar).not.toHaveBeenCalled()
+  })
+
+  it('nothing is dispatched without the capability', async () => {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.read'] })
+    await approveInscripcionAction(INSCRIPCION_ID)
+    await rejectInscripcionAction(INSCRIPCION_ID, 'Cupo lleno')
+    expect(despachar).not.toHaveBeenCalled()
+  })
+})
+
+// ─── L24: internal motivo + optional message for the person ──────────────
+
+describe('rejectInscripcionAction — message for the person (L24)', () => {
+  function conUpdate() {
+    setupMocks({ capabilities: ['talleres_crecimiento.coordinator.write'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- recursive chain mock
+    const builder: Record<string, any> = {}
+    builder['eq'] = jest.fn(() => builder)
+    builder['select'] = jest.fn(() => builder)
+    builder['maybeSingle'] = jest.fn(() => Promise.resolve({ data: { id: INSCRIPCION_ID }, error: null }))
+    const update = jest.fn(() => builder)
+    createSupabaseServerClientMock.mockReset().mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: AUTH_UID } }, error: null }) },
+      from: jest.fn(() => ({ update })),
+    })
+    return update
+  }
+
+  it('stores the internal motivo and the message, both trimmed', async () => {
+    const update = conUpdate()
+    const result = await rejectInscripcionAction(INSCRIPCION_ID, '  ya lo hizo  ', '  Te esperamos en la próxima  ')
+    expect(result).toMatchObject({ ok: true })
+    expect(update).toHaveBeenCalledWith({
+      estado: 'no_aprobado',
+      motivo_no_aprobado: 'ya lo hizo',
+      mensaje_no_aprobado: 'Te esperamos en la próxima',
+    })
+  })
+
+  it('a blank message is stored as null', async () => {
+    const update = conUpdate()
+    await rejectInscripcionAction(INSCRIPCION_ID, 'ya lo hizo', '   ')
+    expect(update).toHaveBeenCalledWith({
+      estado: 'no_aprobado',
+      motivo_no_aprobado: 'ya lo hizo',
+      mensaje_no_aprobado: null,
+    })
+  })
+
+  it('a message of 600 characters is accepted', async () => {
+    const update = conUpdate()
+    await expect(rejectInscripcionAction(INSCRIPCION_ID, 'motivo', 'm'.repeat(600))).resolves.toMatchObject({ ok: true })
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ mensaje_no_aprobado: 'm'.repeat(600) }))
+  })
+
+  it('a message longer than 600 characters is refused before any write', async () => {
+    const update = conUpdate()
+    const result = await rejectInscripcionAction(INSCRIPCION_ID, 'motivo', 'm'.repeat(601))
+    expect(result).toEqual({
+      ok: false,
+      error: 'INVALID_MENSAJE',
+      message: 'El mensaje para la persona no puede pasar de 600 caracteres.',
+    })
+    expect(update).not.toHaveBeenCalled()
+    expect(resolveSessionMock).not.toHaveBeenCalled()
   })
 })

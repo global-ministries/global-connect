@@ -84,6 +84,15 @@
  *   - Ventana no longer reads a `taller_periodos_generales` join (that
  *     table is deprecated, always NULL from T2 onward) — it reads the
  *     edición's OWN fecha_inicio/fecha_fin/cierre_inscripcion instead.
+ *
+ * Mínimo de inscritos (odd/tasks/talleres-reserva-publica.md T8a, S9 S15
+ * S16): loadPanelMinimo (talleres_minimo_panel, best effort) drives two
+ * blocks above Inscritos. Below the minimum, AvisoMinimo offers «Suspender
+ * y mover a nueva fecha», «Abrir igual» (only the director and the taller's
+ * coordinador, decided by the RPC's puede_abrir_igual) and the existing
+ * «Cancelar esta edición» (editarEdicion, now also allowed below the
+ * minimum — see cancelarEdicion). After a suspension, EstadoSuspension shows
+ * the answers and the call list.
  */
 
 import { notFound } from 'next/navigation'
@@ -98,13 +107,15 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
 import { CerrarEdicionButton } from '@/components/talleres/cerrar-edicion-dialog'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
+import { AvisoMinimo } from '@/components/talleres/minimo/aviso-minimo'
+import { EstadoSuspension } from '@/components/talleres/minimo/estado-suspension'
 import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -133,6 +144,7 @@ import {
 } from '@/lib/platform/talleres/inscripciones-actions'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
+import { hoyIglesia, loadPanelMinimo, mostrarEstadoSuspension } from '@/lib/platform/talleres/minimo-suspension'
 
 export const metadata = { title: 'Edición' }
 
@@ -208,6 +220,8 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   // effort, same "never blocks the page" contract as refrescarEstados
   // Ediciones: a failed/unauthorized call just hides the Cupo line.
   const cupo = await loadCupoEdicion(client, edicion.id)
+  // T8a — best effort: null hides both minimum blocks.
+  const panelMinimo = await loadPanelMinimo(client, edicion.id)
 
   // T7b — the "Reprogramar" dialog's own preview inputs and the Ventana
   // audit line, both gated on editarEdicion (same viewers who already see
@@ -326,6 +340,33 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
         </div>
       </TarjetaSistema>
 
+      {/* Mínimo de inscritos (T8a) */}
+      {panelMinimo?.bajoMinimo && (
+        <AvisoMinimo
+          tallerSlug={taller.slug}
+          tallerNombre={taller.nombre}
+          edicionId={edicion.id}
+          panel={panelMinimo}
+          cancelar={
+            permisos.editarEdicion ? (
+              <CancelarEdicionButton
+                tallerSlug={taller.slug}
+                edicionId={edicion.id}
+                inscritos={edicion.inscripciones_count}
+              />
+            ) : undefined
+          }
+        />
+      )}
+      {panelMinimo && mostrarEstadoSuspension(panelMinimo, hoyIglesia()) && (
+        <EstadoSuspension
+          tallerSlug={taller.slug}
+          tallerNombre={taller.nombre}
+          edicionId={edicion.id}
+          panel={panelMinimo}
+        />
+      )}
+
       {/* Inscritos */}
       <section aria-labelledby="inscritos-heading">
         <TituloSistema nivel={2} id="inscritos-heading">
@@ -346,7 +387,9 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
         )}
         <div className="mt-3">
           {inscripciones.rows.length === 0 ? (
-            <EstadoVacio icono={Users} titulo="No hay inscritos todavía" />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema icono={Users} titulo="No hay inscritos todavía" />
+            </TarjetaSistema>
           ) : (
             <TablaInscripciones
               rows={filasInscripciones}

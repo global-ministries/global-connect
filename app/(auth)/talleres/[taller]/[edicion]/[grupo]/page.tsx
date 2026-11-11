@@ -84,6 +84,22 @@
  * components/talleres/labels.ts, the same maps T10 gave grupo/clase estado
  * everywhere else. Voseo in this file's copy was replaced with neutral
  * Spanish.
+ *
+ * T8b (odd/tasks/talleres-reserva-publica.md, S17) — recuperar clase. A
+ * cerrada clase renders AsistenciaClaseCerrada instead of the plain read
+ * view when there is something to recover or already recovered (otherwise
+ * the read view stays as it was): a recovered absence reads «R ·
+ * Recuperada», and whoever may
+ * register gets «Recuperar clase» / «Anular»; the RPC is the authority.
+ * Follow-up (L24): «may register» mirrors talleres_registrar_recuperacion
+ * exactly — the taller allows recoveries, the edición is not closed
+ * (cerrada_en), and the caller is the grupo's líder or holds
+ * director.write / coordinator.write on the grupo's node
+ * (auth_has_talleres_capability_scoped on talleres_equipo_de_grupo).
+ * permisos.gestionarGrupos is NOT enough: it also includes admin.manage
+ * alone, which the RPC refuses. «Su gente» shows each person's progress toward the
+ * certificate (presentes + recuperadas, the cierre's own rule) to whoever
+ * reads the grupo's attendance.
  */
 
 import { notFound } from 'next/navigation'
@@ -97,7 +113,7 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import {
   claseEstadoBadgeVariante,
   claseEstadoLabel,
@@ -112,6 +128,7 @@ import {
 import { CerrarClase } from '@/components/talleres/cerrar-clase.client'
 import { EnviarReporte } from '@/components/talleres/enviar-reporte.client'
 import { EditarClaseInstanciada } from '@/components/talleres/editar-clase-instanciada'
+import { AsistenciaClaseCerrada } from '@/components/talleres/recuperar/asistencia-clase-cerrada.client'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -135,6 +152,14 @@ import {
   type AsistenciaPersonaRow,
 } from '@/lib/platform/talleres/grupo-detalle'
 import { cargarPermisos } from '@/lib/platform/talleres/permisos'
+import {
+  loadMarcasGrupo,
+  loadPermiteRecuperar,
+  loadRecuperacionesGrupo,
+  progresoCertificado,
+  textoAsistencia,
+  textoFaltan,
+} from '@/lib/platform/talleres/recuperar-clase'
 import { rutaTaller, rutaEdicion, rutaGrupo } from '@/lib/platform/talleres/rutas'
 
 export const metadata = { title: 'Grupo' }
@@ -319,6 +344,41 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
 
   const lideres = asignaciones.filter((a) => a.rol === 'lider')
 
+  // T8b — recuperar clase. Reads fail soft (no migration → no controls).
+  const sesionIds = sesiones.map((s) => s.id)
+  const permiteRecuperar = !modoLimitado && (await loadPermiteRecuperar(client, taller.id))
+  const puedeRecuperar =
+    permiteRecuperar &&
+    edicion?.cerrada_en == null &&
+    (miRol === 'lider' || (await puedeRegistrarRecuperacionEnNodo(client, grupoId)))
+  const leeAsistencia = !modoLimitado && (permisos.ver || esMiembro)
+  const [recuperaciones, marcasGrupo] = leeAsistencia
+    ? await Promise.all([loadRecuperacionesGrupo(client, sesionIds), loadMarcasGrupo(client, sesionIds)])
+    : [[], []]
+  const progreso = leeAsistencia
+    ? progresoCertificado({
+        sesiones,
+        inscripciones: inscripcionesGrupo.aprobadas,
+        marcas: marcasGrupo,
+        recuperaciones,
+        clasesMinimas: taller.clases_minimas_para_completar,
+        permiteRecuperar,
+      })
+    : null
+  const facilitadores = asignaciones.map((a) => ({ personaId: a.personaId, nombre: a.nombre }))
+  const nombreFacilitador = new Map(facilitadores.map((f) => [f.personaId, f.nombre]))
+  const recuperacionesClase = claseSeleccionada
+    ? recuperaciones
+        .filter((r) => r.sesionId === claseSeleccionada.id)
+        .map((r) => ({
+          id: r.id,
+          personaId: r.personaId,
+          fecha: r.fecha,
+          dadaPorNombre: nombreFacilitador.get(r.dadaPor) ?? 'la coordinación',
+          nota: r.nota,
+        }))
+    : []
+
   return (
     <PaginaSistema
       titulo={grupo?.nombre ?? 'Grupo'}
@@ -384,7 +444,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <div className="mt-3">
           {asignaciones.length === 0 ? (
-            <EstadoVacio icono={Users} titulo="No hay personas asignadas todavía" />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema icono={Users} titulo="No hay personas asignadas todavía" />
+            </TarjetaSistema>
           ) : (
             <TarjetaSistema className="p-0">
               <ul className="divide-y divide-border">
@@ -412,7 +474,9 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <div className="mt-3">
           {inscripcionesGrupo.aprobadas.length === 0 && inscripcionesGrupo.retiradas.length === 0 ? (
-            <EstadoVacio icono={Users} titulo="No hay participantes todavía" />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema icono={Users} titulo="No hay participantes todavía" />
+            </TarjetaSistema>
           ) : (
             <div className="space-y-4">
               {inscripcionesGrupo.aprobadas.length === 0 ? (
@@ -422,11 +486,30 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
               ) : (
                 <TarjetaSistema className="p-0">
                   <ul className="divide-y divide-border">
-                    {inscripcionesGrupo.aprobadas.map((p) => (
-                      <li key={p.id} className="flex items-center justify-between gap-3 p-3">
-                        <TextoSistema className="text-sm">{p.nombre}</TextoSistema>
-                      </li>
-                    ))}
+                    {inscripcionesGrupo.aprobadas.map((p) => {
+                      // T8b — progress toward the certificate, only once a
+                      // clase was held (nothing to say before that).
+                      const avance = progreso?.get(p.id)
+                      const conAvance = avance !== undefined && avance.dictadas > 0
+                      const faltan = conAvance ? textoFaltan(avance) : null
+                      return (
+                        <li key={p.id} className="flex items-center justify-between gap-3 p-3">
+                          <div className="min-w-0">
+                            <TextoSistema className="block truncate text-sm">{p.nombre}</TextoSistema>
+                            {conAvance && (
+                              <TextoSistema variante="sutil" tamaño="sm" className="block font-mono tabular-nums">
+                                {faltan ? `${textoAsistencia(avance)} · ${faltan}` : textoAsistencia(avance)}
+                              </TextoSistema>
+                            )}
+                          </div>
+                          {conAvance && avance.enRiesgo && (
+                            <BadgeSistema variante="warning" tamaño="sm">
+                              {permiteRecuperar ? 'En riesgo · puede recuperar' : 'En riesgo'}
+                            </BadgeSistema>
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                 </TarjetaSistema>
               )}
@@ -460,14 +543,16 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </TituloSistema>
         <div className="mt-3">
           {sesiones.length === 0 ? (
-            <EstadoVacio
-              icono={Calendar}
-              titulo={
-                modoLimitado
-                  ? 'Todavía no tienes permiso para ver las clases de este grupo'
-                  : 'No hay clases todavía'
-              }
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={Calendar}
+                titulo={
+                  modoLimitado
+                    ? 'Todavía no tienes permiso para ver las clases de este grupo'
+                    : 'No hay clases todavía'
+                }
+              />
+            </TarjetaSistema>
           ) : (
             <TarjetaSistema className="p-0">
               <ul className="divide-y divide-border">
@@ -580,19 +665,39 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
                 <CerrarClase sesionId={claseSeleccionada.id} numero={claseSeleccionada.numero} />
               )}
             </div>
-          ) : asistencia.length === 0 ? (
-            <EstadoVacio
-              icono={ClipboardList}
-              titulo={
-                // A grupo member reads this by relation (T2), not by
-                // capability — RLS already decided what data arrives, so
-                // an empty result for a member is honestly "nothing yet",
-                // never "no permission".
-                permisos.ver || esMiembro
-                  ? 'Aún no hay asistencia registrada para esta clase'
-                  : 'No tienes permiso para ver la asistencia de esta clase'
-              }
+          ) : claseSeleccionada.estado === 'cerrada' &&
+            asistencia.length > 0 &&
+            (puedeRecuperar || recuperacionesClase.length > 0) ? (
+            <AsistenciaClaseCerrada
+              key={claseSeleccionada.id}
+              tallerSlug={taller.slug}
+              edicionId={edicionIdParam}
+              grupoId={grupoId}
+              sesionId={claseSeleccionada.id}
+              numero={claseSeleccionada.numero}
+              tema={claseSeleccionada.tema}
+              fechaClase={(claseSeleccionada.fechaRealizada ?? claseSeleccionada.fechaProgramada).slice(0, 10)}
+              filas={asistencia}
+              recuperaciones={recuperacionesClase}
+              puedeRecuperar={puedeRecuperar}
+              facilitadores={facilitadores}
+              dadaPorDefecto={miRol === 'lider' ? session.personaId : (lideres[0]?.personaId ?? null)}
             />
+          ) : asistencia.length === 0 ? (
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={ClipboardList}
+                titulo={
+                  // A grupo member reads this by relation (T2), not by
+                  // capability — RLS already decided what data arrives, so
+                  // an empty result for a member is honestly "nothing yet",
+                  // never "no permission".
+                  permisos.ver || esMiembro
+                    ? 'Aún no hay asistencia registrada para esta clase'
+                    : 'No tienes permiso para ver la asistencia de esta clase'
+                }
+              />
+            </TarjetaSistema>
           ) : (
             <LecturaAsistenciaClase
               numero={claseSeleccionada.numero}
@@ -619,15 +724,17 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
         </div>
         <div className="mt-3">
           {!reporte ? (
-            <EstadoVacio
-              icono={FileText}
-              titulo={
-                // Same relation-vs-capability honesty as asistencia above.
-                permisos.verReportes || esMiembro
-                  ? 'Aún no hay reporte para este grupo'
-                  : 'No tienes permiso para ver el reporte de este grupo'
-              }
-            />
+            <TarjetaSistema className="p-0">
+              <EstadoVacioSistema
+                icono={FileText}
+                titulo={
+                  // Same relation-vs-capability honesty as asistencia above.
+                  permisos.verReportes || esMiembro
+                    ? 'Aún no hay reporte para este grupo'
+                    : 'No tienes permiso para ver el reporte de este grupo'
+                }
+              />
+            </TarjetaSistema>
           ) : (
             <TarjetaSistema variante="elevated" className="p-4">
               <TextoSistema variante="sutil" className="block text-sm">
@@ -663,6 +770,36 @@ export default async function GrupoDetallePage(ctx: RouteContext) {
       </section>
     </PaginaSistema>
   )
+}
+
+interface CapacidadClient {
+  rpc(name: string, args: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }>
+}
+
+/**
+ * T8b follow-up — the capability half of talleres_registrar_recuperacion's
+ * authority: director.write or coordinator.write on the grupo's node (the
+ * cohorte's equipo, as the RPC resolves it), ancestors included. Fails soft
+ * to false, so a missing RPC only hides the control.
+ */
+async function puedeRegistrarRecuperacionEnNodo(client: CapacidadClient, grupoId: string): Promise<boolean> {
+  try {
+    const equipoId = await resolveEquipoDeGrupo(client, grupoId)
+    if (!equipoId) return false
+    for (const capacidad of [
+      'talleres_crecimiento.director.write',
+      'talleres_crecimiento.coordinator.write',
+    ]) {
+      const { data, error } = await client.rpc('auth_has_talleres_capability_scoped', {
+        p_capability_key: capacidad,
+        p_equipo_id: equipoId,
+      })
+      if (!error && data === true) return true
+    }
+    return false
+  } catch {
+    return false
+  }
 }
 
 /**

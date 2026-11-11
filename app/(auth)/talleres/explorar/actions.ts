@@ -20,12 +20,16 @@
  * needs a write cap.
  *
  * Revalidates /talleres/explorar and /talleres/mi-recorrido after a
- * successful enrollment so the participant's views reflect it.
+ * successful enrollment so the participant's views reflect it, and sends the
+ * «Inscripción recibida» email after the response (despacharAvisosTalleres,
+ * never throws; T9 of odd/tasks/talleres-reserva-publica.md).
  */
 
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 
 import { requireTalleresApiAuthenticated } from '@/lib/platform/talleres/api-helpers'
+import { despacharAvisosTalleres } from '@/lib/platform/talleres/avisos-envio'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { enviarInvitacionesPendientes } from '@/lib/platform/talleres/invitacion-acceso-envio'
 import {
@@ -186,6 +190,8 @@ export async function inscribirseATaller(input: InscribirseInput): Promise<Inscr
   // whether it is due now (taller set to 'al_inscribirse') or after the
   // approval; the sender only mails the due ones and never throws.
   if (fichaNueva) await enviarInvitacionesPendientes()
+  // The «Inscripción recibida» notice was written with the inscription.
+  after(() => despacharAvisosTalleres())
 
   revalidatePath('/talleres/explorar')
   // T10 (odd/tasks/talleres-consolidar-pantallas.md) — /talleres/

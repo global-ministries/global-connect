@@ -185,6 +185,8 @@ describe('loadTallerDetalle', () => {
     expect(selectCols[0]).toMatch(/cadencia_dias/)
     expect(selectCols[0]).toMatch(/duracion_minutos/)
     expect(selectCols[0]).toMatch(/clases_minimas_para_completar/)
+    expect(selectCols[0]).toMatch(/minimo_inscritos/)
+    expect(selectCols[0]).toMatch(/permite_recuperar_clases/)
   })
 
   it('maps the row with its nested ediciones, inscripciones counts, descripcion, modalidad_default, cadencia and duracion', async () => {
@@ -199,6 +201,8 @@ describe('loadTallerDetalle', () => {
       cadencia_dias: 14,
       duracion_minutos: 90,
       clases_minimas_para_completar: 6,
+      minimo_inscritos: 12,
+      permite_recuperar_clases: false,
       ediciones: [
         {
           id: 'e-1',
@@ -218,6 +222,8 @@ describe('loadTallerDetalle', () => {
     expect(result?.cadencia_dias).toBe(14)
     expect(result?.duracion_minutos).toBe(90)
     expect(result?.clases_minimas_para_completar).toBe(6)
+    expect(result?.minimo_inscritos).toBe(12)
+    expect(result?.permite_recuperar_clases).toBe(false)
     expect(result?.ediciones).toHaveLength(1)
     expect(result?.ediciones[0]?.total_inscripciones).toBe(1)
   })
@@ -233,6 +239,8 @@ describe('loadTallerDetalle', () => {
     expect(result?.cadencia_dias).toBe(7)
     expect(result?.duracion_minutos).toBeNull()
     expect(result?.clases_minimas_para_completar).toBeNull()
+    expect(result?.minimo_inscritos).toBeNull()
+    expect(result?.permite_recuperar_clases).toBe(true)
   })
 
   // T1 (odd/tasks/proximo-paso.md, S1) — the cadencia anchor.

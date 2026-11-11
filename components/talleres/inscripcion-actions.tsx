@@ -8,7 +8,10 @@
  *   - <RejectInscripcionButton inscripcionId onReject ... />: pendiente → no_aprobado.
  *     The motivo (required by the trigger) is captured inline via a
  *     small form; the action returns INVALID_MOTIVO when the user
- *     submits an empty string.
+ *     submits an empty string. L24 (odd/tasks/talleres-reserva-publica.md):
+ *     two fields — the internal motivo («Solo lo ve el equipo») and an
+ *     optional message for the person, the only text the «No aprobada»
+ *     notice carries.
  *
  * Server actions (`onApprove`, `onReject`) are passed as props so the
  * buttons are page-agnostic — the global admin page and the
@@ -25,13 +28,14 @@
  */
 
 import {
+  useId,
   useState,
   useTransition,
   type ReactElement,
 } from 'react'
 import { Check, X } from 'lucide-react'
 
-import { BotonSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, TextareaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import type {
   InscripcionActionResult,
@@ -44,7 +48,11 @@ export type InscripcionApproveAction = (
 export type InscripcionRejectAction = (
   inscripcionId: string,
   motivo: string,
+  mensaje?: string,
 ) => Promise<InscripcionActionResult>
+
+/** taller_inscripciones.mensaje_no_aprobado's CHECK. */
+const MENSAJE_MAX = 600
 
 interface ApproveProps {
   readonly inscripcionId: string
@@ -127,16 +135,21 @@ export function RejectInscripcionButton({
   const [feedback, setFeedback] = useState<FeedbackState>(idleFeedback)
   const [confirming, setConfirming] = useState(false)
   const [motivo, setMotivo] = useState('')
+  const [mensaje, setMensaje] = useState('')
+  const idCampos = useId()
+  const idAyudaMotivo = `${idCampos}-motivo-ayuda`
+  const idAyudaMensaje = `${idCampos}-mensaje-ayuda`
 
   function submit(): void {
     if (pending) return
     setFeedback(idleFeedback)
     startTransition(async () => {
-      const result = await onReject(inscripcionId, motivo)
+      const result = await onReject(inscripcionId, motivo, mensaje)
       if (result.ok) {
         setFeedback({ kind: 'success', message: result.message })
         setConfirming(false)
         setMotivo('')
+        setMensaje('')
       } else {
         setFeedback({
           kind: 'error',
@@ -177,15 +190,34 @@ export function RejectInscripcionButton({
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <textarea
-        value={motivo}
-        onChange={(e) => setMotivo(e.target.value)}
-        placeholder="Motivo de rechazo (obligatorio)"
-        rows={2}
-        className="w-full max-w-72 rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus:border-[var(--brand-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20"
-        aria-label="Motivo de rechazo"
-        disabled={pending}
-      />
+      <div className="w-full max-w-72 space-y-1 text-left">
+        <TextareaSistema
+          label="Motivo interno (obligatorio)"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          filas={2}
+          required
+          aria-describedby={idAyudaMotivo}
+          disabled={pending}
+        />
+        <TextoSistema id={idAyudaMotivo} variante="sutil" tamaño="sm" className="block">
+          Solo lo ve el equipo
+        </TextoSistema>
+      </div>
+      <div className="w-full max-w-72 space-y-1 text-left">
+        <TextareaSistema
+          label="Mensaje para la persona (opcional)"
+          value={mensaje}
+          onChange={(e) => setMensaje(e.target.value)}
+          filas={2}
+          maxLength={MENSAJE_MAX}
+          aria-describedby={idAyudaMensaje}
+          disabled={pending}
+        />
+        <TextoSistema id={idAyudaMensaje} variante="sutil" tamaño="sm" className="block">
+          Le llega a la persona y a su pareja por correo y en la app
+        </TextoSistema>
+      </div>
       <div className="flex items-center gap-2">
         <BotonSistema
           type="button"
@@ -194,6 +226,7 @@ export function RejectInscripcionButton({
           onClick={() => {
             setConfirming(false)
             setMotivo('')
+            setMensaje('')
             setFeedback(idleFeedback)
           }}
           disabled={pending}

@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Avisos · Mujer de Hoy — Global Connect</title>
+<style>
+/* Tokens: design/system.md (fuente app/globals.css). Bloque compartido de design/dps-avisos. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--tinte-estado:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--sidebar:oklch(.975 .003 80);--surface-primary:#FAFAF8;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-foreground:oklch(.98 0 0);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--chart-2:oklch(.6 .118 184.704);--chart-3:oklch(.398 .07 227.392);--chart-4:oklch(.828 .189 84.429);--chart-5:oklch(.769 .188 70.08);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28);--shadow-fab:0 16px 36px -10px rgba(233,108,32,.75)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-foreground:oklch(.15 0 0);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte-estado:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--sidebar:oklch(.14 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-foreground:oklch(.15 0 0);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+[hidden]{display:none!important}*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--background);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.4}
+button,input,select,textarea{font:inherit;color:inherit}h1,h2,h3,h4{text-wrap:balance;margin:0}p,ul,ol{margin:0;padding:0;list-style:none}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.mut{color:var(--muted-foreground)}.trunc{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s12{width:12px;height:12px;stroke-width:2.2}svg.s14{width:14px;height:14px}svg.s16{width:16px;height:16px}svg.s20{width:20px;height:20px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.skip{position:absolute;left:-9999px;top:8px;z-index:100;padding:10px 16px;border-radius:var(--r-xl);background:var(--card);border:2px solid var(--brand-primary);font-weight:600}.skip:focus{left:8px}
+.ok{--t:var(--success);--tt:var(--success-text)}.wa{--t:var(--warning);--tt:var(--warning-text)}.da{--t:var(--danger);--tt:var(--danger-text)}.in{--t:var(--info);--tt:var(--info-text)}.no{--t:var(--muted-foreground);--tt:var(--muted-foreground)}.br{--t:var(--brand-primary);--tt:var(--brand-text)}
+.dot{display:inline-block;width:8px;height:8px;flex:none;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st{display:inline-flex;align-items:center;gap:8px;color:var(--muted-foreground);font-size:13px;white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 7px;border-radius:6px;font-size:11px;font-weight:600;color:var(--tt);background:color-mix(in oklab,var(--t) var(--tinte-estado),transparent);border:1px solid color-mix(in oklab,var(--t) 40%,transparent);white-space:nowrap;flex:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 12px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap;text-decoration:none;color:var(--foreground);transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:hover{background:var(--accent)}.btn:active{transform:scale(.97)}.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.pri{background:var(--brand-strong);border-color:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.pel{background:var(--danger);border-color:var(--danger);color:var(--danger-foreground)}
+.btn.sec{background:var(--secondary);border-color:var(--secondary)}
+.btn.ghost{border-color:transparent;color:var(--muted-foreground)}.btn.ghost:hover{color:var(--foreground)}.btn.icon{width:36px;padding:0}.btn.md{min-height:44px;padding:0 16px}
+.lnk{border:0;background:none;padding:2px 4px;border-radius:var(--r-md);color:var(--brand-text);font-size:13px;font-weight:500;cursor:pointer;text-decoration:none}.lnk:hover{text-decoration:underline}
+@media (pointer:coarse){.btn{min-height:44px}.btn.icon{width:44px}.lnk{min-height:44px}}
+[data-h="1"]{--h:var(--chart-1)}[data-h="2"]{--h:var(--chart-2)}[data-h="3"]{--h:var(--chart-3)}[data-h="4"]{--h:var(--chart-4)}[data-h="5"]{--h:var(--chart-5)}
+.av{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:12px;font-weight:650;background:color-mix(in oklab,var(--h) 26%,var(--card));border:1px solid color-mix(in oklab,var(--h) 40%,transparent)}
+.av.l{width:52px;height:52px;font-size:17px}.av.s{width:24px;height:24px;font-size:10px}
+/* Shell: riel (SidebarModerna colapsada) */
+.app{display:grid;grid-template-columns:64px minmax(0,1fr);min-height:100vh}
+.rail{position:sticky;top:0;height:100vh;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 0}
+.rail .lg{width:28px;height:28px;border-radius:var(--radius);background:var(--brand-primary);margin-bottom:14px}
+.rail a{width:44px;height:44px;display:grid;place-items:center;border-radius:var(--r-xl);color:var(--muted-foreground)}.rail a:hover{background:var(--accent);color:var(--foreground)}.rail a[aria-current]{background:var(--brand-accent-strong);color:var(--brand-text)}
+.pg{min-width:0;display:flex;flex-direction:column}
+/* Encabezado */
+.hd{display:flex;align-items:flex-start;gap:20px;padding:16px 48px 0;background:var(--card);border-bottom:1px solid var(--border)}
+.hd .tx{flex:1;min-width:0}
+.crumb ol{display:flex;flex-wrap:wrap;gap:6px;font-size:13px;color:var(--muted-foreground)}.crumb a{color:inherit;text-decoration:none}.crumb a:hover{color:var(--foreground);text-decoration:underline}.crumb [aria-current]{color:var(--foreground);font-weight:500}
+.ttl{display:flex;align-items:center;gap:12px;margin:6px 0 6px}
+.hd h1{font-size:24px;font-weight:650;letter-spacing:-.02em;line-height:1.15}
+.sum{font-size:15px;color:var(--muted-foreground)}.sum strong{color:var(--foreground);font-weight:600}
+.meta{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:6px;font-size:13px;color:var(--muted-foreground)}.meta span{display:inline-flex;align-items:center;gap:6px}
+.cap{position:relative;max-width:460px;margin-top:10px}.cap .trk{height:6px;border-radius:9999px;background:var(--muted);overflow:hidden}.cap .trk span{display:block;height:100%;background:var(--success);border-radius:9999px}
+.cap .mk{position:absolute;top:-3px;width:2px;height:12px;background:var(--foreground);border-radius:2px}
+.cap .lb{display:flex;justify-content:space-between;margin-top:4px;font-size:12px;color:var(--muted-foreground)}
+.hact{display:flex;gap:8px;align-items:center;padding-top:20px}
+.ptabs{display:flex;gap:4px;margin-top:14px}
+.ptabs button{position:relative;min-height:44px;padding:0 14px;border:0;background:none;color:var(--muted-foreground);font-size:14px;font-weight:500;cursor:pointer;border-radius:var(--r-md) var(--r-md) 0 0}
+.ptabs button:hover{color:var(--foreground);background:var(--accent)}.ptabs button[aria-selected=true]{color:var(--foreground);font-weight:600}
+.ptabs button[aria-selected=true]::after{content:"";position:absolute;left:10px;right:10px;bottom:-1px;height:2px;border-radius:2px;background:var(--brand-primary)}
+.ptabs .num{font-size:12px;color:var(--muted-foreground);margin-left:4px}
+main{padding:24px 48px 120px}
+main>section+section,.blk+.blk{margin-top:24px}
+.h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+/* MetricasAtencion */
+.met{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.met button{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px;border-radius:var(--r-2xl);border:1px solid var(--border);background:var(--card);text-align:left;cursor:pointer;transition:background-color var(--duration-fast) var(--ease-expo)}
+.met button:hover{background:var(--accent)}.met button[aria-pressed=true]{background:var(--brand-accent-strong);border-color:var(--brand-primary)}
+.met .st{color:var(--muted-foreground)}.met .v{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em;font-size:30px;font-weight:600;line-height:1}
+.met .bar{width:100%;height:4px;border-radius:9999px;background:var(--muted);overflow:hidden}.met .bar span{display:block;height:100%;background:var(--t);transition:width 500ms var(--ease-out-quint)}
+.met small{font-size:12px;color:var(--muted-foreground)}
+/* Barra de herramientas */
+.tb{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.srch{position:relative;display:flex;align-items:center;flex:0 1 320px}.srch svg{position:absolute;left:12px;color:var(--muted-foreground);pointer-events:none}
+.srch input{width:100%;min-height:44px;padding:0 40px 0 38px;border-radius:var(--r-xl);border:1px solid var(--border);background:color-mix(in oklab,var(--card) 50%,transparent);font-size:14px}
+.srch kbd{position:absolute;right:10px;padding:1px 6px;border:1px solid var(--border);border-radius:var(--r-md);font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground)}
+.srch input:focus,.inp:focus,.sel:focus,.ta:focus{outline:none;border-color:var(--brand-primary);box-shadow:0 0 0 2px color-mix(in oklab,var(--brand-primary) 20%,transparent)}
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:var(--r-xl);background:var(--card)}
+.seg button{min-height:36px;padding:0 12px;border:0;border-radius:var(--r-md);background:none;color:var(--muted-foreground);font-size:14px;font-weight:500;cursor:pointer}.seg button[aria-pressed=true]{background:var(--foreground);color:var(--background)}
+.tb .sp{flex:1}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-height:0}
+.chip{display:inline-flex;align-items:center;gap:4px;height:34px;padding:0 4px 0 12px;border-radius:9999px;border:1px solid color-mix(in oklab,var(--brand-primary) 40%,transparent);background:var(--brand-accent-strong);font-size:13px}
+.chip button{position:relative;width:28px;height:28px;display:grid;place-items:center;border:0;background:none;border-radius:9999px;cursor:pointer;color:var(--muted-foreground)}.chip button::after{content:"";position:absolute;inset:-8px}
+/* ListaResponsiva */
+.lst{margin-top:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-2xl);overflow:hidden}
+.lh,.lr{display:grid;grid-template-columns:var(--cols);align-items:center;gap:16px;padding:0 20px}
+.lst{--cols:minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.1fr) 104px}
+.lst.sel-on{--cols:44px minmax(0,2fr) minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.1fr) 104px}
+.lh{min-height:44px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.lh button{border:0;background:none;padding:0;font:inherit;text-transform:inherit;letter-spacing:inherit;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:4px;min-height:36px;border-radius:var(--r-md)}
+.lr{position:relative;min-height:72px}.lr+.lr{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.lr:hover{background:color-mix(in oklab,var(--accent) 50%,transparent)}
+.lr[aria-current=true]{background:var(--brand-accent-strong)}
+.lr .open{position:absolute;inset:0;border:0;background:none;cursor:pointer;border-radius:0}
+.lr .open:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--brand-primary)}
+.who{display:flex;align-items:center;gap:12px;min-width:0}.who b{display:block;font-size:15px;font-weight:600}.who small{display:block;font-size:13px;color:var(--muted-foreground)}
+.cell{font-size:13px;min-width:0}.cell small{display:block;font-size:12px;color:var(--muted-foreground)}
+.flags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.cas{position:relative;z-index:1;width:44px;height:44px;display:grid;place-items:center}.cas input{width:18px;height:18px;accent-color:var(--brand-strong);margin:0;cursor:pointer}
+.lf{display:flex;justify-content:space-between;padding:12px 4px 0;font-size:12px;color:var(--muted-foreground)}
+.emp{padding:56px 20px;text-align:center}.emp b{display:block;font-size:16px;font-weight:600}.emp p{margin-top:4px;font-size:14px;color:var(--muted-foreground)}
+/* Selección en lote */
+.selbar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 18px;background:var(--card);border:1px solid var(--border);border-radius:var(--r-2xl);box-shadow:var(--shadow-sheet);width:min(860px,calc(100% - 120px))}
+.selbar b{font-size:15px}.selbar p{font-size:13px;color:var(--muted-foreground)}.selbar .tx{flex:1;min-width:0}
+/* AvisoFormulario */
+.note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-xl);font-size:13px;line-height:1.45;background:color-mix(in oklab,var(--t) 6%,var(--card));border:1px solid color-mix(in oklab,var(--t) 30%,transparent)}
+.note>svg{color:var(--tt);margin-top:1px}.note b{font-weight:600}.note .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+/* Grupos */
+.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.gc{position:relative;display:flex;flex-direction:column;gap:10px;padding:20px;border-radius:var(--r-2xl);border:1px solid var(--border);background:var(--card)}
+.gc h3{font-size:16px;font-weight:650}.gc .fac{display:flex;align-items:center;gap:10px}.gc .fac b{display:block;font-size:14px;font-weight:600}.gc .fac small{display:block;font-size:12px;color:var(--muted-foreground)}
+.gc .bar{height:4px;border-radius:9999px;background:var(--muted);overflow:hidden}.gc .bar span{display:block;height:100%;background:var(--success)}
+.gc .row{display:flex;justify-content:space-between;font-size:13px;color:var(--muted-foreground)}
+.gc .ppl{display:flex;flex-wrap:wrap;gap:4px}
+.gc .ft{display:flex;gap:8px;margin-top:auto;padding-top:4px}
+.gc.sin{border-style:dashed;background:transparent}
+/* PanelLateralSistema md (480px) */
+.scrim{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.5)}
+.dw{position:fixed;z-index:31;top:0;right:0;bottom:0;width:480px;display:flex;flex-direction:column;background:var(--card);border-left:1px solid var(--border);box-shadow:var(--shadow-sheet)}
+.dw:focus{outline:none}
+.dwh{display:flex;align-items:flex-start;gap:14px;padding:18px 12px 16px 24px;border-bottom:1px solid var(--border)}
+.dwh .tx{flex:1;min-width:0}.dwh h2{font-size:18px;font-weight:650;letter-spacing:-.01em}.dwh p{font-size:13px;color:var(--muted-foreground);margin-top:2px}
+.xb{width:44px;height:44px;flex:none;display:grid;place-items:center;border:0;background:none;border-radius:9999px;color:var(--muted-foreground);cursor:pointer}.xb:hover{background:var(--accent);color:var(--foreground)}
+.dwb{flex:1;overflow:auto;padding:16px 24px 24px}.dwb>*+*{margin-top:20px}
+.dwf{display:flex;justify-content:flex-end;gap:10px;padding:14px 24px;border-top:1px solid var(--border)}.dwf .btn{min-height:44px;padding:0 18px}.dwf .sp{flex:1}
+.qa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.qa .btn{flex-direction:column;gap:4px;min-height:60px;font-size:13px}
+.kv{border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden}.kv li{display:flex;justify-content:space-between;gap:12px;padding:10px 14px;font-size:13px}.kv li+li{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}.kv li span:first-child{color:var(--muted-foreground)}.kv li span:last-child{text-align:right}
+.cmp{width:100%;border-collapse:collapse;font-size:13px;border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden}
+.cmp th,.cmp td{padding:9px 12px;text-align:left;border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}.cmp thead th{border-top:0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground);background:var(--muted)}
+.cmp td.dif{color:var(--warning-text);font-weight:600}
+.fld{display:flex;flex-direction:column;gap:6px}.fld>span{font-size:13px;font-weight:600}.fld small{font-size:12px;color:var(--muted-foreground)}
+.inp,.sel,.ta{width:100%;min-height:44px;padding:0 14px;border-radius:var(--r-xl);border:1px solid var(--border);background:color-mix(in oklab,var(--card) 50%,transparent);font-size:14px}
+.sel{appearance:none;padding-right:36px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;cursor:pointer}
+.ta{min-height:88px;padding:10px 14px;resize:vertical;line-height:1.45}
+.rad{border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden}.rad label{display:flex;gap:10px;align-items:flex-start;min-height:48px;padding:12px 14px;font-size:14px;cursor:pointer}.rad label+label{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.rad input{margin:2px 0 0;width:18px;height:18px;accent-color:var(--brand-strong)}.rad label:has(input:checked){background:var(--brand-accent-strong)}
+.rad small{display:block;font-size:12px;color:var(--muted-foreground)}
+.tl li{display:grid;grid-template-columns:18px 1fr;gap:4px 10px;padding:6px 0;font-size:13px}.tl li small{grid-column:2;font-size:12px;color:var(--muted-foreground)}.tl svg{margin-top:1px;color:var(--muted-foreground)}
+.toast{position:fixed;left:50%;bottom:24px;z-index:40;transform:translate(-50%,8px);max-width:440px;padding:12px 16px;border-radius:var(--r-xl);background:var(--foreground);color:var(--background);font-size:13px;box-shadow:var(--shadow-sheet);opacity:0;transition:opacity var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo);pointer-events:none}.toast.on{opacity:1;transform:translate(-50%,0)}
+/* Propio de este tablero */
+.hd{padding-bottom:0}
+.sw{width:52px;height:44px;flex:none;display:grid;place-items:center;border:0;background:none;cursor:pointer;border-radius:var(--r-xl);padding:0;position:relative;z-index:1}
+.sw span{position:relative;width:44px;height:24px;border-radius:9999px;background:color-mix(in oklab,var(--muted-foreground) 55%,transparent);transition:background-color var(--duration-fast) var(--ease-expo)}
+.sw span::after{content:"";position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:9999px;background:var(--brand-primary-foreground);transition:transform var(--duration-fast) var(--ease-expo)}
+.sw[aria-checked=true] span{background:var(--brand-strong)}.sw[aria-checked=true] span::after{transform:translateX(20px)}.sw:disabled{cursor:not-allowed;opacity:.5}
+.lst{--cols:52px minmax(0,2.2fr) minmax(0,1.3fr) minmax(0,1.6fr) 90px}
+.lh{padding:0 20px 0 12px}.lr{padding:0 20px 0 12px}
+.band{display:flex;align-items:center;gap:10px;min-height:36px;padding:0 20px;background:var(--muted);border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:12px;font-weight:650}
+.lh+[role=rowgroup] .band:first-child{border-top:0}
+.band small{font-weight:500;color:var(--muted-foreground)}
+.lr.off .who b,.lr.off .cell{color:var(--muted-foreground)}
+.who .ttl2{display:block;font-size:15px;font-weight:600}
+.chs{display:flex;flex-wrap:wrap;gap:4px}
+.ch{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 7px;border-radius:6px;border:1px solid var(--border);background:var(--muted);font-size:12px;color:var(--foreground)}
+.man{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1px dashed var(--border);border-radius:var(--r-xl);font-size:13px;color:var(--muted-foreground)}.man b{display:block;font-size:14px;font-weight:600;color:var(--foreground)}.man .btn{margin-top:10px}
+.met{grid-template-columns:repeat(4,minmax(0,1fr))}
+.dw.lg{width:640px}
+.chk{border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden}.chk label{display:flex;gap:12px;align-items:flex-start;min-height:52px;padding:12px 14px;cursor:pointer}.chk label+label{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.chk input{margin:2px 0 0;width:18px;height:18px;accent-color:var(--brand-strong);flex:none}.chk b{display:block;font-size:14px;font-weight:600}.chk small{display:block;font-size:12px;color:var(--muted-foreground)}
+.vars{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.vars button{min-height:32px;padding:0 10px;border-radius:9999px;border:1px solid var(--border);background:var(--card);font-family:var(--font-mono);font-size:12px;cursor:pointer;position:relative}.vars button::after{content:"";position:absolute;inset:-6px -2px}.vars button:hover{background:var(--accent)}
+.ta.tpl{min-height:150px;font-size:14px}
+.pvw{border:1px solid var(--border);border-radius:var(--r-2xl);background:var(--background);overflow:hidden}
+.pvw .bar2{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted-foreground)}
+.pvw .bd2{padding:14px 16px;font-size:14px;line-height:1.5;white-space:pre-line}
+.pvw .bd2 b{font-weight:600}
+.row2{display:flex;gap:10px;align-items:center}
+.est{display:inline-flex;align-items:center;gap:6px;font-size:13px}.est.ok{color:var(--success-text)}.est.da{color:var(--danger-text)}.est.in{color:var(--info-text)}.est.wa{color:var(--warning-text)}.est.no{color:var(--muted-foreground)}
+.lst.log{--cols:minmax(0,1.4fr) minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.6fr)}
+.lst.log .lh,.lst.log .lr{padding:0 20px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5M8 7h7"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+<symbol id="i-msg" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/></symbol>
+<symbol id="i-phoneapp" viewBox="0 0 24 24"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></symbol>
+<symbol id="i-checks" viewBox="0 0 24 24"><path d="M2 12.5l4.5 4.5L16 7M10 15.5l1.5 1.5L21 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></symbol>
+<symbol id="i-noacc" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 11-5.7M16 16l5 5M21 16l-5 5"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></symbol>
+<symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="currentColor"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+</defs></svg>
+<div class="app" id="app">
+<nav class="rail" aria-label="Principal"><span class="lg" aria-hidden="true"></span>
+  <a href="#" aria-label="Inicio"><svg class="i" aria-hidden="true"><use href="#i-home"/></svg></a>
+  <a href="#" aria-label="Talleres (Conexión)" aria-current="page"><svg class="i" aria-hidden="true"><use href="#i-book"/></svg></a>
+  <a href="#" aria-label="Dream Team"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg></a>
+  <a href="#" aria-label="Calendario"><svg class="i" aria-hidden="true"><use href="#i-cal"/></svg></a>
+  <span style="flex:1"></span>
+  <a href="#" aria-label="Notificaciones"><svg class="i" aria-hidden="true"><use href="#i-bell"/></svg></a>
+</nav>
+<div class="pg">
+<header class="hd">
+  <div class="tx">
+    <nav class="crumb" aria-label="Ruta"><ol><li><a href="#">Talleres</a></li><li aria-hidden="true">›</li><li><a href="#">Mujer de Hoy</a></li><li aria-hidden="true">›</li><li><span aria-current="page">Avisos</span></li></ol></nav>
+    <div class="ttl"><h1>Avisos de Mujer de Hoy</h1></div>
+    <p class="sum"><strong class="num" id="nact">10</strong> automáticos activos · <strong class="num">146</strong> enviados en noviembre · <strong class="num" style="color:var(--danger-text)">3</strong> sin entregar</p>
+    <p class="meta"><span><svg class="i s14" aria-hidden="true"><use href="#i-mail"/></svg>Correo: automático</span><span><svg class="i s14" aria-hidden="true"><use href="#i-phoneapp"/></svg>En la app: automático, si tiene cuenta</span><span><svg class="i s14" aria-hidden="true"><use href="#i-msg"/></svg>WhatsApp: no se envía solo; solo el botón «Abrir en WhatsApp» para escribir a mano</span></p>
+    <div class="ptabs" role="tablist" aria-label="Avisos"><button role="tab" id="t-a" aria-controls="p-a" aria-selected="true">Automáticos<span class="num">12</span></button><button role="tab" id="t-h" aria-controls="p-h" aria-selected="false" tabindex="-1">Historial<span class="num">146</span></button></div>
+  </div>
+  <div class="hact"><button class="btn pri" id="manual"><svg class="i s14" aria-hidden="true"><use href="#i-send"/></svg>Enviar un aviso</button></div>
+</header>
+<main id="main">
+  <section id="p-a" role="tabpanel" aria-labelledby="t-a">
+    <p class="mut" style="font-size:13px;margin-bottom:12px">Valen para todas las ediciones de Mujer de Hoy. Un aviso apagado no sale para nadie; el historial de cada persona muestra lo que sí recibió.</p>
+    <div class="lst" id="lst" role="table" aria-label="Avisos automáticos"></div>
+  </section>
+  <section id="p-h" role="tabpanel" aria-labelledby="t-h" hidden>
+    <div class="met" role="group" aria-label="Estado de los avisos" id="met"></div>
+    <div class="tb" style="margin-top:24px"><div class="srch"><svg class="i s16" aria-hidden="true"><use href="#i-search"/></svg><label class="sr" for="q">Buscar en el historial</label><input id="q" type="search" placeholder="Persona o aviso" autocomplete="off"></div>
+      <div class="seg" role="group" aria-label="Canal" id="can"></div></div>
+    <div class="lst log" id="log" role="table" aria-label="Avisos enviados"></div>
+    <p class="lf"><span>Últimos 7 días · se guarda un año</span><span>Orden: más reciente</span></p>
+  </section>
+</main>
+</div>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="dw lg" id="dw" role="dialog" aria-modal="true" aria-labelledby="dw-t" tabindex="-1" hidden></aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+const $=i=>document.getElementById(i);
+const ic=(n,c='i s14')=>`<svg class="${c}" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+const HASH=new Set(location.hash.slice(1).split(',').filter(Boolean));
+let tT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>t.classList.remove('on'),2800)}
+// Estados por hash: (por defecto) automáticos + panel del recordatorio · #lista (sin panel) · #historial · #oscuro / #claro
+// [id, nombre, cuándo, canales (c correo, a app), enviados en nov, activo, fijo]. WhatsApp no es canal: solo botón manual.
+const A=[['Para quien se inscribe','Correo y app',[
+ ['rec','Solicitud recibida','Al enviar la solicitud','ca',31,1],
+ ['apr','Aprobada','Al aprobar','ca',22,1],
+ ['rch','No aprobada','Al rechazar · incluye el motivo','ca',2,1],
+ ['gru','Grupo asignado','Al asignar grupo · nombre y teléfono de la facilitadora, lugar','ca',19,1],
+ ['rcl','Recordatorio de clase','1 día antes de cada clase · 6:00 p. m.','ca',48,1],
+ ['cam','Cambio de fecha','Al reprogramar o suspender · pide «Mantener mi lugar / Ya no puedo»; quien no confirme antes del nuevo cierre sale','ca',0,1,1],
+ ['cer','Certificado','Al cerrar la edición · solo a quien completó','ca',0,1]]],
+['Para facilitadores','Solo de su grupo',[
+ ['fnu','Nueva persona en tu grupo','Al asignar · con su teléfono','ca',19,1],
+ ['fno','Alguien no puede ir','Cuando una persona marca «No puedo ir» a una clase','ca',4,1],
+ ['fas','Pasar asistencia','2 horas después de la clase, si no la marcó','a',1,0]]],
+['Para coordinación','Neida Castillo y la dirección de Conexión',[
+ ['cso','Solicitudes por aprobar','Resumen diario · 8:00 a. m. · solo si hay pendientes','ca',9,1],
+ ['cmi','No llegó al mínimo','Al cerrar la inscripción por debajo del mínimo','ca',0,1,1]]]];
+const CH={c:['mail','Correo'],a:['phoneapp','En la app']};
+const ALL=A.flatMap(g=>g[2]);
+let ABIERTO=null;
+function lista(){const n=ALL.filter(x=>x[5]).length;$('nact').textContent=n;
+ $('lst').innerHTML=`<div class="lh" role="row"><span role="columnheader"><span class="sr">Activo</span></span><span role="columnheader">Aviso</span><span role="columnheader">Canales</span><span role="columnheader">Cuándo</span><span role="columnheader" style="text-align:right">Nov</span></div><div role="rowgroup">`+
+ A.map(([g,h,xs])=>`<div class="band" role="row"><span role="cell">${g} <small>· ${h}</small></span></div>`+xs.map(x=>`<div class="lr${x[5]?'':' off'}" role="row"${ABIERTO===x[0]?' aria-current="true"':''}>
+ <span role="cell"><button class="sw" role="switch" aria-checked="${!!x[5]}" aria-label="${x[1]}" data-sw="${x[0]}" ${x[6]?'disabled title="Siempre activo: de él dependen las respuestas"':''}><span></span></button></span>
+ <span class="who" role="cell"><span class="trunc"><span class="ttl2 trunc">${x[1]}</span><small>${x[6]?ic('lock','i s12')+' Siempre activo':x[5]?'Activo':'Apagado'}</small></span></span>
+ <span class="cell chs" role="cell">${[...x[3]].map(c=>`<span class="ch">${ic(CH[c][0],'i s12')}${CH[c][1]}</span>`).join('')}</span>
+ <span class="cell mut" role="cell">${x[2]}</span>
+ <span class="cell num" role="cell" style="text-align:right">${x[4]}</span>
+ <button class="open" data-open="${x[0]}" aria-label="Editar el aviso ${x[1]}"></button></div>`).join('')).join('')+`</div>`}
+const VARS=['nombre','taller','clase','fecha','hora','lugar','facilitadora','telefono_facilitadora','enlace_no_puedo'];
+const TPL='Hola {nombre}, te recordamos tu clase de {taller} de mañana.\n\n{clase} · {fecha} · {hora}\n{lugar}\nTu facilitadora: {facilitadora} · {telefono_facilitadora}\n\n¿No puedes ir? Avísale aquí: {enlace_no_puedo}';
+const EJ={nombre:'Carolina',taller:'Mujer de Hoy',clase:'Clase 3: Mujer de propósito',fecha:'martes 8 de diciembre',hora:'7:00 p. m.',lugar:'Global Barquisimeto · Salón 3 · Av. Libertador con calle 50',facilitadora:'Yelitza Rojas',telefono_facilitadora:'0414-553-2010',enlace_no_puedo:'globalbqto.org/c/no-puedo'};
+function vista(t){return t.replace(/\{(\w+)\}/g,(m,k)=>EJ[k]?`<b>${EJ[k]}</b>`:m)}
+function panel(id,foco){const x=ALL.find(y=>y[0]===id);ABIERTO=id;lista();const d=$('dw');
+ const rcl=id==='rcl';
+ d.innerHTML=`<header class="dwh"><div class="tx"><h2 id="dw-t">${x[1]}</h2><p>${x[2]} · <span class="num">${x[4]}</span> enviados en noviembre</p></div><button class="xb" data-cerrar aria-label="Cerrar">${ic('x','i')}</button></header>
+ <div class="dwb">
+  <div><h3 class="h2" style="margin-bottom:8px">Cuándo</h3><div class="row2"><label class="fld" style="flex:1"><span class="sr">Anticipación</span><select class="sel"><option>El mismo día</option><option selected>1 día antes</option><option>2 días antes</option></select></label><label class="fld" style="width:160px"><span class="sr">Hora</span><input class="inp num" type="time" value="18:00"></label></div>
+  <p class="mut" style="font-size:12px;margin-top:6px">Para cada clase de cada grupo. Usa la fecha, hora y lugar del grupo: si un grupo se reúne en una casa, sale esa dirección.</p></div>
+  <div><h3 class="h2" style="margin-bottom:8px">Canales</h3><div class="chk">
+   <label><input type="checkbox" checked><span><b>Correo</b><small>Sale solo. Si rebota, aparece en Historial como «Sin entregar».</small></span></label>
+   <label><input type="checkbox" checked><span><b>En la app</b><small>Sale solo a quien activó su cuenta. Con los botones «Voy» y «No puedo ir».</small></span></label>
+   </div>
+   <div class="man" style="margin-top:10px">${ic('msg','i s16')}<span><b>WhatsApp: solo a mano</b>No se envía solo ni queda en el historial. La facilitadora ve el botón «Abrir en WhatsApp» en su lista: abre su WhatsApp con este texto listo y ella lo envía.<br><a class="btn" href="https://wa.me/?text=${encodeURIComponent('Hola Carolina, te recordamos tu clase de Mujer de Hoy de mañana.')}" target="_blank" rel="noopener">${ic('msg')}Abrir en WhatsApp</a></span></div></div>
+  <div><h3 class="h2" style="margin-bottom:8px">Mensaje</h3>
+   <label class="fld"><span>Asunto del correo</span><input class="inp" value="Mañana es tu clase de {taller}"></label>
+   <label class="fld" style="margin-top:12px"><span>Texto</span><textarea class="ta tpl" id="tpl">${TPL}</textarea></label>
+   <p class="mut" style="font-size:12px;margin-top:8px" id="vl">Toca un dato para insertarlo donde está el cursor:</p>
+   <div class="vars" role="group" aria-labelledby="vl">${VARS.map(v=>`<button type="button" data-var="${v}">{${v}}</button>`).join('')}</div></div>
+  <div><h3 class="h2" style="margin-bottom:8px">Vista previa · Carolina Mendoza</h3>
+   <div class="pvw"><div class="bar2">${ic('mail','i s12')}<span>Mañana es tu clase de <b style="color:var(--foreground)">Mujer de Hoy</b></span></div><div class="bd2" id="pv"></div></div>
+   <button class="lnk" style="margin-top:8px;padding:0">Enviarme una prueba</button></div>
+ </div>
+ <footer class="dwf"><button class="btn ghost" data-rest>Restaurar texto original</button><span class="sp"></span><button class="btn" data-cerrar>Cancelar</button><button class="btn pri" data-guardar>${ic('check')}Guardar</button></footer>`;
+ $('pv').innerHTML=vista($('tpl').value);$('tpl').addEventListener('input',e=>{$('pv').innerHTML=vista(e.target.value)});
+ d.hidden=false;$('scrim').hidden=false;$('app').inert=true;if(foco!==false)d.focus()}
+function cerrar(){const k=ABIERTO;$('dw').hidden=true;$('scrim').hidden=true;$('app').inert=false;ABIERTO=null;lista();const b=document.querySelector(`[data-open="${k}"]`);b&&b.focus()}
+// Historial: [aviso, persona, canal, cuándo, estado (ok entregado · leido leído en la app · rebote · sincanal · prog programado · wa enlace por enviar)]
+const H=[['Recordatorio de clase','Carolina Mendoza','c','mañana 6:00 p. m.','prog'],['Recordatorio de clase','Nathaly Alvarado','a','mañana 6:00 p. m.','prog'],
+['Alguien no puede ir','Yelitza Rojas · facilitadora','a','hoy 11:42 a. m.','leido','Avisó Andreína Pargas: clase 3'],
+['Recordatorio de clase','Yuleisy Sánchez','c','lun 7 dic 6:00 p. m.','rebote','yuleisy.sanchez@hotmial.com no existe'],['Recordatorio de clase','Lisbeth Montilla','c','lun 7 dic 6:00 p. m.','ok'],
+['Recordatorio de clase','Lisbeth Montilla','a','lun 7 dic 6:00 p. m.','leido'],['Grupo asignado','Coromoto Linárez','c','vie 4 dic 3:15 p. m.','sincanal','Sin correo ni cuenta'],
+['Aprobada','Francis Piña','c','vie 4 dic 3:14 p. m.','ok'],['Solicitudes por aprobar','Neida Castillo · coordinación','c','vie 4 dic 8:00 a. m.','ok','2 pendientes'],
+['Recordatorio de clase','Génesis Rodríguez','c','lun 30 nov 6:00 p. m.','rebote','Buzón lleno']];
+const ES={ok:['ok','check','Entregado'],leido:['ok','checks','Leído en la app'],prog:['in','clock','Programado'],rebote:['da','x','Sin entregar'],sincanal:['wa','noacc','Sin canal']};
+let CAN='todos';
+function hist(){
+ const M=[['rebote','da','Sin entregar',H.filter(h=>h[4]==='rebote').length+1,'Correo que rebotó'],['sincanal','wa','Sin canal',H.filter(h=>h[4]==='sincanal').length,'Sin correo ni cuenta'],['leido','ok','Leídos en la app',H.filter(h=>h[4]==='leido').length,'Abiertos por la persona'],['prog','in','Programados',18,'Recordatorios de mañana']];
+ $('met').innerHTML=M.map(m=>`<button class="${m[1]}" aria-pressed="false"><span class="st"><span class="dot" aria-hidden="true"></span>${m[2]}</span><span class="v">${m[3]}</span><span class="bar" aria-hidden="true"><span style="width:${Math.min(100,m[3]*8)}%"></span></span><small>${m[4]}</small></button>`).join('');
+ $('can').innerHTML=[['todos','Todos'],['c','Correo'],['a','En la app']].map(([v,l])=>`<button data-can="${v}" aria-pressed="${CAN===v}">${l}</button>`).join('');
+ const v=H.filter(h=>CAN==='todos'||h[2]===CAN);
+ $('log').innerHTML=`<div class="lh" role="row"><span role="columnheader">Aviso</span><span role="columnheader">Para</span><span role="columnheader">Canal</span><span role="columnheader">Cuándo</span><span role="columnheader">Estado</span></div><div role="rowgroup">`+
+ v.map(h=>{const e=ES[h[4]];return `<div class="lr" role="row"><span class="cell" role="cell" style="font-weight:600;font-size:14px">${h[0]}</span><span class="cell trunc" role="cell">${h[1]}</span><span class="cell" role="cell"><span class="ch">${ic(CH[h[2]][0],'i s12')}${CH[h[2]][1]}</span></span><span class="cell mut" role="cell">${h[3]}</span>
+ <span class="cell" role="cell"><span class="est ${e[0]}">${ic(e[1])}${e[2]}</span>${h[5]?`<small>${h[5]}</small>`:''}${h[4]==='rebote'?`<button class="lnk" style="padding:0;position:relative;z-index:1">Corregir correo</button>`:h[4]==='sincanal'?`<a class="lnk" style="padding:0;position:relative;z-index:1" href="https://wa.me/?text=${encodeURIComponent('Hola, tu grupo de Mujer de Hoy ya está asignado.')}" target="_blank" rel="noopener">Abrir en WhatsApp</a><small>Lo envías tú, a mano</small>`:''}</span><button class="open" aria-label="Abrir el aviso ${h[0]} para ${h[1]}"></button></div>`}).join('')+`</div>`}
+function tab(h){$('t-a').setAttribute('aria-selected',!h);$('t-h').setAttribute('aria-selected',h);$('t-a').tabIndex=h?-1:0;$('t-h').tabIndex=h?0:-1;$('p-a').hidden=h;$('p-h').hidden=!h}
+$('t-a').addEventListener('click',()=>tab(false));$('t-h').addEventListener('click',()=>tab(true));
+$('scrim').addEventListener('click',cerrar);addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('dw').hidden)cerrar()});
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
+ if(d.sw){const x=ALL.find(y=>y[0]===d.sw);x[5]=x[5]?0:1;lista();const n=document.querySelector(`[data-sw="${d.sw}"]`);n&&n.focus();toast(`«${x[1]}» ${x[5]?'activado':'apagado'} para Mujer de Hoy`)}
+ else if(d.open&&ALL.some(y=>y[0]===d.open))panel(d.open);else if('cerrar' in d)cerrar();
+ else if(d.var){const t=$('tpl'),s=t.selectionStart,v=`{${d.var}}`;t.value=t.value.slice(0,s)+v+t.value.slice(t.selectionEnd);t.focus();t.selectionStart=t.selectionEnd=s+v.length;$('pv').innerHTML=vista(t.value)}
+ else if('rest' in d){$('tpl').value=TPL;$('pv').innerHTML=vista(TPL)}
+ else if('guardar' in d){cerrar();toast('Guardado. Los próximos recordatorios usan el texto nuevo.')}
+ else if(d.can){CAN=d.can;hist()}
+ else if(b.id==='manual')toast('Abre «Enviar un aviso»: eliges edición y grupo, revisas a quién le llega y envías (como en DPS).')});
+lista();hist();
+if(HASH.has('historial'))tab(true);else if(!HASH.has('lista'))panel('rcl',false);
+</script>
+</body>
+</html>

@@ -79,12 +79,37 @@ function isActivationPath(path: string) {
   return token.length > 0 && !token.includes('/')
 }
 
+/**
+ * Public reservation of Grupos de Corto Plazo (odd/tasks/talleres-reserva-publica.md
+ * T5b): the catalog `/talleres/reservar` and one taller `/talleres/reservar/<slug>`.
+ * Like /ninos/registro the pages read only public data through service-role
+ * RPCs and post to /api/talleres/reserva/*, so getUser() is skipped. Matches
+ * the bare path and exactly one slug segment; the rest of /talleres stays private.
+ */
+const RESERVATION_ROOT = '/talleres/reservar'
+
+function isPublicReservationPath(path: string) {
+  if (path === RESERVATION_ROOT) return true
+  if (!path.startsWith(`${RESERVATION_ROOT}/`)) return false
+  const slug = path.slice(RESERVATION_ROOT.length + 1)
+  return slug.length > 0 && !slug.includes('/')
+}
+
+/**
+ * T6 (S2, S18): the reservation pages are embedded with an iframe (the card,
+ * the catalog, or the modal of /embed.js) on any church site, so they — and
+ * only they — let any origin frame them. Every other route keeps its framing
+ * policy: the middleware adds no header there.
+ */
+const FRAMING_RESERVA = 'frame-ancestors *'
+
 export function isPublicPath(path: string) {
   return (
     SKIP_AUTH_PATHS.has(path) ||
     ALWAYS_CHECK_AUTH_PATHS.has(path) ||
     isPublicCertificateVerificationPath(path) ||
-    isActivationPath(path)
+    isActivationPath(path) ||
+    isPublicReservationPath(path)
   )
 }
 
@@ -142,6 +167,10 @@ export async function middleware(request: NextRequest) {
   // /dashboard. Ver Finding 2 en 4R. Las otras paths "públicas" de auth UI
   // (/signup, /reset-password, /verify-email) viven en SKIP_AUTH_PATHS porque
   // no redirigen logueados — solo las manejan sus propios page handlers.
+  if (isPublicReservationPath(path)) {
+    supabaseResponse.headers.set('Content-Security-Policy', FRAMING_RESERVA)
+    return supabaseResponse
+  }
   if (SKIP_AUTH_PATHS.has(path) || isActivationPath(path)) {
     return supabaseResponse
   }
@@ -229,9 +258,10 @@ export async function middleware(request: NextRequest) {
 
 // Files the browser fetches without the session cookie stay out: the PWA
 // manifest, its icons and the iOS home-screen icon (redirecting them to the
-// login broke installing the app on a phone).
+// login broke installing the app on a phone). /embed.js too: any church site
+// loads it with a <script> (T6 of odd/tasks/talleres-reserva-publica.md).
 export const config = {
   matcher: [
-    '/((?!api|_next|static|email/|monitoring|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|icons/|apple-touch-icon).*)',
+    '/((?!api|_next|static|email/|monitoring|favicon.ico|robots.txt|sitemap.xml|manifest.webmanifest|icons/|apple-touch-icon|embed\\.js$).*)',
   ],
 }

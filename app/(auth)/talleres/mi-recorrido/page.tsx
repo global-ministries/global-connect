@@ -24,9 +24,15 @@
  * TABS: interactive tab state (URL-synced, restore-on-reload) lives in the
  * client half, MiRecorridoTabs.client.tsx — see its own header for the
  * mechanism.
+ *
+ * T8a (odd/tasks/talleres-reserva-publica.md, S9 S15): above the tabs, one
+ * «Tu taller cambió de fecha» card per pending date change
+ * (loadMisCambiosDeFecha, best effort: nothing renders when it fails).
  */
 
 import { PaginaSistema } from '@/components/ui/sistema-diseno'
+import { CambioFechaTarjeta } from '@/components/talleres/minimo/cambio-fecha-tarjeta'
+import { loadMisCambiosDeFecha } from '@/lib/platform/talleres/minimo-suspension'
 
 import {
   loadParticipanteActiveTalleres,
@@ -44,10 +50,11 @@ export const metadata = {
 export default async function MiRecorridoPage() {
   const ctx = await requireParticipante()
 
-  const [talleres, historial, certificados] = await Promise.all([
+  const [talleres, historial, certificados, cambiosDeFecha] = await Promise.all([
     loadParticipanteActiveTalleres(ctx),
     loadParticipanteHistorial(ctx),
     loadParticipanteCertificados(ctx),
+    loadMisCambiosDeFecha(ctx.supabase),
   ])
 
   return (
@@ -55,6 +62,13 @@ export default async function MiRecorridoPage() {
       titulo="Mi Recorrido"
       regreso={{ href: '/dashboard', texto: 'Inicio' }}
     >
+      {cambiosDeFecha.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {cambiosDeFecha.map((c) => (
+            <CambioFechaTarjeta key={c.inscripcionId} cambio={c} />
+          ))}
+        </div>
+      )}
       <MiRecorridoTabs talleres={talleres} historial={historial} certificados={certificados} />
     </PaginaSistema>
   )

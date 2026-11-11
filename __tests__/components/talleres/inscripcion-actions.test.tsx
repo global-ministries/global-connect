@@ -12,6 +12,9 @@
  *     submits with motivo, trims whitespace, requires non-empty motivo.
  *   - Loading / pending state mirrors the transition.
  *   - Cancel button resets the reject form.
+ *   - L24 (odd/tasks/talleres-reserva-publica.md): two fields, the internal
+ *     motivo (required, «Solo lo ve el equipo») and the optional message
+ *     for the person (it travels in the notice).
  */
 
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -105,9 +108,9 @@ describe('RejectInscripcionButton', () => {
         onReject={onReject}
       />,
     )
-    expect(screen.queryByLabelText(/motivo de rechazo/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/motivo interno/i)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /rechazar/i }))
-    expect(screen.getByLabelText(/motivo de rechazo/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/motivo interno/i)).toBeInTheDocument()
   })
 
   it('disables confirm while motivo is empty', () => {
@@ -132,11 +135,11 @@ describe('RejectInscripcionButton', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /^rechazar/i }))
-    const textarea = screen.getByLabelText(/motivo de rechazo/i)
+    const textarea = screen.getByLabelText(/motivo interno/i)
     fireEvent.change(textarea, { target: { value: '  cupo lleno  ' } })
     fireEvent.click(screen.getByRole('button', { name: /confirmar rechazo/i }))
     await waitFor(() =>
-      expect(onReject).toHaveBeenCalledWith(REJECT_INSC_ID, '  cupo lleno  '),
+      expect(onReject).toHaveBeenCalledWith(REJECT_INSC_ID, '  cupo lleno  ', ''),
     )
   })
 
@@ -153,7 +156,7 @@ describe('RejectInscripcionButton', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /^rechazar/i }))
-    const textarea = screen.getByLabelText(/motivo de rechazo/i)
+    const textarea = screen.getByLabelText(/motivo interno/i)
     fireEvent.change(textarea, { target: { value: 'algo' } })
     fireEvent.click(screen.getByRole('button', { name: /confirmar rechazo/i }))
     await waitFor(() =>
@@ -170,12 +173,12 @@ describe('RejectInscripcionButton', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /^rechazar/i }))
-    const textarea = screen.getByLabelText(/motivo de rechazo/i)
+    const textarea = screen.getByLabelText(/motivo interno/i)
     fireEvent.change(textarea, { target: { value: 'algo' } })
     fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
     // Back to the initial state — textarea is gone, rechazar button
     // is visible again.
-    expect(screen.queryByLabelText(/motivo de rechazo/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/motivo interno/i)).not.toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /^rechazar/i }),
     ).toBeInTheDocument()
@@ -191,16 +194,62 @@ describe('RejectInscripcionButton', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button', { name: /^rechazar/i }))
-    fireEvent.change(screen.getByLabelText(/motivo de rechazo/i), {
+    fireEvent.change(screen.getByLabelText(/motivo interno/i), {
       target: { value: 'cupo lleno' },
     })
     fireEvent.click(screen.getByRole('button', { name: /confirmar rechazo/i }))
     await waitFor(() =>
-      expect(onReject).toHaveBeenCalledWith(REJECT_INSC_ID, 'cupo lleno'),
+      expect(onReject).toHaveBeenCalledWith(REJECT_INSC_ID, 'cupo lleno', ''),
     )
     // Form resets → textarea gone.
     await waitFor(() =>
-      expect(screen.queryByLabelText(/motivo de rechazo/i)).not.toBeInTheDocument(),
+      expect(screen.queryByLabelText(/motivo interno/i)).not.toBeInTheDocument(),
     )
+  })
+})
+
+describe('RejectInscripcionButton — internal motivo and message for the person (L24)', () => {
+  function abrir() {
+    const onReject = jest.fn(async () => ({ ok: true as const, message: 'OK' }))
+    render(<RejectInscripcionButton inscripcionId={REJECT_INSC_ID} onReject={onReject} />)
+    fireEvent.click(screen.getByRole('button', { name: /^rechazar/i }))
+    return onReject
+  }
+
+  it('shows both fields with their hints', () => {
+    abrir()
+    const motivo = screen.getByLabelText('Motivo interno (obligatorio)')
+    const mensaje = screen.getByLabelText('Mensaje para la persona (opcional)')
+    expect(motivo).toHaveAccessibleDescription('Solo lo ve el equipo')
+    expect(mensaje).toHaveAccessibleDescription('Le llega a la persona y a su pareja por correo y en la app')
+    expect(motivo).toBeRequired()
+    expect(mensaje).not.toBeRequired()
+    expect(mensaje).toHaveAttribute('maxLength', '600')
+  })
+
+  it('sends the motivo and the message', async () => {
+    const onReject = abrir()
+    fireEvent.change(screen.getByLabelText('Motivo interno (obligatorio)'), { target: { value: 'ya lo hizo' } })
+    fireEvent.change(screen.getByLabelText('Mensaje para la persona (opcional)'), {
+      target: { value: 'Te esperamos en la próxima' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /confirmar rechazo/i }))
+    await waitFor(() =>
+      expect(onReject).toHaveBeenCalledWith(REJECT_INSC_ID, 'ya lo hizo', 'Te esperamos en la próxima'),
+    )
+  })
+
+  it('the message alone does not enable the confirmation', () => {
+    abrir()
+    fireEvent.change(screen.getByLabelText('Mensaje para la persona (opcional)'), { target: { value: 'Hola' } })
+    expect(screen.getByRole('button', { name: /confirmar rechazo/i })).toBeDisabled()
+  })
+
+  it('cancel clears the message too', () => {
+    abrir()
+    fireEvent.change(screen.getByLabelText('Mensaje para la persona (opcional)'), { target: { value: 'Hola' } })
+    fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^rechazar/i }))
+    expect(screen.getByLabelText('Mensaje para la persona (opcional)')).toHaveValue('')
   })
 })

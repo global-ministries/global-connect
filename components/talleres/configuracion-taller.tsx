@@ -28,6 +28,16 @@
  * couple talleres also choose when a partner ficha created at enrollment
  * gets its access email: al aprobar (default) or al inscribirse.
  *
+ * Mínimo de inscritos (odd/tasks/talleres-reserva-publica.md T8a, S9 S16) —
+ * «Mínimo de inscritos para abrir» (MinimoInscritosCampo).
+ *
+ * Recuperar clase (odd/tasks/talleres-reserva-publica.md T8b, S17) — the
+ * minimum reads «Clases mínimas para el certificado» (artboard 14) and the
+ * «Recuperar clases aparte» switch (RecuperarClasesCampo) sits under it.
+ *
+ * T9 (same doc, S8, L16) — both are controlled fields of this form and save
+ * with «Guardar configuración» (they had their own save before).
+ *
  * Próximo Paso (odd/tasks/proximo-paso.md T1) — a régimen=cadencia taller
  * picks how its ediciones start: "Primer domingo de cada mes"
  * (talleres.ancla_ediciones) or "Cada N días" (the intervalo field, only
@@ -56,6 +66,8 @@ import {
   vinculoLabel,
 } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
+import { MinimoInscritosCampo } from '@/components/talleres/minimo/minimo-inscritos-campo'
+import { RecuperarClasesCampo } from '@/components/talleres/recuperar/recuperar-clases-campo'
 import type { AnclaEdiciones } from '@/lib/platform/talleres/ancla-ediciones'
 import { PROXIMO_PASO_SLUG } from '@/lib/platform/talleres/proximo-paso-registro'
 import { EnlaceInscripcionProximoPaso } from '@/components/talleres/enlace-inscripcion-proximo-paso'
@@ -72,6 +84,10 @@ export interface ConfiguracionTallerProps {
   readonly anclaEdiciones?: AnclaEdiciones | null
   /** null = todas las clases dictadas. */
   readonly clasesMinimasParaCompletar: number | null
+  /** talleres.minimo_inscritos; null = sin mínimo. */
+  readonly minimoInscritos: number | null
+  /** talleres.permite_recuperar_clases. */
+  readonly permiteRecuperarClases: boolean
   /** talleres.momento_envio_acceso; defaults to 'al_aprobar'. */
   readonly momentoEnvioAcceso?: MomentoEnvioAcceso
   /** talleres.inscripcion_automatica; defaults to false. */
@@ -112,6 +128,8 @@ export function ConfiguracionTaller({
   intervaloEdicionesDias,
   anclaEdiciones = null,
   clasesMinimasParaCompletar,
+  minimoInscritos,
+  permiteRecuperarClases,
   momentoEnvioAcceso = 'al_aprobar',
   inscripcionAutomatica = false,
   cadenciaDias,
@@ -134,6 +152,9 @@ export function ConfiguracionTaller({
     clasesMinimasParaCompletar !== null ? String(clasesMinimasParaCompletar) : '',
   )
 
+  const [minimoSel, setMinimoSel] = useState(minimoInscritos !== null ? String(minimoInscritos) : '')
+  const [recuperarSel, setRecuperarSel] = useState(permiteRecuperarClases)
+
   const [momentoSel, setMomentoSel] = useState<MomentoEnvioAcceso>(momentoEnvioAcceso)
   const [automaticaSel, setAutomaticaSel] = useState(inscripcionAutomatica)
 
@@ -146,6 +167,7 @@ export function ConfiguracionTaller({
     const ancla = regimenSel === 'cadencia' && inicioSel !== 'cada_n_dias' ? inicioSel : null
     const intervaloNum = ancla !== null || intervaloSel.trim() === '' ? null : Number(intervaloSel)
     const clasesMinimasNum = clasesMinimasSel.trim() === '' ? null : Number(clasesMinimasSel)
+    const minimoNum = minimoSel.trim() === '' ? null : Number(minimoSel)
     startTransition(async () => {
       const result = await updateTallerConfiguracion({
         tallerId,
@@ -157,6 +179,8 @@ export function ConfiguracionTaller({
         intervaloEdicionesDias: intervaloNum,
         anclaEdiciones: ancla,
         clasesMinimasParaCompletar: clasesMinimasNum,
+        minimoInscritos: minimoNum,
+        permiteRecuperarClases: recuperarSel,
         ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : { inscripcionAutomatica: automaticaSel }),
       })
       if (result.ok) {
@@ -320,7 +344,7 @@ export function ConfiguracionTaller({
 
           <div>
             <InputSistema
-              label="Clases mínimas para completar"
+              label="Clases mínimas para el certificado"
               type="number"
               min={1}
               max={50}
@@ -331,6 +355,14 @@ export function ConfiguracionTaller({
             <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
               Vacío = todas las clases dictadas
             </TextoSistema>
+          </div>
+
+          <div className="md:col-span-2">
+            <RecuperarClasesCampo permite={recuperarSel} onCambio={setRecuperarSel} puedeEditar />
+          </div>
+
+          <div className="md:col-span-2">
+            <MinimoInscritosCampo tipo={tipoSel} valor={minimoSel} onCambio={setMinimoSel} puedeEditar />
           </div>
 
           <div className="md:col-span-2">
@@ -379,12 +411,19 @@ export function ConfiguracionTaller({
           {regimen === 'cadencia' && anclaEdiciones === null && intervaloEdicionesDias !== null && (
             <Campo titulo="Intervalo entre ediciones">{`Cada ${intervaloEdicionesDias} días`}</Campo>
           )}
-          <Campo titulo="Clases mínimas para completar">
+          <Campo titulo="Clases mínimas para el certificado">
             {clasesMinimasLabel(clasesMinimasParaCompletar)}
           </Campo>
+          <RecuperarClasesCampo permite={permiteRecuperarClases} onCambio={() => {}} puedeEditar={false} />
           <Campo titulo="Cadencia y duración">
             {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
           </Campo>
+          <MinimoInscritosCampo
+            tipo={tipo}
+            valor={minimoInscritos !== null ? String(minimoInscritos) : ''}
+            onCambio={() => {}}
+            puedeEditar={false}
+          />
         </dl>
       )}
 

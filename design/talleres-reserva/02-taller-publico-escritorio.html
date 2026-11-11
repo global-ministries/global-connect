@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>(function(){var t=/(?:^#|,)(oscuro|claro)(?:,|$)/.exec(location.hash);if(t)document.documentElement.dataset.tema=t[1]})();</script>
+<title>Mujer de Hoy · página pública · escritorio — Global</title>
+<style>
+/* Tokens: design/system.md (source app/globals.css). Same block as design/dps-avisos/07. */
+:root{color-scheme:light;--font-sans:'Geist',-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto','Oxygen','Ubuntu','Cantarell','Fira Sans','Droid Sans','Helvetica Neue',sans-serif;--font-mono:'Geist Mono','SF Mono','Monaco','Inconsolata','Roboto Mono','Source Code Pro','Consolas','Liberation Mono','Courier New',monospace;--radius:.75rem;--r-sm:calc(var(--radius) - 4px);--r-md:calc(var(--radius) - 2px);--r-xl:calc(var(--radius) + 4px);--r-2xl:calc(var(--radius) + 8px);--ease-expo:cubic-bezier(.16,1,.3,1);--ease-out-quint:cubic-bezier(.22,1,.36,1);--duration-fast:150ms;--duration-normal:250ms;--tinte:10%;--background:oklch(.985 .002 80);--foreground:oklch(.178 .014 285);--card:oklch(1 0 0);--secondary:oklch(.965 .003 80);--muted:oklch(.955 .004 80);--muted-foreground:oklch(.48 .01 260);--accent:oklch(.965 .003 80);--border:oklch(.905 .006 80);--surface-primary:#FAFAF8;--brand-primary:#E96C20;--brand-primary-foreground:oklch(1 0 0);--brand-accent-strong:rgba(233,108,32,.10);--brand-text:oklch(.52 .15 48);--brand-strong:#BE5413;--brand-strong-hover:#B04E11;--success:oklch(.55 .17 145);--success-text:oklch(.5 .14 145);--warning:oklch(.75 .18 80);--warning-text:oklch(.52 .12 65);--info:oklch(.55 .15 250);--info-text:oklch(.5 .15 250);--danger:oklch(.577 .245 27.325);--danger-text:oklch(.52 .21 27);--chart-1:oklch(.646 .222 41.116);--chart-2:oklch(.6 .118 184.704);--chart-3:oklch(.398 .07 227.392);--chart-4:oklch(.828 .189 84.429);--chart-5:oklch(.769 .188 70.08);--shadow-sheet:0 24px 60px -24px rgba(20,20,40,.28)}
+@media (prefers-color-scheme:dark){:root:not([data-tema=claro]){color-scheme:dark;--tinte:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}}
+:root[data-tema=oscuro]{color-scheme:dark;--tinte:13%;--background:oklch(.112 .01 270);--foreground:oklch(.96 .003 80);--card:oklch(.155 .012 270);--secondary:oklch(.22 .012 270);--muted:oklch(.22 .012 270);--muted-foreground:oklch(.62 .01 260);--accent:oklch(.22 .012 270);--border:oklch(.26 .012 270);--surface-primary:#0E0E12;--brand-accent-strong:rgba(233,108,32,.13);--brand-text:oklch(.74 .15 50);--success:oklch(.6 .17 145);--success-text:oklch(.76 .15 145);--warning:oklch(.7 .16 80);--warning-text:oklch(.8 .14 80);--info:oklch(.6 .15 250);--info-text:oklch(.74 .12 250);--danger:oklch(.637 .237 25.331);--danger-text:oklch(.72 .17 25);--chart-1:oklch(.488 .243 264.376);--chart-2:oklch(.696 .17 162.48);--chart-3:oklch(.769 .188 70.08);--chart-4:oklch(.627 .265 303.9);--chart-5:oklch(.645 .246 16.439);--shadow-sheet:0 24px 60px -20px rgba(0,0,0,.7)}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:var(--font-sans);background:var(--surface-primary);color:var(--foreground);-webkit-font-smoothing:antialiased;font-size:15px;line-height:1.45}
+button,input{font:inherit;color:inherit}h1,h2,h3{text-wrap:balance;margin:0}p,ul,ol,dl,dd{margin:0;padding:0;list-style:none}a{color:inherit}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sr{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+svg.i{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}svg.s16{width:16px;height:16px}
+:focus-visible{outline:2px solid var(--brand-primary);outline-offset:2px}
+.skip{position:absolute;left:-9999px;top:8px;z-index:100;padding:10px 16px;border-radius:var(--r-xl);background:var(--card);border:2px solid var(--brand-primary);font-size:14px;font-weight:600;text-decoration:none}.skip:focus{left:8px}
+/* Public header (DesktopHeader without sidebar: no session) */
+.header{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;min-height:64px;padding:0 48px;border-bottom:1px solid color-mix(in oklab,var(--border) 60%,transparent);background:color-mix(in oklab,var(--surface-primary) 85%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.logo{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 8px 0 0;font-weight:700;font-size:15px;text-decoration:none}
+.logo i{width:28px;height:28px;border-radius:var(--r-sm);background:var(--brand-primary)}
+.crumbs{flex:1;min-width:0;display:flex;align-items:center;gap:2px;font-size:14px;color:var(--muted-foreground)}
+.crumbs a{display:inline-flex;align-items:center;min-height:44px;padding:0 8px;border-radius:var(--r-md);text-decoration:none}.crumbs a:hover{background:var(--accent);color:var(--foreground)}
+.crumbs [aria-current]{padding:0 8px;font-weight:600;color:var(--foreground)}
+.h-icon{width:44px;height:44px;display:grid;place-items:center;border:0;border-radius:var(--r-xl);background:none;color:var(--muted-foreground);cursor:pointer}.h-icon:hover{background:var(--accent);color:var(--foreground)}
+/* Buttons (BotonSistema) */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:var(--r-xl);border:2px solid var(--border);background:transparent;color:var(--foreground);font-size:15px;font-weight:500;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background-color var(--duration-fast) var(--ease-expo),transform var(--duration-fast) var(--ease-expo)}
+.btn:hover{background:var(--accent)}.btn:active{transform:scale(.97)}
+.btn.pri{border-color:transparent;background:var(--brand-strong);color:var(--brand-primary-foreground)}.btn.pri:hover{background:var(--brand-strong-hover)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px;position:relative}.btn.sm::after{content:"";position:absolute;inset:-4px}
+.btn.lg{min-height:48px;font-size:16px}.btn.full{width:100%}
+.btn.link{border-color:transparent;color:var(--brand-text);padding:0 8px}
+/* Page */
+main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:48px;align-items:start;padding:32px 48px 96px}
+.col{display:grid;gap:32px;min-width:0}
+.eyebrow{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--brand-text)}
+.hero h1{margin-top:8px;font-size:24px;font-weight:650;line-height:1.15;letter-spacing:-.02em}
+.hero .lead{margin-top:8px;max-width:68ch;font-size:15px;color:var(--muted-foreground)}
+.hechos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:20px}
+.hecho{display:flex;gap:10px;align-items:center;padding:12px 14px;border-radius:var(--r-2xl);background:var(--card);border:1px solid var(--border)}
+.hecho svg{color:var(--muted-foreground)}
+.hecho small{display:block;font-size:12px;color:var(--muted-foreground)}.hecho b{display:block;font-size:15px;font-weight:600}
+.sec-hd{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+.sec-h{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted-foreground)}
+.sec-hd .hint{font-size:13px;color:var(--muted-foreground)}
+/* Status (PuntoEstado) */
+.st{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:500}
+.st i{width:8px;height:8px;flex:none;border-radius:9999px;background:var(--t);box-shadow:0 0 0 4px color-mix(in oklab,var(--t) 20%,transparent)}
+.st[data-t=warning]{--t:var(--warning);color:var(--warning-text)}.st[data-t=success]{--t:var(--success);color:var(--success-text)}.st[data-t=muted]{--t:var(--muted-foreground);color:var(--muted-foreground)}.st[data-t=danger]{--t:var(--danger);color:var(--danger-text)}
+/* Ediciones: selectable cards (TarjetasFiltro pressed look) */
+.eds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:0;padding:0;border:0;min-width:0}
+.ed{position:relative;display:grid;gap:10px;align-content:start;padding:16px;border-radius:var(--r-2xl);background:var(--card);border:1px solid var(--border);cursor:pointer;transition:background-color var(--duration-fast) var(--ease-expo),border-color var(--duration-fast) var(--ease-expo)}
+.ed:hover{background:var(--accent)}
+.ed input{position:absolute;opacity:0;pointer-events:none}
+.ed:has(input:checked){border-color:var(--brand-primary);background:var(--brand-accent-strong)}
+.ed:has(input:focus-visible){outline:2px solid var(--brand-primary);outline-offset:2px}
+.ed .top{display:flex;align-items:center;gap:8px}
+.ed .dia{flex:1;font-size:18px;font-weight:650;letter-spacing:-.01em}
+.radio{width:20px;height:20px;flex:none;border-radius:9999px;border:2px solid var(--border);display:grid;place-items:center}
+.ed:has(input:checked) .radio{border-color:var(--brand-primary)}
+.ed:has(input:checked) .radio::after{content:"";width:10px;height:10px;border-radius:9999px;background:var(--brand-primary)}
+.ed .hora{font-size:15px;font-weight:600}
+.ed dl{display:grid;gap:4px;font-size:13px;color:var(--muted-foreground)}
+.ed dl div{display:flex;gap:8px;align-items:center}
+.barra{height:4px;border-radius:9999px;background:var(--muted);overflow:hidden}.barra b{display:block;height:100%;background:var(--t);border-radius:inherit}
+.ed.prox{cursor:default;background:transparent;border-style:dashed}
+.ed.prox:hover{background:transparent}
+.ed.prox .dia{color:var(--muted-foreground)}
+/* Clases + facilitadoras + FAQ */
+.dos{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px}
+.lista{background:var(--card);border:1px solid var(--border);border-radius:var(--r-2xl);overflow:hidden}
+.clase{position:relative;display:flex;align-items:center;gap:12px;min-height:56px;padding:8px 16px}
+.clase+.clase::before{content:"";position:absolute;top:0;left:60px;right:0;height:1px;background:color-mix(in oklab,var(--border) 60%,transparent)}
+.clase .n{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:var(--r-md);background:var(--muted);font-family:var(--font-mono);font-size:13px;font-weight:600}
+.clase b{display:block;font-size:15px;font-weight:600}.clase span span{display:block;font-size:13px;color:var(--muted-foreground)}
+.personas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.persona{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-2xl);background:var(--card);border:1px solid var(--border);min-width:0}
+.avatar{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:9999px;font-size:13px;font-weight:600;background:color-mix(in oklab,var(--c) 26%,var(--card));border:1px solid color-mix(in oklab,var(--c) 40%,transparent)}
+.persona b{display:block;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.persona small{display:block;font-size:13px;color:var(--muted-foreground)}
+.persona>span:last-child{min-width:0}
+.nota{margin-top:10px;font-size:13px;color:var(--muted-foreground)}
+.faq{background:var(--card);border:1px solid var(--border);border-radius:var(--r-2xl);overflow:hidden}
+.faq details+details{border-top:1px solid color-mix(in oklab,var(--border) 60%,transparent)}
+.faq summary{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;font-weight:600;cursor:pointer;list-style:none}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary svg{margin-left:auto;color:var(--muted-foreground);transition:transform var(--duration-fast) var(--ease-expo)}
+.faq details[open] summary svg{transform:rotate(90deg)}
+.faq summary:focus-visible{outline:none;box-shadow:inset 0 0 0 2px var(--brand-primary)}
+.faq p{padding:0 16px 16px;font-size:14px;color:var(--muted-foreground);max-width:72ch}
+/* Reserve card (TarjetaSistema, sticky) */
+.reserva{position:sticky;top:88px;display:grid;gap:16px;padding:20px;border-radius:var(--r-2xl);background:var(--card);border:1px solid var(--border)}
+.reserva h2{font-size:18px;font-weight:650}
+.sel{display:grid;gap:6px;padding:14px;border-radius:var(--r-xl);background:var(--muted)}
+.sel .l1{font-size:16px;font-weight:600}.sel .l2{font-size:13px;color:var(--muted-foreground)}
+.reserva .hint{font-size:13px;color:var(--muted-foreground)}
+.sep{height:1px;background:var(--border)}
+.compartir{display:grid;grid-template-columns:96px minmax(0,1fr);gap:14px;align-items:center}
+.qr{width:96px;height:96px;padding:6px;border-radius:var(--r-md);background:oklch(1 0 0);border:1px solid var(--border)}
+.qr rect{fill:oklch(.178 .014 285)}
+.compartir b{display:block;font-size:14px;font-weight:600}
+.compartir .url{display:block;margin-top:2px;font-size:13px;color:var(--muted-foreground);overflow-wrap:anywhere}
+.compartir .acc{display:flex;gap:4px;margin-top:4px;margin-left:-8px}
+@media (max-width:1023px){main{grid-template-columns:minmax(0,1fr);padding:24px 24px 120px}.eds,.hechos{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.dos{grid-template-columns:minmax(0,1fr)}.reserva{position:static}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="i-reloj" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M17 11a3 3 0 1 0 0-6M22 21a5 5 0 0 0-5-5"/></symbol>
+<symbol id="i-luna" viewBox="0 0 24 24"><path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10Z"/></symbol>
+<symbol id="i-copiar" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+<symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+<symbol id="i-campana" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+</defs></svg>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="header">
+  <a class="logo" href="#" aria-label="Iglesia Global, inicio"><i aria-hidden="true"></i>Global</a>
+  <nav class="crumbs" aria-label="Ruta">
+    <a href="01-catalogo-publico-celular.html">Grupos de Corto Plazo</a><svg class="i s16" aria-hidden="true"><use href="#i-chev"/></svg><span aria-current="page">Mujer de Hoy</span>
+  </nav>
+  <button class="h-icon" type="button" id="tema" aria-label="Modo oscuro" aria-pressed="false"><svg class="i"><use href="#i-luna"/></svg></button>
+  <a class="btn sm" href="#">Entrar</a>
+</header>
+
+<main id="main">
+  <div class="col">
+    <section class="hero" aria-labelledby="t">
+      <p class="eyebrow">Grupo de Corto Plazo · para mujeres</p>
+      <h1 id="t">Mujer de Hoy</h1>
+      <p class="lead">Seis encuentros para mujeres que quieren crecer en su identidad, sus emociones y sus relaciones, acompañadas por otras mujeres de Global. Seas o no parte de la iglesia, aquí tienes un lugar.</p>
+      <div class="hechos">
+        <div class="hecho"><svg class="i" aria-hidden="true"><use href="#i-cal"/></svg><span><small>Duración</small><b><span class="num">6</span> clases semanales</b></span></div>
+        <div class="hecho"><svg class="i" aria-hidden="true"><use href="#i-reloj"/></svg><span><small>Cada clase</small><b><span class="num">1</span> h <span class="num">30</span> min</b></span></div>
+        <div class="hecho"><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span><small>Lugar</small><b>Sede Barquisimeto</b></span></div>
+        <div class="hecho"><svg class="i" aria-hidden="true"><use href="#i-users"/></svg><span><small>Para</small><b>Mujeres desde <span class="num">18</span> años</b></span></div>
+      </div>
+    </section>
+
+    <section aria-labelledby="ed-h">
+      <div class="sec-hd"><h2 class="sec-h" id="ed-h">Elige tu horario</h2><span class="hint">El grupo y la facilitadora se asignan al aprobar tu inscripción</span></div>
+      <fieldset class="eds">
+        <legend class="sr">Horarios disponibles de Mujer de Hoy</legend>
+        <label class="ed"><input type="radio" name="ed" value="jue" checked data-l1="Jueves · 7:00 p.m." data-l2="Inicia jue 19 nov · Salón 4 · quedan 6 lugares">
+          <span class="top"><span class="dia">Jueves</span><span class="radio" aria-hidden="true"></span></span>
+          <span class="hora"><span class="num">7:00</span> p.m.</span>
+          <dl>
+            <div><dt class="sr">Fechas</dt><dd>Del <span class="num">19</span> nov al <span class="num">7</span> ene · sin clases <span class="num">24</span> y <span class="num">31</span> dic</dd></div>
+            <div><dt class="sr">Lugar</dt><dd>Salón <span class="num">4</span> · Sede Barquisimeto</dd></div>
+            <div><dt class="sr">Cierre</dt><dd>Inscripción hasta el <span class="num">17</span> nov</dd></div>
+          </dl>
+          <span class="st" data-t="success"><i aria-hidden="true"></i>Quedan&nbsp;<span class="num">6</span>&nbsp;de&nbsp;<span class="num">30</span>&nbsp;lugares</span>
+          <span class="barra" style="--t:var(--success)" aria-hidden="true"><b style="width:80%"></b></span>
+        </label>
+        <label class="ed"><input type="radio" name="ed" value="sab" data-l1="Sábado · 9:00 a.m." data-l2="Inicia sáb 21 nov · Salón 2 · quedan 14 lugares">
+          <span class="top"><span class="dia">Sábado</span><span class="radio" aria-hidden="true"></span></span>
+          <span class="hora"><span class="num">9:00</span> a.m.</span>
+          <dl>
+            <div><dt class="sr">Fechas</dt><dd>Del <span class="num">21</span> nov al <span class="num">9</span> ene · sin clases <span class="num">26</span> dic y <span class="num">2</span> ene</dd></div>
+            <div><dt class="sr">Lugar</dt><dd>Salón <span class="num">2</span> · Sede Barquisimeto</dd></div>
+            <div><dt class="sr">Cierre</dt><dd>Inscripción hasta el <span class="num">19</span> nov</dd></div>
+          </dl>
+          <span class="st" data-t="success"><i aria-hidden="true"></i>Quedan&nbsp;<span class="num">14</span>&nbsp;de&nbsp;<span class="num">30</span>&nbsp;lugares</span>
+          <span class="barra" style="--t:var(--success)" aria-hidden="true"><b style="width:53%"></b></span>
+        </label>
+        <div class="ed prox">
+          <span class="top"><span class="dia">Martes</span></span>
+          <span class="hora"><span class="num">7:00</span> p.m.</span>
+          <dl>
+            <div><dt class="sr">Fechas</dt><dd>Desde el <span class="num">12</span> ene <span class="num">2027</span></dd></div>
+            <div><dt class="sr">Lugar</dt><dd>Salón <span class="num">4</span> · Sede Barquisimeto</dd></div>
+          </dl>
+          <span class="st" data-t="muted"><i aria-hidden="true"></i>Próximamente · abre el&nbsp;<span class="num">1</span>&nbsp;dic</span>
+          <button class="btn sm" type="button" id="avisame"><svg class="i s16" aria-hidden="true"><use href="#i-campana"/></svg>Avísame cuando abra</button>
+        </div>
+      </fieldset>
+    </section>
+
+    <div class="dos">
+      <section aria-labelledby="cl-h">
+        <div class="sec-hd"><h2 class="sec-h" id="cl-h">Lo que vas a vivir</h2></div>
+        <ol class="lista">
+          <li class="clase"><span class="n" aria-hidden="true">1</span><span><b>Quién soy</b><span>Tu identidad y tu valor</span></span></li>
+          <li class="clase"><span class="n" aria-hidden="true">2</span><span><b>Mis emociones</b><span>Reconocerlas y llevarlas a Dios</span></span></li>
+          <li class="clase"><span class="n" aria-hidden="true">3</span><span><b>Mis relaciones</b><span>Amistades sanas y límites</span></span></li>
+          <li class="clase"><span class="n" aria-hidden="true">4</span><span><b>Mi casa</b><span>Familia, hijos y prioridades</span></span></li>
+          <li class="clase"><span class="n" aria-hidden="true">5</span><span><b>Mi propósito</b><span>Dones y servicio</span></span></li>
+          <li class="clase"><span class="n" aria-hidden="true">6</span><span><b>Celebración</b><span>Cierre del grupo y certificado</span></span></li>
+        </ol>
+      </section>
+      <div class="col" style="gap:32px">
+        <section aria-labelledby="fa-h">
+          <div class="sec-hd"><h2 class="sec-h" id="fa-h">Facilitadoras</h2></div>
+          <ul class="personas">
+            <li class="persona"><span class="avatar" style="--c:var(--chart-1)" aria-hidden="true">MQ</span><span><b>Mariela Quintero</b><small>Coordina Mujer de Hoy</small></span></li>
+            <li class="persona"><span class="avatar" style="--c:var(--chart-2)" aria-hidden="true">AC</span><span><b>Andreína Colmenárez</b><small>Facilitadora</small></span></li>
+            <li class="persona"><span class="avatar" style="--c:var(--chart-3)" aria-hidden="true">YP</span><span><b>Yusmary Pérez</b><small>Facilitadora</small></span></li>
+            <li class="persona"><span class="avatar" style="--c:var(--chart-4)" aria-hidden="true">LM</span><span><b>Lisbeth Mendoza</b><small>Facilitadora</small></span></li>
+          </ul>
+          <p class="nota">Cada grupo tiene entre <span class="num">8</span> y <span class="num">10</span> mujeres y una facilitadora.</p>
+        </section>
+        <section aria-labelledby="pf-h">
+          <div class="sec-hd"><h2 class="sec-h" id="pf-h">Preguntas frecuentes</h2></div>
+          <div class="faq">
+            <details><summary>¿Qué pasa después de reservar?<svg class="i s16" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>Tu solicitud queda pendiente. La coordinación la revisa y te avisa por correo y WhatsApp. Al aprobarla te asignamos un grupo y una facilitadora.</p></details>
+            <details><summary>¿Necesito ser parte de Global?<svg class="i s16" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>No. Si es tu primera vez, creas tu ficha al reservar y recibes un enlace para activar tu cuenta.</p></details>
+            <details><summary>¿Y si falto a una clase?<svg class="i s16" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>Avísale a tu facilitadora. Tu asistencia queda registrada en la app y cuenta para el certificado.</p></details>
+            <details><summary>¿Puedo cambiar de horario?<svg class="i s16" aria-hidden="true"><use href="#i-chev"/></svg></summary><p>Sí, mientras haya lugares. Escribe a la coordinación antes de la primera clase.</p></details>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <aside class="reserva" aria-labelledby="rs-h">
+    <h2 id="rs-h">Reservar mi lugar</h2>
+    <div class="sel" aria-live="polite">
+      <span class="l1" id="sel-1">Jueves · <span class="num">7:00</span> p.m.</span>
+      <span class="l2" id="sel-2">Inicia jue 19 nov · Salón 4 · quedan 6 lugares</span>
+    </div>
+    <a class="btn pri lg full" href="06-flujo-escritorio.html">Reservar mi lugar</a>
+    <p class="hint">Tu solicitud queda <b>pendiente de aprobación</b>. La coordinación te avisa por correo y WhatsApp.</p>
+    <div class="sep" role="presentation"></div>
+    <div class="compartir">
+      <svg class="qr" id="qr" viewBox="0 0 25 25" role="img" aria-label="Código QR del enlace de Mujer de Hoy"></svg>
+      <div>
+        <b>Comparte este taller</b>
+        <span class="url num">miembros.yosoyglobal.org/talleres/mujer-de-hoy</span>
+        <span class="acc"><button class="btn link" type="button" id="copiar"><svg class="i s16" aria-hidden="true"><use href="#i-copiar"/></svg>Copiar enlace</button><button class="btn link" type="button"><svg class="i s16" aria-hidden="true"><use href="#i-share"/></svg>Compartir</button></span>
+      </div>
+    </div>
+  </aside>
+  <p class="sr" role="status" aria-live="polite" id="live"></p>
+</main>
+
+<script>
+const $=i=>document.getElementById(i),live=m=>{$('live').textContent='';setTimeout(()=>{$('live').textContent=m},30)};
+document.querySelectorAll('input[name=ed]').forEach(r=>r.addEventListener('change',()=>{
+  const [d,h]=r.dataset.l1.split(' · ');$('sel-1').innerHTML=`${d} · <span class="num">${h.split(' ')[0]}</span> ${h.split(' ')[1]}`;$('sel-2').textContent=r.dataset.l2}));
+$('copiar').addEventListener('click',()=>live('Enlace copiado.'));
+$('avisame').addEventListener('click',e=>{e.currentTarget.disabled=true;e.currentTarget.textContent='Te avisaremos';live('Te avisaremos cuando abra la inscripción del martes.')});
+const oscuroAhora=()=>{const r=document.documentElement.dataset.tema;return r?r==='oscuro':matchMedia('(prefers-color-scheme: dark)').matches};
+$('tema').setAttribute('aria-pressed',oscuroAhora());
+$('tema').addEventListener('click',e=>{const r=document.documentElement,osc=!oscuroAhora();r.dataset.tema=osc?'oscuro':'claro';e.currentTarget.setAttribute('aria-pressed',osc)});
+// Illustrative QR: finder squares + a fixed pattern (the real one encodes the public URL)
+(function(){const s=$('qr'),n=25,ns='http://www.w3.org/2000/svg';let x=7;const box=(cx,cy)=>{for(let i=0;i<7;i++)for(let j=0;j<7;j++){const b=i==0||i==6||j==0||j==6||(i>1&&i<5&&j>1&&j<5);if(b)px(cx+i,cy+j)}};
+function px(a,b){const r=document.createElementNS(ns,'rect');r.setAttribute('x',a);r.setAttribute('y',b);r.setAttribute('width',1);r.setAttribute('height',1);s.appendChild(r)}
+box(0,0);box(18,0);box(0,18);for(let i=0;i<n;i++)for(let j=0;j<n;j++){const f=(i<8&&j<8)||(i>16&&j<8)||(i<8&&j>16);if(f)continue;x=(x*1103515245+12345)&0x7fffffff;if(x%7<3)px(i,j)}})();
+</script>
+</body>
+</html>

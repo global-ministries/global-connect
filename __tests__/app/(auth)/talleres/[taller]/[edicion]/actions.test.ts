@@ -38,6 +38,25 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }))
 
+jest.mock('@/lib/platform/talleres/avisos-envio', () => ({
+  despacharAvisosTalleres: jest.fn().mockResolvedValue(undefined),
+}))
+
+const tareasAfter: Array<() => unknown> = []
+jest.mock('next/server', () => ({
+  after: (tarea: () => unknown) => {
+    tareasAfter.push(tarea)
+  },
+}))
+
+/** Runs what the action left for after the response. */
+async function despuesDeResponder() {
+  for (const t of tareasAfter.splice(0)) await t()
+}
+
+const despacharAvisosMock = jest.requireMock('@/lib/platform/talleres/avisos-envio')
+  .despacharAvisosTalleres as jest.Mock
+
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
 const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
   .createSupabaseServerClient as jest.Mock
@@ -1111,5 +1130,31 @@ describe('cerrarEdicion — errors', () => {
     const result = await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error).toBe('forbidden')
+  })
+})
+
+// T9 (odd/tasks/talleres-reserva-publica.md, S6, L22) — the close emits the
+// certificados and their «Certificado listo» notices; the emails go out right
+// after the response instead of at the daily cron.
+describe('cerrarEdicion — avisos', () => {
+  beforeEach(() => {
+    despacharAvisosMock.mockClear()
+    tareasAfter.splice(0)
+  })
+
+  it('sends the due notices after a successful close', async () => {
+    setupRpc({ rpcResult: { data: RESUMEN_RPC, error: null } })
+    expect((await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })).ok).toBe(true)
+    await despuesDeResponder()
+    expect(despacharAvisosMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not send notices when the close is refused or the session is missing', async () => {
+    setupRpc({ rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_YA_CERRADA' } } })
+    await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    setupRpc({ user: null })
+    await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
+    await despuesDeResponder()
+    expect(despacharAvisosMock).not.toHaveBeenCalled()
   })
 })

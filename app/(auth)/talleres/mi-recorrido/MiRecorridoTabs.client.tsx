@@ -28,19 +28,25 @@
  * estado_inscripcion/unit_estado). Never a raw key, per that file's own
  * header rule (T2/T7/T8 already established it for their own domains).
  *
- * EMPTY STATES — one EstadoVacio per tab, each with its own icon and
+ * EMPTY STATES — one EstadoVacioSistema per tab, each with its own icon and
  * honest copy: a participant with zero active talleres is not "loading"
  * or "an error", and "no talleres activos" is a different fact from "no
  * historial" or "no certificados".
+ *
+ * LISTS — T9 (odd/tasks/talleres-reserva-publica.md, S8): each tab is a
+ * ListaResponsiva (one ARIA table; inset grouped rows on phones). A row of
+ * En curso / Historial opens its detail (DetalleResponsivo: side panel from
+ * md, bottom sheet below); a certificate row opens the certificate page.
  */
-import { useCallback } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { Award, Clock, GraduationCap } from 'lucide-react'
 
 import { TabsSistema, TabsList, TabsTrigger, TabsContent } from '@/components/ui/TabsSistema'
-import { TarjetaSistema, TextoSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
-import { EstadoVacio } from '@/components/dream-team/estado-vacio'
+import { BadgeSistema } from '@/components/ui/sistema-diseno'
+import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
+import { ListaResponsiva, type ColumnaLista } from '@/components/ui/lista-responsiva'
+import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import {
   edicionEstadoLabel,
   edicionEstadoBadgeVariante,
@@ -132,274 +138,266 @@ export function MiRecorridoTabs({ talleres, historial, certificados }: Props) {
   )
 }
 
+// ─── Shared ─────────────────────────────────────────────────────────────
+
+const tipoLabel = (tipo: ParticipanteTallerSummary['tipo']) => (tipo === 'pareja' ? 'Pareja' : 'Individual')
+
+function TallerYEdicion({ nombre, edicion }: { readonly nombre: string; readonly edicion: string }) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <span className="truncate text-sm font-medium text-foreground">{nombre}</span>
+      <span className="truncate text-xs text-muted-foreground">{edicion}</span>
+    </div>
+  )
+}
+
+function Fecha({ iso }: { readonly iso: string | null }) {
+  return <span className="font-mono text-sm tabular-nums text-muted-foreground">{formatFecha(iso)}</span>
+}
+
+function EstadoInscripcion({
+  estado,
+  unit,
+}: {
+  readonly estado: ParticipanteTallerSummary['estado_inscripcion']
+  readonly unit: ParticipanteTallerSummary['unit_estado']
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <BadgeSistema variante={inscripcionEstadoBadgeVariante(estado)} tamaño="sm">
+        {inscripcionEstadoLabel(estado)}
+      </BadgeSistema>
+      {unit && (
+        <BadgeSistema variante={unitEstadoBadgeVariante(unit)} tamaño="sm">
+          {unitEstadoLabel(unit)}
+        </BadgeSistema>
+      )}
+    </div>
+  )
+}
+
+interface DatoDetalle {
+  readonly etiqueta: string
+  readonly valor: ReactNode
+}
+
+/** The read-only detail of one inscription (side panel from md, bottom sheet below). */
+function DetalleInscripcion({
+  titulo,
+  datos,
+  onCerrar,
+}: {
+  readonly titulo: string | null
+  readonly datos: readonly DatoDetalle[]
+  readonly onCerrar: () => void
+}) {
+  return (
+    <DetalleResponsivo abierto={titulo !== null} onCambioAbierto={(abierto) => !abierto && onCerrar()} titulo={titulo ?? ''}>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-3 text-sm">
+        {datos.map((dato) => (
+          <div key={dato.etiqueta} className="contents">
+            <dt className="text-muted-foreground">{dato.etiqueta}</dt>
+            <dd className="min-w-0 text-foreground">{dato.valor}</dd>
+          </div>
+        ))}
+      </dl>
+    </DetalleResponsivo>
+  )
+}
+
 // ─── En curso ───────────────────────────────────────────────────────────
 
+const COLUMNAS_EN_CURSO: readonly ColumnaLista[] = [
+  { id: 'taller', titulo: 'Taller', ancho: 'minmax(220px,1.4fr)' },
+  { id: 'tipo', titulo: 'Tipo', ancho: '120px', ocultarEnTablet: true },
+  { id: 'estado', titulo: 'Estado', ancho: '150px' },
+  { id: 'inscripcion', titulo: 'Inscripción', ancho: 'minmax(0,1fr)' },
+]
+
 function TabEnCurso({ talleres }: { talleres: readonly ParticipanteTallerSummary[] }) {
-  if (talleres.length === 0) {
-    return (
-      <EstadoVacio
-        icono={GraduationCap}
-        titulo="No tienes talleres activos"
-        subtitulo="Visitá Explorar para inscribirte en uno."
-      />
-    )
-  }
+  const [abierto, setAbierto] = useState<ParticipanteTallerSummary | null>(null)
 
   return (
     <>
-      {/* Desktop — table */}
-      <div className="hidden md:block overflow-hidden">
-        <TarjetaSistema className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Taller</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Tipo</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Estado</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Inscripción</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {talleres.map((t) => (
-                <tr key={t.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">{t.nombre}</span>
-                      <span className="text-xs text-muted-foreground">{t.edicion}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <BadgeSistema variante={edicionEstadoBadgeVariante(t.estado_taller)} tamaño="sm">
-                      {edicionEstadoLabel(t.estado_taller)}
+      <ListaResponsiva
+        etiqueta="Talleres en curso"
+        columnas={COLUMNAS_EN_CURSO}
+        filas={talleres}
+        claveFila={(t) => t.id}
+        renderCelda={(t, columna) => {
+          if (columna === 'taller') return <TallerYEdicion nombre={t.nombre} edicion={t.edicion} />
+          if (columna === 'tipo') return <span className="text-sm text-muted-foreground">{tipoLabel(t.tipo)}</span>
+          if (columna === 'estado') {
+            return (
+              <BadgeSistema variante={edicionEstadoBadgeVariante(t.estado_taller)} tamaño="sm">
+                {edicionEstadoLabel(t.estado_taller)}
+              </BadgeSistema>
+            )
+          }
+          return <EstadoInscripcion estado={t.estado_inscripcion} unit={t.unit_estado} />
+        }}
+        renderFilaMovil={(t) => ({
+          titulo: t.nombre,
+          subtitulo: `${t.edicion} · ${tipoLabel(t.tipo)}`,
+          meta: (
+            <BadgeSistema variante={inscripcionEstadoBadgeVariante(t.estado_inscripcion)} tamaño="sm">
+              {inscripcionEstadoLabel(t.estado_inscripcion)}
+            </BadgeSistema>
+          ),
+        })}
+        onAbrirFila={setAbierto}
+        etiquetaFila={(t) => `Abrir ${t.nombre}`}
+        vacio={
+          <EstadoVacioSistema
+            icono={GraduationCap}
+            titulo="No tienes talleres activos"
+            subtitulo="Visita Explorar para inscribirte en uno."
+          />
+        }
+      />
+      <DetalleInscripcion
+        titulo={abierto?.nombre ?? null}
+        onCerrar={() => setAbierto(null)}
+        datos={
+          abierto
+            ? [
+                { etiqueta: 'Edición', valor: abierto.edicion },
+                { etiqueta: 'Tipo', valor: tipoLabel(abierto.tipo) },
+                {
+                  etiqueta: 'Estado',
+                  valor: (
+                    <BadgeSistema variante={edicionEstadoBadgeVariante(abierto.estado_taller)} tamaño="sm">
+                      {edicionEstadoLabel(abierto.estado_taller)}
                     </BadgeSistema>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <BadgeSistema variante={inscripcionEstadoBadgeVariante(t.estado_inscripcion)} tamaño="sm">
-                        {inscripcionEstadoLabel(t.estado_inscripcion)}
-                      </BadgeSistema>
-                      {t.unit_estado && (
-                        <BadgeSistema variante={unitEstadoBadgeVariante(t.unit_estado)} tamaño="sm">
-                          {unitEstadoLabel(t.unit_estado)}
-                        </BadgeSistema>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TarjetaSistema>
-      </div>
-
-      {/* Mobile — cards */}
-      <div className="md:hidden space-y-3">
-        {talleres.map((t) => (
-          <TarjetaSistema key={t.id} variante="outlined" className="p-4">
-            <div className="flex items-start gap-3">
-              <GraduationCap className="mt-0.5 h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <TextoSistema className="text-sm font-medium">{t.nombre}</TextoSistema>
-                <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                  {t.edicion} · {t.tipo === 'pareja' ? 'Pareja' : 'Individual'}
-                </TextoSistema>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <BadgeSistema variante={edicionEstadoBadgeVariante(t.estado_taller)} tamaño="sm">
-                    {edicionEstadoLabel(t.estado_taller)}
-                  </BadgeSistema>
-                  <BadgeSistema variante={inscripcionEstadoBadgeVariante(t.estado_inscripcion)} tamaño="sm">
-                    {inscripcionEstadoLabel(t.estado_inscripcion)}
-                  </BadgeSistema>
-                  {t.unit_estado && (
-                    <BadgeSistema variante={unitEstadoBadgeVariante(t.unit_estado)} tamaño="sm">
-                      {unitEstadoLabel(t.unit_estado)}
-                    </BadgeSistema>
-                  )}
-                </div>
-              </div>
-            </div>
-          </TarjetaSistema>
-        ))}
-      </div>
+                  ),
+                },
+                {
+                  etiqueta: 'Inscripción',
+                  valor: <EstadoInscripcion estado={abierto.estado_inscripcion} unit={abierto.unit_estado} />,
+                },
+              ]
+            : []
+        }
+      />
     </>
   )
 }
 
 // ─── Historial ──────────────────────────────────────────────────────────
 
+const COLUMNAS_HISTORIAL: readonly ColumnaLista[] = [
+  { id: 'taller', titulo: 'Taller', ancho: 'minmax(220px,1.4fr)' },
+  { id: 'inscrito', titulo: 'Inscrito el', ancho: '130px', ocultarEnTablet: true },
+  { id: 'completado', titulo: 'Completado', ancho: '130px' },
+  { id: 'estado', titulo: 'Estado', ancho: 'minmax(0,1fr)' },
+]
+
 function TabHistorial({ historial }: { historial: readonly ParticipanteHistorialRow[] }) {
-  if (historial.length === 0) {
-    return <EstadoVacio icono={Clock} titulo="Aún no tienes inscripciones registradas" />
-  }
+  const [abierto, setAbierto] = useState<ParticipanteHistorialRow | null>(null)
 
   return (
     <>
-      {/* Desktop — table */}
-      <div className="hidden md:block overflow-hidden">
-        <TarjetaSistema className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Taller</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Inscripto el</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Completado</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {historial.map((row) => (
-                <tr key={row.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-foreground">{row.nombre}</span>
-                      <span className="text-xs text-muted-foreground">{row.edicion}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{formatFecha(row.fecha_inscripcion)}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{formatFecha(row.fecha_completitud)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <BadgeSistema variante={inscripcionEstadoBadgeVariante(row.estado_inscripcion)} tamaño="sm">
-                        {inscripcionEstadoLabel(row.estado_inscripcion)}
-                      </BadgeSistema>
-                      {row.unit_estado && (
-                        <BadgeSistema variante={unitEstadoBadgeVariante(row.unit_estado)} tamaño="sm">
-                          {unitEstadoLabel(row.unit_estado)}
-                        </BadgeSistema>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TarjetaSistema>
-      </div>
-
-      {/* Mobile — cards */}
-      <div className="md:hidden space-y-3">
-        {historial.map((row) => (
-          <TarjetaSistema key={row.id} variante="outlined" className="p-4">
-            <div className="flex items-start gap-3">
-              <Clock className="mt-0.5 h-5 w-5 text-muted-foreground" />
-              <div className="flex-1">
-                <TextoSistema className="text-sm font-medium">{row.nombre}</TextoSistema>
-                <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                  {row.edicion} · Inscripto {formatFecha(row.fecha_inscripcion)}
-                </TextoSistema>
-                {row.fecha_completitud && (
-                  <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                    Completado {formatFecha(row.fecha_completitud)}
-                  </TextoSistema>
-                )}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <BadgeSistema variante={inscripcionEstadoBadgeVariante(row.estado_inscripcion)} tamaño="sm">
-                    {inscripcionEstadoLabel(row.estado_inscripcion)}
-                  </BadgeSistema>
-                  {row.unit_estado && (
-                    <BadgeSistema variante={unitEstadoBadgeVariante(row.unit_estado)} tamaño="sm">
-                      {unitEstadoLabel(row.unit_estado)}
-                    </BadgeSistema>
-                  )}
-                </div>
-              </div>
-            </div>
-          </TarjetaSistema>
-        ))}
-      </div>
+      <ListaResponsiva
+        etiqueta="Historial"
+        columnas={COLUMNAS_HISTORIAL}
+        filas={historial}
+        claveFila={(row) => row.id}
+        renderCelda={(row, columna) => {
+          if (columna === 'taller') return <TallerYEdicion nombre={row.nombre} edicion={row.edicion} />
+          if (columna === 'inscrito') return <Fecha iso={row.fecha_inscripcion} />
+          if (columna === 'completado') return <Fecha iso={row.fecha_completitud} />
+          return <EstadoInscripcion estado={row.estado_inscripcion} unit={row.unit_estado} />
+        }}
+        renderFilaMovil={(row) => ({
+          titulo: row.nombre,
+          subtitulo: `${row.edicion} · Inscrito ${formatFecha(row.fecha_inscripcion)}`,
+          meta: (
+            <BadgeSistema variante={inscripcionEstadoBadgeVariante(row.estado_inscripcion)} tamaño="sm">
+              {inscripcionEstadoLabel(row.estado_inscripcion)}
+            </BadgeSistema>
+          ),
+        })}
+        onAbrirFila={setAbierto}
+        etiquetaFila={(row) => `Abrir ${row.nombre}`}
+        vacio={<EstadoVacioSistema icono={Clock} titulo="Aún no tienes inscripciones registradas" />}
+      />
+      <DetalleInscripcion
+        titulo={abierto?.nombre ?? null}
+        onCerrar={() => setAbierto(null)}
+        datos={
+          abierto
+            ? [
+                { etiqueta: 'Edición', valor: abierto.edicion },
+                { etiqueta: 'Inscrito el', valor: <Fecha iso={abierto.fecha_inscripcion} /> },
+                { etiqueta: 'Completado', valor: <Fecha iso={abierto.fecha_completitud} /> },
+                {
+                  etiqueta: 'Estado',
+                  valor: <EstadoInscripcion estado={abierto.estado_inscripcion} unit={abierto.unit_estado} />,
+                },
+              ]
+            : []
+        }
+      />
     </>
   )
 }
 
 // ─── Certificados ───────────────────────────────────────────────────────
 
+const COLUMNAS_CERTIFICADOS: readonly ColumnaLista[] = [
+  { id: 'taller', titulo: 'Taller', ancho: 'minmax(220px,1.6fr)' },
+  { id: 'completado', titulo: 'Completado', ancho: '140px' },
+  { id: 'estado', titulo: 'Estado', ancho: 'minmax(0,1fr)' },
+]
+
+function EstadoCertificado({ revocado }: { readonly revocado: boolean }) {
+  return revocado ? (
+    <BadgeSistema variante="error" tamaño="sm">Revocado</BadgeSistema>
+  ) : (
+    <BadgeSistema variante="success" tamaño="sm">Vigente</BadgeSistema>
+  )
+}
+
 function TabCertificados({ certificados }: { certificados: readonly ParticipanteCertificado[] }) {
-  if (certificados.length === 0) {
-    return (
-      <EstadoVacio
-        icono={Award}
-        titulo="Aún no tienes certificados emitidos"
-        subtitulo="Se emiten automáticamente al completar un taller."
-      />
-    )
-  }
+  const router = useRouter()
 
   return (
-    <>
-      {/* Desktop — table */}
-      <div className="hidden md:block overflow-hidden">
-        <TarjetaSistema className="p-0">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Taller</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Completado</th>
-                <th className="px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wider">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {certificados.map((cert) => (
-                <tr key={cert.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <Link
-                      href={rutaCertificado(cert.id)}
-                      className="text-sm font-medium text-foreground hover:underline"
-                    >
-                      {cert.nombre_taller_snapshot}
-                    </Link>
-                    {/* T2b — a couple's certificate names the partner. */}
-                    {cert.nombre_pareja_snapshot && (
-                      <span className="block text-xs text-muted-foreground">{`junto a ${cert.nombre_pareja_snapshot}`}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{formatFecha(cert.fecha_completitud)}</td>
-                  <td className="px-4 py-3">
-                    {cert.revocado_at ? (
-                      <BadgeSistema variante="error" tamaño="sm">Revocado</BadgeSistema>
-                    ) : (
-                      <BadgeSistema variante="success" tamaño="sm">Vigente</BadgeSistema>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TarjetaSistema>
-      </div>
-
-      {/* Mobile — cards */}
-      <div className="md:hidden space-y-3">
-        {certificados.map((cert) => (
-          <Link key={cert.id} href={rutaCertificado(cert.id)} className="block">
-            <TarjetaSistema variante="outlined" className="p-4 min-h-[44px]">
-              <div className="flex items-start gap-3">
-                <Award className="mt-0.5 h-5 w-5 text-primary" />
-                <div className="flex-1">
-                  <TextoSistema className="text-sm font-medium">{cert.nombre_taller_snapshot}</TextoSistema>
-                  {cert.nombre_pareja_snapshot && (
-                    <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                      {`junto a ${cert.nombre_pareja_snapshot}`}
-                    </TextoSistema>
-                  )}
-                  <TextoSistema variante="sutil" className="mt-1 block text-xs">
-                    Completado {formatFecha(cert.fecha_completitud)}
-                  </TextoSistema>
-                  <div className="mt-2">
-                    {cert.revocado_at ? (
-                      <BadgeSistema variante="error" tamaño="sm">Revocado</BadgeSistema>
-                    ) : (
-                      <BadgeSistema variante="success" tamaño="sm">Vigente</BadgeSistema>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </TarjetaSistema>
-          </Link>
-        ))}
-      </div>
-    </>
+    <ListaResponsiva
+      etiqueta="Certificados"
+      columnas={COLUMNAS_CERTIFICADOS}
+      filas={certificados}
+      claveFila={(cert) => cert.id}
+      renderCelda={(cert, columna) => {
+        if (columna === 'taller') {
+          return (
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium text-foreground">{cert.nombre_taller_snapshot}</span>
+              {/* T2b — a couple's certificate names the partner. */}
+              {cert.nombre_pareja_snapshot && (
+                <span className="truncate text-xs text-muted-foreground">{`junto a ${cert.nombre_pareja_snapshot}`}</span>
+              )}
+            </div>
+          )
+        }
+        if (columna === 'completado') return <Fecha iso={cert.fecha_completitud} />
+        return <EstadoCertificado revocado={Boolean(cert.revocado_at)} />
+      }}
+      renderFilaMovil={(cert) => ({
+        titulo: cert.nombre_taller_snapshot,
+        subtitulo: cert.nombre_pareja_snapshot
+          ? `junto a ${cert.nombre_pareja_snapshot}`
+          : `Completado ${formatFecha(cert.fecha_completitud)}`,
+        meta: <EstadoCertificado revocado={Boolean(cert.revocado_at)} />,
+      })}
+      onAbrirFila={(cert) => router.push(rutaCertificado(cert.id))}
+      etiquetaFila={(cert) => `Abrir certificado de ${cert.nombre_taller_snapshot}`}
+      vacio={
+        <EstadoVacioSistema
+          icono={Award}
+          titulo="Aún no tienes certificados emitidos"
+          subtitulo="Se emiten automáticamente al completar un taller."
+        />
+      }
+    />
   )
 }

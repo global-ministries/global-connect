@@ -6,25 +6,34 @@ import { Bell } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { CLASE_BOTON_ICONO_SHELL } from '@/components/navegacion/estilos-navegacion'
 import { PanelFlotante } from '@/components/navegacion/panel-flotante-riel'
+import { ListaAvisos, ListaAvisosCargando } from '@/components/navegacion/avisos/lista-avisos'
+import { useAvisosPersona } from '@/components/navegacion/avisos/use-avisos-persona'
+import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { HojaInferior } from '@/components/ui/hoja-inferior'
+import type { AvisoPersona, ClienteAvisos } from '@/lib/platform/avisos/avisos-persona'
 
 /**
  * The notifications bell of the app shell (odd/tasks/sistema-diseno-v2.md,
  * S9.9; prototype design/app-shell): always visible, in the desktop header
  * and in the phone navigation bar. The unread badge is a `bg-brand-strong`
- * count; the panel shows the empty state until there is a data source.
+ * count.
  *
- * There is no notifications source yet, so nothing here fetches: the caller
- * passes `noLeidas` and the list (`children`) once one exists.
+ * Source (odd/tasks/talleres-reserva-publica.md T7, S6 S11): the person's
+ * in-app notices, `mis_avisos()` (avisos_persona, owner-only by RLS), loaded
+ * after mount and on focus. Opening one marks it read
+ * (`aviso_marcar_leido`). A caller that passes `noLeidas` or its own list
+ * (`children`) gets the old static bell and nothing is fetched.
  */
 export interface CampanaNotificacionesProps {
-  /** Unread notifications; the badge shows above 0. */
+  /** Unread notifications; the badge shows above 0. Passing it turns the fetch off. */
   readonly noLeidas?: number
-  /** The notification list. Without it the panel shows "No tenés notificaciones". */
+  /** A list of the caller's own. Passing it turns the fetch off. */
   readonly children?: ReactNode
   /** `popover` under the bell (desktop header) or `hoja`, a bottom sheet (phone). */
   readonly presentacion?: 'popover' | 'hoja'
+  /** Replaces the browser Supabase client (tests). */
+  readonly fuente?: ClienteAvisos
   readonly className?: string
 }
 
@@ -49,22 +58,66 @@ export function ContenidoNotificaciones({ children }: { readonly children?: Reac
 }
 
 export function CampanaNotificaciones({
-  noLeidas = 0,
+  noLeidas: noLeidasPropias,
   children,
   presentacion = 'popover',
+  fuente,
   className,
 }: CampanaNotificacionesProps) {
   const [abierta, setAbierta] = useState(false)
   const botonRef = useRef<HTMLButtonElement>(null)
   const idPanel = useId()
   const idTitulo = useId()
+  const propia = children !== undefined || noLeidasPropias !== undefined
+  const avisos = useAvisosPersona({ activo: !propia, fuente })
+  const noLeidas = propia ? (noLeidasPropias ?? 0) : avisos.noLeidas
+
+  function abrirAviso(aviso: AvisoPersona) {
+    if (!aviso.leido) void avisos.marcarLeido(aviso.id)
+    if (aviso.url) setAbierta(false)
+  }
+
+  function alternar() {
+    if (!abierta && !propia) void avisos.recargar()
+    setAbierta(!abierta)
+  }
+
+  let lista: ReactNode = children
+  if (!propia) {
+    if (avisos.estado === 'cargando' && avisos.avisos.length === 0) {
+      lista = <ListaAvisosCargando />
+    } else if (avisos.estado === 'error' && avisos.avisos.length === 0) {
+      lista = (
+        <EstadoVacioSistema
+          icono={Bell}
+          titulo="No pudimos cargar tus notificaciones"
+          subtitulo="Revisa tu conexión e inténtalo de nuevo."
+          accion={
+            <BotonSistema variante="outline" tamaño="sm" onClick={() => void avisos.recargar()}>
+              Reintentar
+            </BotonSistema>
+          }
+          className="py-8"
+        />
+      )
+    } else if (avisos.avisos.length > 0) {
+      lista = (
+        <ListaAvisos
+          avisos={avisos.avisos}
+          noLeidas={avisos.noLeidas}
+          onAbrir={abrirAviso}
+          onMarcarTodos={() => void avisos.marcarTodos()}
+        />
+      )
+    }
+  }
 
   return (
     <div className={cn('relative', className)}>
       <button
         ref={botonRef}
         type="button"
-        onClick={() => setAbierta((valor) => !valor)}
+        onClick={alternar}
         aria-label={etiquetaCampana(noLeidas)}
         aria-haspopup="dialog"
         aria-expanded={abierta}
@@ -97,12 +150,15 @@ export function CampanaNotificaciones({
           </h2>
           {/* Focus lands here on open, so the empty state is read right away. */}
           <div tabIndex={0} className="focus-ring max-h-[60vh] overflow-y-auto rounded-b-2xl outline-none">
-            <ContenidoNotificaciones>{children}</ContenidoNotificaciones>
+            <ContenidoNotificaciones>{lista}</ContenidoNotificaciones>
           </div>
         </PanelFlotante>
       ) : (
         <HojaInferior abierta={abierta} onCambioAbierta={setAbierta} titulo={TITULO_NOTIFICACIONES}>
-          <ContenidoNotificaciones>{children}</ContenidoNotificaciones>
+          {/* The sheet body has its own padding; the rows bleed to its edges like grouped lists. */}
+          <div className="-mx-4.5 -my-4">
+            <ContenidoNotificaciones>{lista}</ContenidoNotificaciones>
+          </div>
         </HojaInferior>
       )}
     </div>

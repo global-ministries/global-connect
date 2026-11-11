@@ -610,3 +610,52 @@ describe('updateTallerConfiguracion — momento del envío del acceso al cónyug
     expect(updateMock).not.toHaveBeenCalled()
   })
 })
+
+// T9 (odd/tasks/talleres-reserva-publica.md, S8 S9 S17, L16) — «Mínimo de
+// inscritos para abrir» and «Recuperar clases aparte» save with the rest of
+// the configuration (one «Guardar configuración»), through the same update
+// and RLS. Omitted keys leave the columns as they are (see the happy path).
+describe('updateTallerConfiguracion — mínimo de inscritos y recuperar clases', () => {
+  it('persists minimoInscritos and permiteRecuperarClases with the rest', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({
+      ...validConfiguracionInput,
+      minimoInscritos: 12,
+      permiteRecuperarClases: false,
+    })
+    expect(result.ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ minimo_inscritos: 12, permite_recuperar_clases: false }),
+    )
+  })
+
+  it.each([1, 500])('accepts the mínimo %i', async (valor) => {
+    const { updateMock } = setupConfiguracion({})
+    expect((await updateTallerConfiguracion({ ...validConfiguracionInput, minimoInscritos: valor })).ok).toBe(true)
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ minimo_inscritos: valor }))
+  })
+
+  it('persists minimoInscritos: null (no minimum)', async () => {
+    const { updateMock } = setupConfiguracion({})
+    await updateTallerConfiguracion({ ...validConfiguracionInput, minimoInscritos: null })
+    expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ minimo_inscritos: null }))
+  })
+
+  it.each([0, 501, 2.5, Number.NaN])('rejects the mínimo %p without touching the row', async (valor) => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, minimoInscritos: valor })
+    expect(result).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'El mínimo de inscritos debe ser un entero entre 1 y 500, o vacío para no tener mínimo.',
+    })
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a non-boolean permiteRecuperarClases without touching the row', async () => {
+    const { updateMock } = setupConfiguracion({})
+    const result = await updateTallerConfiguracion({ ...validConfiguracionInput, permiteRecuperarClases: 'si' as never })
+    expect(result).toEqual({ ok: false, error: 'invalid-input', message: 'Valor inválido para recuperar clases aparte.' })
+    expect(updateMock).not.toHaveBeenCalled()
+  })
+})

@@ -61,6 +61,11 @@ const migratedToDesignSystem = [
   // Niños › Etiquetas e impresoras (T3b), same style.
   'app/(auth)/ninos/etiquetas/**',
   'components/ninos/etiquetas/**',
+  // Talleres: the public reservation (T5b of odd/tasks/talleres-reserva-publica.md) and,
+  // since T9, every internal screen and component (Reserva and Compartir were v2 from the start).
+  'app/talleres/reservar/**',
+  'app/(auth)/talleres/**',
+  'components/talleres/**',
 ]
 
 const legacyUiImports = {
