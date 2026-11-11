@@ -12003,6 +12003,13 @@ export type Database = {
         Args: { p_grupo_id: string; p_inscripcion_ids: string[] }
         Returns: Json
       }
+      talleres_avisame_lugar_contar: {
+        Args: { p_edicion_ids: string[] }
+        Returns: {
+          edicion_id: string
+          pendientes: number
+        }[]
+      }
       talleres_buscar_pareja_por_cedula: {
         Args: { p_cedula: string; p_edicion_id: string }
         Returns: Json

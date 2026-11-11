@@ -122,6 +122,11 @@
  * The grupo options come from loadGruposInstanciados (with facilitadora and
  * ocupación), so loadGruposDeCohorte is no longer read here. origen and
  * por_verificar come from cargarExtrasInscripciones (best effort).
+ *
+ * R3j (odd/tasks/talleres-rediseno.md, S9): the summary line ends with
+ * «N esperan un lugar» (artboard 12's «Avisar si se abre lugar») when N > 0:
+ * one talleres_avisame_lugar_contar call through cargarEsperanLugar, count
+ * only, for staff of this edición; an error or no row shows nothing.
  */
 
 import { notFound } from 'next/navigation'
@@ -142,6 +147,7 @@ import { EstadoSuspension } from '@/components/talleres/minimo/estado-suspension
 import { EdicionCliente } from '@/components/talleres/edicion/edicion-cliente'
 import { InscribirAlguien } from '@/components/talleres/edicion/inscribir-alguien'
 import { cargarExtrasInscripciones } from '@/components/talleres/edicion/cargar-extras'
+import { cargarEsperanLugar } from '@/components/talleres/edicion/cargar-esperan'
 import {
   construirInscritas,
   leerFiltros,
@@ -254,6 +260,8 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   const cupo = await loadCupoEdicion(client, edicion.id)
   // T8a — best effort: null hides both minimum blocks.
   const panelMinimo = await loadPanelMinimo(client, edicion.id)
+  // R3j — best effort: 0 (error, no row) hides the part.
+  const esperanLugar = await cargarEsperanLugar(client, edicion.id)
 
   // T7b — the "Reprogramar" dialog's own preview inputs and the audit line,
   // both gated on editarEdicion since only they can act on either.
@@ -295,6 +303,7 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
     aprobados: panelMinimo?.conteo.aprobados ?? inscritas.filter((i) => i.estado === 'aprobado').length,
     activas: inscritas.filter((i) => i.estado === 'pendiente' || i.estado === 'aprobado').length,
     porAprobar,
+    esperanLugar,
   })
 
   const estado = (
@@ -584,14 +593,16 @@ interface DatosResumen {
   /** Pendientes + aprobadas, when the cupo cannot be read. */
   readonly activas: number
   readonly porAprobar: number
+  /** Asked «Avísame si se libera un lugar» and not notified yet (R3j). */
+  readonly esperanLugar: number
 }
 
 /**
  * The hero's ONE summary line: «14 inscritas de 30 · mínimo 10 alcanzado ·
- * 5 por aprobar · la inscripción cierra el vie 20 nov». Each part only when
- * its data is there.
+ * 5 por aprobar · la inscripción cierra el vie 20 nov · 3 esperan un lugar».
+ * Each part only when its data is there.
  */
-function resumenEdicion({ edicion, cupo, minimo, aprobados, activas, porAprobar }: DatosResumen): ReactNode {
+function resumenEdicion({ edicion, cupo, minimo, aprobados, activas, porAprobar, esperanLugar }: DatosResumen): ReactNode {
   const partes: ReactNode[] = []
   if (cupo && cupo.cupo > 0) {
     const unidad = cupo.unidad === 'parejas' ? plural(cupo.ocupados, 'pareja', 'parejas') : plural(cupo.ocupados, 'inscrita', 'inscritas')
@@ -637,6 +648,13 @@ function resumenEdicion({ edicion, cupo, minimo, aprobados, activas, porAprobar 
     )
   } else if (edicion.estado === 'en_curso' && edicion.fecha_fin) {
     partes.push(<span key="cierre">en curso hasta el {fechaCorta(edicion.fecha_fin)}</span>)
+  }
+  if (esperanLugar > 0) {
+    partes.push(
+      <span key="esperan">
+        <Num>{esperanLugar}</Num> {plural(esperanLugar, 'espera', 'esperan')} un lugar
+      </span>,
+    )
   }
   return partes.flatMap((parte, i) => (i === 0 ? [parte] : [<span key={`sep-${i}`}> · </span>, parte]))
 }
