@@ -152,7 +152,7 @@ describe('POST reporte/enviar — traduce los errores de la función a HTTP + es
       mensaje: 'sin_permisos_para_este_grupo',
       code: '42501',
       status: 403,
-      mensajeEs: 'No tenés permisos para este grupo.',
+      mensajeEs: 'No tienes permisos para este grupo.',
     },
     {
       mensaje: 'solo_el_lider_puede_enviar_el_reporte',

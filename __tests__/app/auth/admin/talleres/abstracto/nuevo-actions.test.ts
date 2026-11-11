@@ -365,7 +365,7 @@ describe('createTallerAbstract — RPC error', () => {
     const result = await createTallerAbstract(validInput)
     expect(result.ok).toBe(false)
     if (!result.ok) {
-      expect(result.message).toBe('Elegí un nodo del árbol para vincular, o un padre para crear uno nuevo — no ambos ni ninguno.')
+      expect(result.message).toBe('Elige un nodo del árbol para vincular, o un padre para crear uno nuevo — no ambos ni ninguno.')
     }
   })
 

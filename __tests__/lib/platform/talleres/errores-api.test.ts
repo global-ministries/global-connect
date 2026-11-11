@@ -29,7 +29,7 @@ describe('traducirErrorTalleres — new T3 branches', () => {
       code: '42501',
       message: 'sin_permisos_para_este_grupo',
     })
-    expect(result.message).toBe('No tenés permisos para este grupo.')
+    expect(result.message).toBe('No tienes permisos para este grupo.')
   })
 
   it('maps P0001 NO_ES_SERVIDOR_ACTIVO_DEL_TALLER to a friendly Spanish message', () => {

@@ -74,7 +74,7 @@ function mapRpcError(error: RpcError): { error: string; message: string } {
     case '42501':
       return {
         error: 'FORBIDDEN',
-        message: 'No tenés permiso para asignar inscripciones a este grupo.',
+        message: 'No tienes permiso para asignar inscripciones a este grupo.',
       }
     case 'P0001':
       if (error.message === 'GRUPO_DE_OTRA_COHORTE') {
@@ -93,14 +93,14 @@ function mapRpcError(error: RpcError): { error: string; message: string } {
     case 'P0002':
       return {
         error: 'NOT_FOUND',
-        message: 'Una o más inscripciones no existen. Refrescá la página.',
+        message: 'Una o más inscripciones no existen. Recarga la página.',
       }
     case '22023':
-      return { error: 'MISSING_IDS', message: 'Seleccioná al menos una inscripción.' }
+      return { error: 'MISSING_IDS', message: 'Selecciona al menos una inscripción.' }
     default:
       // Fail soft: the RPC may not exist yet in this environment (T1's
       // evidence — not in production). Never crash the page.
-      return { error: 'FAILED', message: 'No se pudo asignar el grupo. Intentá de nuevo.' }
+      return { error: 'FAILED', message: 'No se pudo asignar el grupo. Intenta de nuevo.' }
   }
 }
 
