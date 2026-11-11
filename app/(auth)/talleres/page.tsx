@@ -38,13 +38,22 @@
  * unscoped gate lets them through. No other control exists on this
  * screen yet (T3 adds the per-taller "editar"/"abrir edición" controls,
  * which DO read cargarPermisos for that taller's dream_team_equipo_id).
+ *
+ * R3c (odd/tasks/talleres-rediseno.md, S1, S2, S4) — rebuilt on the v2 list
+ * anatomy (artboards design/talleres-interior/18 and 19); the client renders
+ * the whole page. Gate and permissions above are unchanged. Added:
+ * - one batched select of the vigente ediciones' grupos
+ *   (loadGruposDeEdiciones) for the cupo line and «Sin facilitador»;
+ * - the drawer's quick actions follow loadMisTalleres' talleres_mis_permisos
+ *   (editar_taller, abrir_edicion), the taller page's own gates;
+ * - the Pendientes / Temporadas / Reportes tabs show only with the
+ *   capability route-access.ts declares for each route;
+ * - URL state: ?atencion, ?direccion, ?q, ?taller, ?nuevo.
  */
 
-import Link from 'next/link'
-import { Compass } from 'lucide-react'
-
-import { PaginaSistema, BotonSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 import { CatalogoTalleresClient } from '@/components/talleres/catalogo-talleres-client'
+import { leerFiltros } from '@/components/talleres/catalogo/vista-catalogo'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
@@ -52,52 +61,57 @@ import {
   resolveReadOnlyPlatformSession,
 } from '@/lib/auth/platformSessionReadOnly'
 import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
-import { loadCatalogoTalleres, loadMisGruposResumen, loadMisTalleres } from '@/lib/platform/talleres/catalogo'
+import {
+  loadCatalogoTalleres,
+  loadGruposDeEdiciones,
+  loadMisGruposResumen,
+  loadMisTalleres,
+} from '@/lib/platform/talleres/catalogo'
 import { fetchOpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
-import { rutaExplorar } from '@/lib/platform/talleres/rutas'
+import { getTalleresNavItems } from '@/lib/platform/talleres/route-access'
 import type { OperacionalContext } from '@/lib/platform/talleres/operacional'
 
 export const metadata = { title: 'Talleres' }
 
-export default async function TalleresCatalogoPage() {
-  if (!isTalleresEnabled()) {
-    return (
-      <PaginaSistema titulo="Talleres">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">El módulo de talleres está deshabilitado.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+type Params = Record<string, string | string[] | undefined>
+
+interface PageProps {
+  readonly searchParams?: Promise<Params>
+}
+
+function primero(valor: string | string[] | undefined): string | undefined {
+  return Array.isArray(valor) ? valor[0] : valor
+}
+
+/** The gate's informational card. */
+function aviso(texto: string) {
+  return (
+    <PaginaSistema titulo="Talleres">
+      <TarjetaSistema variante="outlined" className="p-6 text-center">
+        <TextoSistema variante="sutil">{texto}</TextoSistema>
+      </TarjetaSistema>
+    </PaginaSistema>
+  )
+}
+
+/** Ediciones whose grupos still matter (cupo and «Sin facilitador»). */
+const ESTADOS_VIGENTES = new Set(['abierto', 'en_curso', 'borrador'])
+
+export default async function TalleresCatalogoPage({ searchParams }: PageProps = {}) {
+  if (!isTalleresEnabled()) return aviso('El módulo de talleres está deshabilitado.')
 
   const supabase = await createSupabaseServerClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
   const { data: { user } } = await (supabase as any).auth.getUser()
-  if (!user) {
-    return (
-      <PaginaSistema titulo="Talleres">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">Necesitás iniciar sesión.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+  if (!user) return aviso('Necesitas iniciar sesión.')
 
   const session = await resolveReadOnlyPlatformSession({
     subjectAuthId: user.id,
     findPersonaByAuthId: (authId) => findPlatformSessionPersonaByAuthId(supabase, authId),
     capabilitySupabase: supabase,
   })
-  if (!session) {
-    return (
-      <PaginaSistema titulo="Talleres">
-        <TarjetaSistema variante="outlined" className="p-6 text-center">
-          <TextoSistema variante="sutil">No se pudo resolver tu sesión.</TextoSistema>
-        </TarjetaSistema>
-      </PaginaSistema>
-    )
-  }
+  if (!session) return aviso('No se pudo resolver tu sesión.')
 
   const caps = session.capabilities.map((c) => c.key)
   const puedeCrear =
@@ -131,31 +145,41 @@ export default async function TalleresCatalogoPage() {
     puedeCrear ? fetchOpcionesEquipoTaller(supabase) : Promise.resolve({ vincular: [], crearBajo: [] }),
   ])
 
-  // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
-  // "Mis talleres" needs the resolved catálogo first (one RPC per
-  // DISTINCT equipo — cargarPermisosPorEquipos), so it runs after the
-  // Promise.all above rather than inside it.
-  const misTalleres = await loadMisTalleres(client, catalogo)
+  // T11 — "Mis talleres" needs the resolved catálogo first (one RPC per
+  // DISTINCT equipo — cargarPermisosPorEquipos); R3c's grupos select needs
+  // its edición ids. Both run after the Promise.all above, together.
+  const edicionesVigentes = catalogo.flatMap((t) =>
+    t.ediciones.filter((e) => ESTADOS_VIGENTES.has(e.estado)).map((e) => e.id),
+  )
+  const [misTalleres, grupos] = await Promise.all([
+    loadMisTalleres(client, catalogo),
+    loadGruposDeEdiciones(client, edicionesVigentes),
+  ])
+
+  // The tabs follow route-access.ts, the single source of each route's capability.
+  const navegacion = new Set(getTalleresNavItems(caps, { isEnabled: true }).map((item) => item.id))
+  const params = (await searchParams) ?? {}
 
   return (
-    <PaginaSistema
-      titulo="Talleres"
-      regreso={{ href: '/dashboard', texto: 'Inicio' }}
-      acciones={
-        <Link href={rutaExplorar()}>
-          <BotonSistema type="button" variante="outline" icono={Compass}>
-            Explorar
-          </BotonSistema>
-        </Link>
-      }
-    >
-      <CatalogoTalleresClient
-        catalogo={catalogo}
-        misGrupos={misGrupos}
-        puedeCrear={puedeCrear}
-        misTalleres={misTalleres}
-        opciones={opciones}
-      />
-    </PaginaSistema>
+    <CatalogoTalleresClient
+      catalogo={catalogo}
+      grupos={grupos ? Object.fromEntries(grupos) : null}
+      misGrupos={misGrupos}
+      puedeCrear={puedeCrear}
+      misTalleres={misTalleres}
+      opciones={opciones}
+      pestanas={{
+        pendientes: navegacion.has('talleres_pendientes'),
+        temporadas: navegacion.has('talleres_temporadas'),
+        reportes: navegacion.has('talleres_reportes'),
+      }}
+      filtrosIniciales={leerFiltros({
+        atencion: primero(params.atencion),
+        direccion: primero(params.direccion),
+        q: primero(params.q),
+      })}
+      tallerInicial={primero(params.taller) ?? null}
+      nuevoInicial={primero(params.nuevo) === '1'}
+    />
   )
 }

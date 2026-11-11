@@ -20,6 +20,7 @@
 
 import {
   loadCatalogoTalleres,
+  loadGruposDeEdiciones,
   loadMisGruposCount,
   loadMisGruposResumen,
   loadMisTalleres,
@@ -145,6 +146,126 @@ describe('loadCatalogoTalleres', () => {
     const { client } = buildCatalogoClientMock(null, { message: 'boom' })
     const result = await loadCatalogoTalleres(client)
     expect(result).toEqual([])
+  })
+
+  // R3c (odd/tasks/talleres-rediseno.md) — the v2 catálogo counts each
+  // edición's inscripciones by estado and reads the taller's mínimo, from
+  // the SAME query (no extra round trip).
+  it('selects inscripción estado, cierre_inscripcion and minimo_inscritos in the same query', async () => {
+    const { client, selectCols } = buildCatalogoClientMock([])
+    await loadCatalogoTalleres(client)
+    expect(client.from).toHaveBeenCalledTimes(1)
+    expect(selectCols[0]).toMatch(/taller_inscripciones \(id, estado\)/)
+    expect(selectCols[0]).toMatch(/cierre_inscripcion/)
+    expect(selectCols[0]).toMatch(/minimo_inscritos/)
+  })
+
+  it('counts pendientes, aprobados and ocupados (pendiente + aprobado) per edición and maps minimo_inscritos', async () => {
+    const rows = [
+      {
+        id: 't-1',
+        slug: 'parejas',
+        nombre: 'Parejas',
+        estado: 'active',
+        dream_team_equipo_id: 'eq-1',
+        minimo_inscritos: 8,
+        ediciones: [
+          {
+            id: 'e-1',
+            nombre_snapshot: 'Edición ene 2027',
+            tipo: 'pareja',
+            estado: 'abierto',
+            cierre_inscripcion: '2027-02-02',
+            inscripciones: [
+              { id: 'i-1', estado: 'pendiente' },
+              { id: 'i-2', estado: 'pendiente' },
+              { id: 'i-3', estado: 'aprobado' },
+              { id: 'i-4', estado: 'retirado' },
+              { id: 'i-5', estado: 'no_aprobado' },
+            ],
+          },
+        ],
+      },
+      { id: 't-2', slug: 'x', nombre: 'X', estado: 'active', dream_team_equipo_id: null, ediciones: [] },
+    ]
+    const { client } = buildCatalogoClientMock(rows)
+    const [parejas, sinMinimo] = await loadCatalogoTalleres(client)
+
+    expect(parejas?.minimo_inscritos).toBe(8)
+    expect(sinMinimo?.minimo_inscritos).toBeNull()
+    expect(parejas?.ediciones[0]).toMatchObject({
+      total_inscripciones: 5,
+      pendientes: 2,
+      aprobados: 1,
+      ocupados: 3,
+      cierre_inscripcion: '2027-02-02',
+    })
+  })
+})
+
+// ─── loadGruposDeEdiciones (R3c) ───────────────────────────────────────
+
+function buildGruposClientMock(
+  rows: unknown[] | null,
+  error: unknown = null,
+): { client: { from: jest.Mock }; selectCols: string[]; inCalls: Array<[string, readonly string[]]> } {
+  const selectCols: string[] = []
+  const inCalls: Array<[string, readonly string[]]> = []
+  const from = jest.fn(() => {
+    const b: Record<string, unknown> = {}
+    b['select'] = jest.fn((cols: string) => {
+      selectCols.push(cols)
+      return b
+    })
+    b['in'] = jest.fn((col: string, values: readonly string[]) => {
+      inCalls.push([col, values])
+      return Promise.resolve({ data: rows, error })
+    })
+    return b
+  })
+  return { client: { from }, selectCols, inCalls }
+}
+
+describe('loadGruposDeEdiciones', () => {
+  it('makes no query and returns an empty map without ediciones', async () => {
+    const { client } = buildGruposClientMock([])
+    const result = await loadGruposDeEdiciones(client, [])
+    expect(client.from).not.toHaveBeenCalled()
+    expect(result?.size).toBe(0)
+  })
+
+  it('reads every edición in ONE batched select of cohortes with grupos and asignaciones embedded', async () => {
+    const { client, selectCols, inCalls } = buildGruposClientMock([])
+    await loadGruposDeEdiciones(client, ['e-1', 'e-2', 'e-1'])
+    expect(client.from).toHaveBeenCalledTimes(1)
+    expect(client.from).toHaveBeenCalledWith('talleres_crecimiento_cohortes')
+    expect(selectCols[0]).toMatch(/taller_grupos/)
+    expect(selectCols[0]).toMatch(/taller_grupo_asignaciones/)
+    expect(inCalls).toEqual([['taller_id', ['e-1', 'e-2']]])
+  })
+
+  it('sums the non-cancelled capacidad as cupo and counts active grupos with no active asignación', async () => {
+    const { client } = buildGruposClientMock([
+      {
+        taller_id: 'e-1',
+        grupos: [
+          { capacidad: 10, estado: 'activo', asignaciones: [{ activo: true }] },
+          { capacidad: 12, estado: 'activo', asignaciones: [{ activo: false }] },
+          { capacidad: 8, estado: 'activo', asignaciones: [] },
+          { capacidad: 30, estado: 'cancelado', asignaciones: [] },
+          { capacidad: 5, estado: 'completado', asignaciones: [] },
+        ],
+      },
+      { taller_id: 'e-2', grupos: [] },
+    ])
+    const result = await loadGruposDeEdiciones(client, ['e-1', 'e-2'])
+    expect(result?.get('e-1')).toEqual({ cupo: 35, gruposSinFacilitador: 2 })
+    expect(result?.get('e-2')).toEqual({ cupo: 0, gruposSinFacilitador: 0 })
+  })
+
+  it('returns null on a query error (unknown, never a misreported 0)', async () => {
+    const { client } = buildGruposClientMock(null, { message: 'boom' })
+    expect(await loadGruposDeEdiciones(client, ['e-1'])).toBeNull()
   })
 })
 
@@ -471,7 +592,26 @@ describe('loadMisTalleres', () => {
 
     expect(permisosModule.cargarPermisosPorEquipos).toHaveBeenCalledTimes(1)
     expect(permisosModule.cargarPermisosPorEquipos).toHaveBeenCalledWith(client, ['eq-1', 'eq-2'])
-    expect(result).toEqual([{ id: 't-1', slug: 'matrimonio-sobre-la-roca', nombre: 'Matrimonio sobre la Roca' }])
+    expect(result).toEqual([
+      { id: 't-1', slug: 'matrimonio-sobre-la-roca', nombre: 'Matrimonio sobre la Roca', puedeAbrirEdicion: false },
+    ])
+  })
+
+  // R3c — the v2 catálogo's «Abrir edición» quick action follows the taller
+  // page's own gate (abrir_edicion), read from the same batched call.
+  it('carries puedeAbrirEdicion from the same permisos (abrir_edicion)', async () => {
+    permisosModule.cargarPermisosPorEquipos.mockResolvedValue(
+      new Map<string | null, PermisosTaller>([
+        ['eq-1', { ...PERMISOS_TALLER_ALL_FALSE, editarTaller: true, abrirEdicion: true }],
+        ['eq-2', { ...PERMISOS_TALLER_ALL_FALSE, editarTaller: true }],
+      ]),
+    )
+    const result = await loadMisTalleres({}, [TALLER_A, TALLER_B])
+    expect(result.map((t) => [t.id, t.puedeAbrirEdicion])).toEqual([
+      ['t-1', true],
+      ['t-2', false],
+    ])
+    expect(permisosModule.cargarPermisosPorEquipos).toHaveBeenCalledTimes(1)
   })
 
   it('returns [] when the catalog is empty, without calling the batched helper', async () => {

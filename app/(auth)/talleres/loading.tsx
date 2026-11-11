@@ -1,50 +1,30 @@
 /**
- * T2 (odd/tasks/talleres-consolidar-pantallas.md) — loading skeleton for
- * /talleres. Mirrors CatalogoTalleresClient's real structure per
- * docs/talleres-de-punta-a-punta.md §9's `loading.tsx` pattern: a
- * "Mis grupos" row of cards, the catálogo header with its filter tabs,
- * and taller cards with a nested ediciones list — not a spinner.
+ * Loading frame of /talleres (R3c, odd/tasks/talleres-rediseno.md): the v2
+ * shape of the catálogo — hero, the four attention metrics, the two
+ * dirección cards and the list rows — not a spinner.
  */
-import { PaginaSistema, SkeletonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema, SkeletonSistema } from '@/components/ui/sistema-diseno'
+import { SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 
 export default function LoadingTalleres() {
   return (
-    <PaginaSistema titulo="Talleres">
-      <div className="space-y-6">
-        <div>
-          <SkeletonSistema ancho="120px" alto="24px" className="mb-3" />
-          <div className="grid gap-3 md:grid-cols-2">
-            {[...Array(2)].map((_, i) => (
-              <TarjetaSistema key={i} variante="elevated" className="p-4">
-                <SkeletonSistema ancho="60%" alto="16px" />
-                <SkeletonSistema ancho="80%" alto="12px" className="mt-2" />
-                <SkeletonSistema ancho="50%" alto="12px" className="mt-2" />
-              </TarjetaSistema>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <SkeletonSistema ancho="100px" alto="24px" />
-            <SkeletonSistema ancho="140px" alto="36px" className="rounded-xl" />
-          </div>
-          <div className="grid gap-3">
-            {[...Array(3)].map((_, i) => (
-              <TarjetaSistema key={i} variante="outlined" className="p-4">
-                <div className="flex items-center gap-2">
-                  <SkeletonSistema ancho="200px" alto="16px" />
-                  <SkeletonSistema ancho="70px" alto="20px" className="rounded-full" />
-                </div>
-                <SkeletonSistema ancho="40%" alto="12px" className="mt-2" />
-                <div className="mt-2 space-y-1.5 border-l border-border pl-3">
-                  <SkeletonSistema ancho="100%" alto="14px" />
-                  <SkeletonSistema ancho="90%" alto="14px" />
-                </div>
-              </TarjetaSistema>
-            ))}
-          </div>
-        </div>
+    <PaginaSistema>
+      <div className="grid gap-2">
+        <SkeletonSistema ancho="160px" alto="28px" />
+        <SkeletonSistema ancho="60%" alto="16px" />
+      </div>
+      <div className="grid grid-cols-2 gap-2.5 md:gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <SkeletonSistema key={i} alto="96px" className="rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
+        {[0, 1].map((i) => (
+          <SkeletonSistema key={i} alto="88px" className="rounded-2xl" />
+        ))}
+      </div>
+      <div className="min-w-0 overflow-hidden rounded-2xl bg-card md:border md:border-border/60">
+        <SkeletonLista filas={5} />
       </div>
     </PaginaSistema>
   )
