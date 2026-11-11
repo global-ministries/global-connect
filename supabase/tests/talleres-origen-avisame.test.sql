@@ -166,13 +166,15 @@ INSERT INTO public.taller_grupos (id, cohorte_id, nombre, capacidad, estado) VAL
 INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
 SELECT ('d3a10000-0000-4000-8000-0000000000' || a)::uuid, 'authenticated', 'authenticated', 'd3a1-' || a || '@example.test', now(),
        '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now()
-  FROM unnest(ARRAY['a1', 'a2', 'a3']) AS a
+  FROM unnest(ARRAY['a1', 'a2', 'a3', 'a4', 'a5']) AS a
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero) VALUES
   ('d3a10000-0000-4000-8000-000000000021', 'd3a10000-0000-4000-8000-0000000000a1', 'Carla', 'ZZR3 Coord', 'd3a1-a1@example.test', 'Soltero', 'Femenino'),
   ('d3a10000-0000-4000-8000-000000000022', 'd3a10000-0000-4000-8000-0000000000a2', 'Otto', 'ZZR3 Otro', 'd3a1-a2@example.test', 'Soltero', 'Masculino'),
   ('d3a10000-0000-4000-8000-000000000023', 'd3a10000-0000-4000-8000-0000000000a3', 'Lia', 'ZZR3 Voluntaria', 'd3a1-a3@example.test', 'Soltero', 'Femenino'),
+  ('d3a10000-0000-4000-8000-000000000024', 'd3a10000-0000-4000-8000-0000000000a4', 'Leo', 'ZZR3 Lider', 'd3a1-a4@example.test', 'Soltero', 'Masculino'),
+  ('d3a10000-0000-4000-8000-000000000025', 'd3a10000-0000-4000-8000-0000000000a5', 'Dora', 'ZZR3 Directora', 'd3a1-a5@example.test', 'Soltero', 'Femenino'),
   ('d3a10000-0000-4000-8000-000000000030', NULL, 'Pía', 'ZZR3 Cero', NULL, 'Soltero', 'Femenino'),
   ('d3a10000-0000-4000-8000-000000000031', NULL, 'Rita', 'ZZR3 Uno', NULL, 'Soltero', 'Femenino'),
   ('d3a10000-0000-4000-8000-000000000032', NULL, 'Sara', 'ZZR3 Dos', NULL, 'Soltero', 'Femenino');
@@ -180,7 +182,9 @@ INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil,
 INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id) VALUES
   ('d3a10000-0000-4000-8000-000000000021', 'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', 'd3a10000-0000-4000-8000-000000000002'),
   ('d3a10000-0000-4000-8000-000000000021', 'talleres_crecimiento.coordinator.read', 'talleres_crecimiento', 'taller', 'd3a10000-0000-4000-8000-000000000002'),
-  ('d3a10000-0000-4000-8000-000000000023', 'talleres_crecimiento.volunteer.read', 'talleres_crecimiento', 'taller', 'd3a10000-0000-4000-8000-000000000001');
+  ('d3a10000-0000-4000-8000-000000000023', 'talleres_crecimiento.volunteer.read', 'talleres_crecimiento', 'taller', 'd3a10000-0000-4000-8000-000000000001'),
+  ('d3a10000-0000-4000-8000-000000000024', 'talleres_crecimiento.lead.read', 'talleres_crecimiento', 'taller', 'd3a10000-0000-4000-8000-000000000001'),
+  ('d3a10000-0000-4000-8000-000000000025', 'talleres_crecimiento.director.read', 'talleres_crecimiento', 'taller', 'd3a10000-0000-4000-8000-000000000001');
 
 -- P0: written before the change, default origen (app); fills E1's cupo.
 INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, estado) VALUES
@@ -298,10 +302,17 @@ SELECT pg_temp.assert_sqlstate('6: anon gets 42501',
   $$SELECT * FROM public.talleres_avisame_lugar_contar(ARRAY['d3a10000-0000-4000-8000-000000000091']::uuid[])$$, '42501');
 RESET ROLE;
 
--- 7. volunteer.read on the root reaches every edición below it.
+-- 7. Only dirección and coordinación see the count (L9): volunteer.read and
+--    lead.read get no row, a director on the root reaches every edición below.
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona('d3a10000-0000-4000-8000-0000000000a3');
-SELECT pg_temp.assert_rows('7: volunteer.read on ROOT reads E1, E2 and E3 through ancestors',
+SELECT pg_temp.assert_rows('7: volunteer.read on ROOT gets no row',
+  $$SELECT 1 FROM public.talleres_avisame_lugar_contar(ARRAY['d3a10000-0000-4000-8000-000000000091','d3a10000-0000-4000-8000-000000000092','d3a10000-0000-4000-8000-000000000093']::uuid[])$$, 0);
+SELECT pg_temp.as_persona('d3a10000-0000-4000-8000-0000000000a4');
+SELECT pg_temp.assert_rows('7: lead.read on ROOT gets no row',
+  $$SELECT 1 FROM public.talleres_avisame_lugar_contar(ARRAY['d3a10000-0000-4000-8000-000000000091','d3a10000-0000-4000-8000-000000000092','d3a10000-0000-4000-8000-000000000093']::uuid[])$$, 0);
+SELECT pg_temp.as_persona('d3a10000-0000-4000-8000-0000000000a5');
+SELECT pg_temp.assert_rows('7: director.read on ROOT reads E1, E2 and E3 through ancestors',
   $$SELECT 1 FROM public.talleres_avisame_lugar_contar(ARRAY['d3a10000-0000-4000-8000-000000000091','d3a10000-0000-4000-8000-000000000092','d3a10000-0000-4000-8000-000000000093']::uuid[])$$, 3);
 SELECT pg_temp.assert_rows('7: E2 counts 1',
   $$SELECT 1 FROM public.talleres_avisame_lugar_contar(ARRAY['d3a10000-0000-4000-8000-000000000092']::uuid[]) r WHERE r.pendientes = 1$$, 1);

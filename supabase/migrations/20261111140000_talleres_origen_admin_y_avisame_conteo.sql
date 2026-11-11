@@ -16,11 +16,10 @@
 --      (notificado_en IS NULL). Count only, never a name or an email.
 --      taller_avisame_lugar stays revoked for anon and authenticated; this
 --      SECURITY DEFINER function is the one read. It returns a row only
---      for the ediciones whose inscriptions the caller reads as staff:
---      the staff branches of taller_inscripciones_select (20261003140000
---      H), i.e. auth_has_talleres_capability_scoped with director.read,
---      admin.manage, coordinator.read, lead.read or volunteer.read on the
---      edición's equipo (talleres_equipo_de_edicion, the same resolver
+--      for the ediciones the caller directs or coordinates (user decision
+--      L9: dirección and coordinación only, not lead or volunteer), i.e.
+--      auth_has_talleres_capability_scoped with director.read/write,
+--      coordinator.read/write or admin.manage on the edición's equipo (talleres_equipo_de_edicion, the same resolver
 --      talleres_inscribir_sobre_cupo and talleres_minimo_panel use for the
 --      edición page). Ediciones the caller cannot read, or unknown ids,
 --      simply yield no row.
@@ -173,15 +172,15 @@ AS $function$
      -- The staff branches of taller_inscripciones_select (20261003140000 H).
      AND (
           public.auth_has_talleres_capability_scoped('talleres_crecimiento.director.read'::text, public.talleres_equipo_de_edicion(te.id))
-       OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.admin.manage'::text, public.talleres_equipo_de_edicion(te.id))
+       OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.director.write'::text, public.talleres_equipo_de_edicion(te.id))
        OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.coordinator.read'::text, public.talleres_equipo_de_edicion(te.id))
-       OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.lead.read'::text, public.talleres_equipo_de_edicion(te.id))
-       OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.volunteer.read'::text, public.talleres_equipo_de_edicion(te.id))
+       OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.coordinator.write'::text, public.talleres_equipo_de_edicion(te.id))
+       OR public.auth_has_talleres_capability_scoped('talleres_crecimiento.admin.manage'::text, public.talleres_equipo_de_edicion(te.id))
      );
 $function$;
 
 COMMENT ON FUNCTION public.talleres_avisame_lugar_contar(uuid[]) IS
-  'R3j (talleres-rediseno S9): per edición, how many «Avísame si se libera un lugar» requests are not notified yet (taller_avisame_lugar.notificado_en IS NULL). Count only, never a name or an email. Returns one row (pendientes may be 0) per given edición the caller reads as staff, with the staff branches of taller_inscripciones_select (director.read, admin.manage, coordinator.read, lead.read, volunteer.read scoped to talleres_equipo_de_edicion); other or unknown ids yield no row.';
+  'R3j (talleres-rediseno S9): per edición, how many «Avísame si se libera un lugar» requests are not notified yet (taller_avisame_lugar.notificado_en IS NULL). Count only, never a name or an email. Returns one row (pendientes may be 0) per given edición the caller directs or coordinates (director.read/write, coordinator.read/write or admin.manage scoped to talleres_equipo_de_edicion; lead and volunteer get no row); other or unknown ids yield no row.';
 
 REVOKE ALL ON FUNCTION public.talleres_avisame_lugar_contar(uuid[]) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.talleres_avisame_lugar_contar(uuid[]) TO authenticated, service_role;
