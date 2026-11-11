@@ -20,17 +20,42 @@
  * the owning taller's nombre via one batched `talleres` lookup keyed by
  * the distinct equipo ids, mirroring loadPendientesSolicitudes's exact
  * pattern (lib/platform/talleres/pendientes.ts).
+ *
+ * R3g (odd/tasks/talleres-rediseno.md, S4) adds, still without a new
+ * query: each report's grupo nombre and edición (loadGrupoDetalle), and
+ * loadEdicionesReporte — the ediciones of loadCoordTalleresAgrupados with
+ * their counts (loadEdicionLocalDetalle) and completados
+ * (finalizationRateByTaller), kept only where the viewer holds verReportes
+ * on the edición's equipo.
  */
 
-import { loadReportes } from '@/lib/platform/talleres/reportes'
+import { loadEdicionesReporte, loadReportes } from '@/lib/platform/talleres/reportes'
 import type { CoordReporte } from '@/lib/platform/talleres/operacional'
+import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 
 jest.mock('@/lib/platform/talleres/operacional', () => ({
   loadCoordReportes: jest.fn(),
+  loadCoordTalleresAgrupados: jest.fn(),
+  loadEdicionLocalDetalle: jest.fn(),
 }))
+jest.mock('@/lib/platform/talleres/metrics', () => ({
+  finalizationRateByTaller: jest.fn(),
+}))
+jest.mock('@/lib/platform/talleres/grupo-detalle', () => ({
+  loadGrupoDetalle: jest.fn(),
+}))
+jest.mock('@/lib/platform/talleres/permisos', () => {
+  const actual = jest.requireActual('@/lib/platform/talleres/permisos')
+  return { ...actual, cargarPermisosPorEquipos: jest.fn() }
+})
 
-const loadCoordReportesMock = jest.requireMock('@/lib/platform/talleres/operacional')
-  .loadCoordReportes as jest.Mock
+const operacional = jest.requireMock('@/lib/platform/talleres/operacional') as Record<string, jest.Mock>
+const loadCoordReportesMock = operacional.loadCoordReportes
+const finalizationRateByTaller = jest.requireMock('@/lib/platform/talleres/metrics').finalizationRateByTaller as jest.Mock
+const loadGrupoDetalle = jest.requireMock('@/lib/platform/talleres/grupo-detalle').loadGrupoDetalle as jest.Mock
+const cargarPermisosPorEquipos = jest.requireMock('@/lib/platform/talleres/permisos').cargarPermisosPorEquipos as jest.Mock
+
+const CON_REPORTES: PermisosTaller = { ...PERMISOS_TALLER_ALL_FALSE, ver: true, verReportes: true }
 
 function makeReporte(overrides: Partial<CoordReporte> = {}): CoordReporte {
   return {
@@ -84,7 +109,8 @@ function makeClient(opts: {
 }
 
 beforeEach(() => {
-  loadCoordReportesMock.mockReset()
+  jest.resetAllMocks()
+  loadGrupoDetalle.mockResolvedValue(null)
 })
 
 describe('loadReportes', () => {
@@ -158,5 +184,133 @@ describe('loadReportes', () => {
     const [row] = await loadReportes(client)
     expect(row?.estado).toBe('reabierto')
     expect(row?.reabierto_motivo).toBe('Faltaban firmas')
+  })
+
+  it('adds the grupo nombre and edición of each row, null when the grupo cannot be read (row kept)', async () => {
+    loadCoordReportesMock.mockResolvedValue([
+      makeReporte({ id: 'rep-1', grupo_id: 'grupo-a' }),
+      makeReporte({ id: 'rep-2', grupo_id: 'grupo-b' }),
+    ])
+    loadGrupoDetalle.mockImplementation(async (_c: unknown, grupoId: string) =>
+      grupoId === 'grupo-a'
+        ? { id: 'grupo-a', nombre: 'Grupo Jueves', capacidad: 10, estado: 'activo', cohorteId: 'c-1', edicionId: 'ed-1' }
+        : null,
+    )
+    const { client } = makeClient({ rpcImpl: () => 'eq-1' })
+    const result = await loadReportes(client)
+    expect(result.map((r) => [r.id, r.grupoNombre, r.edicionId])).toEqual([
+      ['rep-1', 'Grupo Jueves', 'ed-1'],
+      ['rep-2', null, null],
+    ])
+  })
+
+  it('makes no grupo read when there are zero reportes', async () => {
+    loadCoordReportesMock.mockResolvedValue([])
+    const { client } = makeClient({})
+    await loadReportes(client)
+    expect(loadGrupoDetalle).not.toHaveBeenCalled()
+  })
+})
+
+function detalle(id: string, equipo: string | null, over: Record<string, unknown> = {}) {
+  return {
+    id,
+    taller_id: 't-1',
+    taller_nombre: 'Mujer de Hoy',
+    taller_slug: 'mujer-de-hoy',
+    nombre_snapshot: `Edición ${id}`,
+    estado: 'cerrado',
+    fecha_inicio: '2026-01-10',
+    fecha_fin: '2026-03-01',
+    cerrada_en: '2026-03-05T00:00:00Z',
+    cohorte: equipo ? { id: `c-${id}`, dream_team_equipo_id: equipo, edicion: '', started_at: '2026-01-10T00:00:00Z', ended_at: null } : null,
+    inscripciones_count: 30,
+    inscripciones_aprobadas_count: 28,
+    certificados_count: 25,
+    ...over,
+  }
+}
+
+describe('loadEdicionesReporte', () => {
+  it('maps the counts of each edición and keeps only those where the viewer holds verReportes', async () => {
+    operacional.loadCoordTalleresAgrupados.mockResolvedValue([
+      {
+        taller_id: 't-1',
+        taller_nombre: 'Mujer de Hoy',
+        ediciones: [
+          { id: 'ed-1', nombre_snapshot: 'a', tipo: 'individual', estado: 'cerrado' },
+          { id: 'ed-2', nombre_snapshot: 'b', tipo: 'individual', estado: 'en_curso' },
+          { id: 'ed-3', nombre_snapshot: 'c', tipo: 'individual', estado: 'en_curso' },
+        ],
+      },
+    ])
+    operacional.loadEdicionLocalDetalle.mockImplementation(async (_c: unknown, id: string) =>
+      id === 'ed-1' ? detalle(id, 'eq-a') : id === 'ed-2' ? detalle(id, 'eq-b') : detalle(id, null),
+    )
+    finalizationRateByTaller.mockResolvedValue({ completados: 27, totalConEstadoFinal: 30, rate: 0.9 })
+    cargarPermisosPorEquipos.mockResolvedValue(new Map([['eq-a', CON_REPORTES], ['eq-b', PERMISOS_TALLER_ALL_FALSE]]))
+
+    const filas = await loadEdicionesReporte({})
+    expect(filas).toEqual([
+      {
+        id: 'ed-1',
+        tallerId: 't-1',
+        tallerNombre: 'Mujer de Hoy',
+        tallerSlug: 'mujer-de-hoy',
+        nombre: 'Edición ed-1',
+        estado: 'cerrado',
+        fechaInicio: '2026-01-10',
+        fechaFin: '2026-03-01',
+        cerradaEn: '2026-03-05T00:00:00Z',
+        inscripciones: 30,
+        certificados: 25,
+        completaron: 27,
+        conResultado: 30,
+      },
+    ])
+    expect(new Set(cargarPermisosPorEquipos.mock.calls[0][1])).toEqual(new Set(['eq-a', 'eq-b']))
+  })
+
+  it('skips borrador and cancelada ediciones without loading them', async () => {
+    operacional.loadCoordTalleresAgrupados.mockResolvedValue([
+      {
+        taller_id: 't-1',
+        taller_nombre: 'Mujer de Hoy',
+        ediciones: [
+          { id: 'b', nombre_snapshot: 'b', tipo: 'individual', estado: 'borrador' },
+          { id: 'c', nombre_snapshot: 'c', tipo: 'individual', estado: 'cancelado' },
+        ],
+      },
+    ])
+    cargarPermisosPorEquipos.mockResolvedValue(new Map())
+    expect(await loadEdicionesReporte({})).toEqual([])
+    expect(operacional.loadEdicionLocalDetalle).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the cohorte start date and leaves completaron unknown when finalization cannot be read or has no results', async () => {
+    operacional.loadCoordTalleresAgrupados.mockResolvedValue([
+      {
+        taller_id: 't-1',
+        taller_nombre: 'Mujer de Hoy',
+        ediciones: [
+          { id: 'x', nombre_snapshot: 'x', tipo: 'individual', estado: 'en_curso' },
+          { id: 'y', nombre_snapshot: 'y', tipo: 'individual', estado: 'en_curso' },
+        ],
+      },
+    ])
+    operacional.loadEdicionLocalDetalle.mockImplementation(async (_c: unknown, id: string) =>
+      detalle(id, 'eq-a', { fecha_inicio: null, fecha_fin: null, cerrada_en: null, estado: 'en_curso' }),
+    )
+    finalizationRateByTaller.mockImplementation(async (_c: unknown, id: string) => {
+      if (id === 'x') throw new Error('boom')
+      return { completados: 0, totalConEstadoFinal: 0, rate: 0 }
+    })
+    cargarPermisosPorEquipos.mockResolvedValue(new Map([['eq-a', CON_REPORTES]]))
+
+    const filas = await loadEdicionesReporte({})
+    expect(filas.map((f) => [f.id, f.fechaInicio, f.completaron, f.conResultado])).toEqual([
+      ['x', '2026-01-10', null, 0],
+      ['y', '2026-01-10', null, 0],
+    ])
   })
 })

@@ -11,17 +11,19 @@
  * session, each an informational card, inspected via extractText/findByType
  * rather than full rendering).
  *
- * The two things this consolidation must get right, verified here:
- *   1. the counter row (estado counts) shows only when the viewer holds
- *      verReportes for MORE THAN ONE distinct equipo among the visible
- *      reportes — not a director-only feature, not a role check.
- *   2. every row always shows the "Reabierto" badge when reabierto_motivo
- *      is set — the old direccion/reportes page silently dropped it.
+ * R3g (odd/tasks/talleres-rediseno.md) rebuilt the screen on v2: the page
+ * now hands its data to ReportesTalleresClient, so these tests inspect the
+ * client's props; the rendering (tabs, pills, «Reabierto», drawer) is
+ * covered in __tests__/components/talleres/reportes/. Still verified here:
+ *   1. the gate (flag -> user -> session) resolves nothing when it stops;
+ *   2. the counter line shows only when the viewer holds verReportes for
+ *      MORE THAN ONE distinct equipo among the visible reportes;
+ *   3. a report whose equipo cannot be resolved is never dropped.
  */
 
 import ReportesPage from '@/app/(auth)/talleres/reportes/page'
-import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
-import { PaginaSistema, BadgeSistema } from '@/components/ui/sistema-diseno'
+import { PaginaSistema } from '@/components/ui/sistema-diseno'
+import { ReportesTalleresClient } from '@/components/talleres/reportes/reportes-talleres-client'
 import { PERMISOS_TALLER_ALL_FALSE, type PermisosTaller } from '@/lib/platform/talleres/permisos'
 import type { ReporteRow } from '@/lib/platform/talleres/reportes'
 
@@ -40,6 +42,11 @@ jest.mock('@/lib/auth/platformSessionReadOnly', () => ({
 
 jest.mock('@/lib/platform/talleres/reportes', () => ({
   loadReportes: jest.fn(),
+  loadEdicionesReporte: jest.fn(),
+}))
+
+jest.mock('@/lib/platform/talleres/refrescar-estados', () => ({
+  refrescarEstadosEdiciones: jest.fn(),
 }))
 
 jest.mock('@/lib/platform/talleres/permisos', () => {
@@ -53,6 +60,8 @@ const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
 const resolveSessionMock = jest.requireMock('@/lib/auth/platformSessionReadOnly')
   .resolveReadOnlyPlatformSession as jest.Mock
 const loadReportesMock = jest.requireMock('@/lib/platform/talleres/reportes').loadReportes as jest.Mock
+const loadEdicionesReporteMock = jest.requireMock('@/lib/platform/talleres/reportes').loadEdicionesReporte as jest.Mock
+const refrescarMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados').refrescarEstadosEdiciones as jest.Mock
 const cargarPermisosPorEquiposMock = jest.requireMock('@/lib/platform/talleres/permisos')
   .cargarPermisosPorEquipos as jest.Mock
 
@@ -65,6 +74,8 @@ function makeReporteRow(overrides: Partial<ReporteRow> = {}): ReporteRow {
     reabierto_motivo: null,
     equipoId: 'eq-a',
     tallerNombre: 'Taller A',
+    grupoNombre: 'Grupo 1',
+    edicionId: 'ed-1',
     ...overrides,
   }
 }
@@ -99,6 +110,8 @@ function setup(opts: SetupOpts): void {
   )
 
   loadReportesMock.mockReset().mockResolvedValue(opts.rows ?? [])
+  loadEdicionesReporteMock.mockReset().mockResolvedValue([])
+  refrescarMock.mockReset().mockResolvedValue(undefined)
   cargarPermisosPorEquiposMock.mockReset().mockResolvedValue(opts.permisosPorEquipo ?? new Map())
 }
 
@@ -138,75 +151,98 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
   return findAllByType(node, type)[0] ?? null
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+async function render(searchParams?: Record<string, string>): Promise<any> {
+  return ReportesPage(searchParams ? { searchParams: Promise.resolve(searchParams) } : undefined)
+}
+
+function clientProps(element: unknown): Record<string, unknown> {
+  const client = findByType(element, ReportesTalleresClient)
+  expect(client).not.toBeNull()
+  return client!.props
+}
+
 describe('ReportesPage — gate', () => {
   it('shows the disabled message and resolves nothing when the flag is off', async () => {
     setup({ isEnabled: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
+    const element = await render()
     expect(extractText(element)).toMatch(/deshabilitado/i)
     expect(loadReportesMock).not.toHaveBeenCalled()
+    expect(loadEdicionesReporteMock).not.toHaveBeenCalled()
   })
 
-  it('asks to log in and resolves nothing when there is no user', async () => {
+  it('asks to log in (with «tú») and resolves nothing when there is no user', async () => {
     setup({ user: null })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    expect(extractText(element)).toMatch(/iniciar sesión/i)
+    const element = await render()
+    expect(extractText(element)).toMatch(/Necesitas iniciar sesión/)
     expect(loadReportesMock).not.toHaveBeenCalled()
   })
 
   it('shows a session-resolution message when the session cannot be resolved', async () => {
     setup({ hasSession: false })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
+    const element = await render()
     expect(extractText(element)).toMatch(/no se pudo resolver tu sesión/i)
     expect(loadReportesMock).not.toHaveBeenCalled()
+    expect(loadEdicionesReporteMock).not.toHaveBeenCalled()
   })
 })
 
-describe('ReportesPage — empty state', () => {
-  it('shows EstadoVacioSistema, not an error, when there are no reportes', async () => {
-    setup({ rows: [] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    const vacio = findByType(element, EstadoVacioSistema)
-    expect(vacio).not.toBeNull()
-    expect(String(vacio?.props.titulo)).toMatch(/no hay reportes/i)
+describe('ReportesPage — data handed to the screen', () => {
+  it('refreshes the estados before reading and passes the ediciones and reports to the client', async () => {
+    setup({ rows: [makeReporteRow({ id: 'rep-1', estado: 'reabierto', reabierto_motivo: 'Faltaban firmas' })] })
+    const edicion = { id: 'ed-1' }
+    loadEdicionesReporteMock.mockResolvedValue([edicion])
+    const props = clientProps(await render())
+    expect(refrescarMock).toHaveBeenCalledTimes(1)
+    expect(refrescarMock.mock.invocationCallOrder[0]).toBeLessThan(loadEdicionesReporteMock.mock.invocationCallOrder[0])
+    expect(props.ediciones).toEqual([edicion])
+    expect(props.grupos).toEqual([
+      {
+        id: 'rep-1',
+        grupoId: 'grupo-1',
+        grupoNombre: 'Grupo 1',
+        estado: 'reabierto',
+        firmaLiderFecha: '2026-09-10T00:00:00Z',
+        reabiertoMotivo: 'Faltaban firmas',
+        tallerNombre: 'Taller A',
+        edicionId: 'ed-1',
+      },
+    ])
+    expect(props.hoy).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
-})
 
-describe('ReportesPage — Reabierto badge (T7 regression fix)', () => {
-  it('shows the Reabierto badge for a row with reabierto_motivo set', async () => {
+  it('still passes a report whose equipo could not be resolved (T6b rule)', async () => {
     setup({
-      rows: [makeReporteRow({ id: 'rep-1', estado: 'reabierto', reabierto_motivo: 'Faltaban firmas' })],
+      rows: [makeReporteRow({ id: 'rep-orphan', equipoId: null, tallerNombre: null, grupoNombre: null, edicionId: null })],
+      permisosPorEquipo: new Map([[null, PERMISOS_TALLER_ALL_FALSE]]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    expect(extractText(element)).toMatch(/reabierto/i)
+    const props = clientProps(await render())
+    expect((props.grupos as Array<{ id: string }>).map((g) => g.id)).toEqual(['rep-orphan'])
   })
 
-  it('never shows the Reabierto badge for a row without reabierto_motivo', async () => {
-    setup({ rows: [makeReporteRow({ id: 'rep-1', estado: 'enviado', reabierto_motivo: null })] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    const badges = findAllByType(element, BadgeSistema)
-    expect(badges.some((b) => /reabierto/i.test(extractText(b.props.children)))).toBe(false)
+  it('reads vista, rango and filtro from the URL', async () => {
+    setup({})
+    const props = clientProps(await render({ vista: 'grupos', rango: '6m', filtro: 'reabiertos' }))
+    expect(props.consultaInicial).toEqual({ vista: 'grupos', rango: '6m', filtro: 'reabiertos' })
+  })
+
+  it('falls back to Por taller and Este año without parameters', async () => {
+    setup({})
+    const props = clientProps(await render())
+    expect(props.consultaInicial).toEqual({ vista: 'talleres', rango: 'anio', filtro: null })
   })
 })
 
-describe('ReportesPage — counter row predicate (breadth, not role)', () => {
-  it('hides the counter row when the viewer holds verReportes in only one equipo', async () => {
+describe('ReportesPage — counter line predicate (breadth, not role)', () => {
+  it('hides the counters when the viewer holds verReportes in only one equipo', async () => {
     setup({
       rows: [makeReporteRow({ id: 'rep-1', equipoId: 'eq-a' })],
       permisosPorEquipo: new Map([['eq-a', PERMISOS_CON_REPORTES]]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    const text = extractText(element)
-    expect(text).not.toMatch(/enviado\s*:\s*1/i)
+    expect(clientProps(await render()).mostrarContadores).toBe(false)
   })
 
-  it('shows the counter row when the viewer holds verReportes in more than one equipo', async () => {
+  it('shows the counters when the viewer holds verReportes in more than one equipo', async () => {
     setup({
       rows: [
         makeReporteRow({ id: 'rep-1', equipoId: 'eq-a', estado: 'enviado' }),
@@ -217,11 +253,7 @@ describe('ReportesPage — counter row predicate (breadth, not role)', () => {
         ['eq-b', PERMISOS_CON_REPORTES],
       ]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    const text = extractText(element)
-    expect(text).toMatch(/enviado\s*:\s*1/i)
-    expect(text).toMatch(/cerrado\s*:\s*1/i)
+    expect(clientProps(await render()).mostrarContadores).toBe(true)
   })
 
   it('does not count an equipo toward breadth when verReportes is false there, even with rows from 2 equipos', async () => {
@@ -235,10 +267,7 @@ describe('ReportesPage — counter row predicate (breadth, not role)', () => {
         ['eq-b', PERMISOS_TALLER_ALL_FALSE],
       ]),
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    const text = extractText(element)
-    expect(text).not.toMatch(/enviado\s*:\s*1/i)
+    expect(clientProps(await render()).mostrarContadores).toBe(false)
   })
 
   it('resolves permisos once per DISTINCT equipo present in the rows', async () => {
@@ -249,31 +278,17 @@ describe('ReportesPage — counter row predicate (breadth, not role)', () => {
         makeReporteRow({ id: 'rep-3', equipoId: 'eq-b' }),
       ],
     })
-    await ReportesPage()
+    await render()
     expect(cargarPermisosPorEquiposMock).toHaveBeenCalledTimes(1)
     const [, equipoIdsArg] = cargarPermisosPorEquiposMock.mock.calls[0]
     expect(new Set(equipoIdsArg)).toEqual(new Set(['eq-a', 'eq-b']))
   })
 })
 
-describe('ReportesPage — never drops a row (T6b rule)', () => {
-  it('still renders a row whose equipo could not be resolved (equipoId/tallerNombre: null)', async () => {
-    setup({
-      rows: [makeReporteRow({ id: 'rep-orphan', equipoId: null, tallerNombre: null })],
-      permisosPorEquipo: new Map([[null, PERMISOS_TALLER_ALL_FALSE]]),
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    expect(extractText(element)).toMatch(/grupo-1/i)
-  })
-})
-
 describe('ReportesPage — page shell', () => {
-  it('titles the page "Reportes"', async () => {
+  it('titles the page «Reportes de talleres»', async () => {
     setup({})
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
-    const element = (await ReportesPage()) as any
-    const dashboard = findByType(element, PaginaSistema)
-    expect(dashboard?.props.titulo).toBe('Reportes')
+    const dashboard = findByType(await render(), PaginaSistema)
+    expect(dashboard?.props.titulo).toBe('Reportes de talleres')
   })
 })
