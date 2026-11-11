@@ -348,3 +348,43 @@ describe('OpenEdicionForm — submit outcomes', () => {
     expect(pushMock).not.toHaveBeenCalled()
   })
 })
+
+// T10 (odd/tasks/talleres-reserva-publica.md, S6) — «Lugar» and
+// «Indicaciones para los participantes», optional, sent with the creation.
+describe('OpenEdicionForm — lugar e indicaciones (T10)', () => {
+  it('shows both optional fields with their limits and hint', () => {
+    render(<OpenEdicionForm {...baseProps({ regimen: 'cadencia' })} />)
+    openForm()
+    expect(screen.getByLabelText('Lugar')).toHaveAttribute('maxLength', '200')
+    expect(screen.getByLabelText('Indicaciones para los participantes')).toHaveAttribute('maxLength', '500')
+    expect(screen.getByText(/Qué traer, por dónde entrar, estacionamiento…/)).toBeInTheDocument()
+  })
+
+  it('sends them with the creation when filled', async () => {
+    crearEdicionMock.mockResolvedValue({ ok: true, ediciones: [{ edicionId: 'e-1', nombre: 'Marzo 2027' }] })
+    render(<OpenEdicionForm {...baseProps({ regimen: 'cadencia' })} />)
+    openForm()
+    fireEvent.change(screen.getByLabelText(/primera clase/i), { target: { value: '2027-03-01' } })
+    fireEvent.change(screen.getByLabelText('Lugar'), { target: { value: 'Salón 2' } })
+    fireEvent.change(screen.getByLabelText('Indicaciones para los participantes'), { target: { value: 'Trae tu Biblia' } })
+    fireEvent.click(screen.getByRole('button', { name: /^crear edición$/i }))
+    await waitFor(() =>
+      expect(crearEdicionMock).toHaveBeenCalledWith({
+        tallerId: 't-1',
+        tallerSlug: 'proximo-paso',
+        fechaInicio: '2027-03-01',
+        temporadaId: null,
+        adelantar: 0,
+        lugar: 'Salón 2',
+        indicaciones: 'Trae tu Biblia',
+      }),
+    )
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith(rutaEdicion('proximo-paso', 'e-1')))
+  })
+
+  it('hides them when a temporada taller has no temporada to pick', () => {
+    render(<OpenEdicionForm {...baseProps({ regimen: 'temporada', temporadasDisponibles: [] })} />)
+    openForm()
+    expect(screen.queryByLabelText('Lugar')).not.toBeInTheDocument()
+  })
+})

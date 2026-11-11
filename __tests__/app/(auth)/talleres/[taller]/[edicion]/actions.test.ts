@@ -20,6 +20,7 @@ import {
   cancelarEdicion,
   cerrarEdicion,
   editarGrupoInstanciado,
+  guardarDatosPracticosEdicion,
   inscribirSobreCupo,
   previsualizarCierreEdicion,
   quitarFacilitadorGrupo,
@@ -1156,5 +1157,104 @@ describe('cerrarEdicion — avisos', () => {
     await cerrarEdicion({ tallerSlug: 'proximo-paso', edicionId: 'e-1' })
     await despuesDeResponder()
     expect(despacharAvisosMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── guardarDatosPracticosEdicion (T10) ───────────────────────────────────
+//
+// odd/tasks/talleres-reserva-publica.md T10, S6: the edición's «Lugar» and
+// «Indicaciones para los participantes», a plain UPDATE through the
+// taller_ediciones_update RLS (director.write | admin.manage).
+
+function setupDatosPracticos(opts: {
+  isEnabled?: boolean
+  user?: { id: string } | null
+  updateResult?: { data: unknown; error: { message?: string; code?: string } | null }
+}): { from: jest.Mock; update: jest.Mock; eq: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(opts.isEnabled ?? true)
+  const select = jest.fn().mockResolvedValue(opts.updateResult ?? { data: [{ id: 'e-1' }], error: null })
+  const eq = jest.fn().mockReturnValue({ select })
+  const update = jest.fn().mockReturnValue({ eq })
+  const from = jest.fn().mockReturnValue({ update })
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: {
+      getUser: jest.fn().mockResolvedValue({
+        data: { user: opts.user === undefined ? { id: 'auth-1' } : opts.user },
+        error: null,
+      }),
+    },
+    from,
+  })
+  return { from, update, eq }
+}
+
+const datosInput = {
+  tallerSlug: 'proximo-paso',
+  edicionId: 'e-1',
+  lugar: '  Salón 2 ',
+  indicaciones: 'Trae tu Biblia\nEntra por la puerta lateral ',
+}
+
+describe('guardarDatosPracticosEdicion (T10)', () => {
+  it('returns not-found when the talleres flag is off, without writing', async () => {
+    const { from } = setupDatosPracticos({ isEnabled: false })
+    const result = await guardarDatosPracticosEdicion(datosInput)
+    expect(result).toMatchObject({ ok: false, error: 'not-found' })
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it('returns unauthorized without a session', async () => {
+    const { from } = setupDatosPracticos({ user: null })
+    const result = await guardarDatosPracticosEdicion(datosInput)
+    expect(result).toMatchObject({ ok: false, error: 'unauthorized' })
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it('updates the edición with the trimmed values and revalidates its page', async () => {
+    const { from, update, eq } = setupDatosPracticos({})
+    const result = await guardarDatosPracticosEdicion(datosInput)
+    expect(result).toEqual({
+      ok: true,
+      lugar: 'Salón 2',
+      indicaciones: 'Trae tu Biblia\nEntra por la puerta lateral',
+    })
+    expect(from).toHaveBeenCalledWith('taller_ediciones')
+    expect(update).toHaveBeenCalledWith({ lugar: 'Salón 2', indicaciones: 'Trae tu Biblia\nEntra por la puerta lateral' })
+    expect(eq).toHaveBeenCalledWith('id', 'e-1')
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso/e-1')
+  })
+
+  it('clears both with blank values (null, not empty strings)', async () => {
+    const { update } = setupDatosPracticos({})
+    const result = await guardarDatosPracticosEdicion({ ...datosInput, lugar: '  ', indicaciones: '' })
+    expect(result).toEqual({ ok: true, lugar: null, indicaciones: null })
+    expect(update).toHaveBeenCalledWith({ lugar: null, indicaciones: null })
+  })
+
+  it.each([
+    [{ lugar: 'l'.repeat(201) }, 'El lugar no puede superar los 200 caracteres.'],
+    [{ indicaciones: 'i'.repeat(501) }, 'Las indicaciones no pueden superar los 500 caracteres.'],
+  ])('refuses %# too long without writing', async (cambio, message) => {
+    const { from } = setupDatosPracticos({})
+    const result = await guardarDatosPracticosEdicion({ ...datosInput, ...cambio })
+    expect(result).toEqual({ ok: false, error: 'invalid-input', message })
+    expect(from).not.toHaveBeenCalled()
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+
+  it('treats zero rows (RLS) as forbidden and does not revalidate', async () => {
+    setupDatosPracticos({ updateResult: { data: [], error: null } })
+    const result = await guardarDatosPracticosEdicion(datosInput)
+    expect(result).toMatchObject({ ok: false, error: 'forbidden' })
+    expect(revalidatePathMock).not.toHaveBeenCalled()
+  })
+
+  it('translates a database error (the CHECK) instead of passing it raw', async () => {
+    setupDatosPracticos({
+      updateResult: { data: null, error: { code: '23514', message: 'violates check constraint "taller_ediciones_lugar_check"' } },
+    })
+    const result = await guardarDatosPracticosEdicion(datosInput)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.message).not.toMatch(/taller_ediciones_lugar_check/)
   })
 })

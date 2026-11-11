@@ -406,3 +406,24 @@ describe('ExplorarTalleresClient — estado real de la inscripción (T9)', () =>
     expect(texto).not.toMatch(/Tocá|inscripto|Permanente custom|Modalidad/)
   })
 })
+
+// T10 (odd/tasks/talleres-reserva-publica.md, S6) — each card says when the
+// first clase is, in words, except for an edición already en curso.
+describe('ExplorarTalleresClient — «Empieza el …» (T10)', () => {
+  it('shows the first clase as that calendar day, in words', () => {
+    render(<ExplorarTalleresClient talleres={[{ ...baseRow, primera_clase: '2026-11-26' }]} />)
+    expect(screen.getByText('Empieza el 26 de noviembre de 2026')).toBeInTheDocument()
+  })
+
+  it('shows nothing when the first clase is unknown', () => {
+    render(<ExplorarTalleresClient talleres={[{ ...baseRow, primera_clase: null }]} />)
+    expect(screen.queryByText(/^Empieza el/)).not.toBeInTheDocument()
+  })
+
+  it('shows nothing for an edición already en curso', () => {
+    render(
+      <ExplorarTalleresClient talleres={[{ ...baseRow, estado: 'en_curso' as const, primera_clase: '2026-11-26' }]} />,
+    )
+    expect(screen.queryByText(/^Empieza el/)).not.toBeInTheDocument()
+  })
+})

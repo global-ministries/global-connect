@@ -25,6 +25,8 @@
  * T9 (odd/tasks/talleres-reserva-publica.md, S6): after a close, the
  * «Certificado listo» emails go out after the response
  * (despacharAvisosTalleres, never throws).
+ * T10 (same document, S6): guardarDatosPracticosEdicion writes the
+ * edición's «Lugar» and «Indicaciones para los participantes».
  */
 
 import { revalidatePath } from 'next/cache'
@@ -36,6 +38,7 @@ import { despacharAvisosTalleres } from '@/lib/platform/talleres/avisos-envio'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaEdicion, rutaGrupo, rutaTaller } from '@/lib/platform/talleres/rutas'
 import { loadPanelMinimo } from '@/lib/platform/talleres/minimo-suspension'
+import { validarDatosPracticos } from '@/lib/platform/talleres/datos-practicos'
 import {
   parseResumenCierre,
   parseVistaPreviaCierre,
@@ -611,4 +614,50 @@ export async function cerrarEdicion(
   // The edición IS closed at this point (the RPC committed). A summary that
   // drifts from the contract only loses the numbers, never the success.
   return { ok: true, resumen: parseResumenCierre(data) }
+}
+
+// ─── Lugar e indicaciones (T10) ──────────────────────────────────────────
+
+export interface GuardarDatosPracticosEdicionInput {
+  readonly tallerSlug: string
+  readonly edicionId: string
+  readonly lugar: string | null
+  readonly indicaciones: string | null
+}
+
+/**
+ * T10 (odd/tasks/talleres-reserva-publica.md, S6; L30) — the edición's
+ * lugar and indicaciones, which the notices (email + app) read when they
+ * are written. A plain UPDATE through the taller_ediciones_update RLS
+ * (director.write | admin.manage of the edición's node, the page's
+ * editarEdicion); zero rows back means the caller may not write it. Blank
+ * clears a field.
+ */
+export async function guardarDatosPracticosEdicion(
+  input: GuardarDatosPracticosEdicionInput,
+): Promise<EdicionActionResult<{ lugar: string | null; indicaciones: string | null }>> {
+  const datos = validarDatosPracticos(input)
+  if (!datos.ok) return { ok: false, error: 'invalid-input', message: datos.message }
+
+  const gated = await gate()
+  if (!gated.ok) return gated.result
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client
+  const client: any = gated.supabase
+  const { data, error } = await client
+    .from('taller_ediciones')
+    .update({ lugar: datos.lugar, indicaciones: datos.indicaciones })
+    .eq('id', input.edicionId)
+    .select('id')
+
+  if (error) {
+    const traducido = traducirErrorTalleres(error, 'No se pudo guardar el lugar y las indicaciones.')
+    return { ok: false, error: traducido.error, message: traducido.message }
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, ...forbiddenByRls('No se pudo guardar el lugar y las indicaciones.') }
+  }
+
+  revalidatePath(rutaEdicion(input.tallerSlug, input.edicionId))
+  return { ok: true, lugar: datos.lugar, indicaciones: datos.indicaciones }
 }

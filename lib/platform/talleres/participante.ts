@@ -368,6 +368,14 @@ export interface ParticipanteExplorarRow {
    */
   readonly cierre_inscripcion: string | null
   /**
+   * T10 (odd/tasks/talleres-reserva-publica.md, S6) — date of the first
+   * clase (`YYYY-MM-DD`): the first programada sesión from today on
+   * (`talleres_primeras_clases`, a definer because members cannot read
+   * other grupos' sesiones), else the edición's fecha_inicio. Explorar
+   * shows «Empieza el {fecha}». Null when neither is known.
+   */
+  readonly primera_clase: string | null
+  /**
    * T6 (odd/tasks/talleres-temporadas-y-ediciones.md, paso 6) — true when
    * this edición has a defined cupo (`talleres_cupo_edicion` RPC, migration
    * 20260928130000_talleres_cupo.sql) that is already full. The explorar
@@ -414,7 +422,7 @@ export async function loadParticipanteExplorar(
   const edicionesRes = await client
     .from('taller_ediciones')
     .select(
-      `id, nombre_snapshot, tipo, link_type, estado, taller_id, cierre_inscripcion,
+      `id, nombre_snapshot, tipo, link_type, estado, taller_id, cierre_inscripcion, fecha_inicio,
        taller:talleres!taller_id (slug, nombre, modalidad_default, descripcion, momento_envio_acceso)`,
     )
     .in('estado', ['abierto', 'en_curso'])
@@ -429,6 +437,7 @@ export async function loadParticipanteExplorar(
     estado: 'borrador' | 'abierto' | 'en_curso' | 'cerrado' | 'cancelado'
     taller_id: string
     cierre_inscripcion: string | null
+    fecha_inicio?: string | null
     taller: {
       slug: string
       nombre: string
@@ -444,7 +453,7 @@ export async function loadParticipanteExplorar(
   // because they don't depend on each other. We only fire them when
   // there is at least one edicion to feed the .in() filter.
   const edicionIds = ediciones.map((e) => e.id)
-  const [cohortesRes, periodosRes, inscripcionesRes] = await Promise.all([
+  const [cohortesRes, periodosRes, inscripcionesRes, primerasClasesRes] = await Promise.all([
     client
       .from('talleres_crecimiento_cohortes')
       .select('id, taller_id')
@@ -461,7 +470,20 @@ export async function loadParticipanteExplorar(
       .select('taller_id, estado')
       .or(filtroInscripcionesPropias(ctx.personaId))
       .in('estado', ['pendiente', 'aprobado']),
+    // T10 — best effort: without it the card falls back to fecha_inicio.
+    (async (): Promise<{ data: unknown }> => {
+      try {
+        return await client.rpc('talleres_primeras_clases', { p_edicion_ids: edicionIds })
+      } catch {
+        return { data: null }
+      }
+    })(),
   ])
+
+  const primeraClaseByEdicion = new Map<string, string>()
+  for (const row of ((primerasClasesRes?.data ?? []) as Array<{ edicion_id: string; fecha: string | null }>)) {
+    if (row.fecha) primeraClaseByEdicion.set(row.edicion_id, row.fecha)
+  }
 
   // Build per-edicion lookup tables. Each edicion currently has at most
   // one cohorte + one periodo in production (PR37 guarantee), but the
@@ -532,6 +554,7 @@ export async function loadParticipanteExplorar(
       fecha_apertura: periodo?.fecha_apertura_automatica ?? null,
       fecha_cierre: periodo?.fecha_cierre_automatico ?? null,
       cierre_inscripcion: row.cierre_inscripcion ?? null,
+      primera_clase: primeraClaseByEdicion.get(row.id) ?? row.fecha_inicio ?? null,
       cupo_completo: cupoCompletoByEdicion.get(row.id) ?? false,
     }
   })

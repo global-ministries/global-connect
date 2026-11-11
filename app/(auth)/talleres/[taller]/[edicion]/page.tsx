@@ -93,6 +93,12 @@
  * «Cancelar esta edición» (editarEdicion, now also allowed below the
  * minimum — see cancelarEdicion). After a suspension, EstadoSuspension shows
  * the answers and the call list.
+ *
+ * Lugar e indicaciones (odd/tasks/talleres-reserva-publica.md T10, S6): the
+ * cabecera shows the edición's lugar and indicaciones (they travel in the
+ * notices) to every viewer; with editarEdicion, «Lugar e indicaciones»
+ * (EditarDatosPracticosEdicion) edits them while the edición is neither
+ * cancelled nor closed.
  */
 
 import { notFound } from 'next/navigation'
@@ -114,6 +120,7 @@ import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/
 import { CerrarEdicionButton } from '@/components/talleres/cerrar-edicion-dialog'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
 import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
+import { EditarDatosPracticosEdicion } from '@/components/talleres/datos-practicos-edicion'
 import { AvisoMinimo } from '@/components/talleres/minimo/aviso-minimo'
 import { EstadoSuspension } from '@/components/talleres/minimo/estado-suspension'
 import { cierreRelativoLabel, edicionEstadoBadgeVariante, edicionEstadoLabel } from '@/components/talleres/labels'
@@ -262,6 +269,10 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
   // this bulk picker.
   const servidoresDelTaller = cargaServidoresDelTaller.ok ? cargaServidoresDelTaller.servidores : []
 
+  // T10 — nothing is sent for a cancelled or closed edición any more.
+  const puedeEditarDatosPracticos =
+    permisos.editarEdicion && edicion.estado !== 'cancelado' && edicion.cerrada_en === null
+
   return (
     <PaginaSistema
       titulo={edicion.nombre_snapshot}
@@ -281,6 +292,27 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
               Inicio: {formatFecha(edicion.cohorte?.started_at ?? null)} · Fin:{' '}
               {formatFecha(edicion.cohorte?.ended_at ?? null)}
             </TextoSistema>
+            {(edicion.lugar || edicion.indicaciones) && (
+              <dl className="mt-2 grid gap-1 text-sm">
+                {edicion.lugar && (
+                  <div className="flex min-w-0 gap-1">
+                    <dt className="shrink-0 text-muted-foreground">Lugar:</dt>
+                    <dd className="min-w-0 break-words text-foreground">{edicion.lugar}</dd>
+                  </div>
+                )}
+                {edicion.indicaciones && (
+                  <div className="min-w-0">
+                    <dt className="text-muted-foreground">Indicaciones para los participantes:</dt>
+                    <dd className="whitespace-pre-line break-words text-foreground">{edicion.indicaciones}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            {puedeEditarDatosPracticos && !edicion.lugar && !edicion.indicaciones && (
+              <TextoSistema variante="sutil" tamaño="sm" className="mt-2 block">
+                Sin lugar ni indicaciones: los avisos solo dirán la fecha y la hora.
+              </TextoSistema>
+            )}
             {cupo && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <TextoSistema tamaño="sm">
@@ -316,6 +348,14 @@ export default async function EdicionDetallePage(ctx: RouteContext) {
             </BadgeSistema>
             {permisos.editarEdicion && edicion.estado === 'borrador' && (
               <OpenEdicionButton edicionId={edicion.id} />
+            )}
+            {puedeEditarDatosPracticos && (
+              <EditarDatosPracticosEdicion
+                tallerSlug={taller.slug}
+                edicionId={edicion.id}
+                lugar={edicion.lugar}
+                indicaciones={edicion.indicaciones}
+              />
             )}
             {permisos.editarEdicion &&
               (edicion.estado === 'borrador' || edicion.estado === 'abierto') && (

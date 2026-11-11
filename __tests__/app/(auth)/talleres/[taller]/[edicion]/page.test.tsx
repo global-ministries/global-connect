@@ -28,6 +28,7 @@ import EdicionDetallePage from '@/app/(auth)/talleres/[taller]/[edicion]/page'
 import { CancelarEdicionButton, OpenEdicionButton } from '@/components/talleres/open-edicion-button'
 import { CerrarEdicionButton } from '@/components/talleres/cerrar-edicion-dialog'
 import { ReprogramarEdicionDialog } from '@/components/talleres/reprogramar-edicion'
+import { EditarDatosPracticosEdicion } from '@/components/talleres/datos-practicos-edicion'
 import { GruposSection } from '@/components/talleres/grupos-section'
 import { TablaInscripciones } from '@/components/talleres/tabla-inscripciones'
 import { InscribirPersonaForm } from '@/components/talleres/inscribir-persona-form'
@@ -103,6 +104,10 @@ jest.mock('@/components/talleres/grupos-section', () => ({
   GruposSection: () => null,
 }))
 
+jest.mock('@/components/talleres/datos-practicos-edicion', () => ({
+  EditarDatosPracticosEdicion: () => null,
+}))
+
 const flagsMock = jest.requireMock('@/lib/platform/talleres/flags').isTalleresEnabled as jest.Mock
 const createSupabaseServerClientMock = jest.requireMock('@/lib/supabase/server')
   .createSupabaseServerClient as jest.Mock
@@ -175,6 +180,8 @@ const EDICION: EdicionLocalDetalle = {
   inscripciones_aprobadas_count: 3,
   certificados_count: 0,
   cerrada_en: null,
+  lugar: null,
+  indicaciones: null,
 }
 
 const INSCRIPCION_ROW = {
@@ -902,5 +909,68 @@ describe('EdicionDetallePage — content', () => {
     const titulos = findAllByType(element, TituloSistema)
     expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Inscritos')).toBe(true)
     expect(titulos.some((t) => t.props.nivel === 2 && extractText(t.props.children) === 'Ventana')).toBe(true)
+  })
+})
+
+// T10 (odd/tasks/talleres-reserva-publica.md, S6) — the cabecera shows the
+// edición's lugar and indicaciones (they travel in the notices); only
+// editarEdicion edits them, and not once the edición is cancelled or closed.
+describe('EdicionDetallePage — lugar e indicaciones (T10)', () => {
+  it('shows lugar and indicaciones to a reader without editing rights, with no edit button', async () => {
+    setup({
+      permisos: { editarEdicion: false },
+      edicionDetalle: { ...EDICION, estado: 'abierto', lugar: 'Salón 2', indicaciones: 'Trae tu Biblia' },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    const texto = extractText(element)
+    expect(texto).toContain('Lugar:')
+    expect(texto).toContain('Salón 2')
+    expect(texto).toContain('Indicaciones para los participantes:')
+    expect(texto).toContain('Trae tu Biblia')
+    expect(findByType(element, EditarDatosPracticosEdicion)).toBeNull()
+  })
+
+  it('names neither when both are empty', async () => {
+    setup({ permisos: { editarEdicion: false }, edicionDetalle: { ...EDICION, estado: 'abierto' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const texto = extractText((await EdicionDetallePage(params())) as any)
+    expect(texto).not.toContain('Lugar:')
+    expect(texto).not.toContain('Indicaciones para los participantes:')
+    expect(texto).not.toContain('Sin lugar ni indicaciones')
+  })
+
+  it('gives editarEdicion the edit button with the current values', async () => {
+    setup({
+      permisos: { editarEdicion: true },
+      edicionDetalle: { ...EDICION, estado: 'abierto', lugar: 'Salón 2', indicaciones: null },
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await EdicionDetallePage(params())) as any
+    expect(findByType(element, EditarDatosPracticosEdicion)?.props).toEqual({
+      tallerSlug: 'matrimonio-sobre-la-roca',
+      edicionId: 'e-1',
+      lugar: 'Salón 2',
+      indicaciones: null,
+    })
+  })
+
+  it('tells an editor that the notices say only date and hour while both are empty', async () => {
+    setup({ permisos: { editarEdicion: true }, edicionDetalle: { ...EDICION, estado: 'borrador' } })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const texto = extractText((await EdicionDetallePage(params())) as any)
+    expect(texto).toContain('Sin lugar ni indicaciones: los avisos solo dirán la fecha y la hora.')
+  })
+
+  it('hides the edit button for a cancelled or closed edición', async () => {
+    for (const edicion of [
+      { ...EDICION, estado: 'cancelado' as const },
+      { ...EDICION, estado: 'cerrado' as const, cerrada_en: '2026-10-28T12:00:00Z' },
+    ]) {
+      setup({ permisos: { editarEdicion: true }, edicionDetalle: edicion })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+      const element = (await EdicionDetallePage(params())) as any
+      expect(findByType(element, EditarDatosPracticosEdicion)).toBeNull()
+    }
   })
 })

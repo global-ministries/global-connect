@@ -659,3 +659,131 @@ describe('updateTallerConfiguracion — mínimo de inscritos y recuperar clases'
     expect(updateMock).not.toHaveBeenCalled()
   })
 })
+
+// ─── crearEdicion — lugar e indicaciones (T10) ────────────────────────────
+//
+// odd/tasks/talleres-reserva-publica.md T10, S6: talleres_crear_edicion has
+// no lugar/indicaciones parameters, so they are written right after it on
+// every edición created, through the taller_ediciones_update RLS.
+
+function setupCrearEdicionConDatos(opts: {
+  rpcResult?: { data: unknown; error: { message?: string; code?: string } | null }
+  updateResult?: { data: unknown; error: { message?: string; code?: string } | null }
+}): { rpcMock: jest.Mock; fromMock: jest.Mock; updateMock: jest.Mock; inMock: jest.Mock } {
+  flagsMock.mockReset().mockReturnValue(true)
+  const rpcMock = jest.fn().mockResolvedValue(
+    opts.rpcResult ?? {
+      data: {
+        ediciones: [
+          { edicion_id: 'e-1', nombre: 'Marzo 2027' },
+          { edicion_id: 'e-2', nombre: 'Abril 2027' },
+        ],
+      },
+      error: null,
+    },
+  )
+  const select = jest.fn().mockResolvedValue(opts.updateResult ?? { data: [{ id: 'e-1' }, { id: 'e-2' }], error: null })
+  const inMock = jest.fn().mockReturnValue({ select })
+  const updateMock = jest.fn().mockReturnValue({ in: inMock })
+  const fromMock = jest.fn().mockReturnValue({ update: updateMock })
+  createSupabaseServerClientMock.mockReset().mockResolvedValue({
+    auth: { getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'auth-1' } }, error: null }) },
+    rpc: rpcMock,
+    from: fromMock,
+  })
+  return { rpcMock, fromMock, updateMock, inMock }
+}
+
+const crearConDatos = {
+  tallerId: 't-1',
+  tallerSlug: 'proximo-paso',
+  fechaInicio: '2027-03-01',
+  temporadaId: null,
+  adelantar: 1,
+}
+
+describe('crearEdicion — lugar e indicaciones (T10)', () => {
+  it('writes the trimmed lugar and indicaciones on every edición created', async () => {
+    const { rpcMock, fromMock, updateMock, inMock } = setupCrearEdicionConDatos({})
+    const result = await crearEdicion({ ...crearConDatos, lugar: '  Salón 2 ', indicaciones: ' Trae tu Biblia ' })
+    expect(result).toEqual({
+      ok: true,
+      ediciones: [
+        { edicionId: 'e-1', nombre: 'Marzo 2027' },
+        { edicionId: 'e-2', nombre: 'Abril 2027' },
+      ],
+    })
+    expect(rpcMock).toHaveBeenCalledWith('talleres_crear_edicion', {
+      p_taller_id: 't-1',
+      p_fecha_inicio: '2027-03-01',
+      p_temporada_id: null,
+      p_adelantar: 1,
+    })
+    expect(fromMock).toHaveBeenCalledWith('taller_ediciones')
+    expect(updateMock).toHaveBeenCalledWith({ lugar: 'Salón 2', indicaciones: 'Trae tu Biblia' })
+    expect(inMock).toHaveBeenCalledWith('id', ['e-1', 'e-2'])
+  })
+
+  it('writes only what was filled (the other one as null)', async () => {
+    const { updateMock } = setupCrearEdicionConDatos({})
+    await crearEdicion({ ...crearConDatos, lugar: '   ', indicaciones: 'Estaciona en la calle de atrás' })
+    expect(updateMock).toHaveBeenCalledWith({ lugar: null, indicaciones: 'Estaciona en la calle de atrás' })
+  })
+
+  it('does not touch taller_ediciones when both are blank', async () => {
+    const { fromMock } = setupCrearEdicionConDatos({})
+    const result = await crearEdicion({ ...crearConDatos, lugar: ' ', indicaciones: '' })
+    expect(result.ok).toBe(true)
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses a lugar over 200 characters before creating anything', async () => {
+    const { rpcMock, fromMock } = setupCrearEdicionConDatos({})
+    const result = await crearEdicion({ ...crearConDatos, lugar: 'l'.repeat(201) })
+    expect(result).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'El lugar no puede superar los 200 caracteres.',
+    })
+    expect(rpcMock).not.toHaveBeenCalled()
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses indicaciones over 500 characters before creating anything', async () => {
+    const { rpcMock } = setupCrearEdicionConDatos({})
+    const result = await crearEdicion({ ...crearConDatos, indicaciones: 'i'.repeat(501) })
+    expect(result).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'Las indicaciones no pueden superar los 500 caracteres.',
+    })
+    expect(rpcMock).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['an error', { data: null, error: { code: '42501', message: 'denied' } }],
+    ['zero rows (RLS)', { data: [], error: null }],
+  ])('keeps ok with an advertencia when the second write gives %s', async (_caso, updateResult) => {
+    setupCrearEdicionConDatos({ updateResult })
+    const result = await crearEdicion({ ...crearConDatos, lugar: 'Salón 2' })
+    expect(result).toEqual({
+      ok: true,
+      ediciones: [
+        { edicionId: 'e-1', nombre: 'Marzo 2027' },
+        { edicionId: 'e-2', nombre: 'Abril 2027' },
+      ],
+      advertencia:
+        'La edición se creó, pero no pudimos guardar el lugar y las indicaciones. Agrégalos desde la edición.',
+    })
+    expect(revalidatePathMock).toHaveBeenCalledWith('/talleres/proximo-paso')
+  })
+
+  it('does not write them when the RPC fails', async () => {
+    const { fromMock } = setupCrearEdicionConDatos({
+      rpcResult: { data: null, error: { code: 'P0001', message: 'EDICION_YA_EXISTE' } },
+    })
+    const result = await crearEdicion({ ...crearConDatos, lugar: 'Salón 2' })
+    expect(result.ok).toBe(false)
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+})

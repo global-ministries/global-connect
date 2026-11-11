@@ -181,6 +181,8 @@ const EDICION: EdicionLocalDetalle = {
   inscripciones_aprobadas_count: 3,
   certificados_count: 0,
   cerrada_en: null,
+  lugar: null,
+  indicaciones: null,
 }
 
 const INSCRIPCION_ROW = {

@@ -29,6 +29,7 @@ import { isTalleresEnabled } from '@/lib/platform/talleres/flags'
 import { traducirErrorTalleres } from '@/lib/platform/talleres/errores-api'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
 import { ANCLAS_EDICIONES, type AnclaEdiciones } from '@/lib/platform/talleres/ancla-ediciones'
+import { tieneDatosPracticos, validarDatosPracticos } from '@/lib/platform/talleres/datos-practicos'
 
 export type TallerActionResult<T> =
   | ({ readonly ok: true } & T)
@@ -795,6 +796,10 @@ export interface CrearEdicionInput {
   readonly temporadaId: string | null
   /** Régimen=cadencia only, 0..6 — how many additional ediciones to create: every intervalo_ediciones_dias, or on the first Sunday of each following month when the taller is anchored. */
   readonly adelantar: number
+  /** T10 — optional «Lugar» (≤ 200) for every edición created; blank = none. */
+  readonly lugar?: string | null
+  /** T10 — optional «Indicaciones para los participantes» (≤ 500); blank = none. */
+  readonly indicaciones?: string | null
 }
 
 export interface CrearEdicionEdicionCreada {
@@ -803,10 +808,26 @@ export interface CrearEdicionEdicionCreada {
 }
 
 export type CrearEdicionResult =
-  | { readonly ok: true; readonly ediciones: readonly CrearEdicionEdicionCreada[] }
+  | {
+      readonly ok: true
+      readonly ediciones: readonly CrearEdicionEdicionCreada[]
+      /** T10 — set when the ediciones exist but their lugar/indicaciones could not be saved. */
+      readonly advertencia?: string
+    }
   | { readonly ok: false; readonly error: string; readonly message: string }
 
+/**
+ * T10 (odd/tasks/talleres-reserva-publica.md, S6) — `talleres_crear_edicion`
+ * has no lugar/indicaciones parameters, so when the form sends them they
+ * are written right after it through the same taller_ediciones_update RLS
+ * (director.write | admin.manage, the authority the RPC already required)
+ * on every edición just created. The ediciones are already there when that
+ * second write fails, so the result stays ok with an `advertencia`.
+ */
 export async function crearEdicion(input: CrearEdicionInput): Promise<CrearEdicionResult> {
+  const datos = validarDatosPracticos({ lugar: input.lugar, indicaciones: input.indicaciones })
+  if (!datos.ok) return { ok: false, error: 'invalid-input', message: datos.message }
+
   const gated = await gate()
   if (!gated.ok) return gated.result
 
@@ -836,5 +857,24 @@ export async function crearEdicion(input: CrearEdicionInput): Promise<CrearEdici
   }
 
   revalidatePath(rutaTaller(input.tallerSlug))
+
+  if (tieneDatosPracticos(datos)) {
+    const { data: actualizadas, error: errorDatos } = await client
+      .from('taller_ediciones')
+      .update({ lugar: datos.lugar, indicaciones: datos.indicaciones })
+      .in(
+        'id',
+        ediciones.map((e) => e.edicionId),
+      )
+      .select('id')
+    if (errorDatos || !actualizadas || actualizadas.length === 0) {
+      return {
+        ok: true,
+        ediciones,
+        advertencia: 'La edición se creó, pero no pudimos guardar el lugar y las indicaciones. Agrégalos desde la edición.',
+      }
+    }
+  }
+
   return { ok: true, ediciones }
 }

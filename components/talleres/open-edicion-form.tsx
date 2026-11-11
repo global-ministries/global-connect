@@ -36,6 +36,12 @@
  * (anything else is refused inline, before the RPC refuses it with
  * FECHA_NO_ES_PRIMER_DOMINGO), offers "crear también las próximas" without
  * an intervalo, and previews each edición's own first Sunday.
+ *
+ * T10 (odd/tasks/talleres-reserva-publica.md, S6) — optional «Lugar» and
+ * «Indicaciones para los participantes» (CamposDatosPracticos), saved on
+ * every edición created; they travel in the notices. If the ediciones are
+ * created but those two could not be saved, a notice says so and the
+ * redirect still happens (they can be added from the edición).
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
@@ -53,6 +59,8 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 import { crearEdicion } from '@/app/(auth)/talleres/[taller]/actions'
+import { CamposDatosPracticos } from '@/components/talleres/campos-datos-practicos'
+import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { rutaEdicion, rutaTaller, rutaTemporadaCrear } from '@/lib/platform/talleres/rutas'
 import type { TemporadaOption } from '@/lib/platform/talleres/temporadas'
 import type { FacilitadorOmitidoPreview } from '@/lib/platform/talleres/plantilla'
@@ -119,6 +127,9 @@ export function OpenEdicionForm({
   const [temporadaId, setTemporadaId] = useState('')
   const [fechaInicio, setFechaInicio] = useState('')
   const [adelantar, setAdelantar] = useState('0')
+  const [lugar, setLugar] = useState('')
+  const [indicaciones, setIndicaciones] = useState('')
+  const notificar = useNotificaciones()
 
   const anclado = regimen === 'cadencia' && anclaEdiciones === 'primer_domingo_mes'
   const fechaFueraDeAncla = anclado && fechaInicio !== '' && !esPrimerDomingoDelMes(fechaInicio)
@@ -169,9 +180,12 @@ export function OpenEdicionForm({
         fechaInicio: regimen === 'cadencia' ? fechaInicio : null,
         temporadaId: regimen === 'temporada' ? temporadaId : null,
         adelantar: regimen === 'cadencia' ? Number(adelantar) : 0,
+        // Only when filled: an empty pair keeps the previous call shape.
+        ...(lugar.trim() !== '' || indicaciones.trim() !== '' ? { lugar, indicaciones } : {}),
       })
       if (result.ok) {
         setOpen(false)
+        if (result.advertencia) notificar.info(result.advertencia)
         if (result.ediciones.length === 1) {
           router.push(rutaEdicion(tallerSlug, result.ediciones[0]!.edicionId))
         } else {
@@ -255,6 +269,16 @@ export function OpenEdicionForm({
                 </div>
               )}
             </div>
+          )}
+
+          {!(regimen === 'temporada' && temporadasDisponibles.length === 0) && (
+            <CamposDatosPracticos
+              lugar={lugar}
+              indicaciones={indicaciones}
+              onLugarChange={setLugar}
+              onIndicacionesChange={setIndicaciones}
+              disabled={pending}
+            />
           )}
 
           {preview && (
