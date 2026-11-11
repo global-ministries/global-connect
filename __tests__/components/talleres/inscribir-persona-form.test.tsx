@@ -257,3 +257,38 @@ describe('InscribirPersonaForm — pareja compañero (T7 hardening)', () => {
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
   })
 })
+
+// R3f (odd/tasks/talleres-rediseno.md) — the edición screen shows the form
+// inside the «Inscribir a alguien» panel; `onInscrita` closes it.
+describe('InscribirPersonaForm — onInscrita (R3f)', () => {
+  it('calls onInscrita after a successful inscription, never after a failure', async () => {
+    const onInscrita = jest.fn()
+    render(<InscribirPersonaForm {...baseProps()} onInscrita={onInscrita} />)
+    await buscarYSeleccionar()
+    agregarInscripcionMock.mockResolvedValue({ ok: false, error: 'conflict', message: 'Esta persona ya está inscrita en esta edición.' })
+    fireEvent.click(screen.getByRole('button', { name: /^inscribir$/i }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Esta persona ya está inscrita en esta edición.')
+    expect(onInscrita).not.toHaveBeenCalled()
+
+    agregarInscripcionMock.mockResolvedValue({ ok: true, inscripcionId: 'i-1' })
+    fireEvent.click(screen.getByRole('button', { name: /^inscribir$/i }))
+    await waitFor(() => expect(onInscrita).toHaveBeenCalledTimes(1))
+    expect(refreshMock).toHaveBeenCalled()
+  })
+
+  it('calls onInscrita after «Inscribir igual (sobre el cupo)» succeeds', async () => {
+    const onInscrita = jest.fn()
+    render(<InscribirPersonaForm {...baseProps()} onInscrita={onInscrita} />)
+    await buscarYSeleccionar()
+    agregarInscripcionMock.mockResolvedValue({ ok: false, error: 'cupo-lleno', message: 'La edición está llena.' })
+    fireEvent.click(screen.getByRole('button', { name: /^inscribir$/i }))
+    inscribirSobreCupoMock.mockResolvedValue({ ok: true })
+    fireEvent.click(await screen.findByRole('button', { name: /inscribir igual/i }))
+    await waitFor(() => expect(onInscrita).toHaveBeenCalledTimes(1))
+  })
+
+  it('renders without a card of its own', () => {
+    const { container } = render(<InscribirPersonaForm {...baseProps()} />)
+    expect(container.firstElementChild?.className).toBe('min-w-0')
+  })
+})

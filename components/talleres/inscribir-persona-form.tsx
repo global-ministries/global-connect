@@ -23,13 +23,18 @@
  * SAME bounded search (talleres_buscar_personas) for a second pick instead
  * of building a dedicated cónyuge-picker modal — the cheapest option the
  * task offered for a director/coordinator-only control this narrow.
+ *
+ * R3f (odd/tasks/talleres-rediseno.md) — no card of its own any more: the
+ * edición screen shows it inside the «Inscribir a alguien» panel
+ * (components/talleres/edicion/inscribir-alguien.tsx), which `onInscrita`
+ * closes.
  */
 
 import { useState, useTransition, type ReactElement } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, UserPlus } from 'lucide-react'
 
-import { BotonSistema, InputSistema, TarjetaSistema, TextoSistema } from '@/components/ui/sistema-diseno'
+import { BotonSistema, InputSistema, TextoSistema } from '@/components/ui/sistema-diseno'
 
 import {
   agregarInscripcion,
@@ -43,6 +48,8 @@ export interface InscribirPersonaFormProps {
   readonly cohorteId: string
   /** T7 hardening — a pareja edición requires a compañero for the sobre-cupo step. */
   readonly tipo: 'individual' | 'pareja'
+  /** R3f — after a successful inscription (the edición screen closes its panel). */
+  readonly onInscrita?: () => void
 }
 
 interface PersonaResultado {
@@ -62,6 +69,7 @@ export function InscribirPersonaForm({
   edicionId,
   cohorteId,
   tipo,
+  onInscrita,
 }: InscribirPersonaFormProps): ReactElement {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -127,6 +135,7 @@ export function InscribirPersonaForm({
       if (result.ok) {
         reset()
         router.refresh()
+        onInscrita?.()
         return
       }
       setError(result.message)
@@ -150,6 +159,7 @@ export function InscribirPersonaForm({
       if (result.ok) {
         reset()
         router.refresh()
+        onInscrita?.()
         return
       }
       setError(result.message)
@@ -157,7 +167,7 @@ export function InscribirPersonaForm({
   }
 
   return (
-    <TarjetaSistema variante="outlined" className="p-4">
+    <div className="min-w-0">
       <div className="flex flex-wrap items-end gap-2">
         <InputSistema
           label="Buscar persona"
@@ -283,6 +293,6 @@ export function InscribirPersonaForm({
           {error}
         </TextoSistema>
       )}
-    </TarjetaSistema>
+    </div>
   )
 }

@@ -11,6 +11,10 @@
  * SelectLeaderModal/talleres_buscar_personas. "Crear grupo" is the
  * explicit exception that keeps the old POST /api/talleres/grupos fetch
  * flow (generate_taller_sesiones), now moved below the list.
+ *
+ * R3f (odd/tasks/talleres-rediseno.md) — restyled as one card per grupo
+ * (artboard design/talleres-reserva/12 #grupos): «N de M lugares» with the
+ * free places, the facilitadores with their rol, «Ver lista» and «Editar».
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -97,11 +101,28 @@ beforeEach(() => {
 })
 
 describe('GruposSection — list (T4)', () => {
-  it('lists grupos with nombre, capacidad and facilitadores (nombre apellido · rol)', () => {
+  it('lists one card per grupo with nombre, facilitadores (nombre + rol) and capacidad', () => {
     render(<GruposSection {...baseProps()} />)
-    expect(screen.getByText('Grupo Alfa')).toBeInTheDocument()
-    expect(screen.getByText(/Capacidad 12/)).toBeInTheDocument()
-    expect(screen.getByText(/Ana Gómez.*Líder/)).toBeInTheDocument()
+    const alfa = screen.getByRole('heading', { name: 'Grupo Alfa' }).closest('article')!
+    expect(alfa).toHaveTextContent('Ana Gómez')
+    expect(alfa).toHaveTextContent('Líder')
+    expect(alfa).toHaveTextContent('5 de 12 lugares')
+    const beta = screen.getByRole('heading', { name: 'Grupo Beta' }).closest('article')!
+    expect(beta).toHaveTextContent('Sin facilitadora todavía.')
+  })
+
+  it('never shows the raw grupo estado', () => {
+    render(<GruposSection {...baseProps()} />)
+    expect(screen.queryByText(/activo/)).not.toBeInTheDocument()
+  })
+
+  it('offers «Ver lista» to each grupo\'s lista', () => {
+    render(<GruposSection {...baseProps()} />)
+    const enlaces = screen.getAllByRole('link', { name: 'Ver lista' })
+    expect(enlaces.map((a) => a.getAttribute('href'))).toEqual([
+      '/talleres/matrimonio-sobre-la-roca/e-1/g-1',
+      '/talleres/matrimonio-sobre-la-roca/e-1/g-2',
+    ])
   })
 
   it('links each grupo row to /talleres/[taller]/[edicion]/[grupo]', () => {
@@ -110,9 +131,16 @@ describe('GruposSection — list (T4)', () => {
     expect(link).toHaveAttribute('href', '/talleres/matrimonio-sobre-la-roca/e-1/g-1')
   })
 
-  it('shows ocupación as n / capacidad', () => {
-    render(<GruposSection {...baseProps()} />)
-    expect(screen.getByText(/5 \/ 12/)).toBeInTheDocument()
+  it('shows the free places, and the excess as a status when the grupo is over its capacidad', () => {
+    const { rerender } = render(<GruposSection {...baseProps()} />)
+    expect(screen.getByRole('heading', { name: 'Grupo Alfa' }).closest('article')).toHaveTextContent('7 libres')
+    rerender(<GruposSection {...baseProps({ grupos: [{ ...GRUPOS[0], ocupacion: 14 }] })} />)
+    expect(screen.getByRole('status')).toHaveTextContent('2 por encima de la capacidad')
+  })
+
+  it('shows an unknown ocupación as —, never 0', () => {
+    render(<GruposSection {...baseProps({ grupos: [{ ...GRUPOS[0], ocupacion: null }] })} />)
+    expect(screen.getByRole('heading', { name: 'Grupo Alfa' }).closest('article')).toHaveTextContent('— de 12 lugares')
   })
 
   it('renders an empty state when the edición has no grupos', () => {
