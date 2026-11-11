@@ -34,17 +34,24 @@ const loadParticipanteActiveTalleresMock = jest.requireMock('@/lib/platform/tall
 const refrescarEstadosEdicionesMock = jest.requireMock('@/lib/platform/talleres/refrescar-estados')
   .refrescarEstadosEdiciones as jest.Mock
 
+// R3a — the page also reads the viewer's ficha (usuarios) and calls
+// hizo_proximo_paso once; both are configurable per test.
+let fichaUsuario: { data: unknown; error: unknown } = { data: null, error: null }
+let rpcHizo: jest.Mock = jest.fn().mockResolvedValue({ data: false, error: null })
+
 function buildSupabaseMock() {
   return {
     from: jest.fn(() => ({
       select: () => ({
         eq: () => ({
+          maybeSingle: () => Promise.resolve(fichaUsuario),
           limit: () => ({
             maybeSingle: () => Promise.resolve({ data: null, error: null }),
           }),
         }),
       }),
     })),
+    rpc: (...args: unknown[]) => rpcHizo(...args),
   }
 }
 
@@ -67,6 +74,8 @@ function findByType(node: unknown, type: unknown): { props: Record<string, unkno
 }
 
 beforeEach(() => {
+  fichaUsuario = { data: null, error: null }
+  rpcHizo = jest.fn().mockResolvedValue({ data: false, error: null })
   const supabase = buildSupabaseMock()
   requireExplorarViewerMock.mockReset().mockResolvedValue({ supabase, personaId: 'p-1', capabilities: [] })
   loadParticipanteExplorarMock.mockReset().mockResolvedValue([])
@@ -132,5 +141,66 @@ describe('ExplorarTalleresPage — estado real y español neutro (T9)', () => {
     const element = (await ExplorarTalleresPage()) as any
     const texto = textos(element).join(' ')
     expect(texto).not.toMatch(/Tocá|inscripto/)
+  })
+})
+
+// R3a (odd/tasks/talleres-rediseno.md, S6 S7, L5) — Próximo Paso is listed as
+// a taller only to whoever has not done it; hizo_proximo_paso(usuarios.id)
+// true hides it and shows the share card instead. The ficha's género reaches
+// the client for «Ya inscrito» / «Ya inscrita».
+describe('ExplorarTalleresPage — Próximo Paso y ficha (R3a)', () => {
+  const FILAS = [
+    { id: 'ed-pp', slug: 'proximo-paso', ya_inscrito: false },
+    { id: 'ed-par', slug: 'parejas', ya_inscrito: false },
+  ]
+
+  async function clienteProps() {
+    loadParticipanteExplorarMock.mockResolvedValue(FILAS)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await ExplorarTalleresPage()) as any
+    return findByType(element, ExplorarTalleresClient)?.props ?? {}
+  }
+
+  it('calls hizo_proximo_paso once with p_usuario_id = the viewer usuarios.id', async () => {
+    await clienteProps()
+    expect(rpcHizo).toHaveBeenCalledTimes(1)
+    expect(rpcHizo).toHaveBeenCalledWith('hizo_proximo_paso', { p_usuario_id: 'p-1' })
+  })
+
+  it('true: hides the Próximo Paso taller and asks for the share card', async () => {
+    rpcHizo = jest.fn().mockResolvedValue({ data: true, error: null })
+    const props = await clienteProps()
+    expect((props.talleres as { id: string }[]).map((t) => t.id)).toEqual(['ed-par'])
+    expect(props.proximoPasoHecho).toBe(true)
+  })
+
+  it('false: lists Próximo Paso as a taller, no share card', async () => {
+    rpcHizo = jest.fn().mockResolvedValue({ data: false, error: null })
+    const props = await clienteProps()
+    expect((props.talleres as { id: string }[]).map((t) => t.id)).toEqual(['ed-pp', 'ed-par'])
+    expect(props.proximoPasoHecho).toBe(false)
+  })
+
+  it('null: lists Próximo Paso as a taller', async () => {
+    rpcHizo = jest.fn().mockResolvedValue({ data: null, error: null })
+    const props = await clienteProps()
+    expect((props.talleres as { id: string }[]).map((t) => t.id)).toEqual(['ed-pp', 'ed-par'])
+    expect(props.proximoPasoHecho).toBe(false)
+  })
+
+  it('RPC error: lists Próximo Paso as a taller', async () => {
+    rpcHizo = jest.fn().mockResolvedValue({ data: null, error: { code: '42883', message: 'no existe' } })
+    const props = await clienteProps()
+    expect((props.talleres as { id: string }[]).map((t) => t.id)).toEqual(['ed-pp', 'ed-par'])
+    expect(props.proximoPasoHecho).toBe(false)
+  })
+
+  it('hands the ficha (with its género) to the client', async () => {
+    fichaUsuario = {
+      data: { nombre: 'Génesis', apellido: 'Rodríguez', telefono: null, email: 'g@x.org', genero: 'Femenino' },
+      error: null,
+    }
+    const props = await clienteProps()
+    expect(props.persona).toEqual({ nombre: 'Génesis Rodríguez', telefono: null, email: 'g@x.org', genero: 'Femenino' })
   })
 })
