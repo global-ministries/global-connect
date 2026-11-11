@@ -6,6 +6,10 @@
  * régimen, cierre de inscripción (relative sentence), intervalo entre
  * ediciones (only régimen=cadencia), plus cadencia/duración moved here
  * from the old Clases section. Edit controls only render when puedeEditar.
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, L10) — the configuration is its own
+ * view (/talleres/[taller]/configuracion): section cards and ONE «Guardar
+ * configuración» that also saves cadencia/duración when they changed.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -287,21 +291,114 @@ describe('ConfiguracionTaller — clases mínimas para completar', () => {
   })
 })
 
-describe('ConfiguracionTaller — editor: cadencia y duración (moved from Clases)', () => {
-  it('shows the current values as editable fields and saves them through updateCadenciaYDuracion', async () => {
+// R3k (odd/tasks/talleres-rediseno.md, S1, S4, L10) — one «Guardar
+// configuración» for the whole view: it also saves cadencia/duración through
+// the existing updateCadenciaYDuracion, only when those fields changed, and
+// reports each action's error on its own.
+describe('ConfiguracionTaller — un solo guardar con cadencia y duración (R3k)', () => {
+  it('shows the current values and saves a changed cadencia with «Guardar configuración»', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
     updateCadenciaYDuracionMock.mockResolvedValue({ ok: true })
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
     const cadenciaInput = screen.getByLabelText(/cada n días/i)
     expect(cadenciaInput).toHaveValue(7)
     fireEvent.change(cadenciaInput, { target: { value: '14' } })
-    fireEvent.click(screen.getByRole('button', { name: /guardar cadencia/i }))
-    expect(updateCadenciaYDuracionMock).toHaveBeenCalledWith({
-      tallerId: 't-1',
-      tallerSlug: 'proximo-paso',
-      cadenciaDias: 14,
-      duracionMinutos: 90,
-    })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateCadenciaYDuracionMock).toHaveBeenCalledWith({
+        tallerId: 't-1',
+        tallerSlug: 'proximo-paso',
+        cadenciaDias: 14,
+        duracionMinutos: 90,
+      }),
+    )
+    expect(updateTallerConfiguracionMock).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+  })
+
+  it('sends an emptied duración as null', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    updateCadenciaYDuracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getByLabelText(/duración \(min\)/i), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() =>
+      expect(updateCadenciaYDuracionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ cadenciaDias: 7, duracionMinutos: null }),
+      ),
+    )
+  })
+
+  it('does not call updateCadenciaYDuracion when cadencia and duración did not change', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() => expect(updateTallerConfiguracionMock).toHaveBeenCalled())
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+    expect(updateCadenciaYDuracionMock).not.toHaveBeenCalled()
+  })
+
+  it('has no separate «Guardar cadencia» button', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    expect(screen.queryByRole('button', { name: /guardar cadencia/i })).not.toBeInTheDocument()
+  })
+
+  it('reports only the cadencia error when the configuration saved', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
+    updateCadenciaYDuracionMock.mockResolvedValue({ ok: false, error: 'invalid-input', message: 'La cadencia debe ser un entero positivo.' })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getByLabelText(/cada n días/i), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    const alertas = await screen.findAllByRole('alert')
+    expect(alertas).toHaveLength(1)
+    expect(alertas[0]).toHaveTextContent('No se guardaron la cadencia y la duración: La cadencia debe ser un entero positivo.')
+    // The configuration did save, so the page still refreshes.
+    await waitFor(() => expect(refreshMock).toHaveBeenCalled())
+  })
+
+  it('reports each failed action on its own', async () => {
+    updateTallerConfiguracionMock.mockResolvedValue({ ok: false, error: 'invalid-input', message: 'Cierre inválido.' })
+    updateCadenciaYDuracionMock.mockResolvedValue({ ok: false, error: 'invalid-input', message: 'Cadencia inválida.' })
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    fireEvent.change(screen.getByLabelText(/cada n días/i), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
+    await waitFor(() => expect(screen.getAllByRole('alert')).toHaveLength(2))
+    const textos = screen.getAllByRole('alert').map((a) => a.textContent)
+    expect(textos).toEqual([
+      'No se guardó la configuración: Cierre inválido.',
+      'No se guardaron la cadencia y la duración: Cadencia inválida.',
+    ])
+    expect(refreshMock).not.toHaveBeenCalled()
+  })
+})
+
+// R3k — artboard 14: the editor's sections are cards; the numeric fields use
+// the normal font and the full field width, so «Sin mínimo» is never cut.
+describe('ConfiguracionTaller — secciones y campos (R3k)', () => {
+  it('groups the editor in four sections: Inscripción, Ediciones, Clases y certificado, Cadencia y duración', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'Inscripción',
+      'Ediciones',
+      'Clases y certificado',
+      'Cadencia y duración',
+    ])
+  })
+
+  it('numeric fields use the normal font and are not narrowed', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'cadencia' })} />)
+    const minimo = screen.getByLabelText(/mínimo de inscritos para abrir/i)
+    expect(minimo).toHaveAttribute('placeholder', 'Sin mínimo')
+    for (const input of [
+      minimo,
+      screen.getByLabelText(/cierre de inscripción/i),
+      screen.getByLabelText(/intervalo entre ediciones/i),
+      screen.getByLabelText(/clases mínimas para el certificado/i),
+      screen.getByLabelText(/cada n días/i),
+      screen.getByLabelText(/duración \(min\)/i),
+    ]) {
+      expect(input.className).not.toMatch(/font-mono|\bw-32\b/)
+    }
   })
 })
 
@@ -346,7 +443,6 @@ describe('ConfiguracionTaller — recuperar clases y mínimo de inscritos (un so
     expect(screen.queryByRole('button', { name: 'Guardar mínimo' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /guardar/i }).map((b) => b.textContent)).toEqual([
       'Guardar configuración',
-      'Guardar cadencia',
     ])
   })
 
@@ -452,17 +548,12 @@ describe('ConfiguracionTaller — inscripción automática', () => {
   })
 })
 
-describe('ConfiguracionTaller — Próximo Paso registration link (odd/tasks/proximo-paso.md T2)', () => {
-  it('shows the registration link to whoever edits Próximo Paso', () => {
+// R3k (L10) — the Próximo Paso «Enlace de inscripción» left the configuration:
+// it lives in the taller page's «Página pública» card now.
+describe('ConfiguracionTaller — sin enlace de inscripción (R3k)', () => {
+  it('never shows the Próximo Paso registration link, not even to whoever edits it', () => {
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true })} />)
-    expect(screen.getByRole('heading', { name: 'Enlace de inscripción' })).toBeInTheDocument()
-  })
-
-  it('does not show it on another taller nor to a read-only viewer', () => {
-    const { unmount } = render(<ConfiguracionTaller {...baseProps({ tallerSlug: 'otro-taller', puedeEditar: true })} />)
     expect(screen.queryByRole('heading', { name: 'Enlace de inscripción' })).not.toBeInTheDocument()
-    unmount()
-    render(<ConfiguracionTaller {...baseProps({ puedeEditar: false })} />)
-    expect(screen.queryByRole('heading', { name: 'Enlace de inscripción' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Copiar enlace' })).not.toBeInTheDocument()
   })
 })

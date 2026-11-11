@@ -12,6 +12,10 @@
  * cadencia_dias/duracion_minutos moved to the taller page's new
  * "Configuración" section (see configuracion-taller.test.tsx); this file
  * no longer covers them.
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, L10) — compact rows «1 · Sígueme»
+ * for the side column; add, reorder, edit and activar/desactivar live behind
+ * «Editar» (aria-pressed), so the list never shows controls by default.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -59,10 +63,29 @@ beforeEach(() => {
   refreshMock.mockReset()
 })
 
+/** Turns on the «Editar» mode of the section. */
+function editar(): void {
+  fireEvent.click(screen.getByRole('button', { name: 'Editar plantilla de clases' }))
+}
+
 describe('PlantillaClasesSection — rendering', () => {
-  it('renders "Clase 2 · Intimidad con Dios"', () => {
+  it('renders compact rows «2 · Intimidad con Dios» on one truncated line', () => {
     render(<PlantillaClasesSection {...baseProps()} />)
-    expect(screen.getByText(/Clase 2 · Intimidad con Dios/)).toBeInTheDocument()
+    const items = screen.getAllByRole('listitem')
+    expect(items.map((i) => i.textContent)).toEqual(['1 · Sígueme', '2 · Intimidad con Dios', '3 · CompañerismoInactiva'])
+    expect(screen.getByText('Intimidad con Dios', { exact: false }).closest('.truncate')).not.toBeNull()
+  })
+
+  it('shows no edit controls until «Editar» is pressed, even for an editor', () => {
+    render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    const boton = screen.getByRole('button', { name: 'Editar plantilla de clases' })
+    expect(boton).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: /agregar clase/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /subir|bajar|editar tema|desactivar|activar/i })).not.toBeInTheDocument()
+    fireEvent.click(boton)
+    expect(boton).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /^agregar clase$/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /^subir clase/i })).toHaveLength(3)
   })
 
   it('shows an empty state when there are no clases yet', () => {
@@ -84,6 +107,7 @@ describe('PlantillaClasesSection — rendering', () => {
 describe('PlantillaClasesSection — read-only viewer', () => {
   it('shows no Agregar button, edit pencils, or reorder buttons', () => {
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: false })} />)
+    expect(screen.queryByRole('button', { name: /editar plantilla/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /agregar clase/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /editar tema/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /subir/i })).not.toBeInTheDocument()
@@ -96,6 +120,7 @@ describe('PlantillaClasesSection — editor: add clase', () => {
   it('opens a dialog from the heading action and adds a clase', async () => {
     crearPlantillaClaseMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.click(screen.getByRole('button', { name: /^agregar clase$/i }))
     fireEvent.change(screen.getByLabelText(/tema de la nueva clase/i), { target: { value: 'Influencia' } })
     fireEvent.click(screen.getByRole('button', { name: /crear clase/i }))
@@ -112,6 +137,7 @@ describe('PlantillaClasesSection — editor: edit tema in place', () => {
   it('opens an input pre-filled with the current tema and saves it', async () => {
     editarPlantillaClaseTemaMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const editButtons = screen.getAllByRole('button', { name: /editar tema/i })
     fireEvent.click(editButtons[1]!) // clase c-2
     const input = screen.getByDisplayValue('Intimidad con Dios')
@@ -130,6 +156,7 @@ describe('PlantillaClasesSection — editor: activar/desactivar', () => {
   it('deactivates an active clase', async () => {
     toggleActivoPlantillaClaseMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const toggles = screen.getAllByRole('button', { name: /desactivar|activar/i })
     fireEvent.click(toggles[0]!) // clase c-1, activo=true
     expect(toggleActivoPlantillaClaseMock).toHaveBeenCalledWith({
@@ -143,6 +170,7 @@ describe('PlantillaClasesSection — editor: activar/desactivar', () => {
   it('reactivates an inactive clase', async () => {
     toggleActivoPlantillaClaseMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const toggles = screen.getAllByRole('button', { name: /desactivar|activar/i })
     fireEvent.click(toggles[2]!) // clase c-3, activo=false
     expect(toggleActivoPlantillaClaseMock).toHaveBeenCalledWith({
@@ -157,6 +185,7 @@ describe('PlantillaClasesSection — editor: activar/desactivar', () => {
 describe('PlantillaClasesSection — editor: reorder', () => {
   it('disables Subir on the first clase and Bajar on the last, each naming its clase', () => {
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const subir = screen.getAllByRole('button', { name: /^subir clase/i })
     const bajar = screen.getAllByRole('button', { name: /^bajar clase/i })
     expect(subir[0]).toHaveAccessibleName('Subir clase 1')
@@ -168,6 +197,7 @@ describe('PlantillaClasesSection — editor: reorder', () => {
   it('moves a middle clase up', async () => {
     moverPlantillaClaseMock.mockResolvedValue({ ok: true })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     const subir = screen.getAllByRole('button', { name: /^subir clase/i })
     fireEvent.click(subir[1]!) // clase c-2
     expect(moverPlantillaClaseMock).toHaveBeenCalledWith({
@@ -188,6 +218,7 @@ describe('PlantillaClasesSection — error display', () => {
       message: 'No tienes permisos para hacer este cambio.',
     })
     render(<PlantillaClasesSection {...baseProps({ puedeEditar: true })} />)
+    editar()
     fireEvent.click(screen.getByRole('button', { name: /^agregar clase$/i }))
     fireEvent.change(screen.getByLabelText(/tema de la nueva clase/i), { target: { value: 'Influencia' } })
     fireEvent.click(screen.getByRole('button', { name: /crear clase/i }))

@@ -264,7 +264,7 @@ describe('CatalogoTalleresClient — drawer per taller', () => {
     expect(within(acciones).getByRole('link', { name: 'Avisos' })).toHaveAttribute('href', '/talleres/mujer-de-hoy/avisos')
     expect(within(acciones).getByRole('link', { name: 'Configuración' })).toHaveAttribute(
       'href',
-      '/talleres/mujer-de-hoy#configuracion-heading',
+      '/talleres/mujer-de-hoy/configuracion',
     )
     expect(within(panel).getByText(/Falta/)).toHaveTextContent('Falta 1 aprobado para el mínimo.')
     expect(within(panel).getByRole('link', { name: 'Ver inscripciones' })).toHaveAttribute('href', '/talleres/mujer-de-hoy/e-m')

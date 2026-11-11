@@ -90,6 +90,23 @@
  *     select by id, the same one /compartir does — hidden if it fails);
  *   - Configuración (ConfiguracionTaller, id="configuracion-heading") below,
  *     full width.
+ *
+ * R3k (same doc, L10: «esta pagina no la veo bien ni amigable») — after the
+ * user's review of production:
+ *   - the Configuración form left this page: it is its own view,
+ *     ./configuracion (artboard design/talleres-reserva/14). The header
+ *     action links there; a read-only viewer gets a quiet «Ver
+ *     configuración» link in the meta line (they could read it here before);
+ *     the old anchor #configuracion-heading (the catálogo's link) is sent
+ *     there by RedirigirAnclaConfiguracion;
+ *   - «Pasos para abrir una edición» shows only while it helps: editarTaller,
+ *     no edición abierta or en curso, and some step still pending;
+ *   - the side column is compact (plantilla de clases with an «Editar» mode,
+ *     Equipo's empty state in one line, Página pública in one short card);
+ *     on phones the order stays Ediciones first;
+ *   - Próximo Paso's «Página pública» card carries its registration link
+ *     (/proximo-paso, copy and QR), shown even if talleres.publico cannot be
+ *     read — it is a public link, for anyone who sees the page.
  */
 
 import { notFound } from 'next/navigation'
@@ -107,12 +124,12 @@ import {
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { EditarNombreTaller } from '@/components/talleres/editar-nombre-taller'
 import { EditarDescripcionTaller } from '@/components/talleres/editar-descripcion-taller'
-import { ConfiguracionTaller } from '@/components/talleres/configuracion-taller'
 import { PlantillaClasesSection } from '@/components/talleres/plantilla-clases-section'
 import { PlantillaGruposSection } from '@/components/talleres/plantilla-grupos-section'
 import { AbrirEdicionProvider, BotonAbrirEdicion } from '@/components/talleres/taller/abrir-edicion'
 import { EdicionesTaller } from '@/components/talleres/taller/ediciones-taller'
 import { EquipoTaller, PaginaPublicaTaller, PasosAbrirEdicion } from '@/components/talleres/taller/partes-taller'
+import { RedirigirAnclaConfiguracion } from '@/components/talleres/taller/redirigir-configuracion'
 import { plural, resumenEdiciones } from '@/components/talleres/taller/vista-taller'
 import { regimenLabel, tallerEstadoLabel, tipoTallerLabel } from '@/components/talleres/labels'
 
@@ -134,6 +151,7 @@ import {
 import { loadTemporadasAbiertas } from '@/lib/platform/talleres/temporadas'
 import { refrescarEstadosEdiciones } from '@/lib/platform/talleres/refrescar-estados'
 import { rutaCatalogo, rutaTaller } from '@/lib/platform/talleres/rutas'
+import { PROXIMO_PASO_SLUG } from '@/lib/platform/talleres/proximo-paso-registro'
 import { hasDreamTeamReadCapability } from '@/lib/platform/dream-team/capabilities'
 
 const RUTA_SERVIDORES = '/admin/dream-team/servidores'
@@ -288,8 +306,20 @@ export default async function TallerDetallePage(ctx: RouteContext) {
   )
 
   const rutaBase = rutaTaller(taller.slug)
+  const rutaConfiguracion = `${rutaBase}/configuracion`
   const resumen = resumenEdiciones(taller.ediciones)
   const puedeVerDreamTeam = hasDreamTeamReadCapability(session)
+
+  // R3k — the checklist only while it helps: before any edición is abierta
+  // or en curso, and while some step is still pending.
+  const pasosApertura = [
+    { etiqueta: 'Equipo del nodo', listo: servidores.length > 0 },
+    { etiqueta: 'Plantilla de clases', listo: clasesActivas > 0 },
+    { etiqueta: 'Plantilla de grupos', listo: gruposPlantillaActivosList.length > 0 },
+  ]
+  const hayEdicionActiva = taller.ediciones.some((e) => e.estado === 'abierto' || e.estado === 'en_curso')
+  const mostrarPasos = permisos.editarTaller && !hayEdicionActiva && pasosApertura.some((paso) => !paso.listo)
+  const esProximoPaso = taller.slug === PROXIMO_PASO_SLUG
 
   // Artboard 22 order: Compartir · Avisos · Configuración, then the primary «Abrir edición».
   const accionesTaller = (className: string, claseBoton?: string) => (
@@ -303,7 +333,7 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             <Link href={`${rutaBase}/avisos`}>Avisos</Link>
           </BotonSistema>
           <BotonSistema asChild variante="outline" tamaño="sm" icono={Settings} className={claseBoton}>
-            <Link href="#configuracion-heading">Configuración</Link>
+            <Link href={rutaConfiguracion}>Configuración</Link>
           </BotonSistema>
         </>
       )}
@@ -365,6 +395,12 @@ export default async function TallerDetallePage(ctx: RouteContext) {
           )}
           <span>{tipoTallerLabel(taller.tipo)}</span>
           <span>{regimenLabel(taller.regimen)}</span>
+          {/* Who edits has «Configuración» in the header; everyone else can still read it. */}
+          {!permisos.editarTaller && (
+            <Link href={rutaConfiguracion} className="focus-ring rounded-sm text-brand-text hover:underline">
+              Ver configuración
+            </Link>
+          )}
         </p>
         {permisos.editarTaller ? (
           <EditarDescripcionTaller tallerId={taller.id} tallerSlug={taller.slug} descripcion={taller.descripcion} />
@@ -404,13 +440,9 @@ export default async function TallerDetallePage(ctx: RouteContext) {
           {/* T11 (flow audit) — what's left before «Abrir edición» makes
               sense. Only for editarTaller, the capacity that gates the
               plantilla edit controls. */}
-          {permisos.editarTaller && (
+          {mostrarPasos && (
             <PasosAbrirEdicion
-              pasos={[
-                { etiqueta: 'Equipo del nodo', listo: servidores.length > 0 },
-                { etiqueta: 'Plantilla de clases', listo: clasesActivas > 0 },
-                { etiqueta: 'Plantilla de grupos', listo: gruposPlantillaActivosList.length > 0 },
-              ]}
+              pasos={pasosApertura}
               // T4 — the checklist's own final step names the ONE question
               // «Abrir edición» will actually ask, by régimen.
               textoFinal={
@@ -433,36 +465,18 @@ export default async function TallerDetallePage(ctx: RouteContext) {
             enlaceServidores={puedeGestionarServidores ? `${RUTA_SERVIDORES}?equipo=${equipoId}` : null}
           />
 
-          {publico !== null && (
+          {(publico !== null || esProximoPaso) && (
             <PaginaPublicaTaller
               slug={taller.slug}
-              publico={publico}
+              publico={publico ?? false}
               enlaceCompartir={permisos.editarTaller ? `${rutaBase}/compartir` : null}
             />
           )}
         </aside>
       </div>
 
-      <TarjetaSistema className="scroll-mt-24 p-4 sm:p-6" id="configuracion">
-        <ConfiguracionTaller
-          tallerId={taller.id}
-          tallerSlug={taller.slug}
-          tipo={taller.tipo}
-          vinculo={taller.vinculo}
-          regimen={taller.regimen}
-          cierreInscripcionOffsetDias={taller.cierre_inscripcion_offset_dias}
-          intervaloEdicionesDias={taller.intervalo_ediciones_dias}
-          anclaEdiciones={taller.ancla_ediciones ?? null}
-          clasesMinimasParaCompletar={taller.clases_minimas_para_completar}
-          minimoInscritos={taller.minimo_inscritos ?? null}
-          permiteRecuperarClases={taller.permite_recuperar_clases ?? true}
-          momentoEnvioAcceso={taller.momento_envio_acceso}
-          inscripcionAutomatica={taller.inscripcion_automatica}
-          cadenciaDias={taller.cadencia_dias}
-          duracionMinutos={taller.duracion_minutos}
-          puedeEditar={permisos.editarTaller}
-        />
-      </TarjetaSistema>
+      {/* The old #configuracion-heading anchor (catálogo) now opens ./configuracion. */}
+      <RedirigirAnclaConfiguracion href={rutaConfiguracion} />
     </PaginaSistema>
   )
 

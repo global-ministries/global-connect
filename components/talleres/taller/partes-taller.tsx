@@ -12,16 +12,23 @@
  *
  * Página pública: talleres.publico, read-only here (the public link, QR and
  * embed code live in Compartir).
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, L10) — compact side column: Equipo
+ * without servidores is one line with «Gestionar en Servidores» (the only
+ * place the page says it); a non-public taller is one short line; Próximo
+ * Paso's card shows its registration link (EnlaceProximoPaso) instead.
  */
 
 import type { ReactElement, ReactNode } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, ChevronRight, Globe, Lock, Users } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, Globe, Lock } from 'lucide-react'
 
 import { EnlaceSistema, TarjetaSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
 import { EstadoVacioSistema } from '@/components/ui/estado-vacio-sistema'
 import { PuntoEstado } from '@/components/ui/punto-estado'
 import { urlPublica } from '@/components/talleres/compartir/codigo-incrustar'
+import { EnlaceProximoPaso } from '@/components/talleres/taller/enlace-proximo-paso'
+import { PROXIMO_PASO_SLUG } from '@/lib/platform/talleres/proximo-paso-registro'
 import type { PlantillaGrupo } from '@/lib/platform/talleres/plantilla'
 import { nombreCompletoServidor, type ServidorDelTaller } from '@/lib/platform/talleres/servidores-del-taller'
 
@@ -140,30 +147,28 @@ export function EquipoTaller({
   /** «Gestionar en Servidores», only when the viewer may open it. */
   readonly enlaceServidores: string | null
 }): ReactElement {
+  const enlace = (clase: string) =>
+    enlaceServidores && (
+      <EnlaceSistema href={enlaceServidores} variante="marca" className={clase}>
+        Gestionar en Servidores
+      </EnlaceSistema>
+    )
+  const vacio = !sinAutoridad && servidores.length === 0
   return (
     <SeccionLateral
       id="equipo-heading"
       titulo="Equipo"
-      descripcion="Servidores activos; se gestionan en Dream Team."
-      accion={
-        enlaceServidores && (
-          <EnlaceSistema href={enlaceServidores} variante="marca" className="inline-flex min-h-[44px] items-center text-sm">
-            Gestionar en Servidores
-          </EnlaceSistema>
-        )
-      }
+      // Without servidores the link sits in the one line below, never twice.
+      accion={vacio ? undefined : enlace('inline-flex min-h-[44px] items-center text-sm')}
     >
       {sinAutoridad ? (
         <TarjetaSistema className="p-0">
           <EstadoVacioSistema icono={Lock} titulo="No tienes autoridad para ver el equipo de este taller." />
         </TarjetaSistema>
-      ) : servidores.length === 0 ? (
-        <TarjetaSistema className="p-0">
-          <EstadoVacioSistema
-            icono={Users}
-            titulo="Sin servidores activos en este equipo"
-            subtitulo="Asigna servidores en Dream Team → Servidores para que aparezcan aquí."
-          />
+      ) : vacio ? (
+        <TarjetaSistema className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 px-4 py-1.5">
+          <span className="text-sm text-muted-foreground">Sin servidores activos.</span>
+          {enlace('inline-flex min-h-11 items-center text-sm')}
         </TarjetaSistema>
       ) : (
         <TarjetaSistema className="overflow-hidden p-0">
@@ -208,7 +213,25 @@ export function PaginaPublicaTaller({
   /** ./compartir, only for who edits the taller. */
   readonly enlaceCompartir: string | null
 }): ReactElement {
+  if (slug === PROXIMO_PASO_SLUG) {
+    // Próximo Paso is not listed in the public page: people sign up with its own link.
+    return (
+      <SeccionLateral id="publica-heading" titulo="Página pública">
+        <TarjetaSistema className="p-4">
+          <EnlaceProximoPaso />
+        </TarjetaSistema>
+      </SeccionLateral>
+    )
+  }
+
   const ruta = urlPublica('', slug)
+  const claseEnlace =
+    'focus-ring inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-brand-text hover:underline'
+  const compartir = enlaceCompartir && (
+    <Link href={enlaceCompartir} className={claseEnlace}>
+      Enlace, QR y código
+    </Link>
+  )
   return (
     <SeccionLateral
       id="publica-heading"
@@ -220,41 +243,26 @@ export function PaginaPublicaTaller({
         />
       }
     >
-      <TarjetaSistema className="grid gap-3 p-4">
-        <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
-          <Globe className="size-4 shrink-0" aria-hidden="true" />
-          <span className="truncate font-mono text-[13px]">{ruta}</span>
-        </span>
-        <TextoSistema variante="sutil" tamaño="sm" className="block">
-          {publico
-            ? 'Cualquiera puede pedir su lugar en las ediciones con inscripción abierta, tenga o no cuenta.'
-            : 'Este taller no aparece en la página pública; solo se inscribe desde la app o la coordinación.'}{' '}
-          Este dato no se cambia desde aquí.
-        </TextoSistema>
-        {(publico || enlaceCompartir) && (
+      {publico ? (
+        <TarjetaSistema className="grid gap-1 px-4 py-3">
+          <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+            <Globe className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate font-mono text-[13px]">{ruta}</span>
+          </span>
           <div className="flex flex-wrap gap-x-4">
-            {publico && (
-              <a
-                href={ruta}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="focus-ring inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-brand-text hover:underline"
-              >
-                Ver página
-                <ArrowUpRight className="size-4" aria-hidden="true" />
-              </a>
-            )}
-            {enlaceCompartir && (
-              <Link
-                href={enlaceCompartir}
-                className="focus-ring inline-flex min-h-11 items-center rounded-md text-sm font-medium text-brand-text hover:underline"
-              >
-                Enlace, QR y código
-              </Link>
-            )}
+            <a href={ruta} target="_blank" rel="noopener noreferrer" className={claseEnlace}>
+              Ver página
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            </a>
+            {compartir}
           </div>
-        )}
-      </TarjetaSistema>
+        </TarjetaSistema>
+      ) : (
+        <TarjetaSistema className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 px-4 py-1.5">
+          <span className="text-sm text-muted-foreground">Solo se inscribe desde la app o la coordinación.</span>
+          {compartir}
+        </TarjetaSistema>
+      )}
     </SeccionLateral>
   )
 }

@@ -58,13 +58,38 @@
  * «Ediciones» and «Clases y certificado», with the one primary «Guardar
  * configuración» at the end; «Cadencia y duración» keeps its own save
  * (updateCadenciaYDuracion), as before. Same fields, labels and writes.
+ *
+ * R3k (odd/tasks/talleres-rediseno.md, S1, S4, L10) — the configuration is its
+ * own view now (app/(auth)/talleres/[taller]/configuracion, artboard 14), so
+ * this component no longer titles itself: the view does. The four sections
+ * (Inscripción, Ediciones, Clases y certificado, Cadencia y duración) are
+ * cards in SeccionesSistema, and ONE «Guardar configuración» in the
+ * PieAccionesSistema saves everything: updateTallerConfiguracion always, and
+ * the existing updateCadenciaYDuracion only when cadencia or duración changed;
+ * each failed action reports its own error. Numeric fields use the normal
+ * font and the full field width (the «Mínimo de inscritos» input is inlined
+ * here for that, with the same label, limits, placeholder and NOTA_MINIMO as
+ * MinimoInscritosCampo, which still renders the read-only value). The
+ * Próximo Paso «Enlace de inscripción» moved to the taller page's «Página
+ * pública» card (components/talleres/taller/enlace-proximo-paso.tsx).
  */
 
 import { useState, useTransition, type ReactElement, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { Check } from 'lucide-react'
 
 import { Interruptor } from '@/components/ui/interruptor'
-import { BotonSistema, InputSistema, SelectSistema, TextoSistema, TituloSistema } from '@/components/ui/sistema-diseno'
+import {
+  BotonSistema,
+  CamposSistema,
+  InputSistema,
+  PieAccionesSistema,
+  SeccionesSistema,
+  SelectSistema,
+  TarjetaSistema,
+  TextoSistema,
+  TituloSistema,
+} from '@/components/ui/sistema-diseno'
 import {
   cierreRelativoLabel,
   regimenLabel,
@@ -72,11 +97,9 @@ import {
   vinculoLabel,
 } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
-import { MinimoInscritosCampo } from '@/components/talleres/minimo/minimo-inscritos-campo'
+import { MinimoInscritosCampo, NOTA_MINIMO } from '@/components/talleres/minimo/minimo-inscritos-campo'
 import { RecuperarClasesCampo } from '@/components/talleres/recuperar/recuperar-clases-campo'
 import type { AnclaEdiciones } from '@/lib/platform/talleres/ancla-ediciones'
-import { PROXIMO_PASO_SLUG } from '@/lib/platform/talleres/proximo-paso-registro'
-import { EnlaceInscripcionProximoPaso } from '@/components/talleres/enlace-inscripcion-proximo-paso'
 
 export interface ConfiguracionTallerProps {
   readonly tallerId: string
@@ -143,8 +166,11 @@ export function ConfiguracionTaller({
   puedeEditar,
 }: ConfiguracionTallerProps): ReactElement {
   const router = useRouter()
-  const [, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const [guardando, startTransition] = useTransition()
+  // One error per action, so each failure is reported on its own.
+  const [errorConfiguracion, setErrorConfiguracion] = useState<string | null>(null)
+  const [errorCadencia, setErrorCadencia] = useState<string | null>(null)
+  const [guardado, setGuardado] = useState(false)
 
   const [tipoSel, setTipoSel] = useState<'individual' | 'pareja'>(tipo)
   const [vinculoSel, setVinculoSel] = useState<'matrimonio' | 'novios' | ''>(vinculo ?? '')
@@ -167,15 +193,24 @@ export function ConfiguracionTaller({
   const [cadencia, setCadencia] = useState(String(cadenciaDias))
   const [duracion, setDuracion] = useState(duracionMinutos !== null ? String(duracionMinutos) : '')
 
+  const cadenciaInicial = String(cadenciaDias)
+  const duracionInicial = duracionMinutos !== null ? String(duracionMinutos) : ''
+
   function guardarConfiguracion(): void {
-    setError(null)
+    setErrorConfiguracion(null)
+    setErrorCadencia(null)
+    setGuardado(false)
     const cierreNum = Number(cierreSel)
     const ancla = regimenSel === 'cadencia' && inicioSel !== 'cada_n_dias' ? inicioSel : null
     const intervaloNum = ancla !== null || intervaloSel.trim() === '' ? null : Number(intervaloSel)
     const clasesMinimasNum = clasesMinimasSel.trim() === '' ? null : Number(clasesMinimasSel)
     const minimoNum = minimoSel.trim() === '' ? null : Number(minimoSel)
+    // updateCadenciaYDuracion only runs when one of its two fields changed.
+    const cambioCadencia = cadencia !== cadenciaInicial || duracion !== duracionInicial
+    const cadenciaNum = Number(cadencia)
+    const duracionNum = duracion.trim() === '' ? null : Number(duracion)
     startTransition(async () => {
-      const result = await updateTallerConfiguracion({
+      const resultado = await updateTallerConfiguracion({
         tallerId,
         tallerSlug,
         tipo: tipoSel,
@@ -189,53 +224,64 @@ export function ConfiguracionTaller({
         permiteRecuperarClases: recuperarSel,
         ...(tipoSel === 'pareja' ? { momentoEnvioAcceso: momentoSel } : { inscripcionAutomatica: automaticaSel }),
       })
-      if (result.ok) {
-        router.refresh()
-      } else {
-        setError(result.message)
-      }
-    })
-  }
-
-  function guardarCadencia(): void {
-    setError(null)
-    const cadenciaNum = Number(cadencia)
-    const duracionNum = duracion.trim() === '' ? null : Number(duracion)
-    startTransition(async () => {
-      const result = await updateCadenciaYDuracion({
-        tallerId,
-        tallerSlug,
-        cadenciaDias: cadenciaNum,
-        duracionMinutos: duracionNum,
-      })
-      if (result.ok) {
-        router.refresh()
-      } else {
-        setError(result.message)
-      }
+      const resultadoCadencia = cambioCadencia
+        ? await updateCadenciaYDuracion({ tallerId, tallerSlug, cadenciaDias: cadenciaNum, duracionMinutos: duracionNum })
+        : null
+      if (!resultado.ok) setErrorConfiguracion(resultado.message)
+      if (resultadoCadencia && !resultadoCadencia.ok) setErrorCadencia(resultadoCadencia.message)
+      if (resultado.ok || resultadoCadencia?.ok) router.refresh()
+      setGuardado(resultado.ok && (resultadoCadencia === null || resultadoCadencia.ok))
     })
   }
 
   const cierreNumParaLabel = Number(cierreSel)
+  const unidadMinimo = tipoSel === 'pareja' ? 'parejas' : 'personas'
+
+  if (!puedeEditar) {
+    return (
+      <section aria-label="Configuración del taller">
+        <TarjetaSistema className="p-4 sm:p-5">
+          <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Campo titulo="Tipo">{tipoTallerLabel(tipo)}</Campo>
+            {tipo === 'pareja' && <Campo titulo="Vínculo">{vinculoLabel(vinculo)}</Campo>}
+            {tipo === 'pareja' && (
+              <Campo titulo="Envío del acceso al cónyuge nuevo">{MOMENTO_ENVIO_LABEL[momentoEnvioAcceso]}</Campo>
+            )}
+            {tipo === 'individual' && (
+              <Campo titulo={INSCRIPCION_AUTOMATICA_LABEL}>{inscripcionAutomatica ? 'Sí' : 'No'}</Campo>
+            )}
+            <Campo titulo="Régimen">{regimenLabel(regimen)}</Campo>
+            <Campo titulo="Cierre de inscripción">{cierreRelativoLabel(cierreInscripcionOffsetDias)}</Campo>
+            {regimen === 'cadencia' && anclaEdiciones !== null && (
+              <Campo titulo="Inicio de cada edición">{INICIO_EDICION_LABEL[anclaEdiciones]}</Campo>
+            )}
+            {regimen === 'cadencia' && anclaEdiciones === null && intervaloEdicionesDias !== null && (
+              <Campo titulo="Intervalo entre ediciones">{`Cada ${intervaloEdicionesDias} días`}</Campo>
+            )}
+            <Campo titulo="Clases mínimas para el certificado">
+              {clasesMinimasLabel(clasesMinimasParaCompletar)}
+            </Campo>
+            <RecuperarClasesCampo permite={permiteRecuperarClases} onCambio={() => {}} puedeEditar={false} />
+            <Campo titulo="Cadencia y duración">
+              {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
+            </Campo>
+            <MinimoInscritosCampo
+              tipo={tipo}
+              valor={minimoInscritos !== null ? String(minimoInscritos) : ''}
+              onCambio={() => {}}
+              puedeEditar={false}
+            />
+          </dl>
+        </TarjetaSistema>
+      </section>
+    )
+  }
 
   return (
-    <section aria-labelledby="configuracion-heading">
-      <TituloSistema nivel={2} id="configuracion-heading" className="scroll-mt-24">
-        Configuración
-      </TituloSistema>
-      <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-        Lo que se copia en cada edición nueva de este taller.
-      </TextoSistema>
-
-      {error && (
-        <TextoSistema role="alert" className="mt-3 block text-danger-text">
-          {error}
-        </TextoSistema>
-      )}
-
-      {puedeEditar ? (
-        <div className="mt-5 grid gap-6">
-          <GrupoConfiguracion id="config-inscripcion" titulo="Inscripción" descripcion="Para quién es, cuándo se cierra y el mínimo para abrir.">
+    <section aria-label="Configuración del taller" className="grid gap-6">
+      <SeccionesSistema>
+        <GrupoConfiguracion id="config-inscripcion" titulo="Inscripción" descripcion="Para quién es, cuándo se cierra y el mínimo para abrir.">
+          <CamposSistema>
             <SelectSistema
               label="Tipo"
               value={tipoSel}
@@ -279,35 +325,49 @@ export function ConfiguracionTaller({
               <InputSistema
                 label="Cierre de inscripción (días relativos a la primera clase)"
                 type="number"
+                inputMode="numeric"
                 min={-60}
                 max={60}
                 value={cierreSel}
                 onChange={(e) => setCierreSel(e.target.value)}
-                className="font-mono tabular-nums"
               />
               <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
                 {Number.isFinite(cierreNumParaLabel) ? cierreRelativoLabel(cierreNumParaLabel) : ''}
               </TextoSistema>
             </div>
 
-            <div className="md:col-span-2">
-              <MinimoInscritosCampo tipo={tipoSel} valor={minimoSel} onCambio={setMinimoSel} puedeEditar />
+            <div>
+              <InputSistema
+                label={`Mínimo de inscritos para abrir (${unidadMinimo})`}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={500}
+                value={minimoSel}
+                onChange={(e) => setMinimoSel(e.target.value)}
+                placeholder="Sin mínimo"
+              />
             </div>
+          </CamposSistema>
+          <TextoSistema variante="sutil" tamaño="sm" className="block">
+            {NOTA_MINIMO}
+          </TextoSistema>
 
-            {tipoSel === 'individual' && (
-              <div className="flex items-start justify-between gap-3 border-t border-border/60 pt-4 md:col-span-2">
-                <div className="grid gap-1">
-                  <TextoSistema className="block font-medium">{INSCRIPCION_AUTOMATICA_LABEL}</TextoSistema>
-                  <TextoSistema variante="sutil" tamaño="sm" className="block">
-                    Con cupo, la inscripción queda aprobada al momento, sin pasar por Pendientes.
-                  </TextoSistema>
-                </div>
-                <Interruptor activo={automaticaSel} onCambio={setAutomaticaSel} aria-label={INSCRIPCION_AUTOMATICA_LABEL} />
+          {tipoSel === 'individual' && (
+            <div className="flex items-start justify-between gap-3 border-t border-border/60 pt-4">
+              <div className="grid gap-1">
+                <TextoSistema className="block font-medium">{INSCRIPCION_AUTOMATICA_LABEL}</TextoSistema>
+                <TextoSistema variante="sutil" tamaño="sm" className="block">
+                  Con cupo, la inscripción queda aprobada al momento, sin pasar por Pendientes.
+                </TextoSistema>
               </div>
-            )}
-          </GrupoConfiguracion>
+              <Interruptor activo={automaticaSel} onCambio={setAutomaticaSel} aria-label={INSCRIPCION_AUTOMATICA_LABEL} />
+            </div>
+          )}
+        </GrupoConfiguracion>
 
-          <GrupoConfiguracion id="config-ediciones" titulo="Ediciones" descripcion="Cómo se crean y cuándo empieza cada una.">
+        <GrupoConfiguracion id="config-ediciones" titulo="Ediciones" descripcion="Cómo se crean y cuándo empieza cada una.">
+          <CamposSistema>
             <div>
               <SelectSistema
                 label="Régimen"
@@ -347,107 +407,85 @@ export function ConfiguracionTaller({
                 <InputSistema
                   label="Intervalo entre ediciones (días)"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   max={365}
                   value={intervaloSel}
                   onChange={(e) => setIntervaloSel(e.target.value)}
                   placeholder="Sin intervalo"
-                  className="font-mono tabular-nums"
                 />
                 <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
                   28 = mensual
                 </TextoSistema>
               </div>
             )}
-          </GrupoConfiguracion>
+          </CamposSistema>
+        </GrupoConfiguracion>
 
-          <GrupoConfiguracion id="config-clases" titulo="Clases y certificado" descripcion="Cuántas clases hacen falta para el certificado.">
+        <GrupoConfiguracion id="config-clases" titulo="Clases y certificado" descripcion="Cuántas clases hacen falta para el certificado.">
+          <CamposSistema>
             <div>
               <InputSistema
                 label="Clases mínimas para el certificado"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={50}
                 value={clasesMinimasSel}
                 onChange={(e) => setClasesMinimasSel(e.target.value)}
                 placeholder="Todas"
-                className="font-mono tabular-nums"
               />
               <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
                 Vacío = todas las clases dictadas
               </TextoSistema>
             </div>
+          </CamposSistema>
+          <RecuperarClasesCampo permite={recuperarSel} onCambio={setRecuperarSel} puedeEditar />
+        </GrupoConfiguracion>
 
-            <div className="md:col-span-2">
-              <RecuperarClasesCampo permite={recuperarSel} onCambio={setRecuperarSel} puedeEditar />
-            </div>
-          </GrupoConfiguracion>
-
-          <div className="flex justify-end border-t border-border/60 pt-4">
-            <BotonSistema type="button" variante="primario" onClick={guardarConfiguracion} className="w-full sm:w-auto">
-              Guardar configuración
-            </BotonSistema>
-          </div>
-
-          <GrupoConfiguracion id="config-cadencia" titulo="Cadencia y duración" descripcion="Días entre clases y cuánto dura cada una; se guardan aparte.">
+        <GrupoConfiguracion id="config-cadencia" titulo="Cadencia y duración" descripcion="Días entre clases y cuánto dura cada una.">
+          <CamposSistema>
             <InputSistema
               label="Cada N días"
               type="number"
+              inputMode="numeric"
               min={1}
               value={cadencia}
               onChange={(e) => setCadencia(e.target.value)}
-              className="font-mono tabular-nums"
             />
             <InputSistema
               label="Duración (min)"
               type="number"
+              inputMode="numeric"
               min={1}
               value={duracion}
               onChange={(e) => setDuracion(e.target.value)}
-              className="font-mono tabular-nums"
+              placeholder="Sin duración"
             />
-            <div className="md:col-span-2">
-              <BotonSistema type="button" variante="outline" tamaño="sm" onClick={guardarCadencia}>
-                Guardar cadencia
-              </BotonSistema>
-            </div>
-          </GrupoConfiguracion>
-        </div>
-      ) : (
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Campo titulo="Tipo">{tipoTallerLabel(tipo)}</Campo>
-          {tipo === 'pareja' && <Campo titulo="Vínculo">{vinculoLabel(vinculo)}</Campo>}
-          {tipo === 'pareja' && (
-            <Campo titulo="Envío del acceso al cónyuge nuevo">{MOMENTO_ENVIO_LABEL[momentoEnvioAcceso]}</Campo>
-          )}
-          {tipo === 'individual' && (
-            <Campo titulo={INSCRIPCION_AUTOMATICA_LABEL}>{inscripcionAutomatica ? 'Sí' : 'No'}</Campo>
-          )}
-          <Campo titulo="Régimen">{regimenLabel(regimen)}</Campo>
-          <Campo titulo="Cierre de inscripción">{cierreRelativoLabel(cierreInscripcionOffsetDias)}</Campo>
-          {regimen === 'cadencia' && anclaEdiciones !== null && (
-            <Campo titulo="Inicio de cada edición">{INICIO_EDICION_LABEL[anclaEdiciones]}</Campo>
-          )}
-          {regimen === 'cadencia' && anclaEdiciones === null && intervaloEdicionesDias !== null && (
-            <Campo titulo="Intervalo entre ediciones">{`Cada ${intervaloEdicionesDias} días`}</Campo>
-          )}
-          <Campo titulo="Clases mínimas para el certificado">
-            {clasesMinimasLabel(clasesMinimasParaCompletar)}
-          </Campo>
-          <RecuperarClasesCampo permite={permiteRecuperarClases} onCambio={() => {}} puedeEditar={false} />
-          <Campo titulo="Cadencia y duración">
-            {`Cada ${cadenciaDias} días${duracionMinutos !== null ? ` · Duración ${duracionMinutos} min` : ''}`}
-          </Campo>
-          <MinimoInscritosCampo
-            tipo={tipo}
-            valor={minimoInscritos !== null ? String(minimoInscritos) : ''}
-            onCambio={() => {}}
-            puedeEditar={false}
-          />
-        </dl>
-      )}
+          </CamposSistema>
+        </GrupoConfiguracion>
+      </SeccionesSistema>
 
-      {puedeEditar && tallerSlug === PROXIMO_PASO_SLUG && <EnlaceInscripcionProximoPaso />}
+      <PieAccionesSistema>
+        <div className="grid min-w-0 gap-1 sm:mr-auto">
+          {errorConfiguracion && (
+            <TextoSistema role="alert" tamaño="sm" className="block text-danger-text">
+              {`No se guardó la configuración: ${errorConfiguracion}`}
+            </TextoSistema>
+          )}
+          {errorCadencia && (
+            <TextoSistema role="alert" tamaño="sm" className="block text-danger-text">
+              {`No se guardaron la cadencia y la duración: ${errorCadencia}`}
+            </TextoSistema>
+          )}
+          <p aria-live="polite" className="text-sm text-muted-foreground empty:hidden">
+            {guardado ? 'Guardado. Vale para las ediciones que crees desde ahora.' : ''}
+          </p>
+        </div>
+        <BotonSistema type="button" variante="primario" icono={Check} cargando={guardando} onClick={guardarConfiguracion}>
+          Guardar configuración
+        </BotonSistema>
+      </PieAccionesSistema>
     </section>
   )
 }
@@ -464,16 +502,18 @@ function GrupoConfiguracion({
   readonly children: ReactNode
 }): ReactElement {
   return (
-    <section aria-labelledby={id} className="grid gap-4 border-t border-border/60 pt-5 first:border-t-0 first:pt-0">
-      <div>
-        <TituloSistema nivel={3} id={id}>
-          {titulo}
-        </TituloSistema>
-        <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-          {descripcion}
-        </TextoSistema>
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">{children}</div>
+    <section aria-labelledby={id} className="min-w-0">
+      <TarjetaSistema className="grid gap-4 p-4 sm:p-5">
+        <div>
+          <TituloSistema nivel={3} id={id}>
+            {titulo}
+          </TituloSistema>
+          <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+            {descripcion}
+          </TextoSistema>
+        </div>
+        {children}
+      </TarjetaSistema>
     </section>
   )
 }
