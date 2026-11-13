@@ -27,8 +27,8 @@ Fix Dream Team first, then sweep the rest of the system by measured cost.
 
 ## Tasks
 
-- T1 [S2,S3] Migration: scope helpers computed once + rewritten Dream Team SELECT policies; SQL equivalence test; staging, then production. route: inline. commit: —
-- T2 [S1,S4] Servidores page: bulk roles read, parallel waterfall. route: inline. commit: —
+- T1 [S2,S3] Migration: scope helpers computed once + rewritten Dream Team SELECT policies; SQL equivalence test; staging, then production. route: inline. commit: 30b0573e (+ limits test). DONE, applied to production 2026-11-13.
+- T2 [S1,S4] Servidores page: bulk roles read, parallel waterfall (also Estructura). route: inline. commit: 446cdf75. Ships with the PR.
 - T3 [S5] Talleres policies (same per-row helpers). route: TBD. commit: —
 - T4 [S5] Grupos de Vida / usuarios hot queries. route: TBD. commit: —
 - T5 [S6] Infra recommendation with measurements. route: inline. commit: —
@@ -39,3 +39,5 @@ Fix Dream Team first, then sweep the rest of the system by measured cost.
 - L2 (evidence, prod 2026-11-13): authenticated statement_timeout=8s; max_connections=60; DB 150 MB, 1278 usuarios. pg_stat_statements: `select * from dream_team_servicios` mean 3440 ms max 7961 ms; dream_team_servicio_turnos mean 2350 ms; dream_team_equipos mean 1044 ms; grupos by temporada mean 1029 ms max 7976 ms; dream_team_roles by equipo 36k calls.
 - L3 (root cause): dream_team_servicios_select calls 12 recursive-CTE capability checks per row; dream_team_*_select_coordinador_voluntario calls dream_team_puede_registrar_persona per row, which runs dream_team_equipos_registrables() and dream_team_equipos_director() (one recursive check per equipo) per row. Child tables (servicio_turnos, historial, verificacion, participation, turno_fecha_servidores) re-run the servicios policy through EXISTS.
 - L4 (decision): no Redis now; fix query/RLS design first, measure, then decide compute size.
+- L5 (evidence T1): staging per-user RLS snapshot, 26 users, before vs after: 0 differences; ~6.5 s per user (6 reads) before, ~0.2 s after. Production equivalence test (pares=93 registro=10) diferencias=0 before and after applying; edge-case test (depth, revoked, non-equipo scope, NULL equipo, auth.uid() NULL) on staging diferencias=0. Independent verify: S2 PASS.
+- L6 (S3 measured, production, as Engels): `select * from dream_team_servicios` 6238 ms → 48 ms (117 rows both); servicio_turnos 50 ms; equipos 9 ms; roles 13 ms.
