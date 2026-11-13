@@ -52,7 +52,10 @@ SELECT gen_random_uuid() AS dir_auth, gen_random_uuid() AS dir_id,
        gen_random_uuid() AS t_orgm, gen_random_uuid() AS t_etapa,
        gen_random_uuid() AS t_soporte, gen_random_uuid() AS t_glob,
        gen_random_uuid() AS t_dcoord, gen_random_uuid() AS t_dpsdir,
-       gen_random_uuid() AS t_taller;
+       gen_random_uuid() AS t_taller, gen_random_uuid() AS t_lead_b,
+       gen_random_uuid() AS t_coord_glob, gen_random_uuid() AS t_lead_glob,
+       gen_random_uuid() AS t_coord_arriba, gen_random_uuid() AS t_manage,
+       gen_random_uuid() AS t_futura;
 GRANT SELECT ON t_ac TO PUBLIC;
 
 INSERT INTO auth.users (id, instance_id, aud, role, email)
@@ -67,7 +70,9 @@ FROM t_ac d, LATERAL (VALUES
   (d.t_tlr, NULL::uuid, 'T TLR'), (d.t_fuera, NULL, 'T Fuera'), (d.t_subdir, NULL, 'T Subdir'),
   (d.t_par, NULL, 'T Par'), (d.t_orgm, NULL, 'T OrgManage'), (d.t_etapa, NULL, 'T Etapa'),
   (d.t_soporte, NULL, 'T Soporte'), (d.t_glob, NULL, 'T Global'), (d.t_dcoord, NULL, 'T DirCoord'),
-  (d.t_dpsdir, NULL, 'T DpsDir'), (d.t_taller, NULL, 'T Taller')
+  (d.t_dpsdir, NULL, 'T DpsDir'), (d.t_taller, NULL, 'T Taller'), (d.t_lead_b, NULL, 'T LeadB'),
+  (d.t_coord_glob, NULL, 'T CoordGlob'), (d.t_lead_glob, NULL, 'T LeadGlob'),
+  (d.t_coord_arriba, NULL, 'T CoordArriba'), (d.t_manage, NULL, 'T Manage'), (d.t_futura, NULL, 'T Futura')
 ) AS v(id, auth_id, apellido);
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
@@ -76,7 +81,8 @@ FROM t_ac d, LATERAL (VALUES
   (d.dir_id, 'miembro'), (d.plano_id, 'miembro'), (d.t_tlr, 'miembro'), (d.t_fuera, 'lider'),
   (d.t_subdir, 'miembro'), (d.t_par, 'miembro'), (d.t_orgm, 'miembro'), (d.t_etapa, 'director-etapa'),
   (d.t_soporte, 'miembro'), (d.t_glob, 'miembro'), (d.t_dcoord, 'miembro'), (d.t_dpsdir, 'miembro'),
-  (d.t_taller, 'miembro')
+  (d.t_taller, 'miembro'), (d.t_lead_b, 'miembro'), (d.t_coord_glob, 'miembro'), (d.t_lead_glob, 'miembro'),
+  (d.t_coord_arriba, 'miembro'), (d.t_manage, 'miembro'), (d.t_futura, 'miembro')
 ) AS v(usuario_id, rol)
 JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
 
@@ -97,7 +103,9 @@ SELECT v.persona, v.equipo, r.id, 'activo'::public.dream_team_estado, now()
 FROM t_ac d, LATERAL (VALUES
   (d.t_tlr, d.eq_a1), (d.t_fuera, d.eq_a1), (d.t_fuera, d.eq_b), (d.t_subdir, d.eq_a1),
   (d.t_par, d.eq_a1), (d.t_orgm, d.eq_a1), (d.t_etapa, d.eq_a1), (d.t_soporte, d.eq_a1),
-  (d.t_glob, d.eq_a1), (d.t_dcoord, d.eq_a1), (d.t_dpsdir, d.eq_a1), (d.t_taller, d.eq_a1)
+  (d.t_glob, d.eq_a1), (d.t_dcoord, d.eq_a1), (d.t_dpsdir, d.eq_a1), (d.t_taller, d.eq_a1),
+  (d.t_lead_b, d.eq_a1), (d.t_coord_glob, d.eq_a1), (d.t_lead_glob, d.eq_a1), (d.t_coord_arriba, d.eq_a1),
+  (d.t_manage, d.eq_a1), (d.t_futura, d.eq_a1)
 ) AS v(persona, equipo)
 JOIN public.dream_team_roles r ON r.equipo_id = v.equipo;
 
@@ -116,7 +124,13 @@ FROM t_ac d, LATERAL (VALUES
   (d.t_dcoord,  'dream_team.director.coordinate', 'dream_team',   'experience', NULL::text),
   (d.t_dpsdir,  'dps.team.director',           'dps',             'equipo',     d.eq_b::text),
   (d.t_taller,  'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
-  (d.t_taller,  'talleres_crecimiento.team.serve', 'talleres_crecimiento', 'taller', gen_random_uuid()::text)
+  (d.t_taller,  'talleres_crecimiento.team.serve', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_lead_b,  'dps.team.lead',               'dps',             'equipo',     d.eq_b::text),
+  (d.t_coord_glob, 'dream_team.coordinate',    'dream_team',      'equipo',     NULL::text),
+  (d.t_lead_glob, 'estudiantes.team.lead',     'estudiantes',     'experience', NULL::text),
+  (d.t_coord_arriba, 'dream_team.coordinate',  'dream_team',      'equipo',     d.eq_r::text),
+  (d.t_manage,  'talleres_crecimiento.admin.manage', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_futura,  'global_music.team.director',  'global_music',    'equipo',     d.eq_b::text)
 ) AS v(persona, clave, exp, tipo, scope);
 
 INSERT INTO public.support_user_capabilities (usuario_id, capability)
@@ -146,8 +160,27 @@ SELECT pg_temp.ok('S2: does not reach a global (NULL scope) dream_team.direct ho
   NOT public.dream_team_director_alcanza_persona(t_glob)) FROM t_ac;
 SELECT pg_temp.ok('S2: does not reach a dream_team.director.coordinate holder',
   NOT public.dream_team_director_alcanza_persona(t_dcoord)) FROM t_ac;
-SELECT pg_temp.ok('S2: does not reach a dps.team.director outside the tree',
-  NOT public.dream_team_director_alcanza_persona(t_dpsdir)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a dps.team.director outside the tree (alcanza, invitation, profile)',
+  NOT public.dream_team_director_alcanza_persona(t_dpsdir)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_dpsdir)
+  AND NOT public.puede_editar_usuario(dir_auth, t_dpsdir)) FROM t_ac;
+SELECT pg_temp.ok('S2: reaches a person who leads (dps.team.lead) in a sibling equipo',
+  public.dream_team_director_alcanza_persona(t_lead_b)
+  AND public.invitacion_cuenta_puede_invitar(t_lead_b)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a global (NULL scope) dream_team.coordinate holder',
+  NOT public.dream_team_director_alcanza_persona(t_coord_glob)
+  AND NOT public.puede_editar_usuario(dir_auth, t_coord_glob)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a global (NULL scope) *.team.lead holder',
+  NOT public.dream_team_director_alcanza_persona(t_lead_glob)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a coordinator of an equipo above the director',
+  NOT public.dream_team_director_alcanza_persona(t_coord_arriba)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_coord_arriba)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a *.manage holder outside the tree',
+  NOT public.dream_team_director_alcanza_persona(t_manage)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_manage)) FROM t_ac;
+SELECT pg_temp.ok('S2: an unknown key outside the tree still protects (fail-closed)',
+  NOT public.dream_team_director_alcanza_persona(t_futura)
+  AND NOT public.dream_team_puede_editar_ficha(t_futura)) FROM t_ac;
 
 -- S3: general profile.
 SELECT pg_temp.ok('S3: puede_editar_usuario true for the reached people',
