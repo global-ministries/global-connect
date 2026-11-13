@@ -138,6 +138,7 @@ jest.mock('@/lib/platform/dream-team/personas', () => ({
 import DreamTeamMiEquipoPage from '@/app/(auth)/dream-team/mi-equipo/page'
 import { MiEquipoClient, type MiEquipoClientProps } from '@/components/dream-team/mi-equipo/mi-equipo-client'
 import { accionesPersonaMiEquipo } from '@/lib/platform/dream-team/mi-equipo-filtros'
+import { permisosMiEquipo } from '@/lib/platform/dream-team/acciones-servicio'
 
 async function renderizar(searchParams?: Record<string, string | string[]>): Promise<MiEquipoClientProps> {
   const element = (await DreamTeamMiEquipoPage({
@@ -168,7 +169,7 @@ beforeEach(() => {
   mockFichasEditables = []
   mockPuedeRegistrar = false
   isDreamTeamEnabled.mockReturnValue(true)
-  requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
+  requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [] })
   hasDreamTeamMiEquipoAccess.mockReturnValue(true)
   hasDreamTeamWriteCapability.mockReturnValue(true)
   fetchContactosPersonas.mockReset().mockResolvedValue(new Map())
@@ -186,7 +187,7 @@ describe('mi-equipo page — authorization', () => {
     requireDreamTeamSession.mockResolvedValue(null)
     await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
 
-    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [] })
     hasDreamTeamMiEquipoAccess.mockReturnValue(false)
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
   })
@@ -445,7 +446,7 @@ describe('mi-equipo page — phone and account of each person', () => {
     requireDreamTeamSession.mockResolvedValue(null)
     await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
     hasDreamTeamMiEquipoAccess.mockReturnValue(false)
-    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [] })
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
     expect(fetchContactosPersonas).not.toHaveBeenCalled()
   })
@@ -523,5 +524,54 @@ describe('mi-equipo page — the area director from the database (S5 of dream-te
     mockRegistrables = []
     mockPuedeRegistrar = null
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
+  })
+})
+
+describe('mi-equipo page — the area coordinator (S6 of director-alcance-completo)', () => {
+  const sinCuenta = new Map([
+    ['p1', { telefono: null, tieneCuenta: false }],
+    ['p2', { telefono: null, tieneCuenta: false }],
+    ['p3', { telefono: null, tieneCuenta: false }],
+  ])
+
+  it('a dream_team.coordinate holder who registers nobody gets Editar ficha and Invitar exactly where the database says, nothing else', async () => {
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [{ key: 'dream_team.coordinate' }] })
+    mockRegistrables = []
+    mockFichasEditables = ['p3']
+    fetchInvitacionesServidores.mockResolvedValue({ resumenes: new Map(), sinCuenta: new Set(['p2']) })
+    fetchContactosPersonas.mockResolvedValue(sinCuenta)
+
+    const props = await renderizar({ direccion: 'dir-a' })
+    expect(props.rol).toBe('coordinador_area')
+    expect(permisosMiEquipo(props.rol).registrar).toBe(false)
+    const acciones = Object.fromEntries(
+      (props.vista?.personas ?? []).map((p) => {
+        const a = accionesPersonaMiEquipo(p, props.rol)
+        return [p.nombre, { ficha: a.editarFicha, invitar: a.invitar, etapa: a.cambiarEtapa, turnos: a.turnosDe !== undefined }]
+      }),
+    )
+    const nada = { ficha: false, invitar: false, etapa: false, turnos: false }
+    expect(acciones).toEqual({
+      'Ana Directora': nada,
+      'Bea Coordinadora': { ...nada, invitar: true },
+      'Carla Facilitadora': { ...nada, ficha: true },
+      'Lidia Lider': nada,
+    })
+  })
+
+  it('without dream_team.coordinate the read-only viewer stays sin_permisos', async () => {
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [{ key: 'dream_team.serve' }] })
+    mockFichasEditables = ['p3']
+    expect((await renderizar({ direccion: 'dir-a' })).rol).toBe('sin_permisos')
+  })
+
+  it('the write capability and registering still win over coordinating', async () => {
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [{ key: 'dream_team.coordinate' }] })
+    expect((await renderizar()).rol).toBe('director')
+    hasDreamTeamWriteCapability.mockReturnValue(false)
+    mockRegistrables = [{ equipo_id: 'eq-a1' }]
+    expect((await renderizar()).rol).toBe('coordinador')
   })
 })

@@ -76,8 +76,13 @@ export function puedeCambiarArea(fila: {
   return fila.origen === 'dream_team' && fila.servicioId !== undefined && fila.estado !== 'retirado' && fila.areaCambiable === true
 }
 
-/** The viewer's role in Mi equipo. */
-export type RolMiEquipo = 'director' | 'coordinador' | 'sin_permisos'
+/**
+ * The viewer's role in Mi equipo. `coordinador_area` is an area or sub-area
+ * coordinator (dream_team.coordinate) who registers nobody: only the ficha and
+ * the invite, where the database reaches the person (S6 of
+ * odd/tasks/director-alcance-completo.md).
+ */
+export type RolMiEquipo = 'director' | 'coordinador' | 'coordinador_area' | 'sin_permisos'
 
 export interface PermisosMiEquipo {
   /** "Agregar persona" / registrar a new person. */
@@ -91,6 +96,8 @@ export interface PermisosMiEquipo {
 const PERMISOS_MI_EQUIPO: Readonly<Record<RolMiEquipo, PermisosMiEquipo>> = {
   director: { registrar: true, cambiarEtapa: true, editarFicha: true, turnos: true, invitar: true },
   coordinador: { registrar: true, cambiarEtapa: false, editarFicha: true, turnos: true, invitar: true },
+  // The shifts API (servicios/[id]/turnos) still refuses them, so no shifts.
+  coordinador_area: { registrar: false, cambiarEtapa: false, editarFicha: true, turnos: false, invitar: true },
   sin_permisos: { registrar: false, cambiarEtapa: false, editarFicha: false, turnos: false, invitar: false },
 }
 
@@ -112,13 +119,14 @@ export interface ServicioMiEquipo {
 /**
  * Mi equipo's role grants through the same rule as Servidores: the stage
  * follows `cambiarEtapa`, the ficha (and with it shifts and the invite)
- * follows `editarFicha`, never on a retired servicio. A Grupos de Vida
- * servicio is managed in Grupos de Vida, so it is read-only for every role.
+ * follows `editarFicha`, never on a retired servicio; shifts only for a role
+ * with `turnos`. A Grupos de Vida servicio is managed in Grupos de Vida, so it
+ * is read-only for every role.
  */
 export function accionesDeServicioMiEquipo(servicio: ServicioMiEquipo, rol: RolMiEquipo): AccionesServicio {
   const permisos = permisosMiEquipo(rol)
   const dreamTeam = servicio.origen === 'dream_team'
-  return accionesDeServicio({
+  const acciones = accionesDeServicio({
     editable: dreamTeam && permisos.cambiarEtapa,
     fichaEditable: dreamTeam && permisos.editarFicha && servicio.estado !== 'retirado',
     servicioId: servicio.servicioId,
@@ -127,4 +135,5 @@ export function accionesDeServicioMiEquipo(servicio: ServicioMiEquipo, rol: RolM
     tieneCuenta: servicio.tieneCuenta,
     invitable: servicio.invitable,
   })
+  return permisos.turnos ? acciones : { ...acciones, turnosDe: undefined }
 }
