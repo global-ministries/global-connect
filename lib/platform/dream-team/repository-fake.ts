@@ -216,6 +216,10 @@ export function createInMemoryDreamTeamRepository(
       return updated
     },
 
+    async listRoles() {
+      return [...roles]
+    },
+
     async listRolesPorEquipo(equipoId) {
       return roles.filter((r) => r.equipoId === equipoId)
     },

@@ -69,6 +69,8 @@ export interface DreamTeamRepository {
   updateEquipo(id: string, patch: DreamTeamEquipoUpdate): Promise<DreamTeamEquipo>
 
   // Roles
+  /** Every role the caller can read, in one request (RLS scopes it). */
+  listRoles(): Promise<readonly DreamTeamRol[]>
   listRolesPorEquipo(equipoId: string): Promise<readonly DreamTeamRol[]>
   createRol(input: Omit<DreamTeamRol, 'id'>): Promise<DreamTeamRol>
   updateRol(id: string, patch: DreamTeamRolUpdate): Promise<DreamTeamRol>
