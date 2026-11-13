@@ -39,6 +39,13 @@ describe('rolMiEquipo', () => {
     expect(rolMiEquipo({ puedeEditar: false, puedeRegistrar: true })).toBe('coordinador')
     expect(rolMiEquipo({ puedeEditar: false, puedeRegistrar: false })).toBe('sin_permisos')
   })
+
+  it('dream_team.coordinate alone is the coordinador de área; editing or registering still win (S6)', () => {
+    expect(rolMiEquipo({ puedeEditar: false, puedeRegistrar: false, coordinaArea: true })).toBe('coordinador_area')
+    expect(rolMiEquipo({ puedeEditar: false, puedeRegistrar: false, coordinaArea: false })).toBe('sin_permisos')
+    expect(rolMiEquipo({ puedeEditar: true, puedeRegistrar: false, coordinaArea: true })).toBe('director')
+    expect(rolMiEquipo({ puedeEditar: false, puedeRegistrar: true, coordinaArea: true })).toBe('coordinador')
+  })
 })
 
 describe('accionesPersonaMiEquipo', () => {
@@ -104,6 +111,31 @@ describe('accionesPersonaMiEquipo', () => {
     expect(acciones).toMatchObject({ editarFicha: true, invitar: false })
     expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: false }), 'director').invitar).toBe(false)
     expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: true, tieneCuenta: true }), 'director').invitar).toBe(false)
+  })
+
+  it('coordinador de área (S6): Editar ficha and Invitar exactly where the database says, never stage nor shifts', () => {
+    const nada = { cambiarEtapa: false, turnosDe: undefined, servicio: null }
+    expect(accionesPersonaMiEquipo(servicio(), 'coordinador_area')).toEqual({ ...nada, alguna: true, editarFicha: true, invitar: true })
+    expect(accionesPersonaMiEquipo(servicio({ invitable: false }), 'coordinador_area')).toEqual({
+      ...nada,
+      alguna: true,
+      editarFicha: true,
+      invitar: false,
+    })
+    expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: true }), 'coordinador_area')).toEqual({
+      ...nada,
+      alguna: true,
+      editarFicha: false,
+      invitar: true,
+    })
+    expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false, invitable: false }), 'coordinador_area')).toEqual({
+      ...nada,
+      alguna: false,
+      editarFicha: false,
+      invitar: false,
+    })
+    expect(accionesPersonaMiEquipo(servicio({ fichaEditable: false }), 'coordinador_area').alguna).toBe(false)
+    expect(accionesPersonaMiEquipo(servicio({ tieneCuenta: true }), 'coordinador_area').invitar).toBe(false)
   })
 
   it('invites only someone known to have no account', () => {
