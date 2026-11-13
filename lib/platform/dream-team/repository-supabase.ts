@@ -338,6 +338,24 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     return mapEquipo(data)
   }
 
+  // One request instead of one per equipo. Paged so a tree with more roles
+  // than PostgREST's max-rows still comes back whole.
+  async function listRoles(): Promise<readonly DreamTeamRol[]> {
+    const PAGINA = 1000
+    const filas: DbRol[] = []
+    for (let desde = 0; ; desde += PAGINA) {
+      const { data, error } = await client
+        .from('dream_team_roles')
+        .select()
+        .order('id')
+        .range(desde, desde + PAGINA - 1)
+      if (error) throw error
+      filas.push(...(data ?? []))
+      if (!data || data.length < PAGINA) break
+    }
+    return filas.map(mapRol)
+  }
+
   async function listRolesPorEquipo(equipoId: string): Promise<readonly DreamTeamRol[]> {
     const { data, error } = await client.from('dream_team_roles').select().eq('equipo_id', equipoId)
     if (error) throw error
@@ -538,6 +556,7 @@ export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRe
     listEquipos,
     createEquipo,
     updateEquipo,
+    listRoles,
     listRolesPorEquipo,
     createRol,
     updateRol,

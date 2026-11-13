@@ -471,6 +471,15 @@ describe('InMemoryDreamTeamRepository', () => {
       expect(result).toHaveLength(2)
       expect(result.map((r) => r.id)).toEqual(['rol-a', 'rol-b'])
     })
+
+    it('lists every role in one call (listRoles)', async () => {
+      const roles = [makeRol('rol-a', 'equipo-1'), makeRol('rol-b', 'equipo-1'), makeRol('rol-c', 'equipo-2')]
+      const repo = createInMemoryDreamTeamRepository({ seed: { roles } })
+
+      const result = await repo.listRoles()
+
+      expect(result.map((r) => r.id)).toEqual(['rol-a', 'rol-b', 'rol-c'])
+    })
   })
 
   describe('Equipos and Roles writes (org tree writable — Step 1)', () => {
