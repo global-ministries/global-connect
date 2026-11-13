@@ -82,13 +82,16 @@ const servicio = (id: string, equipoId: string, rol: string, persona: string, es
 })
 
 let mockServicios: DreamTeamServicio[] = []
+const mockListRoles = jest.fn(async () => ROLES)
+const mockListRolesPorEquipo = jest.fn(async (_equipoId: string) => ROLES)
 let mockLideres: DreamTeamLiderGdv[] = []
 let mockNodosGdv: NodoEstructuraGdv[] = []
 jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
   createSupabaseDreamTeamRepository: () => ({
     listEquipos: async () => EQUIPOS,
     listServicios: async () => mockServicios,
-    listRolesPorEquipo: async () => ROLES,
+    listRoles: () => mockListRoles(),
+    listRolesPorEquipo: (equipoId: string) => mockListRolesPorEquipo(equipoId),
   }),
 }))
 jest.mock('@/lib/platform/dream-team/edad', () => ({
@@ -176,6 +179,14 @@ describe('authorization', () => {
 })
 
 describe('rows', () => {
+  it('reads every role in one request, never one per equipo', async () => {
+    mockListRoles.mockClear()
+    mockListRolesPorEquipo.mockClear()
+    await renderizar()
+    expect(mockListRoles).toHaveBeenCalledTimes(1)
+    expect(mockListRolesPorEquipo).not.toHaveBeenCalled()
+  })
+
   it('builds one flat row per servicio and per Grupos de Vida leader, resolved server-side', async () => {
     const { filas } = await renderizar()
     expect(filas).toHaveLength(4)

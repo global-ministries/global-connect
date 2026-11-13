@@ -53,6 +53,7 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
   createSupabaseDreamTeamRepository: () => ({
     listEquipos: async () => mockEquipos,
     listServicios: async () => [],
+    listRoles: async () => [],
     listRolesPorEquipo: async () => [],
   }),
 }))
