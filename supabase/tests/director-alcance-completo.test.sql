@@ -1,6 +1,6 @@
 -- odd/tasks/director-alcance-completo.md, T2 — an area director reaches
 -- everyone in their equipo tree (migration
--- 20261113120000_director_alcance_completo.sql).
+-- 20261113185740_director_alcance_completo.sql).
 --
 -- Tree: R > A > A1, and B under R. The director holds dream_team.direct on A.
 -- Every target below serves (activo) in A1, all with system role miembro
