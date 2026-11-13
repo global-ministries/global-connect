@@ -13,9 +13,12 @@
 -- the general profile of any of them (S3).
 --
 --   1. dream_team_director_alcanza_persona(p_persona_id): same rule except the
---      grant cap. Now only a dream_team.direct or dream_team.org.manage grant
---      that does not sit on an equipo of the director's subtree blocks (a
---      peer director or an organization manager). Unchanged: a non-retired
+--      grant cap. Grants outside the director's subtree that only serve, lead
+--      or coordinate (dream_team.serve/lead/coordinate, *.team.serve,
+--      *.team.lead, talleres coordinator.read/write) no longer block; every
+--      other grant outside the subtree still blocks (peer directors, org
+--      managers, dream_team.director.coordinate, *.director, *.manage,
+--      metrics readers, and any future key). Unchanged: a non-retired
 --      servicio in the subtree, every system role within {miembro, lider}, no
 --      active support capability.
 --   2. puede_editar_usuario: 20261101200000_mi_familia.sql section 3 copied
@@ -65,7 +68,15 @@ AS $function$
                        FROM public.dream_team_capability_grants g
                       WHERE g.persona_id = p_persona_id
                         AND g.revoked_at IS NULL
-                        AND g.capability_key IN ('dream_team.direct', 'dream_team.org.manage')
+                        -- Serving, leading or coordinating elsewhere does not protect; any
+                        -- other grant outside the subtree (direct, org.manage, director.coordinate,
+                        -- *.director, *.manage, metrics...) still does. Fail-closed for new keys.
+                        AND NOT (g.capability_key IN ('dream_team.serve', 'dream_team.lead',
+                                                      'dream_team.coordinate',
+                                                      'talleres_crecimiento.coordinator.read',
+                                                      'talleres_crecimiento.coordinator.write')
+                                 OR g.capability_key LIKE '%.team.serve'
+                                 OR g.capability_key LIKE '%.team.lead')
                         AND NOT EXISTS (SELECT 1
                                           FROM public.dream_team_equipos e
                                          WHERE e.id::text = g.scope_id
@@ -78,9 +89,9 @@ $function$;
 
 COMMENT ON FUNCTION public.dream_team_director_alcanza_persona(uuid) IS
   'Whether the actor, as a Dream Team area director, reaches the person: a non-retired servicio in '
-  'their dream_team.direct subtree, every system role miembro or lider, no dream_team.direct or '
-  'dream_team.org.manage grant outside that subtree (serving, leading or coordinating elsewhere does '
-  'not count) and no active support capability.';
+  'their dream_team.direct subtree, every system role miembro or lider, no grant outside that '
+  'subtree other than serve, lead or coordinate ones (peer directors, org managers, global and '
+  'manage grants stay protected) and no active support capability.';
 
 REVOKE ALL ON FUNCTION public.dream_team_director_alcanza_persona(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.dream_team_director_alcanza_persona(uuid) TO authenticated;

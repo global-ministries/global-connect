@@ -50,7 +50,9 @@ SELECT gen_random_uuid() AS dir_auth, gen_random_uuid() AS dir_id,
        gen_random_uuid() AS t_tlr, gen_random_uuid() AS t_fuera,
        gen_random_uuid() AS t_subdir, gen_random_uuid() AS t_par,
        gen_random_uuid() AS t_orgm, gen_random_uuid() AS t_etapa,
-       gen_random_uuid() AS t_soporte;
+       gen_random_uuid() AS t_soporte, gen_random_uuid() AS t_glob,
+       gen_random_uuid() AS t_dcoord, gen_random_uuid() AS t_dpsdir,
+       gen_random_uuid() AS t_taller;
 GRANT SELECT ON t_ac TO PUBLIC;
 
 INSERT INTO auth.users (id, instance_id, aud, role, email)
@@ -64,7 +66,8 @@ FROM t_ac d, LATERAL (VALUES
   (d.dir_id, d.dir_auth, 'Director'), (d.plano_id, d.plano_auth, 'Plano'),
   (d.t_tlr, NULL::uuid, 'T TLR'), (d.t_fuera, NULL, 'T Fuera'), (d.t_subdir, NULL, 'T Subdir'),
   (d.t_par, NULL, 'T Par'), (d.t_orgm, NULL, 'T OrgManage'), (d.t_etapa, NULL, 'T Etapa'),
-  (d.t_soporte, NULL, 'T Soporte')
+  (d.t_soporte, NULL, 'T Soporte'), (d.t_glob, NULL, 'T Global'), (d.t_dcoord, NULL, 'T DirCoord'),
+  (d.t_dpsdir, NULL, 'T DpsDir'), (d.t_taller, NULL, 'T Taller')
 ) AS v(id, auth_id, apellido);
 
 INSERT INTO public.usuario_roles (usuario_id, rol_id)
@@ -72,7 +75,8 @@ SELECT v.usuario_id, rs.id
 FROM t_ac d, LATERAL (VALUES
   (d.dir_id, 'miembro'), (d.plano_id, 'miembro'), (d.t_tlr, 'miembro'), (d.t_fuera, 'lider'),
   (d.t_subdir, 'miembro'), (d.t_par, 'miembro'), (d.t_orgm, 'miembro'), (d.t_etapa, 'director-etapa'),
-  (d.t_soporte, 'miembro')
+  (d.t_soporte, 'miembro'), (d.t_glob, 'miembro'), (d.t_dcoord, 'miembro'), (d.t_dpsdir, 'miembro'),
+  (d.t_taller, 'miembro')
 ) AS v(usuario_id, rol)
 JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
 
@@ -92,7 +96,8 @@ INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, 
 SELECT v.persona, v.equipo, r.id, 'activo'::public.dream_team_estado, now()
 FROM t_ac d, LATERAL (VALUES
   (d.t_tlr, d.eq_a1), (d.t_fuera, d.eq_a1), (d.t_fuera, d.eq_b), (d.t_subdir, d.eq_a1),
-  (d.t_par, d.eq_a1), (d.t_orgm, d.eq_a1), (d.t_etapa, d.eq_a1), (d.t_soporte, d.eq_a1)
+  (d.t_par, d.eq_a1), (d.t_orgm, d.eq_a1), (d.t_etapa, d.eq_a1), (d.t_soporte, d.eq_a1),
+  (d.t_glob, d.eq_a1), (d.t_dcoord, d.eq_a1), (d.t_dpsdir, d.eq_a1), (d.t_taller, d.eq_a1)
 ) AS v(persona, equipo)
 JOIN public.dream_team_roles r ON r.equipo_id = v.equipo;
 
@@ -106,7 +111,12 @@ FROM t_ac d, LATERAL (VALUES
   (d.t_fuera,   'dream_team.coordinate',       'dream_team',      'equipo',     d.eq_b::text),
   (d.t_subdir,  'dream_team.direct',           'dream_team',      'equipo',     d.eq_a1::text),
   (d.t_par,     'dream_team.direct',           'dream_team',      'equipo',     d.eq_b::text),
-  (d.t_orgm,    'dream_team.org.manage',       'dream_team',      'equipo',     d.eq_r::text)
+  (d.t_orgm,    'dream_team.org.manage',       'dream_team',      'equipo',     d.eq_r::text),
+  (d.t_glob,    'dream_team.direct',           'dream_team',      'experience', NULL::text),
+  (d.t_dcoord,  'dream_team.director.coordinate', 'dream_team',   'experience', NULL::text),
+  (d.t_dpsdir,  'dps.team.director',           'dps',             'equipo',     d.eq_b::text),
+  (d.t_taller,  'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_taller,  'talleres_crecimiento.team.serve', 'talleres_crecimiento', 'taller', gen_random_uuid()::text)
 ) AS v(persona, clave, exp, tipo, scope);
 
 INSERT INTO public.support_user_capabilities (usuario_id, capability)
@@ -130,6 +140,14 @@ SELECT pg_temp.ok('S2: does not reach a person with system role director-etapa',
   NOT public.dream_team_director_alcanza_persona(t_etapa)) FROM t_ac;
 SELECT pg_temp.ok('S2: does not reach a person with a support capability',
   NOT public.dream_team_director_alcanza_persona(t_soporte)) FROM t_ac;
+SELECT pg_temp.ok('S2: reaches a person who coordinates and serves in a taller',
+  public.dream_team_director_alcanza_persona(t_taller)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a global (NULL scope) dream_team.direct holder',
+  NOT public.dream_team_director_alcanza_persona(t_glob)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a dream_team.director.coordinate holder',
+  NOT public.dream_team_director_alcanza_persona(t_dcoord)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a dps.team.director outside the tree',
+  NOT public.dream_team_director_alcanza_persona(t_dpsdir)) FROM t_ac;
 
 -- S3: general profile.
 SELECT pg_temp.ok('S3: puede_editar_usuario true for the reached people',
@@ -156,6 +174,14 @@ SELECT pg_temp.ok('S4: ficha editable for the reached people',
 SELECT pg_temp.ok('S4: invitation and ficha refused for a peer director',
   NOT public.invitacion_cuenta_puede_invitar(t_par)
   AND NOT public.dream_team_puede_editar_ficha(t_par)) FROM t_ac;
+SELECT pg_temp.ok('S4: invitation and ficha refused for org manager, director-etapa, support, global and director.coordinate',
+  NOT public.invitacion_cuenta_puede_invitar(t_orgm) AND NOT public.dream_team_puede_editar_ficha(t_orgm)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_etapa) AND NOT public.dream_team_puede_editar_ficha(t_etapa)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_soporte) AND NOT public.dream_team_puede_editar_ficha(t_soporte)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_glob) AND NOT public.puede_editar_usuario(dir_auth, t_glob)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_dcoord) AND NOT public.puede_editar_usuario(dir_auth, t_dcoord)) FROM t_ac;
+SELECT pg_temp.ok('S4: invitation and profile allowed for the taller coordinator',
+  public.invitacion_cuenta_puede_invitar(t_taller) AND public.puede_editar_usuario(dir_auth, t_taller)) FROM t_ac;
 
 -- A plain user reaches nobody, and cannot borrow the director's auth id.
 SELECT pg_temp.como(plano_auth) FROM t_ac;
@@ -165,6 +191,15 @@ SELECT pg_temp.ok('S3: a plain user reaches nobody',
 SELECT pg_temp.ok('S3: a plain user passing the director''s auth id gets nothing',
   NOT public.puede_editar_usuario(dir_auth, t_tlr)) FROM t_ac;
 
+RESET ROLE;
+
+-- service_role acting for the director does not get the director branch.
+SET LOCAL ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
+SELECT pg_temp.ok('S3: service_role passing the director''s auth id does not get the director branch',
+  NOT public.puede_editar_usuario(dir_auth, t_tlr)) FROM t_ac;
 RESET ROLE;
 
 DO $$

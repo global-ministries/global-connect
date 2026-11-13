@@ -16,10 +16,8 @@
 --       two allowed fichas.
 --   S3 (grants). A miembro in A1 whose grant sits inside A (a line-2
 --       director) is allowed, also with a taller-scoped grant whose scope is
---       an equipo inside A (a talleres coordinator), and also with a taller
---       grant outside the tree (odd/tasks/director-alcance-completo.md, S2,
---       20261113120000: serving, leading or coordinating elsewhere does not
---       block); one with dream_team.direct on B or a support capability is
+--       an equipo inside A (a talleres coordinator); one with dream_team.direct
+--       on B, a taller grant outside the tree or a support capability is
 --       refused; a person retired in A but
 --       active in B is refused.
 --   S4 is covered by supabase/tests/invitaciones-cuenta.test.sql (run it too).
@@ -213,8 +211,9 @@ SELECT pg_temp.pasa('S3: director invites a talleres coordinator of their subtre
 SELECT pg_temp.falla('S3: refused when the target directs a sibling area',
   format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_otra_area, 'da-otra@example.test'),
   'sin_autoridad') FROM t_da;
-SELECT pg_temp.pasa('S3: director invites a person who also holds a taller grant outside the tree',
-  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_taller, 'da-taller@example.test')) FROM t_da;
+SELECT pg_temp.falla('S3: refused when the target holds a taller grant',
+  format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_taller, 'da-taller@example.test'),
+  'sin_autoridad') FROM t_da;
 SELECT pg_temp.falla('S3: refused when the target holds a support capability',
   format('SELECT public.invitacion_cuenta_crear(%L, %L)', t_soporte, 'da-soporte@example.test'),
   'sin_autoridad') FROM t_da;
