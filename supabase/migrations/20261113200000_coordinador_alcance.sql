@@ -105,11 +105,18 @@ AS $function$
                         AND NOT (
                               g.capability_key = 'dream_team.serve'
                            OR g.capability_key LIKE '%.team.serve'
-                           OR ((g.capability_key IN ('dream_team.lead', 'dream_team.coordinate',
-                                                     'dream_team.gdv.lead',
+                           -- Leading on an equipo the actor coordinates (their own líderes)
+                           -- or below it is harmless; leading above it is not.
+                           OR ((g.capability_key IN ('dream_team.lead', 'dream_team.gdv.lead',
                                                      'talleres_crecimiento.coordinator.read',
                                                      'talleres_crecimiento.coordinator.write')
                                 OR g.capability_key LIKE '%.team.lead')
+                               AND g.scope_id IS NOT NULL
+                               AND (EXISTS (SELECT 1 FROM coordina c WHERE c.id::text = g.scope_id)
+                                    OR NOT EXISTS (SELECT 1 FROM sobre_mi sm WHERE sm.id::text = g.scope_id)))
+                           -- Coordinating on the actor's equipo or above (a co-coordinator or a
+                           -- superior) protects; coordinating below or in a sibling area does not.
+                           OR (g.capability_key = 'dream_team.coordinate'
                                AND g.scope_id IS NOT NULL
                                AND NOT EXISTS (SELECT 1 FROM sobre_mi sm WHERE sm.id::text = g.scope_id))))
      AND NOT EXISTS (SELECT 1

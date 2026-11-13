@@ -50,7 +50,7 @@ SELECT gen_random_uuid() AS co_auth, gen_random_uuid() AS co_id,
        gen_random_uuid() AS dir_auth, gen_random_uuid() AS dir_id,
        gen_random_uuid() AS eq_r, gen_random_uuid() AS eq_a, gen_random_uuid() AS eq_x,
        gen_random_uuid() AS eq_x1, gen_random_uuid() AS eq_s,
-       gen_random_uuid() AS t_vol, gen_random_uuid() AS t_lid, gen_random_uuid() AS t_tlr,
+       gen_random_uuid() AS t_vol, gen_random_uuid() AS t_lid, gen_random_uuid() AS t_lid_x, gen_random_uuid() AS t_tlr,
        gen_random_uuid() AS t_hermano, gen_random_uuid() AS t_coord_x1, gen_random_uuid() AS t_gdv,
        gen_random_uuid() AS t_cocoord, gen_random_uuid() AS t_dir_dentro,
        gen_random_uuid() AS t_coord_padre, gen_random_uuid() AS t_lead_padre,
@@ -69,7 +69,7 @@ SELECT v.id, v.auth_id, 'CO', v.apellido, 'Otro'::public.enum_genero, 'Soltero':
 FROM t_co d, LATERAL (VALUES
   (d.co_id, d.co_auth, 'Coordinador'), (d.nulo_id, d.nulo_auth, 'CoordNulo'),
   (d.plano_id, d.plano_auth, 'Plano'), (d.dir_id, d.dir_auth, 'DirectorA'),
-  (d.t_vol, NULL::uuid, 'T Vol'), (d.t_lid, NULL, 'T Lid'), (d.t_tlr, NULL, 'T TLR'),
+  (d.t_vol, NULL::uuid, 'T Vol'), (d.t_lid, NULL, 'T Lid'), (d.t_lid_x, NULL, 'T LidX'), (d.t_tlr, NULL, 'T TLR'),
   (d.t_hermano, NULL, 'T Hermano'), (d.t_coord_x1, NULL, 'T CoordX1'), (d.t_gdv, NULL, 'T Gdv'),
   (d.t_cocoord, NULL, 'T CoCoord'), (d.t_dir_dentro, NULL, 'T DirDentro'),
   (d.t_coord_padre, NULL, 'T CoordPadre'), (d.t_lead_padre, NULL, 'T LeadPadre'),
@@ -82,7 +82,7 @@ INSERT INTO public.usuario_roles (usuario_id, rol_id)
 SELECT v.usuario_id, rs.id
 FROM t_co d, LATERAL (VALUES
   (d.co_id, 'miembro'), (d.nulo_id, 'miembro'), (d.plano_id, 'miembro'), (d.dir_id, 'miembro'),
-  (d.t_vol, 'miembro'), (d.t_lid, 'lider'), (d.t_tlr, 'miembro'), (d.t_hermano, 'lider'),
+  (d.t_vol, 'miembro'), (d.t_lid, 'lider'), (d.t_lid_x, 'miembro'), (d.t_tlr, 'miembro'), (d.t_hermano, 'lider'),
   (d.t_coord_x1, 'miembro'), (d.t_gdv, 'lider'), (d.t_cocoord, 'miembro'), (d.t_dir_dentro, 'miembro'),
   (d.t_coord_padre, 'miembro'), (d.t_lead_padre, 'miembro'), (d.t_coord_glob, 'miembro'),
   (d.t_lead_glob, 'miembro'), (d.t_etapa, 'director-etapa'), (d.t_soporte, 'miembro'),
@@ -107,7 +107,7 @@ INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, 
 SELECT v.persona, v.equipo, r.id, v.estado::public.dream_team_estado, now() - interval '1 day',
        CASE WHEN v.estado = 'retirado' THEN now() END
 FROM t_co d, LATERAL (VALUES
-  (d.co_id, d.eq_x, 'activo'), (d.t_vol, d.eq_x, 'activo'), (d.t_lid, d.eq_x1, 'activo'),
+  (d.co_id, d.eq_x, 'activo'), (d.t_vol, d.eq_x, 'activo'), (d.t_lid, d.eq_x1, 'activo'), (d.t_lid_x, d.eq_x, 'activo'),
   (d.t_tlr, d.eq_x1, 'activo'), (d.t_hermano, d.eq_x, 'activo'), (d.t_hermano, d.eq_s, 'activo'),
   (d.t_coord_x1, d.eq_x1, 'activo'), (d.t_gdv, d.eq_x, 'activo'), (d.t_cocoord, d.eq_x, 'activo'),
   (d.dir_id, d.eq_x, 'activo'), (d.t_dir_dentro, d.eq_x1, 'activo'), (d.t_coord_padre, d.eq_x, 'activo'),
@@ -127,6 +127,10 @@ FROM t_co d, LATERAL (VALUES
   (d.dir_id,       'dream_team.direct',          'dream_team',      'equipo',     d.eq_a::text),
   (d.t_vol,        'dream_team.serve',           'dream_team',      'equipo',     d.eq_x::text),
   (d.t_lid,        'dream_team.lead',            'dream_team',      'equipo',     d.eq_x1::text),
+  (d.t_lid_x,      'dream_team.lead',            'dream_team',      'equipo',     d.eq_x::text),
+  (d.t_lid_x,      'dream_team.serve',           'dream_team',      'equipo',     d.eq_x::text),
+  (d.t_lid_x,      'estudiantes.team.lead',      'estudiantes',     'equipo',     d.eq_x::text),
+  (d.t_cocoord,    'estudiantes.team.lead',      'estudiantes',     'equipo',     d.eq_x::text),
   (d.t_lid,        'dream_team.serve',           'dream_team',      'equipo',     d.eq_x1::text),
   (d.t_tlr,        'the_living_room.team.serve', 'the_living_room', 'experience', NULL::text),
   (d.t_hermano,    'dream_team.serve',           'dream_team',      'equipo',     d.eq_s::text),
@@ -166,6 +170,10 @@ SELECT pg_temp.ok('S6: reaches a group leader (dream_team.gdv.lead)',
   public.dream_team_coordinador_alcanza_persona(t_gdv)) FROM t_co;
 SELECT pg_temp.ok('S6: does not reach a co-coordinator of X',
   NOT public.dream_team_coordinador_alcanza_persona(t_cocoord)) FROM t_co;
+SELECT pg_temp.ok('S6: reaches a líder of the coordinator''s own equipo (lead on X)',
+  public.dream_team_coordinador_alcanza_persona(t_lid_x)
+  AND public.invitacion_cuenta_puede_invitar(t_lid_x)
+  AND public.puede_editar_usuario(co_auth, t_lid_x)) FROM t_co;
 SELECT pg_temp.ok('S6: does not reach the director of the parent area (dream_team.direct on A)',
   NOT public.dream_team_coordinador_alcanza_persona(dir_id)) FROM t_co;
 SELECT pg_temp.ok('S6: does not reach a dream_team.direct holder inside X''s subtree',
