@@ -6817,6 +6817,61 @@ export type Database = {
           },
         ]
       }
+      taller_aviso_textos: {
+        Row: {
+          asunto: string
+          clase_id: string | null
+          id: string
+          mensaje: string
+          taller_id: string
+          tipo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          asunto: string
+          clase_id?: string | null
+          id?: string
+          mensaje: string
+          taller_id: string
+          tipo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          asunto?: string
+          clase_id?: string | null
+          id?: string
+          mensaje?: string
+          taller_id?: string
+          tipo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "taller_aviso_textos_clase_id_fkey"
+            columns: ["clase_id"]
+            isOneToOne: false
+            referencedRelation: "taller_plantilla_clases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_aviso_textos_taller_id_fkey"
+            columns: ["taller_id"]
+            isOneToOne: false
+            referencedRelation: "talleres"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_aviso_textos_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       taller_catalogo_etiquetas: {
         Row: {
           created_at: string
@@ -8036,6 +8091,7 @@ export type Database = {
           meeting_time_applies_to: string | null
           meeting_time_override: string | null
           numero: number
+          plantilla_clase_id: string | null
           tema: string | null
           updated_at: string
           version: number
@@ -8050,6 +8106,7 @@ export type Database = {
           meeting_time_applies_to?: string | null
           meeting_time_override?: string | null
           numero: number
+          plantilla_clase_id?: string | null
           tema?: string | null
           updated_at?: string
           version?: number
@@ -8064,6 +8121,7 @@ export type Database = {
           meeting_time_applies_to?: string | null
           meeting_time_override?: string | null
           numero?: number
+          plantilla_clase_id?: string | null
           tema?: string | null
           updated_at?: string
           version?: number
@@ -8074,6 +8132,13 @@ export type Database = {
             columns: ["grupo_id"]
             isOneToOne: false
             referencedRelation: "taller_grupos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "taller_sesiones_plantilla_clase_id_fkey"
+            columns: ["plantilla_clase_id"]
+            isOneToOne: false
+            referencedRelation: "taller_plantilla_clases"
             referencedColumns: ["id"]
           },
         ]
@@ -12010,6 +12075,29 @@ export type Database = {
           pendientes: number
         }[]
       }
+      talleres_aviso_texto_guardar: {
+        Args: {
+          p_asunto: string
+          p_clase_id: string | null
+          p_mensaje: string
+          p_taller_id: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      talleres_aviso_texto_render: {
+        Args: { p_datos: Json; p_plantilla: string }
+        Returns: string
+      }
+      talleres_aviso_texto_restaurar: {
+        Args: { p_clase_id?: string | null; p_taller_id: string; p_tipo: string }
+        Returns: boolean
+      }
+      talleres_aviso_textos_puede: {
+        Args: { p_escribir: boolean; p_taller_id: string }
+        Returns: boolean
+      }
+      talleres_aviso_variables: { Args: never; Returns: Json }
       talleres_buscar_pareja_por_cedula: {
         Args: { p_cedula: string; p_edicion_id: string }
         Returns: Json
