@@ -233,10 +233,12 @@ describe('CatalogoTalleresClient — dirección and list', () => {
     expect(within(tabla).getByText('Edición ene 2027 · 6 de 15 parejas')).toBeInTheDocument()
   })
 
-  it('the Próximo Paso row says «Se gestiona en Próximo Paso» and links /proximo-paso', () => {
+  it('the Próximo Paso row links its admin page /talleres/proximo-paso, never the public /proximo-paso', () => {
     render(<CatalogoTalleresClient {...props()} />)
     const tabla = screen.getByRole('table', { name: 'Talleres' })
-    expect(within(tabla).getByRole('link', { name: 'Se gestiona en Próximo Paso' })).toHaveAttribute('href', '/proximo-paso')
+    expect(within(tabla).getByRole('link', { name: 'Inscripción por enlace público' })).toHaveAttribute('href', '/talleres/proximo-paso')
+    expect(within(tabla).queryByText('Se gestiona en Próximo Paso')).not.toBeInTheDocument()
+    for (const link of within(tabla).getAllByRole('link')) expect(link).not.toHaveAttribute('href', '/proximo-paso')
   })
 
   it('searches by name ignoring accents', () => {
@@ -295,13 +297,14 @@ describe('CatalogoTalleresClient — drawer per taller', () => {
     expect(within(panel).getByRole('link', { name: 'Compartir' })).toBeInTheDocument()
   })
 
-  it('Próximo Paso: the drawer links /proximo-paso and offers no taller actions', async () => {
+  it('Próximo Paso: the drawer opens its admin page and keeps the public page apart', async () => {
     render(<CatalogoTalleresClient {...props({ tallerInicial: 'proximo-paso' })} />)
     const panel = await screen.findByRole('dialog')
-    expect(within(panel).getByRole('link', { name: 'Abrir en Próximo Paso' })).toHaveAttribute('href', '/proximo-paso')
-    expect(within(panel).getByRole('link', { name: /Ir a Próximo Paso/ })).toHaveAttribute('href', '/proximo-paso')
-    expect(within(panel).queryByRole('link', { name: 'Ver inscripciones' })).not.toBeInTheDocument()
-    expect(within(panel).getByText('Próximo Paso tiene su propia página.')).toBeInTheDocument()
+    expect(within(panel).getByRole('link', { name: /Ver taller/ })).toHaveAttribute('href', '/talleres/proximo-paso')
+    expect(within(panel).getByRole('link', { name: 'Ver página pública' })).toHaveAttribute('href', '/proximo-paso')
+    expect(within(panel).queryByRole('link', { name: /Próximo Paso$/ })).not.toBeInTheDocument()
+    expect(within(panel).queryByText('Próximo Paso tiene su propia página.')).not.toBeInTheDocument()
+    expect(within(panel).queryByText(/se manejan en Próximo Paso/)).not.toBeInTheDocument()
   })
 })
 

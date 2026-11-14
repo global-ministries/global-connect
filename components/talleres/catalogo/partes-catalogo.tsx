@@ -10,10 +10,12 @@ import Link from 'next/link'
 import { BookOpen, Layers, Users } from 'lucide-react'
 
 import { FONDO_TONO, PuntoEstado } from '@/components/ui/punto-estado'
-import { RUTA_PROXIMO_PASO } from '@/lib/platform/talleres/proximo-paso-registro'
+import { rutaTaller } from '@/lib/platform/talleres/rutas'
 import { cn } from '@/lib/utils'
 
 import { plural, unidadDe, type FilaCatalogo } from './vista-catalogo'
+
+const PROXIMO_PASO_SLUG = 'proximo-paso'
 
 /** 40px brand-tint tile: Próximo Paso, a couples taller or any other taller. Decorative. */
 export function TileTaller({ fila }: { readonly fila: FilaCatalogo }): ReactElement {
@@ -99,10 +101,10 @@ export function AtencionFila({ fila }: { readonly fila: FilaCatalogo }): ReactEl
     marcas.push(
       <Link
         key="pp"
-        href={RUTA_PROXIMO_PASO}
+        href={rutaTaller(PROXIMO_PASO_SLUG)}
         className="focus-ring relative z-10 inline-flex min-h-11 w-fit items-center rounded-md text-[13px] font-medium text-brand-text hover:underline"
       >
-        Se gestiona en Próximo Paso
+        Inscripción por enlace público
       </Link>,
     )
   }
