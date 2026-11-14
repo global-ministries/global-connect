@@ -106,20 +106,15 @@ function groupIdForItemId(id: TalleresNavItemId): TalleresNavGroupId | null {
   // T11 — "Mis grupos" doesn't follow the talleres_grupos_ prefix
   // convention (its id names what it IS, not a deleted old route), so it
   // needs its own explicit branch, same pattern as talleres_pendientes/
-  // talleres_reportes/talleres_temporadas below.
+  // talleres_reportes below.
   if (id === 'talleres_mis_grupos') return 'L'
   // T6 — talleres_pendientes matches no role-specific prefix by design
   // (it belongs to neither Coordinación nor Dirección alone).
   if (id === 'talleres_pendientes') return 'B'
   // T7 — same reasoning for talleres_reportes.
   if (id === 'talleres_reportes') return 'R'
-  // T8 — talleres_temporadas groups under the EXISTING 'D' bucket (not a
-  // new lettered one like B/R): unlike pendientes/reportes, temporadas
-  // has no coordinador/lead branch to share with — it belongs to
-  // Dirección alone. It just doesn't reuse the `talleres_direccion_`
-  // id prefix, because that prefix already names the OLD
-  // /admin/talleres/temporadas item (route-access.ts).
-  if (id === 'talleres_temporadas') return 'D'
+  // R3l (odd/tasks/talleres-rediseno.md, L11) — talleres_temporadas (T8,
+  // grouped under D) is no longer a nav item: Temporadas is hidden.
   if (id.startsWith('talleres_coordinacion_')) return 'C'
   if (id.startsWith('talleres_direccion_')) return 'D'
   // PR25 — Admin group is the wizard entry-point under `/admin/...`.

@@ -9,7 +9,7 @@
  *   /talleres/[taller]/[edicion]/[grupo]
  *   /talleres/pendientes
  *   /talleres/reportes
- *   /talleres/temporadas (+ /[id], /crear)
+ *   /talleres/temporadas (+ /[id], /crear) — R3l: hidden, each redirects to /talleres
  *   /talleres/explorar
  *   /talleres/mi-recorrido (+ /certificados/[id])
  *
@@ -173,6 +173,10 @@ export const TALLERES_RUTAS_ANTIGUAS: readonly RutaAntigua[] = [
   // resto: el filtro por estado en /talleres/pendientes cubre la
   // auditoría entre ediciones que faltaba (ver ese loader/página).
   { origen: '/admin/talleres/inscripciones', destino: '/talleres/pendientes', activa: true, puente: false, nota: 'la auditoría entre ediciones ahora vive en el filtro por estado de /talleres/pendientes' },
+  // R3l (odd/tasks/talleres-rediseno.md, L11) — Temporadas is hidden: these
+  // three still land on /talleres/temporadas*, whose pages now redirect to
+  // the catálogo (/talleres). The destinos stay as they are because
+  // next.config.mjs mirrors them 1:1 (see rutas.test.ts).
   { origen: '/admin/talleres/temporadas', destino: '/talleres/temporadas', activa: true, puente: false, nota: '' },
   { origen: '/admin/talleres/temporadas/[id]', destino: '/talleres/temporadas/[id]', activa: true, puente: false, nota: 'mismo id, sin lookup' },
   { origen: '/admin/talleres/temporadas/crear', destino: '/talleres/temporadas/crear', activa: true, puente: false, nota: '' },

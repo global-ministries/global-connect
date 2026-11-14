@@ -72,6 +72,12 @@
  * MinimoInscritosCampo, which still renders the read-only value). The
  * Próximo Paso «Enlace de inscripción» moved to the taller page's «Página
  * pública» card (components/talleres/taller/enlace-proximo-paso.tsx).
+ *
+ * R3l (odd/tasks/talleres-rediseno.md, L11) — Temporadas is hidden from
+ * Talleres: no Régimen selector. A cadencia taller (all of them in
+ * production) just shows «Inicio de cada edición»; a taller still on
+ * régimen=temporada shows «Este taller está en régimen por temporada.» and
+ * its régimen is saved as it is — never changed silently.
  */
 
 import { useState, useTransition, type ReactElement, type ReactNode } from 'react'
@@ -90,12 +96,7 @@ import {
   TextoSistema,
   TituloSistema,
 } from '@/components/ui/sistema-diseno'
-import {
-  cierreRelativoLabel,
-  regimenLabel,
-  tipoTallerLabel,
-  vinculoLabel,
-} from '@/components/talleres/labels'
+import { cierreRelativoLabel, tipoTallerLabel, vinculoLabel } from '@/components/talleres/labels'
 import { updateCadenciaYDuracion, updateTallerConfiguracion } from '@/app/(auth)/talleres/[taller]/actions'
 import { MinimoInscritosCampo, NOTA_MINIMO } from '@/components/talleres/minimo/minimo-inscritos-campo'
 import { RecuperarClasesCampo } from '@/components/talleres/recuperar/recuperar-clases-campo'
@@ -142,10 +143,8 @@ const INICIO_EDICION_LABEL: Record<InicioEdicion, string> = {
   cada_n_dias: 'Cada N días',
 }
 
-const REGIMEN_EXPLICACION: Record<'temporada' | 'cadencia', string> = {
-  temporada: 'Las ediciones de este taller se agrupan en las temporadas de tu dirección.',
-  cadencia: 'Las ediciones de este taller se crean por su propia cadencia, sin depender de una temporada.',
-}
+/** R3l — the only régimen line left: a taller still on régimen=temporada. */
+const NOTA_REGIMEN_TEMPORADA = 'Este taller está en régimen por temporada.'
 
 export function ConfiguracionTaller({
   tallerId,
@@ -174,7 +173,8 @@ export function ConfiguracionTaller({
 
   const [tipoSel, setTipoSel] = useState<'individual' | 'pareja'>(tipo)
   const [vinculoSel, setVinculoSel] = useState<'matrimonio' | 'novios' | ''>(vinculo ?? '')
-  const [regimenSel, setRegimenSel] = useState<'temporada' | 'cadencia'>(regimen)
+  // R3l — no selector: the régimen is saved as it is.
+  const regimenSel = regimen
   const [cierreSel, setCierreSel] = useState(String(cierreInscripcionOffsetDias))
   const [intervaloSel, setIntervaloSel] = useState(
     intervaloEdicionesDias !== null ? String(intervaloEdicionesDias) : '',
@@ -250,7 +250,7 @@ export function ConfiguracionTaller({
             {tipo === 'individual' && (
               <Campo titulo={INSCRIPCION_AUTOMATICA_LABEL}>{inscripcionAutomatica ? 'Sí' : 'No'}</Campo>
             )}
-            <Campo titulo="Régimen">{regimenLabel(regimen)}</Campo>
+            {regimen === 'temporada' && <Campo titulo="Régimen">{NOTA_REGIMEN_TEMPORADA}</Campo>}
             <Campo titulo="Cierre de inscripción">{cierreRelativoLabel(cierreInscripcionOffsetDias)}</Campo>
             {regimen === 'cadencia' && anclaEdiciones !== null && (
               <Campo titulo="Inicio de cada edición">{INICIO_EDICION_LABEL[anclaEdiciones]}</Campo>
@@ -367,23 +367,12 @@ export function ConfiguracionTaller({
         </GrupoConfiguracion>
 
         <GrupoConfiguracion id="config-ediciones" titulo="Ediciones" descripcion="Cómo se crean y cuándo empieza cada una.">
-          <CamposSistema>
-            <div>
-              <SelectSistema
-                label="Régimen"
-                value={regimenSel}
-                onValueChange={(v) => setRegimenSel(v as 'temporada' | 'cadencia')}
-                opciones={[
-                  { valor: 'temporada', etiqueta: 'Por temporada de la dirección' },
-                  { valor: 'cadencia', etiqueta: 'Por cadencia propia' },
-                ]}
-              />
-              <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                {REGIMEN_EXPLICACION[regimenSel]}
-              </TextoSistema>
-            </div>
-
-            {regimenSel === 'cadencia' && (
+          {regimenSel === 'temporada' ? (
+            <TextoSistema variante="sutil" tamaño="sm" className="block">
+              {NOTA_REGIMEN_TEMPORADA}
+            </TextoSistema>
+          ) : (
+            <CamposSistema>
               <div>
                 <SelectSistema
                   label="Inicio de cada edición"
@@ -400,26 +389,26 @@ export function ConfiguracionTaller({
                   </TextoSistema>
                 )}
               </div>
-            )}
 
-            {regimenSel === 'cadencia' && inicioSel === 'cada_n_dias' && (
-              <div>
-                <InputSistema
-                  label="Intervalo entre ediciones (días)"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={365}
-                  value={intervaloSel}
-                  onChange={(e) => setIntervaloSel(e.target.value)}
-                  placeholder="Sin intervalo"
-                />
-                <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
-                  28 = mensual
-                </TextoSistema>
-              </div>
-            )}
-          </CamposSistema>
+              {inicioSel === 'cada_n_dias' && (
+                <div>
+                  <InputSistema
+                    label="Intervalo entre ediciones (días)"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={365}
+                    value={intervaloSel}
+                    onChange={(e) => setIntervaloSel(e.target.value)}
+                    placeholder="Sin intervalo"
+                  />
+                  <TextoSistema variante="sutil" tamaño="sm" className="mt-1 block">
+                    28 = mensual
+                  </TextoSistema>
+                </div>
+              )}
+            </CamposSistema>
+          )}
         </GrupoConfiguracion>
 
         <GrupoConfiguracion id="config-clases" titulo="Clases y certificado" descripcion="Cuántas clases hacen falta para el certificado.">

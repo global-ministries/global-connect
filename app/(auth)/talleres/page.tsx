@@ -46,8 +46,8 @@
  *   (loadGruposDeEdiciones) for the cupo line and «Sin facilitador»;
  * - the drawer's quick actions follow loadMisTalleres' talleres_mis_permisos
  *   (editar_taller, abrir_edicion), the taller page's own gates;
- * - the Pendientes / Temporadas / Reportes tabs show only with the
- *   capability route-access.ts declares for each route;
+ * - the Pendientes / Reportes tabs show only with the capability
+ *   route-access.ts declares for each route (R3l, L11: no Temporadas tab);
  * - URL state: ?atencion, ?direccion, ?q, ?taller, ?nuevo.
  */
 
@@ -170,7 +170,6 @@ export default async function TalleresCatalogoPage({ searchParams }: PageProps =
       opciones={opciones}
       pestanas={{
         pendientes: navegacion.has('talleres_pendientes'),
-        temporadas: navegacion.has('talleres_temporadas'),
         reportes: navegacion.has('talleres_reportes'),
       }}
       filtrosIniciales={leerFiltros({

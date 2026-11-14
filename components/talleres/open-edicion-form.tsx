@@ -7,8 +7,9 @@
  *   - régimen=temporada: "¿en qué temporada?" — a SelectSistema listing
  *     the temporadas the page already excluded (this taller's own
  *     non-cancelled ediciones' temporadas, computed by the page from
- *     `taller.ediciones`), or an empty-state notice with a link to
- *     Temporadas when there is none open.
+ *     `taller.ediciones`), or a short notice when there is none open
+ *     (R3l, odd/tasks/talleres-rediseno.md L11: Temporadas is hidden from
+ *     Talleres, so the notice no longer links to it).
  *   - régimen=cadencia: "¿cuándo es la primera clase?" — a date input,
  *     plus an optional "crear también las próximas N" (0..6, only when
  *     `intervaloEdicionesDias` is set).
@@ -58,7 +59,6 @@ import { Plus, Send } from 'lucide-react'
 
 import {
   BotonSistema,
-  EnlaceSistema,
   InputSistema,
   SelectSistema,
   TarjetaSistema,
@@ -69,7 +69,7 @@ import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { crearEdicion } from '@/app/(auth)/talleres/[taller]/actions'
 import { CamposDatosPracticos } from '@/components/talleres/campos-datos-practicos'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { rutaEdicion, rutaTaller, rutaTemporadaCrear } from '@/lib/platform/talleres/rutas'
+import { rutaEdicion, rutaTaller } from '@/lib/platform/talleres/rutas'
 import type { TemporadaOption } from '@/lib/platform/talleres/temporadas'
 import type { FacilitadorOmitidoPreview } from '@/lib/platform/talleres/plantilla'
 import {
@@ -225,11 +225,8 @@ export function OpenEdicionForm({
           // component builds its own inline empty state instead.
           <TarjetaSistema variante="outlined" className="p-4 text-center">
             <TextoSistema variante="sutil">
-              Tu dirección no tiene temporadas abiertas. Créala en Temporadas.
+              Este taller está en régimen por temporada y no tiene temporadas abiertas.
             </TextoSistema>
-            <EnlaceSistema href={rutaTemporadaCrear()} variante="marca" className="mt-2 inline-flex min-h-11 items-center text-sm">
-              Ir a Temporadas
-            </EnlaceSistema>
           </TarjetaSistema>
         ) : (
           <SelectSistema

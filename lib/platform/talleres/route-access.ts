@@ -128,9 +128,9 @@ export type TalleresNavItemId =
   // talleres_pendientes above: it is the one capability both mutually-
   // exclusive roles are auto-granted.
   | 'talleres_reportes'
-  // T8 (odd/tasks/talleres-consolidar-pantallas.md) — the consolidated
-  // /talleres/temporadas list, a straight move out of /admin.
-  | 'talleres_temporadas'
+  // R3l (odd/tasks/talleres-rediseno.md, L11) — 'talleres_temporadas' (T8's
+  // /talleres/temporadas list) is gone: Temporadas is hidden from Talleres
+  // and its route redirects to the catálogo. The data and actions stay.
   // T11 (odd/tasks/talleres-configuracion-del-taller.md, flow audit) —
   // "Mis grupos", restored: T10 deleted the líder's own nav entry when it
   // consolidated the old role-prefixed items into the /talleres catalog
@@ -224,14 +224,10 @@ export const TALLERES_NAV_ITEMS: readonly NavItemSpec[] = [
   // (one href -> one requiredCapability; metrics.read is the one
   // capability both coordinador and director are auto-granted).
   { id: 'talleres_reportes', label: 'Reportes', href: '/talleres/reportes', requiredCapability: 'talleres_crecimiento.metrics.read' },
-  // T8 — /talleres/temporadas, a straight move out of /admin. director.read
-  // is one of the three qualifying capabilities on talleres_temporadas_
-  // select's RLS (alongside metrics.read and admin.manage —
-  // supabase/migrations/20260819000001_pr45_talleres_temporadas.sql:
-  // 128-135): temporadas has no coordinador/lead branch in its RLS at
-  // all, so there is no cross-role sharing problem to solve the way
-  // talleres_pendientes/talleres_reportes need metrics.read for.
-  { id: 'talleres_temporadas', label: 'Temporadas', href: '/talleres/temporadas', requiredCapability: 'talleres_crecimiento.director.read' },
+  // R3l (odd/tasks/talleres-rediseno.md, L11) — no Temporadas item: the
+  // module is hidden (0 temporadas in production, every taller on its own
+  // cadencia) and /talleres/temporadas* redirect to the catálogo. No page
+  // gates on this map's entry for it, so dropping it changes no access.
   // T11 — "Mis grupos", pointing at the catalog's own section anchor
   // (catalogo-talleres-client.tsx's `mis-grupos-heading`) rather than a
   // new page — the section already exists and already renders the full

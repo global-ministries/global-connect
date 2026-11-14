@@ -6,7 +6,8 @@
  * approved in L6), on the list anatomy of docs/design-system/patterns.md.
  *
  * Top to bottom: the hero with the summary and the route tabs (Talleres ·
- * Pendientes · Temporadas · Reportes, each only when the viewer may open it;
+ * Pendientes · Reportes, each only when the viewer may open it; R3l, L11 hid
+ * Temporadas;
  * on phones they become the «Más de Talleres» rows at the end), «Lo que
  * necesita atención» (MetricasAtencion as filters: Por aprobar, Ediciones
  * abiertas, Bajo el mínimo, Sin facilitador), «Por dirección» (scope cards:
@@ -25,7 +26,7 @@
 import { useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, CalendarRange, ChevronRight, Compass, Inbox, LayoutGrid, Plus, Search, Users } from 'lucide-react'
+import { BarChart3, ChevronRight, Compass, Inbox, LayoutGrid, Plus, Search, Users } from 'lucide-react'
 
 import { BotonSistema, InputSistema, PaginaSistema } from '@/components/ui/sistema-diseno'
 import { BotonFlotante } from '@/components/ui/BotonFlotante'
@@ -44,7 +45,7 @@ import type {
   MiTallerResumen,
 } from '@/lib/platform/talleres/catalogo'
 import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
-import { rutaCatalogo, rutaExplorar, rutaPendientes, rutaReportes, rutaTemporadas } from '@/lib/platform/talleres/rutas'
+import { rutaCatalogo, rutaExplorar, rutaPendientes, rutaReportes } from '@/lib/platform/talleres/rutas'
 
 import { DetalleTaller } from './catalogo/detalle-taller'
 import { FormularioNuevoTaller } from './catalogo/formulario-nuevo-taller'
@@ -70,7 +71,6 @@ import {
 /** Which of the other Talleres screens the viewer may open (route-access.ts capabilities). */
 export interface PestanasCatalogo {
   readonly pendientes: boolean
-  readonly temporadas: boolean
   readonly reportes: boolean
 }
 
@@ -140,7 +140,6 @@ interface Pestana {
 function pestanasVisibles(pestanas: PestanasCatalogo): Pestana[] {
   return [
     pestanas.pendientes && { href: rutaPendientes(), etiqueta: 'Pendientes', detalle: 'Aprobaciones, retiros y sin grupo', icono: Inbox },
-    pestanas.temporadas && { href: rutaTemporadas(), etiqueta: 'Temporadas', detalle: 'Qué talleres abren a la vez', icono: CalendarRange },
     pestanas.reportes && { href: rutaReportes(), etiqueta: 'Reportes', detalle: 'Inscripciones, asistencia y certificados', icono: BarChart3 },
   ].filter((p): p is Pestana => Boolean(p))
 }

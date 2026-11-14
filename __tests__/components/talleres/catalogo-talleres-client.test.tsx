@@ -117,7 +117,7 @@ function props(o: Partial<CatalogoTalleresClientProps> = {}): CatalogoTalleresCl
     puedeCrear: false,
     misTalleres: [{ id: 't-m', slug: 'mujer-de-hoy', nombre: 'Mujer de Hoy', puedeAbrirEdicion: true }],
     opciones: { vincular: [{ id: 'eq-9', ruta: 'Conexión › Talleres' }], crearBajo: [] },
-    pestanas: { pendientes: true, temporadas: true, reportes: true },
+    pestanas: { pendientes: true, reportes: true },
     ...o,
   } as CatalogoTalleresClientProps
 }
@@ -148,15 +148,20 @@ describe('CatalogoTalleresClient — hero, tabs and header actions', () => {
     const tabs = screen.getByRole('navigation', { name: 'Secciones de Talleres' })
     expect(within(tabs).getByRole('link', { name: 'Talleres' })).toHaveAttribute('aria-current', 'page')
     expect(within(tabs).getByRole('link', { name: 'Pendientes' })).toHaveAttribute('href', '/talleres/pendientes')
-    expect(within(tabs).getByRole('link', { name: 'Temporadas' })).toHaveAttribute('href', '/talleres/temporadas')
     expect(within(tabs).getByRole('link', { name: 'Reportes' })).toHaveAttribute('href', '/talleres/reportes')
   })
 
+  it('R3l — never offers Temporadas, as a tab or as a «Más de Talleres» row', () => {
+    render(<CatalogoTalleresClient {...props()} />)
+    expect(screen.queryByRole('link', { name: /Temporadas/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Qué talleres abren a la vez')).not.toBeInTheDocument()
+    expect(document.querySelector('a[href^="/talleres/temporadas"]')).toBeNull()
+  })
+
   it('hides the tabs the viewer cannot open', () => {
-    render(<CatalogoTalleresClient {...props({ pestanas: { pendientes: false, temporadas: false, reportes: true } })} />)
+    render(<CatalogoTalleresClient {...props({ pestanas: { pendientes: false, reportes: true } })} />)
     const tabs = screen.getByRole('navigation', { name: 'Secciones de Talleres' })
     expect(within(tabs).queryByRole('link', { name: 'Pendientes' })).not.toBeInTheDocument()
-    expect(within(tabs).queryByRole('link', { name: 'Temporadas' })).not.toBeInTheDocument()
     expect(within(tabs).getByRole('link', { name: 'Reportes' })).toBeInTheDocument()
   })
 
@@ -202,7 +207,7 @@ describe('CatalogoTalleresClient — attention metrics as filters', () => {
   it('shows no metrics when the viewer sees no edición at all', () => {
     render(
       <CatalogoTalleresClient
-        {...props({ catalogo: [{ ...MUJER, ediciones: [] }], misTalleres: [], pestanas: { pendientes: false, temporadas: false, reportes: false } })}
+        {...props({ catalogo: [{ ...MUJER, ediciones: [] }], misTalleres: [], pestanas: { pendientes: false, reportes: false } })}
       />,
     )
     expect(screen.queryByRole('group', { name: 'Lo que necesita atención' })).not.toBeInTheDocument()
@@ -275,7 +280,7 @@ describe('CatalogoTalleresClient — drawer per taller', () => {
   })
 
   it('shows no quick actions for a taller the viewer cannot edit, and no «Aprobar» without Pendientes', async () => {
-    render(<CatalogoTalleresClient {...props({ pestanas: { pendientes: false, temporadas: false, reportes: false } })} />)
+    render(<CatalogoTalleresClient {...props({ pestanas: { pendientes: false, reportes: false } })} />)
     fireEvent.click(screen.getByRole('button', { name: 'Abrir Parejas' }))
     const panel = await screen.findByRole('dialog')
     expect(within(panel).queryByRole('navigation', { name: /Acciones de/ })).not.toBeInTheDocument()
@@ -318,6 +323,10 @@ describe('CatalogoTalleresClient — Nuevo taller', () => {
     expect(within(panel).getByText('Elige un nodo del árbol.')).toBeInTheDocument()
     expect(createTallerAbstractMock).not.toHaveBeenCalled()
 
+    // R3l — no Régimen field: every new taller runs on its own cadencia.
+    expect(within(panel).queryByLabelText('Régimen')).not.toBeInTheDocument()
+    expect(within(panel).queryByText(/temporada/i)).not.toBeInTheDocument()
+
     fireEvent.change(within(panel).getByLabelText('Nombre *'), { target: { value: 'Mujer de Hoy II' } })
     fireEvent.change(within(panel).getByLabelText('Equipo *'), { target: { value: 'eq-9' } })
     fireEvent.click(within(panel).getByRole('button', { name: 'Crear taller' }))
@@ -325,8 +334,8 @@ describe('CatalogoTalleresClient — Nuevo taller', () => {
       expect(createTallerAbstractMock).toHaveBeenCalledWith({
         nombre: 'Mujer de Hoy II',
         descripcion: null,
-        modalidad_default: 'periodo_general',
-        regimen: 'temporada',
+        modalidad_default: 'permanente_custom',
+        regimen: 'cadencia',
         slug: undefined,
         equipoId: 'eq-9',
         parentEquipoId: undefined,
@@ -362,7 +371,7 @@ describe('CatalogoTalleresClient — Mis grupos, empty state and language', () =
   it('a member with nothing to see gets the empty state pointing at Explorar', () => {
     render(
       <CatalogoTalleresClient
-        {...props({ catalogo: [], grupos: {}, misTalleres: [], pestanas: { pendientes: false, temporadas: false, reportes: false } })}
+        {...props({ catalogo: [], grupos: {}, misTalleres: [], pestanas: { pendientes: false, reportes: false } })}
       />,
     )
     expect(screen.getByText('Aún no hay talleres')).toBeInTheDocument()
