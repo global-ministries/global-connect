@@ -47,6 +47,8 @@ export type PantallaInicioProps = {
   readonly contextos?: ReactNode
   /** The Próximo Paso card (odd/tasks/proximo-paso.md T8) inside «Tus próximos pasos». */
   readonly proximoPaso?: ReactNode
+  /** Talleres with open enrollment for the person (S15); null or absent when unknown. */
+  readonly talleresAbiertos?: number | null
 }
 
 type Ancho = 'completa' | 'izquierda' | 'derecha'
@@ -88,6 +90,7 @@ export function PantallaInicio({
   cumpleanos = [],
   contextos,
   proximoPaso,
+  talleresAbiertos,
 }: PantallaInicioProps): ReactElement {
   const conCargos = aCargo.some((c) => c !== null)
   // Sections whose content is loaded elsewhere and did not arrive (or is empty) are left out (S1).
@@ -158,7 +161,7 @@ export function PantallaInicio({
           case 'proximos-pasos':
             return <SeccionProximosPasos key={s.id} pasos={s.pasos} className={clase} proximoPaso={proximoPaso} />
           case 'explorar':
-            return <SeccionExplorar key={s.id} tiles={s.tiles} ancha={ancho[i] === 'completa'} className={clase} />
+            return <SeccionExplorar key={s.id} tiles={s.tiles} ancha={ancho[i] === 'completa'} talleresAbiertos={talleresAbiertos} className={clase} />
         }
       })}
     </div>

@@ -12,6 +12,9 @@
  * only where «Tus próximos pasos» highlights it (who has not done it), the
  * open ediciones and the own inscripción are read with the person's client
  * and the live card takes the highlight's place; a failed read keeps it.
+ *
+ * «Explorar» (S15): only when present, the talleres with open enrollment for
+ * the person (cargarTalleresAbiertos); unknown says «Ver talleres».
  */
 import { redirect } from 'next/navigation'
 
@@ -27,6 +30,7 @@ import { cargarCumpleanosGrupos, cumpleanosDelTablero, unirCumpleanos, type Cump
 import { cargarGruposMiembro, type DatosGrupoMiembro } from '@/lib/inicio/cargar-grupos-miembro'
 import { cargarHechosInicio } from '@/lib/inicio/cargar-hechos'
 import { cargarNotasLideres, type NotaLider } from '@/lib/inicio/cargar-notas-lideres'
+import { cargarTalleresAbiertos } from '@/lib/inicio/cargar-talleres-abiertos'
 import { decidirSecciones } from '@/lib/inicio/decidir-secciones'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { cargarEstadoProximoPaso, varianteProximoPaso, type ClienteProximoPaso, type EstadoProximoPaso } from '@/lib/platform/proximo-paso/estado'
@@ -78,6 +82,7 @@ export default async function PaginaInicio() {
   const conVision = secciones.some((s) => s.id === 'vision-general')
   const conNotas = secciones.some((s) => s.id === 'notas-lideres')
   const conCumpleanos = secciones.some((s) => s.id === 'cumpleanos')
+  const conExplorar = secciones.some((s) => s.id === 'explorar' && s.tiles.includes('talleres'))
   // The group names the leader's birthdays only when they lead one: the list mixes their groups.
   const gruposLider = aCargo?.cargos.flatMap((c) => (c.tipo === 'grupo-lider' ? [c.nombre] : [])) ?? []
   const grupoCumpleanos = gruposLider.length === 1 ? gruposLider[0] : null
@@ -94,7 +99,7 @@ export default async function PaginaInicio() {
       : Promise.resolve(null)
   // The tablero has birthdays only for who leads or oversees, and they all have a cargo or the campus view.
   const tableroPromesa = aCargo || conVision ? cargarTablero() : Promise.resolve(null)
-  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres, cumpleanosGrupos, proximoPaso] = await Promise.all([
+  const [gruposMiembro, cargos, visionGeneral, tablero, misHijos, notasLideres, cumpleanosGrupos, proximoPaso, talleresAbiertos] = await Promise.all([
     usuarioId && grupos.length > 0
       ? cargarGruposMiembro(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Record<string, DatosGrupoMiembro>>({}),
@@ -109,6 +114,7 @@ export default async function PaginaInicio() {
       ? cargarCumpleanosGrupos(supabase, { authId: user.id, usuarioId, hoy, grupos })
       : Promise.resolve<Cumpleanos[]>([]),
     proximoPasoPromesa,
+    conExplorar ? cargarTalleresAbiertos(supabase, { hizoProximoPaso: hechos.hizoProximoPaso }) : Promise.resolve(null),
   ])
   // A leader who is also a member elsewhere sees both groups in one list, each person once (S14a).
   const cumpleanos = conCumpleanos ? unirCumpleanos(cumpleanosDelTablero(tablero, grupoCumpleanos), cumpleanosGrupos) : []
@@ -127,6 +133,7 @@ export default async function PaginaInicio() {
         notasLideres={notasLideres}
         cumpleanos={cumpleanos}
         contextos={tablero?.contextos}
+        talleresAbiertos={talleresAbiertos}
         proximoPaso={
           proximoPaso && (
             <TarjetaProximoPaso estado={varianteProximoPaso(proximoPaso)} hoy={hoy} nombre={nombre?.trim().split(/\s+/)[0] ?? null} />

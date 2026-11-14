@@ -19,7 +19,7 @@ export type PedidoPendientes = {
   gruposLider: string[]
   etapas: string[]
   segmentos: string[]
-  /** equipo ids of the areas the person directs. */
+  /** equipo ids of the areas the person directs or coordinates (tieneAreaACargo). */
   areas: string[]
 }
 

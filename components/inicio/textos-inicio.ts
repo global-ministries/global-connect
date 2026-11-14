@@ -3,12 +3,10 @@
  * Every link goes to a page that already exists; the home adds no new queue.
  */
 import {
-  ArrowRight,
   Baby,
   CalendarCheck,
   ClipboardList,
   GraduationCap,
-  HandHeart,
   House,
   LifeBuoy,
   UserCheck,
@@ -25,12 +23,13 @@ export const RUTA_TALLERES = '/talleres/explorar'
 export const RUTA_PERFIL = '/perfil'
 // Próximo Paso is a taller (S4): its enrollment lives with the other talleres.
 export const RUTA_PROXIMO_PASO = RUTA_TALLERES
-export const RUTA_DREAM_TEAM = '/dream-team'
 export const RUTA_NOTAS_LIDERES = '/notas-lideres'
 
 export const RUTA_REPORTE_SEMANAL = '/grupos-vida/reportes/asistencia-semanal'
 export const RUTA_TABLERO_GRUPOS = '/grupos-vida/dashboard-riesgo'
 export const RUTA_MI_EQUIPO = '/dream-team/mi-equipo'
+/** The staff support queue, filtered to its open tickets (app/(auth)/ayuda/admin). */
+export const RUTA_TICKETS_ABIERTOS = '/ayuda/admin?estado=abiertos'
 /** Anchor of the first «Próximo Paso de tus voluntarios» list. */
 export const ID_PROXIMO_PASO_VOLUNTARIOS = 'proximo-paso-voluntarios'
 
@@ -61,7 +60,7 @@ export const PENDIENTES: Record<TipoPendiente, TextoPendiente> = {
   'casas-por-revisar': { titulo: 'Casas anfitrionas por revisar', detalle: 'Propuestas por líderes', estado: 'Por revisar', tono: 'warning', cta: 'Revisar', href: '/grupos-vida/casas-anfitrionas/revision', icono: House },
   'grupos-sin-casa': { titulo: 'Grupos sin casa anfitriona', detalle: 'Necesitan un lugar para reunirse', estado: 'Sin casa', tono: 'warning', cta: 'Buscar casa', href: '/grupos-vida/casas-anfitrionas/asignar', icono: House },
   'dream-team': { titulo: 'Pendientes de Dream Team', detalle: 'Postulados y servidores de tu área', estado: 'Por revisar', tono: 'warning', cta: 'Ver pendientes', href: '/dream-team/pendientes', icono: Users },
-  tickets: { titulo: 'Tickets de soporte', detalle: 'Sin responder', estado: 'Abiertos', tono: 'info', cta: 'Responder', href: '/configuracion/soporte', icono: LifeBuoy },
+  tickets: { titulo: 'Tickets de soporte', detalle: 'Sin resolver en la cola de soporte', estado: 'Abiertos', tono: 'info', cta: 'Responder', href: RUTA_TICKETS_ABIERTOS, icono: LifeBuoy },
   'servicios-por-confirmar': { titulo: 'Confirmar tus servicios', detalle: 'Responde en Mis servicios', estado: 'Pendiente', tono: 'warning', cta: 'Ir a Mis servicios', href: '#mis-servicios', icono: CalendarCheck },
 }
 
@@ -75,12 +74,10 @@ export const PASOS: Record<PasoInicio['id'], TextoPaso> = {
 
 export type TextoTile = { titulo: string; detalle: string; href: string; icono: LucideIcon }
 
+/** The Talleres detail is the live count when known (SeccionExplorar); this one is its fallback. */
 export const TILES: Record<TileExplorar, TextoTile> = {
-  'proximo-paso': { titulo: 'Próximo Paso', detalle: 'Conoce la iglesia', href: RUTA_PROXIMO_PASO, icono: ArrowRight },
-  talleres: { titulo: 'Talleres', detalle: 'Inscripciones abiertas', href: RUTA_TALLERES, icono: GraduationCap },
-  'grupos-vida': { titulo: 'Grupos de Vida', detalle: 'Busca uno cerca de ti', href: '/grupos-vida', icono: Users },
-  'dream-team': { titulo: 'Dream Team', detalle: 'Sirve en un equipo', href: RUTA_DREAM_TEAM, icono: HandHeart },
-  ninos: { titulo: 'Niños', detalle: 'Registro y check-in', href: DESTINO_MIS_HIJOS, icono: Baby },
+  talleres: { titulo: 'Talleres', detalle: 'Ver talleres', href: RUTA_TALLERES, icono: GraduationCap },
+  'mis-hijos': { titulo: 'Inscribir a mis hijos', detalle: 'Regístralos para el check-in del domingo', href: DESTINO_MIS_HIJOS, icono: Baby },
 }
 
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']

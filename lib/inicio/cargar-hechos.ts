@@ -8,30 +8,23 @@
  * it (cargarPendientesCargo, T4): reports, leaders without report and
  * volunteers without Próximo Paso.
  *
- * Not loaded yet (stay 0/false): the other pendientes del director de Dream
- * Team and tickets (no helper counts them for the home), and DPS
- * convocatorias / servicios por confirmar (connected when feat/dps-avisos is
- * merged, S2).
+ * Open support tickets only for who attends support (S16): the same
+ * support_user_capabilities read as the staff queue (/ayuda/admin), then a
+ * head count of its «Abiertos» under the session's RLS.
+ *
+ * Not loaded here (stay 0/false): the other pendientes del director de Dream
+ * Team (no helper counts them for the home), and DPS convocatorias /
+ * servicios por confirmar (the page fills them from «Mis servicios», S2).
  */
 import { obtenerCasasRevisionPendiente, obtenerGruposSinCasaAnfitriona } from '@/lib/actions/casas-anfitrionas.actions'
-import { puedeRegistrarParaNavegacion } from '@/lib/platform/dream-team/ficha-persona'
-import { hasDreamTeamMiEquipoAccess, isDreamTeamEnabled, requireDreamTeamSession } from '@/lib/platform/dream-team/route-access'
 import { hoyEnCaracas } from '@/lib/platform/ninos/fecha'
 import { esMayorDeEdad, parseMisHijos } from '@/lib/platform/ninos/mis-hijos'
+import { SUPPORT_CAPABILITIES } from '@/lib/support/capabilities'
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 import type { createSupabaseServerClient } from '@/lib/supabase/server'
 
 import { cargarPendientesCargo, type PendientesCargo } from './cargar-pendientes'
-import { HECHOS_VACIOS, type HechosInicio, type MembresiaGrupo, type RolEnGrupo, type ServicioActivo } from './hechos'
-
-// Same guard as app/(auth)/dream-team/page.tsx: who opens no Dream Team page gets a 404 there.
-async function abreDreamTeam(supabase: ClienteInicio): Promise<boolean> {
-  if (!isDreamTeamEnabled()) return false
-  const session = await requireDreamTeamSession({ includeRoles: true })
-  if (!session) return false
-  if (hasDreamTeamMiEquipoAccess(session)) return true
-  return puedeRegistrarParaNavegacion(supabase as Parameters<typeof puedeRegistrarParaNavegacion>[0], true)
-}
+import { HECHOS_VACIOS, tieneAreaACargo, type HechosInicio, type MembresiaGrupo, type RolEnGrupo, type ServicioActivo } from './hechos'
 
 export type ClienteInicio = Awaited<ReturnType<typeof createSupabaseServerClient>>
 
@@ -39,6 +32,9 @@ const TIEMPO_MAXIMO_MS = 3000
 const ROLES_GRUPO = new Set<string>(['Líder', 'Colíder', 'Miembro'])
 
 type Respuesta = { data: unknown; error: { message?: string } | null }
+
+// The «Abiertos» filter of the staff queue (app/(auth)/ayuda/admin/page.tsx).
+const ESTADOS_TICKET_ABIERTO = ['received', 'in_review', 'in_progress']
 
 // hizo_proximo_paso is created by T1 and is not in database.types.ts yet.
 type RpcHizoProximoPaso = (fn: 'hizo_proximo_paso', args: { p_usuario_id: string }) => PromiseLike<Respuesta>
@@ -95,6 +91,20 @@ function aServicios(data: unknown): ServicioActivo[] {
 const ids = (data: unknown, columna: string): string[] =>
   filas(data).map((f) => texto(f[columna])).filter((v): v is string => v !== null)
 
+/**
+ * Open tickets of the support queue, only for who attends it: any active
+ * support capability (view, reply or manage all open the queue, as
+ * listStaffSupportTickets in lib/actions/support.actions.ts). Others get 0.
+ */
+async function ticketsAbiertos(supabase: ClienteInicio, usuarioId: string): Promise<number> {
+  const capacidades = filas(await datos(supabase.from('support_user_capabilities').select('capability').eq('usuario_id', usuarioId).is('revoked_at', null)))
+  const atiende = capacidades.some((f) => (SUPPORT_CAPABILITIES as readonly unknown[]).includes(f.capability))
+  if (!atiende) return 0
+  const { count, error } = await supabase.from('support_tickets').select('id', { count: 'exact', head: true }).in('status', ESTADOS_TICKET_ABIERTO)
+  if (error) throw new Error(error.message ?? 'error de Supabase')
+  return count ?? 0
+}
+
 export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id: string }): Promise<HechosInicio> {
   const authId = authUser.id
   // Admin client for the own row, one row by auth_id, as cargarMisHijosDashboard.
@@ -109,9 +119,10 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
   if (!usuario || !usuarioId) return HECHOS_VACIOS
 
   const fechaNacimiento = texto(usuario.fecha_nacimiento)
+  const mayorDeEdad = esMayorDeEdad(fechaNacimiento, hoyEnCaracas())
   const rpcHizoProximoPaso = supabase.rpc.bind(supabase) as unknown as RpcHizoProximoPaso
 
-  const [esAdminOPastor, grupos, etapasDirigidas, segmentosDirigidos, serviciosActivos, hijos, hizoProximoPaso, solicitudesGrupo, casasPorRevisar, gruposSinCasa] =
+  const [esAdminOPastor, grupos, etapasDirigidas, segmentosDirigidos, serviciosActivos, hijos, hizoProximoPaso, solicitudesGrupo, casasPorRevisar, gruposSinCasa, tickets] =
     await Promise.all([
       intentar('es_admin_o_pastor', async () => (await datos(supabase.rpc('es_admin_o_pastor', { p_auth_id: authId }))) === true, false),
       intentar(
@@ -153,7 +164,7 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
         [],
       ),
       // A minor never gets «Mis hijos» (R3b, as the dashboard card).
-      esMayorDeEdad(fechaNacimiento, hoyEnCaracas())
+      mayorDeEdad
         ? intentar('ninos_mis_hijos', async () => parseMisHijos(await datos(supabase.rpc('ninos_mis_hijos'))).length, 0)
         : Promise.resolve(0),
       intentar<boolean | null>(
@@ -183,6 +194,7 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
         if (!r.success) throw new Error(r.error ?? 'sin datos')
         return r.data?.length ?? 0
       }, 0),
+      intentar('tickets de soporte', () => ticketsAbiertos(supabase, usuarioId), 0),
     ])
 
   const pedidoCargo = {
@@ -191,14 +203,12 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
     gruposLider: grupos.filter((g) => g.rol === 'Líder').map((g) => g.grupoId),
     etapas: etapasDirigidas,
     segmentos: segmentosDirigidos,
-    areas: [...new Set(serviciosActivos.filter((s) => s.nivel === 'director').map((s) => s.equipoId))],
+    areas: [...new Set(serviciosActivos.filter(tieneAreaACargo).map((s) => s.equipoId))],
   }
   const conCargo = pedidoCargo.gruposLider.length + pedidoCargo.etapas.length + pedidoCargo.segmentos.length + pedidoCargo.areas.length > 0
   const deCargo: PendientesCargo = conCargo
     ? await cargarPendientesCargo(supabase, pedidoCargo)
     : { reportesSinCargar: 0, lideresSinReporte: 0, marcarProximoPaso: 0 }
-
-  const accesoDreamTeam = serviciosActivos.length > 0 || esAdminOPastor ? await intentar('dream_team_acceso', () => abreDreamTeam(supabase), false) : false
 
   return {
     ...HECHOS_VACIOS,
@@ -208,10 +218,10 @@ export async function cargarHechosInicio(supabase: ClienteInicio, authUser: { id
     etapasDirigidas,
     segmentosDirigidos,
     serviciosActivos,
-    abreDreamTeam: accesoDreamTeam,
     hijos,
+    esMayorDeEdad: mayorDeEdad,
     perfilCompleto: texto(usuario.telefono) !== null && fechaNacimiento !== null,
     hizoProximoPaso,
-    pendientes: { ...HECHOS_VACIOS.pendientes, ...deCargo, solicitudesGrupo, casasPorRevisar, gruposSinCasa },
+    pendientes: { ...HECHOS_VACIOS.pendientes, ...deCargo, solicitudesGrupo, casasPorRevisar, gruposSinCasa, ticketsAbiertos: tickets },
   }
 }

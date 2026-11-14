@@ -20,6 +20,7 @@ const CAMPUS_COOKIE = 'gc_campus_activo'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SEMANAS_TENDENCIA = 8
 const ROLES_CAMPUS = new Set(['admin', 'pastor'])
+const TAMANO_PAGINA = 1000
 
 // The cookie is client-controlled, so only a well-formed uuid is accepted; it narrows the
 // first paint to the selected campus and is never used for access control.
@@ -63,14 +64,40 @@ const lista = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v.m
 
 const redondo = (v: number | null): number | null => (v === null ? null : Math.round(v))
 
-/** Activo / postulado servicios of Dream Team; null when the count fails. */
-async function contarServicios(supabase: ClienteInicio, estado: 'activo' | 'postulado'): Promise<number | null> {
+/** Postulado servicios of Dream Team; null when the count fails. */
+async function contarServicios(supabase: ClienteInicio, estado: 'postulado'): Promise<number | null> {
   try {
     const { count, error } = await supabase.from('dream_team_servicios').select('id', { count: 'exact', head: true }).eq('estado', estado)
     if (error) throw new Error(error.message)
     return count ?? null
   } catch (error) {
     console.error(`Inicio: no se pudo contar Dream Team (${estado}):`, error instanceof Error ? error.message : error)
+    return null
+  }
+}
+
+/**
+ * «Servidores activos» (S16): distinct people with an activo servicio, so one
+ * person serving in two areas counts once. PostgREST has no distinct count,
+ * so the persona ids are read in pages; null when a page fails.
+ */
+async function contarServidoresActivos(supabase: ClienteInicio): Promise<number | null> {
+  try {
+    const personas = new Set<string>()
+    for (let desde = 0; ; desde += TAMANO_PAGINA) {
+      const { data, error } = await supabase
+        .from('dream_team_servicios')
+        .select('persona_id')
+        .eq('estado', 'activo')
+        .order('id')
+        .range(desde, desde + TAMANO_PAGINA - 1)
+      if (error) throw new Error(error.message)
+      const filas = data ?? []
+      for (const f of filas) if (f.persona_id) personas.add(f.persona_id)
+      if (filas.length < TAMANO_PAGINA) return personas.size
+    }
+  } catch (error) {
+    console.error('Inicio: no se pudo contar Dream Team (activo):', error instanceof Error ? error.message : error)
     return null
   }
 }
@@ -89,7 +116,7 @@ export async function cargarVisionGeneral(
   const w = tablero.widgets
   const kpis = objeto(w.kpis_globales)
   const valor = (clave: string) => numero(objeto(kpis?.[clave])?.valor)
-  const [dreamTeam, postulados] = await Promise.all([contarServicios(supabase, 'activo'), contarServicios(supabase, 'postulado')])
+  const [dreamTeam, postulados] = await Promise.all([contarServidoresActivos(supabase), contarServicios(supabase, 'postulado')])
 
   return {
     personas: valor('total_miembros'),

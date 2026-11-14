@@ -32,22 +32,35 @@ function restoreEnv(key: string, value: string | undefined) {
   else process.env[key] = value
 }
 
-// head-count query of dream_team_servicios: the count depends on the estado asked.
-function cliente(conteos: Record<string, number | Error>) {
+// dream_team_servicios: a head count for postulados, the persona_id rows (paged) for activos.
+type Conteo = number | Error | Array<{ persona_id: string }>
+function cliente(conteos: Record<string, Conteo>) {
   return {
     from: jest.fn(() => {
       let estado = ''
+      let cabeza = false
+      let desde = 0
       const q: Record<string, unknown> = {
-        select: jest.fn(() => q),
+        select: jest.fn((_columnas: string, opciones?: { head?: boolean }) => {
+          cabeza = opciones?.head === true
+          return q
+        }),
         eq: jest.fn((columna: string, valor: string) => {
           if (columna === 'estado') estado = valor
+          return q
+        }),
+        order: jest.fn(() => q),
+        range: jest.fn((a: number) => {
+          desde = a
           return q
         }),
         then: (ok: (r: unknown) => unknown, mal: (e: unknown) => unknown) =>
           Promise.resolve()
             .then(() => {
               const c = conteos[estado]
-              return c instanceof Error ? { count: null, error: { message: c.message } } : { count: c ?? 0, error: null }
+              if (c instanceof Error) return { data: null, count: null, error: { message: c.message } }
+              if (cabeza) return { count: typeof c === 'number' ? c : 0, error: null }
+              return { data: Array.isArray(c) ? c.slice(desde, desde + 1000) : [], error: null }
             })
             .then(ok, mal),
       }
@@ -55,6 +68,11 @@ function cliente(conteos: Record<string, number | Error>) {
     }),
   }
 }
+
+const personas = (n: number, repetidas = 0) => [
+  ...Array.from({ length: n }, (_, i) => ({ persona_id: `p-${i}` })),
+  ...Array.from({ length: repetidas }, (_, i) => ({ persona_id: `p-${i % n}` })),
+]
 
 const WIDGETS_ADMIN = {
   kpis_globales: {
@@ -129,7 +147,7 @@ describe('cargarTablero', () => {
 
 describe('cargarVisionGeneral', () => {
   it('admin o pastor: los números del campus, las últimas 8 semanas y Dream Team', async () => {
-    const supabase = cliente({ activo: 412, postulado: 23 })
+    const supabase = cliente({ activo: personas(412), postulado: 23 })
 
     const datos = await cargarVisionGeneral(supabase as never, { rol: 'pastor', widgets: WIDGETS_ADMIN }, 4)
 
@@ -144,6 +162,15 @@ describe('cargarVisionGeneral', () => {
       gruposSinCasa: 4,
       postulados: 23,
     })
+  })
+
+  // S16 (1): «Servidores activos» are people; one person serving in two areas counts once.
+  it('Dream Team cuenta personas distintas con un servicio activo, no servicios', async () => {
+    const supabase = cliente({ activo: personas(1500, 700), postulado: 0 })
+
+    const datos = await cargarVisionGeneral(supabase as never, { rol: 'admin', widgets: WIDGETS_ADMIN }, 0)
+
+    expect(datos?.dreamTeam).toBe(1500)
   })
 
   it('un conteo de Dream Team que falla queda sin dato', async () => {
