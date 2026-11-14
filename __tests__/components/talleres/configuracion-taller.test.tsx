@@ -10,6 +10,10 @@
  * R3k (odd/tasks/talleres-rediseno.md, L10) — the configuration is its own
  * view (/talleres/[taller]/configuracion): section cards and ONE «Guardar
  * configuración» that also saves cadencia/duración when they changed.
+ *
+ * R3l (odd/tasks/talleres-rediseno.md, L11) — Temporadas is hidden from
+ * Talleres: no régimen selector; every taller runs on its own cadencia. A
+ * taller still on régimen=temporada shows a short note and keeps it on save.
  */
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -35,7 +39,7 @@ function baseProps(overrides: Partial<Parameters<typeof ConfiguracionTaller>[0]>
     tallerSlug: 'proximo-paso',
     tipo: 'individual' as const,
     vinculo: null,
-    regimen: 'temporada' as const,
+    regimen: 'cadencia' as 'temporada' | 'cadencia',
     cierreInscripcionOffsetDias: 0,
     intervaloEdicionesDias: null,
     clasesMinimasParaCompletar: null,
@@ -55,11 +59,12 @@ beforeEach(() => {
 })
 
 describe('ConfiguracionTaller — read-only viewer', () => {
-  it('shows tipo, régimen, cierre and cadencia as plain text, no controls', () => {
+  it('shows tipo, cierre and cadencia as plain text, no controls and no régimen (R3l)', () => {
     render(<ConfiguracionTaller {...baseProps({ tipo: 'pareja', vinculo: 'matrimonio', cierreInscripcionOffsetDias: -3 })} />)
     expect(screen.getByText('Parejas')).toBeInTheDocument()
     expect(screen.getByText('Matrimonios')).toBeInTheDocument()
-    expect(screen.getByText('Por temporada de la dirección')).toBeInTheDocument()
+    expect(screen.queryByText('Régimen')).not.toBeInTheDocument()
+    expect(screen.queryByText(/temporada/i)).not.toBeInTheDocument()
     expect(screen.getByText('Cierra 3 días antes de la primera clase')).toBeInTheDocument()
     expect(screen.getByText(/Cada 7 días · Duración 90 min/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /guardar/i })).not.toBeInTheDocument()
@@ -83,6 +88,11 @@ describe('ConfiguracionTaller — read-only viewer', () => {
     render(<ConfiguracionTaller {...baseProps({ regimen: 'temporada', intervaloEdicionesDias: null })} />)
     expect(screen.queryByText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
   })
+
+  it('R3l — a taller still on régimen=temporada shows the short note', () => {
+    render(<ConfiguracionTaller {...baseProps({ regimen: 'temporada' })} />)
+    expect(screen.getByText('Este taller está en régimen por temporada.')).toBeInTheDocument()
+  })
 })
 
 describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo', () => {
@@ -93,18 +103,20 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
     expect(screen.getByLabelText(/^vínculo$/i)).toBeInTheDocument()
   })
 
-  it('shows the intervalo field only when régimen is cadencia', () => {
-    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'temporada' })} />)
-    expect(screen.queryByLabelText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'cadencia' } })
+  it('R3l — offers no régimen selector and never mentions temporadas for a cadencia taller', () => {
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'cadencia' })} />)
+    expect(screen.queryByLabelText(/^régimen$/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/temporada/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/inicio de cada edición/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/intervalo entre ediciones/i)).toBeInTheDocument()
   })
 
-  it('explains the régimen choice under the control, and updates live as it changes', () => {
+  it('R3l — a régimen=temporada taller shows the note, no selector and no cadencia fields', () => {
     render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'temporada' })} />)
-    expect(screen.getByText(/se agrupan en las temporadas de tu dirección/i)).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'cadencia' } })
-    expect(screen.getByText(/se crean por su propia cadencia/i)).toBeInTheDocument()
+    expect(screen.getByText('Este taller está en régimen por temporada.')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^régimen$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/inicio de cada edición/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/intervalo entre ediciones/i)).not.toBeInTheDocument()
   })
 
   it('shows the cierre relativo sentence live as the offset changes', () => {
@@ -116,11 +128,10 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
 
   it('saves tipo/vinculo/regimen/cierre/intervalo through updateTallerConfiguracion', async () => {
     updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
-    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, tipo: 'individual', regimen: 'temporada' })} />)
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, tipo: 'individual', regimen: 'cadencia' })} />)
 
     fireEvent.change(screen.getByLabelText(/^tipo$/i), { target: { value: 'pareja' } })
     fireEvent.change(screen.getByLabelText(/^vínculo$/i), { target: { value: 'novios' } })
-    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'cadencia' } })
     fireEvent.change(screen.getByLabelText(/cierre de inscripción/i), { target: { value: '-5' } })
     fireEvent.change(screen.getByLabelText(/intervalo entre ediciones/i), { target: { value: '28' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
@@ -172,9 +183,10 @@ describe('ConfiguracionTaller — editor: tipo/vinculo/regimen/cierre/intervalo'
 // ediciones start: on the first Sunday of each month, or every N días.
 describe('ConfiguracionTaller — inicio de cada edición', () => {
   it('editor: offers the choice only for régimen=cadencia', () => {
-    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'temporada' })} />)
+    const { unmount } = render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'temporada' })} />)
     expect(screen.queryByLabelText(/inicio de cada edición/i)).not.toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'cadencia' } })
+    unmount()
+    render(<ConfiguracionTaller {...baseProps({ puedeEditar: true, regimen: 'cadencia' })} />)
     expect(screen.getByLabelText(/inicio de cada edición/i)).toHaveValue('cada_n_dias')
   })
 
@@ -219,14 +231,13 @@ describe('ConfiguracionTaller — inicio de cada edición', () => {
     )
   })
 
-  it('editor: switching to régimen=temporada sends no anchor', async () => {
+  it('R3l — editor: a régimen=temporada taller keeps its régimen on save and sends no anchor', async () => {
     updateTallerConfiguracionMock.mockResolvedValue({ ok: true })
     render(
       <ConfiguracionTaller
-        {...baseProps({ puedeEditar: true, regimen: 'cadencia', anclaEdiciones: 'primer_domingo_mes' })}
+        {...baseProps({ puedeEditar: true, regimen: 'temporada', anclaEdiciones: 'primer_domingo_mes' })}
       />,
     )
-    fireEvent.change(screen.getByLabelText(/^régimen$/i), { target: { value: 'temporada' } })
     fireEvent.click(screen.getByRole('button', { name: /guardar configuración/i }))
     await waitFor(() =>
       expect(updateTallerConfiguracionMock).toHaveBeenCalledWith(

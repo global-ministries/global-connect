@@ -226,16 +226,18 @@ describe('SidebarModerna platform navigation', () => {
   // item (and the whole admin wizard screen) is deleted, and
   // admin.manage alone no longer gates any surviving sub-item. These
   // tests now exercise the same render/auto-expand mechanics with
-  // director.read + the surviving `/talleres/temporadas` item instead —
+  // metrics.read + the surviving `/talleres/pendientes` item instead (R3l,
+  // odd/tasks/talleres-rediseno.md L11: the former `/talleres/temporadas`
+  // fixture is hidden; route-access.ts gates pendientes on metrics.read) —
   // the behavior under test (capability-gated sub-item rendering) is
   // unrelated to which specific capability or href is used.
 
-  it('PR25: renders a capability-gated talleres sub-item (director.read + participation.read)', async () => {
+  it('PR25: renders a capability-gated talleres sub-item (metrics.read + participation.read)', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
-    currentPathname = '/talleres/temporadas'
+    currentPathname = '/talleres/pendientes'
     currentPlatformSession = withCapabilities([
       { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
-      { key: 'talleres_crecimiento.director.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      { key: 'talleres_crecimiento.metrics.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
     render(<SidebarModerna />)
@@ -243,7 +245,7 @@ describe('SidebarModerna platform navigation', () => {
     // PR28: the talleres parent is now `talleres_participation`
     // (href `/talleres/explorar`), not a standalone `talleres_admin`
     // item. The parent must render because the user has both
-    // `participation.read` (gates the parent) and `director.read`
+    // `participation.read` (gates the parent) and `metrics.read`
     // (gates the sub-item). Use a manual query so we don't depend
     // on accessible-name resolution for the platform item (whose
     // SVG icon renders an SVG title that can interfere with name
@@ -254,21 +256,21 @@ describe('SidebarModerna platform navigation', () => {
     })
 
     // The role-grouped sub-menu must mount under the parent. With
-    // director.read present, the sub-menu shows the Temporadas
-    // entry-point (T8).
+    // metrics.read present, the sub-menu shows the Pendientes
+    // entry-point (T6).
     await waitFor(() => {
-      const subItemLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/temporadas')
+      const subItemLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/pendientes')
       // Parent (with auto-expand active) + sub-item link both render.
       expect(subItemLinks.length).toBeGreaterThanOrEqual(1)
     })
   })
 
-  it('PR25: auto-expand opens the talleres sub-menu when a director navigates to /talleres/temporadas', async () => {
+  it('PR25: auto-expand opens the talleres sub-menu when a coordinador/director navigates to /talleres/pendientes', async () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
-    currentPathname = '/talleres/temporadas'
+    currentPathname = '/talleres/pendientes'
     currentPlatformSession = withCapabilities([
       { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
-      { key: 'talleres_crecimiento.director.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      { key: 'talleres_crecimiento.metrics.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
     render(<SidebarModerna />)
@@ -276,7 +278,7 @@ describe('SidebarModerna platform navigation', () => {
     // Wait for the platform talleres parent to render (it's fetched
     // asynchronously by usePlatformNavigationViewItems). PR28: the
     // parent is now `talleres_participation` (href `/talleres/explorar`),
-    // while the sub-item keeps its own URL `/talleres/temporadas`.
+    // while the sub-item keeps its own URL `/talleres/pendientes`.
     await waitFor(() => {
       const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
       expect(parentLinks.length).toBeGreaterThanOrEqual(1)
@@ -286,16 +288,39 @@ describe('SidebarModerna platform navigation', () => {
     // resolves — when the pathname matches the sub-item URL, the
     // parent opens and the sub-item renders.
     await waitFor(() => {
-      const subItemLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/temporadas')
+      const subItemLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/pendientes')
       expect(subItemLinks.length).toBeGreaterThanOrEqual(1)
     })
 
     // Belt-and-suspenders: the sub-item link's aria-current must
     // reflect the active route once pathname matches.
     await waitFor(() => {
-      const activeSubItems = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/temporadas' && link.getAttribute('aria-current') === 'page')
+      const activeSubItems = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/pendientes' && link.getAttribute('aria-current') === 'page')
       expect(activeSubItems.length).toBeGreaterThanOrEqual(1)
     })
+  })
+
+  it('R3l: no talleres nav link points to /talleres/temporadas, even for a director', async () => {
+    process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
+    currentPathname = '/talleres/explorar'
+    currentPlatformSession = withCapabilities([
+      { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      { key: 'talleres_crecimiento.director.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      { key: 'talleres_crecimiento.metrics.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+    ])
+
+    render(<SidebarModerna />)
+
+    // Wait for the talleres sub-menu itself to mount (Pendientes is in it),
+    // so the absence below is checked against a rendered sub-menu.
+    await waitFor(() => {
+      const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/pendientes')
+      expect(subLinks.length).toBeGreaterThanOrEqual(1)
+    })
+    const temporadasLinks = screen
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('href')?.startsWith('/talleres/temporadas'))
+    expect(temporadasLinks).toHaveLength(0)
   })
 
   // ─── PR26 — talleres sub-menu must render for admins even when the
@@ -317,7 +342,8 @@ describe('SidebarModerna platform navigation', () => {
   //
   // T10 (odd/tasks/talleres-consolidar-pantallas.md) — the original
   // admin.manage + `/admin/talleres/abstracto` fixture is deleted along
-  // with that screen; director.read + `/talleres/temporadas` exercises
+  // with that screen; metrics.read + `/talleres/pendientes` exercises (R3l:
+  // Temporadas, the previous fixture, is hidden)
   // the identical mechanic (a capability-gated sub-item surviving an
   // off participant flag).
 
@@ -338,10 +364,10 @@ describe('SidebarModerna platform navigation', () => {
       delete process.env.NEXT_PUBLIC_TALLERES_STAGE
       delete process.env.NEXT_PUBLIC_TALLERES_KILL_SWITCH
 
-      currentPathname = '/talleres/temporadas'
+      currentPathname = '/talleres/pendientes'
       currentPlatformSession = withCapabilities([
         { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
-        { key: 'talleres_crecimiento.director.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+        { key: 'talleres_crecimiento.metrics.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
       ])
 
       render(<SidebarModerna />)
@@ -349,7 +375,7 @@ describe('SidebarModerna platform navigation', () => {
       // The talleres parent must still render (gated by capability,
       // not by the participant-facing flag). PR28: parent href is
       // `/talleres/explorar` (the participant landing); the sub-item
-      // keeps its own URL `/talleres/temporadas`.
+      // keeps its own URL `/talleres/pendientes`.
       await waitFor(() => {
         const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
         expect(parentLinks.length).toBeGreaterThanOrEqual(1)
@@ -359,7 +385,7 @@ describe('SidebarModerna platform navigation', () => {
       // operational entry-point must work regardless of the
       // participant rollout stage — this is the production bug fix.
       await waitFor(() => {
-        const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/temporadas')
+        const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/pendientes')
         expect(subLinks.length).toBeGreaterThanOrEqual(1)
       })
     } finally {
@@ -434,14 +460,14 @@ describe('SidebarModerna platform navigation', () => {
     process.env.NEXT_PUBLIC_PLATFORM_NAVIGATION_ENABLED = 'true'
     // PR28: the talleres parent is now `talleres_participation` with
     // href `/talleres/explorar` (the participant landing). The
-    // sub-item keeps its own URL (T10: `/talleres/temporadas` — the
+    // sub-item keeps its own URL (R3l: `/talleres/pendientes` — the
     // original `/admin/talleres/abstracto` fixture is deleted along
     // with that screen). The auto-expand useEffect matches the parent
     // href, so we drive the test via the parent's own URL.
     currentPathname = '/talleres/explorar'
     currentPlatformSession = withCapabilities([
       { key: 'talleres_crecimiento.participation.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
-      { key: 'talleres_crecimiento.director.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
+      { key: 'talleres_crecimiento.metrics.read', experience: 'talleres_crecimiento', scopeType: 'taller', scopeId: 'global', source: 'unsafe' },
     ])
 
     render(<SidebarModerna />)
@@ -468,12 +494,12 @@ describe('SidebarModerna platform navigation', () => {
 
     // The talleres parent link must be in the DOM at the matching
     // URL, and the role-grouped sub-menu (which contains the
-    // Temporadas entry-point) must also mount — confirms the
-    // sub-menu actually mounted for a director on the matching route.
+    // Pendientes entry-point) must also mount — confirms the
+    // sub-menu actually mounted for a metrics.read holder on the matching route.
     await waitFor(() => {
       const parentLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/explorar')
       expect(parentLinks.length).toBeGreaterThanOrEqual(1)
-      const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/temporadas')
+      const subLinks = screen.getAllByRole('link').filter((link) => link.getAttribute('href') === '/talleres/pendientes')
       expect(subLinks.length).toBeGreaterThanOrEqual(1)
     })
   })

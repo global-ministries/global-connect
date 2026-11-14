@@ -13,6 +13,10 @@
  * talleres_participante_explorar, talleres_participante_mi_recorrido,
  * talleres_pendientes, talleres_reportes, talleres_temporadas.
  *
+ * R3l (odd/tasks/talleres-rediseno.md, L11) — Temporadas is hidden from
+ * Talleres: talleres_temporadas is no longer a nav item (its route
+ * redirects to the catálogo; the data and actions stay).
+ *
  * fix/talleres-nav-catalogo — T10 also dropped the entry pointing at
  * the catalog itself, /talleres (T2), leaving it reachable only by
  * typing the URL. `talleres_catalogo` restores it as the first item,
@@ -65,7 +69,7 @@ describe('getTalleresNavItems — capability filter', () => {
     ])
   })
 
-  it('director.read holder sees P (always) + talleres_temporadas', () => {
+  it('R3l — director.read holder sees only the 3 P items: no Temporadas entry', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.director.read'],
       { isEnabled: true },
@@ -74,8 +78,9 @@ describe('getTalleresNavItems — capability filter', () => {
       'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
-      'talleres_temporadas',
     ])
+    expect(items.map((i) => i.label)).not.toContain('Temporadas')
+    expect(items.map((i) => i.href)).not.toContain('/talleres/temporadas')
   })
 
   it('admin.manage alone sees only the 3 P items — no admin-only item exists anymore (the abstracto wizard is deleted)', () => {
@@ -114,7 +119,7 @@ describe('getTalleresNavItems — capability filter', () => {
     ])
   })
 
-  it('director.read + metrics.read sees the full union: P + pendientes + reportes + temporadas', () => {
+  it('director.read + metrics.read sees the full union: P + pendientes + reportes (R3l: no temporadas)', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.director.read', 'talleres_crecimiento.metrics.read'],
       { isEnabled: true },
@@ -125,7 +130,6 @@ describe('getTalleresNavItems — capability filter', () => {
       'talleres_participante_mi_recorrido',
       'talleres_pendientes',
       'talleres_reportes',
-      'talleres_temporadas',
     ])
   })
 
@@ -219,17 +223,13 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(byId['B']?.items.map((i) => i.id)).toEqual(['talleres_pendientes'])
   })
 
-  it('T8 — groups talleres_temporadas under the existing D "Dirección" bucket, not its own bucket', () => {
+  it('R3l — a director gets no "Dirección" group: Temporadas, its only item, is hidden', () => {
     const items = getTalleresNavItems(
       ['talleres_crecimiento.director.read'],
       { isEnabled: true },
     )
     const groups = groupTalleresNavItems(items)
-    const byId = Object.fromEntries(groups.map((g) => [g.id, g]))
-    expect(byId['D']?.title).toBe('Dirección')
-    expect(byId['D']?.items.map((i) => i.id)).toEqual(['talleres_temporadas'])
-    // No new lettered bucket was invented for it.
-    expect(groups.map((g) => g.id)).not.toContain('S')
+    expect(groups.map((g) => g.id)).toEqual(['P'])
   })
 
   it('T10: L, C, A groups never appear when hasMisGrupos is not set — no other surviving item maps to them', () => {
@@ -248,7 +248,8 @@ describe('groupTalleresNavItems — role grouping', () => {
     expect(groupIds).not.toContain('L')
     expect(groupIds).not.toContain('C')
     expect(groupIds).not.toContain('A')
-    expect(groupIds.sort()).toEqual(['B', 'D', 'P', 'R'].sort())
+    // R3l — no D either: Temporadas, its only item, is hidden.
+    expect(groupIds.sort()).toEqual(['B', 'P', 'R'].sort())
   })
 
   it('T11: the L "Como Líder" bucket appears when hasMisGrupos is true, holding only talleres_mis_grupos', () => {
@@ -295,16 +296,16 @@ describe('resolveTalleresNavViewItems — SSR / RSC variant', () => {
 // ─── Table invariants ─────────────────────────────────────────────────────
 
 describe('TALLERES_NAV_ITEMS — table invariants', () => {
-  it('holds exactly the 7 items backing the approved ~12-route tree (T10 + fix/talleres-nav-catalogo + T11 mis grupos)', () => {
+  it('holds exactly the 6 items backing the approved route tree (T10 + fix/talleres-nav-catalogo + T11 mis grupos; R3l hides Temporadas)', () => {
     expect(TALLERES_NAV_ITEMS.map((i) => i.id)).toEqual([
       'talleres_catalogo',
       'talleres_participante_explorar',
       'talleres_participante_mi_recorrido',
       'talleres_pendientes',
       'talleres_reportes',
-      'talleres_temporadas',
       'talleres_mis_grupos',
     ])
+    expect(TALLERES_NAV_ITEMS.some((i) => i.href.startsWith('/talleres/temporadas'))).toBe(false)
   })
 
   it('every item id is unique', () => {
@@ -373,7 +374,6 @@ describe('TALLERES_NAV_ITEMS — table invariants', () => {
       'talleres_catalogo',
       'talleres_pendientes',
       'talleres_reportes',
-      'talleres_temporadas',
       // T11 — talleres_mis_grupos groups under L by meaning (the líder's
       // own shortcut), not by an id prefix, same reasoning as the three above.
       'talleres_mis_grupos',

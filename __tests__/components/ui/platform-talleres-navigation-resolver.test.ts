@@ -22,7 +22,7 @@ describe('resolveTalleresNavViewItems — SSR/RSC smoke', () => {
     expect(groups.map((g) => g.id)).toEqual(['P'])
   })
 
-  it('renders the P group (always) + only the D group when director.read is held (PR H — no L/C superset)', () => {
+  it('renders the P group (always) + nothing else when director.read is held (PR H — no L/C superset; R3l — no D)', () => {
     const groups = resolveTalleresNavViewItems({
       sessionCapabilities: ['talleres_crecimiento.director.read'],
       isEnabled: true,
@@ -31,7 +31,11 @@ describe('resolveTalleresNavViewItems — SSR/RSC smoke', () => {
     // sees only the Dirección group besides P. odd/tasks/talleres-
     // autoinscripcion.md criterion 7 — P is now open to any authenticated
     // caller, so it rides along even without participation.read.
-    expect(groups.map((g) => g.id)).toEqual(['P', 'D'])
+    // R3l (odd/tasks/talleres-rediseno.md, L11) — Temporadas, the only
+    // Dirección item, is hidden, so no D group is left either.
+    expect(groups.map((g) => g.id)).toEqual(['P'])
+    const hrefs = groups.flatMap((g) => g.items.map((i) => i.href))
+    expect(hrefs.some((href) => href.startsWith('/talleres/temporadas'))).toBe(false)
   })
 
   it('returns empty when feature flag is off', () => {

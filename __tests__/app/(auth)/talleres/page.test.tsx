@@ -238,12 +238,19 @@ describe('TalleresCatalogoPage — R3c wiring', () => {
     setup({ capabilities: ['talleres_crecimiento.metrics.read'] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     let element = (await TalleresCatalogoPage(pagina())) as any
-    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: true, temporadas: false, reportes: true })
+    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: true, reportes: true })
 
     setup({ capabilities: [] })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
     element = (await TalleresCatalogoPage(pagina())) as any
-    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: false, temporadas: false, reportes: false })
+    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: false, reportes: false })
+  })
+
+  it('R3l — a director gets no Temporadas tab', async () => {
+    setup({ capabilities: ['talleres_crecimiento.director.read', 'talleres_crecimiento.metrics.read'] })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- RSC returns a plain element
+    const element = (await TalleresCatalogoPage(pagina())) as any
+    expect(findByType(element, CatalogoTalleresClient)?.props.pestanas).toEqual({ pendientes: true, reportes: true })
   })
 
   it('reads ?atencion, ?direccion, ?q, ?taller and ?nuevo from the URL, ignoring unknown values', async () => {

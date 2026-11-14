@@ -115,12 +115,13 @@ describe('OpenEdicionForm — régimen=temporada', () => {
     expect(screen.getByText('Primavera 2027')).toBeInTheDocument()
   })
 
-  it('shows an empty state with a link to Temporadas when there is none open, and disables submit', () => {
+  it('R3l — with none open: no select, a short note and no link to the hidden Temporadas; submit disabled', () => {
     render(<OpenEdicionForm {...baseProps({ regimen: 'temporada', temporadasDisponibles: [] })} />)
     openForm()
     expect(screen.queryByLabelText(/^temporada$/i)).not.toBeInTheDocument()
-    expect(screen.getByText(/tu dirección no tiene temporadas abiertas/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /ir a temporadas/i })).toHaveAttribute('href', '/talleres/temporadas/crear')
+    expect(screen.getByText('Este taller está en régimen por temporada y no tiene temporadas abiertas.')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /temporadas/i })).not.toBeInTheDocument()
+    expect(document.querySelector('a[href^="/talleres/temporadas"]')).toBeNull()
     expect(screen.getByRole('button', { name: /^crear edición$/i, hidden: false })).toBeDisabled()
   })
 

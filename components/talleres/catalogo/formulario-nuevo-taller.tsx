@@ -11,6 +11,10 @@
  * existing node or create one under a parent), sent to the existing server
  * action createTallerAbstract, which create_taller_abstract checks again.
  * Only the copy changes: neutral Spanish with «tú».
+ *
+ * R3l (odd/tasks/talleres-rediseno.md, L11) — Temporadas is hidden from
+ * Talleres: no Régimen field; every new taller is régimen=cadencia («Por
+ * cadencia propia», modalidad permanente_custom).
  */
 
 import { useId, useState, useTransition, type FormEvent, type ReactElement } from 'react'
@@ -25,7 +29,6 @@ import {
 } from '@/components/ui/sistema-diseno'
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { regimenLabel, type TallerRegimen } from '@/components/talleres/labels'
 import type { OpcionesEquipoTaller } from '@/lib/platform/talleres/equipo-organigrama'
 
 import { createTallerAbstract } from '@/app/(auth)/admin/talleres/abstracto/nuevo/actions'
@@ -51,7 +54,6 @@ export function FormularioNuevoTaller({ abierto, onCambioAbierto, opciones }: Pr
 
   const [nombre, setNombre] = useState('')
   const [descripcion, setDescripcion] = useState('')
-  const [regimen, setRegimen] = useState<TallerRegimen>('temporada')
   const [slug, setSlug] = useState('')
   const [modo, setModo] = useState<ModoEquipo>('vincular')
   const [equipoId, setEquipoId] = useState('')
@@ -73,7 +75,6 @@ export function FormularioNuevoTaller({ abierto, onCambioAbierto, opciones }: Pr
     setModo('vincular')
     setEquipoId('')
     setParentEquipoId('')
-    setRegimen('temporada')
     setErrores({})
   }
 
@@ -87,9 +88,9 @@ export function FormularioNuevoTaller({ abierto, onCambioAbierto, opciones }: Pr
       const resultado = await createTallerAbstract({
         nombre,
         descripcion: descripcion.trim() === '' ? null : descripcion,
-        // Derived 1:1 from régimen, as CrearTallerAbstractoForm does; p_regimen wins server-side.
-        modalidad_default: regimen === 'cadencia' ? 'permanente_custom' : 'periodo_general',
-        regimen,
+        // Régimen fixed to cadencia (R3l); modalidad derived 1:1 from it, as before.
+        modalidad_default: 'permanente_custom',
+        regimen: 'cadencia',
         slug: slug.trim() === '' ? undefined : slug,
         equipoId: modo === 'vincular' ? equipoId : undefined,
         parentEquipoId: modo === 'nuevo' ? parentEquipoId : undefined,
@@ -149,23 +150,12 @@ export function FormularioNuevoTaller({ abierto, onCambioAbierto, opciones }: Pr
           onChange={(e) => setDescripcion(e.target.value)}
           placeholder="Para quién es, qué se aprende…"
         />
-        <CamposSistema>
-          <SelectSistema
-            label="Régimen"
-            opciones={[
-              { valor: 'temporada', etiqueta: regimenLabel('temporada') },
-              { valor: 'cadencia', etiqueta: regimenLabel('cadencia') },
-            ]}
-            value={regimen}
-            onValueChange={(v) => setRegimen(v as TallerRegimen)}
-          />
-          <SelectSistema
-            label="Dónde vive en el organigrama *"
-            opciones={MODO_OPCIONES}
-            value={modo}
-            onValueChange={(v) => setModo(v as ModoEquipo)}
-          />
-        </CamposSistema>
+        <SelectSistema
+          label="Dónde vive en el organigrama *"
+          opciones={MODO_OPCIONES}
+          value={modo}
+          onValueChange={(v) => setModo(v as ModoEquipo)}
+        />
         {modo === 'vincular' ? (
           <SelectSistema
             label="Equipo *"

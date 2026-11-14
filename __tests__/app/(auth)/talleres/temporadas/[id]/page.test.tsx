@@ -1,8 +1,9 @@
 /**
  * @jest-environment node
  *
- * R3b (odd/tasks/talleres-rediseno.md, S5) — the temporada detail is the
- * list's drawer now; /talleres/temporadas/[id] only sends old links there.
+ * R3l (odd/tasks/talleres-rediseno.md, S1, L11) — Temporadas is hidden from
+ * Talleres: /talleres/temporadas and its old /[id] and /crear links all go to
+ * the catálogo. The data and the server actions stay.
  */
 
 import TemporadaDetallePage from '@/app/(auth)/talleres/temporadas/[id]/page'
@@ -13,11 +14,10 @@ const redirectMock = jest.fn((url: string) => {
 
 jest.mock('next/navigation', () => ({ redirect: (url: string) => redirectMock(url) }))
 
-describe('/talleres/temporadas/[id]', () => {
-  it('redirects to the list with that temporada open', async () => {
-    await expect(TemporadaDetallePage({ params: Promise.resolve({ id: 'temp-1' }) })).rejects.toThrow(
-      'NEXT_REDIRECT /talleres/temporadas?temporada=temp-1',
-    )
-    expect(redirectMock).toHaveBeenCalledWith('/talleres/temporadas?temporada=temp-1')
+describe('/talleres/temporadas/[id] (R3l)', () => {
+  it('redirects to the catálogo, without the temporada', () => {
+    expect(() => TemporadaDetallePage()).toThrow('NEXT_REDIRECT /talleres')
+    expect(redirectMock).toHaveBeenCalledTimes(1)
+    expect(redirectMock).toHaveBeenCalledWith('/talleres')
   })
 })
