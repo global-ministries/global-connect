@@ -121,7 +121,9 @@ const FILA_NO_PUEDE = {
 }
 
 function cliente(filas: unknown[], { errorReclamo, errorTokens }: { errorReclamo?: string; errorTokens?: string } = {}) {
-  const rpc = jest.fn((nombre: string): Promise<{ data: unknown; error: { message: string } | null }> => {
+  const rpc = jest.fn((nombre: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: { message: string } | null }> => {
+    // The release answers how many rows went back.
+    if (nombre === 'dps_avisos_correos_soltar') return Promise.resolve({ data: (args?.p_ids as unknown[]).length, error: null })
     if (nombre === 'dps_avisos_correos_reclamar') {
       return Promise.resolve(errorReclamo ? { data: null, error: { message: errorReclamo } } : { data: filas, error: null })
     }
@@ -191,6 +193,33 @@ describe('prepararCorreo (avisos)', () => {
     expect(p.correo.text.match(/\/dps\/confirmar\//g)).toHaveLength(1)
   })
 
+  it('registers a token only for the blocks that ask for an answer (confirmar), whatever their kind', () => {
+    const [fila] = parseFilasCorreo([
+      filaAvisos('f1', [
+        bloque(AVISO, 1, 'nueva', false, servicio(PLAN, '2026-11-15', { estado: 'confirmo' })),
+        bloque(AVISO2, 4, 'cambio', true, servicio(PLAN2, '2026-11-29')),
+        bloque(AVISO3, 2, 'quitado', false, servicio('66666666-6666-4666-8666-666666666666', '2026-11-22', { quitado: true })),
+      ]),
+    ])
+    const p = prepararCorreo(fila, BASE, SECRETO)!
+    expect(p.tokens).toEqual([{ hash: hashToken(tokenConfirmar(AVISO2, 4, SECRETO)), aviso_id: AVISO2, version: 4 }])
+    expect(p.correo.text.match(/\/dps\/confirmar\//g)).toHaveLength(1)
+    expect(p.correo.text).toContain(urlConfirmar(BASE, tokenConfirmar(AVISO2, 4, SECRETO)))
+    expect(p.correo.text).not.toContain(tokenConfirmar(AVISO, 1, SECRETO))
+  })
+
+  it('never lets a name put <, >, CR or LF into Reply-To', () => {
+    const [fila] = parseFilasCorreo([
+      filaAvisos('f1', [bloque(AVISO, 1, 'nueva', true, servicio(PLAN, '2026-11-15'))], {
+        responder_nombre: 'Andrés <x@evil.test>\r\nBcc: y@evil.test\nZ',
+      }),
+    ])
+    const replyTo = prepararCorreo(fila, BASE, SECRETO)!.correo.replyTo!
+    expect(replyTo).toBe('Andrés x@evil.test Bcc: y@evil.test Z <andres@example.test>')
+    expect(replyTo.replace(/ <andres@example\.test>$/, '')).not.toMatch(/[<>\r\n]/)
+    expect(replyTo).not.toMatch(/[\r\n]/)
+  })
+
   it('drops a row whose notices cannot be read, and goes without Reply-To when the planner has no e-mail', () => {
     expect(prepararCorreo(parseFilasCorreo([filaAvisos('f1', [{ aviso: 'nueva' }])])[0], BASE, SECRETO)).toBeNull()
     const [fila] = parseFilasCorreo([filaAvisos('f2', [bloque(AVISO, 1, 'nueva', true, servicio(PLAN, '2026-11-15'))], { responder_email: null })])
@@ -233,7 +262,7 @@ describe('enviarCorreosDps', () => {
 
     const r = await enviarCorreosDps(client, { ...opciones(enviar), limite: 10, topeDiario: 30 })
 
-    expect(r).toEqual({ reclamados: 2, enviados: 2, fallidos: 0 })
+    expect(r).toEqual({ reclamados: 2, enviados: 2, fallidos: 0, soltados: 0 })
     expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_reclamar', { p_limite: 10, p_tope_diario: 30 })
     expect(rpc).toHaveBeenCalledWith('dps_avisos_tokens_registrar', { p_tokens: [{ hash: hashToken(tokenConfirmar(AVISO, 1, SECRETO)), aviso_id: AVISO, version: 1 }] })
     expect(orden).toEqual([
@@ -256,10 +285,10 @@ describe('enviarCorreosDps', () => {
       return enviados.length === 1 ? { success: false, error: 'rate_limit_exceeded' } : { success: true }
     })
     const primero = cliente([fila])
-    expect(await enviarCorreosDps(primero.client, opciones(enviar))).toEqual({ reclamados: 1, enviados: 0, fallidos: 1 })
+    expect(await enviarCorreosDps(primero.client, opciones(enviar))).toEqual({ reclamados: 1, enviados: 0, fallidos: 1, soltados: 0 })
     expect(primero.rpc).toHaveBeenCalledWith('dps_avisos_correos_resultado', { p_id: 'f1', p_ok: false, p_error: 'rate_limit_exceeded' })
     const segundo = cliente([{ ...fila, intentos: 2 }])
-    expect(await enviarCorreosDps(segundo.client, opciones(enviar))).toEqual({ reclamados: 1, enviados: 1, fallidos: 0 })
+    expect(await enviarCorreosDps(segundo.client, opciones(enviar))).toEqual({ reclamados: 1, enviados: 1, fallidos: 0, soltados: 0 })
     expect(enviados[1].idempotencyKey).toBe(enviados[0].idempotencyKey)
     expect(enviados[1].text).toBe(enviados[0].text)
   })
@@ -267,7 +296,7 @@ describe('enviarCorreosDps', () => {
   it('sends nothing when the outbox has nothing due (a second send of the same notices queues nothing)', async () => {
     const { client, rpc } = cliente([])
     const enviar = jest.fn()
-    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 0, enviados: 0, fallidos: 0 })
+    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 0, enviados: 0, fallidos: 0, soltados: 0 })
     expect(enviar).not.toHaveBeenCalled()
     expect(rpc).toHaveBeenCalledTimes(1)
   })
@@ -275,9 +304,18 @@ describe('enviarCorreosDps', () => {
   it('does not send an e-mail whose links could not be registered, and keeps going', async () => {
     const { client, rpc } = cliente([filaAvisos('f1', [bloque(AVISO, 1, 'nueva', true, servicio(PLAN, '2026-11-15'))]), FILA_NO_PUEDE], { errorTokens: 'boom' })
     const enviar = jest.fn(async () => ({ success: true }))
-    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 2, enviados: 1, fallidos: 1 })
+    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 2, enviados: 1, fallidos: 1, soltados: 0 })
     expect(enviar).toHaveBeenCalledTimes(1)
     expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_resultado', { p_id: 'f1', p_ok: false, p_error: 'tokens: boom' })
+  })
+
+  it('never calls enviar when the links of the only row could not be registered, and records the failure', async () => {
+    const { client, rpc } = cliente([filaAvisos('f1', [bloque(AVISO, 1, 'nueva', true, servicio(PLAN, '2026-11-15'))])], { errorTokens: 'sin conexión' })
+    const enviar = jest.fn(async () => ({ success: true }))
+    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 1, enviados: 0, fallidos: 1, soltados: 0 })
+    expect(enviar).not.toHaveBeenCalled()
+    expect(rpc.mock.calls.map(([nombre]) => nombre)).toEqual(['dps_avisos_correos_reclamar', 'dps_avisos_tokens_registrar', 'dps_avisos_correos_resultado'])
+    expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_resultado', { p_id: 'f1', p_ok: false, p_error: 'tokens: sin conexión' })
   })
 
   it('records a thrown send and a row it cannot read as failures, never stopping', async () => {
@@ -285,7 +323,7 @@ describe('enviarCorreosDps', () => {
     const enviar = jest.fn(async () => {
       throw new Error('red caída')
     })
-    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 2, enviados: 0, fallidos: 2 })
+    expect(await enviarCorreosDps(client, opciones(enviar))).toEqual({ reclamados: 2, enviados: 0, fallidos: 2, soltados: 0 })
     expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_resultado', { p_id: 'f1', p_ok: false, p_error: 'datos_invalidos' })
     expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_resultado', { p_id: 'f-np', p_ok: false, p_error: 'red caída' })
   })
@@ -293,6 +331,99 @@ describe('enviarCorreosDps', () => {
   it('throws when the lease fails or no link key is configured', async () => {
     await expect(enviarCorreosDps(cliente([], { errorReclamo: 'boom' }).client, opciones(jest.fn()))).rejects.toThrow('No se pudieron tomar los correos: boom')
     await expect(enviarCorreosDps(cliente([]).client, { ...opciones(jest.fn()), secreto: '' })).rejects.toThrow('DPS_AVISOS_SECRETO')
+  })
+
+  it('throws before leasing anything when no link key is set at all', async () => {
+    const antes = { secreto: process.env.DPS_AVISOS_SECRETO, servicio: process.env.SUPABASE_SERVICE_ROLE_KEY }
+    delete process.env.DPS_AVISOS_SECRETO
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+    try {
+      const { client, rpc } = cliente([filaAvisos('f1', [bloque(AVISO, 1, 'nueva', true, servicio(PLAN, '2026-11-15'))])])
+      const enviar = jest.fn()
+      await expect(enviarCorreosDps(client, { enviarCorreo: enviar, urlBase: BASE, pausaMs: 0 })).rejects.toThrow('Falta DPS_AVISOS_SECRETO')
+      expect(rpc).not.toHaveBeenCalled()
+      expect(enviar).not.toHaveBeenCalled()
+    } finally {
+      if (antes.secreto !== undefined) process.env.DPS_AVISOS_SECRETO = antes.secreto
+      if (antes.servicio !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = antes.servicio
+    }
+  })
+
+  describe('the time budget (the route stops at 60 s)', () => {
+    const filas = ['f1', 'f2', 'f3', 'f4'].map((id) => filaAvisos(id, [bloque(AVISO, 1, 'nueva', false, servicio(PLAN, '2026-11-15', { estado: 'confirmo' }))]))
+
+    it('stops taking rows once the budget is spent and releases the leased rows it did not start', async () => {
+      // A fake clock: each send takes 20 s.
+      let ahora = 1_000_000
+      const { client, rpc } = cliente(filas)
+      const enviar = jest.fn(async () => {
+        ahora += 20_000
+        return { success: true }
+      })
+
+      const r = await enviarCorreosDps(client, { ...opciones(enviar), presupuestoMs: 45_000, reloj: () => ahora })
+
+      // f1 starts at 0 s, f2 at 20 s, f3 at 40 s (still within 45 s); at 60 s f4 is not started.
+      expect(enviar).toHaveBeenCalledTimes(3)
+      expect(r).toEqual({ reclamados: 4, enviados: 3, fallidos: 0, soltados: 1 })
+      expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_soltar', { p_ids: ['f4'] })
+      expect(rpc).not.toHaveBeenCalledWith('dps_avisos_correos_resultado', expect.objectContaining({ p_id: 'f4' }))
+      // Every leased row ends either recorded or released, never in between.
+      const recorded = rpc.mock.calls.filter(([n]) => n === 'dps_avisos_correos_resultado').map(([, a]) => (a as { p_id: string }).p_id)
+      expect(recorded).toEqual(['f1', 'f2', 'f3'])
+      expect(rpc.mock.calls.at(-1)?.[0]).toBe('dps_avisos_correos_soltar')
+    })
+
+    it('measures from before the lease: a slow lease leaves less time to send', async () => {
+      let ahora = 0
+      const { client, rpc } = cliente(filas)
+      rpc.mockImplementation((nombre: string, args?: Record<string, unknown>) => {
+        if (nombre === 'dps_avisos_correos_reclamar') {
+          ahora += 50_000
+          return Promise.resolve({ data: filas, error: null })
+        }
+        return Promise.resolve({ data: nombre === 'dps_avisos_correos_soltar' ? (args?.p_ids as unknown[]).length : 1, error: null })
+      })
+      const enviar = jest.fn(async () => ({ success: true }))
+
+      const r = await enviarCorreosDps(client, { ...opciones(enviar), presupuestoMs: 45_000, reloj: () => ahora })
+
+      expect(enviar).not.toHaveBeenCalled()
+      expect(r).toEqual({ reclamados: 4, enviados: 0, fallidos: 0, soltados: 4 })
+      expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_soltar', { p_ids: ['f1', 'f2', 'f3', 'f4'] })
+    })
+
+    it('within the budget it releases nothing', async () => {
+      const { client, rpc } = cliente(filas)
+      const r = await enviarCorreosDps(client, { ...opciones(jest.fn(async () => ({ success: true }))), reloj: () => 0 })
+      expect(r).toEqual({ reclamados: 4, enviados: 4, fallidos: 0, soltados: 0 })
+      expect(rpc).not.toHaveBeenCalledWith('dps_avisos_correos_soltar', expect.anything())
+    })
+
+    it('a failed release is logged, never thrown (the 10-minute lease brings the rows back)', async () => {
+      let ahora = 0
+      const { client, rpc } = cliente(filas)
+      rpc.mockImplementation((nombre: string) =>
+        Promise.resolve(
+          nombre === 'dps_avisos_correos_reclamar'
+            ? { data: filas, error: null }
+            : nombre === 'dps_avisos_correos_soltar'
+              ? { data: null, error: { message: 'boom' } }
+              : { data: 1, error: null },
+        ),
+      )
+      const enviar = jest.fn(async () => {
+        ahora += 46_000
+        return { success: true }
+      })
+      await expect(enviarCorreosDps(client, { ...opciones(enviar), presupuestoMs: 45_000, reloj: () => ahora })).resolves.toEqual({
+        reclamados: 4,
+        enviados: 1,
+        fallidos: 0,
+        soltados: 0,
+      })
+      expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_soltar', { p_ids: ['f2', 'f3', 'f4'] })
+    })
   })
 
   it('uses dps-avisos/<row id> as the key', () => {
@@ -311,7 +442,7 @@ describe('despacharCorreosDps and ejecutarJobDps', () => {
 
   it('the daily job runs the reminder and the outbox steps and reports a failed step by name', async () => {
     const ok = await ejecutarJobDps(cliente([]).client, opciones(jest.fn()))
-    expect(ok).toEqual({ recordatorio: { activo: false, fecha: null, personas: 0, encolados: 0 }, correos: { reclamados: 0, enviados: 0, fallidos: 0 }, fallos: [] })
+    expect(ok).toEqual({ recordatorio: { activo: false, fecha: null, personas: 0, encolados: 0 }, correos: { reclamados: 0, enviados: 0, fallidos: 0, soltados: 0 }, fallos: [] })
     const mal = await ejecutarJobDps(cliente([], { errorReclamo: 'boom' }).client, opciones(jest.fn()))
     expect(mal).toEqual({ recordatorio: { activo: false, fecha: null, personas: 0, encolados: 0 }, correos: null, fallos: ['correos'] })
   })
@@ -435,7 +566,7 @@ describe('ejecutarJobDps (the reminder step)', () => {
 
     const r = await ejecutarJobDps({ rpc } as unknown as ClienteAdminDps, { ...opciones(enviar), topeDiario: 40 })
 
-    expect(r).toEqual({ recordatorio: { activo: true, fecha: '2026-11-15', personas: 2, encolados: 2 }, correos: { reclamados: 2, enviados: 2, fallidos: 0 }, fallos: [] })
+    expect(r).toEqual({ recordatorio: { activo: true, fecha: '2026-11-15', personas: 2, encolados: 2 }, correos: { reclamados: 2, enviados: 2, fallidos: 0, soltados: 0 }, fallos: [] })
     expect(orden.slice(0, 2)).toEqual(['dps_recordatorios_encolar', 'dps_avisos_correos_reclamar'])
     expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_reclamar', { p_limite: 50, p_tope_diario: 40 })
     expect(enviados.map((c) => [c.to, c.idempotencyKey])).toEqual([
@@ -450,7 +581,7 @@ describe('ejecutarJobDps (the reminder step)', () => {
       Promise.resolve(nombre === 'dps_recordatorios_encolar' ? { data: null, error: { message: 'boom' } } : { data: nombre === 'dps_avisos_correos_reclamar' ? [] : 1, error: null }),
     )
     const r = await ejecutarJobDps({ rpc } as unknown as ClienteAdminDps, opciones(jest.fn()))
-    expect(r).toEqual({ recordatorio: null, correos: { reclamados: 0, enviados: 0, fallidos: 0 }, fallos: ['recordatorio'] })
+    expect(r).toEqual({ recordatorio: null, correos: { reclamados: 0, enviados: 0, fallidos: 0, soltados: 0 }, fallos: ['recordatorio'] })
   })
 
   it('switched off, it queues nothing', async () => {

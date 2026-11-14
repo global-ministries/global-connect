@@ -104,6 +104,19 @@ describe('the channel of each notice (06)', () => {
     expect(within(panel).getByRole('region', { name: /Ya no estás programado/ })).toHaveTextContent('Correo y panel')
   })
 
+  it('offers «Agregar correo» on panel-only rows: the ficha edit page in a new tab', async () => {
+    const panel = await abrir()
+    const nuevas = await within(panel).findByRole('region', { name: /Nuevas invitaciones/ })
+    const [soloPanel, conCorreo] = within(nuevas).getAllByRole('listitem')
+    const enlace = within(soloPanel).getByRole('link', { name: 'Agregar correo a la ficha de Ximena Rangel (abre otra pestaña)' })
+    expect(enlace).toHaveAttribute('href', `/users/${id(2)}/edit`)
+    expect(enlace).toHaveAttribute('target', '_blank')
+    expect(enlace.getAttribute('rel')).toMatch(/\bnoopener\b/)
+    expect(within(conCorreo).queryByRole('link')).not.toBeInTheDocument()
+    // Only Ximena has no e-mail: one link in the whole panel.
+    expect(within(panel).getAllByRole('link', { name: /Agregar correo/ })).toHaveLength(1)
+  })
+
   it('says replies do not reach a planner without an e-mail', async () => {
     cargarPendientes.mockResolvedValue({ ok: true, data: { ...PENDIENTES, remitente: { nombre: 'Elena Garrido', email: null } } })
     const panel = await abrir()

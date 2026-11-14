@@ -57,6 +57,9 @@
 --            today's enviados and the rows in lease; serialized);
 --        dps_avisos_correos_resultado(id, ok, error)  enviado, or back to
 --            pendiente after 2^intentos minutes, fallido after 5 attempts;
+--        dps_avisos_correos_soltar(ids)  T16d: gives back the leased rows a
+--            run did not start (its time budget ran out): due now, the
+--            attempt returned; returns how many;
 --        dps_avisos_tokens_registrar(tokens)  [{hash, aviso_id, version}],
 --            up to 200, unknown avisos ignored, idempotent;
 --        dps_aviso_token_leer(token) / dps_aviso_token_confirmar(token)  the
@@ -72,12 +75,14 @@
 --      The confirm RPCs are not granted to anon (no definer function is,
 --      odd/tasks/seguridad-definer-fase1-anon.md): the public page calls them
 --      on the server with the service client.
---   7. Internal (no EXECUTE for PUBLIC, anon or authenticated):
+--   7. Internal (no EXECUTE for PUBLIC, anon, authenticated or service_role:
+--      only the definer functions above call them; T16d):
 --      dps_correo_valido(text), dps_avisos_correos_encolar(uuid, jsonb),
 --      dps_avisos_no_puede_encolar(uuid), dps_avisos_no_puede_trg(),
 --      dps_aviso_token_vista(uuid, text).
 --
--- Errors: 'demasiados' (22023) in dps_avisos_tokens_registrar; the rest as
+-- Errors: 'demasiados' (22023) in dps_avisos_tokens_registrar and
+-- dps_avisos_correos_soltar; the rest as
 -- 20261109210000.
 --
 -- Suite: supabase/tests/dps-avisos-correo.test.sql.
@@ -86,7 +91,8 @@
 --   DROP TRIGGER IF EXISTS dps_avisos_no_puede ON public.dps_avisos;
 --   DROP FUNCTION IF EXISTS public.dps_aviso_token_confirmar(text), public.dps_aviso_token_leer(text),
 --     public.dps_aviso_token_vista(uuid, text), public.dps_avisos_tokens_registrar(jsonb),
---     public.dps_avisos_correos_resultado(uuid, boolean, text), public.dps_avisos_correos_reclamar(integer, integer),
+--     public.dps_avisos_correos_soltar(uuid[]), public.dps_avisos_correos_resultado(uuid, boolean, text),
+--     public.dps_avisos_correos_reclamar(integer, integer),
 --     public.dps_avisos_no_puede_trg(), public.dps_avisos_no_puede_encolar(uuid),
 --     public.dps_avisos_correos_encolar(uuid, jsonb), public.dps_correo_valido(text);
 --   re-run the CREATE OR REPLACE FUNCTION blocks of dps_avisos_pendientes and
@@ -172,7 +178,7 @@ AS $$
   SELECT CASE WHEN btrim(p_email) ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' AND char_length(btrim(p_email)) <= 254
               THEN btrim(p_email) END;
 $$;
-REVOKE ALL ON FUNCTION public.dps_correo_valido(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.dps_correo_valido(text) FROM PUBLIC, anon, authenticated, service_role;
 
 -- Queues the e-mails of one send: p_tocados = [{aviso_id, tipo}] of the
 -- notices it delivered. One row per person (sin_correo without an e-mail).
@@ -227,7 +233,7 @@ BEGIN
   RETURN v_resultado;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.dps_avisos_correos_encolar(uuid, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.dps_avisos_correos_encolar(uuid, jsonb) FROM PUBLIC, anon, authenticated, service_role;
 
 -- Queues the e-mail to the planner for one «No puedo» (S14.4). Returns
 -- whether a row was written (false: not no_puede, nobody sent it, or already
@@ -310,7 +316,7 @@ BEGIN
   RETURN v_filas > 0;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.dps_avisos_no_puede_encolar(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.dps_avisos_no_puede_encolar(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE OR REPLACE FUNCTION public.dps_avisos_no_puede_trg()
 RETURNS trigger
@@ -328,7 +334,7 @@ BEGIN
   RETURN NULL;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.dps_avisos_no_puede_trg() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.dps_avisos_no_puede_trg() FROM PUBLIC, anon, authenticated, service_role;
 
 DROP TRIGGER IF EXISTS dps_avisos_no_puede ON public.dps_avisos;
 CREATE TRIGGER dps_avisos_no_puede
@@ -362,7 +368,7 @@ AS $$
     LEFT JOIN public.dps_planes p ON p.id = v.plan_id
     LEFT JOIN public.dps_series s ON s.id = p.serie_id;
 $$;
-REVOKE ALL ON FUNCTION public.dps_aviso_token_vista(uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.dps_aviso_token_vista(uuid, text) FROM PUBLIC, anon, authenticated, service_role;
 
 -- ── 3. planner ───────────────────────────────────────────────────────
 
@@ -629,6 +635,34 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.dps_avisos_correos_resultado(uuid, boolean, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.dps_avisos_correos_resultado(uuid, boolean, text) TO service_role;
+
+-- T16d: gives back the leased rows a run did not start (its time budget ran
+-- out before the route's limit): due now and the attempt returned, so they
+-- go with the next run as if never taken. Only a row still in its lease
+-- (pendiente, taken, not yet due) changes. Returns how many.
+CREATE OR REPLACE FUNCTION public.dps_avisos_correos_soltar(p_ids uuid[])
+RETURNS integer
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path TO ''
+AS $$
+DECLARE
+  v_filas integer;
+BEGIN
+  IF p_ids IS NULL OR cardinality(p_ids) = 0 THEN
+    RETURN 0;
+  END IF;
+  IF cardinality(p_ids) > 100 THEN
+    RAISE EXCEPTION 'demasiados' USING ERRCODE = '22023';
+  END IF;
+  UPDATE public.dps_avisos_correos e
+     SET disponible_en = now(), intentos = e.intentos - 1
+   WHERE e.id = ANY (p_ids) AND e.estado = 'pendiente' AND e.intentos > 0 AND e.disponible_en > now();
+  GET DIAGNOSTICS v_filas = ROW_COUNT;
+  RETURN v_filas;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.dps_avisos_correos_soltar(uuid[]) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.dps_avisos_correos_soltar(uuid[]) TO service_role;
 
 -- Registers the hashes of the confirm links an e-mail carries, before it is
 -- sent. Returns how many are new.

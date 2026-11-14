@@ -8,8 +8,9 @@
 --      have RLS on, no policies, no privilege for anon or authenticated; the
 --      new and replaced functions are SECURITY DEFINER with search_path '';
 --      anon executes none of them; authenticated only dps_avisos_pendientes
---      and dps_avisos_enviar; service_role the outbox and token RPCs; the
---      trigger dps_avisos_no_puede exists.
+--      and dps_avisos_enviar; service_role the outbox and token RPCs and
+--      none of the internal helpers (T16d); the trigger dps_avisos_no_puede
+--      exists.
 --   n. The review: tiene_correo per person (a valid e-mail; NULL or not an
 --      address is panel only), por_correo + solo_panel = total, remitente.
 --   e. Sending: ONE outbox row per person and send grouping every notice of
@@ -32,7 +33,16 @@
 --   o. The outbox: the lease takes the no_puede rows first, never sin_correo
 --      rows; enviado once; a failure goes back with a wait; a second lease
 --      takes nothing already leased or sent (no e-mail twice); an expired
---      row is fallido 'vencido'; a bad limit is limite_invalido.
+--      row is fallido 'vencido'; a bad limit is limite_invalido; T16d: the
+--      release (dps_avisos_correos_soltar) gives leased, unstarted rows back
+--      due now with the attempt returned, never touches a sent row, and the
+--      next lease takes them.
+--   v. Regressions of the T16 verification (T16d): after quitado and a new
+--      invitation the old link is cambio, confirms nothing, and the version
+--      went up; an hour-only change of a confirmo sends a block without
+--      confirmar and the old link is ya_confirmado; a «No puedo» to a
+--      planner without an e-mail queues a sin_correo row and the answer
+--      still works.
 --
 -- Run against STAGING inside a transaction that is discarded (the runner
 -- provides it: this file has no BEGIN/COMMIT). The last statement raises
@@ -276,7 +286,8 @@ SELECT pg_temp.assert_eq('a2: the new and replaced functions are SECURITY DEFINE
       WHERE n.nspname = 'public' AND p.proname IN (
         'dps_correo_valido', 'dps_avisos_correos_encolar', 'dps_avisos_no_puede_encolar', 'dps_avisos_no_puede_trg',
         'dps_aviso_token_vista', 'dps_avisos_correos_reclamar', 'dps_avisos_correos_resultado', 'dps_avisos_tokens_registrar',
-        'dps_aviso_token_leer', 'dps_aviso_token_confirmar', 'dps_avisos_pendientes', 'dps_avisos_enviar')$q$, '12|0');
+        'dps_aviso_token_leer', 'dps_aviso_token_confirmar', 'dps_avisos_pendientes', 'dps_avisos_enviar',
+        'dps_avisos_correos_soltar')$q$, '13|0');
 SELECT pg_temp.assert_eq('a3: anon executes none of them; authenticated only the review and the send',
   $q$SELECT coalesce(string_agg(p.proname || ':' || has_function_privilege('anon', p.oid, 'EXECUTE') || ':'
                                 || has_function_privilege('authenticated', p.oid, 'EXECUTE'), ',' ORDER BY p.proname COLLATE "C")
@@ -285,15 +296,23 @@ SELECT pg_temp.assert_eq('a3: anon executes none of them; authenticated only the
       WHERE n.nspname = 'public' AND p.proname IN (
         'dps_correo_valido', 'dps_avisos_correos_encolar', 'dps_avisos_no_puede_encolar', 'dps_avisos_no_puede_trg',
         'dps_aviso_token_vista', 'dps_avisos_correos_reclamar', 'dps_avisos_correos_resultado', 'dps_avisos_tokens_registrar',
-        'dps_aviso_token_leer', 'dps_aviso_token_confirmar', 'dps_avisos_pendientes', 'dps_avisos_enviar')$q$,
+        'dps_aviso_token_leer', 'dps_aviso_token_confirmar', 'dps_avisos_pendientes', 'dps_avisos_enviar',
+        'dps_avisos_correos_soltar')$q$,
   'dps_avisos_enviar:false:true,dps_avisos_pendientes:false:true');
 SELECT pg_temp.assert_eq('a4: service_role executes the outbox and token RPCs',
   $q$SELECT string_agg(p.proname || ':' || has_function_privilege('service_role', p.oid, 'EXECUTE'), ',' ORDER BY p.proname COLLATE "C")
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public' AND p.proname IN ('dps_avisos_correos_reclamar', 'dps_avisos_correos_resultado',
-        'dps_avisos_tokens_registrar', 'dps_aviso_token_leer', 'dps_aviso_token_confirmar')$q$,
+        'dps_avisos_correos_soltar', 'dps_avisos_tokens_registrar', 'dps_aviso_token_leer', 'dps_aviso_token_confirmar')$q$,
   'dps_aviso_token_confirmar:true,dps_aviso_token_leer:true,dps_avisos_correos_reclamar:true,dps_avisos_correos_resultado:true,'
-  || 'dps_avisos_tokens_registrar:true');
+  || 'dps_avisos_correos_soltar:true,dps_avisos_tokens_registrar:true');
+SELECT pg_temp.assert_eq('a4: service_role executes none of the internal helpers (only definer functions call them)',
+  $q$SELECT string_agg(p.proname || ':' || has_function_privilege('service_role', p.oid, 'EXECUTE'), ',' ORDER BY p.proname COLLATE "C")
+       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public' AND p.proname IN ('dps_correo_valido', 'dps_avisos_correos_encolar', 'dps_avisos_no_puede_encolar',
+        'dps_avisos_no_puede_trg', 'dps_aviso_token_vista')$q$,
+  'dps_aviso_token_vista:false,dps_avisos_correos_encolar:false,dps_avisos_no_puede_encolar:false,dps_avisos_no_puede_trg:false,'
+  || 'dps_correo_valido:false');
 SELECT pg_temp.assert_eq('a5: the trigger is on dps_avisos, after update of estado',
   $q$SELECT t.tgrelid::regclass::text || ':' || (pg_get_triggerdef(t.oid) LIKE '%AFTER UPDATE OF estado ON %dps_avisos FOR EACH ROW%')
        FROM pg_trigger t WHERE t.tgname = 'dps_avisos_no_puede' AND NOT t.tgisinternal$q$, 'dps_avisos:true');
@@ -562,6 +581,91 @@ SELECT pg_temp.assert_raises('o6: a bad limit',
   $q$SELECT count(*) FROM public.dps_avisos_correos_reclamar(0, 10)$q$, '22023', 'limite_invalido');
 SELECT pg_temp.assert_raises('o6: a bad cap',
   $q$SELECT count(*) FROM public.dps_avisos_correos_reclamar(10, -1)$q$, '22023', 'tope_invalido');
+
+-- T16d: the run ran out of time before the planner's two «No puedo» rows (leased in o1, never recorded).
+INSERT INTO t_dac_ctx (k, v)
+SELECT 'np_ids', jsonb_agg(c.id ORDER BY c.created_at, c.clave)::text
+  FROM public.dps_avisos_correos c
+ WHERE c.persona_id = pg_temp.id('us', 1) AND c.tipo = 'no_puede';
+SELECT pg_temp.assert_eq('o7: the two rows are still in their lease',
+  $q$SELECT string_agg(concat_ws(':', c.estado, c.intentos, (c.disponible_en > now())::text), ',' ORDER BY c.created_at, c.clave)
+       FROM public.dps_avisos_correos c WHERE pg_temp.j('np_ids') ? c.id::text$q$, 'pendiente:1:true,pendiente:1:true');
+SELECT pg_temp.put('solt1', $q$SELECT public.dps_avisos_correos_soltar(
+         ARRAY(SELECT jsonb_array_elements_text(pg_temp.j('np_ids'))::uuid))::text$q$);
+SELECT pg_temp.assert_eq('o7: releasing gives them back due now, the attempt returned',
+  $q$SELECT pg_temp.ctx('solt1') || '#' || string_agg(concat_ws(':', c.estado, c.intentos, (c.disponible_en <= now())::text), ','
+                                                     ORDER BY c.created_at, c.clave)
+       FROM public.dps_avisos_correos c WHERE pg_temp.j('np_ids') ? c.id::text$q$, '2#pendiente:0:true,pendiente:0:true');
+SELECT pg_temp.assert_eq('o7: a sent row and an already released one are never touched',
+  $q$SELECT public.dps_avisos_correos_soltar(ARRAY(
+           SELECT c.id FROM public.dps_avisos_correos c
+            WHERE (c.persona_id = pg_temp.id('us', 2) AND c.tipo = 'avisos') OR pg_temp.j('np_ids') ? c.id::text))
+         || '#' || (SELECT count(*) FROM public.dps_avisos_correos c
+                     WHERE c.persona_id = pg_temp.id('us', 2) AND c.tipo = 'avisos' AND c.estado = 'pendiente'
+                       AND c.disponible_en <= now())$q$, '0#0');
+SELECT pg_temp.assert_eq('o7: nothing or NULL releases nothing',
+  $q$SELECT public.dps_avisos_correos_soltar('{}'::uuid[]) || '|' || public.dps_avisos_correos_soltar(NULL)$q$, '0|0');
+SELECT pg_temp.assert_raises('o7: more than 100 ids is demasiados',
+  $q$SELECT public.dps_avisos_correos_soltar(ARRAY(SELECT gen_random_uuid() FROM generate_series(1, 101)))$q$, '22023', 'demasiados');
+SELECT pg_temp.put('lease4', $q$SELECT coalesce(jsonb_agg(r.id), '[]'::jsonb)::text FROM public.dps_avisos_correos_reclamar(100, 10000) r$q$);
+SELECT pg_temp.assert_eq('o7: the next lease takes them again, as a first attempt',
+  $q$SELECT string_agg(concat_ws(':', pg_temp.j('lease4') ? c.id::text, c.intentos), ',' ORDER BY c.created_at, c.clave)
+       FROM public.dps_avisos_correos c WHERE pg_temp.j('np_ids') ? c.id::text$q$, 't:1,t:1');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_raises('o8: authenticated cannot release',
+  $q$SELECT public.dps_avisos_correos_soltar(ARRAY(SELECT jsonb_array_elements_text(pg_temp.j('np_ids'))::uuid))$q$, '42501');
+RESET ROLE;
+
+-- ── v. regressions of the T16 verification (T16d) ────────────────────
+
+-- SINC was taken out of A after the notice (t9, version 2); now invited again.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.put('x9', $q$SELECT public.dps_convocar(pg_temp.plan('pl_a'), pg_temp.plan('pu_cam'), pg_temp.id('se', 3))::text$q$);
+SELECT pg_temp.put('env4', $q$SELECT public.dps_avisos_enviar(pg_temp.planes('pl_a'))::text$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('v1: invited again after quitado: version 3, pendiente, no longer quitado, a new invitation asking to confirm',
+  $q$SELECT concat_ws('|', pg_temp.aviso(3, 'pl_a') ->> 'version', pg_temp.aviso(3, 'pl_a') ->> 'estado', pg_temp.aviso(3, 'pl_a') ->> 'quitado',
+                      pg_temp.bloques(3))$q$,
+  '3|pendiente|false|ZZ Dac A/nueva/1/true,ZZ Dac A/quitado/2/false,ZZ Dac A/nueva/3/true');
+SELECT pg_temp.put('conf7', $q$SELECT public.dps_aviso_token_confirmar(pg_temp.tok(3, 'pl_a', 1))::text$q$);
+SELECT pg_temp.assert_eq('v1: the link of the first invitation is cambio and confirms nothing',
+  $q$SELECT concat_ws('|', pg_temp.j('conf7') ->> 'estado', pg_temp.aviso(3, 'pl_a') ->> 'estado',
+                      pg_temp.aviso(3, 'pl_a') ->> 'respondido_at' IS NULL, pg_temp.aviso(3, 'pl_a') ->> 'version')$q$,
+  'cambio|pendiente|t|3');
+
+-- VALE confirmed A through her link (t4); then only the hours of A change.
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.put('y1', $q$SELECT public.dps_plan_horarios_guardar(pg_temp.plan('pl_a'), '["10:07"]'::jsonb, '08:07')::text$q$);
+SELECT pg_temp.put('env5', $q$SELECT public.dps_avisos_enviar(pg_temp.planes('pl_a'))::text$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('v2: an hour-only change keeps confirmo, version 2, and its block does not ask to confirm',
+  $q$SELECT concat_ws('|', pg_temp.aviso(2, 'pl_a') ->> 'estado', pg_temp.aviso(2, 'pl_a') ->> 'version', pg_temp.aviso(2, 'pl_a') ->> 'cambio',
+                      pg_temp.bloques(2))$q$,
+  'confirmo|2|true|ZZ Dac A/nueva/1/true+ZZ Dac B/nueva/1/true,ZZ Dac A/cambio/2/false');
+SELECT pg_temp.assert_eq('v2: her old link reads and confirms as ya_confirmado, the first answer kept',
+  $q$SELECT concat_ws('|', public.dps_aviso_token_leer(pg_temp.tok(2, 'pl_a', 1)) ->> 'estado',
+                      public.dps_aviso_token_confirmar(pg_temp.tok(2, 'pl_a', 1)) ->> 'estado',
+                      (pg_temp.aviso(2, 'pl_a') ->> 'respondido_at') = pg_temp.ctx('resp_vale'))$q$,
+  'ya_confirmado|ya_confirmado|t');
+
+-- OSCAR's notice of A, as if sent by SINC (no e-mail in the ficha).
+UPDATE public.dps_avisos v SET enviado_por = pg_temp.id('us', 3)
+ WHERE v.persona_id = pg_temp.id('us', 4) AND v.plan_id = pg_temp.plan('pl_a');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(4);
+SELECT pg_temp.put('np5', $q$SELECT coalesce(public.dps_responder(pg_temp.plan('pl_a'), 'no_puede', 'ZZ Dac sin correo')::text, 'null')$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('v3: the answer still works with a planner without an e-mail',
+  $q$SELECT concat_ws('|', pg_temp.ctx('np5') IS NOT NULL, pg_temp.aviso(4, 'pl_a') ->> 'estado', pg_temp.aviso(4, 'pl_a') ->> 'motivo')$q$,
+  't|no_puede|ZZ Dac sin correo');
+SELECT pg_temp.assert_eq('v3: and queues a sin_correo row to that planner, never pending',
+  $q$SELECT string_agg(concat_ws('|', u.apellido, c.estado, coalesce(c.email, '-'), c.datos ->> 'motivo'), ',')
+       FROM public.dps_avisos_correos c JOIN public.usuarios u ON u.id = c.persona_id
+      WHERE c.tipo = 'no_puede' AND c.datos ->> 'aviso_id' = pg_temp.aviso(4, 'pl_a') ->> 'id'$q$,
+  'U03|sin_correo|-|ZZ Dac sin correo');
 
 DO $$
 BEGIN

@@ -15,6 +15,10 @@
  * `dps-avisos/<row id>` (a retried row never reaches the person twice),
  * From = EMAIL_FROM, Reply-To = the planner (or the person who cannot), HTML
  * and plain text, and records each result (dps_avisos_correos_resultado).
+ * It works within a time budget (45 s by default; app/api/cron/dps stops at
+ * 60 s): once spent it starts no other row and releases the leased rows it
+ * did not start (dps_avisos_correos_soltar: pendiente and due again, the
+ * attempt given back), so every leased row ends recorded or released.
  *
  * The confirm link (S14.2) is `/dps/confirmar/<token>`: the token is the
  * HMAC-SHA256 (base64url, 43 chars) of `dps-confirmar:<aviso>:<version>`
@@ -86,12 +90,19 @@ export interface OpcionesCorreosDps {
   readonly secreto?: string
   /** Wait between two sends (Resend allows a few requests per second). */
   readonly pausaMs?: number
+  /** Time from the start of the run after which no other row is started (ms). */
+  readonly presupuestoMs?: number
+  /** The clock of the budget (ms); Date.now by default. */
+  readonly reloj?: () => number
 }
 
 export interface ResultadoCorreosDps {
   readonly reclamados: number
   readonly enviados: number
+  /** Rows tried and not sent (recorded as a failure). */
   readonly fallidos: number
+  /** Leased rows released unsent when the time budget ran out (enviarCorreosDps always sets it). */
+  readonly soltados?: number
 }
 
 export interface TokenRegistrado {
@@ -126,6 +137,8 @@ const LIMITE_POR_DEFECTO = 50
 // DPS_AVISOS_TOPE_DIARIO.
 const TOPE_DIARIO_POR_DEFECTO = 100
 const PAUSA_POR_DEFECTO_MS = 500
+// app/api/cron/dps has maxDuration 60 s; 15 s left for the row in flight and the release.
+const PRESUPUESTO_POR_DEFECTO_MS = 45_000
 const ERROR_DESCONOCIDO = 'Error desconocido'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
@@ -472,19 +485,37 @@ async function registrar(client: ClienteAdminDps, id: string, error: string | nu
   }
 }
 
+/** Gives leased, unstarted rows back to the outbox; returns how many (0 when the RPC fails: their lease expires instead). */
+async function soltar(client: ClienteAdminDps, ids: readonly string[]): Promise<number> {
+  if (ids.length === 0) return 0
+  try {
+    const { data, error } = await client.rpc('dps_avisos_correos_soltar', { p_ids: ids })
+    if (!error) return typeof data === 'number' ? data : ids.length
+  } catch {
+    // Logged below.
+  }
+  // Never sent, so nothing is duplicated: the 10-minute lease brings them back.
+  console.error('[dps-avisos-correo] No se pudieron soltar los correos sin enviar', { ids })
+  return 0
+}
+
 const esperar = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 /**
- * Leases due rows and sends them one by one; one failure never stops the
- * rest. Throws only when the lease itself fails (or no link key is set).
+ * Leases due rows and sends them one by one within the time budget; one
+ * failure never stops the rest. Throws only when the lease itself fails (or
+ * no link key is set, before leasing anything).
  */
 export async function enviarCorreosDps(client: ClienteAdminDps, opciones: OpcionesCorreosDps = {}): Promise<ResultadoCorreosDps> {
   const enviar = opciones.enviarCorreo ?? enviarConResend
   const base = opciones.urlBase ?? urlBasePorDefecto()
   const secreto = opciones.secreto ?? secretoPorDefecto()
   const pausa = opciones.pausaMs ?? PAUSA_POR_DEFECTO_MS
+  const reloj = opciones.reloj ?? Date.now
+  const presupuesto = opciones.presupuestoMs ?? PRESUPUESTO_POR_DEFECTO_MS
   if (!secreto) throw new Error('Falta DPS_AVISOS_SECRETO para los enlaces de confirmar')
 
+  const inicio = reloj()
   const { data, error } = await client.rpc('dps_avisos_correos_reclamar', {
     p_limite: opciones.limite ?? LIMITE_POR_DEFECTO,
     p_tope_diario: opciones.topeDiario ?? topeDiarioPorDefecto(),
@@ -493,8 +524,11 @@ export async function enviarCorreosDps(client: ClienteAdminDps, opciones: Opcion
 
   const filas = parseFilasCorreo(data)
   let enviados = 0
+  let intentados = 0
   for (const [i, fila] of filas.entries()) {
+    if (reloj() - inicio >= presupuesto) break
     if (i > 0 && pausa > 0) await esperar(pausa)
+    intentados += 1
     let fallo: string | null = null
     try {
       const preparado = prepararCorreo(fila, base, secreto)
@@ -518,7 +552,11 @@ export async function enviarCorreosDps(client: ClienteAdminDps, opciones: Opcion
     else console.error('[dps-avisos-correo] Falló un correo', { id: fila.id })
     await registrar(client, fila.id, fallo)
   }
-  return { reclamados: filas.length, enviados, fallidos: filas.length - enviados }
+  const soltados = await soltar(
+    client,
+    filas.slice(intentados).map((f) => f.id),
+  )
+  return { reclamados: filas.length, enviados, fallidos: intentados - enviados, soltados }
 }
 
 /**

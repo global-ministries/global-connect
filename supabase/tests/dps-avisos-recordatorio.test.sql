@@ -22,6 +22,9 @@
 --      the confirmed one; Reply-To the planner; vence the date; dias; the
 --      team counts carry no name.
 --   i. Idempotency: running it again queues nothing and changes nothing.
+--   d. T16d: the director changes the days from 2 to 1 between two runs:
+--      the run for the same date with 1 day queues no second reminder for
+--      anyone and leaves the first ones as they were.
 --   p. The preview: dps_recordatorio_resumen counts what the job queues
 --      (personas, con_botones) plus no_pueden and sin_correo; proximo of
 --      dps_config_leer is the next plan date with sale = fecha - dias, never
@@ -461,6 +464,30 @@ SELECT pg_temp.assert_eq('p5: no earlier plan was skipped (the next one whose se
                            AND p.fecha - 2 > public.ninos_hoy()))::text$q$, 'true');
 SELECT pg_temp.assert_eq('p6: ultimo is today''s reminder day (the rows above)',
   $q$SELECT (pg_temp.j('leer2') -> 'recordatorio' -> 'ultimo' ->> 'fecha') = public.ninos_hoy()::text$q$, 'true');
+
+-- ── d. changing the days between two runs (T16d) ────────────────────
+
+-- Run 1 (above) was 2 days before 2096-07-04; the director switches to 1 day
+-- and the next day's run lands on the same date.
+INSERT INTO t_dar_ctx (k, v) VALUES ('rows_d', (SELECT string_agg(c.id::text || c.datos::text, ',' ORDER BY c.id)
+                                                 FROM public.dps_avisos_correos c
+                                                WHERE c.tipo = 'recordatorio' AND c.clave LIKE 'recordatorio:%:2096-07-04'));
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.put('g3', $q$SELECT public.dps_recordatorio_guardar(true, 1)::text$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('d1: the configuration is now 1 day', $q$SELECT pg_temp.cfg()$q$, 'true:1');
+SELECT pg_temp.put('enc3', $q$SELECT public.dps_recordatorios_encolar_fecha(DATE '2096-07-04', 1)::text$q$);
+SELECT pg_temp.assert_eq('d2: the run with 1 day for the same date queues nothing',
+  $q$SELECT concat_ws('|', pg_temp.j('enc3') ->> 'dias', pg_temp.j('enc3') ->> 'encolados',
+                      pg_temp.j('enc3') ->> 'personas' = pg_temp.j('enc1') ->> 'personas')$q$, '1|0|t');
+SELECT pg_temp.assert_eq('d3: still one reminder per fixture person for that date, as first queued (2 days)',
+  $q$SELECT pg_temp.recordatorios()$q$,
+  'U02:pendiente:2096-07-04:1:2,U03:pendiente:2096-07-04:2:2,U07:pendiente:2096-07-04:1:2');
+SELECT pg_temp.assert_eq('d3: and no row of that date changed',
+  $q$SELECT ((SELECT string_agg(c.id::text || c.datos::text, ',' ORDER BY c.id)
+                FROM public.dps_avisos_correos c
+               WHERE c.tipo = 'recordatorio' AND c.clave LIKE 'recordatorio:%:2096-07-04') = pg_temp.ctx('rows_d'))::text$q$, 'true');
 
 DO $$
 BEGIN

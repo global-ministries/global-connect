@@ -22,7 +22,14 @@
  * correo · M solo en el panel» and that replies reach the planner, each row
  * says «Correo y panel» or «Solo panel · sin correo en su ficha» (panel-only
  * first) and the toast «Enviamos N avisos: X por correo y Y solo en el
- * panel.». «Agregar correo» and «El correo rebotó» are not here yet.
+ * panel.».
+ *
+ * T16d (S14.5): a panel-only row carries «Agregar correo», which opens that
+ * person's ficha edit page (/users/<id>/edit) in another tab, so the review
+ * stays open. It shows to every planner: the panel does not know who may
+ * edit which ficha, and the edit page itself enforces it
+ * (puede_editar_usuario, otherwise back to the ficha). «El correo rebotó»
+ * is out of scope (it needs Resend's webhook, L73).
  */
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { Bell, Check, ChevronRight, Mail, MessageSquareReply, Send, UserX, X } from 'lucide-react'
@@ -76,8 +83,11 @@ export function textoEnvio(envio: EnvioAvisos): string {
 const soloPanelPrimero = <T extends { readonly tieneCorreo: boolean }>(filas: readonly T[]): T[] =>
   [...filas].sort((a, b) => Number(a.tieneCorreo) - Number(b.tieneCorreo))
 
-/** «Correo y panel» / «Solo panel · sin correo en su ficha». */
-function Canal({ correo }: { correo: boolean }): ReactElement {
+/** The ficha edit page of a person (S14.5: «Agregar correo» opens it in another tab). */
+export const urlEditarFicha = (personaId: string): string => `/users/${encodeURIComponent(personaId)}/edit`
+
+/** «Correo y panel» / «Solo panel · sin correo en su ficha» with «Agregar correo». */
+function Canal({ correo, personaId, nombre }: { correo: boolean; personaId: string; nombre: string }): ReactElement {
   return correo ? (
     <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
       <Mail aria-hidden="true" className="size-3" />
@@ -87,6 +97,15 @@ function Canal({ correo }: { correo: boolean }): ReactElement {
     <span className="inline-flex items-center gap-1 text-xs font-medium text-warning-text">
       <Bell aria-hidden="true" className="size-3" />
       Solo panel · sin correo en su ficha
+      <a
+        href={urlEditarFicha(personaId)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="focus-ring ml-1 inline-flex items-center rounded-md px-1 py-0.5 text-xs font-medium text-brand-text hover:underline pointer-coarse:min-h-11"
+      >
+        Agregar correo
+        <span className="sr-only"> a la ficha de {nombre} (abre otra pestaña)</span>
+      </a>
     </span>
   )
 }
@@ -103,7 +122,21 @@ function Grupo({ id, titulo, cantidad, ayuda, children }: { id: string; titulo: 
   )
 }
 
-function Fila({ nombre, etiqueta, fecha, correo, children }: { nombre: string; etiqueta?: string; fecha: string; correo: boolean; children: ReactNode }): ReactElement {
+function Fila({
+  nombre,
+  personaId,
+  etiqueta,
+  fecha,
+  correo,
+  children,
+}: {
+  nombre: string
+  personaId: string
+  etiqueta?: string
+  fecha: string
+  correo: boolean
+  children: ReactNode
+}): ReactElement {
   const { dia, numero, mes } = partesFecha(fecha)
   return (
     <li className="grid min-h-16 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-3.5 py-2.5 [&+&]:border-t [&+&]:border-border/60">
@@ -117,7 +150,7 @@ function Fila({ nombre, etiqueta, fecha, correo, children }: { nombre: string; e
       </p>
       <div className="col-start-2 flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">{children}</div>
       <div className="col-start-2">
-        <Canal correo={correo} />
+        <Canal correo={correo} personaId={personaId} nombre={nombre} />
       </div>
     </li>
   )
@@ -254,7 +287,7 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
           {pendientes.nuevas.length > 0 && (
             <Grupo id="avisos-nuevas" titulo="Nuevas invitaciones" cantidad={pendientes.nuevas.length} ayuda="Les pedimos confirmar.">
               {soloPanelPrimero(pendientes.nuevas).map((n) => (
-                <Fila key={`${n.planId}-${n.personaId}`} nombre={n.nombre} etiqueta={n.automatico ? 'Automático' : undefined} fecha={n.fecha} correo={n.tieneCorreo}>
+                <Fila key={`${n.planId}-${n.personaId}`} nombre={n.nombre} personaId={n.personaId} etiqueta={n.automatico ? 'Automático' : undefined} fecha={n.fecha} correo={n.tieneCorreo}>
                   {textoRoles(n.roles)}
                   {n.reemplaza.length > 0 && <> · reemplaza a {n.reemplaza.join(' y ')}</>}
                 </Fila>
@@ -270,7 +303,7 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
               ayuda="Ya tenía el aviso; le contamos qué cambió. Si cambia el puesto o la fecha, vuelve a confirmar; si solo cambia la hora, sigue confirmado."
             >
               {soloPanelPrimero(pendientes.cambios).map((c) => (
-                <Fila key={`${c.planId}-${c.personaId}`} nombre={c.nombre} fecha={c.fecha} correo={c.tieneCorreo}>
+                <Fila key={`${c.planId}-${c.personaId}`} nombre={c.nombre} personaId={c.personaId} fecha={c.fecha} correo={c.tieneCorreo}>
                   {cambiosDe(c)}
                 </Fila>
               ))}
@@ -285,7 +318,7 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
               ayuda="Ya tenía el aviso y salió del plan. Le decimos que esa fecha queda libre."
             >
               {soloPanelPrimero(pendientes.quitados).map((q) => (
-                <Fila key={`${q.planId}-${q.personaId}`} nombre={q.nombre} fecha={q.fecha} correo={q.tieneCorreo}>
+                <Fila key={`${q.planId}-${q.personaId}`} nombre={q.nombre} personaId={q.personaId} fecha={q.fecha} correo={q.tieneCorreo}>
                   Tenía {textoRoles(q.roles)}
                 </Fila>
               ))}
