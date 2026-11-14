@@ -5,7 +5,12 @@
  * notice and the last 50 emails with their delivery state. The RPC refuses
  * anyone without coordinator/director read or write (or admin.manage) on
  * the taller's node.
+ *
+ * R4b (odd/tasks/talleres-rediseno.md, S10): it also returns "textos", the
+ * custom texts of the taller (general and per plantilla clase) with who
+ * edited them and when (20261113140000_talleres_avisos_textos.sql, G).
  */
+import { parseTextosAvisos, type TextoAvisoGuardado } from './avisos-textos'
 
 export type EstadoEnvio = 'pendiente' | 'enviado' | 'fallido' | 'sin_correo'
 
@@ -32,6 +37,8 @@ export interface PanelAvisos {
   readonly mes: Readonly<Record<string, number>>
   readonly resumen: { readonly enviadosMes: number; readonly sinEntregar: number; readonly sinCorreo: number }
   readonly historial: readonly EnvioHistorial[]
+  /** Custom texts; a kind without one goes out with its default text. */
+  readonly textos: readonly TextoAvisoGuardado[]
 }
 
 interface RespuestaRpc {
@@ -94,6 +101,7 @@ export function parsePanelAvisos(data: unknown): PanelAvisos {
       sinCorreo: numero(resumen.sin_correo),
     },
     historial,
+    textos: parseTextosAvisos(raiz.textos),
   }
 }
 

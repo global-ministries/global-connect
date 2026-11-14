@@ -41,7 +41,7 @@ function ContenidoFila({ aviso }: { aviso: AvisoPersona }) {
             {cuandoAviso(aviso.creadoEn)}
           </time>
         </span>
-        {aviso.cuerpo && <span className="line-clamp-2 text-[13px] text-muted-foreground">{aviso.cuerpo}</span>}
+        {aviso.cuerpo && <span className="line-clamp-2 whitespace-pre-line text-[13px] text-muted-foreground">{aviso.cuerpo}</span>}
         {aviso.etiqueta && (
           <span className="mt-1 inline-flex w-fit max-w-full truncate rounded-md border border-border bg-muted px-1.5 text-xs leading-5 text-foreground">
             {aviso.etiqueta}
