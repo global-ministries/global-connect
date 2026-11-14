@@ -13,7 +13,7 @@
  * «Configuración» (editar_taller) go to /compartir, /avisos and the taller
  * page's configuración. Each destination checks again.
  *
- * Próximo Paso is managed on its own page: its drawer only summarises and
+ * Próximo Paso is administered on /talleres/proximo-paso like any taller; its drawer only summarises and
  * links to /proximo-paso.
  */
 
@@ -123,31 +123,25 @@ export function DetalleTaller({ fila, abierto, onCambioAbierto, puedeVerPendient
           <BotonSistema type="button" variante="ghost" onClick={() => onCambioAbierto(false)}>
             Cerrar
           </BotonSistema>
-          {fila.externo ? (
-            <BotonSistema asChild icono={ArrowUpRight} iconoPosicion="derecha">
-              <Link href={RUTA_PROXIMO_PASO}>Ir a Próximo Paso</Link>
-            </BotonSistema>
-          ) : (
-            <BotonSistema asChild icono={ChevronRight} iconoPosicion="derecha">
-              <Link href={rutaTaller(taller.slug)}>Ver taller</Link>
-            </BotonSistema>
-          )}
+          <BotonSistema asChild icono={ChevronRight} iconoPosicion="derecha">
+            <Link href={rutaTaller(taller.slug)}>Ver taller</Link>
+          </BotonSistema>
         </>
       }
     >
       <div className="grid gap-5">
         {fila.externo ? (
           <>
-            <BotonSistema asChild variante="outline" icono={ArrowUpRight}>
-              <Link href={RUTA_PROXIMO_PASO}>Abrir en Próximo Paso</Link>
-            </BotonSistema>
             <AvisoFormulario tono="info" className="flex items-start gap-3">
               <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info-text" />
               <span>
-                <strong className="font-semibold">Próximo Paso tiene su propia página.</strong> Aquí ves el resumen; las
-                inscripciones, el código de acceso y los avisos se manejan en Próximo Paso.
+                Las personas se inscriben con el enlace público. Las ediciones, la configuración y los avisos se
+                manejan en la página del taller, como en cualquier otro.
               </span>
             </AvisoFormulario>
+            <BotonSistema asChild variante="outline" icono={ArrowUpRight}>
+              <Link href={RUTA_PROXIMO_PASO}>Ver página pública</Link>
+            </BotonSistema>
           </>
         ) : (
           acciones.length > 0 && (

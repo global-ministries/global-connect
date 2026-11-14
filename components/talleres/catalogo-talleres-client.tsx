@@ -179,7 +179,7 @@ function celdaProxima(fila: FilaCatalogo): ReactNode {
 }
 
 function subtituloMovil(fila: FilaCatalogo): string {
-  if (fila.externo) return 'Se gestiona en Próximo Paso'
+  if (fila.externo) return 'Inscripción por enlace público'
   const e = fila.proxima
   if (!e) return 'Sin edición vigente'
   const conCupo = fila.cupo !== null && fila.cupo > 0
@@ -348,7 +348,7 @@ export function CatalogoTalleresClient({
               const insignias: InsigniaTarjeta[] = [
                 ...(abiertas > 0 ? [{ texto: `${abiertas} ${plural(abiertas, 'edición abierta', 'ediciones abiertas')}`, tono: 'success' } as const] : []),
                 ...(pendientes > 0 ? [{ texto: `${pendientes} por aprobar`, tono: 'warning' } as const] : []),
-                ...(d === 'dps' ? [{ texto: 'Su página es Próximo Paso', tono: 'info' } as const] : []),
+                ...(d === 'dps' ? [{ texto: 'Inscripción por enlace público', tono: 'info' } as const] : []),
               ]
               return {
                 id: d,
