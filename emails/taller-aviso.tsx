@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Section, Text } from '@react-email/components'
 import { EmailLayout } from './components/EmailLayout'
 import { EmailButton } from './components/EmailButton'
@@ -20,6 +21,10 @@ export interface TallerAvisoEmailProps {
  * T7, S6; design/talleres-reserva/11): the same title and text as the in-app
  * notice, its data rows and one button. The database writes the text
  * (taller_avisos_envios.datos), so the email and the app always say the same.
+ *
+ * R4 (odd/tasks/talleres-rediseno.md, S10 S11): the message can be edited by
+ * the team, so its line breaks are kept: a blank line separates paragraphs
+ * and a single line break stays a line break.
  */
 export function TallerAvisoEmail({
   nombre = '',
@@ -31,11 +36,20 @@ export function TallerAvisoEmail({
   tallerNombre = null,
 }: TallerAvisoEmailProps) {
   return (
-    <EmailLayout preview={cuerpo || titulo}>
+    <EmailLayout preview={(cuerpo || titulo).replace(/\s+/g, ' ').trim()}>
       <Text style={styles.marca}>Iglesia Global · Grupos de Corto Plazo</Text>
       <Text style={styles.title}>{titulo}</Text>
       {nombre ? <Text style={styles.text}>¡Hola, {nombre}!</Text> : null}
-      {cuerpo ? <Text style={styles.text}>{cuerpo}</Text> : null}
+      {parrafos(cuerpo).map((lineas, i) => (
+        <Text key={i} style={styles.text}>
+          {lineas.map((linea, j) => (
+            <Fragment key={j}>
+              {j > 0 ? <br /> : null}
+              {linea}
+            </Fragment>
+          ))}
+        </Text>
+      ))}
       {filas.length > 0 ? (
         <Section style={styles.datos}>
           {filas.map(([etiqueta, valor]) => (
@@ -54,6 +68,23 @@ export function TallerAvisoEmail({
       </Text>
     </EmailLayout>
   )
+}
+
+/** Paragraphs (split on blank lines) and their lines; never an empty paragraph. */
+export function parrafos(cuerpo: string): string[][] {
+  const salida: string[][] = []
+  let actual: string[] = []
+  for (const linea of cuerpo.replace(/\r\n?/g, '\n').split('\n')) {
+    const texto = linea.trim()
+    if (texto !== '') {
+      actual.push(texto)
+      continue
+    }
+    if (actual.length > 0) salida.push(actual)
+    actual = []
+  }
+  if (actual.length > 0) salida.push(actual)
+  return salida
 }
 
 const styles = {
