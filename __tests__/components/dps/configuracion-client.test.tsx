@@ -27,6 +27,7 @@ jest.mock('@/lib/actions/dps-configuracion.actions', () => ({
   agregarAListaDps: jest.fn(),
   quitarDeListaDps: jest.fn(),
   buscarPersonasListaDps: jest.fn(),
+  guardarRecordatorioDps: jest.fn(),
 }))
 
 const toastError = jest.fn()
@@ -90,6 +91,30 @@ beforeEach(() => {
 })
 
 describe('ConfiguracionClient', () => {
+  // T16c (S14.3, artboard design/dps-avisos-correo 07).
+  it('shows «Recordatorio por correo» when the configuration carries it, and a sin_autoridad turns it read-only', async () => {
+    const guardarRecordatorio = acciones.guardarRecordatorioDps as jest.MockedFunction<typeof acciones.guardarRecordatorioDps>
+    guardarRecordatorio.mockResolvedValueOnce(NO_CONFIGURA)
+    const conRecordatorio = leerConfig({
+      horarios: ['09:15'],
+      llegada: '07:00',
+      planificadores: [],
+      pasan_asistencia: [],
+      recordatorio: { activo: true, dias: 2, hora: '10:00', puede_editar: true, proximo: null, ultimo: null },
+    })
+    render(<ConfiguracionClient config={conRecordatorio} error={null} />)
+    expect(screen.getByRole('heading', { level: 2, name: 'Recordatorio por correo' })).toBeInTheDocument()
+    await userEvent.click(within(screen.getByRole('group', { name: 'Enviar recordatorio' })).getByRole('button', { name: 'No' }))
+    expect(await screen.findByText(/Puedes ver la configuración, pero solo la dirección de DPS/)).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Enviar recordatorio' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('recordatorio-activo')).toHaveTextContent('Sí')
+  })
+
+  it('has no reminder section when the configuration does not carry it', () => {
+    render(<ConfiguracionClient config={CONFIG} error={null} />)
+    expect(screen.queryByRole('heading', { name: 'Recordatorio por correo' })).not.toBeInTheDocument()
+  })
+
   it('reads "DPS › Configuración" in the crumbs, DPS linking to its section (L29)', async () => {
     render(<ConfiguracionClient config={CONFIG} error={null} />)
     const migas = await screen.findByRole('navigation', { name: 'Ubicación' })

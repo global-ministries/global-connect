@@ -340,6 +340,41 @@ describe('middleware getUser timeout (GH #257 part 2)', () => {
     })
   })
 
+  // The «Confirmar» button of the DPS service e-mail links to
+  // /dps/confirmar/<token> (odd/tasks/dps-asistencia-pco.md T16b, S14.2): it
+  // opens without a session and without getUser(); every other /dps route
+  // stays private.
+  describe('DPS confirm link', () => {
+    it('lets a visitor without a session open /dps/confirmar/<token>', async () => {
+      const request = createMockRequest('/dps/confirmar/abcDEF123_-xyz')
+      const result = await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+      expect(getUserMock).not.toHaveBeenCalled()
+      expect(nextResponseRedirectMock).not.toHaveBeenCalled()
+      expect(result.type).toBe('next')
+    })
+
+    it.each(['/dps/plan', '/dps/confirmar', '/dps/confirmar/', '/dps/confirmar/a/b', '/dps/confirmarx/abc'])(
+      'still sends a visitor without a session on %s to login',
+      async (path) => {
+        queueFastResult(null)
+
+        const request = createMockRequest(path)
+        await middleware(request as unknown as Parameters<typeof middleware>[0])
+
+        expect(nextResponseRedirectMock).toHaveBeenCalledTimes(1)
+      },
+    )
+
+    it('treats only /dps/confirmar/<one segment> as public', () => {
+      expect(isPublicPath('/dps/confirmar/tok')).toBe(true)
+      expect(isPublicPath('/dps/confirmar')).toBe(false)
+      expect(isPublicPath('/dps/confirmar/tok/x')).toBe(false)
+      expect(isPublicPath('/dps/confirmarx/tok')).toBe(false)
+      expect(isPublicPath('/dps/plan')).toBe(false)
+    })
+  })
+
   // The public reservation of Grupos de Corto Plazo (odd/tasks/talleres-reserva-publica.md
   // T5b): the catalog and one taller page open without a session and without
   // getUser(); the rest of /talleres stays private.

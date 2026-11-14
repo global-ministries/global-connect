@@ -70,7 +70,10 @@ describe('leerPendientesAvisos', () => {
   it('reads the three groups and who gets nothing (02)', () => {
     const r = leerPendientesAvisos({
       total: 3,
-      nuevas: [{ ...BASE, roles: [ROL_PUESTO], automatico: false, reemplaza: ['Óscar Bermúdez'] }],
+      por_correo: 2,
+      solo_panel: 1,
+      remitente: { nombre: 'Elena Garrido', email: 'elena@example.test' },
+      nuevas: [{ ...BASE, tiene_correo: true, roles: [ROL_PUESTO], automatico: false, reemplaza: ['Óscar Bermúdez'] }],
       cambios: [
         {
           ...BASE,
@@ -96,6 +99,9 @@ describe('leerPendientesAvisos', () => {
       },
     })
     expect(r.total).toBe(3)
+    // S14.1: the channel of the send and who sends it.
+    expect([r.porCorreo, r.soloPanel, r.remitente]).toEqual([2, 1, { nombre: 'Elena Garrido', email: 'elena@example.test' }])
+    expect(r.cambios[0].tieneCorreo).toBe(false)
     expect(r.nuevas).toEqual([
       {
         planId: PLAN,
@@ -107,6 +113,7 @@ describe('leerPendientesAvisos', () => {
         nombre: 'Irene Saavedra',
         iniciales: 'IS',
         tieneCuenta: true,
+        tieneCorreo: true,
         roles: [ROL_LEIDO],
         automatico: false,
         reemplaza: ['Óscar Bermúdez'],
@@ -134,7 +141,16 @@ describe('leerPendientesAvisos', () => {
 
   it('drops rows without a valid person or plan and reads a bad answer as nothing pending', () => {
     const r = leerPendientesAvisos({ total: 1, nuevas: [{ ...BASE, persona_id: 'x', roles: [] }, null], cambios: 'no' })
-    expect(r).toEqual({ total: 1, nuevas: [], cambios: [], quitados: [], noReciben: { yaRespondieron: [], sinCuenta: [], sinCambios: 0 } })
+    expect(r).toEqual({
+      total: 1,
+      porCorreo: 0,
+      soloPanel: 0,
+      remitente: null,
+      nuevas: [],
+      cambios: [],
+      quitados: [],
+      noReciben: { yaRespondieron: [], sinCuenta: [], sinCambios: 0 },
+    })
     expect(leerPendientesAvisos(null).total).toBe(0)
   })
 
@@ -146,8 +162,16 @@ describe('leerPendientesAvisos', () => {
 
 describe('leerEnvioAvisos', () => {
   it('reads the counts of a send', () => {
-    expect(leerEnvioAvisos({ enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1 })).toEqual({ enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1 })
-    expect(leerEnvioAvisos(null)).toEqual({ enviados: 0, nuevas: 0, cambios: 0, quitados: 0, cerrados: 0 })
+    expect(leerEnvioAvisos({ enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1, por_correo: 4, solo_panel: 1 })).toEqual({
+      enviados: 5,
+      nuevas: 3,
+      cambios: 1,
+      quitados: 1,
+      cerrados: 1,
+      porCorreo: 4,
+      soloPanel: 1,
+    })
+    expect(leerEnvioAvisos(null)).toEqual({ enviados: 0, nuevas: 0, cambios: 0, quitados: 0, cerrados: 0, porCorreo: 0, soloPanel: 0 })
   })
 })
 

@@ -5,9 +5,12 @@
  * plan besides the DPS direction (planificadores) and, per team, whether its
  * coordinators pass attendance. dps_config_leer is for planners; the writes
  * are for configurators only (admin/pastor or the DPS direction, L17), and
- * the database is the one that says no. Pure: safe on the client.
+ * the database is the one that says no. T16c (S14.3) adds the reminder by
+ * e-mail (`recordatorio`, lib/platform/dps/recordatorio.ts). Pure: safe on
+ * the client.
  */
 import { MENSAJE_HORARIOS, MENSAJE_LLEGADA, MENSAJE_LLEGADA_PRIMERO } from './errores'
+import { leerRecordatorio, type ConfigRecordatorio } from './recordatorio'
 
 export interface PlanificadorDps {
   readonly personaId: string
@@ -32,6 +35,8 @@ export interface ConfigDps {
   readonly llegada: string
   readonly planificadores: readonly PlanificadorDps[]
   readonly pasanAsistencia: readonly PasanAsistenciaEquipo[]
+  /** The reminder by e-mail (T16c); absent when the database does not send it yet. */
+  readonly recordatorio?: ConfigRecordatorio
 }
 
 type Objeto = Record<string, unknown>
@@ -45,7 +50,9 @@ const texto = (v: unknown): string => (typeof v === 'string' ? v : '')
 /** Reads dps_config_leer. */
 export function leerConfig(data: unknown): ConfigDps {
   const d = data && typeof data === 'object' ? (data as Objeto) : {}
+  const recordatorio = leerRecordatorio(d.recordatorio)
   return {
+    ...(recordatorio ? { recordatorio } : {}),
     horarios: Array.isArray(d.horarios) ? d.horarios.filter((h): h is string => typeof h === 'string') : [],
     llegada: texto(d.llegada),
     planificadores: lista(d.planificadores)

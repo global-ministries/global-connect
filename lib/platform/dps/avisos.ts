@@ -13,7 +13,10 @@
  *     puedo (dps_responder) and keeps «Fechas que no puedo servir»
  *     (dps_*_fecha*_bloqueada*).
  * A change of hours only keeps the answer; another puesto asks again (S13.4).
- * A written name («Sin cuenta») never gets a notice. These helpers read the
+ * A written name («Sin cuenta») never gets a notice. Since T16b (S14.1) a
+ * send also queues one e-mail per person with an e-mail
+ * (lib/platform/dps/avisos-correo.ts): the review says who gets «Correo y
+ * panel» or «Solo panel» and the send how many went each way. These helpers read the
  * RPC answers and check what is worth sending. Pure: safe on the client.
  */
 import { MENSAJE_FECHAS_BLOQUEO, MENSAJE_MOTIVO, MENSAJE_NOTA_BLOQUEO, MENSAJE_RANGO_BLOQUEO } from './errores'
@@ -60,6 +63,8 @@ interface PersonaPlanAviso {
   readonly iniciales: string
   /** The person has a login (a ficha without one sees it once they sign in). */
   readonly tieneCuenta: boolean
+  /** S14.1: an e-mail in the ficha («Correo y panel»); without one, only the panel. */
+  readonly tieneCorreo: boolean
 }
 
 export interface InvitacionAviso extends PersonaPlanAviso {
@@ -98,6 +103,11 @@ export interface SinCuentaAviso {
 export interface PendientesAvisos {
   /** Notices and closures (a removed «No puede») the next send applies. */
   readonly total: number
+  /** S14.1: notices that also go by e-mail, and those only in the panel (no e-mail in the ficha). */
+  readonly porCorreo: number
+  readonly soloPanel: number
+  /** Who sends (the caller): replies to the e-mail reach them. */
+  readonly remitente: { readonly nombre: string; readonly email: string | null } | null
   readonly nuevas: readonly InvitacionAviso[]
   readonly cambios: readonly CambioAviso[]
   readonly quitados: readonly QuitadoAviso[]
@@ -117,6 +127,9 @@ export interface EnvioAvisos {
   readonly quitados: number
   /** «No puedo» taken out, closed without a notice. */
   readonly cerrados: number
+  /** S14.1: notices that also went by e-mail, and those only in the panel. */
+  readonly porCorreo: number
+  readonly soloPanel: number
 }
 
 export interface PersonaEstadoAviso {
@@ -283,6 +296,7 @@ function leerPersonaPlan(f: Objeto): PersonaPlanAviso | null {
     nombre: texto(f.nombre),
     iniciales: texto(f.iniciales),
     tieneCuenta: f.tiene_cuenta === true,
+    tieneCorreo: f.tiene_correo === true,
   }
 }
 
@@ -328,8 +342,12 @@ function leerSinCuenta(v: unknown): SinCuentaAviso | null {
 export function leerPendientesAvisos(data: unknown): PendientesAvisos {
   const d = objeto(data) ?? {}
   const no = objeto(d.no_reciben) ?? {}
+  const remitente = objeto(d.remitente)
   return {
     total: numero(d.total),
+    porCorreo: numero(d.por_correo),
+    soloPanel: numero(d.solo_panel),
+    remitente: remitente ? { nombre: texto(remitente.nombre), email: textoONulo(remitente.email) } : null,
     nuevas: leerVarios(d.nuevas, leerInvitacion),
     cambios: leerVarios(d.cambios, leerCambio),
     quitados: leerVarios(d.quitados, leerQuitado),
@@ -344,7 +362,15 @@ export function leerPendientesAvisos(data: unknown): PendientesAvisos {
 /** Reads dps_avisos_enviar. */
 export function leerEnvioAvisos(data: unknown): EnvioAvisos {
   const d = objeto(data) ?? {}
-  return { enviados: numero(d.enviados), nuevas: numero(d.nuevas), cambios: numero(d.cambios), quitados: numero(d.quitados), cerrados: numero(d.cerrados) }
+  return {
+    enviados: numero(d.enviados),
+    nuevas: numero(d.nuevas),
+    cambios: numero(d.cambios),
+    quitados: numero(d.quitados),
+    cerrados: numero(d.cerrados),
+    porCorreo: numero(d.por_correo),
+    soloPanel: numero(d.solo_panel),
+  }
 }
 
 function leerPersonaEstado(v: unknown): PersonaEstadoAviso | null {

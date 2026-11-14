@@ -80,6 +80,23 @@ function isActivationPath(path: string) {
 }
 
 /**
+ * DPS confirm link (odd/tasks/dps-asistencia-pco.md T16b, S14.2). The
+ * «Confirmar» button of the service e-mail points at `/dps/confirmar/<token>`;
+ * the page reads the notice with the service client and confirms only on its
+ * own button, so it opens without a session. Like isActivationPath getUser()
+ * is skipped (no network call, no breadcrumb carrying the token path).
+ * Matches exactly one token segment: neither the bare path, a deeper path,
+ * nor any other /dps route.
+ */
+const DPS_CONFIRMATION_ROOT = '/dps/confirmar'
+
+function isDpsConfirmationPath(path: string) {
+  if (!path.startsWith(`${DPS_CONFIRMATION_ROOT}/`)) return false
+  const token = path.slice(DPS_CONFIRMATION_ROOT.length + 1)
+  return token.length > 0 && !token.includes('/')
+}
+
+/**
  * Public reservation of Grupos de Corto Plazo (odd/tasks/talleres-reserva-publica.md
  * T5b): the catalog `/talleres/reservar` and one taller `/talleres/reservar/<slug>`.
  * Like /ninos/registro the pages read only public data through service-role
@@ -109,6 +126,7 @@ export function isPublicPath(path: string) {
     ALWAYS_CHECK_AUTH_PATHS.has(path) ||
     isPublicCertificateVerificationPath(path) ||
     isActivationPath(path) ||
+    isDpsConfirmationPath(path) ||
     isPublicReservationPath(path)
   )
 }
@@ -171,7 +189,7 @@ export async function middleware(request: NextRequest) {
     supabaseResponse.headers.set('Content-Security-Policy', FRAMING_RESERVA)
     return supabaseResponse
   }
-  if (SKIP_AUTH_PATHS.has(path) || isActivationPath(path)) {
+  if (SKIP_AUTH_PATHS.has(path) || isActivationPath(path) || isDpsConfirmationPath(path)) {
     return supabaseResponse
   }
 
