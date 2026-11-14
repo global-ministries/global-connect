@@ -16,6 +16,7 @@ const cargarACargo = jest.fn()
 const cargarMisHijosDashboard = jest.fn()
 const cargarMisServiciosPanel = jest.fn()
 const cargarNotasLideres = jest.fn()
+const cargarTalleresAbiertos = jest.fn()
 const getUser = jest.fn()
 const supabase = { auth: { getUser } }
 const redirect = jest.fn((ruta: string) => {
@@ -41,6 +42,7 @@ jest.mock('@/app/(auth)/dashboard/tablero', () => ({
 }))
 jest.mock('@/lib/inicio/cargar-a-cargo', () => ({ ...jest.requireActual('@/lib/inicio/cargar-a-cargo'), cargarACargo: (...a: unknown[]) => cargarACargo(...a) }))
 jest.mock('@/lib/inicio/cargar-notas-lideres', () => ({ cargarNotasLideres: (...a: unknown[]) => cargarNotasLideres(...a) }))
+jest.mock('@/lib/inicio/cargar-talleres-abiertos', () => ({ cargarTalleresAbiertos: (...a: unknown[]) => cargarTalleresAbiertos(...a) }))
 jest.mock('@/app/(auth)/dashboard/mis-hijos-dashboard', () => ({ cargarMisHijosDashboard: () => cargarMisHijosDashboard() }))
 jest.mock('@/components/mis-servicios/cargar-mis-servicios', () => ({ cargarMisServiciosPanel: () => cargarMisServiciosPanel() }))
 jest.mock('@/components/mis-servicios/tarjeta-mis-servicios', () => ({
@@ -68,6 +70,7 @@ describe('PaginaInicio', () => {
     cargarMisHijosDashboard.mockResolvedValue(null)
     cargarMisServiciosPanel.mockResolvedValue(null)
     cargarNotasLideres.mockResolvedValue([])
+    cargarTalleresAbiertos.mockResolvedValue(null)
   })
 
   it('miembro de un grupo: carga su grupo y no el tablero', async () => {
@@ -255,6 +258,27 @@ describe('PaginaInicio', () => {
     render(await PaginaInicio())
 
     expect(screen.queryByRole('heading', { name: /Mis servicios/ })).toBeNull()
+  })
+
+  // S15: the Talleres tile says how many have open enrollment, read with the person's client.
+  it('Explorar: cuenta los talleres con inscripción abierta para la persona', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({ hizoProximoPaso: true, hijos: 1 }))
+    cargarTalleresAbiertos.mockResolvedValue(3)
+
+    render(await PaginaInicio())
+
+    expect(cargarTalleresAbiertos).toHaveBeenCalledWith(supabase, { hizoProximoPaso: true })
+    const explorar = screen.getByRole('region', { name: 'Explorar' })
+    expect(within(explorar).getByRole('link', { name: /Talleres/ })).toHaveTextContent('3 con inscripción abierta')
+    expect(within(explorar).queryByRole('link', { name: /Inscribir a mis hijos/ })).toBeNull()
+  })
+
+  it('Explorar: si no se pudo contar, «Ver talleres»', async () => {
+    cargarHechosInicio.mockResolvedValue(hechos({}))
+
+    render(await PaginaInicio())
+
+    expect(within(screen.getByRole('region', { name: 'Explorar' })).getByRole('link', { name: /Talleres/ })).toHaveTextContent('Ver talleres')
   })
 
   it('sin sesión va al login', async () => {

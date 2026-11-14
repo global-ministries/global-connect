@@ -1,9 +1,10 @@
 /**
- * «Explorar» (design/home-por-rol): the door to everything of the church, like
- * Church Center's tabs. Always last; the tiles come from decidirSecciones, so
- * Dream Team is named only to whoever serves in a team (S3, S13).
+ * «Explorar» (design/home-por-rol; odd/tasks/home-por-rol.md S15): only what
+ * the person can still add. Talleres for everyone, with how many have open
+ * enrollment for them; «Inscribir a mis hijos» for an adult without children
+ * registered. Always last; the tiles come from decidirSecciones.
  */
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import Link from 'next/link'
 
 import type { TileExplorar } from '@/lib/inicio/decidir-secciones'
@@ -16,10 +17,23 @@ type Props = {
   readonly tiles: TileExplorar[]
   /** Alone on its desktop row: one row of four instead of a 2×2 block. */
   readonly ancha: boolean
+  /** Talleres with open enrollment for the person; null or undefined when unknown. */
+  readonly talleresAbiertos?: number | null
   readonly className?: string
 }
 
-export function SeccionExplorar({ tiles, ancha, className }: Props): ReactElement {
+function detalle(tile: TileExplorar, talleresAbiertos: number | null | undefined): ReactNode {
+  if (tile === 'talleres' && talleresAbiertos && talleresAbiertos > 0) {
+    return (
+      <>
+        <span className="font-mono tabular-nums">{talleresAbiertos}</span> con inscripción abierta
+      </>
+    )
+  }
+  return TILES[tile].detalle
+}
+
+export function SeccionExplorar({ tiles, ancha, talleresAbiertos, className }: Props): ReactElement {
   return (
     <section aria-labelledby="inicio-explorar" className={className}>
       <EncabezadoSeccion id="inicio-explorar" titulo="Explorar" />
@@ -35,7 +49,7 @@ export function SeccionExplorar({ tiles, ancha, className }: Props): ReactElemen
                 <IconoTile icono={t.icono} />
                 <span className="min-w-0">
                   <span className="block text-[15px] font-semibold leading-tight text-foreground">{t.titulo}</span>
-                  <span className="mt-0.5 block text-[13px] text-muted-foreground">{t.detalle}</span>
+                  <span className="mt-0.5 block text-[13px] text-muted-foreground">{detalle(tile, talleresAbiertos)}</span>
                 </span>
               </Link>
             </li>

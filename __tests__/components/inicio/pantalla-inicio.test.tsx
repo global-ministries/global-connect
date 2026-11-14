@@ -119,6 +119,13 @@ describe('PantallaInicio', () => {
     expect(screen.getByRole('group', { name: 'Métricas del campus' })).toBeInTheDocument()
   })
 
+  it('los tickets de soporte llevan a los abiertos de la cola de soporte (S16.3)', () => {
+    render(<PantallaInicio nombre="Ana" hoy="2026-11-09" secciones={decidirSecciones(hechos({ pendientes: { ...HECHOS_VACIOS.pendientes, ticketsAbiertos: 3 } }))} />)
+
+    const pendientes = screen.getByRole('region', { name: 'Para responder' })
+    expect(within(pendientes).getByRole('link', { name: /Tickets de soporte/ })).toHaveAttribute('href', '/ayuda/admin?estado=abiertos')
+  })
+
   it('una sección sin contenido no se muestra', () => {
     render(<PantallaInicio nombre="Ana" hoy="2026-11-09" secciones={[{ id: 'mis-hijos', cantidad: 1 }, { id: 'explorar', tiles: ['talleres'] }]} />)
 

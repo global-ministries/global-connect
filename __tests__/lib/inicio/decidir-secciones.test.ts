@@ -128,8 +128,13 @@ describe('decidirSecciones · a cargo (S6, S7, S8)', () => {
     expect(seccion(h, 'a-cargo')?.cargos).toEqual([{ tipo: 'area-dream-team', equipoId: 'eq-ninos', servicioId: 's-eq-ninos' }])
   })
 
-  it('un servicio de nivel coordinador o desconocido no dirige un área', () => {
-    expect(ids(hechos({ serviciosActivos: [servicio('coordinador'), servicio(null, 'eq-2')] }))).not.toContain('a-cargo')
+  it('el coordinador de área también tiene su área a cargo (S16.2)', () => {
+    const h = hechos({ serviciosActivos: [servicio('coordinador', 'eq-host')] })
+    expect(seccion(h, 'a-cargo')?.cargos).toEqual([{ tipo: 'area-dream-team', equipoId: 'eq-host', servicioId: 's-eq-host' }])
+  })
+
+  it('un servicio de nivel voluntario, líder o desconocido no tiene un área a cargo', () => {
+    expect(ids(hechos({ serviciosActivos: [servicio('voluntario'), servicio('lider', 'eq-2'), servicio(null, 'eq-3')] }))).not.toContain('a-cargo')
   })
 
   it('junta varios cargos en una sola sección, en orden', () => {
@@ -222,10 +227,9 @@ describe('decidirSecciones · próximos pasos (S3)', () => {
 })
 
 describe('decidirSecciones · datos heredados sin el hito de Próximo Paso (L8)', () => {
-  it('quien ya sirve no ve Próximo Paso destacado y, si puede abrir Dream Team, Explorar lo nombra', () => {
-    const h = hechos({ hizoProximoPaso: false, serviciosActivos: [servicio()], abreDreamTeam: true })
+  it('quien ya sirve no ve Próximo Paso destacado', () => {
+    const h = hechos({ hizoProximoPaso: false, serviciosActivos: [servicio()] })
     expect(seccion(h, 'proximos-pasos')).toBeUndefined()
-    expect(seccion(h, 'explorar')?.tiles).toContain('dream-team')
   })
 
   it('quien tiene algo a cargo o es admin/pastor tampoco lo ve', () => {
@@ -233,31 +237,51 @@ describe('decidirSecciones · datos heredados sin el hito de Próximo Paso (L8)'
     const pastor = hechos({ hizoProximoPaso: false, esAdminOPastor: true })
     expect(seccion(lider, 'proximos-pasos')).toBeUndefined()
     expect(seccion(pastor, 'proximos-pasos')).toBeUndefined()
-    // Without a servicio, not even admin or pastor see the Dream Team tile (S13).
-    expect(seccion(pastor, 'explorar')?.tiles).not.toContain('dream-team')
   })
 
   it('el miembro que no sirve ni tiene cargo sí lo ve destacado', () => {
     const h = hechos({ hizoProximoPaso: false, grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] })
     expect(seccion(h, 'proximos-pasos')?.pasos[0]).toEqual({ id: 'proximo-paso', hecho: false, destacado: true })
-    expect(seccion(h, 'explorar')?.tiles).not.toContain('dream-team')
   })
 })
 
-describe('decidirSecciones · explorar (S1, S3)', () => {
+describe('decidirSecciones · explorar (S15)', () => {
   it('siempre va al final', () => {
     const lista = ids(hechos({ esAdminOPastor: true, hijos: 1, pendientes: { ticketsAbiertos: 1 } }))
     expect(lista.at(-1)).toBe('explorar')
   })
 
-  it('sin Próximo Paso no nombra Dream Team: ofrece Próximo Paso', () => {
-    expect(seccion(hechos({ hizoProximoPaso: false }), 'explorar')?.tiles).toEqual(['proximo-paso', 'talleres', 'grupos-vida', 'ninos'])
+  it('Talleres para todos; «Inscribir a mis hijos» al adulto sin hijos registrados', () => {
+    expect(seccion(hechos({ hizoProximoPaso: false }), 'explorar')?.tiles).toEqual(['talleres', 'mis-hijos'])
+    expect(seccion(hechos({ esMayorDeEdad: true, hijos: 0 }), 'explorar')?.tiles).toEqual(['talleres', 'mis-hijos'])
   })
 
+  it('quien ya tiene hijos registrados no ve «Inscribir a mis hijos»: tiene la tarjeta Mis hijos', () => {
+    expect(seccion(hechos({ hijos: 2 }), 'explorar')?.tiles).toEqual(['talleres'])
+  })
+
+  it('un menor no ve «Inscribir a mis hijos»', () => {
+    expect(seccion(hechos({ esMayorDeEdad: false, hijos: 0 }), 'explorar')?.tiles).toEqual(['talleres'])
+  })
+
+  it('nunca ofrece Próximo Paso, Dream Team, Grupos de Vida ni Niños', () => {
+    for (const h of [
+      hechos({ hizoProximoPaso: false }),
+      hechos({ hizoProximoPaso: null }),
+      hechos({ serviciosActivos: [servicio('director')] }),
+      hechos({ esAdminOPastor: true }),
+      hechos({ convocadoEnDps: true }),
+      hechos({ grupos: [{ grupoId: 'g-1', nombre: 'G', rol: 'Miembro' }] }),
+    ]) {
+      for (const tile of ['proximo-paso', 'dream-team', 'grupos-vida', 'ninos']) {
+        expect(seccion(h, 'explorar')?.tiles).not.toContain(tile)
+      }
+    }
+  })
 })
 
 describe('decidirSecciones · Dream Team solo con servicio (S13)', () => {
-  it('sin servicio nadie ve Dream Team: ni el paso ni el acceso de Explorar', () => {
+  it('sin servicio nadie ve Dream Team en el inicio', () => {
     for (const h of [
       hechos({ hizoProximoPaso: true }),
       hechos({ hizoProximoPaso: null }),
@@ -267,21 +291,10 @@ describe('decidirSecciones · Dream Team solo con servicio (S13)', () => {
     ]) {
       expect(JSON.stringify(decidirSecciones(h))).not.toMatch(/dream-team/)
     }
-    expect(seccion(hechos({ hizoProximoPaso: true }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'ninos'])
   })
 
-  it('quien puede abrir Dream Team (Mi equipo o registrar) lo ve en Explorar', () => {
-    expect(seccion(hechos({ serviciosActivos: [servicio()], abreDreamTeam: true }), 'explorar')?.tiles).toEqual(['grupos-vida', 'talleres', 'dream-team', 'ninos'])
-  })
-
-  it('el servidor que no puede abrir Dream Team no lo ve en Explorar: tiene Mis servicios en el inicio', () => {
-    const h = hechos({ serviciosActivos: [servicio()], abreDreamTeam: false })
-    expect(seccion(h, 'explorar')?.tiles).not.toContain('dream-team')
-    expect(ids(h)).toContain('mis-servicios')
-  })
-
-  it('convocado en DPS sin acceso a Dream Team tampoco lo ve en Explorar', () => {
-    expect(seccion(hechos({ convocadoEnDps: true }), 'explorar')?.tiles).not.toContain('dream-team')
+  it('el servidor tiene Mis servicios en el inicio', () => {
+    expect(ids(hechos({ serviciosActivos: [servicio()] }))).toContain('mis-servicios')
   })
 })
 
@@ -336,38 +349,49 @@ describe('decidirSecciones · próximos cumpleaños (S12)', () => {
 })
 
 // Facts of each design profile (design/home-por-rol/_generar.mjs, PERFILES).
-const PERFILES: Array<[string, HechosInicio, string[]]> = [
-  ['01 Miembro nuevo', hechos({ hizoProximoPaso: false, perfilCompleto: false }), ['6', 'x']],
-  ['02 Asiste pero no sirve', hechos({ hizoProximoPaso: false, grupos: [{ grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }] }), ['4b', 'c', '6', 'x']],
-  ['03 Padre o madre', hechos({ hizoProximoPaso: false, hijos: 2 }), ['3', '6', 'x']],
+const PERFILES: Array<[string, HechosInicio, string[], string[]]> = [
+  ['01 Miembro nuevo', hechos({ hizoProximoPaso: false, perfilCompleto: false }), ['6', 'x'], ['talleres', 'mis-hijos']],
+  ['02 Asiste pero no sirve', hechos({ hizoProximoPaso: false, grupos: [{ grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }] }), ['4b', 'c', '6', 'x'], ['talleres', 'mis-hijos']],
+  ['03 Padre o madre', hechos({ hizoProximoPaso: false, hijos: 2 }), ['3', '6', 'x'], ['talleres']],
   ['04 Servidor con servicio por confirmar', hechos({
     serviciosActivos: [servicio('voluntario', 'eq-prod')], serviciosPorConfirmar: 1,
     grupos: [{ grupoId: 'g-jp', nombre: 'Jóvenes profesionales · Centro', rol: 'Miembro' }],
-  }), ['2', '4b', 'c', 'x']],
+  }), ['2', '4b', 'c', 'x'], ['talleres', 'mis-hijos']],
   ['05 Líder de grupo que además sirve', hechos({
     serviciosActivos: [servicio('voluntario', 'eq-bienvenida')], serviciosPorConfirmar: 1,
     grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Líder' }, { grupoId: 'g-mat', nombre: 'Matrimonios · Zona Este', rol: 'Miembro' }],
     pendientes: { reportesSinCargar: 1, solicitudesGrupo: 2 },
-  }), ['1', '2', '4', '4b', 'c', 'x']],
+  }), ['1', '2', '4', '4b', 'c', 'x'], ['talleres', 'mis-hijos']],
   ['06 Directora de área', hechos({
     serviciosActivos: [servicio('director', 'eq-ninos')], hijos: 1, pendientes: { dreamTeam: 16 },
-  }), ['1', '2', '3', '4', 'x']],
+  }), ['1', '2', '3', '4', 'x'], ['talleres']],
   ['07 Admin o pastor', hechos({
     esAdminOPastor: true, pendientes: { casasPorRevisar: 3, solicitudesGrupo: 5, reportesSinCargar: 11, ticketsAbiertos: 2 },
-  }), ['1', 'n', 'c', '5', 'x']],
+  }), ['1', 'n', 'c', '5', 'x'], ['talleres', 'mis-hijos']],
   // Hizo Próximo Paso and has the profile complete: without «Servir en Dream Team» (S13) nothing is pending.
-  ['08 Colíder de grupo', hechos({ grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Colíder' }] }), ['4b', 'c', 'x']],
+  ['08 Colíder de grupo', hechos({ grupos: [{ grupoId: 'g-h36', nombre: 'Hombres +36 · Cabudare Este', rol: 'Colíder' }] }), ['4b', 'c', 'x'], ['talleres', 'mis-hijos']],
   ['09 Directora de etapa', hechos({
     etapasDirigidas: ['sl-mujeres36'], pendientes: { reportesSinCargar: 4, solicitudesGrupo: 2, gruposSinCasa: 1 },
-  }), ['1', '4', 'n', 'c', 'x']],
+  }), ['1', '4', 'n', 'c', 'x'], ['talleres', 'mis-hijos']],
   ['10 Director general', hechos({
     segmentosDirigidos: ['seg-matrimonios'], grupos: [{ grupoId: 'g-ros', nombre: 'Matrimonios +36 · La Rosaleda', rol: 'Miembro' }],
     pendientes: { solicitudesGrupo: 5, casasPorRevisar: 2, reportesSinCargar: 7 },
-  }), ['1', '4', 'n', '4b', 'c', 'x']],
+  }), ['1', '4', 'n', '4b', 'c', 'x'], ['talleres', 'mis-hijos']],
 ]
 
 describe('decidirSecciones · perfiles del diseño', () => {
   it.each(PERFILES)('%s', (_perfil, h, claves) => {
     expect(ids(h)).toEqual(claves.map((k) => CLAVE[k]))
+  })
+
+  // S15, S16 (4): Talleres for everyone, so the home is never empty.
+  it.each(PERFILES)('%s · Explorar', (_perfil, h, _claves, tiles) => {
+    expect(seccion(h, 'explorar')?.tiles).toEqual(tiles)
+  })
+
+  it('coordinadora de área (S16.2): su área a cargo y el pendiente de Próximo Paso, como una directora', () => {
+    const coordinadora = hechos({ serviciosActivos: [servicio('coordinador', 'eq-ninos')], hijos: 1, pendientes: { marcarProximoPaso: 2 } })
+    expect(ids(coordinadora)).toEqual(['para-responder', 'mis-servicios', 'mis-hijos', 'a-cargo', 'explorar'])
+    expect(seccion(coordinadora, 'para-responder')?.items).toEqual([{ tipo: 'marcar-proximo-paso', cantidad: 2 }])
   })
 })

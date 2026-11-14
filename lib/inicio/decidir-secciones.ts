@@ -1,6 +1,6 @@
 /**
  * Which sections the home shows, in order of urgency (odd/tasks/home-por-rol.md
- * S1, S3, S6–S8, S11–S14; design/home-por-rol/00). Pure: the facts are loaded
+ * S1, S3, S6–S8, S11–S16; design/home-por-rol/00). Pure: the facts are loaded
  * by cargarHechosInicio and the screen renders whatever this returns.
  *
  * Order: Para responder → Mis servicios → Mis hijos → A tu cargo → Notas de
@@ -10,7 +10,7 @@
  * and before the campus numbers: a birthday is today or this week, the
  * campus trend can wait.
  */
-import type { HechosInicio, PendientesInicio } from './hechos'
+import { tieneAreaACargo, type HechosInicio, type PendientesInicio } from './hechos'
 
 export type TipoPendiente =
   | 'reportes-sin-cargar'
@@ -38,7 +38,7 @@ export type PasoInicio = {
   destacado?: true
 }
 
-export type TileExplorar = 'proximo-paso' | 'talleres' | 'grupos-vida' | 'dream-team' | 'ninos'
+export type TileExplorar = 'talleres' | 'mis-hijos'
 
 export type SeccionInicio =
   | { id: 'para-responder'; items: PendienteInicio[] }
@@ -64,21 +64,15 @@ const ORDEN_PENDIENTES: ReadonlyArray<[keyof PendientesInicio, TipoPendiente]> =
   ['ticketsAbiertos', 'tickets'],
 ]
 
-// Without Próximo Paso, Próximo Paso is the first door (S3, S4). Dream Team is named only to
-// whoever already serves in a team (S13): the way to serve is Próximo Paso.
-const EXPLORAR_SIN_PROXIMO_PASO: TileExplorar[] = ['proximo-paso', 'talleres', 'grupos-vida', 'ninos']
-const EXPLORAR: TileExplorar[] = ['grupos-vida', 'talleres', 'ninos']
-const EXPLORAR_SIRVE: TileExplorar[] = ['grupos-vida', 'talleres', 'dream-team', 'ninos']
-
 function cargos(h: HechosInicio): CargoInicio[] {
   return [
     // The colíder is read as a member (S6): only the Líder has the group in charge.
     ...h.grupos.filter((g) => g.rol === 'Líder').map((g): CargoInicio => ({ tipo: 'grupo-lider', grupoId: g.grupoId, nombre: g.nombre })),
     ...h.etapasDirigidas.map((id): CargoInicio => ({ tipo: 'etapa', directorEtapaId: id })),
     ...h.segmentosDirigidos.map((id): CargoInicio => ({ tipo: 'segmento', segmentoId: id })),
-    // Director de área by the nivel of the servicio, as dream_team_grants_de_servicio.
+    // Director or coordinador de área by the nivel of the servicio, as dream_team_grants_de_servicio (S16).
     ...h.serviciosActivos
-      .filter((s) => s.nivel === 'director')
+      .filter(tieneAreaACargo)
       .map((s): CargoInicio => ({ tipo: 'area-dream-team', equipoId: s.equipoId, servicioId: s.servicioId })),
   ]
 }
@@ -101,6 +95,15 @@ function pasos(h: HechosInicio, sirve: boolean, tieneCargo: boolean): PasoInicio
   const lista: PasoInicio[] = [{ id: 'completar-perfil', hecho: h.perfilCompleto }]
   if (h.hizoProximoPaso === true) lista.push({ id: 'proximo-paso', hecho: true })
   return lista
+}
+
+// Only what the person can add (S15): Talleres for everyone, so the home is never empty (S16),
+// and registering children for an adult who has none yet (who has them sees «Mis hijos»).
+// Próximo Paso has its own card, Dream Team and Grupos de Vida have no page to join from.
+function explorar(h: HechosInicio): TileExplorar[] {
+  const tiles: TileExplorar[] = ['talleres']
+  if (h.esMayorDeEdad && h.hijos === 0) tiles.push('mis-hijos')
+  return tiles
 }
 
 export function decidirSecciones(h: HechosInicio): SeccionInicio[] {
@@ -140,8 +143,7 @@ export function decidirSecciones(h: HechosInicio): SeccionInicio[] {
   const lista = pasos(h, sirve, aCargo.length > 0)
   if (lista.some((p) => !p.hecho)) secciones.push({ id: 'proximos-pasos', pasos: lista })
 
-  // The Dream Team tile only for who can open /dream-team (it 404s otherwise); a plain servant has «Mis servicios».
-  const tiles = pidePrimerPaso(h, sirve, aCargo.length > 0) ? EXPLORAR_SIN_PROXIMO_PASO : h.abreDreamTeam ? EXPLORAR_SIRVE : EXPLORAR
-  secciones.push({ id: 'explorar', tiles })
+  const tiles = explorar(h)
+  if (tiles.length > 0) secciones.push({ id: 'explorar', tiles })
   return secciones
 }

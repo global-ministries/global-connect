@@ -13,7 +13,7 @@ jest.mock('@/lib/actions/casas-anfitrionas.actions', () => ({
   obtenerGruposSinCasaAnfitriona: (input: unknown) => obtenerGruposSinCasaAnfitriona(input),
 }))
 
-type Resultado = { data: unknown; error: unknown }
+type Resultado = { data: unknown; error: unknown; count?: number | null }
 
 // Chainable PostgREST query that resolves to one result.
 function consulta(resultado: Resultado | (() => never)) {
@@ -167,6 +167,69 @@ describe('cargarHechosInicio', () => {
     const hechos = await cargar(cliente)
     expect(hechos.hijos).toBe(0)
     expect(cliente.rpc).not.toHaveBeenCalledWith('ninos_mis_hijos')
+  })
+
+  it('una fecha de nacimiento desconocida cuenta como adulto, como la tarjeta Mis hijos', async () => {
+    await expect(cargar(preparar({ usuario: ok({ id: 'u-1', telefono: '0414', fecha_nacimiento: null }) }))).resolves.toMatchObject({ esMayorDeEdad: true })
+    await expect(cargar(preparar())).resolves.toMatchObject({ esMayorDeEdad: true })
+    await expect(cargar(preparar({ usuario: ok({ id: 'u-1', telefono: '0414', fecha_nacimiento: '2015-01-01' }) }))).resolves.toMatchObject({ esMayorDeEdad: false })
+  })
+
+  // S16 (2): the area coordinator (nivel coordinador → dream_team.coordinate) counts its area, as a director.
+  it('el coordinador de área pide los pendientes de su área; el voluntario no', async () => {
+    const cliente = preparar({
+      tablas: {
+        grupo_miembros: ok([]),
+        segmento_lideres: ok([]),
+        director_general_segmentos: ok([]),
+        dream_team_servicios: ok([
+          { id: 's-1', equipo_id: 'eq-host', rol: { nivel: 'coordinador' } },
+          { id: 's-2', equipo_id: 'eq-prod', rol: { nivel: 'voluntario' } },
+          { id: 's-3', equipo_id: 'eq-sonido', rol: { nivel: 'lider' } },
+        ]),
+      },
+    })
+
+    await cargar(cliente)
+
+    expect(cargarPendientesCargo).toHaveBeenCalledWith(cliente, expect.objectContaining({ areas: ['eq-host'] }))
+  })
+
+  describe('tickets de soporte (S16.3)', () => {
+    const ABIERTOS = ['received', 'in_review', 'in_progress']
+
+    it('quien atiende soporte recibe los tickets abiertos de la cola', async () => {
+      const cliente = preparar({ tablas: { support_user_capabilities: ok([{ capability: 'support.reply' }]), support_tickets: { data: null, error: null, count: 4 } } })
+
+      const hechos = await cargar(cliente)
+
+      expect(hechos.pendientes.ticketsAbiertos).toBe(4)
+      const tickets = cliente.from.mock.results[cliente.from.mock.calls.findIndex(([t]) => t === 'support_tickets')].value
+      expect(tickets.select).toHaveBeenCalledWith('id', { count: 'exact', head: true })
+      expect(tickets.in).toHaveBeenCalledWith('status', ABIERTOS)
+      const capacidades = cliente.from.mock.results[cliente.from.mock.calls.findIndex(([t]) => t === 'support_user_capabilities')].value
+      expect(capacidades.eq).toHaveBeenCalledWith('usuario_id', 'u-1')
+      expect(capacidades.is).toHaveBeenCalledWith('revoked_at', null)
+    })
+
+    it('quien no atiende soporte no cuenta tickets', async () => {
+      const cliente = preparar({ tablas: { support_user_capabilities: ok([]), support_tickets: { data: null, error: null, count: 9 } } })
+
+      const hechos = await cargar(cliente)
+
+      expect(hechos.pendientes.ticketsAbiertos).toBe(0)
+      expect(cliente.from).not.toHaveBeenCalledWith('support_tickets')
+    })
+
+    it('si el conteo falla queda en 0 sin romper lo demás', async () => {
+      const cliente = preparar({ tablas: { support_user_capabilities: ok([{ capability: 'support.view' }]), support_tickets: fallo('permission denied') } })
+
+      const hechos = await cargar(cliente)
+
+      expect(hechos.pendientes.ticketsAbiertos).toBe(0)
+      expect(hechos.pendientes.solicitudesGrupo).toBe(2)
+      expect(consoleError).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('sin fila en usuarios devuelve los hechos vacíos', async () => {
