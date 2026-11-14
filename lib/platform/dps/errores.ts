@@ -131,6 +131,10 @@ export const MENSAJE_MOTIVO = 'El motivo va hasta 300 caracteres.'
 export const MENSAJE_FECHAS_BLOQUEO = 'Elige las fechas «Desde» y «Hasta».'
 export const MENSAJE_RANGO_BLOQUEO = 'Revisa las fechas: «Hasta» no puede ser antes de «Desde» y el rango es de hasta un año.'
 export const MENSAJE_NOTA_BLOQUEO = 'La nota va hasta 200 caracteres.'
+/** The public «Confirmar» page of the e-mail could not confirm (T16b, S14.2): the button stays. */
+export const MENSAJE_CONFIRMAR_ENLACE = 'No pudimos confirmar. Intenta de nuevo en un momento.'
+/** The page could not read the link (a failure, not a bad link): «Confirmar» still tries. */
+export const MENSAJE_LEER_ENLACE = 'No pudimos abrir tu servicio. Toca «Confirmar» para intentarlo de nuevo.'
 /** More plans than dps_avisos_* take at once (400). */
 export const MENSAJE_DEMASIADOS_PLANES = 'Son demasiadas fechas a la vez. Elige un rango más corto.'
 

@@ -13,6 +13,11 @@ jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({ auth: { getUser }, rpc }),
 }))
 
+// T16b: the e-mails queued by a send or a «No puedo» are dispatched after the response.
+const despachar = jest.fn(async () => undefined)
+jest.mock('@/lib/platform/dps/avisos-correo', () => ({ despacharCorreosDps: () => despachar() }))
+jest.mock('next/server', () => ({ after: (f: () => unknown) => f() }))
+
 import {
   agregarFechaBloqueadaDps,
   cargarAvisosPendientesDps,
@@ -38,6 +43,7 @@ const SERVICIO = { plan_id: PLAN, fecha: '2026-11-15', tipo: 'domingo', roles: [
 beforeEach(() => {
   rpc.mockReset()
   getUser.mockReset()
+  despachar.mockClear()
   getUser.mockResolvedValue({ data: { user: { id: 'u1' } } })
 })
 
@@ -46,13 +52,28 @@ describe('planner: pending, send and state', () => {
     rpc.mockResolvedValueOnce({ data: { total: 0, nuevas: [], cambios: [], quitados: [], no_reciben: { sin_cambios: 4 } }, error: null })
     const r = await cargarAvisosPendientesDps({ planIds: [PLAN, PLAN2, PLAN] })
     expect(rpc).toHaveBeenCalledWith('dps_avisos_pendientes', { p_plan_ids: [PLAN, PLAN2] })
-    expect(r).toEqual({ ok: true, data: { total: 0, nuevas: [], cambios: [], quitados: [], noReciben: { yaRespondieron: [], sinCuenta: [], sinCambios: 4 } } })
+    expect(r).toEqual({
+      ok: true,
+      data: { total: 0, porCorreo: 0, soloPanel: 0, remitente: null, nuevas: [], cambios: [], quitados: [], noReciben: { yaRespondieron: [], sinCuenta: [], sinCambios: 4 } },
+    })
   })
 
-  it('sends them and returns the counts', async () => {
-    rpc.mockResolvedValueOnce({ data: { enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1 }, error: null })
-    expect(await enviarAvisosDps({ planIds: [PLAN] })).toEqual({ ok: true, data: { enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1 } })
+  it('sends them, returns the counts per channel and dispatches the queued e-mails (S14.1)', async () => {
+    rpc.mockResolvedValueOnce({ data: { enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1, por_correo: 4, solo_panel: 1 }, error: null })
+    expect(await enviarAvisosDps({ planIds: [PLAN] })).toEqual({
+      ok: true,
+      data: { enviados: 5, nuevas: 3, cambios: 1, quitados: 1, cerrados: 1, porCorreo: 4, soloPanel: 1 },
+    })
     expect(rpc).toHaveBeenCalledWith('dps_avisos_enviar', { p_plan_ids: [PLAN] })
+    expect(despachar).toHaveBeenCalledTimes(1)
+  })
+
+  it('dispatches nothing when no notice went by e-mail, nor when the send fails', async () => {
+    rpc.mockResolvedValueOnce({ data: { enviados: 2, nuevas: 2, cambios: 0, quitados: 0, cerrados: 0, por_correo: 0, solo_panel: 2 }, error: null })
+    await enviarAvisosDps({ planIds: [PLAN] })
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'sin_autoridad', code: '42501' } })
+    await enviarAvisosDps({ planIds: [PLAN] })
+    expect(despachar).not.toHaveBeenCalled()
   })
 
   it('reads the state of the plans', async () => {
@@ -64,7 +85,7 @@ describe('planner: pending, send and state', () => {
 
   it('answers no plans without asking, and refuses bad ids or more than 400', async () => {
     expect(await cargarEstadoAvisosDps({ planIds: [] })).toEqual({ ok: true, data: { porEnviar: 0, planes: [] } })
-    expect(await enviarAvisosDps({ planIds: [] })).toEqual({ ok: true, data: { enviados: 0, nuevas: 0, cambios: 0, quitados: 0, cerrados: 0 } })
+    expect(await enviarAvisosDps({ planIds: [] })).toEqual({ ok: true, data: { enviados: 0, nuevas: 0, cambios: 0, quitados: 0, cerrados: 0, porCorreo: 0, soloPanel: 0 } })
     expect(await cargarAvisosPendientesDps({ planIds: ['x'] })).toEqual(DATOS)
     const muchos = Array.from({ length: 401 }, (_, i) => `11111111-1111-4111-8111-${String(i).padStart(12, '0')}`)
     expect(await enviarAvisosDps({ planIds: muchos })).toEqual({ ok: false, message: 'Son demasiadas fechas a la vez. Elige un rango más corto.', codigo: 'demasiados' })
@@ -120,6 +141,14 @@ describe('the person: services and answers', () => {
       ['dps_responder', { p_plan_id: PLAN, p_respuesta: 'no_puede', p_motivo: 'Viaje a Carora' }],
       ['dps_responder', { p_plan_id: PLAN, p_respuesta: 'no_puede', p_motivo: null }],
     ])
+    // S14.4: each «No puedo» sends the planner's e-mail right away; Confirmar sends nothing.
+    expect(despachar).toHaveBeenCalledTimes(2)
+  })
+
+  it('dispatches nothing when «No puedo» fails', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'plan_pasado', code: '22023' } })
+    await responderServicioDps({ planId: PLAN, respuesta: 'no_puede', motivo: null })
+    expect(despachar).not.toHaveBeenCalled()
   })
 
   it('refuses a bad answer or a long motivo before asking, and maps plan_pasado', async () => {

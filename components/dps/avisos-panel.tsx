@@ -16,9 +16,16 @@
  * total, no notice: S13.4) the button is «Guardar cambios»; a failure keeps the panel open and says why. The caller mounts
  * it while open (each opening reads again), closes it, announces the counts
  * and reads the states again.
+ *
+ * T16b (S14.1; artboard design/dps-avisos-correo/06): the notices also go
+ * by e-mail. The note says so, «Cómo llegan los avisos» sums up «N por
+ * correo · M solo en el panel» and that replies reach the planner, each row
+ * says «Correo y panel» or «Solo panel · sin correo en su ficha» (panel-only
+ * first) and the toast «Enviamos N avisos: X por correo y Y solo en el
+ * panel.». «Agregar correo» and «El correo rebotó» are not here yet.
  */
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
-import { Bell, Check, ChevronRight, Send, UserX, X } from 'lucide-react'
+import { Bell, Check, ChevronRight, Mail, MessageSquareReply, Send, UserX, X } from 'lucide-react'
 
 import { BotonSistema } from '@/components/ui/sistema-diseno'
 import { PanelLateralSistema } from '@/components/ui/panel-lateral-sistema'
@@ -52,7 +59,7 @@ const fechaFila = (fecha: string): string => {
 const horaCorta = (hora: string): string => hora.replace(/^0(\d)/, '$1')
 
 /**
- * «Enviamos 3 avisos: 1 invitación, 1 cambio y 1 «Ya no estás programado». Ya están en su panel.»;
+ * «Enviamos 14 avisos: 12 por correo y 2 solo en el panel.» (S14.1);
  * with only closures, «Listo: 1 persona que dijo «No puedo» salió del plan, sin otro aviso.»
  */
 export function textoEnvio(envio: EnvioAvisos): string {
@@ -62,13 +69,26 @@ export function textoEnvio(envio: EnvioAvisos): string {
       : `Listo: ${envio.cerrados} personas que dijeron «No puedo» salieron del plan, sin otro aviso.`
   }
   if (envio.enviados === 0) return 'No había avisos por enviar.'
-  const partes = [
-    envio.nuevas > 0 ? `${envio.nuevas} ${envio.nuevas === 1 ? 'invitación' : 'invitaciones'}` : null,
-    envio.cambios > 0 ? `${envio.cambios} ${envio.cambios === 1 ? 'cambio' : 'cambios'}` : null,
-    envio.quitados > 0 ? `${envio.quitados} «Ya no estás programado»` : null,
-  ].filter((p): p is string => p !== null)
-  const lista = partes.length > 1 ? `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}` : (partes[0] ?? '')
-  return `Enviamos ${envio.enviados} ${envio.enviados === 1 ? 'aviso' : 'avisos'}: ${lista}. Ya están en su panel.`
+  return `Enviamos ${envio.enviados} ${envio.enviados === 1 ? 'aviso' : 'avisos'}: ${envio.porCorreo} por correo y ${envio.soloPanel} solo en el panel.`
+}
+
+/** Panel-only first (06: they are the ones to look at), keeping the order otherwise. */
+const soloPanelPrimero = <T extends { readonly tieneCorreo: boolean }>(filas: readonly T[]): T[] =>
+  [...filas].sort((a, b) => Number(a.tieneCorreo) - Number(b.tieneCorreo))
+
+/** «Correo y panel» / «Solo panel · sin correo en su ficha». */
+function Canal({ correo }: { correo: boolean }): ReactElement {
+  return correo ? (
+    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+      <Mail aria-hidden="true" className="size-3" />
+      Correo y panel
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-warning-text">
+      <Bell aria-hidden="true" className="size-3" />
+      Solo panel · sin correo en su ficha
+    </span>
+  )
 }
 
 function Grupo({ id, titulo, cantidad, ayuda, children }: { id: string; titulo: string; cantidad: number; ayuda: string; children: ReactNode }): ReactElement {
@@ -83,7 +103,7 @@ function Grupo({ id, titulo, cantidad, ayuda, children }: { id: string; titulo: 
   )
 }
 
-function Fila({ nombre, etiqueta, fecha, children }: { nombre: string; etiqueta?: string; fecha: string; children: ReactNode }): ReactElement {
+function Fila({ nombre, etiqueta, fecha, correo, children }: { nombre: string; etiqueta?: string; fecha: string; correo: boolean; children: ReactNode }): ReactElement {
   const { dia, numero, mes } = partesFecha(fecha)
   return (
     <li className="grid min-h-16 grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-3.5 py-2.5 [&+&]:border-t [&+&]:border-border/60">
@@ -96,6 +116,9 @@ function Fila({ nombre, etiqueta, fecha, children }: { nombre: string; etiqueta?
         {dia} <span className="font-mono tabular-nums">{numero}</span> {mes}
       </p>
       <div className="col-start-2 flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">{children}</div>
+      <div className="col-start-2">
+        <Canal correo={correo} />
+      </div>
     </li>
   )
 }
@@ -186,9 +209,37 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
       <p className="flex gap-2.5 rounded-xl border border-info/30 bg-info/5 px-3.5 py-3 text-[13px]">
         <Bell aria-hidden="true" className="mt-px size-3.5 shrink-0 text-info-text" />
         <span>
-          <b className="font-semibold">Les llegará a su panel en Global Connect.</b> Ahí pueden confirmar o decir que no pueden. Por correo, más adelante.
+          <b className="font-semibold">Les llega por correo y a su panel en Global Connect.</b> Desde el correo confirman con un toque, sin iniciar sesión. Para «No puedo»
+          entran a la app y escriben el motivo.
         </span>
       </p>
+
+      {pendientes && avisos > 0 && (
+        <div role="group" aria-label="Cómo llegan los avisos" className="mt-3 grid gap-1.5 rounded-xl border border-border px-3.5 py-3 text-[13px]">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <Mail aria-hidden="true" className="size-3.5 text-muted-foreground" />
+              <strong className="font-mono font-semibold tabular-nums">{pendientes.porCorreo}</strong> por correo
+            </span>
+            {' · '}
+            <span className={pendientes.soloPanel > 0 ? 'inline-flex items-center gap-1.5 text-warning-text' : 'inline-flex items-center gap-1.5'}>
+              <Bell aria-hidden="true" className="size-3.5" />
+              <strong className="font-mono font-semibold tabular-nums">{pendientes.soloPanel}</strong> solo en el panel
+            </span>
+          </p>
+          <p className="flex gap-1.5 text-muted-foreground">
+            <MessageSquareReply aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+            {pendientes.remitente?.email ? (
+              <span>
+                Las respuestas al correo te llegan a ti (<b className="font-semibold text-foreground">{pendientes.remitente.email}</b>). Si alguien dice que no puede, también te llega
+                un correo con el motivo.
+              </span>
+            ) : (
+              <span>No tienes correo en tu ficha: las respuestas al correo no te llegarán.</span>
+            )}
+          </p>
+        </div>
+      )}
 
       {error ? (
         <p role="alert" className="mt-5 text-[13px] text-danger-text">
@@ -202,8 +253,8 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
 
           {pendientes.nuevas.length > 0 && (
             <Grupo id="avisos-nuevas" titulo="Nuevas invitaciones" cantidad={pendientes.nuevas.length} ayuda="Les pedimos confirmar.">
-              {pendientes.nuevas.map((n) => (
-                <Fila key={`${n.planId}-${n.personaId}`} nombre={n.nombre} etiqueta={n.automatico ? 'Automático' : undefined} fecha={n.fecha}>
+              {soloPanelPrimero(pendientes.nuevas).map((n) => (
+                <Fila key={`${n.planId}-${n.personaId}`} nombre={n.nombre} etiqueta={n.automatico ? 'Automático' : undefined} fecha={n.fecha} correo={n.tieneCorreo}>
                   {textoRoles(n.roles)}
                   {n.reemplaza.length > 0 && <> · reemplaza a {n.reemplaza.join(' y ')}</>}
                 </Fila>
@@ -218,8 +269,8 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
               cantidad={pendientes.cambios.length}
               ayuda="Ya tenía el aviso; le contamos qué cambió. Si cambia el puesto o la fecha, vuelve a confirmar; si solo cambia la hora, sigue confirmado."
             >
-              {pendientes.cambios.map((c) => (
-                <Fila key={`${c.planId}-${c.personaId}`} nombre={c.nombre} fecha={c.fecha}>
+              {soloPanelPrimero(pendientes.cambios).map((c) => (
+                <Fila key={`${c.planId}-${c.personaId}`} nombre={c.nombre} fecha={c.fecha} correo={c.tieneCorreo}>
                   {cambiosDe(c)}
                 </Fila>
               ))}
@@ -233,8 +284,8 @@ export function PanelAvisos({ abierto, onCerrar, planIds, descripcion, onEnviado
               cantidad={pendientes.quitados.length}
               ayuda="Ya tenía el aviso y salió del plan. Le decimos que esa fecha queda libre."
             >
-              {pendientes.quitados.map((q) => (
-                <Fila key={`${q.planId}-${q.personaId}`} nombre={q.nombre} fecha={q.fecha}>
+              {soloPanelPrimero(pendientes.quitados).map((q) => (
+                <Fila key={`${q.planId}-${q.personaId}`} nombre={q.nombre} fecha={q.fecha} correo={q.tieneCorreo}>
                   Tenía {textoRoles(q.roles)}
                 </Fila>
               ))}

@@ -179,7 +179,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   cargarEstado.mockResolvedValue({ ok: true, data: ESTADO })
   cargarPendientes.mockResolvedValue({ ok: true, data: PENDIENTES })
-  enviar.mockResolvedValue({ ok: true, data: leerEnvioAvisos({ enviados: 3, nuevas: 2, cambios: 0, quitados: 1, cerrados: 0 }) })
+  enviar.mockResolvedValue({ ok: true, data: leerEnvioAvisos({ enviados: 3, nuevas: 2, cambios: 0, quitados: 1, cerrados: 0, por_correo: 3, solo_panel: 0 }) })
 })
 
 describe('the marks of the people', () => {
@@ -235,7 +235,7 @@ describe('the «Enviar avisos» bar of the sheet', () => {
     const panel = await screen.findByRole('dialog', { name: 'Enviar avisos' })
     await userEvent.click(await within(panel).findByRole('button', { name: 'Enviar 3 avisos' }))
     expect(enviar).toHaveBeenCalledWith({ planIds: [P15, P22, P6D] })
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Enviamos 3 avisos: 2 invitaciones y 1 «Ya no estás programado». Ya están en su panel.'))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Enviamos 3 avisos: 3 por correo y 0 solo en el panel.'))
     await waitFor(() => expect(cargarEstado).toHaveBeenCalledTimes(2))
   })
 

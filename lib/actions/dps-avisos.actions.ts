@@ -14,6 +14,11 @@
  * its code as the message; the Spanish texts are in
  * lib/platform/dps/errores.ts. Nothing is revalidated: the screens apply the
  * answer in place.
+ *
+ * T16b (S14.1, S14.4): a send and a «No puedo» also queue e-mails in the
+ * database (20261114100000_dps_avisos_correo.sql); right after them the
+ * outbox is drained once more after the response (despacharCorreosDps, never
+ * throws), and the daily route app/api/cron/dps retries what is left.
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -54,6 +59,24 @@ const esUuid = (valor: unknown): valor is string => typeof valor === 'string' &&
 const fallo = (message: string, codigo: CodigoErrorDps | null = null) => ({ ok: false, message, codigo }) as const
 const falloRpc = (error: ErrorRpc, contexto: ContextoErrorDps) => fallo(mensajeErrorDps(error, contexto), codigoErrorDps(error))
 
+/**
+ * Sends the queued e-mails after the response; outside a request it just
+ * starts. Loaded on demand: the screens that import these actions never load
+ * the mail stack or next/server.
+ */
+async function despacharCorreos(): Promise<void> {
+  const despachar = async (): Promise<void> => {
+    const { despacharCorreosDps } = await import('@/lib/platform/dps/avisos-correo')
+    await despacharCorreosDps()
+  }
+  try {
+    const { after } = await import('next/server')
+    after(despachar)
+  } catch {
+    void despachar().catch(() => undefined)
+  }
+}
+
 async function rpcConSesion() {
   const cliente = await createSupabaseServerClient()
   const {
@@ -91,9 +114,11 @@ export async function cargarAvisosPendientesDps(input: { readonly planIds: reado
   return llamarPlanes('dps_avisos_pendientes', input?.planIds, leerPendientesAvisos)
 }
 
-/** Sends every pending notice of the plans at once; a second send sends 0. */
+/** Sends every pending notice of the plans at once (panel and, with an e-mail, one e-mail per person); a second send sends 0. */
 export async function enviarAvisosDps(input: { readonly planIds: readonly string[] }): Promise<ResultadoDps<EnvioAvisos>> {
-  return llamarPlanes('dps_avisos_enviar', input?.planIds, leerEnvioAvisos)
+  const r = await llamarPlanes('dps_avisos_enviar', input?.planIds, leerEnvioAvisos)
+  if (r.ok && r.data.porCorreo > 0) await despacharCorreos()
+  return r
 }
 
 /** Each person's state per plan (01, 03) and «N avisos sin enviar». */
@@ -149,6 +174,8 @@ export async function responderServicioDps(input: {
 
   const { data, error } = await rpc('dps_responder', { p_plan_id: input.planId, p_respuesta: input.respuesta, p_motivo: motivo.motivo })
   if (error) return falloRpc(error, 'mis_servicios')
+  // S14.4: the planner's e-mail was queued with the answer.
+  if (input.respuesta === 'no_puede') await despacharCorreos()
   const servicio = leerServicioAviso(data)
   return servicio ? { ok: true, data: servicio } : falloRpc({ message: null }, 'mis_servicios')
 }

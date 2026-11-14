@@ -304,7 +304,9 @@ SELECT pg_temp.assert_eq('a7: the tables have RLS on and no policies',
        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
       WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relname LIKE 'dps\_%'
         AND c.relname NOT IN ('dps_convocados', 'dps_asistencias', 'dps_orden_items', 'dps_listas_personas', 'dps_plan_personas',
-                              'dps_avisos')$q$,
+                              'dps_avisos',
+                              -- T16b (20261114100000), in dps-avisos-correo.test.sql.
+                              'dps_avisos_correos', 'dps_avisos_tokens')$q$,
   'dps_config:true:0,dps_pasan_asistencia:true:0,dps_planes:true:0,dps_planificadores:true:0,dps_puestos:true:0,dps_series:true:0');
 
 SET LOCAL ROLE authenticated;

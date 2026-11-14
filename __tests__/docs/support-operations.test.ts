@@ -65,6 +65,10 @@ describe('support operations runbook', () => {
         path: '/api/cron/talleres',
         schedule: '0 22 * * *',
       },
+      {
+        path: '/api/cron/dps',
+        schedule: '0 14 * * *',
+      },
     ])
   })
 

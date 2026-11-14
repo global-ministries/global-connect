@@ -13,9 +13,11 @@ import type { ReactNode } from 'react'
 interface EmailLayoutProps {
     preview: string
     children: ReactNode
+    /** Replaces the default «no respondas» footer line, for emails that can be answered. */
+    avisoRespuesta?: string
 }
 
-export function EmailLayout({ preview, children }: EmailLayoutProps) {
+export function EmailLayout({ preview, children, avisoRespuesta }: EmailLayoutProps) {
     return (
         <Html lang="es" dir="ltr">
             <Head />
@@ -46,7 +48,7 @@ export function EmailLayout({ preview, children }: EmailLayoutProps) {
                             Yo Soy Global · Campus Barquisimeto
                         </Text>
                         <Text style={styles.footerText}>
-                            Este es un correo automático, por favor no respondas directamente.
+                            {avisoRespuesta ?? 'Este es un correo automático, por favor no respondas directamente.'}
                         </Text>
                     </Section>
                 </Container>
