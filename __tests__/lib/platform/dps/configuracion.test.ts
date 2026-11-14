@@ -38,6 +38,18 @@ describe('leerConfig', () => {
   it('falls back to the defaults for an empty answer', () => {
     expect(leerConfig(null)).toEqual({ horarios: [], llegada: '', planificadores: [], pasanAsistencia: [] })
   })
+
+  it('reads the reminder by e-mail when the database sends it (T16c, S14.3)', () => {
+    expect(leerConfig({ ...CONFIG_JSON, recordatorio: { activo: true, dias: 4, hora: '10:00', puede_editar: false, proximo: null, ultimo: null } }).recordatorio).toEqual({
+      activo: true,
+      dias: 4,
+      hora: '10:00',
+      puedeEditar: false,
+      proximo: null,
+      ultimo: null,
+    })
+    expect(config().recordatorio).toBeUndefined()
+  })
 })
 
 describe('normalizarHorarios', () => {

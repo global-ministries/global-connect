@@ -20,6 +20,7 @@ import {
   quitarDeListaDps,
   guardarHorariosDps,
   guardarPasanAsistenciaDps,
+  guardarRecordatorioDps,
   quitarPlanificadorDps,
 } from '@/lib/actions/dps-configuracion.actions'
 
@@ -165,5 +166,40 @@ describe('the lists by position (S12.2)', () => {
     expect(rpc).toHaveBeenCalledWith('dps_buscar_personas', { p_texto: 'ana', p_limite: 10 })
     expect(await buscarPersonasListaDps({ texto: 'a' })).toEqual({ ok: true, data: [] })
     expect(rpc).toHaveBeenCalledTimes(1)
+  })
+})
+
+// T16c (S14.3): the reminder by e-mail, configurators only.
+describe('guardarRecordatorioDps', () => {
+  const GUARDADO = { activo: false, dias: 3, hora: '10:00', puede_editar: true, proximo: null, ultimo: null }
+
+  it('saves the switch and the days and returns the reminder read again', async () => {
+    rpc.mockResolvedValueOnce({ data: GUARDADO, error: null })
+    expect(await guardarRecordatorioDps({ activo: false, dias: 3 })).toEqual({
+      ok: true,
+      data: { activo: false, dias: 3, hora: '10:00', puedeEditar: true, proximo: null, ultimo: null },
+    })
+    expect(rpc).toHaveBeenCalledWith('dps_recordatorio_guardar', { p_activo: false, p_dias: 3 })
+  })
+
+  it('refuses 0, 8 and a missing switch before calling', async () => {
+    for (const dias of [0, 8, 2.5]) {
+      expect(await guardarRecordatorioDps({ activo: true, dias })).toEqual({ ok: false, message: 'Elige entre 1 y 7 días antes.', codigo: 'dias_invalidos' })
+    }
+    expect(await guardarRecordatorioDps({ activo: null as unknown as boolean, dias: 2 })).toEqual({ ok: false, message: 'Revisa los datos e inténtalo de nuevo.', codigo: null })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('reads the database refusals: sin_autoridad and dias_invalidos', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: SIN_AUTORIDAD })
+    expect(await guardarRecordatorioDps({ activo: true, dias: 2 })).toEqual(NO_CONFIGURA)
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'dias_invalidos' } })
+    expect(await guardarRecordatorioDps({ activo: true, dias: 2 })).toEqual({ ok: false, message: 'Elige entre 1 y 7 días antes.', codigo: 'dias_invalidos' })
+  })
+
+  it('asks to sign in again without a session', async () => {
+    getUser.mockResolvedValueOnce({ data: { user: null } })
+    expect(await guardarRecordatorioDps({ activo: true, dias: 2 })).toEqual({ ok: false, message: 'Tu sesión terminó. Vuelve a iniciar sesión.', codigo: null })
+    expect(rpc).not.toHaveBeenCalled()
   })
 })

@@ -25,6 +25,7 @@ import {
   parseFilasCorreo,
   prepararCorreo,
   tokenConfirmar,
+  urlConfirmar,
   urlPlan,
   type ClienteAdminDps,
   type CorreoDps,
@@ -308,11 +309,11 @@ describe('despacharCorreosDps and ejecutarJobDps', () => {
     await expect(despacharCorreosDps()).resolves.toBeUndefined()
   })
 
-  it('the daily job runs the outbox step and reports a failed step by name', async () => {
+  it('the daily job runs the reminder and the outbox steps and reports a failed step by name', async () => {
     const ok = await ejecutarJobDps(cliente([]).client, opciones(jest.fn()))
-    expect(ok).toEqual({ correos: { reclamados: 0, enviados: 0, fallidos: 0 }, fallos: [] })
+    expect(ok).toEqual({ recordatorio: { activo: false, fecha: null, personas: 0, encolados: 0 }, correos: { reclamados: 0, enviados: 0, fallidos: 0 }, fallos: [] })
     const mal = await ejecutarJobDps(cliente([], { errorReclamo: 'boom' }).client, opciones(jest.fn()))
-    expect(mal).toEqual({ correos: null, fallos: ['correos'] })
+    expect(mal).toEqual({ recordatorio: { activo: false, fecha: null, personas: 0, encolados: 0 }, correos: null, fallos: ['correos'] })
   })
 })
 
@@ -343,5 +344,124 @@ describe('the confirm page RPCs', () => {
     expect(leerServicioEnlace(null).estado).toBe('invalido')
     const cambio = leerServicioEnlace({ estado: 'cambio', plan_id: PLAN, fecha: '2026-11-15', antes: { llegada: '07:30', roles: null, horarios: null, fecha: null }, llegada: '07:00' })
     expect(cambio.antes).toEqual({ roles: null, fecha: null, horarios: null, llegada: '07:30' })
+  })
+})
+
+// ── T16c: the reminder (S14.3) ────────────────────────────────────────
+
+const ORDEN = [
+  { id: 'o1', posicion: 0, tipo: 'encabezado', titulo: 'Servicio', duracion_seg: 0, notas: null, responsable: null, fase: 'servicio' },
+  { id: 'o2', posicion: 1, tipo: 'item', titulo: 'Cuenta regresiva', duracion_seg: 300, notas: null, responsable: null, fase: null },
+  { id: 'o3', posicion: 2, tipo: 'item', titulo: 'Anuncios', duracion_seg: 300, notas: 'Cena del Señor', responsable: 'Comunicador', fase: null },
+]
+const EQUIPO = { personas: 34, confirmaron: 29, direcciones: [{ nombre: 'Producción Creativa', personas: 4 }, { nombre: 'Producción Técnica', personas: 30 }] }
+const bloqueRecordatorio = (avisoId: string, version: number, confirmar: boolean, s: Record<string, unknown>) => ({
+  ...s,
+  aviso_id: avisoId,
+  version,
+  confirmar,
+  orden: ORDEN,
+  equipo: EQUIPO,
+})
+const filaRecordatorio = (id: string, bloques: unknown[], dias: unknown = 2) => ({
+  id,
+  tipo: 'recordatorio',
+  email: 'valentina@example.test',
+  nombre: 'Valentina',
+  responder_nombre: 'Andrés Valero',
+  responder_email: 'andres@example.test',
+  datos: { bloques, avisos: bloques.length, dias },
+  intentos: 1,
+})
+const PENDIENTE_15 = bloqueRecordatorio(AVISO, 3, true, servicio(PLAN, '2026-11-15'))
+const CONFIRMADO_15 = bloqueRecordatorio(AVISO, 3, false, servicio(PLAN, '2026-11-15', { estado: 'confirmo' }))
+
+describe('prepararCorreo (recordatorio)', () => {
+  it('parses a reminder row', () => {
+    expect(parseFilasCorreo([filaRecordatorio('r1', [PENDIENTE_15])]).map((f) => [f.id, f.tipo])).toEqual([['r1', 'recordatorio']])
+  })
+
+  it('a pending one carries the same confirm link as the notice of that version, Reply-To the planner', () => {
+    const p = prepararCorreo(parseFilasCorreo([filaRecordatorio('r1', [PENDIENTE_15])])[0], BASE, SECRETO)!
+    const token = tokenConfirmar(AVISO, 3, SECRETO)
+    expect(p.tokens).toEqual([{ hash: hashToken(token), aviso_id: AVISO, version: 3 }])
+    expect(p.correo).toMatchObject({
+      to: 'valentina@example.test',
+      subject: '¿Puedes servir este domingo 15? Aún no respondes',
+      replyTo: 'Andrés Valero <andres@example.test>',
+      idempotencyKey: 'dps-avisos/r1',
+    })
+    expect(isValidElement(p.correo.template)).toBe(true)
+    expect(p.correo.text).toContain(`Confirmar (un toque, sin iniciar sesión):\n${urlConfirmar(BASE, token)}`)
+    expect(p.correo.text).toContain(`No puedo (abre Global Connect para escribir el motivo):\n${BASE}/mis-servicios/${PLAN}#no-puedo`)
+    expect(p.correo.text).toContain('Recibes este recordatorio 2 días antes; tu director puede cambiarlo.')
+  })
+
+  it('a confirmed one has no link to confirm, and finds the person\'s part in the order by puesto', () => {
+    const p = prepararCorreo(parseFilasCorreo([filaRecordatorio('r2', [CONFIRMADO_15], 3)])[0], BASE, SECRETO)!
+    expect(p.tokens).toEqual([])
+    expect(p.correo.subject).toBe('Este domingo sirves · Comunicador, llegada 7:30')
+    expect(p.correo.text).not.toContain('/dps/confirmar/')
+    expect(p.correo.text).toContain('Tu parte: Anuncios a las 9:05 y 11:35 (Cena del Señor · 5 min)')
+    expect(p.correo.text).toContain(' 9:05  Anuncios · Cena del Señor (5 min)   ← TÚ')
+    expect(p.correo.text).toContain('34 personas · 29 confirmaron')
+    expect(p.correo.text).toContain('Recibes este recordatorio 3 días antes')
+  })
+
+  it('reads days outside 1–7 as 2 and drops a row it cannot read', () => {
+    expect(prepararCorreo(parseFilasCorreo([filaRecordatorio('r3', [CONFIRMADO_15], 30)])[0], BASE, SECRETO)!.correo.text).toContain(
+      'Recibes este recordatorio 2 días antes',
+    )
+    expect(prepararCorreo(parseFilasCorreo([filaRecordatorio('r4', [{ nada: true }])])[0], BASE, SECRETO)).toBeNull()
+  })
+})
+
+describe('ejecutarJobDps (the reminder step)', () => {
+  it('queues today\'s reminders first, then sends them through the outbox within the daily cap', async () => {
+    const orden: string[] = []
+    const rpc = jest.fn((nombre: string) => {
+      orden.push(nombre)
+      if (nombre === 'dps_recordatorios_encolar') return Promise.resolve({ data: { activo: true, fecha: '2026-11-15', dias: 2, personas: 2, encolados: 2 }, error: null })
+      if (nombre === 'dps_avisos_correos_reclamar') {
+        return Promise.resolve({ data: [filaRecordatorio('r1', [PENDIENTE_15]), { ...filaRecordatorio('r2', [CONFIRMADO_15]), email: 'oscar@example.test' }], error: null })
+      }
+      return Promise.resolve({ data: 1, error: null })
+    })
+    const enviados: CorreoDps[] = []
+    const enviar = jest.fn(async (c: CorreoDps) => {
+      enviados.push(c)
+      return { success: true }
+    })
+
+    const r = await ejecutarJobDps({ rpc } as unknown as ClienteAdminDps, { ...opciones(enviar), topeDiario: 40 })
+
+    expect(r).toEqual({ recordatorio: { activo: true, fecha: '2026-11-15', personas: 2, encolados: 2 }, correos: { reclamados: 2, enviados: 2, fallidos: 0 }, fallos: [] })
+    expect(orden.slice(0, 2)).toEqual(['dps_recordatorios_encolar', 'dps_avisos_correos_reclamar'])
+    expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_reclamar', { p_limite: 50, p_tope_diario: 40 })
+    expect(enviados.map((c) => [c.to, c.idempotencyKey])).toEqual([
+      ['valentina@example.test', 'dps-avisos/r1'],
+      ['oscar@example.test', 'dps-avisos/r2'],
+    ])
+    expect(rpc).toHaveBeenCalledWith('dps_avisos_correos_resultado', { p_id: 'r1', p_ok: true })
+  })
+
+  it('a failed reminder step never stops the outbox', async () => {
+    const rpc = jest.fn((nombre: string) =>
+      Promise.resolve(nombre === 'dps_recordatorios_encolar' ? { data: null, error: { message: 'boom' } } : { data: nombre === 'dps_avisos_correos_reclamar' ? [] : 1, error: null }),
+    )
+    const r = await ejecutarJobDps({ rpc } as unknown as ClienteAdminDps, opciones(jest.fn()))
+    expect(r).toEqual({ recordatorio: null, correos: { reclamados: 0, enviados: 0, fallidos: 0 }, fallos: ['recordatorio'] })
+  })
+
+  it('switched off, it queues nothing', async () => {
+    const rpc = jest.fn((nombre: string) =>
+      Promise.resolve(
+        nombre === 'dps_recordatorios_encolar'
+          ? { data: { activo: false, fecha: null, dias: 2, personas: 0, encolados: 0 }, error: null }
+          : { data: nombre === 'dps_avisos_correos_reclamar' ? [] : 1, error: null },
+      ),
+    )
+    const r = await ejecutarJobDps({ rpc } as unknown as ClienteAdminDps, opciones(jest.fn()))
+    expect(r.recordatorio).toEqual({ activo: false, fecha: null, personas: 0, encolados: 0 })
   })
 })

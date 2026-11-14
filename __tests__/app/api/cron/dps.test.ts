@@ -1,7 +1,8 @@
 /**
- * T16b (odd/tasks/dps-asistencia-pco.md, S14.1, S14.4) — the daily DPS cron
- * route /api/cron/dps: the safety net of the e-mail outbox (the immediate
- * dispatch after «Enviar avisos» and «No puedo» may leave rows behind).
+ * T16b, T16c (odd/tasks/dps-asistencia-pco.md, S14.1, S14.3, S14.4) — the
+ * daily DPS cron route /api/cron/dps: queues the reminders and drains the
+ * e-mail outbox (the immediate dispatch after «Enviar avisos» and «No
+ * puedo» may leave rows behind).
  * Authenticates exactly like the talleres route: 503 while CRON_SECRET is
  * unset, 401 with a missing or wrong header (the job never runs), 202 with
  * counts only, 500 when a step failed or the job threw.
@@ -77,20 +78,26 @@ describe('dps cron route', () => {
 
   it('runs the job once with the admin client and answers 202 with counts only', async () => {
     process.env.CRON_SECRET = 'secreto-cron'
-    mockJob.mockResolvedValue({ correos: { reclamados: 3, enviados: 3, fallidos: 0 }, fallos: [] })
+    const resultado = {
+      recordatorio: { activo: true, fecha: '2026-11-15', personas: 3, encolados: 3 },
+      correos: { reclamados: 3, enviados: 3, fallidos: 0 },
+      fallos: [],
+    }
+    mockJob.mockResolvedValue(resultado)
     const respuesta = await GET(pedido('Bearer secreto-cron'))
     expect(respuesta.status).toBe(202)
-    await expect(respuesta.json()).resolves.toEqual({ correos: { reclamados: 3, enviados: 3, fallidos: 0 }, fallos: [] })
+    // T16c: the reminder step reports counts only (no address, no name).
+    await expect(respuesta.json()).resolves.toEqual(resultado)
     expect(mockJob).toHaveBeenCalledTimes(1)
     expect(mockJob).toHaveBeenCalledWith({ admin: true })
   })
 
   it('answers 500 with the counts when a step failed, and 500 without details when the job threw', async () => {
     process.env.CRON_SECRET = 'secreto-cron'
-    mockJob.mockResolvedValueOnce({ correos: null, fallos: ['correos'] })
+    mockJob.mockResolvedValueOnce({ recordatorio: null, correos: null, fallos: ['recordatorio', 'correos'] })
     const fallo = await GET(pedido('Bearer secreto-cron'))
     expect(fallo.status).toBe(500)
-    await expect(fallo.json()).resolves.toEqual({ correos: null, fallos: ['correos'] })
+    await expect(fallo.json()).resolves.toEqual({ recordatorio: null, correos: null, fallos: ['recordatorio', 'correos'] })
 
     mockJob.mockRejectedValueOnce(new Error('boom'))
     const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)

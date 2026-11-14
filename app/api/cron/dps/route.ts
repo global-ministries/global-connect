@@ -4,15 +4,16 @@ import { ejecutarJobDps, type ClienteAdminDps } from '@/lib/platform/dps/avisos-
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
 
 /**
- * The daily DPS job (odd/tasks/dps-asistencia-pco.md T16b; S14.1, S14.4):
- * Vercel Cron calls it once a day at 14:00 UTC, 10:00 in Caracas
- * (vercel.json), with `Authorization: Bearer <CRON_SECRET>`, exactly like
- * app/api/cron/talleres: 503 while CRON_SECRET is unset, 401 for any other
- * header. Today it only drains the e-mail outbox (what the immediate
- * dispatch after «Enviar avisos» or «No puedo» left behind); T16c adds the
- * reminder as another step of lib/platform/dps/avisos-correo.ts
- * ejecutarJobDps. 202 with counts when every step ran, 500 with the same
- * counts when one failed. Never personal data.
+ * The daily DPS job (odd/tasks/dps-asistencia-pco.md T16b, T16c; S14.1,
+ * S14.3, S14.4): Vercel Cron calls it once a day at 14:00 UTC, 10:00 in
+ * Caracas (vercel.json; the reminder's fixed hour), with
+ * `Authorization: Bearer <CRON_SECRET>`, exactly like app/api/cron/talleres:
+ * 503 while CRON_SECRET is unset, 401 for any other header. The steps of
+ * lib/platform/dps/avisos-correo.ts ejecutarJobDps: queue today's reminders
+ * (T16c), then drain the e-mail outbox (those reminders and whatever the
+ * immediate dispatch after «Enviar avisos» or «No puedo» left behind). 202
+ * with counts when every step ran, 500 with the same counts when one
+ * failed. Never personal data.
  */
 
 export const runtime = 'nodejs'

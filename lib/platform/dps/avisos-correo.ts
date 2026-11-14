@@ -23,6 +23,13 @@
  * until the plan's date. The public page reads and confirms it through
  * dps_aviso_token_leer / dps_aviso_token_confirmar with the service client.
  *
+ * T16c (S14.3, artboard 03): the daily job first queues the reminders of
+ * the plans dated today + N days (dps_recordatorios_encolar, 20261114110000:
+ * one 'recordatorio' row per person and date, idempotent), then drains the
+ * outbox as above: same lease and daily cap, same confirm link of the
+ * notice's version, same idempotency key. «Tu parte» and the «Tú» row come
+ * from the order of the service (ordenDePersona, as «Mis servicios»).
+ *
  * Callers: right after «Enviar avisos» and a «No puedo»
  * (despacharCorreosDps, never throws) and the daily route app/api/cron/dps
  * (ejecutarJobDps). Server-only. Logs carry row ids only, never an address.
@@ -32,9 +39,21 @@ import { createElement, type ReactElement } from 'react'
 
 import { AvisoServicioEmail, contenidoAvisoServicio, textoAvisoServicio, type BloqueEmail, type TipoBloque } from '@/emails/dps/aviso-servicio'
 import { NoPuedeEmail, asuntoNoPuede, textoNoPuede, type EstadoPersonaPuesto, type PuestoEmail } from '@/emails/dps/no-puede'
+import {
+  RecordatorioEmail,
+  contenidoRecordatorio,
+  textoRecordatorio,
+  type BloqueRecordatorio,
+  type EquipoRecordatorio,
+  type FilaOrdenEmail,
+  type OrdenRecordatorio,
+} from '@/emails/dps/recordatorio'
+import { ordenDePersona } from '@/components/mis-servicios/textos'
 import { ETIQUETA_TIPO, type TipoPlan } from '@/lib/platform/dps/planilla'
 
-import { leerServicioAviso } from './avisos'
+import { leerServicioAviso, type ServicioAviso } from './avisos'
+import { calcularOrden, duracionLarga, leerFilaOrden, type FilaOrden } from './orden'
+import { DIAS_RECORDATORIO_POR_DEFECTO, esDiasRecordatorio } from './recordatorio'
 
 interface RespuestaRpc {
   readonly data: unknown
@@ -81,10 +100,13 @@ export interface TokenRegistrado {
   readonly version: number
 }
 
+export type TipoFilaCorreo = 'avisos' | 'no_puede' | 'recordatorio'
+const TIPOS_FILA: readonly TipoFilaCorreo[] = ['avisos', 'no_puede', 'recordatorio']
+
 /** A leased outbox row. */
 export interface FilaCorreoDps {
   readonly id: string
-  readonly tipo: 'avisos' | 'no_puede'
+  readonly tipo: TipoFilaCorreo
   readonly email: string
   readonly nombre: string
   readonly responderNombre: string | null
@@ -157,11 +179,11 @@ export function parseFilasCorreo(data: unknown): FilaCorreoDps[] {
     const f = objeto(bruto)
     const id = f && texto(f.id)
     const email = f && texto(f.email)
-    if (!f || !id || !email || (f.tipo !== 'avisos' && f.tipo !== 'no_puede')) return []
+    if (!f || !id || !email || !(TIPOS_FILA as readonly unknown[]).includes(f.tipo)) return []
     return [
       {
         id,
-        tipo: f.tipo,
+        tipo: f.tipo as TipoFilaCorreo,
         email,
         nombre: texto(f.nombre) ?? '',
         responderNombre: texto(f.responder_nombre),
@@ -302,7 +324,105 @@ export function prepararCorreoNoPuede(fila: FilaCorreoDps, base: string): Correo
   }
 }
 
+// ── the reminder (T16c, S14.3) ────────────────────────────────────────
+
+/** The service rows of the order with the person's part, and «Tu parte» (a guess on the responsable, as «Mis servicios»). */
+function ordenYParte(
+  filasOrden: readonly FilaOrden[],
+  servicio: ServicioAviso,
+  nombre: string,
+): { readonly orden: OrdenRecordatorio | null; readonly parte: BloqueRecordatorio['parte'] } {
+  if (filasOrden.length === 0) return { orden: null, parte: null }
+  const persona = ordenDePersona(filasOrden, servicio.horarios, servicio.llegada, servicio.roles, nombre || null)
+  const calculo = calcularOrden(filasOrden, servicio.horarios, servicio.llegada)
+  const duracion = (seg: number): string | null => (seg > 0 ? duracionLarga(seg) : null)
+  const filas: FilaOrdenEmail[] = calculo.filas.flatMap((c, i) => {
+    const p = persona.filas[i]
+    if (c.fase !== 'servicio' || c.fila.tipo !== 'item' || !p) return []
+    return [{ hora: p.horas[0] ?? null, titulo: c.fila.titulo, detalle: c.fila.notas, duracion: duracion(c.fila.duracionSeg), mia: p.mia }]
+  })
+  const mias = persona.filas.filter((f) => f.mia)
+  const primera = mias[0]
+  const parte = primera
+    ? {
+        texto: mias.map((f) => `${f.fila.titulo}${f.horas.length > 0 ? ` a las ${f.horas.join(' y ')}` : ''}`).join('; '),
+        detalle: [primera.fila.notas, duracion(primera.fila.duracionSeg)].filter(Boolean).join(' · ') || null,
+      }
+    : null
+  const orden = filas.length > 0 ? { hora: calculo.comienzos[0] ?? '', otros: calculo.comienzos.slice(1), filas } : null
+  return { orden, parte }
+}
+
+function leerEquipo(v: unknown): EquipoRecordatorio | null {
+  const e = objeto(v)
+  if (!e) return null
+  return {
+    personas: entero(e.personas),
+    confirmaron: entero(e.confirmaron),
+    direcciones: lista(e.direcciones).flatMap((d) => {
+      const o = objeto(d)
+      const nombre = o && texto(o.nombre)
+      return o && nombre ? [{ nombre, personas: entero(o.personas) }] : []
+    }),
+  }
+}
+
+/** The reminder of one person and day: one block per plan, a token per block still pendiente (the notice's own link). */
+export function prepararCorreoRecordatorio(fila: FilaCorreoDps, base: string, secreto: string): CorreoPreparado | null {
+  const tokens: TokenRegistrado[] = []
+  const bloques: BloqueRecordatorio[] = lista(fila.datos.bloques).flatMap((v): BloqueRecordatorio[] => {
+    const f = objeto(v)
+    const servicio = leerServicioAviso(v)
+    const avisoId = f && typeof f.aviso_id === 'string' && UUID_RE.test(f.aviso_id) ? f.aviso_id : null
+    const version = f ? entero(f.version) : 0
+    if (!f || !servicio || !avisoId || version < 1 || servicio.estado === 'no_puede') return []
+    let confirmar: string | null = null
+    if (f.confirmar === true && servicio.estado === 'pendiente') {
+      const token = tokenConfirmar(avisoId, version, secreto)
+      tokens.push({ hash: hashToken(token), aviso_id: avisoId, version })
+      confirmar = urlConfirmar(base, token)
+    }
+    const filasOrden = lista(f.orden)
+      .map(leerFilaOrden)
+      .filter((o): o is FilaOrden => o !== null)
+      .sort((a, b) => a.posicion - b.posicion)
+    return [
+      {
+        fecha: servicio.fecha,
+        tipo: servicio.tipo,
+        titulo: servicio.titulo,
+        serie: servicio.serie?.nombre ?? null,
+        semana: servicio.semana,
+        roles: servicio.roles.map(({ nombre, equipo }) => ({ nombre, equipo })),
+        horarios: servicio.horarios,
+        llegada: servicio.llegada,
+        estado: servicio.estado,
+        ...ordenYParte(filasOrden, servicio, fila.nombre),
+        equipo: leerEquipo(f.equipo),
+        urlConfirmar: confirmar,
+        urlNoPuedo: confirmar ? urlNoPuedo(base, servicio.planId) : null,
+        urlVer: urlServicio(base, servicio.planId),
+      },
+    ]
+  })
+  if (bloques.length === 0) return null
+  const dias = esDiasRecordatorio(fila.datos.dias) ? fila.datos.dias : DIAS_RECORDATORIO_POR_DEFECTO
+  const props = { nombre: fila.nombre, remitente: fila.responderNombre, respondeA: fila.responderEmail !== null, dias, bloques }
+  return {
+    tokens,
+    correo: {
+      to: fila.email,
+      subject: contenidoRecordatorio(props).asunto,
+      template: createElement(RecordatorioEmail, props),
+      text: textoRecordatorio(props),
+      replyTo: direccionResponder(fila.responderNombre, fila.responderEmail),
+      idempotencyKey: claveIdempotencia(fila.id),
+    },
+  }
+}
+
 export function prepararCorreo(fila: FilaCorreoDps, base: string, secreto: string): CorreoPreparado | null {
+  if (fila.tipo === 'recordatorio') return prepararCorreoRecordatorio(fila, base, secreto)
   return fila.tipo === 'avisos' ? prepararCorreoAvisos(fila, base, secreto) : prepararCorreoNoPuede(fila, base)
 }
 
@@ -414,20 +534,46 @@ export async function despacharCorreosDps(opciones: OpcionesCorreosDps = {}): Pr
   }
 }
 
+/** What the reminder step queued (counts only). */
+export interface ResultadoRecordatorioDps {
+  readonly activo: boolean
+  /** The plan date it reminds, 'YYYY-MM-DD'; null when off. */
+  readonly fecha: string | null
+  readonly personas: number
+  readonly encolados: number
+}
+
 export interface ResultadoJobDps {
+  readonly recordatorio: ResultadoRecordatorioDps | null
   readonly correos: ResultadoCorreosDps | null
   readonly fallos: readonly string[]
 }
 
+/** Queues today's reminders (dps_recordatorios_encolar); throws when the RPC fails. */
+export async function encolarRecordatoriosDps(client: ClienteAdminDps): Promise<ResultadoRecordatorioDps> {
+  const { data, error } = await client.rpc('dps_recordatorios_encolar')
+  if (error) throw new Error(`No se pudieron preparar los recordatorios: ${error.message ?? ERROR_DESCONOCIDO}`)
+  const d = objeto(data) ?? {}
+  const fecha = texto(d.fecha)
+  return { activo: d.activo === true, fecha, personas: entero(d.personas), encolados: entero(d.encolados) }
+}
+
 /**
- * The daily DPS job (app/api/cron/dps): a list of steps, each one isolated.
- * Today only the outbox (retries what an immediate dispatch left);
- * T16c adds the reminder here.
+ * The daily DPS job (app/api/cron/dps, 10:00 Caracas): a list of steps,
+ * each one isolated. First the reminder (T16c) queues today's e-mails, then
+ * the outbox sends them with whatever an immediate dispatch left.
  */
 export async function ejecutarJobDps(client: ClienteAdminDps, opciones: OpcionesCorreosDps = {}): Promise<ResultadoJobDps> {
   const fallos: string[] = []
+  let recordatorio: ResultadoRecordatorioDps | null = null
   let correos: ResultadoCorreosDps | null = null
   const pasos: readonly { readonly nombre: string; readonly ejecutar: () => Promise<void> }[] = [
+    {
+      nombre: 'recordatorio',
+      ejecutar: async () => {
+        recordatorio = await encolarRecordatoriosDps(client)
+      },
+    },
     {
       nombre: 'correos',
       ejecutar: async () => {
@@ -443,7 +589,7 @@ export async function ejecutarJobDps(client: ClienteAdminDps, opciones: Opciones
       console.error('[dps-cron] Falló un paso', { paso: paso.nombre, error: causa instanceof Error ? causa.message : String(causa) })
     }
   }
-  return { correos, fallos }
+  return { recordatorio, correos, fallos }
 }
 
 // ── the public confirm page (S14.2, S14.5) ────────────────────────────

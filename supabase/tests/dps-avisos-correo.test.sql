@@ -193,7 +193,7 @@ CREATE OR REPLACE FUNCTION pg_temp.bloques(p_n int) RETURNS text LANGUAGE sql AS
   SELECT coalesce(string_agg((SELECT string_agg(p.titulo || '/' || (b ->> 'aviso') || '/' || (b ->> 'version') || '/' || (b ->> 'confirmar'), '+' ORDER BY o)
                                 FROM jsonb_array_elements(c.datos -> 'bloques') WITH ORDINALITY AS t(b, o)
                                 JOIN public.dps_planes p ON p.id = (b ->> 'plan_id')::uuid),
-                             ',' ORDER BY c.created_at, c.clave), '')
+                             ',' ORDER BY c.created_at, (c.datos -> 'bloques' -> 0 ->> 'version')::int, c.clave), '')
     FROM public.dps_avisos_correos c
    WHERE c.persona_id = pg_temp.id('us', p_n) AND c.tipo = 'avisos';
 $$;

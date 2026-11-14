@@ -90,6 +90,8 @@ const CODIGOS = [
   'motivo_invalido',
   'nota_invalida',
   'bloqueo_invalido',
+  // T16c: dps_recordatorio_guardar (20261114110000_dps_avisos_recordatorio.sql).
+  'dias_invalidos',
 ] as const
 
 export type CodigoErrorDps = (typeof CODIGOS)[number]
@@ -135,6 +137,8 @@ export const MENSAJE_NOTA_BLOQUEO = 'La nota va hasta 200 caracteres.'
 export const MENSAJE_CONFIRMAR_ENLACE = 'No pudimos confirmar. Intenta de nuevo en un momento.'
 /** The page could not read the link (a failure, not a bad link): «Confirmar» still tries. */
 export const MENSAJE_LEER_ENLACE = 'No pudimos abrir tu servicio. Toca «Confirmar» para intentarlo de nuevo.'
+/** The reminder by e-mail (T16c, S14.3): 1 to 7 days before (also checked before calling). */
+export const MENSAJE_DIAS_RECORDATORIO = 'Elige entre 1 y 7 días antes.'
 /** More plans than dps_avisos_* take at once (400). */
 export const MENSAJE_DEMASIADOS_PLANES = 'Son demasiadas fechas a la vez. Elige un rango más corto.'
 
@@ -250,6 +254,8 @@ export function mensajeErrorDps(error: ErrorRpc | null | undefined, contexto: Co
       return MENSAJE_NOTA_BLOQUEO
     case 'bloqueo_invalido':
       return 'Esa fecha ya no está en tu lista. Actualiza la página.'
+    case 'dias_invalidos':
+      return MENSAJE_DIAS_RECORDATORIO
     default:
       return GENERICO[contexto]
   }

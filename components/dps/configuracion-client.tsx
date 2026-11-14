@@ -16,6 +16,10 @@
  *    be picked in Productor, Host, Comunicador and Cantantes; each list
  *    says itself whether the caller edits it, so its refusals never turn
  *    the rest read-only.
+ * 5. Recordatorio por correo (T16c, S14.3, recordatorio-configuracion.tsx):
+ *    on/off, days before and the preview; the database says whether the
+ *    caller edits it (puede_editar), and a 'sin_autoridad' turns the screen
+ *    read-only as the other writes do.
  *
  * Every page visitor plans (dps_config_leer requires it), but only a
  * configurator writes (L17). Nobody can tell in advance without a new RPC,
@@ -60,6 +64,7 @@ import { horariosTexto } from '@/lib/platform/dps/planilla'
 import { EstadoGuardado, type EstadoGuardadoValor } from './estado-guardado'
 import { ListasConfiguracion } from './listas-configuracion'
 import { MigasDps } from './migas-dps'
+import { RecordatorioConfiguracion } from './recordatorio-configuracion'
 
 export interface ConfiguracionClientProps {
   readonly config: ConfigDps | null
@@ -212,7 +217,9 @@ export function ConfiguracionClient({ config: configInicial, listas = SIN_LISTAS
         <h1 className="text-[28px] font-bold leading-[1.1] tracking-[-0.03em] md:text-2xl md:font-[650] md:tracking-[-0.02em]">Configuración de DPS</h1>
         <EstadoGuardado estado={guardado} />
       </div>
-      <p className="text-[15px] text-muted-foreground">Horarios de los planes, quién arma el plan, quién pasa asistencia y las listas de la programación.</p>
+      <p className="text-[15px] text-muted-foreground">
+        Horarios de los planes, quién arma el plan, quién pasa asistencia, el recordatorio por correo y las listas de la programación.
+      </p>
     </div>
   )
 
@@ -397,6 +404,10 @@ export function ConfiguracionClient({ config: configInicial, listas = SIN_LISTAS
           )}
         </section>
       </TarjetaSistema>
+
+      {config.recordatorio && (
+        <RecordatorioConfiguracion recordatorio={config.recordatorio} soloLectura={soloLectura} onEmpezar={empezar} onTerminar={terminar} />
+      )}
 
       <ListasConfiguracion listas={listas} onEmpezar={empezar} onTerminar={terminarLista} />
     </PaginaSistema>

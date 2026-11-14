@@ -17,6 +17,10 @@
  * supabase/migrations/20261109200000_dps_listas_posicion.sql; who edits each
  * list is the database's call) and their person search, dps_buscar_personas
  * (planners only, as the page).
+ *
+ * T16c (S14.3): the reminder by e-mail (dps_recordatorio_guardar in
+ * supabase/migrations/20261114110000_dps_avisos_recordatorio.sql), on/off
+ * and 1–7 days before; it answers the reminder read again, with the preview.
  */
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
@@ -24,6 +28,7 @@ import { leerConfig, normalizarHorarios, validarLlegada, type ConfigDps } from '
 import { codigoErrorDps, mensajeErrorDps, type CodigoErrorDps, type ErrorRpc } from '@/lib/platform/dps/errores'
 import { esListaEditableDps, leerListaDps, type ListaEditableDps, type ListaPersonasDps } from '@/lib/platform/dps/listas'
 import { leerPersonasBuscadas, textoParaBuscar, type PersonaBuscada } from '@/lib/platform/dps/personas'
+import { leerRecordatorio, validarDiasRecordatorio, type ConfigRecordatorio } from '@/lib/platform/dps/recordatorio'
 import { rpcDps } from '@/lib/platform/dps/rpc'
 import type { ResultadoDps } from './dps-asistencia.actions'
 
@@ -64,6 +69,20 @@ export async function guardarHorariosDps(input: {
   if (error) return falloRpc(error)
   const guardado = leerConfig(data)
   return { ok: true, data: { horarios: [...guardado.horarios], llegada: guardado.llegada } }
+}
+
+/** Switches the reminder on or off and sets its days (1–7); returns it read again, with the preview. */
+export async function guardarRecordatorioDps(input: { readonly activo: boolean; readonly dias: number }): Promise<ResultadoDps<ConfigRecordatorio>> {
+  if (typeof input?.activo !== 'boolean') return fallo(DATOS_INVALIDOS)
+  const dias = validarDiasRecordatorio(input.dias)
+  if (!dias.ok) return fallo(dias.mensaje, 'dias_invalidos')
+  const rpc = await rpcConSesion()
+  if (!rpc) return fallo(SIN_SESION)
+
+  const { data, error } = await rpc('dps_recordatorio_guardar', { p_activo: input.activo, p_dias: dias.dias })
+  if (error) return falloRpc(error)
+  const recordatorio = leerRecordatorio(data)
+  return recordatorio ? { ok: true, data: recordatorio } : falloRpc({ message: null })
 }
 
 /** Adds a planner and returns the configuration read again (the list with names). */
