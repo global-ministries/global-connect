@@ -105,6 +105,11 @@ function sameForEveryTier(capabilityKey: string): ExperienceSpecificTiers {
 // a change here needs the grants-table and a new migration for dream_team_grants_de_servicio.
 const EXPERIENCE_SPECIFIC_CAPABILITIES: Record<string, ExperienceSpecificTiers> = {
   dps: { serve: 'dps.team.serve', lead: 'dps.team.lead', director: 'dps.team.director' },
+  global_music: {
+    serve: 'global_music.team.serve',
+    lead: 'global_music.team.lead',
+    director: 'global_music.team.director',
+  },
   estudiantes: {
     serve: 'estudiantes.team.serve',
     lead: 'estudiantes.team.lead',
