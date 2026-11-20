@@ -2,22 +2,26 @@
 
 /**
  * Estudiantes › Grupos — the member view inside the group drawer (artboards
- * 06 / 07, `#vista=persona:<n>`; gap G8): identity, WhatsApp / Llamar, since
- * when they are in the group, the representantes (Transit / Inside Out; Q3
+ * 06 / 07, `#vista=persona:<n>`; gap G8), for members and visitors alike:
+ * identity, WhatsApp / Llamar, a visitor's callout with "Confirmar como
+ * miembro" (any number of visits; confirmar_miembro), since when they are in
+ * the group, the representantes (Transit / Inside Out; Q3
  * lets the dirección see them), "Mover a otro grupo" (same ámbito and
  * campus, one step: estudiantes_grupo_miembro_mover) and "Quitar del grupo"
- * with an inline confirmation. Past attendance stays with the old group.
+ * with an inline confirmation, so a visitor added to the wrong group can be
+ * moved (they arrive as a visitor) or removed. Past attendance stays with the
+ * old group.
  * Transit / Inside Out members also get the "Año escolar" row with its
  * editor (S16).
  */
 import { useState, type ReactElement } from 'react'
-import { ArrowRightLeft, MessageCircle, Phone, UserMinus } from 'lucide-react'
+import { ArrowRightLeft, MessageCircle, Phone, Star, UserMinus } from 'lucide-react'
 
 import { BotonSistema, SelectSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { AvatarServidor, telefonoVisible } from '@/components/dream-team/servidores/lista-servidores'
 import { formatearFecha } from '@/components/dream-team/detalle-persona'
-import { moverIntegrante, quitarIntegrante } from '@/lib/actions/estudiantes-grupos.actions'
+import { confirmarMiembro, moverIntegrante, quitarIntegrante } from '@/lib/actions/estudiantes-grupos.actions'
 import { destinosMover } from '@/lib/platform/estudiantes/gestion-grupo'
 import type { GrupoGestion, Integrante } from '@/lib/platform/estudiantes/grupos-datos'
 import { lideresTexto } from '@/lib/platform/estudiantes/grupos-vista'
@@ -27,6 +31,13 @@ import { TituloSeccion } from '../filas-inset'
 import { AnioEscolar } from '../lista/anio-escolar'
 import type { AccionGrupo } from './use-accion-grupo'
 import { DatoClave, subtituloIntegrante } from './vista-grupo'
+
+/** " · vino 3 domingos." (" · vino a 3 reuniones." in The Living Room), or " · aún sin asistencias marcadas." */
+function textoVisitas(visitas: number, tlr: boolean): string {
+  if (visitas <= 0) return ' · aún sin asistencias marcadas.'
+  if (tlr) return ` · vino a ${visitas} ${visitas === 1 ? 'reunión' : 'reuniones'}.`
+  return ` · vino ${visitas} ${visitas === 1 ? 'domingo' : 'domingos'}.`
+}
 
 /** The quick actions are 66px stacked buttons, icon over label (docs/design-system/patterns.md#detail-drawer). */
 const ACCION_RAPIDA = 'h-[66px] min-w-0 flex-col gap-1 px-2 text-[13px]'
@@ -89,6 +100,7 @@ export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }:
   const destinos = destinosMover(grupos, grupo)
   const telefono = telefonoVisible(integrante.telefono)
   const nombreCorto = integrante.nombre.split(' ')[0] ?? integrante.nombre
+  const visitante = integrante.estado === 'visitante'
 
   async function mover(): Promise<void> {
     const elegido = grupos.find((g) => g.id === destino)
@@ -121,6 +133,33 @@ export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }:
       </div>
 
       <Contacto telefono={integrante.telefono} nombre={integrante.nombre} grande />
+
+      {visitante && (
+        <AvisoFormulario tono="info" className="flex gap-3">
+          <Star aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-info-text" />
+          <div className="min-w-0 space-y-2">
+            <p>
+              <b className="font-semibold">Visitante</b>
+              {`${textoVisitas(integrante.visitas, grupo.experiencia === 'the_living_room')} Cuando lo confirmes pasa a ser integrante del grupo.`}
+            </p>
+            <BotonSistema
+              type="button"
+              tamaño="sm"
+              cargando={pendiente === 'confirmar'}
+              disabled={pendiente !== null}
+              onClick={() =>
+                ejecutar(
+                  'confirmar',
+                  () => confirmarMiembro({ grupoId: grupo.id, personaId: integrante.personaId }),
+                  `${integrante.nombre} ya es integrante de ${grupo.nombre}`,
+                )
+              }
+            >
+              Confirmar como miembro
+            </BotonSistema>
+          </div>
+        </AvisoFormulario>
+      )}
 
       <dl className="grid grid-cols-2 gap-3">
         <DatoClave etiqueta="En el grupo desde" valor={formatearFecha(integrante.desde)} />
@@ -162,7 +201,11 @@ export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }:
               value={destino}
               onValueChange={setDestino}
             />
-            <p className="text-[13px] text-muted-foreground">{`Su asistencia anterior queda con ${grupo.nombre}.`}</p>
+            <p className="text-[13px] text-muted-foreground">
+              {visitante
+                ? `Llega como visitante. Su asistencia anterior queda con ${grupo.nombre}.`
+                : `Su asistencia anterior queda con ${grupo.nombre}.`}
+            </p>
             <BotonSistema
               type="button"
               variante="outline"

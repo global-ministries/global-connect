@@ -6,9 +6,10 @@
  * «Editar», the key figures (Integrantes · Visitantes, and Zona · Se reúne in
  * The Living Room), then the tabs Integrantes | Líderes | Ajustes (PCO
  * Groups; S7 / D4):
- * - Integrantes: Por confirmar ("Confirmar como miembro"), Integrantes (with
- *   "Agregar integrante"; each row opens the member view) and the other
- *   visitors.
+ * - Integrantes: Por confirmar ("Confirmar como miembro" and "Ver ficha"),
+ *   Integrantes (with "Agregar integrante") and the other visitors. Every
+ *   member and visitor (Por confirmar and the others) opens the member view,
+ *   where a visitor is confirmed, moved or removed.
  * - Líderes: the "no leader" callout, Líderes (a "Quitar" per leader and
  *   "Asignar líder"), Líderes anteriores (C6a, read only; hidden when there
  *   are none) and the entrenador and director de grupo of the sub-área
@@ -156,21 +157,32 @@ export function VistaGrupo({ grupo, subareas, accion, pestana, onPestana, onInte
                       <b className="font-semibold">{visitante.nombre}</b>
                       {tlr ? ` vino a ${visitante.visitas} reuniones como visitante.` : ` vino ${visitante.visitas} domingos como visitante.`}
                     </p>
-                    <BotonSistema
-                      type="button"
-                      tamaño="sm"
-                      cargando={pendiente === `confirmar:${visitante.personaId}`}
-                      disabled={pendiente !== null}
-                      onClick={() =>
-                        ejecutar(
-                          `confirmar:${visitante.personaId}`,
-                          () => confirmarMiembro({ grupoId: grupo.id, personaId: visitante.personaId }),
-                          `${visitante.nombre} ya es integrante de ${grupo.nombre}`,
-                        )
-                      }
-                    >
-                      Confirmar como miembro
-                    </BotonSistema>
+                    <div className="flex flex-wrap gap-2">
+                      <BotonSistema
+                        type="button"
+                        tamaño="sm"
+                        cargando={pendiente === `confirmar:${visitante.personaId}`}
+                        disabled={pendiente !== null}
+                        onClick={() =>
+                          ejecutar(
+                            `confirmar:${visitante.personaId}`,
+                            () => confirmarMiembro({ grupoId: grupo.id, personaId: visitante.personaId }),
+                            `${visitante.nombre} ya es integrante de ${grupo.nombre}`,
+                          )
+                        }
+                      >
+                        Confirmar como miembro
+                      </BotonSistema>
+                      <BotonSistema
+                        type="button"
+                        variante="outline"
+                        tamaño="sm"
+                        aria-label={`Ver ficha de ${visitante.nombre}`}
+                        onClick={() => onIntegrante(visitante.personaId)}
+                      >
+                        Ver ficha
+                      </BotonSistema>
+                    </div>
                   </div>
                 </AvisoFormulario>
               ))}
@@ -196,14 +208,16 @@ export function VistaGrupo({ grupo, subareas, accion, pestana, onPestana, onInte
 
           {otrosVisitantes.length > 0 && (
             <section aria-labelledby="grupo-visitantes" className="space-y-2">
-              <TituloSeccion id="grupo-visitantes" texto="Visitantes" cantidad={otrosVisitantes.length} />
+              <TituloSeccion id="grupo-visitantes" texto="Visitantes" cantidad={otrosVisitantes.length} pista="Toca para ver o mover" />
               <ListaInset etiqueta="Visitantes">
                 {otrosVisitantes.map((visitante) => (
-                  <FilaInset
+                  <FilaNavegable
                     key={visitante.personaId}
                     avatar={<AvatarServidor nombre={visitante.nombre} />}
                     titulo={visitante.nombre}
                     subtitulo={textoVisita(visitante.visitas)}
+                    etiqueta={`Abrir ${visitante.nombre}`}
+                    onAbrir={() => onIntegrante(visitante.personaId)}
                   />
                 ))}
               </ListaInset>

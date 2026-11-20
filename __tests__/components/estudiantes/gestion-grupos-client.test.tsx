@@ -399,6 +399,15 @@ describe('members', () => {
     expect(mock.quitarIntegrante).toHaveBeenCalledWith({ grupoId: 'g1', personaId: 'i2' })
   })
 
+  it('keeps a member’s view without the visitor callout', async () => {
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('1er año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Alejandra Acosta' }))
+    expect(within(panel()).queryByRole('button', { name: 'Confirmar como miembro' })).not.toBeInTheDocument()
+    expect(within(panel()).getByText('Su asistencia anterior queda con 1er año · Chicas.')).toBeInTheDocument()
+    expect(within(panel()).getByRole('button', { name: 'Quitar del grupo' })).toBeInTheDocument()
+  })
+
   it('adds someone without a group as a member and searches the church', async () => {
     mock.agregarIntegrante.mockResolvedValue(OK)
     mock.buscarPersonas.mockResolvedValue({
@@ -417,6 +426,54 @@ describe('members', () => {
     await user.type(within(panel()).getByLabelText('Busca al estudiante'), 'Lucía Ramírez')
     await waitFor(() => expect(mock.buscarPersonas).toHaveBeenCalledWith({ grupoId: 'g2', consulta: 'Lucía Ramírez' }))
     expect(await within(panel()).findByRole('button', { name: 'Mover aquí a Lucía Ramírez' })).toBeInTheDocument()
+  })
+})
+
+describe('visitors', () => {
+  it('opens a visitor from the group and confirms them as a member from the 1st visit', async () => {
+    mock.confirmarMiembro.mockResolvedValue(OK)
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('2do año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Luciana Ferrer' }))
+    expect(within(panel()).getByRole('button', { name: 'Volver a 2do año · Chicas' })).toBeInTheDocument()
+    expect(within(panel()).getByText(/vino 1 domingo\. Cuando lo confirmes pasa a ser integrante del grupo\./)).toBeInTheDocument()
+    await user.click(within(panel()).getByRole('button', { name: 'Confirmar como miembro' }))
+    expect(mock.confirmarMiembro).toHaveBeenCalledWith({ grupoId: 'g2', personaId: 'i5' })
+    expect(exito).toHaveBeenCalledWith('Luciana Ferrer ya es integrante de 2do año · Chicas')
+  })
+
+  it('moves a visitor to another group, where they arrive as a visitor', async () => {
+    mock.moverIntegrante.mockResolvedValue(OK)
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('2do año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Luciana Ferrer' }))
+    expect(within(panel()).getByText('Llega como visitante. Su asistencia anterior queda con 2do año · Chicas.')).toBeInTheDocument()
+    await user.selectOptions(within(panel()).getByLabelText('Grupo nuevo'), 'g1')
+    await user.click(within(panel()).getByRole('button', { name: 'Mover' }))
+    expect(mock.moverIntegrante).toHaveBeenCalledWith({ grupoId: 'g1', personaId: 'i5' })
+    expect(exito).toHaveBeenCalledWith('Luciana Ferrer pasó a 1er año · Chicas')
+  })
+
+  it('removes a visitor only after the inline confirmation', async () => {
+    mock.quitarIntegrante.mockResolvedValue(OK)
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('2do año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Luciana Ferrer' }))
+    await user.click(within(panel()).getByRole('button', { name: 'Quitar del grupo' }))
+    expect(within(panel()).getByText('¿Quitar a Luciana del grupo?')).toBeInTheDocument()
+    expect(mock.quitarIntegrante).not.toHaveBeenCalled()
+    await user.click(within(panel()).getByRole('button', { name: 'Quitar' }))
+    expect(mock.quitarIntegrante).toHaveBeenCalledWith({ grupoId: 'g2', personaId: 'i5' })
+  })
+
+  it('opens a visitor waiting for confirmation from «Ver ficha» to move or remove them', async () => {
+    render(<GestionGruposClient {...props()} />)
+    const dialogo = await abrirGrupo('2do año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Ver ficha de Sofía Linares' }))
+    expect(within(panel()).getByRole('button', { name: 'Volver a 2do año · Chicas' })).toBeInTheDocument()
+    expect(within(panel()).getByText(/vino 3 domingos\. Cuando lo confirmes/)).toBeInTheDocument()
+    expect(within(panel()).getByLabelText('Grupo nuevo')).toBeInTheDocument()
+    expect(within(panel()).getByRole('button', { name: 'Quitar del grupo' })).toBeInTheDocument()
   })
 })
 
