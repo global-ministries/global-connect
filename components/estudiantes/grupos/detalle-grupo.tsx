@@ -6,7 +6,7 @@
  * 1280px, D3; overlay side panel from md, bottom sheet below) that swaps
  * views inside instead of stacking sheets (gap G8): the group with its
  * tabs Integrantes | Líderes | Ajustes (D4; the tab stays when an inner
- * view goes back), a member,
+ * view goes back), a member or visitor (confirm, move, remove),
  * "Agregar integrante", "Registrar nuevo" (the visitor form of the leader
  * list, artboard 02: the person joins as visitante of the group's newest
  * meeting) and "Líderes de …". Every inner view starts with
