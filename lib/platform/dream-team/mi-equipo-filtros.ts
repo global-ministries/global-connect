@@ -425,12 +425,20 @@ export function calcularVistaMiEquipo({ vista, filtros: pedidos, turnos = [] }: 
  * - `coordinador`: no write capability but some equipo to register people in
  *   (`fetchEquiposRegistrables`, the volunteer coordinator), who registered,
  *   fixed fichas and shifts and invited, never the stage;
- * - `sin_permisos`: neither (a Grupos de Vida director, an area coordinator
- *   with dream_team.coordinate only): read-only.
+ * - `coordinador_area`: neither, but an area or sub-area coordinator
+ *   (dream_team.coordinate, `coordinaArea`): fixes the ficha and invites where
+ *   the database reaches the person (S6 of odd/tasks/director-alcance-completo.md),
+ *   never registers, the stage nor shifts;
+ * - `sin_permisos`: none of them (a Grupos de Vida director): read-only.
  */
-export function rolMiEquipo(permisos: { readonly puedeEditar: boolean; readonly puedeRegistrar: boolean }): RolMiEquipo {
+export function rolMiEquipo(permisos: {
+  readonly puedeEditar: boolean
+  readonly puedeRegistrar: boolean
+  readonly coordinaArea?: boolean
+}): RolMiEquipo {
   if (permisos.puedeEditar) return 'director'
-  return permisos.puedeRegistrar ? 'coordinador' : 'sin_permisos'
+  if (permisos.puedeRegistrar) return 'coordinador'
+  return permisos.coordinaArea === true ? 'coordinador_area' : 'sin_permisos'
 }
 
 /**

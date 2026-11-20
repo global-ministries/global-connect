@@ -142,6 +142,16 @@ describe('permisosMiEquipo (S11 decision 10)', () => {
     })
   })
 
+  it('coordinador de área (S6): ficha and invite only; never registers, the etapa nor shifts', () => {
+    expect(permisosMiEquipo('coordinador_area')).toEqual({
+      registrar: false,
+      cambiarEtapa: false,
+      editarFicha: true,
+      turnos: false,
+      invitar: true,
+    })
+  })
+
   it('sin permisos: nothing', () => {
     expect(permisosMiEquipo('sin_permisos')).toEqual({
       registrar: false,
@@ -176,6 +186,18 @@ describe('accionesDeServicioMiEquipo', () => {
     })
   })
 
+  it('coordinador de área (S6): ficha and invite, no stage nor shifts', () => {
+    expect(accionesDeServicioMiEquipo(SERVICIO, 'coordinador_area')).toEqual({
+      alguna: true,
+      servicio: null,
+      cambiarEtapa: false,
+      turnosDe: undefined,
+      editarFicha: true,
+      invitar: true,
+    })
+    expect(accionesDeServicioMiEquipo({ ...SERVICIO, estado: 'retirado' }, 'coordinador_area').alguna).toBe(false)
+  })
+
   it('sin permisos: no action', () => {
     expect(accionesDeServicioMiEquipo(SERVICIO, 'sin_permisos')).toEqual({
       alguna: false,
@@ -194,7 +216,7 @@ describe('accionesDeServicioMiEquipo', () => {
 
   it('a Grupos de Vida servicio is read-only for every role', () => {
     const gdv: ServicioMiEquipo = { ...SERVICIO, origen: 'grupos_vida', servicioId: undefined, version: undefined }
-    for (const rol of ['director', 'coordinador', 'sin_permisos'] as const) {
+    for (const rol of ['director', 'coordinador', 'coordinador_area', 'sin_permisos'] as const) {
       expect(accionesDeServicioMiEquipo(gdv, rol).alguna).toBe(false)
     }
   })

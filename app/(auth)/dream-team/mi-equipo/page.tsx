@@ -261,8 +261,14 @@ export default async function DreamTeamMiEquipoPage({ searchParams }: MiEquipoPa
       direcciones={direcciones}
       vista={direccionId ? vistaDeDireccion(arbol, personasPorEquipo, direccionId) : null}
       direccionId={direccionId}
-      // The write capability is the director, registering without it the coordinador (see rolMiEquipo).
-      rol={rolMiEquipo({ puedeEditar: hasDreamTeamWriteCapability(session), puedeRegistrar })}
+      // The write capability is the director, registering without it the coordinador, and
+      // dream_team.coordinate alone the area coordinator: ficha and invite where the
+      // database says (fichaEditable / invitable), S6 (see rolMiEquipo).
+      rol={rolMiEquipo({
+        puedeEditar: hasDreamTeamWriteCapability(session),
+        puedeRegistrar,
+        coordinaArea: session.capabilities.some((capacidad) => capacidad.key === 'dream_team.coordinate'),
+      })}
       // An unknown ?direccion= falls back to the default, and the URL follows it.
       filtrosIniciales={{ ...filtrosIniciales, direccion: filtrosIniciales.direccion === null ? null : direccionId || null }}
       equiposAsignables={asignables}

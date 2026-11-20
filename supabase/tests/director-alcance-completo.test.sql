@@ -1,0 +1,246 @@
+-- odd/tasks/director-alcance-completo.md, T2 — an area director reaches
+-- everyone in their equipo tree (migration
+-- 20261113185740_director_alcance_completo.sql).
+--
+-- Tree: R > A > A1, and B under R. The director holds dream_team.direct on A.
+-- Every target below serves (activo) in A1, all with system role miembro
+-- unless said otherwise.
+--
+-- Covers:
+--   S1. t_tlr also holds an experience-scoped serve grant
+--       (the_living_room.team.serve, scope_id NULL): reached.
+--   S2. t_fuera also serves in B and holds dream_team.lead and
+--       dream_team.coordinate on B: reached. t_subdir directs A1 (inside the
+--       tree): reached. Still refused: t_par (dream_team.direct on B),
+--       t_orgm (dream_team.org.manage on R), t_etapa (system role
+--       director-etapa), t_soporte (active support capability).
+--   S3. puede_editar_usuario and puede_ver_usuario_ficha are true for the
+--       reached people and false for the refused ones; a p_auth_id that is
+--       not the caller gets nothing, either way round; a plain user reaches
+--       nobody.
+--   S4. invitacion_cuenta_puede_invitar and dream_team_puede_editar_ficha
+--       follow the same reach.
+--
+-- Run against STAGING: one transaction that ends in a RAISE EXCEPTION carrying
+-- the summary, so nothing is kept. Paste the migration right after BEGIN to
+-- check it before it is applied.
+
+BEGIN;
+
+CREATE TEMP TABLE t_res (caso text, ok boolean, detalle text) ON COMMIT DROP;
+
+CREATE FUNCTION pg_temp.como(p_auth uuid) RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', p_auth, 'role', 'authenticated')::text, true);
+  PERFORM set_config('request.jwt.claim.sub', p_auth::text, true);
+  PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
+END $$;
+
+CREATE FUNCTION pg_temp.ok(p_caso text, p_ok boolean, p_detalle text DEFAULT NULL)
+RETURNS void LANGUAGE sql AS $$ INSERT INTO t_res VALUES (p_caso, coalesce(p_ok, false), p_detalle); $$;
+
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA pg_temp TO PUBLIC;
+GRANT ALL ON t_res TO PUBLIC;
+
+CREATE TEMP TABLE t_ac ON COMMIT DROP AS
+SELECT gen_random_uuid() AS dir_auth, gen_random_uuid() AS dir_id,
+       gen_random_uuid() AS plano_auth, gen_random_uuid() AS plano_id,
+       gen_random_uuid() AS eq_r, gen_random_uuid() AS eq_a,
+       gen_random_uuid() AS eq_a1, gen_random_uuid() AS eq_b,
+       gen_random_uuid() AS t_tlr, gen_random_uuid() AS t_fuera,
+       gen_random_uuid() AS t_subdir, gen_random_uuid() AS t_par,
+       gen_random_uuid() AS t_orgm, gen_random_uuid() AS t_etapa,
+       gen_random_uuid() AS t_soporte, gen_random_uuid() AS t_glob,
+       gen_random_uuid() AS t_dcoord, gen_random_uuid() AS t_dpsdir,
+       gen_random_uuid() AS t_taller, gen_random_uuid() AS t_lead_b,
+       gen_random_uuid() AS t_coord_glob, gen_random_uuid() AS t_lead_glob,
+       gen_random_uuid() AS t_coord_arriba, gen_random_uuid() AS t_manage,
+       gen_random_uuid() AS t_futura;
+GRANT SELECT ON t_ac TO PUBLIC;
+
+INSERT INTO auth.users (id, instance_id, aud, role, email)
+SELECT x, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+       'ac-test-' || x || '@example.test'
+FROM t_ac, unnest(ARRAY[dir_auth, plano_auth]) AS x;
+
+INSERT INTO public.usuarios (id, auth_id, nombre, apellido, genero, estado_civil)
+SELECT v.id, v.auth_id, 'AC', v.apellido, 'Otro'::public.enum_genero, 'Soltero'::public.enum_estado_civil
+FROM t_ac d, LATERAL (VALUES
+  (d.dir_id, d.dir_auth, 'Director'), (d.plano_id, d.plano_auth, 'Plano'),
+  (d.t_tlr, NULL::uuid, 'T TLR'), (d.t_fuera, NULL, 'T Fuera'), (d.t_subdir, NULL, 'T Subdir'),
+  (d.t_par, NULL, 'T Par'), (d.t_orgm, NULL, 'T OrgManage'), (d.t_etapa, NULL, 'T Etapa'),
+  (d.t_soporte, NULL, 'T Soporte'), (d.t_glob, NULL, 'T Global'), (d.t_dcoord, NULL, 'T DirCoord'),
+  (d.t_dpsdir, NULL, 'T DpsDir'), (d.t_taller, NULL, 'T Taller'), (d.t_lead_b, NULL, 'T LeadB'),
+  (d.t_coord_glob, NULL, 'T CoordGlob'), (d.t_lead_glob, NULL, 'T LeadGlob'),
+  (d.t_coord_arriba, NULL, 'T CoordArriba'), (d.t_manage, NULL, 'T Manage'), (d.t_futura, NULL, 'T Futura')
+) AS v(id, auth_id, apellido);
+
+INSERT INTO public.usuario_roles (usuario_id, rol_id)
+SELECT v.usuario_id, rs.id
+FROM t_ac d, LATERAL (VALUES
+  (d.dir_id, 'miembro'), (d.plano_id, 'miembro'), (d.t_tlr, 'miembro'), (d.t_fuera, 'lider'),
+  (d.t_subdir, 'miembro'), (d.t_par, 'miembro'), (d.t_orgm, 'miembro'), (d.t_etapa, 'director-etapa'),
+  (d.t_soporte, 'miembro'), (d.t_glob, 'miembro'), (d.t_dcoord, 'miembro'), (d.t_dpsdir, 'miembro'),
+  (d.t_taller, 'miembro'), (d.t_lead_b, 'miembro'), (d.t_coord_glob, 'miembro'), (d.t_lead_glob, 'miembro'),
+  (d.t_coord_arriba, 'miembro'), (d.t_manage, 'miembro'), (d.t_futura, 'miembro')
+) AS v(usuario_id, rol)
+JOIN public.roles_sistema rs ON rs.nombre_interno = v.rol;
+
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
+SELECT v.id, 'dps', v.parent, v.label, true
+FROM t_ac d, LATERAL (VALUES
+  (d.eq_r, NULL::uuid, 'AC Raiz'), (d.eq_a, d.eq_r, 'AC Area'),
+  (d.eq_a1, d.eq_a, 'AC Subarea'), (d.eq_b, d.eq_r, 'AC Hermana')
+) AS v(id, parent, label)
+ORDER BY v.parent NULLS FIRST, v.label DESC;
+
+INSERT INTO public.dream_team_roles (equipo_id, label, nivel)
+SELECT e, 'voluntario', 'voluntario'
+FROM t_ac d, unnest(ARRAY[d.eq_r, d.eq_a, d.eq_a1, d.eq_b]) AS e;
+
+INSERT INTO public.dream_team_servicios (persona_id, equipo_id, rol_id, estado, fecha_inicio)
+SELECT v.persona, v.equipo, r.id, 'activo'::public.dream_team_estado, now()
+FROM t_ac d, LATERAL (VALUES
+  (d.t_tlr, d.eq_a1), (d.t_fuera, d.eq_a1), (d.t_fuera, d.eq_b), (d.t_subdir, d.eq_a1),
+  (d.t_par, d.eq_a1), (d.t_orgm, d.eq_a1), (d.t_etapa, d.eq_a1), (d.t_soporte, d.eq_a1),
+  (d.t_glob, d.eq_a1), (d.t_dcoord, d.eq_a1), (d.t_dpsdir, d.eq_a1), (d.t_taller, d.eq_a1),
+  (d.t_lead_b, d.eq_a1), (d.t_coord_glob, d.eq_a1), (d.t_lead_glob, d.eq_a1), (d.t_coord_arriba, d.eq_a1),
+  (d.t_manage, d.eq_a1), (d.t_futura, d.eq_a1)
+) AS v(persona, equipo)
+JOIN public.dream_team_roles r ON r.equipo_id = v.equipo;
+
+INSERT INTO public.dream_team_capability_grants
+  (persona_id, capability_key, experience, scope_type, scope_id, source)
+SELECT v.persona, v.clave, v.exp, v.tipo, v.scope, 'ac-test'
+FROM t_ac d, LATERAL (VALUES
+  (d.dir_id,    'dream_team.direct',           'dream_team',      'equipo',     d.eq_a::text),
+  (d.t_tlr,     'the_living_room.team.serve',  'the_living_room', 'experience', NULL::text),
+  (d.t_fuera,   'dream_team.lead',             'dream_team',      'equipo',     d.eq_b::text),
+  (d.t_fuera,   'dream_team.coordinate',       'dream_team',      'equipo',     d.eq_b::text),
+  (d.t_subdir,  'dream_team.direct',           'dream_team',      'equipo',     d.eq_a1::text),
+  (d.t_par,     'dream_team.direct',           'dream_team',      'equipo',     d.eq_b::text),
+  (d.t_orgm,    'dream_team.org.manage',       'dream_team',      'equipo',     d.eq_r::text),
+  (d.t_glob,    'dream_team.direct',           'dream_team',      'experience', NULL::text),
+  (d.t_dcoord,  'dream_team.director.coordinate', 'dream_team',   'experience', NULL::text),
+  (d.t_dpsdir,  'dps.team.director',           'dps',             'equipo',     d.eq_b::text),
+  (d.t_taller,  'talleres_crecimiento.coordinator.write', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_taller,  'talleres_crecimiento.team.serve', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_lead_b,  'dps.team.lead',               'dps',             'equipo',     d.eq_b::text),
+  (d.t_coord_glob, 'dream_team.coordinate',    'dream_team',      'equipo',     NULL::text),
+  (d.t_lead_glob, 'estudiantes.team.lead',     'estudiantes',     'experience', NULL::text),
+  (d.t_coord_arriba, 'dream_team.coordinate',  'dream_team',      'equipo',     d.eq_r::text),
+  (d.t_manage,  'talleres_crecimiento.admin.manage', 'talleres_crecimiento', 'taller', gen_random_uuid()::text),
+  (d.t_futura,  'global_music.team.director',  'global_music',    'equipo',     d.eq_b::text)
+) AS v(persona, clave, exp, tipo, scope);
+
+INSERT INTO public.support_user_capabilities (usuario_id, capability)
+SELECT t_soporte, 'support.view' FROM t_ac;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.como(dir_auth) FROM t_ac;
+
+-- S1 + S2: whom the director reaches.
+SELECT pg_temp.ok('S1: reaches a person with an experience-scoped the_living_room serve grant',
+  public.dream_team_director_alcanza_persona(t_tlr)) FROM t_ac;
+SELECT pg_temp.ok('S2: reaches a person who also leads and coordinates in a sibling equipo',
+  public.dream_team_director_alcanza_persona(t_fuera)) FROM t_ac;
+SELECT pg_temp.ok('S2: reaches a director of an equipo inside the tree',
+  public.dream_team_director_alcanza_persona(t_subdir)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a peer director (dream_team.direct outside the tree)',
+  NOT public.dream_team_director_alcanza_persona(t_par)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach an org manager (dream_team.org.manage outside the tree)',
+  NOT public.dream_team_director_alcanza_persona(t_orgm)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a person with system role director-etapa',
+  NOT public.dream_team_director_alcanza_persona(t_etapa)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a person with a support capability',
+  NOT public.dream_team_director_alcanza_persona(t_soporte)) FROM t_ac;
+SELECT pg_temp.ok('S2: reaches a person who coordinates and serves in a taller',
+  public.dream_team_director_alcanza_persona(t_taller)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a global (NULL scope) dream_team.direct holder',
+  NOT public.dream_team_director_alcanza_persona(t_glob)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a dream_team.director.coordinate holder',
+  NOT public.dream_team_director_alcanza_persona(t_dcoord)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a dps.team.director outside the tree (alcanza, invitation, profile)',
+  NOT public.dream_team_director_alcanza_persona(t_dpsdir)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_dpsdir)
+  AND NOT public.puede_editar_usuario(dir_auth, t_dpsdir)) FROM t_ac;
+SELECT pg_temp.ok('S2: reaches a person who leads (dps.team.lead) in a sibling equipo',
+  public.dream_team_director_alcanza_persona(t_lead_b)
+  AND public.invitacion_cuenta_puede_invitar(t_lead_b)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a global (NULL scope) dream_team.coordinate holder',
+  NOT public.dream_team_director_alcanza_persona(t_coord_glob)
+  AND NOT public.puede_editar_usuario(dir_auth, t_coord_glob)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a global (NULL scope) *.team.lead holder',
+  NOT public.dream_team_director_alcanza_persona(t_lead_glob)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a coordinator of an equipo above the director',
+  NOT public.dream_team_director_alcanza_persona(t_coord_arriba)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_coord_arriba)) FROM t_ac;
+SELECT pg_temp.ok('S2: does not reach a *.manage holder outside the tree',
+  NOT public.dream_team_director_alcanza_persona(t_manage)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_manage)) FROM t_ac;
+SELECT pg_temp.ok('S2: an unknown key outside the tree still protects (fail-closed)',
+  NOT public.dream_team_director_alcanza_persona(t_futura)
+  AND NOT public.dream_team_puede_editar_ficha(t_futura)) FROM t_ac;
+
+-- S3: general profile.
+SELECT pg_temp.ok('S3: puede_editar_usuario true for the reached people',
+  public.puede_editar_usuario(dir_auth, t_tlr)
+  AND public.puede_editar_usuario(dir_auth, t_fuera)
+  AND public.puede_editar_usuario(dir_auth, t_subdir)) FROM t_ac;
+SELECT pg_temp.ok('S3: puede_editar_usuario false for the protected people',
+  NOT public.puede_editar_usuario(dir_auth, t_par)
+  AND NOT public.puede_editar_usuario(dir_auth, t_orgm)
+  AND NOT public.puede_editar_usuario(dir_auth, t_etapa)
+  AND NOT public.puede_editar_usuario(dir_auth, t_soporte)) FROM t_ac;
+SELECT pg_temp.ok('S3: puede_ver_usuario_ficha true for a reached person',
+  public.puede_ver_usuario_ficha(dir_auth, t_tlr)) FROM t_ac;
+SELECT pg_temp.ok('S3: the director session gets nothing when p_auth_id is somebody else',
+  NOT public.puede_editar_usuario(plano_auth, t_tlr)) FROM t_ac;
+
+-- S4: invitation and ficha follow the same reach.
+SELECT pg_temp.ok('S4: invitation allowed for the reached people',
+  public.invitacion_cuenta_puede_invitar(t_tlr)
+  AND public.invitacion_cuenta_puede_invitar(t_fuera)) FROM t_ac;
+SELECT pg_temp.ok('S4: ficha editable for the reached people',
+  public.dream_team_puede_editar_ficha(t_tlr)
+  AND public.dream_team_puede_editar_ficha(t_fuera)) FROM t_ac;
+SELECT pg_temp.ok('S4: invitation and ficha refused for a peer director',
+  NOT public.invitacion_cuenta_puede_invitar(t_par)
+  AND NOT public.dream_team_puede_editar_ficha(t_par)) FROM t_ac;
+SELECT pg_temp.ok('S4: invitation and ficha refused for org manager, director-etapa, support, global and director.coordinate',
+  NOT public.invitacion_cuenta_puede_invitar(t_orgm) AND NOT public.dream_team_puede_editar_ficha(t_orgm)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_etapa) AND NOT public.dream_team_puede_editar_ficha(t_etapa)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_soporte) AND NOT public.dream_team_puede_editar_ficha(t_soporte)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_glob) AND NOT public.puede_editar_usuario(dir_auth, t_glob)
+  AND NOT public.invitacion_cuenta_puede_invitar(t_dcoord) AND NOT public.puede_editar_usuario(dir_auth, t_dcoord)) FROM t_ac;
+SELECT pg_temp.ok('S4: invitation and profile allowed for the taller coordinator',
+  public.invitacion_cuenta_puede_invitar(t_taller) AND public.puede_editar_usuario(dir_auth, t_taller)) FROM t_ac;
+
+-- A plain user reaches nobody, and cannot borrow the director's auth id.
+SELECT pg_temp.como(plano_auth) FROM t_ac;
+SELECT pg_temp.ok('S3: a plain user reaches nobody',
+  NOT public.dream_team_director_alcanza_persona(t_tlr)
+  AND NOT public.puede_editar_usuario(plano_auth, t_tlr)) FROM t_ac;
+SELECT pg_temp.ok('S3: a plain user passing the director''s auth id gets nothing',
+  NOT public.puede_editar_usuario(dir_auth, t_tlr)) FROM t_ac;
+
+RESET ROLE;
+
+-- service_role acting for the director does not get the director branch.
+SET LOCAL ROLE service_role;
+SELECT set_config('request.jwt.claims', json_build_object('role', 'service_role')::text, true);
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT set_config('request.jwt.claim.role', 'service_role', true);
+SELECT pg_temp.ok('S3: service_role passing the director''s auth id does not get the director branch',
+  NOT public.puede_editar_usuario(dir_auth, t_tlr)) FROM t_ac;
+RESET ROLE;
+
+DO $$
+DECLARE v_total int; v_fallos text;
+BEGIN
+  SELECT count(*), string_agg(caso || ' → ' || coalesce(detalle, 'false'), ' | ') FILTER (WHERE NOT ok)
+    INTO v_total, v_fallos FROM t_res;
+  RAISE EXCEPTION 'RESULT total=% failing=%', v_total, coalesce(v_fallos, 'none');
+END $$;
+
+ROLLBACK;
