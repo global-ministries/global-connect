@@ -13,8 +13,9 @@
  * of the invitation to register, its history and actions, see
  * components/cuentas/aviso-invitacion-cuenta.tsx); then "Dónde sirve", one
  * card per servicio (Rol, Turno, Desde) with "Cambiar etapa", "Turnos",
- * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2) and "Ver su
- * equipo".
+ * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2), "Ver su
+ * equipo" and, where the screen offers it, "Quitar de este equipo" (S3 of
+ * odd/tasks/dream-team-estructura-correcciones.md; Servidores only).
  *
  * Screen-agnostic: each screen maps its data and permissions to the neutral
  * props (lib/platform/dream-team/acciones-servicio.ts holds the rule) and owns
@@ -23,7 +24,7 @@
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ArrowRightLeft, Clock, MessageCircle, Phone, Shuffle, UserPen } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, Clock, MessageCircle, Phone, Shuffle, UserMinus, UserPen } from 'lucide-react'
 
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
@@ -64,6 +65,8 @@ export interface AccionesServicioDetalle {
   readonly verEquipo?: string
   /** "Ver su equipo" inside the same screen (calls `onVerEquipo`); used when there is no `verEquipo` link. */
   readonly irAEquipo?: boolean
+  /** "Quitar de este equipo": retire only this servicio (puedeQuitarServicio); needs `onQuitar` too. */
+  readonly quitar?: boolean
 }
 
 export interface ServicioDetalle {
@@ -116,6 +119,8 @@ export interface DetallePersonaProps {
   readonly reenviandoInvitacion?: boolean
   /** "Cambiar de área" of a servicio with `cambiarArea`; absent hides it. */
   readonly onCambiarArea?: (clave: string) => void
+  /** "Quitar de este equipo" of a servicio with `quitar`: the panel closes and the screen confirms; absent hides it. */
+  readonly onQuitar?: (clave: string) => void
 }
 
 /** The invitation the drawer shows instead of the plain callout: an open one without account, or a registered one. */
@@ -142,16 +147,19 @@ function TarjetaServicio({
   onTurnos,
   onVerEquipo,
   onCambiarArea,
+  onQuitar,
 }: {
   readonly servicio: ServicioDetalle
   readonly onCambiarEtapa: () => void
   readonly onTurnos: () => void
   readonly onVerEquipo?: () => void
   readonly onCambiarArea?: () => void
+  readonly onQuitar?: () => void
 }): ReactElement {
   const { acciones } = servicio
   const irAEquipo = acciones.verEquipo === undefined && acciones.irAEquipo === true && onVerEquipo !== undefined
   const cambiarArea = acciones.cambiarArea === true && onCambiarArea !== undefined
+  const quitar = acciones.quitar === true && onQuitar !== undefined
   return (
     <TarjetaSistema role="group" aria-label={servicio.equipoNombre ?? servicio.equipoLabel} className="space-y-3 p-4">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -199,6 +207,11 @@ function TarjetaServicio({
           )}
         </div>
       )}
+      {quitar && (
+        <BotonSistema type="button" variante="peligro" tamaño="md" icono={UserMinus} onClick={onQuitar}>
+          Quitar de este equipo
+        </BotonSistema>
+      )}
     </TarjetaSistema>
   )
 }
@@ -217,6 +230,7 @@ export function DetallePersona({
   onCancelarInvitacion,
   reenviandoInvitacion = false,
   onCambiarArea,
+  onQuitar,
 }: DetallePersonaProps): ReactElement {
   const editarFicha = servicios.some((s) => s.acciones.editarFicha)
   const invitar = servicios.some((s) => s.acciones.invitar)
@@ -333,6 +347,7 @@ export function DetallePersona({
               onTurnos={() => elegir(() => onTurnos(servicio.clave))}
               onVerEquipo={onVerEquipo ? () => elegir(() => onVerEquipo(servicio.clave)) : undefined}
               onCambiarArea={onCambiarArea ? () => elegir(() => onCambiarArea(servicio.clave)) : undefined}
+              onQuitar={onQuitar ? () => elegir(() => onQuitar(servicio.clave)) : undefined}
             />
           ))}
         </section>

@@ -11,7 +11,12 @@
  * director's own team. The RPC resolves names only for people the caller has
  * tree-proven authority over.
  */
-import { fetchContactosPersonas, fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import {
+  fetchContactosPersonas,
+  fetchNombresPersonas,
+  fetchPartesNombresPersonas,
+  nombresDesdePartes,
+} from '@/lib/platform/dream-team/personas'
 import { personaId } from '@/lib/platform/dream-team/types'
 
 interface FakeRow {
@@ -70,6 +75,45 @@ describe('fetchNombresPersonas', () => {
   it('throws when the RPC errors', async () => {
     const { client } = makeClient([], { message: 'boom' })
     await expect(fetchNombresPersonas(client, [personaId('p-1')])).rejects.toBeTruthy()
+  })
+})
+
+describe('fetchPartesNombresPersonas (S1 of odd/tasks/dream-team-estructura-correcciones.md)', () => {
+  const FILAS: FakeRow[] = [
+    { id: 'p-1', nombre: 'Isaac José', apellido: 'Paez Cordero' },
+    { id: 'p-2', nombre: 'Luis', apellido: null },
+    { id: 'p-3', nombre: '', apellido: '' },
+    { id: 'p-4', nombre: null, apellido: 'Rojas' },
+  ]
+  const IDS = ['p-1', 'p-1', 'p-2', 'p-3', 'p-4', 'p-fuera'].map(personaId)
+
+  it('keeps nombre and apellido apart, through the same single RPC call', async () => {
+    const { client, rpcMock, fromMock } = makeClient(FILAS)
+    const partes = await fetchPartesNombresPersonas(client, IDS)
+    expect(partes.get(personaId('p-1'))).toEqual({ nombre: 'Isaac José', apellido: 'Paez Cordero' })
+    expect(partes.get(personaId('p-2'))).toEqual({ nombre: 'Luis', apellido: null })
+    expect(partes.has(personaId('p-fuera'))).toBe(false)
+    expect(rpcMock).toHaveBeenCalledTimes(1)
+    expect(rpcMock).toHaveBeenCalledWith('dream_team_resolver_nombres', { p_persona_ids: ['p-1', 'p-2', 'p-3', 'p-4', 'p-fuera'] })
+    expect(fromMock).not.toHaveBeenCalled()
+  })
+
+  it('derives exactly the strings fetchNombresPersonas returns', async () => {
+    const nombres = await fetchNombresPersonas(makeClient(FILAS).client, IDS)
+    const derivados = nombresDesdePartes(await fetchPartesNombresPersonas(makeClient(FILAS).client, IDS))
+    expect([...derivados.entries()]).toEqual([...nombres.entries()])
+    expect([...nombres.entries()]).toEqual([
+      [personaId('p-1'), 'Isaac José Paez Cordero'],
+      [personaId('p-2'), 'Luis'],
+      [personaId('p-3'), 'Sin nombre'],
+      [personaId('p-4'), 'Rojas'],
+    ])
+  })
+
+  it('returns an empty map without calling the database when there are no personaIds', async () => {
+    const { client, rpcMock } = makeClient([])
+    expect((await fetchPartesNombresPersonas(client, [])).size).toBe(0)
+    expect(rpcMock).not.toHaveBeenCalled()
   })
 })
 

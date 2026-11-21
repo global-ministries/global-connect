@@ -45,8 +45,10 @@ import {
 import { fetchEquiposCambioArea } from "@/lib/platform/dream-team/cambiar-area";
 import {
   fetchContactosPersonas,
-  fetchNombresPersonas,
+  fetchPartesNombresPersonas,
+  nombresDesdePartes,
 } from "@/lib/platform/dream-team/personas";
+import { nombreCorto } from "@/lib/platform/nombres";
 import { fetchLideresGdv } from "@/lib/platform/dream-team/lideres-gdv";
 import {
   fetchRangosEdad,
@@ -167,7 +169,7 @@ export default async function DreamTeamServidoresPage({
   //   (dream_team_puede_solicitar_cambio_area; a coordinator only requests).
   //   Fails closed; the RPCs check it again.
   const [
-    personaNombrePorId,
+    partesNombrePorId,
     contactoPorId,
     rangoEdadPorId,
     fichasEditables,
@@ -175,7 +177,7 @@ export default async function DreamTeamServidoresPage({
     frecuenciasPorServicio,
     [turnos, turnosPorServicio],
   ] = await Promise.all([
-    fetchNombresPersonas(supabase, personaIds),
+    fetchPartesNombresPersonas(supabase, personaIds),
     fetchContactosPersonas(supabase, personaIds),
     fetchRangosEdad(supabase, personaIds).catch(
       (error: unknown): ReadonlyMap<PersonaId, RangoEdad> => {
@@ -206,6 +208,15 @@ export default async function DreamTeamServidoresPage({
       },
     ),
   ]);
+
+  // The display names, and nombre/apellido apart for the short name the
+  // drawer's «Quitar de este equipo» asks with (S3 of
+  // odd/tasks/dream-team-estructura-correcciones.md).
+  const personaNombrePorId = nombresDesdePartes(partesNombrePorId);
+  const nombreCortoDe = (id: PersonaId): string | undefined => {
+    const partes = partesNombrePorId.get(id);
+    return (partes && nombreCorto(partes.nombre, partes.apellido)) || undefined;
+  };
 
   // Merge the real tree with the virtual Grupos de Vida branch (item 3) plus
   // who holds director/coordinador on each real node (item 4). This is what
@@ -243,6 +254,7 @@ export default async function DreamTeamServidoresPage({
         personaId: servicio.personaId,
         nombre:
           personaNombrePorId.get(servicio.personaId) ?? "Persona no encontrada",
+        nombreCorto: nombreCortoDe(servicio.personaId),
         equipoId: servicio.equipoId,
         ...ubicacion(servicio.equipoId),
         rolLabel: rolLabel(

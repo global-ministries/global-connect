@@ -35,6 +35,24 @@ export async function fetchNombresPersonas(
   client: DbClient,
   personaIds: readonly PersonaId[],
 ): Promise<ReadonlyMap<PersonaId, string>> {
+  return nombresDesdePartes(await fetchPartesNombresPersonas(client, personaIds))
+}
+
+/** A person's nombre and apellido as stored, apart (S1 of odd/tasks/dream-team-estructura-correcciones.md). */
+export interface PartesNombrePersona {
+  readonly nombre: string | null
+  readonly apellido: string | null
+}
+
+/**
+ * The same lookup as `fetchNombresPersonas` (same RPC, same single call, same
+ * ids left out), keeping nombre and apellido apart, for screens that shorten
+ * the name to first nombre + first apellido (lib/platform/nombres.ts).
+ */
+export async function fetchPartesNombresPersonas(
+  client: DbClient,
+  personaIds: readonly PersonaId[],
+): Promise<ReadonlyMap<PersonaId, PartesNombrePersona>> {
   const idsUnicos = [...new Set(personaIds)]
   if (idsUnicos.length === 0) return new Map()
 
@@ -48,10 +66,21 @@ export async function fetchNombresPersonas(
 
   if (error) throw error
 
-  const nombrePorId = new Map<PersonaId, string>()
+  const partesPorId = new Map<PersonaId, PartesNombrePersona>()
   for (const row of (data ?? []) as readonly NombreRow[]) {
-    const nombreCompleto = [row.nombre, row.apellido].filter(Boolean).join(' ').trim()
-    nombrePorId.set(row.id as PersonaId, nombreCompleto || 'Sin nombre')
+    partesPorId.set(row.id as PersonaId, { nombre: row.nombre, apellido: row.apellido })
+  }
+  return partesPorId
+}
+
+/** The display names `fetchNombresPersonas` returns, from the parts: "nombre apellido", or "Sin nombre". */
+export function nombresDesdePartes(
+  partesPorId: ReadonlyMap<PersonaId, PartesNombrePersona>,
+): ReadonlyMap<PersonaId, string> {
+  const nombrePorId = new Map<PersonaId, string>()
+  for (const [id, partes] of partesPorId) {
+    const nombreCompleto = [partes.nombre, partes.apellido].filter(Boolean).join(' ').trim()
+    nombrePorId.set(id, nombreCompleto || 'Sin nombre')
   }
   return nombrePorId
 }

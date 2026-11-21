@@ -32,6 +32,8 @@ import {
 } from '@/tests/helpers/estructura-fixture'
 
 const vista = () => crearVistaEstructura(entradaEstructura())
+/** A team led by one person (responsables are a list since S2 of odd/tasks/dream-team-estructura-correcciones.md). */
+const solo = (nombre: string, rol: string, nombreCorto = nombre) => ({ personas: [{ nombre, nombreCorto, rol }], rol, texto: nombreCorto })
 const etiquetas = (filas: readonly { readonly label: string }[]) => filas.map((fila) => fila.label)
 
 describe('contarUso', () => {
@@ -156,20 +158,19 @@ describe('detalle', () => {
       hijos: [],
       taller: { href: '/talleres/de-hombre-a-hombre', nombre: 'De Hombre a Hombre' },
     })
-    expect(detalle?.responsable).toEqual({ nombre: 'Edmir Muñoz', rol: 'Coordinador' })
+    expect(detalle?.responsable).toEqual(solo('Edmir Muñoz', 'Coordinador'))
     const uso = Object.fromEntries((detalle?.roles ?? []).map((rol) => [rol.label, rol.uso]))
     expect(uso).toMatchObject({ Coordinador: 1, Facilitador: 8, Director: 0 })
   })
 
   it('prefers the coordinador over the director, and falls back to the director', () => {
     expect(vista().detalle(ID_DHAH)?.responsable?.rol).toBe('Coordinador')
-    expect(vista().detalle(ID_CONEXION)?.responsable).toEqual({ nombre: 'Antholy Ludovic Gómez', rol: 'Director' })
+    expect(vista().detalle(ID_CONEXION)?.responsable).toEqual(solo('Antholy Ludovic Gómez', 'Director', 'Antholy Gómez'))
   })
 
   it('shows the parent responsable, as inherited, when the node has none', () => {
     expect(vista().detalle(ID_GCP)?.responsable).toEqual({
-      nombre: 'Antholy Ludovic Gómez',
-      rol: 'Director',
+      ...solo('Antholy Ludovic Gómez', 'Director', 'Antholy Gómez'),
       heredadoDe: { id: ID_CONEXION, label: 'Dirección de Conexión' },
     })
     expect(vista().detalle(ID_INSIDE)?.responsable).toBeNull()
@@ -179,10 +180,10 @@ describe('detalle', () => {
     const detalle = vista().detalle(ID_GCP)
     expect(detalle).toMatchObject({ esRama: true, personasRama: 37, taller: null })
     expect(detalle?.hijos).toEqual([
-      { id: ID_DHAH, label: 'De Hombre a Hombre', responsable: { nombre: 'Edmir Muñoz', rol: 'Coordinador' }, personasRama: 9 },
-      { id: ID_MDH, label: 'Mujer de Hoy', responsable: { nombre: 'Edith Pérez', rol: 'Coordinador' }, personasRama: 6 },
-      { id: ID_PAREJAS, label: 'Parejas', responsable: { nombre: 'Ludovic Gómez', rol: 'Coordinador' }, personasRama: 8 },
-      { id: ID_PDP, label: 'Punto de Partida', responsable: { nombre: 'Jose Jimenez', rol: 'Coordinador' }, personasRama: 14 },
+      { id: ID_DHAH, label: 'De Hombre a Hombre', responsable: solo('Edmir Muñoz', 'Coordinador'), personasRama: 9 },
+      { id: ID_MDH, label: 'Mujer de Hoy', responsable: solo('Edith Pérez', 'Coordinador'), personasRama: 6 },
+      { id: ID_PAREJAS, label: 'Parejas', responsable: solo('Ludovic Gómez', 'Coordinador'), personasRama: 8 },
+      { id: ID_PDP, label: 'Punto de Partida', responsable: solo('Jose Jimenez', 'Coordinador'), personasRama: 14 },
     ])
     expect(detalle?.ruta).toEqual(['Dirección de Conexión', 'Grupos de Corto Plazo'])
   })
@@ -200,7 +201,7 @@ describe('detalle', () => {
   it('marks the virtual Grupos de Vida nodes read-only, with their leaders and no roles', () => {
     const grupo = vista().detalle(ID_GDV_GRUPO)
     expect(grupo).toMatchObject({ editable: false, experienciaLabel: 'Grupos de Vida', roles: [], taller: null })
-    expect(grupo?.responsable).toEqual({ nombre: 'Lidia Líder', rol: 'Líder' })
+    expect(grupo?.responsable).toEqual(solo('Lidia Líder', 'Líder'))
     expect(grupo?.personasRama).toBe(2)
     expect(vista().detalle(ID_GDV_SEGMENTO)).toMatchObject({ editable: false, personasRama: 3, esRama: true })
     expect(vista().detalle(ID_GDV)).toMatchObject({ editable: true, personasRama: 3 })
@@ -261,7 +262,7 @@ describe('inherited responsable', () => {
     equipo('sola-hijo', 'Equipo Solo', 'sola'),
   ])
   const v = () => crearVistaEstructura(entradaEstructura({ arbol }))
-  const heredado = { nombre: 'Persona Uno', rol: 'Director', heredadoDe: { id: 'raiz', label: 'Dirección Raíz' } }
+  const heredado = { ...solo('Persona Uno', 'Director'), heredadoDe: { id: 'raiz', label: 'Dirección Raíz' } }
 
   it('inherits the parent responsable, marked with the ancestor', () => {
     expect(v().detalle('medio')?.responsable).toEqual(heredado)
@@ -273,7 +274,7 @@ describe('inherited responsable', () => {
 
   it('keeps the own responsable, not inherited', () => {
     const responsable = v().detalle('propio')?.responsable
-    expect(responsable).toEqual({ nombre: 'Persona Dos', rol: 'Coordinador' })
+    expect(responsable).toEqual(solo('Persona Dos', 'Coordinador'))
     expect(responsable).not.toHaveProperty('heredadoDe')
     expect(v().detalle('raiz')?.responsable).not.toHaveProperty('heredadoDe')
   })
@@ -286,6 +287,6 @@ describe('inherited responsable', () => {
   it('applies the same inheritance to the sub-equipos rows', () => {
     const hijos = v().detalle('medio')?.hijos ?? []
     expect(hijos.find((hijo) => hijo.id === 'hoja')?.responsable).toEqual(heredado)
-    expect(hijos.find((hijo) => hijo.id === 'propio')?.responsable).toEqual({ nombre: 'Persona Dos', rol: 'Coordinador' })
+    expect(hijos.find((hijo) => hijo.id === 'propio')?.responsable).toEqual(solo('Persona Dos', 'Coordinador'))
   })
 })

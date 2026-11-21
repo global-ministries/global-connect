@@ -89,10 +89,14 @@ export function agruparTurnosPropios(
 // ── Outputs ──────────────────────────────────────────────────────────────
 
 export interface ResponsableCaja {
+  /** The first responsable's full name (the avatar color). */
   readonly nombre: string
+  /** The first responsable's short-name initials. */
   readonly iniciales: string
   /** Final Spanish text, e.g. `Coordinador`. */
   readonly rol: string
+  /** The box line: «Isaac Paez», «Isaac Paez y Kelly Chaviel», «Isaac Paez y 2 más». */
+  readonly texto: string
   /** Set when it is the responsable of the nearest ancestor that has one. */
   readonly heredadoDe?: { readonly id: string; readonly label: string }
 }
@@ -258,9 +262,10 @@ export function crearOrganigrama(entrada: EntradaOrganigrama): Organigrama {
       personasRama: detalle?.personasRama ?? 0,
       responsable: responsable
         ? {
-            nombre: responsable.nombre,
-            iniciales: inicialesDe(responsable.nombre),
+            nombre: responsable.personas[0].nombre,
+            iniciales: inicialesDe(responsable.personas[0].nombreCorto),
             rol: responsable.rol,
+            texto: responsable.texto,
             ...(responsable.heredadoDe ? { heredadoDe: responsable.heredadoDe } : {}),
           }
         : null,

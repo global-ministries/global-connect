@@ -2,6 +2,7 @@ import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio, PersonaId } from
 import type { PlatformExperienceKey } from '@/lib/platform/experiences'
 import type { NodoArbol } from './arbol'
 import type { NodoEstructuraGdv, ResponsableGdv } from './estructura-gdv'
+import type { PartesNombrePersona } from './personas'
 
 /**
  * `estructura-arbol.ts` — merges the real Dream Team org tree with the
@@ -36,6 +37,12 @@ export interface ResponsableNodo {
   readonly personaId: PersonaId
   readonly nombre: string
   readonly rol: string
+  /**
+   * nombre and apellido apart, when the page resolved them (the org chart's
+   * short name, lib/platform/nombres.ts). Absent for names that only arrive
+   * joined (the Grupos de Vida branch).
+   */
+  readonly partes?: PartesNombrePersona
 }
 
 interface NodoEquipoArbolBase {
@@ -172,11 +179,14 @@ function normalizarRolLabel(label: string): string {
  * `rolId` → label) and `nombrePorId` (from the `fetchNombresPersonas` call
  * it already makes — see servidores/page.tsx, estructura/page.tsx,
  * mi-equipo/page.tsx), so this never triggers a query of its own.
+ * `partesPorId` (optional, from `fetchPartesNombresPersonas`) adds each
+ * person's nombre and apellido apart, for the org chart's short name.
  */
 export function responsablesDreamTeamPorEquipo(
   servicios: readonly DreamTeamServicio[],
   roles: readonly DreamTeamRol[],
   nombrePorId: ReadonlyMap<PersonaId, string>,
+  partesPorId?: ReadonlyMap<PersonaId, PartesNombrePersona>,
 ): ReadonlyMap<string, readonly ResponsableNodo[]> {
   const labelPorRolId = new Map(roles.map((rol) => [rol.id, rol.label]))
   const porEquipo = new Map<string, ResponsableNodo[]>()
@@ -190,10 +200,12 @@ export function responsablesDreamTeamPorEquipo(
     const rolNormalizado = normalizarRolLabel(label)
     if (!ROLES_RESPONSABLES.has(rolNormalizado)) continue
 
+    const partes = partesPorId?.get(servicio.personaId)
     const responsable: ResponsableNodo = {
       personaId: servicio.personaId,
       nombre: nombrePorId.get(servicio.personaId) ?? 'Persona no encontrada',
       rol: rolNormalizado,
+      ...(partes ? { partes } : {}),
     }
 
     const lista = porEquipo.get(servicio.equipoId)

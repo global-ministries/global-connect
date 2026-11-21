@@ -39,7 +39,7 @@ import {
 import { contarUso, crearVistaEstructura, type TallerVinculado } from '@/lib/platform/dream-team/estructura-vista'
 import { agruparTurnosPropios, leerFiltrosEstructura } from '@/lib/platform/dream-team/estructura-organigrama'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { fetchPartesNombresPersonas, nombresDesdePartes } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
 import { EstructuraClient, type TurnosEstructura } from '@/components/dream-team/estructura/estructura-client'
@@ -99,8 +99,10 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   // This screen didn't load servicios before — it now needs them (plus
   // names) to derive who holds the director/coordinador role on each real
   // node (item 4 of this feature; see estructura-arbol.ts).
-  const nombrePorId = await fetchNombresPersonas(supabase, servicios.map((servicio) => servicio.personaId))
-  const responsablesDreamTeam = responsablesDreamTeamPorEquipo(servicios, roles, nombrePorId)
+  // nombre and apellido apart, so the chart shows first nombre + first apellido
+  // (S1 of odd/tasks/dream-team-estructura-correcciones.md); one lookup.
+  const partesPorId = await fetchPartesNombresPersonas(supabase, servicios.map((servicio) => servicio.personaId))
+  const responsablesDreamTeam = responsablesDreamTeamPorEquipo(servicios, roles, nombresDesdePartes(partesPorId), partesPorId)
 
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv, responsablesDreamTeam))
 

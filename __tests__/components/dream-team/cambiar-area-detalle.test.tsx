@@ -131,9 +131,10 @@ describe('Servidores — DetalleServidor', () => {
     render(<DetalleServidor persona={persona(filas)} abierto onCambioAbierto={jest.fn()} onActualizado={jest.fn()} />)
     const panel = screen.getByRole('dialog', { name: 'Ana Pérez' })
     // "Ver su equipo" is a link here.
-    expect(botonesDe(panel, 'Cámaras')).toEqual(['Cambiar etapa', 'Turnos', 'Cambiar de área'])
+    // «Quitar de este equipo» (odd/tasks/dream-team-estructura-correcciones.md, S3) follows the stage permission.
+    expect(botonesDe(panel, 'Cámaras')).toEqual(['Cambiar etapa', 'Turnos', 'Cambiar de área', 'Quitar de este equipo'])
     expect(botonesDe(panel, 'Audio')).not.toContain('Cambiar de área')
-    expect(botonesDe(panel, 'Coro')).toEqual(['Cambiar etapa', 'Turnos'])
+    expect(botonesDe(panel, 'Coro')).toEqual(['Cambiar etapa', 'Turnos', 'Quitar de este equipo'])
     await user.click(within(within(panel).getByRole('group', { name: 'Cámaras' })).getByRole('button', { name: 'Cambiar de área' }))
     expect(await screen.findByRole('dialog', { name: 'Cambiar de área' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/dream-team/servicios/s1/cambiar-area', expect.anything())

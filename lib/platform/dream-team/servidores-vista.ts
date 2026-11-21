@@ -34,6 +34,8 @@ export interface FilaServidor {
   readonly clave: string
   readonly personaId: PersonaId
   readonly nombre: string
+  /** First nombre + first apellido (lib/platform/nombres.ts), when the page had the parts. */
+  readonly nombreCorto?: string
   readonly equipoId: string
   readonly equipoLabel: string
   /** Visible ancestors of the equipo, root first, joined with " · ". Empty for a root. */

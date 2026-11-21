@@ -54,7 +54,16 @@ const detalle: DetalleEquipo = {
   esRama: false,
   taller: null,
   hijos: [
-    { id: 'eq-bienvenida', label: 'Bienvenida', responsable: { nombre: 'Ana Pérez', rol: 'Coordinador' }, personasRama: 3 },
+    {
+      id: 'eq-bienvenida',
+      label: 'Bienvenida',
+      responsable: {
+        personas: [{ nombre: 'Ana Pérez', nombreCorto: 'Ana Pérez', rol: 'Coordinador' }],
+        rol: 'Coordinador',
+        texto: 'Ana Pérez',
+      },
+      personasRama: 3,
+    },
   ],
   roles: [
     { id: 'rol-coord', label: 'Coordinador', labelOriginal: 'Coordinador', nivel: 'coordinador', activo: true, uso: 0 },

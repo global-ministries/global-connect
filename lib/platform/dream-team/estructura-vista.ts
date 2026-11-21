@@ -21,6 +21,7 @@
 import type { NodoArbol } from './arbol'
 import type { NodoEquipoArbol, ResponsableNodo } from './estructura-arbol'
 import { normalizarTexto } from './mi-equipo-vista'
+import { nombreCorto, nombreCortoDeCompleto } from '@/lib/platform/nombres'
 import type { DreamTeamNivelRol, DreamTeamRol, DreamTeamServicio } from './types'
 import {
   ORIGEN_GRUPOS_VIDA_LABEL,
@@ -80,10 +81,28 @@ export interface FilaArbol {
   readonly activo: boolean
 }
 
-export interface ResponsableEquipo {
+/** One responsable of a team. */
+export interface PersonaResponsable {
+  /** The full name. */
   readonly nombre: string
+  /** First nombre + first apellido (lib/platform/nombres.ts): «Isaac Paez». */
+  readonly nombreCorto: string
   /** Final Spanish text, e.g. `Coordinador`. */
   readonly rol: string
+}
+
+/**
+ * Who is responsible for a team: every person of the winning rank
+ * (coordinador, else director, else the rank of whoever is listed first),
+ * in the order they arrive.
+ */
+export interface ResponsableEquipo {
+  /** Never empty. */
+  readonly personas: readonly PersonaResponsable[]
+  /** The rank, as final Spanish text (`Coordinador`); every person holds it. */
+  readonly rol: string
+  /** The box line: «Isaac Paez», «Isaac Paez y Kelly Chaviel», «Isaac Paez y 2 más». */
+  readonly texto: string
   /**
    * Set only when the team has no responsable of its own and shows the one of
    * its nearest ancestor that has one. Display only: it grants nothing.
@@ -157,13 +176,31 @@ export function ancestrosDe(arbol: readonly Nodo[], equipoId: string): string[] 
   return ruta
 }
 
-/** The coordinador, else the director, else whoever is listed first (Grupos de Vida leaders). */
+/** One or two short names, joined with «y»; three or more, the first and «y N más». */
+export function textoResponsables(nombres: readonly string[]): string {
+  return nombres.length <= 2 ? nombres.join(' y ') : `${nombres[0]} y ${nombres.length - 1} más`
+}
+
+function nombreCortoDe(responsable: ResponsableNodo): string {
+  const desdePartes = responsable.partes ? nombreCorto(responsable.partes.nombre, responsable.partes.apellido) : ''
+  return desdePartes || nombreCortoDeCompleto(responsable.nombre) || responsable.nombre
+}
+
+/**
+ * Every coordinador, else every director, else everyone holding the rank of
+ * whoever is listed first (Grupos de Vida leaders); a person counts once.
+ */
 function elegirResponsable(responsables: readonly ResponsableNodo[]): ResponsableEquipo | null {
-  const elegido =
-    responsables.find((responsable) => responsable.rol === 'coordinador') ??
-    responsables.find((responsable) => responsable.rol === 'director') ??
-    responsables[0]
-  return elegido ? { nombre: elegido.nombre, rol: rolResponsableGdvLabel(elegido.rol) } : null
+  const rango = ['coordinador', 'director'].find((rol) => responsables.some((responsable) => responsable.rol === rol)) ?? responsables[0]?.rol
+  if (rango === undefined) return null
+  const vistos = new Set<string>()
+  const personas: PersonaResponsable[] = []
+  for (const responsable of responsables) {
+    if (responsable.rol !== rango || vistos.has(responsable.personaId)) continue
+    vistos.add(responsable.personaId)
+    personas.push({ nombre: responsable.nombre, nombreCorto: nombreCortoDe(responsable), rol: rolResponsableGdvLabel(responsable.rol) })
+  }
+  return { personas, rol: rolResponsableGdvLabel(rango), texto: textoResponsables(personas.map((persona) => persona.nombreCorto)) }
 }
 
 // ── Factory ──────────────────────────────────────────────────────────────

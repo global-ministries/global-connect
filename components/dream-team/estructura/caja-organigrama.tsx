@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
 import type { CajaOrganigrama } from '@/lib/platform/dream-team/estructura-organigrama'
 
 import { personasTexto } from './mensajes'
-import { SALUD_PROBLEMA, nombreCorto } from './panel-nodo-resumen'
+import { SALUD_PROBLEMA } from './panel-nodo-resumen'
 
 const TONOS_AVATAR = [
   'bg-chart-1/25 border-chart-1/40',
@@ -58,7 +58,7 @@ export function claseCaja(caja: CajaOrganigrama): string {
 export function descripcionCaja(caja: CajaOrganigrama): string {
   const partes = [
     caja.label,
-    caja.responsable ? nombreCorto(caja.responsable.nombre) : 'sin responsable',
+    caja.responsable ? caja.responsable.texto : 'sin responsable',
     personasTexto(caja.personasRama).toLowerCase(),
     ...caja.problemas.map((problema) => SALUD_PROBLEMA[problema].etiqueta),
     ...(caja.editable ? [] : ['solo lectura']),
@@ -107,7 +107,7 @@ export function PuntosSalud({ caja }: { readonly caja: CajaOrganigrama }): React
 /** The inside of a box: avatar, name and responsable, people and dots. */
 export function ContenidoCaja({ caja }: { readonly caja: CajaOrganigrama }): ReactElement {
   const apagado = !caja.activo || caja.tenue
-  const linea = caja.responsable ? nombreCorto(caja.responsable.nombre) : caja.activo ? 'Sin responsable' : 'Inactivo'
+  const linea = caja.responsable ? caja.responsable.texto : caja.activo ? 'Sin responsable' : 'Inactivo'
   return (
     <>
       <Avatar caja={caja} />
