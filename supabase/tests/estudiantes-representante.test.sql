@@ -1,6 +1,6 @@
 -- Estudiantes: add or remove the representante of an existing member
 -- (odd/tasks/representante-buscador.md, T2, S2, S3;
--- 20261121003434_estudiantes_representante.sql).
+-- 20261121004955_estudiantes_representante.sql).
 --
 -- Covers:
 --   a. Level 3 (director de grupo) adds by persona_id: one canonical row
