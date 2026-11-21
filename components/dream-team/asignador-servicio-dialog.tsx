@@ -12,9 +12,14 @@
  *    area (and org.manage, admin, pastor) may register: the option shows only
  *    when GET /api/dream-team/usuarios/registrables lists some equipo.
  *    `soloRegistrar` opens straight into the form, for a registrar who may
- *    not assign existing people. A taken cedula is checked here, and the
- *    duplicates the database reports on submit ('existente', 'coincidencias')
- *    bring the panel back here to pick that person instead.
+ *    not assign existing people. A taken cedula is checked here, then
+ *    «¿Es alguna de estas personas?» (GET /api/dream-team/usuarios/
+ *    posibles-duplicados, T4/S6b of odd/tasks/dream-team-estructura-
+ *    correcciones.md) offers the people that look alike: «Usar esta persona»
+ *    or «No, es otra persona, crear»; no match or a failed check go on, it
+ *    never blocks. The duplicates the database reports on submit
+ *    ('existente', 'coincidencias') bring the panel back here to pick that
+ *    person instead.
  * 2. Equipo y rol — a tree-aware picker ("Waumba Land › Desmontaje"). While
  *    registering it offers exactly the registrable equipos and their roles
  *    (the database enforces the same set). `equipoIdInicial` preselects one.
@@ -35,6 +40,12 @@ import { rolLabel } from '@/components/dream-team/labels'
 import { DatosPersonaNuevaCampos } from '@/components/dream-team/asignador/datos-persona-nueva'
 import { IndicadorPasos } from '@/components/dream-team/asignador/indicador-pasos'
 import { SelectorEquipo } from '@/components/dream-team/asignador/selector-equipo'
+import { PosiblesDuplicados } from '@/components/personas/posibles-duplicados'
+import {
+  mapPosiblesDuplicados,
+  urlPosiblesDuplicados,
+  type PosibleDuplicado,
+} from '@/lib/platform/personas/posibles-duplicados'
 import {
   DATOS_VACIOS,
   PASOS,
@@ -114,6 +125,22 @@ async function cargarOpcionesRegistro(signal: AbortSignal): Promise<OpcionRegist
   }
 }
 
+/** People who may already be the one being registered; `[]` when the check fails (it never blocks). */
+async function posiblesDuplicados(datos: DatosPersonaNueva): Promise<PosibleDuplicado[]> {
+  try {
+    const res = await fetch(urlPosiblesDuplicados(datos), { cache: 'no-store' })
+    if (!res.ok) return []
+    const body = (await res.json()) as { personas?: unknown }
+    return mapPosiblesDuplicados(body.personas)
+  } catch {
+    return []
+  }
+}
+
+/** The typed data the possible-duplicates check looked at, to ask only once per data. */
+const claveDuplicados = (d: DatosPersonaNueva): string =>
+  [d.nombre, d.apellido, d.cedula, d.telefono].map((v) => v.trim().toLowerCase()).join('|')
+
 /** The person holding a cedula, or `null` (also when the lookup fails: the database checks again). */
 async function personaConCedula(cedula: string): Promise<{ id: string; nombre: string; apellido: string } | null> {
   try {
@@ -146,6 +173,8 @@ export function AsignadorServicioDialog({
   const [registrando, setRegistrando] = useState(false)
   const [datos, setDatos] = useState<DatosPersonaNueva>(DATOS_VACIOS)
   const [duplicado, setDuplicado] = useState<Duplicado | null>(null)
+  const [posibles, setPosibles] = useState<readonly PosibleDuplicado[] | null>(null)
+  const [posiblesDescartados, setPosiblesDescartados] = useState<string | null>(null)
   const [verificando, setVerificando] = useState(false)
   const [equipoId, setEquipoId] = useState('')
   const [rolId, setRolId] = useState('')
@@ -164,6 +193,8 @@ export function AsignadorServicioDialog({
     setPersona(null)
     setDatos(DATOS_VACIOS)
     setDuplicado(null)
+    setPosibles(null)
+    setPosiblesDescartados(null)
     setEquipoId(equipoIdInicial ?? '')
     setRolId('')
     setTurnoId('')
@@ -253,13 +284,16 @@ export function AsignadorServicioDialog({
   const rolElegido = rolesDelEquipo.find((r) => r.id === rolId)
   const turnoElegido = turnos.find((t) => t.id === turnoId)
 
-  const pasoUnoListo = registrando ? datosBasicosCompletos(datos) && duplicado === null : persona !== null
+  const pasoUnoListo = registrando
+    ? datosBasicosCompletos(datos) && duplicado === null && posibles === null
+    : persona !== null
   const pasoDosListo = equipoElegido !== undefined && rolElegido !== undefined
 
   function elegirExistente(p: UsuarioResult): void {
     setPersona(p)
     setRegistrando(false)
     setDuplicado(null)
+    setPosibles(null)
   }
 
   async function siguiente(): Promise<void> {
@@ -272,6 +306,15 @@ export function AsignadorServicioDialog({
         setVerificando(false)
         if (existente) {
           setDuplicado({ tipo: 'existente', id: existente.id, nombre: `${existente.nombre} ${existente.apellido}`.trim() })
+          return
+        }
+      }
+      if (registrando && posiblesDescartados !== claveDuplicados(datos)) {
+        setVerificando(true)
+        const parecidos = await posiblesDuplicados(datos)
+        setVerificando(false)
+        if (parecidos.length > 0) {
+          setPosibles(parecidos)
           return
         }
       }
@@ -351,7 +394,7 @@ export function AsignadorServicioDialog({
 
   const tituloPaso = PASOS.find((p) => p.paso === paso)?.titulo ?? ''
   const pista =
-    paso === 1 && !pasoUnoListo && duplicado === null
+    paso === 1 && !pasoUnoListo && duplicado === null && posibles === null
       ? registrando
         ? 'Completa los datos básicos para continuar.'
         : 'Elige a una persona para continuar.'
@@ -401,11 +444,23 @@ export function AsignadorServicioDialog({
   const pasoPersona = registrando ? (
     <div className="grid gap-4">
       {avisoDuplicado}
+      {posibles && (
+        <PosiblesDuplicados
+          personas={posibles}
+          onUsar={(p) => elegirExistente({ id: p.id, nombre: p.nombre, apellido: p.apellido, email: null })}
+          onCrear={() => {
+            setPosiblesDescartados(claveDuplicados(datos))
+            setPosibles(null)
+            setPaso(2)
+          }}
+        />
+      )}
       <DatosPersonaNuevaCampos
         valor={datos}
         onCambio={(v) => {
           setDatos(v)
           if (duplicado?.tipo === 'existente' && v.cedula !== datos.cedula) setDuplicado(null)
+          if (posibles && claveDuplicados(v) !== claveDuplicados(datos)) setPosibles(null)
         }}
         toast={toast}
       />
@@ -418,6 +473,7 @@ export function AsignadorServicioDialog({
           onClick={() => {
             setRegistrando(false)
             setDuplicado(null)
+            setPosibles(null)
           }}
         >
           Volver a buscar
@@ -436,7 +492,7 @@ export function AsignadorServicioDialog({
       <InputSistema
         icono={Search}
         label="Buscar persona"
-        placeholder="Buscar por nombre, apellido o email…"
+        placeholder="Buscar por nombre, cédula, teléfono o email…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />

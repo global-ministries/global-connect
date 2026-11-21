@@ -19,7 +19,9 @@ const OPCIONES = [
   { id: OTRO_EQ, etiqueta: 'Waumba Land › Bebés', roles: [{ id: OTRO_ROL, label: 'voluntario' }] },
 ]
 
-// GET /registrables answers `opciones`; every other call takes the next queued answer.
+// GET /registrables answers `opciones` and GET /posibles-duplicados answers no match
+// (its own suite: __tests__/components/personas/asignador-posibles-duplicados.test.tsx);
+// every other call takes the next queued answer.
 const fetchMock = jest.fn()
 let opciones: unknown[] = OPCIONES
 const toast = { success: jest.fn(), error: jest.fn() }
@@ -33,7 +35,9 @@ beforeEach(() => {
   global.fetch = ((url: string, init?: RequestInit) =>
     url === '/api/dream-team/usuarios/registrables'
       ? respuesta(200, { equipos: opciones })
-      : fetchMock(url, init)) as unknown as typeof fetch
+      : url.startsWith('/api/dream-team/usuarios/posibles-duplicados')
+        ? respuesta(200, { personas: [] })
+        : fetchMock(url, init)) as unknown as typeof fetch
 })
 
 function abrir({ soloRegistrar = false, onClose = jest.fn(), turnos = [] as { id: string; label: string }[] } = {}) {
