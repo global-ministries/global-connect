@@ -2,8 +2,12 @@
  * Dream Team — GET /api/dream-team/usuarios/buscar
  *
  * Persona search backing the "assign servicio" admin card on
- * /admin/dream-team/servidores. Calls the shared talleres_buscar_personas
- * RPC (minimum query length 2, limit 20) — the same RPC a since-removed
+ * /admin/dream-team/servidores. Calls personas_buscar (T4, S6a of
+ * odd/tasks/dream-team-estructura-correcciones.md,
+ * 20261121110000_personas_buscar_sin_acentos.sql): it ignores accents and
+ * case, takes the words in any order and also finds by cédula and teléfono
+ * digits, with the SAME gate, minimum length (2) and limit (20) as the
+ * talleres_buscar_personas RPC it replaces here — the same RPC a since-removed
  * talleres route (app/api/talleres/admin/usuarios/buscar, deleted in T5
  * of odd/tasks/talleres-configuracion-del-taller.md once it went
  * callerless) used to call, but this one is NOT that route reused: it is
@@ -68,7 +72,7 @@ export async function GET(req: NextRequest) {
     const supabase = await createSupabaseServerClient()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- server client, rpc return shape kept loose like the talleres sibling route
     const client: any = supabase
-    const { data, error } = await client.rpc('talleres_buscar_personas', {
+    const { data, error } = await client.rpc('personas_buscar', {
       p_q: q,
       p_limit: RESULT_LIMIT,
     })

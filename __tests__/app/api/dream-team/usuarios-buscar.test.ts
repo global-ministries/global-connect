@@ -11,8 +11,11 @@
  * own server client, which hit `usuarios`' own RLS: only admin/pastor/
  * Grupos-de-Vida leaders can see other people's rows there, so an area
  * director assigning a servidor got a silent "Sin resultados". It now calls
- * the talleres_buscar_personas RPC (SECURITY DEFINER, its own capability
- * gate), mapped back to this route's existing response shape.
+ * the personas_buscar RPC (SECURITY DEFINER, the same capability gate as
+ * talleres_buscar_personas; it ignores accents and case, takes the words in
+ * any order and also finds by cédula and teléfono — T4, S6a of
+ * odd/tasks/dream-team-estructura-correcciones.md), mapped back to this
+ * route's existing response shape.
  *
  * Covers:
  *   - 404 when the Dream Team flag is off
@@ -110,14 +113,21 @@ describe('GET /api/dream-team/usuarios/buscar', () => {
     expect(body).toEqual([
       { id: 'u-1', email: 'ana@test.com', nombre: 'Ana', apellido: 'Pérez', auth_id: null },
     ])
-    expect(rpcMock).toHaveBeenCalledWith('talleres_buscar_personas', { p_q: 'ana', p_limit: 20 })
+    expect(rpcMock).toHaveBeenCalledWith('personas_buscar', { p_q: 'ana', p_limit: 20 })
   })
 
   it('200 for a scoped area director (dream_team.direct only)', async () => {
     setup({ capabilities: [scopedDirectorCap], rows: [] })
     const res = await GET(request('ana'))
     expect(res.status).toBe(200)
-    expect(rpcMock).toHaveBeenCalledWith('talleres_buscar_personas', { p_q: 'ana', p_limit: 20 })
+    expect(rpcMock).toHaveBeenCalledWith('personas_buscar', { p_q: 'ana', p_limit: 20 })
+  })
+
+  it('passes a cédula or phone query as typed (the RPC compares its digits)', async () => {
+    setup({ capabilities: [writeCap], rows: [] })
+    const res = await GET(request('  0414-123 4567 '))
+    expect(res.status).toBe(200)
+    expect(rpcMock).toHaveBeenCalledWith('personas_buscar', { p_q: '0414-123 4567', p_limit: 20 })
   })
 
   it('returns [] without querying the RPC when q is shorter than 2 characters', async () => {
