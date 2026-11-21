@@ -14,9 +14,13 @@ let sesion: unknown
 
 jest.mock('next/cache', () => ({ revalidatePath: (...args: unknown[]) => revalidatePath(...args) }))
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn(async () => ({ rpc })) }))
+// Mirrors production: the session carries the system roles only when `includeRoles` is passed (T6).
+const requireDreamTeamSession = jest.fn(async (options?: { includeRoles?: boolean }) =>
+  sesion && !options?.includeRoles ? { ...(sesion as Record<string, unknown>), globalRoles: [] } : sesion,
+)
 jest.mock('@/lib/platform/dream-team/route-access', () => ({
   isDreamTeamEnabled: () => true,
-  requireDreamTeamSession: async () => sesion,
+  requireDreamTeamSession: (options?: { includeRoles?: boolean }) => requireDreamTeamSession(options),
   hasDreamTeamOrgManageCapability: () => false,
 }))
 jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
@@ -63,6 +67,14 @@ describe('crearEquipo («+ Subequipo»)', () => {
   ])('lets %s in too', async (_quien, laSesion) => {
     sesion = laSesion
     expect(await crearEquipo({ parentEquipoId: 'eq-dps', label: 'Bautizos' })).toEqual({ ok: true, equipo: EQUIPO })
+  })
+
+  it('asks for the system roles, so an admin or pastor without a grant reaches the RPC (T6)', async () => {
+    sesion = sesionCon([], ['pastor'])
+    requireDreamTeamSession.mockClear()
+    expect(await cambiarActivoEquipo({ id: 'eq-new', activo: false })).toEqual({ ok: true, equipo: EQUIPO })
+    expect(requireDreamTeamSession).toHaveBeenCalledWith({ includeRoles: true })
+    expect(rpc).toHaveBeenCalledWith('dream_team_equipo_cambiar_activo', { p_equipo: 'eq-new', p_activo: false })
   })
 
   it.each([
@@ -127,6 +139,16 @@ describe('renombrarEquipo and cambiarActivoEquipo', () => {
     rpc.mockResolvedValue({ data: { ...FILA, activo: false }, error: null })
     expect(await cambiarActivoEquipo({ id: 'eq-new', activo: false })).toEqual({ ok: true, equipo: { ...EQUIPO, activo: false } })
     expect(rpc).toHaveBeenCalledWith('dream_team_equipo_cambiar_activo', { p_equipo: 'eq-new', p_activo: false })
+  })
+
+  it('answers a DPS anchor refusal on «Desactivar» in Spanish (T6)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: '22023', message: 'equipo_ancla' } })
+    expect(await cambiarActivoEquipo({ id: 'eq-dps', activo: false })).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'Este equipo sostiene la planificación de DPS y no se puede desactivar.',
+    })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it('refuses a coordinator before calling', async () => {

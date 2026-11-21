@@ -177,7 +177,7 @@ describe('the "Más" sheet', () => {
     const enlaces = hrefs(hoja)
     // Grupos de Vida and Configuración keep their sub-pages as blocks (S10); Niños and Dream Team are tabs.
     expect(enlaces).toEqual([
-      '/perfil', '/users',
+      '/perfil', '/users', '/admin/personas/fusionar',
       '/grupos-vida/casas-anfitrionas', '/grupos-vida/segmentos', '/grupos-vida/directores', '/grupos-vida/temporadas',
       '/grupos-vida/planificar', '/grupos-vida/mapa', '/grupos-vida/reportes/asistencia-semanal', '/grupos-vida/dashboard-riesgo',
       '/grupos-vida/solicitudes', '/grupos-vida/configuracion',

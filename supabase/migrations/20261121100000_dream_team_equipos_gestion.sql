@@ -16,13 +16,17 @@
 --   3. dream_team_equipo_renombrar(equipo, label) and
 --      dream_team_equipo_cambiar_activo(equipo, activo): «Renombrar» and
 --      «Desactivar» / «Activar». Need dream_team_gestiona_equipo(equipo).
+--      «Desactivar» refuses the DPS anchors ('equipo_ancla', for everyone,
+--      org.manage and admin included): the DPS planning resolves them by
+--      label and parent. Reactivating one is allowed (T6).
 --   4. dream_team_equipo_mover(equipo, nuevo_padre): «Mover a…» (S5). Needs
 --      dream_team_gestiona_equipo over the CURRENT parent and over the new
 --      one (authority over origin and destination). Refuses a root, the same
 --      parent, a cycle (the new parent is the equipo or below it), an anchor
 --      the DPS planning resolves by label and parent (dps_raiz,
 --      dps_raiz_musica, dps_equipo_produccion_creativa, dps_equipo_productores,
---      dps_equipo_cantantes) and a label the destination already has.
+--      dps_equipo_cantantes; dream_team_equipo_es_ancla_dps, shared with
+--      «Desactivar») and a label the destination already has.
 --      People, roles, servicios, turnos and grants stay as they are: the
 --      equipo keeps its id, so every servicio, rol and equipo-scoped grant
 --      goes with it, and the grants (scoped by equipo id and inherited down
@@ -56,14 +60,15 @@
 -- these functions are the only way a director writes the tree, and they
 -- never touch any column but label, activo, parent_equipo_id and experiencia.
 --
--- Blast radius: five new functions (four RPCs for authenticated, one closed
--- helper) plus the gate. No table, policy or existing function changes.
+-- Blast radius: six new functions (four RPCs for authenticated, two closed
+-- helpers) plus the gate. No table, policy or existing function changes.
 --
 -- Rollback:
 --   drop function if exists public.dream_team_equipo_mover(uuid, uuid);
 --   drop function if exists public.dream_team_equipo_cambiar_activo(uuid, boolean);
 --   drop function if exists public.dream_team_equipo_renombrar(uuid, text);
 --   drop function if exists public.dream_team_equipo_crear(uuid, text);
+--   drop function if exists public.dream_team_equipo_es_ancla_dps(uuid);
 --   drop function if exists public.dream_team_equipo_json(uuid);
 --   drop function if exists public.dream_team_gestiona_equipo(uuid);
 -- Equipos created, renamed or moved stay as ordinary rows.
@@ -110,6 +115,30 @@ comment on function public.dream_team_equipo_json(uuid) is
 
 revoke all on function public.dream_team_equipo_json(uuid) from public, anon, authenticated;
 grant execute on function public.dream_team_equipo_json(uuid) to service_role;
+
+-- The DPS anchors: the equipos the DPS planning resolves by label and parent.
+-- Neither «Mover a…» nor «Desactivar» may touch them.
+create or replace function public.dream_team_equipo_es_ancla_dps(p_equipo_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path to ''
+as $$
+  select exists (select 1
+                   from unnest(array[public.dps_raiz(), public.dps_raiz_musica(),
+                                     public.dps_equipo_produccion_creativa(),
+                                     public.dps_equipo_productores(),
+                                     public.dps_equipo_cantantes()]) as x
+                  where x is not null and x = p_equipo_id)
+$$;
+
+comment on function public.dream_team_equipo_es_ancla_dps(uuid) is
+  'Whether an equipo is a DPS anchor (dps_raiz, dps_raiz_musica, dps_equipo_produccion_creativa, '
+  'dps_equipo_productores, dps_equipo_cantantes). Internal to dream_team_equipo_mover and _cambiar_activo.';
+
+revoke all on function public.dream_team_equipo_es_ancla_dps(uuid) from public, anon, authenticated;
+grant execute on function public.dream_team_equipo_es_ancla_dps(uuid) to service_role;
 
 -- ── 2. create ────────────────────────────────────────────────────────
 
@@ -229,6 +258,9 @@ begin
   if p_activo is null then
     raise exception 'activo_invalido' using errcode = '22023';
   end if;
+  if not p_activo and public.dream_team_equipo_es_ancla_dps(p_equipo) then
+    raise exception 'equipo_ancla' using errcode = '22023';
+  end if;
 
   update public.dream_team_equipos e
      set activo = p_activo, updated_at = now()
@@ -239,7 +271,8 @@ end;
 $$;
 
 comment on function public.dream_team_equipo_cambiar_activo(uuid, boolean) is
-  '«Desactivar» / «Activar» (S4): the caller needs dream_team_gestiona_equipo(p_equipo). Returns the equipo as jsonb.';
+  '«Desactivar» / «Activar» (S4): the caller needs dream_team_gestiona_equipo(p_equipo); a DPS anchor cannot be '
+  'deactivated (equipo_ancla). Returns the equipo as jsonb.';
 
 revoke all on function public.dream_team_equipo_cambiar_activo(uuid, boolean) from public, anon;
 grant execute on function public.dream_team_equipo_cambiar_activo(uuid, boolean) to authenticated;
@@ -300,10 +333,7 @@ begin
   if p_nuevo_padre = any (v_subarbol) then
     raise exception 'ciclo' using errcode = '22023';
   end if;
-  if p_equipo in (select x from unnest(array[public.dps_raiz(), public.dps_raiz_musica(),
-                                             public.dps_equipo_produccion_creativa(),
-                                             public.dps_equipo_productores(),
-                                             public.dps_equipo_cantantes()]) as x where x is not null) then
+  if public.dream_team_equipo_es_ancla_dps(p_equipo) then
     raise exception 'equipo_ancla' using errcode = '22023';
   end if;
   if exists (select 1 from public.dream_team_equipos e

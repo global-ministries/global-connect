@@ -55,7 +55,10 @@ interface EstructuraPageProps {
 export default async function DreamTeamEstructuraPage({ searchParams }: EstructuraPageProps) {
   if (!isDreamTeamEnabled()) notFound()
 
-  const session = await requireDreamTeamSession()
+  // With the system roles: an admin or a pastor reshapes every equipo even
+  // without a Dream Team grant (equiposQueGestiona below, the same rule as
+  // dream_team_gestiona_equipo).
+  const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 
   if (!hasDreamTeamReadCapability(session)) notFound()
@@ -115,7 +118,8 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   const puedeEditar = hasDreamTeamOrgManageCapability(session)
   // Reshaping equipos (subequipo, rename, deactivate, move) also belongs to a
   // director over their branch (odd/tasks/dream-team-estructura-correcciones.md,
-  // T3): the equipos the dream_team_equipo_* RPCs will accept from this viewer.
+  // T3): the equipos the dream_team_equipo_* RPCs will accept from this viewer
+  // (admin and pastor through session.globalRoles: every equipo).
   const equiposGestionables = equiposQueGestiona(session, equipos)
 
   const talleres: Record<string, TallerVinculado> = Object.fromEntries(

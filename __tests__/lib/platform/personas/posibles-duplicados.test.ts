@@ -12,6 +12,7 @@ import {
   urlPosiblesDuplicados,
 } from '@/lib/platform/personas/posibles-duplicados'
 import { nombreCorto } from '@/lib/platform/personas/nombre'
+import { nombreCorto as nombreCortoCompartido } from '@/lib/platform/nombres'
 
 describe('nombreCorto', () => {
   it('is the first nombre and the first apellido', () => {
@@ -22,6 +23,11 @@ describe('nombreCorto', () => {
     expect(nombreCorto('Ana', null)).toBe('Ana')
     expect(nombreCorto(null, 'Pérez')).toBe('Pérez')
     expect(nombreCorto('', '')).toBe('')
+  })
+  it('is the shared short name of the org chart: the first surname keeps its particles, a couple stays whole', () => {
+    expect(nombreCorto('María', 'De la Cruz Pérez')).toBe('María De la Cruz')
+    expect(nombreCorto('Carlos y Ana', 'Rojas')).toBe('Carlos y Ana Rojas')
+    expect(nombreCorto).toBe(nombreCortoCompartido)
   })
 })
 

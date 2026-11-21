@@ -83,6 +83,7 @@ describe('navigation sections', () => {
     expect(seccionDe).toEqual({
       dashboard: 'general',
       usuarios: 'administracion',
+      'fusionar-personas': 'administracion',
       'grupos-vida': 'ministerios',
       'configuracion-global': 'administracion',
       'soporte-admin': 'administracion',

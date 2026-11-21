@@ -28,7 +28,9 @@
 --      plan from today on (a past plan does not block); once removed, the move
 --      goes through, the subtree leaves dps_equipos(), its puesto stays on its
 --      equipo and its automatic director puesto is deactivated; the DPS root
---      itself is an anchor and cannot move.
+--      itself is an anchor and cannot move, nor be deactivated (an admin and
+--      an org.manage holder get 'equipo_ancla', the row is unchanged);
+--      «Activar» on it is allowed (T6).
 --   h. Privileges and definer settings of the new functions.
 --   i. «Desactivar» outside the tree refused; activo NULL refused.
 --
@@ -138,9 +140,14 @@ BEGIN
   RETURN public.dream_team_equipo_renombrar(pg_temp.id('eq', p_eq), p_label) ->> 'label';
 END;
 $$;
+CREATE OR REPLACE FUNCTION pg_temp.activo_id(p_eq uuid, p_activo boolean) RETURNS text LANGUAGE plpgsql AS $$
+BEGIN
+  RETURN public.dream_team_equipo_cambiar_activo(p_eq, p_activo) ->> 'activo';
+END;
+$$;
 CREATE OR REPLACE FUNCTION pg_temp.activo(p_eq int, p_activo boolean) RETURNS text LANGUAGE plpgsql AS $$
 BEGIN
-  RETURN public.dream_team_equipo_cambiar_activo(pg_temp.id('eq', p_eq), p_activo) ->> 'activo';
+  RETURN pg_temp.activo_id(pg_temp.id('eq', p_eq), p_activo);
 END;
 $$;
 -- 'ruta|experiencia_anterior>experiencia|equipos_movidos'.
@@ -555,6 +562,26 @@ SELECT pg_temp.assert_raises('g3: the DPS root is an anchor and cannot move',
 RESET ROLE;
 SELECT pg_temp.assert_eq('g3: nothing changed', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('g3.antes'));
 
+-- The DPS root row (activo + updated_at) before «Desactivar».
+CREATE OR REPLACE FUNCTION pg_temp.fila_dps() RETURNS text LANGUAGE sql AS $$
+  SELECT e.activo::text || '|' || e.updated_at::text FROM public.dream_team_equipos e WHERE e.id = pg_temp.ctx('dps.raiz')::uuid;
+$$;
+INSERT INTO t_deg_ctx (k, v) VALUES ('g4.antes', pg_temp.fila_dps());
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.assert_raises('g4: an admin cannot deactivate the DPS root (anchor)',
+  $q$SELECT pg_temp.activo_id(pg_temp.ctx('dps.raiz')::uuid, false)$q$, '22023', 'equipo_ancla');
+SELECT pg_temp.as_persona(7);
+SELECT pg_temp.assert_raises('g4: nor an org.manage holder',
+  $q$SELECT pg_temp.activo_id(pg_temp.ctx('dps.raiz')::uuid, false)$q$, '22023', 'equipo_ancla');
+SELECT pg_temp.assert_eq('g4: «Activar» on an anchor is allowed',
+  $q$SELECT pg_temp.activo_id(pg_temp.ctx('dps.raiz')::uuid, true)$q$, 'true');
+RESET ROLE;
+SELECT pg_temp.assert_eq('g4: the DPS root row is unchanged', $q$SELECT pg_temp.fila_dps()$q$, pg_temp.ctx('g4.antes'));
+SELECT pg_temp.assert_eq('g4: the anchor helper sees the DPS root and not a fixture equipo',
+  $q$SELECT public.dream_team_equipo_es_ancla_dps(pg_temp.ctx('dps.raiz')::uuid)::text || '|'
+            || public.dream_team_equipo_es_ancla_dps(pg_temp.id('eq', 2))::text$q$, 'true|false');
+
 -- ── h. privileges ────────────────────────────────────────────────────
 
 SELECT pg_temp.assert_eq('h1: authenticated executes the RPCs and the gate, anon and public do not; SECURITY DEFINER, empty search_path',
@@ -565,9 +592,11 @@ SELECT pg_temp.assert_eq('h1: authenticated executes the RPCs and the gate, anon
        FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
       WHERE n.nspname = 'public'
         AND p.proname IN ('dream_team_gestiona_equipo', 'dream_team_equipo_crear', 'dream_team_equipo_renombrar',
-                          'dream_team_equipo_cambiar_activo', 'dream_team_equipo_mover', 'dream_team_equipo_json')$q$,
+                          'dream_team_equipo_cambiar_activo', 'dream_team_equipo_mover', 'dream_team_equipo_json',
+                          'dream_team_equipo_es_ancla_dps')$q$,
   'dream_team_equipo_cambiar_activo(uuid,boolean)=true|false|false|true, '
   || 'dream_team_equipo_crear(uuid,text)=true|false|false|true, '
+  || 'dream_team_equipo_es_ancla_dps(uuid)=false|false|false|true, '
   || 'dream_team_equipo_json(uuid)=false|false|false|true, '
   || 'dream_team_equipo_mover(uuid,uuid)=true|false|false|true, '
   || 'dream_team_equipo_renombrar(uuid,text)=true|false|false|true, '

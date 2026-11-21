@@ -169,6 +169,7 @@ describe('mensajeErrorGestion', () => {
     ['mismo_padre', 'mover', 'El equipo ya está ahí. Elige otro destino.'],
     ['ciclo', 'mover', 'No puedes moverlo dentro de sí mismo ni de uno de sus subequipos.'],
     ['equipo_ancla', 'mover', 'Este equipo sostiene la planificación de DPS y no se puede mover.'],
+    ['equipo_ancla', 'activar', 'Este equipo sostiene la planificación de DPS y no se puede desactivar.'],
     [
       'experiencia_con_datos',
       'mover',
@@ -224,6 +225,11 @@ describe('resultadoRpcEquipo', () => {
       ok: false,
       error: 'invalid-input',
       message: 'No puedes moverlo dentro de sí mismo ni de uno de sus subequipos.',
+    })
+    expect(resultadoRpcEquipo({ data: null, error: { code: '22023', message: 'equipo_ancla' } }, 'activar')).toEqual({
+      ok: false,
+      error: 'invalid-input',
+      message: 'Este equipo sostiene la planificación de DPS y no se puede desactivar.',
     })
     expect(resultadoRpcEquipo({ data: null, error: { code: '22023', message: 'equipo_invalido' } }, 'renombrar')).toEqual({
       ok: false,

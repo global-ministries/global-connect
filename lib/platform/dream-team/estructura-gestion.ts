@@ -180,6 +180,9 @@ export function mensajeErrorGestion(codigo: string, accion: AccionGestion): stri
   if (codigo === 'sin_autoridad' && accion === 'mover') {
     return 'Para moverlo tienes que dirigir el equipo donde está y el equipo destino (o uno superior a cada uno).'
   }
+  if (codigo === 'equipo_ancla' && accion === 'activar') {
+    return 'Este equipo sostiene la planificación de DPS y no se puede desactivar.'
+  }
   return MENSAJES[codigo] ?? MENSAJE_INTERNO
 }
 

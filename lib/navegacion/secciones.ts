@@ -12,8 +12,8 @@ import { esRutaActiva } from '@/lib/navegacion/registro'
 /**
  * general: no header (Inicio, Mis 1 a 1); ministerios: Grupos de Vida, Niños,
  * Talleres, Estudiantes and the other ministry items; dream-team: the Dream
- * Team group; administracion: Usuarios, Configuración, Cola de soporte and the
- * admin platform items; pie: the footer links; cuenta: Mi perfil.
+ * Team group; administracion: Usuarios, Fusionar personas, Configuración, Cola
+ * de soporte and the admin platform items; pie: the footer links; cuenta: Mi perfil.
  */
 export type SeccionNavegacion = 'general' | 'ministerios' | 'dream-team' | 'administracion' | 'pie' | 'cuenta'
 

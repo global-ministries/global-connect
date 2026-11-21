@@ -113,7 +113,9 @@ type RpcSinTipos = (
 async function resolveEquipoContext(): Promise<EquipoContext> {
   if (!isDreamTeamEnabled()) return { ok: false, error: 'not-found' }
 
-  const session = await requireDreamTeamSession()
+  // With the system roles: an admin or a pastor passes without a Dream Team
+  // grant, as in dream_team_gestiona_equipo (T6). The RPC still decides per equipo.
+  const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) return { ok: false, error: 'unauthorized' }
 
   if (!hasDreamTeamEquiposGestion(session)) return { ok: false, error: 'forbidden' }

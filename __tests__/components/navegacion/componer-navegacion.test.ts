@@ -132,7 +132,7 @@ describe('shell navigation per role', () => {
       ['general', ['dashboard', 'mis-uno-a-uno']],
       ['ministerios', ['grupos-vida', 'ninos', 'platform-talleres_participation-taller-global']],
       ['dream-team', ['dream-team']],
-      ['administracion', ['usuarios', 'configuracion-global']],
+      ['administracion', ['usuarios', 'fusionar-personas', 'configuracion-global']],
       ['pie', ['actualizaciones', 'ayuda']],
       ['cuenta', ['perfil']],
     ])
@@ -141,7 +141,7 @@ describe('shell navigation per role', () => {
   it('keeps the sidebar list (principales) in its current order', async () => {
     const { principales } = await navegacionDe('admin')
     expect(ids(principales)).toEqual([
-      'dashboard', 'mis-uno-a-uno', 'usuarios', 'grupos-vida', 'dream-team', 'ninos',
+      'dashboard', 'mis-uno-a-uno', 'usuarios', 'fusionar-personas', 'grupos-vida', 'dream-team', 'ninos',
       'configuracion-global', 'platform-talleres_participation-taller-global',
     ])
   })
@@ -201,7 +201,7 @@ describe('the Estudiantes section (C4b)', () => {
     const { secciones, principales } = await navegacionDe('admin con Estudiantes')
     const ministerios = secciones.find((grupo) => grupo.seccion === 'ministerios')!
     expect(ids(ministerios.entradas)).toEqual(['grupos-vida', 'ninos', 'estudiantes', 'platform-talleres_participation-taller-global'])
-    expect(ids(principales).slice(4, 7)).toEqual(['dream-team', 'ninos', 'estudiantes'])
+    expect(ids(principales).slice(5, 8)).toEqual(['dream-team', 'ninos', 'estudiantes'])
     const estudiantes = ministerios.entradas.find((entrada) => entrada.id === 'estudiantes')!
     expect(estudiantes).toMatchObject({ label: 'Estudiantes', href: '/estudiantes' })
     expect((estudiantes.children ?? []).map((hija) => [hija.label, hija.href])).toEqual([
