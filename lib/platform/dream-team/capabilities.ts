@@ -1,6 +1,8 @@
 import { PLATFORM_CAPABILITIES, resolvePlatformCapability } from '@/lib/platform/experiences'
 import type { PlatformSession } from '@/lib/platform/session/types'
 
+import { gestionaAlgunEquipo } from './estructura-gestion'
+
 /**
  * Dream Team capability gates — pure, client-safe.
  *
@@ -104,3 +106,11 @@ export const hasDreamTeamMetricsCapability = (session: PlatformSession) =>
 // here so the screen never offers an action the database will always refuse.
 export const hasDreamTeamOrgManageCapability = (session: PlatformSession) =>
   hasCapability(session, 'dream_team.org.manage')
+
+// Equipos only (create under, rename, (de)activate, move — odd/tasks/dream-team-estructura-correcciones.md,
+// T3): directors and up — dream_team.direct or org.manage anywhere, or admin / pastor when the session
+// carries roles. A coarse filter like hasScopedCapabilityAnywhere: the dream_team_equipo_* RPCs decide
+// per equipo (dream_team_gestiona_equipo). Roles and turnos stay on hasDreamTeamOrgManageCapability.
+export const hasDreamTeamEquiposGestion = (session: PlatformSession) =>
+  hasDreamTeamOrgManageCapability(session) ||
+  gestionaAlgunEquipo({ capabilities: session.capabilities, globalRoles: session.globalRoles })

@@ -2,8 +2,8 @@
 
 /**
  * Estructura — "Agregar subequipo" from the phone FAB when no box was opened
- * yet: first choose where (every active, editable Dream Team node, indented
- * by depth), then name it in the same dialog the node panel uses
+ * yet: first choose where (every active, editable Dream Team node the viewer
+ * manages, indented by depth), then name it in the same dialog the node panel uses
  * (DialogoNombre + crearEquipo). Grupos de Vida nodes are read-only and never
  * offered.
  */
@@ -49,13 +49,15 @@ export interface SelectorPadreProps {
   readonly onCambioAbierto: (abierto: boolean) => void
   /** Every node, pre-order; only the active, editable ones are offered. */
   readonly nodos: readonly NodoOrganigrama[]
+  /** The equipos the viewer may create under (dream_team_gestiona_equipo); absent: every one. */
+  readonly gestionables?: ReadonlySet<string>
   readonly onHecho: () => void
   readonly toast: Toast
 }
 
-export function SelectorPadre({ abierto, onCambioAbierto, nodos, onHecho, toast }: SelectorPadreProps): ReactElement {
+export function SelectorPadre({ abierto, onCambioAbierto, nodos, gestionables, onHecho, toast }: SelectorPadreProps): ReactElement {
   const [padre, setPadre] = useState<{ readonly id: string; readonly label: string } | null>(null)
-  const opciones = nodos.filter((nodo) => nodo.editable && nodo.activo)
+  const opciones = nodos.filter((nodo) => nodo.editable && nodo.activo && (gestionables?.has(nodo.id) ?? true))
 
   return (
     <>
