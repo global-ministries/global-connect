@@ -13,14 +13,15 @@
  * short form; "Registrar visitante" creates the person. When the database
  * answers `posibles_duplicados`, the flow goes back to "buscar" with the
  * people that match and offers "Es otra persona" (ignorar_coincidencias);
- * `cedula_existente` points to the search by that cédula.
+ * `cedula_existente` points to the search by that cédula. The form's
+ * representante is searched first too (`SelectorRepresentante`, S1 of
+ * odd/tasks/representante-buscador.md); its state lives in `form`.
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { buscarPersonas, type PersonaEncontrada } from '@/lib/actions/estudiantes-grupos.actions'
+import type { PersonaEncontrada } from '@/lib/actions/estudiantes-grupos.actions'
 import { agregarVisitante, buscarCoincidencias, crearVisitante } from '@/lib/actions/estudiantes-lista.actions'
-import { argumentosBusqueda } from '@/lib/platform/estudiantes/gestion-grupo'
 import type { Experiencia, GradoEscala } from '@/lib/platform/estudiantes/grupos-datos'
 import {
   datosVisitante,
@@ -30,7 +31,10 @@ import {
   type FormularioVisitante,
 } from '@/lib/platform/estudiantes/visitante'
 
-const RETRASO_BUSQUEDA_MS = 300
+import { useBusquedaPersonas, type Busqueda } from '../representante/use-busqueda-personas'
+
+export type { Busqueda }
+
 const SIN_CONEXION = 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.'
 
 export interface GrupoVisitante {
@@ -47,11 +51,6 @@ export interface SesionVisitante {
   readonly fecha: string
   readonly turnoId: string | null
 }
-
-export type Busqueda =
-  | { readonly tipo: 'cargando'; readonly consulta: string }
-  | { readonly tipo: 'listo'; readonly consulta: string; readonly filas: readonly PersonaEncontrada[] }
-  | { readonly tipo: 'error'; readonly consulta: string; readonly mensaje: string }
 
 export interface FlujoVisitante {
   readonly grupo: GrupoVisitante
@@ -99,7 +98,7 @@ export function useFlujoVisitante({ grupo, sesion, escala, hoy, onListo, onCance
 
   const [paso, setPaso] = useState<'buscar' | 'crear'>('buscar')
   const [consulta, setConsulta] = useState('')
-  const [busqueda, setBusqueda] = useState<Busqueda | null>(null)
+  const busqueda = useBusquedaPersonas(grupo.id, consulta)
   const [duplicados, setDuplicados] = useState<readonly PersonaEncontrada[] | null>(null)
   const [form, setForm] = useState<FormularioVisitante>(() => inicial(''))
   const [tocado, setTocado] = useState(false)
@@ -107,26 +106,6 @@ export function useFlujoVisitante({ grupo, sesion, escala, hoy, onListo, onCance
   const [errorCedula, setErrorCedula] = useState<string | null>(null)
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null)
   const [pendiente, setPendiente] = useState<string | null>(null)
-
-  useEffect(() => {
-    const texto = consulta.trim()
-    if (argumentosBusqueda(texto) === null) return
-    let vigente = true
-    const temporizador = setTimeout(() => {
-      setBusqueda({ tipo: 'cargando', consulta: texto })
-      buscarPersonas({ grupoId: grupo.id, consulta: texto }).then(
-        (r) => {
-          if (!vigente) return
-          setBusqueda(r.ok ? { tipo: 'listo', consulta: texto, filas: r.data } : { tipo: 'error', consulta: texto, mensaje: r.message })
-        },
-        () => vigente && setBusqueda({ tipo: 'error', consulta: texto, mensaje: SIN_CONEXION }),
-      )
-    }, RETRASO_BUSQUEDA_MS)
-    return () => {
-      vigente = false
-      clearTimeout(temporizador)
-    }
-  }, [consulta, grupo.id])
 
   async function agregar(persona: PersonaEncontrada): Promise<void> {
     if (!sesion) return
