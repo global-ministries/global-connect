@@ -7,30 +7,35 @@
  * and G7, composed in ../filas-inset.tsx); the form is `InputSistema`,
  * `SelectSistema` (Año escolar, Parentesco) and `ControlSegmentado` (Sexo)
  * inside the sheet body, sections "Estudiante" / "Representante" (The Living
- * Room: "Visitante", no representante).
+ * Room: "Visitante", no representante). The representante is searched first
+ * (`SelectorRepresentante`, S1 of odd/tasks/representante-buscador.md): pick
+ * someone, or «No está, registrarlo» for the typed fields; the parentesco
+ * stays in both paths.
  */
 import type { ReactElement } from 'react'
 import { Search } from 'lucide-react'
 
 import { BadgeSistema, BotonSistema, InputSistema, SelectSistema } from '@/components/ui/sistema-diseno'
-import { ControlSegmentado } from '@/components/ui/control-segmentado'
 import { SkeletonLista } from '@/components/ui/estado-vacio-sistema'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { AvatarServidor } from '@/components/dream-team/servidores/lista-servidores'
 import { argumentosBusqueda } from '@/lib/platform/estudiantes/gestion-grupo'
 import { sexoDeSubarea } from '@/lib/platform/estudiantes/nombre-grupo'
-import { OPCIONES_PARENTESCO, opcionEncontrada, type Genero, type TipoRepresentante } from '@/lib/platform/estudiantes/visitante'
+import {
+  buscarRepresentante,
+  elegirRepresentante,
+  modoRepresentante,
+  opcionEncontrada,
+  registrarRepresentante,
+} from '@/lib/platform/estudiantes/visitante'
 import type { PersonaEncontrada } from '@/lib/actions/estudiantes-grupos.actions'
 
 import { FilaInset, ListaInset, TituloSeccion } from '../filas-inset'
+import { CampoParentesco, CampoSexo, CamposRepresentante } from '../representante/campos-representante'
+import { SelectorRepresentante } from '../representante/selector-representante'
 import type { FlujoVisitante } from './use-flujo-visitante'
 
 export const FORM_VISITANTE = 'form-visitante'
-
-const SEXOS: readonly { readonly valor: Genero; readonly etiqueta: string }[] = [
-  { valor: 'Femenino', etiqueta: 'Femenino' },
-  { valor: 'Masculino', etiqueta: 'Masculino' },
-]
 
 /** "a" for Grupos de Chicas, "o" otherwise ("Búscala" / "Búscalo"). */
 const letra = (subarea: string): 'a' | 'o' => (sexoDeSubarea(subarea).toLocaleLowerCase('es') === 'chicas' ? 'a' : 'o')
@@ -125,47 +130,11 @@ function PasoBuscar({ flujo }: { readonly flujo: FlujoVisitante }): ReactElement
   )
 }
 
-function ErrorCampo({ id, mensaje }: { readonly id: string; readonly mensaje: string | undefined }): ReactElement | null {
-  if (!mensaje) return null
-  return (
-    <p id={id} role="alert" className="text-sm font-medium text-danger-text">
-      {mensaje}
-    </p>
-  )
-}
-
-function CampoSexo({
-  id,
-  valor,
-  onCambio,
-  error,
-}: {
-  readonly id: string
-  readonly valor: Genero | ''
-  readonly onCambio: (genero: Genero) => void
-  readonly error: string | undefined
-}): ReactElement {
-  return (
-    <div className="space-y-2">
-      <span id={id} className="block text-sm font-medium text-foreground">
-        Sexo
-      </span>
-      <ControlSegmentado<Genero | ''>
-        etiqueta="Sexo"
-        opciones={SEXOS}
-        valor={valor}
-        onCambio={(v) => v && onCambio(v)}
-        className="grid w-full grid-cols-2"
-      />
-      <ErrorCampo id={`${id}-error`} mensaje={error} />
-    </div>
-  )
-}
-
 function PasoCrear({ flujo }: { readonly flujo: FlujoVisitante }): ReactElement {
   const { grupo, form, errores, cambiar } = flujo
   const tlr = grupo.experiencia === 'the_living_room'
   const r = form.representante
+  const modoRep = modoRepresentante(r)
   const cambiarRep = (parche: Partial<typeof r>) => cambiar({ representante: { ...r, ...parche } })
   const anios = flujo.escala.filter((g) => g.ambitoId === grupo.ambitoId)
   const opcionesAnio = (anios.length > 0 ? anios : flujo.escala).map((g) => ({ valor: String(g.numero), etiqueta: g.etiqueta }))
@@ -233,27 +202,18 @@ function PasoCrear({ flujo }: { readonly flujo: FlujoVisitante }): ReactElement 
       {!tlr && (
         <section aria-labelledby="visitante-representante" className="space-y-3">
           <TituloSeccion id="visitante-representante" texto="Representante" pista="Si lo tienes a mano" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <InputSistema label="Nombre" autoComplete="off" value={r.nombre} error={errores.repNombre} onChange={(e) => cambiarRep({ nombre: e.target.value })} />
-            <InputSistema label="Apellido (opcional)" autoComplete="off" value={r.apellido} onChange={(e) => cambiarRep({ apellido: e.target.value })} />
-            <InputSistema
-              label="Teléfono"
-              type="tel"
-              inputMode="tel"
-              placeholder="0414 555 0000"
-              className="font-mono tabular-nums"
-              value={r.telefono}
-              error={errores.repTelefono}
-              onChange={(e) => cambiarRep({ telefono: e.target.value })}
-            />
-            <SelectSistema
-              label="Parentesco"
-              opciones={[...OPCIONES_PARENTESCO]}
-              value={r.tipo}
-              onValueChange={(tipo) => cambiarRep({ tipo: tipo as TipoRepresentante })}
-            />
-            <CampoSexo id="visitante-rep-sexo" valor={r.genero} onCambio={(genero) => cambiarRep({ genero })} error={errores.repGenero} />
-          </div>
+          <SelectorRepresentante
+            id="visitante-rep"
+            grupoId={grupo.id}
+            elegido={r.personaId ? { personaId: r.personaId, nombre: r.personaNombre ?? '' } : null}
+            nuevo={modoRep === 'nuevo'}
+            onElegir={(persona) => cambiar({ representante: elegirRepresentante(r, persona) })}
+            onCambiar={() => cambiar({ representante: buscarRepresentante(r) })}
+            onRegistrar={() => cambiar({ representante: registrarRepresentante(r) })}
+          >
+            <CamposRepresentante id="visitante-rep" valor={r} errores={errores} onCambio={cambiarRep} />
+          </SelectorRepresentante>
+          {modoRep !== 'buscar' && <CampoParentesco valor={r.tipo} onCambio={(tipo) => cambiarRep({ tipo })} />}
         </section>
       )}
 

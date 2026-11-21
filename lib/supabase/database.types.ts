@@ -10620,6 +10620,22 @@ export type Database = {
         }
         Returns: Json
       }
+      estudiantes_representante_agregar: {
+        Args: {
+          p_grupo_id: string
+          p_persona_id: string
+          p_representante: Json
+        }
+        Returns: Json
+      }
+      estudiantes_representante_quitar: {
+        Args: {
+          p_grupo_id: string
+          p_persona_id: string
+          p_representante_id: string
+        }
+        Returns: boolean
+      }
       estudiantes_reunion_guardar: {
         Args: {
           p_fecha: string

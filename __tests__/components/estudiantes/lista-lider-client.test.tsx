@@ -560,6 +560,8 @@ describe('Agregar visitante', () => {
     expect(mock.crearVisitante).not.toHaveBeenCalled()
 
     await user.type(within(panel).getAllByLabelText('Teléfono')[0], '0412 555 0183')
+    // The representante searches first (S1); its fields sit behind «No está, registrarlo».
+    await user.click(within(panel).getByRole('button', { name: 'No está, registrarlo' }))
     await user.type(within(panel).getAllByLabelText('Nombre')[1], 'José')
     await user.type(within(panel).getAllByLabelText('Teléfono')[1], '0412 555 0118')
     await user.click(within(within(panel).getAllByRole('group', { name: 'Sexo' })[1]).getByRole('button', { name: 'Masculino' }))
@@ -586,6 +588,92 @@ describe('Agregar visitante', () => {
       datos: { ...enviados, ignorar_coincidencias: true },
     })
     await waitFor(() => expect(exito).toHaveBeenCalledWith('Registraste a Valentina Rangel como visitante'))
+  })
+
+  async function alFormulario(): Promise<HTMLElement> {
+    render(<ListaLiderClient datos={datos()} />)
+    await user.click(screen.getAllByRole('button', { name: 'Agregar visitante' })[0])
+    await user.type(within(screen.getByRole('dialog')).getByLabelText('Búscala primero'), 'valentina rangel')
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Crear nueva' }))
+    const panel = screen.getByRole('dialog')
+    await user.type(within(panel).getAllByLabelText('Teléfono')[0], '0412 555 0183')
+    return panel
+  }
+
+  const ESTUDIANTE = { nombre: 'Valentina', apellido: 'Rangel', genero: 'Femenino', telefono: '0412 555 0183', anio: 2 }
+
+  it('the representante searches first: picking someone (even in another group) sends { persona_id, tipo } (S1)', async () => {
+    mockGrupos.buscarPersonas.mockImplementation(async ({ consulta }) =>
+      consulta === 'patricia'
+        ? { ok: true, data: [{ personaId: 'r-7', nombre: 'Patricia Ferrer', grupoId: 'g9', grupo: 'Zona Este · Chicas', enEsteGrupo: false }] }
+        : { ok: true, data: [] },
+    )
+    mock.crearVisitante.mockResolvedValue({ ok: true, data: { personaId: 'nuevo' } })
+    const panel = await alFormulario()
+    // Nothing of the representante is typed until «No está, registrarlo».
+    expect(within(panel).getAllByLabelText('Nombre')).toHaveLength(1)
+    await user.type(within(panel).getByRole('searchbox', { name: 'Buscar por cédula, teléfono o nombre' }), 'patricia')
+    await waitFor(() => expect(mockGrupos.buscarPersonas).toHaveBeenCalledWith({ grupoId: 'g2', consulta: 'patricia' }))
+    await user.click(await within(panel).findByRole('button', { name: 'Elegir a Patricia Ferrer como representante' }))
+    expect(within(panel).getByText('Patricia Ferrer')).toBeInTheDocument()
+    await user.selectOptions(within(panel).getByLabelText('Parentesco'), 'tutor')
+    await user.click(within(panel).getByRole('button', { name: 'Registrar visitante' }))
+    expect(mock.crearVisitante).toHaveBeenCalledWith({
+      grupoId: 'g2',
+      fecha: FECHA,
+      turnoId: 't9',
+      datos: { ...ESTUDIANTE, representante: { persona_id: 'r-7', tipo: 'tutor' } },
+    })
+    await waitFor(() => expect(exito).toHaveBeenCalledWith('Registraste a Valentina Rangel como visitante'))
+  })
+
+  it('«Cambiar» drops the picked representante and goes back to the search; none is sent', async () => {
+    mockGrupos.buscarPersonas.mockImplementation(async ({ consulta }) =>
+      consulta === 'patricia'
+        ? { ok: true, data: [{ personaId: 'r-7', nombre: 'Patricia Ferrer', grupoId: null, grupo: null, enEsteGrupo: false }] }
+        : { ok: true, data: [] },
+    )
+    mock.crearVisitante.mockResolvedValue({ ok: true, data: { personaId: 'nuevo' } })
+    const panel = await alFormulario()
+    await user.type(within(panel).getByRole('searchbox', { name: 'Buscar por cédula, teléfono o nombre' }), 'patricia')
+    await user.click(await within(panel).findByRole('button', { name: 'Elegir a Patricia Ferrer como representante' }))
+    await user.click(within(panel).getByRole('button', { name: 'Cambiar' }))
+    expect(within(panel).getByRole('searchbox', { name: 'Buscar por cédula, teléfono o nombre' })).toBeInTheDocument()
+    await user.click(within(panel).getByRole('button', { name: 'Registrar visitante' }))
+    expect(mock.crearVisitante).toHaveBeenCalledWith({ grupoId: 'g2', fecha: FECHA, turnoId: 't9', datos: ESTUDIANTE })
+  })
+
+  it('«No está, registrarlo» asks for today’s fields and sends them as today; «Volver a buscar» leaves them out', async () => {
+    mockGrupos.buscarPersonas.mockResolvedValue({ ok: true, data: [] })
+    mock.crearVisitante.mockResolvedValue({ ok: true, data: { personaId: 'nuevo' } })
+    const panel = await alFormulario()
+    await user.click(within(panel).getByRole('button', { name: 'No está, registrarlo' }))
+    await user.type(within(panel).getAllByLabelText('Nombre')[1], 'José')
+    await user.click(within(panel).getByRole('button', { name: 'Registrar visitante' }))
+    expect(within(panel).getByText('Escribe el teléfono del representante.')).toBeInTheDocument()
+    expect(within(panel).getByText('Elige el sexo del representante.')).toBeInTheDocument()
+    expect(mock.crearVisitante).not.toHaveBeenCalled()
+    await user.type(within(panel).getAllByLabelText('Teléfono')[1], '0412 555 0118')
+    await user.type(within(panel).getAllByLabelText('Cédula (opcional)')[1], 'V-12345678')
+    await user.click(within(within(panel).getAllByRole('group', { name: 'Sexo' })[1]).getByRole('button', { name: 'Masculino' }))
+    await user.click(within(panel).getByRole('button', { name: 'Registrar visitante' }))
+    expect(mock.crearVisitante).toHaveBeenLastCalledWith({
+      grupoId: 'g2',
+      fecha: FECHA,
+      turnoId: 't9',
+      datos: { ...ESTUDIANTE, representante: { nombre: 'José', telefono: '0412 555 0118', cedula: 'V-12345678', genero: 'Masculino', tipo: 'padre' } },
+    })
+  })
+
+  it('«Volver a buscar» from the typed fields sends no representante', async () => {
+    mockGrupos.buscarPersonas.mockResolvedValue({ ok: true, data: [] })
+    mock.crearVisitante.mockResolvedValue({ ok: true, data: { personaId: 'nuevo' } })
+    const panel = await alFormulario()
+    await user.click(within(panel).getByRole('button', { name: 'No está, registrarlo' }))
+    await user.type(within(panel).getAllByLabelText('Nombre')[1], 'José')
+    await user.click(within(panel).getByRole('button', { name: 'Volver a buscar' }))
+    await user.click(within(panel).getByRole('button', { name: 'Registrar visitante' }))
+    expect(mock.crearVisitante).toHaveBeenCalledWith({ grupoId: 'g2', fecha: FECHA, turnoId: 't9', datos: ESTUDIANTE })
   })
 
   it('a cédula already registered points back to the search', async () => {

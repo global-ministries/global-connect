@@ -32,6 +32,9 @@ const CODIGOS = [
   'tipo_representante_invalido',
   'cedula_existente',
   'posibles_duplicados',
+  // Representante of an existing member (odd/tasks/representante-buscador.md, S2).
+  'representante_invalido',
+  'relacion_existente',
   // Live view (C4b).
   'ambito_invalido',
 ] as const
@@ -76,6 +79,11 @@ describe('codigoErrorGrupos', () => {
   it('explains the meeting and visitor errors in tuteo', () => {
     expect(mensajeErrorGrupos({ message: 'fecha_invalida' })).toBe('Esa fecha no tiene reunión para marcar. Elige otra.')
     expect(mensajeErrorGrupos({ message: 'cedula_existente' })).toBe('Ya hay alguien con esa cédula. Búscalo en el paso anterior y agrégalo desde ahí.')
+  })
+
+  it('explains the representante errors of an existing member', () => {
+    expect(mensajeErrorGrupos({ code: '22023', message: 'representante_invalido' })).toBe('Una persona no puede ser su propio representante.')
+    expect(mensajeErrorGrupos({ code: '23505', message: 'relacion_existente' })).toBe('Esa persona ya tiene otra relación familiar con el estudiante.')
   })
 })
 

@@ -12,23 +12,29 @@
  * moved (they arrive as a visitor) or removed. Past attendance stays with the
  * old group.
  * Transit / Inside Out members also get the "Año escolar" row with its
- * editor (S16).
+ * editor (S16) and an always-present Representante section («Sin
+ * representante» when empty) with «Agregar representante» (the search-first
+ * picker, inline) and «Quitar» per representante with an inline
+ * confirmation; quitar removes only the family link (S2, S3 of
+ * odd/tasks/representante-buscador.md; the database requires level 3). The
+ * Living Room keeps the read-only list, shown only when it has someone.
  */
 import { useState, type ReactElement } from 'react'
-import { ArrowRightLeft, MessageCircle, Phone, Star, UserMinus } from 'lucide-react'
+import { ArrowRightLeft, MessageCircle, Phone, Star, UserMinus, UserPlus } from 'lucide-react'
 
 import { BotonSistema, SelectSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
 import { AvisoFormulario } from '@/components/forms/aviso-formulario'
 import { AvatarServidor, telefonoVisible } from '@/components/dream-team/servidores/lista-servidores'
 import { formatearFecha } from '@/components/dream-team/detalle-persona'
-import { confirmarMiembro, moverIntegrante, quitarIntegrante } from '@/lib/actions/estudiantes-grupos.actions'
+import { confirmarMiembro, moverIntegrante, quitarIntegrante, quitarRepresentante } from '@/lib/actions/estudiantes-grupos.actions'
 import { destinosMover } from '@/lib/platform/estudiantes/gestion-grupo'
-import type { GrupoGestion, Integrante } from '@/lib/platform/estudiantes/grupos-datos'
+import type { GrupoGestion, Integrante, Representante } from '@/lib/platform/estudiantes/grupos-datos'
 import { lideresTexto } from '@/lib/platform/estudiantes/grupos-vista'
 import { enlaceWhatsapp } from '@/lib/utils/telefono'
 
 import { TituloSeccion } from '../filas-inset'
 import { AnioEscolar } from '../lista/anio-escolar'
+import { AgregarRepresentante } from '../representante/agregar-representante'
 import type { AccionGrupo } from './use-accion-grupo'
 import { DatoClave, subtituloIntegrante } from './vista-grupo'
 
@@ -96,11 +102,15 @@ export interface VistaIntegranteProps {
 export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }: VistaIntegranteProps): ReactElement {
   const [destino, setDestino] = useState('')
   const [confirmarQuitar, setConfirmarQuitar] = useState(false)
+  const [agregandoRep, setAgregandoRep] = useState(false)
+  const [quitandoRep, setQuitandoRep] = useState<string | null>(null)
   const { pendiente, ejecutar } = accion
   const destinos = destinosMover(grupos, grupo)
   const telefono = telefonoVisible(integrante.telefono)
   const nombreCorto = integrante.nombre.split(' ')[0] ?? integrante.nombre
   const visitante = integrante.estado === 'visitante'
+  const tlr = grupo.experiencia === 'the_living_room'
+  const representantes = integrante.representantes
 
   async function mover(): Promise<void> {
     const elegido = grupos.find((g) => g.id === destino)
@@ -120,6 +130,15 @@ export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }:
       `${integrante.nombre} ya no está en ${grupo.nombre}`,
     )
     if (ok) onVolver()
+  }
+
+  async function quitarRep(representante: Representante): Promise<void> {
+    const ok = await ejecutar(
+      `quitar-rep:${representante.personaId}`,
+      () => quitarRepresentante({ grupoId: grupo.id, personaId: integrante.personaId, representanteId: representante.personaId }),
+      `${representante.nombre} ya no es representante de ${integrante.nombre}`,
+    )
+    if (ok) setQuitandoRep(null)
   }
 
   return (
@@ -168,25 +187,77 @@ export function VistaIntegrante({ grupo, integrante, grupos, accion, onVolver }:
 
       {grupo.experiencia !== 'the_living_room' && <AnioEscolar personaId={integrante.personaId} nombre={integrante.nombre} />}
 
-      {integrante.representantes.length > 0 && (
+      {(!tlr || representantes.length > 0) && (
         <section aria-labelledby="integrante-representante" className="space-y-2">
-          <TituloSeccion id="integrante-representante" texto={integrante.representantes.length === 1 ? 'Representante' : 'Representantes'} />
-          {integrante.representantes.map((representante) => {
+          <TituloSeccion id="integrante-representante" texto={representantes.length > 1 ? 'Representantes' : 'Representante'} />
+          {representantes.length === 0 && <p className="text-sm text-muted-foreground">Sin representante</p>}
+          {representantes.map((representante) => {
             const telefonoRep = telefonoVisible(representante.telefono)
             return (
               <TarjetaSistema key={representante.personaId} className="space-y-3 p-4">
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-foreground">{representante.nombre}</p>
-                  <p className="truncate text-[13px] text-muted-foreground">
-                    {TIPO_REPRESENTANTE[representante.tipo] ?? 'Familiar'}
-                    {' · '}
-                    <span className={telefonoRep ? 'font-mono tabular-nums' : undefined}>{telefonoRep ?? 'Sin teléfono'}</span>
-                  </p>
+                <div className="flex min-w-0 items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-foreground">{representante.nombre}</p>
+                    <p className="truncate text-[13px] text-muted-foreground">
+                      {TIPO_REPRESENTANTE[representante.tipo] ?? 'Familiar'}
+                      {' · '}
+                      <span className={telefonoRep ? 'font-mono tabular-nums' : undefined}>{telefonoRep ?? 'Sin teléfono'}</span>
+                    </p>
+                  </div>
+                  {!tlr && quitandoRep !== representante.personaId && (
+                    <BotonSistema
+                      type="button"
+                      variante="ghost"
+                      tamaño="sm"
+                      icono={UserMinus}
+                      aria-label={`Quitar a ${representante.nombre} como representante`}
+                      disabled={pendiente !== null}
+                      onClick={() => setQuitandoRep(representante.personaId)}
+                    >
+                      Quitar
+                    </BotonSistema>
+                  )}
                 </div>
-                <Contacto telefono={representante.telefono} nombre={representante.nombre} />
+                {quitandoRep === representante.personaId ? (
+                  <AvisoFormulario tono="error" className="space-y-2">
+                    <p className="font-semibold">{`¿Quitar a ${representante.nombre} como representante?`}</p>
+                    <p className="font-normal text-foreground">{`${representante.nombre} sigue en el sistema; solo se quita su vínculo con ${nombreCorto}.`}</p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <BotonSistema type="button" variante="outline" tamaño="sm" onClick={() => setQuitandoRep(null)} disabled={pendiente !== null}>
+                        Cancelar
+                      </BotonSistema>
+                      <BotonSistema
+                        type="button"
+                        variante="peligro"
+                        tamaño="sm"
+                        cargando={pendiente === `quitar-rep:${representante.personaId}`}
+                        disabled={pendiente !== null}
+                        onClick={() => quitarRep(representante)}
+                      >
+                        Quitar
+                      </BotonSistema>
+                    </div>
+                  </AvisoFormulario>
+                ) : (
+                  <Contacto telefono={representante.telefono} nombre={representante.nombre} />
+                )}
               </TarjetaSistema>
             )
           })}
+          {!tlr &&
+            (agregandoRep ? (
+              <AgregarRepresentante
+                grupoId={grupo.id}
+                personaId={integrante.personaId}
+                estudiante={integrante.nombre}
+                accion={accion}
+                onCerrar={() => setAgregandoRep(false)}
+              />
+            ) : (
+              <BotonSistema type="button" variante="outline" icono={UserPlus} onClick={() => setAgregandoRep(true)}>
+                Agregar representante
+              </BotonSistema>
+            ))}
         </section>
       )}
 

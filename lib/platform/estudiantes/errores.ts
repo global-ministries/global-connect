@@ -1,6 +1,6 @@
 /**
  * Estudiantes — Spanish (tuteo) messages for the errors of the group
- * management, leader list, visitor and live view RPCs. Each function raises its code as the exception message
+ * management, leader list, visitor, representante and live view RPCs. Each function raises its code as the exception message
  * (`raise exception 'nombre_duplicado' using errcode = '23505'`), so the
  * message is the key; the SQLSTATE is the fallback for anything else.
  */
@@ -34,6 +34,9 @@ export const MENSAJES_ERROR_GRUPOS = {
   tipo_representante_invalido: 'Elige el parentesco del representante.',
   cedula_existente: 'Ya hay alguien con esa cédula. Búscalo en el paso anterior y agrégalo desde ahí.',
   posibles_duplicados: 'Encontramos personas parecidas. Revisa si es alguna de ellas.',
+  // Representante of an existing member (odd/tasks/representante-buscador.md, S2).
+  representante_invalido: 'Una persona no puede ser su propio representante.',
+  relacion_existente: 'Esa persona ya tiene otra relación familiar con el estudiante.',
   // Live view (C4b).
   ambito_invalido: 'Ese ámbito ya no tiene vista en vivo. Recarga la página.',
 } as const

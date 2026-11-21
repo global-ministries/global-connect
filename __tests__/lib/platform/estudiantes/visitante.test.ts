@@ -6,11 +6,19 @@
  */
 import {
   argumentosCoincidencias,
+  buscarRepresentante,
+  datosRepresentante,
   datosVisitante,
+  elegirRepresentante,
   formularioInicial,
+  modoRepresentante,
   opcionEncontrada,
+  registrarRepresentante,
+  textoCoincidencia,
+  validarRepresentante,
   validarVisitante,
   type FormularioVisitante,
+  type RepresentanteFormulario,
 } from '@/lib/platform/estudiantes/visitante'
 
 const HOY = '2026-10-25'
@@ -119,6 +127,100 @@ describe('datosVisitante', () => {
       telefono: '0414 555 0174',
       fecha_nacimiento: '2005-04-09',
     })
+  })
+})
+
+describe('the representante picked from the search (S1)', () => {
+  const vacio = formularioInicial({ consulta: '', experiencia: 'estudiantes', subarea: 'Grupos de Chicas', anio: 2 }).representante
+  const elegido: RepresentanteFormulario = elegirRepresentante({ ...vacio, tipo: 'tutor' }, { personaId: 'r-7', nombre: 'Patricia Ferrer' })
+
+  it('picking keeps the parentesco and links the person; «Cambiar» and «No está, registrarlo» clear the pick', () => {
+    expect(modoRepresentante(vacio)).toBe('buscar')
+    expect(elegido).toMatchObject({ personaId: 'r-7', personaNombre: 'Patricia Ferrer', tipo: 'tutor', nombre: '', telefono: '', genero: '' })
+    expect(modoRepresentante(elegido)).toBe('elegido')
+    const otra = buscarRepresentante(elegido)
+    expect(modoRepresentante(otra)).toBe('buscar')
+    expect(otra).toEqual({ ...vacio, tipo: 'tutor' })
+    const nuevo = registrarRepresentante(elegido)
+    expect(modoRepresentante(nuevo)).toBe('nuevo')
+    expect(nuevo.personaId).toBeUndefined()
+    expect(nuevo.tipo).toBe('tutor')
+  })
+
+  it('going back to the search drops what was typed', () => {
+    const escrito = { ...registrarRepresentante(vacio), nombre: 'José', telefono: '0412 555 0118', genero: 'Masculino' as const }
+    expect(buscarRepresentante(escrito)).toEqual(vacio)
+  })
+
+  it('sends exactly { persona_id, tipo } for a picked person', () => {
+    expect(datosVisitante(completo({ representante: elegido }), 'estudiantes', false)).toEqual({
+      nombre: 'Luciana',
+      apellido: 'Ferrer',
+      genero: 'Femenino',
+      telefono: '0414 555 0174',
+      anio: 2,
+      representante: { persona_id: 'r-7', tipo: 'tutor' },
+    })
+  })
+
+  it('does not ask for nombre, teléfono or sexo of a picked person', () => {
+    expect(validarVisitante(completo({ representante: elegido }), 'estudiantes', HOY)).toEqual({})
+  })
+
+  it('the typed path («No está, registrarlo») keeps today’s errors and payload', () => {
+    const nuevo = registrarRepresentante(vacio)
+    expect(validarVisitante(completo({ representante: { ...nuevo, nombre: 'Patricia' } }), 'estudiantes', HOY)).toEqual({
+      repTelefono: 'Escribe el teléfono del representante.',
+      repGenero: 'Elige el sexo del representante.',
+    })
+    const lleno = { ...nuevo, nombre: ' Patricia ', apellido: 'Ferrer', telefono: '0414 555 0161', cedula: 'V-12345678', genero: 'Femenino' as const, tipo: 'tutor' as const }
+    expect(datosVisitante(completo({ representante: lleno }), 'estudiantes', false).representante).toEqual({
+      nombre: 'Patricia',
+      apellido: 'Ferrer',
+      telefono: '0414 555 0161',
+      cedula: 'V-12345678',
+      genero: 'Femenino',
+      tipo: 'tutor',
+    })
+    // «No está, registrarlo» with nothing typed sends no representante.
+    expect(datosVisitante(completo({ representante: nuevo }), 'estudiantes', false)).not.toHaveProperty('representante')
+    expect(validarVisitante(completo({ representante: nuevo }), 'estudiantes', HOY)).toEqual({})
+  })
+
+  it('The Living Room never sends a picked representante', () => {
+    expect(datosVisitante(completo({ representante: elegido }), 'the_living_room', false)).not.toHaveProperty('representante')
+  })
+
+  it('says what matched: the database’s list when given, else what the search compared', () => {
+    expect(textoCoincidencia('12345678', ['cedula'])).toBe('Coincide por cédula')
+    expect(textoCoincidencia('04145550161', ['cedula', 'telefono'])).toBe('Coincide por cédula y teléfono')
+    expect(textoCoincidencia('patricia ferrer')).toBe('Coincide por nombre')
+    expect(textoCoincidencia('0414 555 0161')).toBe('Coincide por cédula o teléfono')
+  })
+})
+
+describe('the representante of an existing member (S2)', () => {
+  const vacio = formularioInicial({ consulta: '', experiencia: 'estudiantes', subarea: 'Grupos de Chicas', anio: 2 }).representante
+
+  it('a typed representante is required there: nombre, teléfono and sexo even when nothing was typed', () => {
+    expect(validarRepresentante(registrarRepresentante(vacio), true)).toEqual({
+      repNombre: 'Escribe el nombre del representante.',
+      repTelefono: 'Escribe el teléfono del representante.',
+      repGenero: 'Elige el sexo del representante.',
+    })
+    // In the visitor form it stays optional until something is typed.
+    expect(validarRepresentante(registrarRepresentante(vacio))).toEqual({})
+    expect(validarRepresentante(elegirRepresentante(vacio, { personaId: 'r-7', nombre: 'Patricia Ferrer' }), true)).toEqual({})
+  })
+
+  it('the payload is the visitor form’s: { persona_id, tipo } or the typed fields; nothing when empty', () => {
+    expect(datosRepresentante(elegirRepresentante({ ...vacio, tipo: 'abuelo' }, { personaId: 'r-7', nombre: 'Patricia Ferrer' }))).toEqual({
+      persona_id: 'r-7',
+      tipo: 'abuelo',
+    })
+    const escrito = { ...registrarRepresentante(vacio), nombre: ' José ', telefono: '0412 555 0118', genero: 'Masculino' as const }
+    expect(datosRepresentante(escrito)).toEqual({ nombre: 'José', telefono: '0412 555 0118', genero: 'Masculino', tipo: 'padre' })
+    expect(datosRepresentante(registrarRepresentante(vacio))).toBeNull()
   })
 })
 
