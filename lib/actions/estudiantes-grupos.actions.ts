@@ -3,8 +3,9 @@
 /**
  * Estudiantes — server actions of /estudiantes/grupos (C2 of
  * odd/tasks/estudiantes-fase-b.md): create, edit, deactivate a group, set its
- * leaders, confirm, add, move and remove members, and the lookups of the
- * drawer (people search, "Sin grupo", available leaders, past leaders).
+ * leaders, confirm, add, move and remove members, add and remove a member's
+ * representante (S2, S3 of odd/tasks/representante-buscador.md), and the
+ * lookups of the drawer (people search, "Sin grupo", available leaders, past leaders).
  *
  * Gate: an authenticated session only. Who may act is decided in the
  * database: every estudiantes_* function resolves the caller and checks the
@@ -18,9 +19,9 @@
 import { revalidatePath } from 'next/cache'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import type { Database } from '@/lib/supabase/database.types'
+import type { Database, Json } from '@/lib/supabase/database.types'
 import { argumentosBusqueda } from '@/lib/platform/estudiantes/gestion-grupo'
-import { MENSAJES_ERROR_GRUPOS, mensajeErrorGrupos } from '@/lib/platform/estudiantes/errores'
+import { MENSAJES_ERROR_GRUPOS, codigoErrorGrupos, mensajeErrorGrupos, type CodigoErrorGrupos } from '@/lib/platform/estudiantes/errores'
 import type { PersonaRol } from '@/lib/platform/estudiantes/grupos-datos'
 import { leerHistorialLideres, type PeriodoLider } from '@/lib/platform/estudiantes/lideres-historial'
 
@@ -63,6 +64,12 @@ function horaOpcional(valor: unknown): string | null {
   const hora = textoOpcional(valor)
   if (hora !== null && !HORA_RE.test(hora)) throw new EntradaInvalida()
   return hora
+}
+
+/** A JSON object (not null, not an array): the database validates its keys. */
+function objeto(valor: unknown): Record<string, Json> {
+  if (typeof valor !== 'object' || valor === null || Array.isArray(valor)) throw new EntradaInvalida()
+  return valor as Record<string, Json>
 }
 
 function nombre(valor: unknown): string {
@@ -243,6 +250,55 @@ export async function quitarIntegrante(input: PersonaEnGrupo): Promise<Resultado
   )
 }
 
+export interface AgregarRepresentanteInput extends PersonaEnGrupo {
+  /**
+   * `p_representante` of estudiantes_representante_agregar, the visitor form's
+   * shape (`datosRepresentante`): `{ persona_id, tipo }` for a picked person,
+   * or `{ nombre, apellido?, telefono, cedula?, genero, tipo }`.
+   */
+  readonly representante: Readonly<Record<string, Json>>
+}
+
+/**
+ * Links a representante to a member of a Transit / Inside Out group; it
+ * becomes the principal one, and an existing link of the pair only changes
+ * its parentesco. Whoever manages the group only (level 3, in SQL).
+ */
+/** The shared messages of these codes speak of other forms (the zona, the visitor search step). */
+const MENSAJES_REPRESENTANTE: Partial<Record<CodigoErrorGrupos, string>> = {
+  texto_muy_largo: 'Nombre, apellido, teléfono y cédula del representante admiten hasta 80 caracteres.',
+  cedula_existente: 'Ya hay alguien con esa cédula. Búscalo por su cédula y elígelo.',
+}
+
+export async function agregarRepresentante(input: AgregarRepresentanteInput): Promise<ResultadoGrupos> {
+  return ejecutar(
+    () => ({ ...personaEnGrupo(input)(), representante: objeto(input.representante) }),
+    async (cliente, e) => {
+      const respuesta = await cliente.rpc('estudiantes_representante_agregar', {
+        p_grupo_id: e.grupo,
+        p_persona_id: e.persona,
+        p_representante: e.representante,
+      })
+      const codigo = respuesta.error ? codigoErrorGrupos(respuesta.error) : null
+      const propio = codigo ? MENSAJES_REPRESENTANTE[codigo] : undefined
+      if (propio) return { ok: false, message: propio }
+      return escribir(Promise.resolve(respuesta), 'No se pudo guardar el representante.')
+    },
+  )
+}
+
+/** Removes only the family link between the member and that representante; the person stays. */
+export async function quitarRepresentante(input: PersonaEnGrupo & { readonly representanteId: string }): Promise<ResultadoGrupos> {
+  return ejecutar(
+    () => ({ ...personaEnGrupo(input)(), representante: uuid(input.representanteId) }),
+    (cliente, e) =>
+      escribir(
+        cliente.rpc('estudiantes_representante_quitar', { p_grupo_id: e.grupo, p_persona_id: e.persona, p_representante_id: e.representante }),
+        'No se pudo quitar el representante.',
+      ),
+  )
+}
+
 export interface PersonaEncontrada {
   readonly personaId: string
   readonly nombre: string
@@ -250,6 +306,8 @@ export interface PersonaEncontrada {
   readonly grupoId: string | null
   readonly grupo: string | null
   readonly enEsteGrupo: boolean
+  /** What matched ("cedula", "telefono", "nombre"); `buscarPersonas` always sends it, `[]` when the database gives none. */
+  readonly coincide?: readonly string[]
 }
 
 const nombreDe = (fila: { readonly nombre: string | null; readonly apellido: string | null }): string =>
@@ -271,6 +329,7 @@ export async function buscarPersonas(input: { readonly grupoId: string; readonly
           grupoId: fila.grupo_id ?? null,
           grupo: fila.grupo ?? null,
           enEsteGrupo: fila.en_este_grupo === true,
+          coincide: fila.coincide ?? [],
         })),
       }
     },

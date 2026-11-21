@@ -10,7 +10,9 @@
  * searched first (S1 of odd/tasks/representante-buscador.md): a person picked
  * from the search is sent as `{ persona_id, tipo }`; «No está, registrarlo»
  * opens the typed fields and, when any of them is filled, nombre, teléfono
- * and sexo are required (the database creates that person too). The Living
+ * and sexo are required (the database creates that person too). The same
+ * validation and payload serve «Agregar representante» on an existing member
+ * (S2), where the typed fields are always required. The Living
  * Room: no año and no representante; an optional birth date instead of the
  * age (the person keeps a date, not an age).
  */
@@ -62,8 +64,10 @@ export interface FormularioVisitante {
   readonly representante: RepresentanteFormulario
 }
 
-export type CampoVisitante = 'nombre' | 'apellido' | 'genero' | 'telefono' | 'fechaNacimiento' | 'repNombre' | 'repTelefono' | 'repGenero'
+export type CampoRepresentante = 'repNombre' | 'repTelefono' | 'repGenero'
+export type CampoVisitante = 'nombre' | 'apellido' | 'genero' | 'telefono' | 'fechaNacimiento' | CampoRepresentante
 export type ErroresVisitante = Partial<Record<CampoVisitante, string>>
+export type ErroresRepresentante = Partial<Record<CampoRepresentante, string>>
 
 /** A cédula ("V-31.455.102") or a phone: digits with an optional V / E / J and separators. */
 const PARECE_NUMERO = /^[vej]?[\s.-]*\d[\d\s.-]*$/i
@@ -143,8 +147,8 @@ const ETIQUETA_COINCIDENCIA: Readonly<Record<string, string>> = { cedula: 'cédu
 
 /**
  * "Coincide por cédula": what matched, from the database's `coincide` when
- * given (estudiantes_buscar_personas returns it; buscarPersonas does not map
- * it yet), else what the search compared (a number is looked up as
+ * given (estudiantes_buscar_personas returns it and buscarPersonas passes it
+ * through as `coincide`), else what the search compared (a number is looked up as
  * cédula and teléfono, anything else as the full name; see argumentosBusqueda).
  */
 export function textoCoincidencia(consulta: string, coincide?: readonly string[]): string {
@@ -162,12 +166,22 @@ export function validarVisitante(form: FormularioVisitante, experiencia: Experie
   if (form.genero === '') errores.genero = 'Elige el sexo.'
   if (!lleno(form.telefono)) errores.telefono = 'Escribe el teléfono.'
   if (form.fechaNacimiento && form.fechaNacimiento > hoy) errores.fechaNacimiento = 'La fecha de nacimiento no puede ser futura.'
-  if (experiencia !== 'the_living_room' && !form.representante.personaId && tieneRepresentante(form.representante)) {
-    const r = form.representante
-    if (!lleno(r.nombre)) errores.repNombre = 'Escribe el nombre del representante.'
-    if (!lleno(r.telefono)) errores.repTelefono = 'Escribe el teléfono del representante.'
-    if (r.genero === '') errores.repGenero = 'Elige el sexo del representante.'
-  }
+  if (experiencia !== 'the_living_room') Object.assign(errores, validarRepresentante(form.representante))
+  return errores
+}
+
+/**
+ * The typed representante's messages: nombre, teléfono and sexo. A picked
+ * person needs none. In the visitor form the representante is optional, so
+ * nothing is asked until a field is filled; `obligatorio` (the member view's
+ * «Agregar representante», S2) asks for them even when nothing was typed.
+ */
+export function validarRepresentante(r: RepresentanteFormulario, obligatorio = false): ErroresRepresentante {
+  const errores: ErroresRepresentante = {}
+  if (r.personaId || (!obligatorio && !tieneRepresentante(r))) return errores
+  if (!lleno(r.nombre)) errores.repNombre = 'Escribe el nombre del representante.'
+  if (!lleno(r.telefono)) errores.repTelefono = 'Escribe el teléfono del representante.'
+  if (r.genero === '') errores.repGenero = 'Elige el sexo del representante.'
   return errores
 }
 
@@ -191,20 +205,35 @@ export function datosVisitante(form: FormularioVisitante, experiencia: Experienc
     if (Number.isInteger(anio)) datos.anio = anio
   }
   if (ignorarCoincidencias) datos.ignorar_coincidencias = true
-  if (experiencia !== 'the_living_room' && form.representante.personaId) {
-    datos.representante = { persona_id: form.representante.personaId, tipo: form.representante.tipo }
-  } else if (experiencia !== 'the_living_room' && tieneRepresentante(form.representante)) {
-    const r = form.representante
-    const representante: Record<string, Json> = {}
-    conTexto(representante, 'nombre', r.nombre)
-    conTexto(representante, 'apellido', r.apellido)
-    conTexto(representante, 'telefono', r.telefono)
-    conTexto(representante, 'cedula', r.cedula)
-    if (r.genero) representante.genero = r.genero
-    representante.tipo = r.tipo
-    datos.representante = representante
-  }
+  const representante = experiencia === 'the_living_room' ? null : datosRepresentante(form.representante)
+  if (representante) datos.representante = representante
   return datos
+}
+
+/**
+ * The representante as the database takes it (`representante` of
+ * estudiantes_visitante_crear, `p_representante` of
+ * estudiantes_representante_agregar): `{ persona_id, tipo }` for a picked
+ * person, else the typed fields without empty keys and the tipo; `null` when
+ * nothing was picked or typed.
+ */
+export function datosRepresentante(r: RepresentanteFormulario): Record<string, Json> | null {
+  if (r.personaId) return { persona_id: r.personaId, tipo: r.tipo }
+  if (!tieneRepresentante(r)) return null
+  const representante: Record<string, Json> = {}
+  conTexto(representante, 'nombre', r.nombre)
+  conTexto(representante, 'apellido', r.apellido)
+  conTexto(representante, 'telefono', r.telefono)
+  conTexto(representante, 'cedula', r.cedula)
+  if (r.genero) representante.genero = r.genero
+  representante.tipo = r.tipo
+  return representante
+}
+
+/** «Patricia Ferrer»: the picked person's name or the typed nombre and apellido. */
+export function nombreRepresentante(r: RepresentanteFormulario): string {
+  if (r.personaId) return r.personaNombre ?? ''
+  return `${r.nombre.trim()} ${r.apellido.trim()}`.trim()
 }
 
 export interface ArgumentosCoincidencias {

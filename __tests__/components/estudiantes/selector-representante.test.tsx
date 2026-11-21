@@ -84,6 +84,13 @@ describe('buscar', () => {
     expect(onElegir).toHaveBeenCalledWith({ personaId: 'r-8', nombre: 'José Rangel' })
   })
 
+  it('says exactly what matched when the database tells (coincide)', async () => {
+    mockGrupos.buscarPersonas.mockResolvedValue({ ok: true, data: [{ ...PATRICIA, coincide: ['telefono'] }] })
+    render(<Anfitrion />)
+    await user.type(buscador(), '0414 555 0161')
+    expect(await screen.findByText('Coincide por teléfono · Zona Este · Chicas')).toBeInTheDocument()
+  })
+
   it('shows «Nadie coincide» and the search error', async () => {
     mockGrupos.buscarPersonas.mockResolvedValueOnce({ ok: true, data: [] }).mockResolvedValueOnce({ ok: false, message: 'No se pudo buscar.' })
     render(<Anfitrion />)

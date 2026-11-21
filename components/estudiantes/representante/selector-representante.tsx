@@ -126,7 +126,7 @@ export function SelectorRepresentante({ id, grupoId, elegido, nuevo, onElegir, o
                 key={persona.personaId}
                 avatar={<AvatarServidor nombre={persona.nombre} />}
                 titulo={persona.nombre}
-                subtitulo={[textoCoincidencia(texto), persona.grupo].filter(Boolean).join(' · ')}
+                subtitulo={[textoCoincidencia(texto, persona.coincide), persona.grupo].filter(Boolean).join(' · ')}
                 accion={
                   <BotonSistema
                     type="button"

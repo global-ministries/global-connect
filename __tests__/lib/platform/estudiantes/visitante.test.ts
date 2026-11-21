@@ -7,6 +7,7 @@
 import {
   argumentosCoincidencias,
   buscarRepresentante,
+  datosRepresentante,
   datosVisitante,
   elegirRepresentante,
   formularioInicial,
@@ -14,6 +15,7 @@ import {
   opcionEncontrada,
   registrarRepresentante,
   textoCoincidencia,
+  validarRepresentante,
   validarVisitante,
   type FormularioVisitante,
   type RepresentanteFormulario,
@@ -194,6 +196,31 @@ describe('the representante picked from the search (S1)', () => {
     expect(textoCoincidencia('04145550161', ['cedula', 'telefono'])).toBe('Coincide por cédula y teléfono')
     expect(textoCoincidencia('patricia ferrer')).toBe('Coincide por nombre')
     expect(textoCoincidencia('0414 555 0161')).toBe('Coincide por cédula o teléfono')
+  })
+})
+
+describe('the representante of an existing member (S2)', () => {
+  const vacio = formularioInicial({ consulta: '', experiencia: 'estudiantes', subarea: 'Grupos de Chicas', anio: 2 }).representante
+
+  it('a typed representante is required there: nombre, teléfono and sexo even when nothing was typed', () => {
+    expect(validarRepresentante(registrarRepresentante(vacio), true)).toEqual({
+      repNombre: 'Escribe el nombre del representante.',
+      repTelefono: 'Escribe el teléfono del representante.',
+      repGenero: 'Elige el sexo del representante.',
+    })
+    // In the visitor form it stays optional until something is typed.
+    expect(validarRepresentante(registrarRepresentante(vacio))).toEqual({})
+    expect(validarRepresentante(elegirRepresentante(vacio, { personaId: 'r-7', nombre: 'Patricia Ferrer' }), true)).toEqual({})
+  })
+
+  it('the payload is the visitor form’s: { persona_id, tipo } or the typed fields; nothing when empty', () => {
+    expect(datosRepresentante(elegirRepresentante({ ...vacio, tipo: 'abuelo' }, { personaId: 'r-7', nombre: 'Patricia Ferrer' }))).toEqual({
+      persona_id: 'r-7',
+      tipo: 'abuelo',
+    })
+    const escrito = { ...registrarRepresentante(vacio), nombre: ' José ', telefono: '0412 555 0118', genero: 'Masculino' as const }
+    expect(datosRepresentante(escrito)).toEqual({ nombre: 'José', telefono: '0412 555 0118', genero: 'Masculino', tipo: 'padre' })
+    expect(datosRepresentante(registrarRepresentante(vacio))).toBeNull()
   })
 })
 

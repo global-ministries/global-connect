@@ -13,11 +13,13 @@ jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }))
 
 import {
   agregarIntegrante,
+  agregarRepresentante,
   buscarPersonas,
   crearGrupo,
   editarGrupo,
   historialLideres,
   moverIntegrante,
+  quitarRepresentante,
 } from '@/lib/actions/estudiantes-grupos.actions'
 
 const SUBAREA = '11111111-1111-4111-8111-111111111111'
@@ -25,6 +27,7 @@ const CAMPUS = '22222222-2222-4222-8222-222222222222'
 const GRUPO = '33333333-3333-4333-8333-333333333333'
 const PERSONA = '44444444-4444-4444-8444-444444444444'
 const SERVICIO = '55555555-5555-4555-8555-555555555555'
+const REPRESENTANTE = '66666666-6666-4666-8666-666666666666'
 
 beforeEach(() => {
   rpc.mockReset()
@@ -140,9 +143,92 @@ describe('buscarPersonas', () => {
     })
     expect(await buscarPersonas({ grupoId: GRUPO, consulta: 'Lucía Fernández' })).toEqual({
       ok: true,
-      data: [{ personaId: PERSONA, nombre: 'Lucía Fernández', grupoId: null, grupo: null, enEsteGrupo: false }],
+      data: [{ personaId: PERSONA, nombre: 'Lucía Fernández', grupoId: null, grupo: null, enEsteGrupo: false, coincide: ['nombre'] }],
     })
     expect(rpc).toHaveBeenCalledWith('estudiantes_buscar_personas', { p_grupo_id: GRUPO, p_nombre: 'Lucía Fernández' })
+  })
+
+  it('passes what matched through, an empty list when the database sends none', async () => {
+    rpc.mockResolvedValueOnce({
+      data: [
+        { persona_id: PERSONA, nombre: 'Lucía', apellido: 'Fernández', coincide: ['cedula', 'telefono'], grupo_id: null, grupo: null, en_este_grupo: false },
+        { persona_id: REPRESENTANTE, nombre: 'Ana', apellido: null, coincide: null, grupo_id: null, grupo: null, en_este_grupo: false },
+      ],
+      error: null,
+    })
+    const resultado = await buscarPersonas({ grupoId: GRUPO, consulta: '04145550101' })
+    expect(resultado.ok && resultado.data.map((p) => p.coincide)).toEqual([['cedula', 'telefono'], []])
+  })
+})
+
+describe('representantes (S2, S3)', () => {
+  it('adds a picked person with the exact arguments and refreshes', async () => {
+    rpc.mockResolvedValueOnce({ data: { representante_id: REPRESENTANTE, creado: false }, error: null })
+    expect(
+      await agregarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representante: { persona_id: REPRESENTANTE, tipo: 'tutor' } }),
+    ).toEqual({ ok: true, data: null })
+    expect(rpc).toHaveBeenCalledWith('estudiantes_representante_agregar', {
+      p_grupo_id: GRUPO,
+      p_persona_id: PERSONA,
+      p_representante: { persona_id: REPRESENTANTE, tipo: 'tutor' },
+    })
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock }
+    expect(revalidatePath).toHaveBeenCalledWith('/estudiantes/grupos')
+  })
+
+  it('sends a typed representante as it comes and turns its errors into Spanish', async () => {
+    const tecleado = { nombre: 'José', apellido: 'Bermúdez', telefono: '0412 555 0118', cedula: 'V-12345678', genero: 'Masculino', tipo: 'padre' }
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '23505', message: 'relacion_existente' } })
+    expect(await agregarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representante: tecleado })).toEqual({
+      ok: false,
+      message: 'Esa persona ya tiene otra relación familiar con el estudiante.',
+    })
+    expect(rpc).toHaveBeenCalledWith('estudiantes_representante_agregar', { p_grupo_id: GRUPO, p_persona_id: PERSONA, p_representante: tecleado })
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'representante_invalido' } })
+    expect(await agregarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representante: tecleado })).toEqual({
+      ok: false,
+      message: 'Una persona no puede ser su propio representante.',
+    })
+  })
+
+  it('explains a too long field and a taken cédula in the words of the representante form', async () => {
+    const tecleado = { nombre: 'José', telefono: '0412 555 0118', genero: 'Masculino', tipo: 'padre' }
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '22023', message: 'texto_muy_largo' } })
+    expect(await agregarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representante: tecleado })).toEqual({
+      ok: false,
+      message: 'Nombre, apellido, teléfono y cédula del representante admiten hasta 80 caracteres.',
+    })
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '23505', message: 'cedula_existente' } })
+    expect(await agregarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representante: tecleado })).toEqual({
+      ok: false,
+      message: 'Ya hay alguien con esa cédula. Búscalo por su cédula y elígelo.',
+    })
+  })
+
+  it('refuses a bad id or a representante that is not an object, before calling the database', async () => {
+    expect(await agregarRepresentante({ grupoId: 'x', personaId: PERSONA, representante: { persona_id: REPRESENTANTE, tipo: 'padre' } })).toEqual({
+      ok: false,
+      message: 'Revisa los datos e inténtalo de nuevo.',
+    })
+    expect(
+      await agregarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representante: ['x'] as unknown as { tipo: 'padre'; persona_id: string } }),
+    ).toEqual({ ok: false, message: 'Revisa los datos e inténtalo de nuevo.' })
+    expect(await quitarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representanteId: 'x' })).toEqual({
+      ok: false,
+      message: 'Revisa los datos e inténtalo de nuevo.',
+    })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('removes the link with the exact arguments and maps a refusal', async () => {
+    rpc.mockResolvedValueOnce({ data: true, error: null })
+    expect(await quitarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representanteId: REPRESENTANTE })).toEqual({ ok: true, data: null })
+    expect(rpc).toHaveBeenCalledWith('estudiantes_representante_quitar', { p_grupo_id: GRUPO, p_persona_id: PERSONA, p_representante_id: REPRESENTANTE })
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'sin_autoridad' } })
+    expect(await quitarRepresentante({ grupoId: GRUPO, personaId: PERSONA, representanteId: REPRESENTANTE })).toEqual({
+      ok: false,
+      message: 'No tienes permiso para gestionar este grupo.',
+    })
   })
 })
 

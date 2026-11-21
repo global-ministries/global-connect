@@ -28,6 +28,8 @@ jest.mock('@/lib/actions/estudiantes-grupos.actions', () => ({
   agregarIntegrante: jest.fn(),
   moverIntegrante: jest.fn(),
   quitarIntegrante: jest.fn(),
+  agregarRepresentante: jest.fn(),
+  quitarRepresentante: jest.fn(),
   buscarPersonas: jest.fn(),
   sinGrupo: jest.fn(),
   lideresDisponibles: jest.fn(),
@@ -473,6 +475,141 @@ describe('visitors', () => {
     expect(within(panel()).getByRole('button', { name: 'Volver a 2do año · Chicas' })).toBeInTheDocument()
     expect(within(panel()).getByText(/vino 3 domingos\. Cuando lo confirmes/)).toBeInTheDocument()
     expect(within(panel()).getByLabelText('Grupo nuevo')).toBeInTheDocument()
+    expect(within(panel()).getByRole('button', { name: 'Quitar del grupo' })).toBeInTheDocument()
+  })
+})
+
+describe('the representante of a member (S2, S3)', () => {
+  // 1er año · Chicas with Alejandra's mother linked; Bárbara has none.
+  const CON_REPRESENTANTE = grupo('g1', '1er año · Chicas', {
+    anio: 1,
+    anioEtiqueta: '1er año',
+    lideres: [persona('fer', 'Fernanda Ochoa')],
+    integrantes: [
+      integrante('i1', 'Alejandra Acosta', { representantes: [{ personaId: 'r-1', nombre: 'Marta Acosta', telefono: '0414 555 0101', tipo: 'padre' }] }),
+      integrante('i2', 'Bárbara Bermúdez'),
+    ],
+  })
+  const grupos = [CON_REPRESENTANTE, ...GRUPOS_TRANSIT.slice(1)]
+
+  async function abrirIntegrante(nombre: string) {
+    render(<GestionGruposClient {...props({ grupos })} />)
+    const dialogo = await abrirGrupo('1er año · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: `Abrir ${nombre}` }))
+    return panel()
+  }
+
+  it('keeps Mover and Quitar del grupo for a member without representante, and says she has none', async () => {
+    const vista = await abrirIntegrante('Bárbara Bermúdez')
+    expect(within(vista).getByRole('heading', { name: 'Representante' })).toBeInTheDocument()
+    expect(within(vista).getByText('Sin representante')).toBeInTheDocument()
+    expect(within(vista).getByRole('button', { name: 'Agregar representante' })).toBeInTheDocument()
+    expect(within(vista).getByLabelText('Grupo nuevo')).toBeInTheDocument()
+    expect(within(vista).getByRole('button', { name: 'Mover' })).toBeInTheDocument()
+    expect(within(vista).getByRole('button', { name: 'Quitar del grupo' })).toBeInTheDocument()
+  })
+
+  it('links a person picked from the search, with the parentesco, and closes the editor', async () => {
+    mock.agregarRepresentante.mockResolvedValue(OK)
+    mock.buscarPersonas.mockResolvedValue({
+      ok: true,
+      data: [{ personaId: 'r-7', nombre: 'Patricia Ferrer', grupoId: null, grupo: null, enEsteGrupo: false, coincide: ['cedula'] }],
+    })
+    const vista = await abrirIntegrante('Bárbara Bermúdez')
+    await user.click(within(vista).getByRole('button', { name: 'Agregar representante' }))
+    await user.type(within(vista).getByRole('searchbox', { name: 'Buscar por cédula, teléfono o nombre' }), 'V-12345678')
+    await waitFor(() => expect(mock.buscarPersonas).toHaveBeenCalledWith({ grupoId: 'g1', consulta: 'V-12345678' }))
+    // What matched comes from the database, not guessed from the text.
+    expect(await within(vista).findByText('Coincide por cédula')).toBeInTheDocument()
+    await user.click(within(vista).getByRole('button', { name: 'Elegir a Patricia Ferrer como representante' }))
+    await user.selectOptions(within(vista).getByLabelText('Parentesco'), 'tutor')
+    await user.click(within(vista).getByRole('button', { name: 'Guardar' }))
+    expect(mock.agregarRepresentante).toHaveBeenCalledWith({ grupoId: 'g1', personaId: 'i2', representante: { persona_id: 'r-7', tipo: 'tutor' } })
+    expect(exito).toHaveBeenCalledWith('Patricia Ferrer es ahora representante de Bárbara Bermúdez')
+    expect(await within(vista).findByRole('button', { name: 'Agregar representante' })).toBeInTheDocument()
+    expect(within(vista).queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+
+  it('registers a typed representante, checking nombre, teléfono and sexo first', async () => {
+    mock.agregarRepresentante.mockResolvedValue(OK)
+    const vista = await abrirIntegrante('Bárbara Bermúdez')
+    await user.click(within(vista).getByRole('button', { name: 'Agregar representante' }))
+    await user.click(within(vista).getByRole('button', { name: 'No está, registrarlo' }))
+    await user.click(within(vista).getByRole('button', { name: 'Guardar' }))
+    expect(mock.agregarRepresentante).not.toHaveBeenCalled()
+    expect(within(vista).getByText('Escribe el nombre del representante.')).toBeInTheDocument()
+    expect(within(vista).getByText('Escribe el teléfono del representante.')).toBeInTheDocument()
+    expect(within(vista).getByText('Elige el sexo del representante.')).toBeInTheDocument()
+
+    await user.type(within(vista).getByLabelText('Nombre'), 'José')
+    await user.type(within(vista).getByLabelText('Apellido (opcional)'), 'Bermúdez')
+    await user.type(within(vista).getByLabelText('Teléfono'), '0412 555 0118')
+    await user.type(within(vista).getByLabelText('Cédula (opcional)'), 'V-12345678')
+    await user.click(within(within(vista).getByRole('group', { name: 'Sexo' })).getByRole('button', { name: 'Masculino' }))
+    await user.click(within(vista).getByRole('button', { name: 'Guardar' }))
+    expect(mock.agregarRepresentante).toHaveBeenCalledWith({
+      grupoId: 'g1',
+      personaId: 'i2',
+      representante: { nombre: 'José', apellido: 'Bermúdez', telefono: '0412 555 0118', cedula: 'V-12345678', genero: 'Masculino', tipo: 'padre' },
+    })
+    expect(exito).toHaveBeenCalledWith('José Bermúdez es ahora representante de Bárbara Bermúdez')
+  })
+
+  it('«Cancelar» closes the editor without saving', async () => {
+    const vista = await abrirIntegrante('Bárbara Bermúdez')
+    await user.click(within(vista).getByRole('button', { name: 'Agregar representante' }))
+    await user.click(within(vista).getByRole('button', { name: 'Cancelar' }))
+    expect(within(vista).queryByRole('searchbox')).not.toBeInTheDocument()
+    expect(within(vista).getByRole('button', { name: 'Agregar representante' })).toBeInTheDocument()
+    expect(mock.agregarRepresentante).not.toHaveBeenCalled()
+  })
+
+  it('shows the Spanish message of a server error and keeps the editor open', async () => {
+    mock.agregarRepresentante.mockResolvedValue({ ok: false, message: 'Esa persona ya tiene otra relación familiar con el estudiante.' })
+    mock.buscarPersonas.mockResolvedValue({
+      ok: true,
+      data: [{ personaId: 'r-7', nombre: 'Patricia Ferrer', grupoId: null, grupo: null, enEsteGrupo: false, coincide: ['nombre'] }],
+    })
+    const vista = await abrirIntegrante('Bárbara Bermúdez')
+    await user.click(within(vista).getByRole('button', { name: 'Agregar representante' }))
+    await user.type(within(vista).getByRole('searchbox', { name: 'Buscar por cédula, teléfono o nombre' }), 'Patricia Ferrer')
+    await user.click(await within(vista).findByRole('button', { name: 'Elegir a Patricia Ferrer como representante' }))
+    await user.click(within(vista).getByRole('button', { name: 'Guardar' }))
+    expect(fallo).toHaveBeenCalledWith('Esa persona ya tiene otra relación familiar con el estudiante.')
+    expect(exito).not.toHaveBeenCalled()
+    expect(within(vista).getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+  })
+
+  it('removes a representante only after the inline confirmation; the person stays', async () => {
+    mock.quitarRepresentante.mockResolvedValue(OK)
+    const vista = await abrirIntegrante('Alejandra Acosta')
+    expect(within(vista).getByText('Marta Acosta')).toBeInTheDocument()
+    await user.click(within(vista).getByRole('button', { name: 'Quitar a Marta Acosta como representante' }))
+    expect(mock.quitarRepresentante).not.toHaveBeenCalled()
+    expect(within(vista).getByText('¿Quitar a Marta Acosta como representante?')).toBeInTheDocument()
+    expect(within(vista).getByText(/Marta Acosta sigue en el sistema/)).toBeInTheDocument()
+    await user.click(within(vista).getByRole('button', { name: 'Quitar' }))
+    expect(mock.quitarRepresentante).toHaveBeenCalledWith({ grupoId: 'g1', personaId: 'i1', representanteId: 'r-1' })
+    expect(exito).toHaveBeenCalledWith('Marta Acosta ya no es representante de Alejandra Acosta')
+  })
+
+  it('has no representante section in The Living Room', async () => {
+    const tlr = subarea(TLR_CHICAS, { ambitoId: TLR, ambito: 'The Living Room', experiencia: 'the_living_room' })
+    const zona = grupo('g-tlr', 'Zona Este · Chicas', {
+      subareaId: TLR_CHICAS,
+      ambitoId: TLR,
+      ambito: 'The Living Room',
+      experiencia: 'the_living_room',
+      anio: null,
+      anioEtiqueta: null,
+      zona: 'Zona Este',
+      integrantes: [integrante('t1', 'Adrián Castillo')],
+    })
+    render(<GestionGruposClient {...props({ grupos: [zona], subareas: [tlr] })} />)
+    const dialogo = await abrirGrupo('Zona Este · Chicas')
+    await user.click(within(dialogo).getByRole('button', { name: 'Abrir Adrián Castillo' }))
+    expect(within(panel()).queryByRole('button', { name: 'Agregar representante' })).not.toBeInTheDocument()
+    expect(within(panel()).queryByText('Sin representante')).not.toBeInTheDocument()
     expect(within(panel()).getByRole('button', { name: 'Quitar del grupo' })).toBeInTheDocument()
   })
 })
