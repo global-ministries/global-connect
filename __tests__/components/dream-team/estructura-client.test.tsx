@@ -22,7 +22,10 @@ import { FILTROS_ESTRUCTURA, crearOrganigrama } from '@/lib/platform/dream-team/
 import {
   ID_ATRACCION,
   ID_CONEXION,
+  ID_DHAH,
   ID_GCP,
+  ID_MDH,
+  ID_PAREJAS,
   ID_PDP,
   arbolEstructura,
   entradaEstructura,
@@ -51,6 +54,7 @@ jest.mock('@/app/(auth)/admin/dream-team/estructura/actions', () => ({
   renombrarRol: jest.fn(),
   cambiarActivoRol: jest.fn(),
   cambiarNivelRol: jest.fn(),
+  moverEquipo: jest.fn(),
 }))
 jest.mock('@/hooks/use-notificaciones', () => ({
   useNotificaciones: () => ({ success: jest.fn(), error: jest.fn(), info: jest.fn() }),
@@ -276,5 +280,41 @@ describe('page frame', () => {
     render(<EstructuraClient {...props({ arbol: [] })} />)
     expect(screen.getByText('No se encontraron equipos')).toBeInTheDocument()
     expect(screen.queryByRole('tab')).not.toBeInTheDocument()
+  })
+})
+
+// odd/tasks/dream-team-estructura-correcciones.md, T3 (S4, S5): the quick
+// actions follow the equipos the viewer directs (equiposGestionables), not
+// only org.manage; «Mover a…» needs the current parent too.
+describe('per-node management for a director (no org.manage)', () => {
+  const directorDeGcp = { equiposGestionables: [ID_GCP, ID_DHAH, ID_MDH, ID_PAREJAS, ID_PDP] }
+
+  it('gives the quick actions and «Mover a…» inside their branch, with the destinations they direct', async () => {
+    render(<EstructuraClient {...props({ ...directorDeGcp, equipoId: ID_PDP })} />)
+    const panel = screen.getByRole('dialog', { name: 'Punto de Partida' })
+    for (const accion of ['Subequipo', 'Renombrar', 'Desactivar']) {
+      expect(within(panel).getByRole('button', { name: accion })).toBeInTheDocument()
+    }
+    await userEvent.click(within(panel).getByRole('button', { name: 'Mover a…' }))
+    const lista = screen.getByRole('list', { name: 'Equipos de destino' })
+    expect(within(lista).getAllByRole('button').map((boton) => boton.textContent)).toEqual([
+      expect.stringContaining('De Hombre a Hombre'),
+      expect.stringContaining('Mujer de Hoy'),
+      expect.stringContaining('Parejas'),
+    ])
+  })
+
+  it('has no «Mover a…» on the equipo they direct (its parent is not theirs)', () => {
+    render(<EstructuraClient {...props({ ...directorDeGcp, equipoId: ID_GCP })} />)
+    const panel = screen.getByRole('dialog', { name: 'Grupos de Corto Plazo' })
+    expect(within(panel).getByRole('button', { name: 'Renombrar' })).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Mover a…' })).not.toBeInTheDocument()
+  })
+
+  it('gives nothing above their branch', () => {
+    render(<EstructuraClient {...props({ ...directorDeGcp, equipoId: ID_CONEXION })} />)
+    const panel = screen.getByRole('dialog', { name: 'Dirección de Conexión' })
+    expect(within(panel).queryByRole('button', { name: 'Renombrar' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Subequipo' })).not.toBeInTheDocument()
   })
 })

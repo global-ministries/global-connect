@@ -39,6 +39,7 @@ import {
 import { contarUso, crearVistaEstructura, type TallerVinculado } from '@/lib/platform/dream-team/estructura-vista'
 import { agruparTurnosPropios, leerFiltrosEstructura } from '@/lib/platform/dream-team/estructura-organigrama'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
+import { equiposQueGestiona } from '@/lib/platform/dream-team/estructura-gestion'
 import { fetchPartesNombresPersonas, nombresDesdePartes } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
@@ -112,6 +113,10 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   // extends to the virtual Grupos de Vida branch, which stays read-only for
   // everyone regardless of puedeEditar (see estructura-client.tsx).
   const puedeEditar = hasDreamTeamOrgManageCapability(session)
+  // Reshaping equipos (subequipo, rename, deactivate, move) also belongs to a
+  // director over their branch (odd/tasks/dream-team-estructura-correcciones.md,
+  // T3): the equipos the dream_team_equipo_* RPCs will accept from this viewer.
+  const equiposGestionables = equiposQueGestiona(session, equipos)
 
   const talleres: Record<string, TallerVinculado> = Object.fromEntries(
     Object.entries(tallerPorEquipoId(talleresData ?? [])).map(([equipoId, taller]) => [
@@ -141,6 +146,7 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
       talleres={talleres}
       equipoId={equipoId}
       puedeEditar={puedeEditar}
+      equiposGestionables={equiposGestionables}
       filtros={{ ...filtros, equipo: equipoId || null }}
       turnos={turnosEstructura}
     />
