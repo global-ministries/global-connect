@@ -14,12 +14,16 @@
 --      (estudiantes_coincidencias, the group's campus); otherwise created
 --      without account (estado_civil 'No especificado') with their
 --      usuario_campus of the group's campus. The link is the canonical row
---      usuario1 = student, usuario2 = representante, es_principal true; an
---      existing representative link of the pair (canonical with one of the six
---      types, or the inverse usuario1 = representante, usuario2 = student,
---      'hijo') is replaced by that single row with the new tipo, never
---      duplicated. The student's other canonical representative rows lose
---      es_principal, so there is one principal (S2).
+--      usuario1 = student, usuario2 = representante; an existing
+--      representative link of the pair (canonical with one of the six types,
+--      or the inverse usuario1 = representante, usuario2 = student, 'hijo') is
+--      replaced by that single row with the new tipo, never duplicated.
+--      es_principal (S2): a new pair is principal only when the student has no
+--      other principal representative link (canonical rows of the six types or
+--      inverse 'hijo' rows with es_principal true); a replaced pair keeps its
+--      principal flag (true when any replaced row was principal). The
+--      student's other relaciones_usuarios rows are never modified:
+--      es_principal is shared with Niños family links.
 --   2. estudiantes_representante_quitar(grupo, persona, representante) →
 --      boolean: deletes only the representative links of the pair (canonical
 --      rows with the six types and inverse 'hijo' rows); never a usuario. True
@@ -30,19 +34,24 @@
 --     group: director de grupo, directors, pastor of the campus, system
 --     admin). A leader (level 1) keeps setting the representante only at
 --     registration (estudiantes_visitante_crear).
+--   - Guard order (both functions): no current user, then the group exists
+--     and is active, then the level, then The Living Room, then the
+--     membership; so a caller below level 3 learns nothing about the group
+--     beyond grupo_invalido.
 --   - Both run as definer with an empty search_path; relaciones_usuarios keeps
 --     its RLS and grants (20260618203000) for every other path.
 --   - The student's usuario row is locked (FOR NO KEY UPDATE) so two
---     concurrent calls on the same student cannot leave duplicate links or two
---     principals.
+--     concurrent calls on the same student cannot leave duplicate links or
+--     decide the principal flag from a stale read.
 --   - A typed representante that resolves to the student is refused
 --     (representante_invalido) instead of creating a duplicate of them; when
 --     several people match teléfono + nombre, someone other than the student is
 --     preferred.
 --
--- Errors (both functions unless noted):
---   sin_autoridad (42501): no current user, or level < 3 on the group.
+-- Errors (both functions unless noted, in guard order):
+--   sin_autoridad (42501): no current user.
 --   grupo_invalido (22023): the group is missing or inactive.
+--   sin_autoridad (42501): level < 3 on the group.
 --   representante_no_aplica (22023): a The Living Room group.
 --   persona_invalida (22023): the student has no active membership in the group.
 --   agregar only:
@@ -78,6 +87,9 @@ declare
   v_rep_genero text;
   v_rep_tipo text;
   v_creado boolean := false;
+  v_par_existia boolean;
+  v_par_principal boolean;
+  v_principal boolean;
 begin
   if v_yo is null then
     raise exception 'sin_autoridad' using errcode = '42501';
@@ -89,11 +101,11 @@ begin
   if not found then
     raise exception 'grupo_invalido' using errcode = '22023';
   end if;
-  if v_g.experiencia = 'the_living_room' then
-    raise exception 'representante_no_aplica' using errcode = '22023';
-  end if;
   if public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
+  end if;
+  if v_g.experiencia = 'the_living_room' then
+    raise exception 'representante_no_aplica' using errcode = '22023';
   end if;
   if not exists (select 1 from public.estudiantes_grupo_miembros m
                   where m.grupo_id = p_grupo_id and m.persona_id = p_persona_id and m.activo) then
@@ -187,19 +199,33 @@ begin
     raise exception 'relacion_existente' using errcode = '23505';
   end if;
 
-  -- One canonical row for the pair, with the new tipo, principal.
+  -- The principal flag (S2): a replaced pair keeps it (true when any of its
+  -- rows was principal); a new pair is principal only when the student has no
+  -- other principal representative link. Other rows are never modified.
+  select count(*) > 0, coalesce(bool_or(r.es_principal), false)
+    into v_par_existia, v_par_principal
+    from public.relaciones_usuarios r
+   where (r.usuario1_id = p_persona_id and r.usuario2_id = v_rep_id
+          and r.tipo_relacion in ('padre', 'tutor', 'abuelo', 'tio', 'hermano', 'otro_familiar'))
+      or (r.usuario1_id = v_rep_id and r.usuario2_id = p_persona_id and r.tipo_relacion = 'hijo');
+  if v_par_existia then
+    v_principal := v_par_principal;
+  else
+    v_principal := not exists (
+      select 1 from public.relaciones_usuarios r
+       where r.es_principal
+         and ((r.usuario1_id = p_persona_id and r.usuario2_id <> v_rep_id
+               and r.tipo_relacion in ('padre', 'tutor', 'abuelo', 'tio', 'hermano', 'otro_familiar'))
+              or (r.usuario2_id = p_persona_id and r.usuario1_id <> v_rep_id and r.tipo_relacion = 'hijo')));
+  end if;
+
+  -- One canonical row for the pair, with the new tipo.
   delete from public.relaciones_usuarios r
    where (r.usuario1_id = p_persona_id and r.usuario2_id = v_rep_id
           and r.tipo_relacion in ('padre', 'tutor', 'abuelo', 'tio', 'hermano', 'otro_familiar'))
       or (r.usuario1_id = v_rep_id and r.usuario2_id = p_persona_id and r.tipo_relacion = 'hijo');
-  update public.relaciones_usuarios r
-     set es_principal = false
-   where r.usuario1_id = p_persona_id
-     and r.usuario2_id <> v_rep_id
-     and r.tipo_relacion in ('padre', 'tutor', 'abuelo', 'tio', 'hermano', 'otro_familiar')
-     and r.es_principal is distinct from false;
   insert into public.relaciones_usuarios (usuario1_id, usuario2_id, tipo_relacion, es_principal)
-  values (p_persona_id, v_rep_id, v_rep_tipo::public.enum_tipo_relacion, true);
+  values (p_persona_id, v_rep_id, v_rep_tipo::public.enum_tipo_relacion, v_principal);
 
   return jsonb_build_object('representante_id', v_rep_id, 'creado', v_creado);
 end;
@@ -210,11 +236,13 @@ comment on function public.estudiantes_representante_agregar(uuid, uuid, jsonb) 
   'p_representante: tipo (padre | tutor | abuelo | tio | hermano | otro_familiar, default padre) and persona_id, or '
   'nombre, apellido, telefono, cedula, genero (Masculino | Femenino), resolved like estudiantes_visitante_crear '
   '(cédula, then teléfono + nombre, else a new usuario of the group''s campus). Leaves one canonical row '
-  '(usuario1 = student, usuario2 = representante, the new tipo, es_principal) and makes it the only principal. '
-  'Returns {representante_id, creado}. Errors: sin_autoridad, grupo_invalido, representante_no_aplica, '
-  'persona_invalida, datos_invalidos, tipo_representante_invalido, representante_no_encontrado, '
-  'representante_incompleto, genero_requerido, texto_muy_largo, cedula_existente, representante_invalido, '
-  'relacion_existente.';
+  '(usuario1 = student, usuario2 = representante, the new tipo). es_principal: a replaced pair keeps its flag '
+  '(true when any replaced row was principal); a new pair is principal only when the student has no other '
+  'principal representative link (canonical or inverse ''hijo''). Never modifies the student''s other relations '
+  '(es_principal is shared with Niños). Returns {representante_id, creado}. Guards in order: sin_autoridad (no '
+  'user), grupo_invalido, sin_autoridad (level < 3), representante_no_aplica, persona_invalida; then '
+  'datos_invalidos, tipo_representante_invalido, representante_no_encontrado, representante_incompleto, '
+  'genero_requerido, texto_muy_largo, cedula_existente, representante_invalido, relacion_existente.';
 
 revoke all on function public.estudiantes_representante_agregar(uuid, uuid, jsonb) from public, anon;
 grant execute on function public.estudiantes_representante_agregar(uuid, uuid, jsonb) to authenticated, service_role;
@@ -244,11 +272,11 @@ begin
   if not found then
     raise exception 'grupo_invalido' using errcode = '22023';
   end if;
-  if v_g.experiencia = 'the_living_room' then
-    raise exception 'representante_no_aplica' using errcode = '22023';
-  end if;
   if public.estudiantes_nivel_grupo(p_grupo_id) < 3 then
     raise exception 'sin_autoridad' using errcode = '42501';
+  end if;
+  if v_g.experiencia = 'the_living_room' then
+    raise exception 'representante_no_aplica' using errcode = '22023';
   end if;
   if not exists (select 1 from public.estudiantes_grupo_miembros m
                   where m.grupo_id = p_grupo_id and m.persona_id = p_persona_id and m.activo) then
@@ -266,8 +294,9 @@ $$;
 comment on function public.estudiantes_representante_quitar(uuid, uuid, uuid) is
   'Removes the representative links between an active member of a Transit / Inside Out group and a representante '
   '(S2, S3, level >= 3): canonical rows (usuario1 = student) of the six representative types and inverse ''hijo'' '
-  'rows. Never deletes nor edits a usuario. True when something was deleted, false otherwise. '
-  'Errors: sin_autoridad, grupo_invalido, representante_no_aplica, persona_invalida.';
+  'rows. Never deletes nor edits a usuario, nor a relation where the student is the parent. True when something '
+  'was deleted, false otherwise. Guards in order: sin_autoridad (no user), grupo_invalido, sin_autoridad '
+  '(level < 3), representante_no_aplica, persona_invalida.';
 
 revoke all on function public.estudiantes_representante_quitar(uuid, uuid, uuid) from public, anon;
 grant execute on function public.estudiantes_representante_quitar(uuid, uuid, uuid) to authenticated, service_role;
