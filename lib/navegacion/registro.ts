@@ -4,6 +4,7 @@ import {
   Calendar,
   CalendarRange,
   ClipboardList,
+  GitMerge,
   HelpCircle,
   Home,
   House,
@@ -78,6 +79,16 @@ export const ENTRADAS_NAVEGACION: readonly EntradaNavegacion[] = [
     href: '/users',
     seccion: 'administracion',
     roles: [...ROLES_DIRECCION_ETAPA, 'lider'],
+  },
+  // Merge two records of the same person (odd/tasks/dream-team-estructura-correcciones.md,
+  // S6c, T6): admin and pastor only, the same rule as the page and its RPCs.
+  {
+    id: 'fusionar-personas',
+    label: 'Fusionar personas',
+    icon: GitMerge,
+    href: '/admin/personas/fusionar',
+    seccion: 'administracion',
+    roles: ROLES_ADMIN_PASTOR,
   },
   {
     id: 'grupos-vida',

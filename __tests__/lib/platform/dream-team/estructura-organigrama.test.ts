@@ -152,6 +152,7 @@ describe('health problems per node', () => {
       nombre: 'Jose Jimenez',
       iniciales: 'JJ',
       rol: 'Coordinador',
+      texto: 'Jose Jimenez',
       heredadoDe: { id: 'talleres', label: 'Talleres' },
     })
     expect(parejas?.problemas).not.toContain('sin_responsable')
@@ -225,7 +226,12 @@ describe('layout', () => {
   it('counts people over the whole branch and gives the responsable initials', () => {
     const o = organigrama()
     expect(o.nodo('talleres')?.personasRama).toBe(14)
-    expect(o.nodo('watv')?.responsable).toEqual({ nombre: 'María Fernanda Martínez', iniciales: 'MM', rol: 'Coordinador' })
+    expect(o.nodo('watv')?.responsable).toEqual({
+      nombre: 'María Fernanda Martínez',
+      iniciales: 'MM',
+      rol: 'Coordinador',
+      texto: 'María Martínez',
+    })
     expect(o.nodo('atraccion')?.responsable).toBeNull()
   })
 

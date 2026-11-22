@@ -13,9 +13,13 @@
  * hide one. A box opens the node panel (panel-nodo.tsx), which holds every
  * action the viewer may take. Turnos del campus is turnos-campus.tsx.
  *
- * Who edits: `puedeEditar` (dream_team.org.manage) on real equipos. A
- * director reads their branch without a single action; the virtual Grupos de
- * Vida branch is read-only for everyone. The view model is
+ * Who edits: `puedeEditar` (dream_team.org.manage) edits roles and turnos of
+ * real equipos; `equiposGestionables` (directors and up,
+ * odd/tasks/dream-team-estructura-correcciones.md T3) are the equipos whose
+ * structure the viewer reshapes — subequipo, rename, deactivate, and «Mover
+ * a…» when they also direct the parent. `anclasDps` (T7, B2) are the DPS
+ * anchors, which keep only «+ Subequipo». The virtual Grupos de Vida branch is
+ * read-only for everyone. The view model is
  * lib/platform/dream-team/estructura-organigrama.ts; the state lives in the
  * URL (use-estado-estructura.ts). Only serializable data crosses in.
  */
@@ -38,6 +42,7 @@ import {
   type PestanaEstructura,
 } from '@/lib/platform/dream-team/estructura-organigrama'
 import { crearVistaEstructura, type TallerVinculado, type UsoServicios } from '@/lib/platform/dream-team/estructura-vista'
+import { destinosMover } from '@/lib/platform/dream-team/estructura-gestion'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import type { Turno } from '@/lib/platform/dream-team/turnos'
 
@@ -56,6 +61,17 @@ export interface EstructuraClientProps {
   /** The node open in the panel (a valid `?equipo=`); empty when none is open. */
   readonly equipoId: string
   readonly puedeEditar: boolean
+  /**
+   * The equipos the viewer directs or has one above them directed (S4, S5):
+   * their quick actions, «+ Subequipo» and «Mover a…». Absent: every real
+   * equipo when `puedeEditar`, none otherwise.
+   */
+  readonly equiposGestionables?: readonly string[]
+  /**
+   * The DPS anchor equipos (dream_team_equipos_anclas_dps): no Renombrar,
+   * Desactivar nor «Mover a…» on them (T7, B2). Absent: none.
+   */
+  readonly anclasDps?: readonly string[]
   /** The rest of the URL state (leerFiltrosEstructura); defaults to none. */
   readonly filtros?: FiltrosEstructura
   /** Campus service shifts (D12); absent when they could not be loaded. */
@@ -93,6 +109,8 @@ function EstructuraConArbol({
   talleres,
   equipoId,
   puedeEditar,
+  equiposGestionables,
+  anclasDps,
   filtros = FILTROS_ESTRUCTURA,
   turnos,
 }: EstructuraClientProps): ReactElement {
@@ -113,6 +131,13 @@ function EstructuraConArbol({
   )
   const vista = useMemo(() => crearVistaEstructura({ arbol, rolesPorEquipo, uso, talleres }), [arbol, rolesPorEquipo, uso, talleres])
   const estado = useEstadoEstructura(filtros, equipoId, () => organigrama.expandidosPorDefecto())
+  const gestionables = useMemo<ReadonlySet<string>>(
+    () =>
+      new Set(equiposGestionables ?? (puedeEditar ? organigrama.nodos.filter((nodo) => nodo.editable).map((nodo) => nodo.id) : [])),
+    [equiposGestionables, puedeEditar, organigrama],
+  )
+  const anclas = useMemo<ReadonlySet<string>>(() => new Set(anclasDps ?? []), [anclasDps])
+  const gestionaAlguno = gestionables.size > 0
   const [selector, setSelector] = useState(false)
   const [subequipoDe, setSubequipoDe] = useState<{ readonly id: string; readonly label: string } | null>(null)
   const [turnoNuevo, setTurnoNuevo] = useState(false)
@@ -135,9 +160,20 @@ function EstructuraConArbol({
 
   function agregarSubequipo(): void {
     const nodo = panel ? organigrama.nodo(panel.id) : null
-    if (nodo?.editable && nodo.activo) setSubequipoDe({ id: nodo.id, label: nodo.label })
+    if (nodo?.editable && nodo.activo && gestionables.has(nodo.id)) setSubequipoDe({ id: nodo.id, label: nodo.label })
     else setSelector(true)
   }
+
+  const nodoAbierto = detalle ? organigrama.nodo(detalle.id) : null
+  const padreAbierto = nodoAbierto?.padreId ? organigrama.nodo(nodoAbierto.padreId) : null
+  const mover =
+    nodoAbierto && padreAbierto && gestionables.has(padreAbierto.id) && !anclas.has(nodoAbierto.id)
+      ? {
+          origen: padreAbierto.label,
+          subequipos: nodoAbierto.descendientes,
+          destinos: destinosMover(organigrama.nodos, nodoAbierto.id, gestionables),
+        }
+      : undefined
 
   const enTurnos = estado.tab === 'turnos'
   const puedeAgregarTurno = puedeEditar && enTurnos && (turnos?.campus.length ?? 0) > 0
@@ -211,6 +247,9 @@ function EstructuraConArbol({
           problemas={problemasDe(detalle.id)}
           problemasDe={problemasDe}
           puedeEditar={puedeEditar}
+          puedeGestionar={gestionables.has(detalle.id)}
+          esAnclaDps={anclas.has(detalle.id)}
+          mover={mover}
           turnos={turnosNodo}
           onAbrirNodo={estado.abrir}
           onActualizado={actualizar}
@@ -219,11 +258,18 @@ function EstructuraConArbol({
         />
       )}
 
-      {puedeEditar && !enTurnos && <BotonFlotante icono={Plus} label="Agregar subequipo" onClick={agregarSubequipo} />}
+      {gestionaAlguno && !enTurnos && <BotonFlotante icono={Plus} label="Agregar subequipo" onClick={agregarSubequipo} />}
       {puedeAgregarTurno && <BotonFlotante icono={Plus} label="Agregar turno" onClick={() => setTurnoNuevo(true)} />}
-      {puedeEditar && (
+      {gestionaAlguno && (
         <>
-          <SelectorPadre abierto={selector} onCambioAbierto={setSelector} nodos={organigrama.nodos} onHecho={actualizar} toast={toast} />
+          <SelectorPadre
+            abierto={selector}
+            onCambioAbierto={setSelector}
+            nodos={organigrama.nodos}
+            gestionables={gestionables}
+            onHecho={actualizar}
+            toast={toast}
+          />
           <DialogoSubequipo padre={subequipoDe} onClose={() => setSubequipoDe(null)} onHecho={actualizar} toast={toast} />
         </>
       )}

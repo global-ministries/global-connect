@@ -283,10 +283,17 @@ describe('Servidores and Estructura keep today\'s gate', () => {
     await expect(DreamTeamEstructuraPage({ searchParams: Promise.resolve({}) })).rejects.toThrow('NEXT_NOT_FOUND')
   })
 
-  it('does not ask for the roles on those pages (their session is what it was)', async () => {
+  it('does not ask for the roles on Servidores (its session is what it was)', async () => {
     mockSession = session(['director-etapa'])
     await expect(DreamTeamServidoresPage({ searchParams: Promise.resolve({}) })).rejects.toThrow('NEXT_NOT_FOUND')
-    await expect(DreamTeamEstructuraPage({ searchParams: Promise.resolve({}) })).rejects.toThrow('NEXT_NOT_FOUND')
     expect(requireDreamTeamSession).not.toHaveBeenCalledWith({ includeRoles: true })
+  })
+
+  // Estructura reads the roles only so an admin or pastor sees the equipo actions
+  // (odd/tasks/dream-team-estructura-correcciones.md, T6); its gate stays on capabilities.
+  it('asks for the roles on Estructura and still 404s a director without capability', async () => {
+    mockSession = session(['director-etapa'])
+    await expect(DreamTeamEstructuraPage({ searchParams: Promise.resolve({}) })).rejects.toThrow('NEXT_NOT_FOUND')
+    expect(requireDreamTeamSession).toHaveBeenCalledWith({ includeRoles: true })
   })
 })

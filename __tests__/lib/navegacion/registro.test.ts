@@ -31,8 +31,22 @@ describe('navigation registry', () => {
   it('lists the entries of the requested sections in registry order', () => {
     expect(entradasDeSecciones('pie', 'cuenta').map((e) => e.href)).toEqual(['/actualizaciones', '/ayuda', '/perfil'])
     expect(entradasDeSecciones('general', 'ministerios', 'dream-team', 'administracion').map((e) => e.href)).toEqual([
-      '/dashboard', '/users', '/grupos-vida', '/configuracion', '/ayuda/admin',
+      '/dashboard', '/users', '/admin/personas/fusionar', '/grupos-vida', '/configuracion', '/ayuda/admin',
     ])
+  })
+
+  it('shows «Fusionar personas» in Administración only to an admin or a pastor', () => {
+    const fusionar = ENTRADAS_NAVEGACION.filter((entrada) => entrada.id === 'fusionar-personas')
+    expect(fusionar.map((e) => [e.label, e.href, e.seccion])).toEqual([
+      ['Fusionar personas', '/admin/personas/fusionar', 'administracion'],
+    ])
+    const ve = (roles: string[]) => filtrarVisibles(fusionar, { roles, supportCapabilities: ['support.manage'] }).length === 1
+    expect(ve(['admin'])).toBe(true)
+    expect(ve(['pastor'])).toBe(true)
+    expect(ve(['director-general'])).toBe(false)
+    expect(ve(['director-etapa'])).toBe(false)
+    expect(ve(['lider'])).toBe(false)
+    expect(ve([])).toBe(false)
   })
 
   it('drops the children a role cannot see', () => {

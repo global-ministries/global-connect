@@ -16,6 +16,11 @@
  * The invitation to register (invitaciones pendientes T4, S7): "Reenviar
  * invitación" resends to the same email with the drawer open; "Cambiar
  * correo" opens `InvitarCuentaPanel`; "Cancelar invitación" asks first.
+ *
+ * "Quitar de este equipo" (S3 of odd/tasks/dream-team-estructura-correcciones.md)
+ * follows `puedeQuitarServicio` (the permission of "Cambiar etapa"), asks
+ * first and retires only that servicio; closing the question brings the
+ * drawer back, refreshed after a change.
  */
 import { useState, type ReactElement } from 'react'
 
@@ -25,15 +30,17 @@ import { CambiarAreaDialog } from '@/components/dream-team/cambiar-area-dialog'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
-import { accionesDeServicio, puedeCambiarArea } from '@/lib/platform/dream-team/acciones-servicio'
+import { accionesDeServicio, puedeCambiarArea, puedeQuitarServicio } from '@/lib/platform/dream-team/acciones-servicio'
 import type { FilaVista, PersonaLista } from '@/lib/platform/dream-team/servidores-vista'
+import { nombreCortoDeCompleto } from '@/lib/platform/nombres'
 import { EditarFichaPanel } from './editar-ficha-panel'
 import { DialogoCancelarInvitacion, cancelarInvitacion, reenviarInvitacion } from './invitaciones-servidores'
+import { quitarServicio } from './quitar-servicio'
 
 export { formatearFecha } from '@/components/dream-team/detalle-persona'
 
 type Accion =
-  | { readonly tipo: 'etapa' | 'turnos' | 'area'; readonly fila: FilaVista }
+  | { readonly tipo: 'etapa' | 'turnos' | 'area' | 'quitar'; readonly fila: FilaVista }
   | { readonly tipo: 'ficha' | 'invitar' | 'cancelarInvitacion' }
   | null
 
@@ -64,6 +71,7 @@ function aServicio(fila: FilaVista): ServicioDetalle {
       cambiarArea: puedeCambiarArea(fila),
       editarFicha: acciones.editarFicha,
       invitar: acciones.invitar,
+      quitar: puedeQuitarServicio(fila),
       // Without any action there is not even "Ver su equipo".
       verEquipo: acciones.alguna ? `/dream-team/mi-equipo?direccion=${encodeURIComponent(fila.direccionId)}` : undefined,
     },
@@ -88,9 +96,30 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
     setAccion(null)
     onActualizado()
   }
-  function elegirFila(tipo: 'etapa' | 'turnos' | 'area', clave: string): void {
+  function elegirFila(tipo: 'etapa' | 'turnos' | 'area' | 'quitar', clave: string): void {
     const fila = filaDe(clave)
     if (fila) setAccion({ tipo, fila })
+  }
+
+  async function quitar(fila: FilaVista, nombre: string): Promise<void> {
+    const servicio = accionesDeServicio(fila).servicio
+    if (servicio === null || ocupado) return
+    setOcupado(true)
+    const error = await quitarServicio(servicio.id, servicio.version)
+    setOcupado(false)
+    setAccion(null)
+    onCambioAbierto(true)
+    if (error !== null) {
+      toast.error(error)
+      return
+    }
+    toast.success(`${nombre} ya no está en ${fila.equipoNombre} como ${fila.rolLabel}.`)
+    onActualizado()
+  }
+
+  function volverDeQuitar(): void {
+    setAccion(null)
+    onCambioAbierto(true)
   }
 
   async function reenviar(): Promise<void> {
@@ -122,6 +151,7 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
 
   const filaAccion = accion !== null && 'fila' in accion ? accion.fila : null
   const servicioAccion = filaAccion ? accionesDeServicio(filaAccion) : null
+  const nombreCorto = filaAccion ? (filaAccion.nombreCorto ?? nombreCortoDeCompleto(filaAccion.nombre)) : ''
 
   return (
     <>
@@ -138,6 +168,19 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
         onCancelarInvitacion={() => setAccion({ tipo: 'cancelarInvitacion' })}
         reenviandoInvitacion={ocupado}
         onCambiarArea={(clave) => elegirFila('area', clave)}
+        onQuitar={(clave) => elegirFila('quitar', clave)}
+      />
+
+      <DialogoCancelarInvitacion
+        abierto={filaAccion !== null && accion?.tipo === 'quitar'}
+        titulo={filaAccion ? `¿Quitar a ${nombreCorto} de ${filaAccion.equipoNombre} como ${filaAccion.rolLabel}?` : ''}
+        descripcion="Su historial se conserva."
+        confirmar="Quitar de este equipo"
+        ocupado={ocupado}
+        onConfirmar={() => {
+          if (filaAccion) void quitar(filaAccion, nombreCorto)
+        }}
+        onCerrar={volverDeQuitar}
       />
 
       {filaAccion && servicioAccion?.servicio && accion?.tipo === 'etapa' && (

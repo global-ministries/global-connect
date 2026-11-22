@@ -8,15 +8,22 @@
  * review), the quick actions Subequipo · Renombrar · Desactivar/Activar, and
  * the tabs Resumen · Roles · Turnos · Taller.
  *
- * Who edits: `puedeEditar` (org.manage) on a real equipo. A director reads the
- * same panel without any editor; a Grupos de Vida node is a read-only
- * projection for everyone and only gets the Resumen. Data and callbacks come
+ * Who edits: `puedeEditar` (org.manage) edits roles and turnos of a real
+ * equipo. The quick actions (Subequipo · Renombrar · Desactivar) follow
+ * `puedeGestionar`: whoever directs the equipo or one above it
+ * (odd/tasks/dream-team-estructura-correcciones.md, T3, S4); «Mover a…» shows
+ * when `mover` is given, i.e. they also direct its current parent (S5). A DPS
+ * anchor (`esAnclaDps`: DPS, Global Music, Producción Creativa, Productores,
+ * Cantantes, resolved by label and parent) keeps only Subequipo (and Activar
+ * when inactive): the RPCs refuse renaming, deactivating or moving it (T7, B2). A
+ * Grupos de Vida node is a read-only projection for everyone and only gets the
+ * Resumen. Data and callbacks come
  * in; the mutations are the server actions in
  * app/(auth)/admin/dream-team/estructura/{actions,turnos-actions}.ts.
  */
 import { useState, useTransition, type ReactElement } from 'react'
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog'
-import { Ban, Pencil, Plus, Power } from 'lucide-react'
+import { Ban, FolderInput, Pencil, Plus, Power } from 'lucide-react'
 
 import {
   AlertDialog,
@@ -32,10 +39,12 @@ import { BadgeSistema, BotonSistema } from '@/components/ui/sistema-diseno'
 import { TabsContent, TabsList, TabsSistema, TabsTrigger } from '@/components/ui/TabsSistema'
 import { cn } from '@/lib/utils'
 import { cambiarActivoEquipo, crearEquipo, renombrarEquipo } from '@/app/(auth)/admin/dream-team/estructura/actions'
+import type { DestinoMover } from '@/lib/platform/dream-team/estructura-gestion'
 import type { DetalleEquipo } from '@/lib/platform/dream-team/estructura-vista'
 
 import { DialogoNombre } from './dialogo-nombre'
 import { reportarResultado, type Toast } from './mensajes'
+import { MoverEquipoDialogo } from './mover-equipo'
 import { PanelNodoResumen, type ProblemaNodo } from './panel-nodo-resumen'
 import { PanelNodoRoles } from './panel-nodo-roles'
 import { PanelNodoTaller } from './panel-nodo-taller'
@@ -66,8 +75,25 @@ export interface PanelNodoProps {
   readonly problemas: readonly ProblemaNodo[]
   /** The problems of a subequipo, for its row in Resumen. */
   readonly problemasDe?: (equipoId: string) => readonly ProblemaNodo[]
-  /** org.manage: edits real equipos. A director (read-only on their branch) passes false. */
+  /** org.manage: edits roles and turnos of real equipos. A director passes false. */
   readonly puedeEditar: boolean
+  /**
+   * Subequipo · Renombrar · Desactivar on this equipo: the viewer directs it or
+   * one above (S4). Absent: follows `puedeEditar`.
+   */
+  readonly puedeGestionar?: boolean
+  /**
+   * A DPS anchor (T7, B2): Renombrar, Desactivar and «Mover a…» are hidden —
+   * dream_team_equipo_renombrar / _cambiar_activo / _mover refuse them for everyone.
+   */
+  readonly esAnclaDps?: boolean
+  /** «Mover a…» (S5): given when the viewer also directs the current parent. */
+  readonly mover?: {
+    /** Label of the current equipo above. */
+    readonly origen: string
+    readonly subequipos: number
+    readonly destinos: readonly DestinoMover[]
+  }
   /**
    * The node's shifts once the server answered for this very node; while
    * absent, the Turnos tab says they are loading.
@@ -106,6 +132,9 @@ export function PanelNodo({
   problemas,
   problemasDe,
   puedeEditar,
+  puedeGestionar,
+  esAnclaDps = false,
+  mover,
   turnos,
   pestana: pestanaControlada,
   onCambioPestana,
@@ -121,11 +150,17 @@ export function PanelNodo({
     pestana: 'resumen',
     editandoTurnos: false,
   })
-  const [dialogo, setDialogo] = useState<'renombrar' | 'subequipo' | 'desactivar' | null>(null)
+  const [dialogo, setDialogo] = useState<'renombrar' | 'subequipo' | 'desactivar' | 'mover' | null>(null)
 
   const delNodo = local.id === detalle.id ? local : { id: detalle.id, pestana: 'resumen' as const, editandoTurnos: false }
   const soloLectura = !detalle.editable
   const edita = puedeEditar && detalle.editable
+  const gestiona = (puedeGestionar ?? puedeEditar) && detalle.editable
+  const mueve = gestiona && mover !== undefined && !esAnclaDps
+  const renombra = gestiona && !esAnclaDps
+  // An inactive anchor may be reactivated (T6); an active one is never deactivated.
+  const cambiaActivo = gestiona && (!esAnclaDps || !detalle.activo)
+  const acciones = 1 + Number(renombra) + Number(cambiaActivo) + Number(mueve)
   const pestana: PestanaNodo = soloLectura ? 'resumen' : (pestanaControlada ?? delNodo.pestana)
   const porRevisar = problemas.filter((problema) => problema !== 'inactivo').length
   const ruta = detalle.ruta.slice(0, -1).join(' › ')
@@ -189,21 +224,34 @@ export function PanelNodo({
           )}
         </div>
 
-        {edita && (
-          <div className="grid grid-cols-3 gap-2">
+        {gestiona && (
+          <div
+            className={cn(
+              'grid gap-2',
+              acciones === 4 ? 'grid-cols-4' : acciones === 3 ? 'grid-cols-3' : acciones === 2 ? 'grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             <BotonSistema type="button" variante="outline" icono={Plus} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('subequipo')}>
               Subequipo
             </BotonSistema>
-            <BotonSistema type="button" variante="outline" icono={Pencil} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('renombrar')}>
-              Renombrar
-            </BotonSistema>
-            {detalle.activo ? (
-              <BotonSistema type="button" variante="outline" icono={Ban} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('desactivar')}>
-                Desactivar
+            {renombra && (
+              <BotonSistema type="button" variante="outline" icono={Pencil} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('renombrar')}>
+                Renombrar
               </BotonSistema>
-            ) : (
-              <BotonSistema type="button" variante="outline" icono={Power} className={ACCION_RAPIDA} disabled={isPending} onClick={() => cambiarActivo(true)}>
-                Activar
+            )}
+            {cambiaActivo &&
+              (detalle.activo ? (
+                <BotonSistema type="button" variante="outline" icono={Ban} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('desactivar')}>
+                  Desactivar
+                </BotonSistema>
+              ) : (
+                <BotonSistema type="button" variante="outline" icono={Power} className={ACCION_RAPIDA} disabled={isPending} onClick={() => cambiarActivo(true)}>
+                  Activar
+                </BotonSistema>
+              ))}
+            {mueve && (
+              <BotonSistema type="button" variante="outline" icono={FolderInput} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('mover')}>
+                Mover a…
               </BotonSistema>
             )}
           </div>
@@ -258,7 +306,7 @@ export function PanelNodo({
         )}
       </div>
 
-      {dialogo === 'renombrar' && (
+      {dialogo === 'renombrar' && renombra && (
         <DialogoNombre
           titulo="Renombrar equipo"
           descripcion="El nuevo nombre se verá en todas las pantallas de Dream Team."
@@ -282,6 +330,22 @@ export function PanelNodo({
           textoBoton="Crear"
           exito="Subequipo creado correctamente."
           guardar={(label) => crearEquipo({ parentEquipoId: detalle.id, label })}
+          onClose={() => setDialogo(null)}
+          onHecho={onActualizado}
+          toast={toast}
+        />
+      )}
+
+      {dialogo === 'mover' && mover && mueve && (
+        <MoverEquipoDialogo
+          equipo={{
+            id: detalle.id,
+            label: detalle.label,
+            origen: mover.origen,
+            subequipos: mover.subequipos,
+            personas: detalle.personasRama,
+          }}
+          destinos={mover.destinos}
           onClose={() => setDialogo(null)}
           onHecho={onActualizado}
           toast={toast}

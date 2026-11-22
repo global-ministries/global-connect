@@ -28,7 +28,7 @@ const hasDreamTeamReadCapability = jest.fn(() => true)
 const hasDreamTeamOrgManageCapability = jest.fn(() => true)
 jest.mock('@/lib/platform/dream-team/route-access', () => ({
   isDreamTeamEnabled: () => isDreamTeamEnabled(),
-  requireDreamTeamSession: () => requireDreamTeamSession(),
+  requireDreamTeamSession: (options?: { includeRoles?: boolean }) => requireDreamTeamSession(options),
   hasDreamTeamReadCapability: () => hasDreamTeamReadCapability(),
   hasDreamTeamOrgManageCapability: () => hasDreamTeamOrgManageCapability(),
 }))
@@ -113,14 +113,20 @@ jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
   }),
 }))
 jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => [] }))
-jest.mock('@/lib/platform/dream-team/personas', () => ({
-  fetchNombresPersonas: async () =>
-    new Map([
-      ['p1', 'Ana Directora'],
-      ['p2', 'Bea Coordinadora'],
-      ['p3', 'Carla Facilitadora'],
-    ]),
-}))
+// The page reads nombre and apellido apart (S1 of
+// odd/tasks/dream-team-estructura-correcciones.md) and joins them with nombresDesdePartes.
+jest.mock('@/lib/platform/dream-team/personas', () => {
+  const partes = new Map([
+    ['p1', { nombre: 'Ana', apellido: 'Directora' }],
+    ['p2', { nombre: 'Bea', apellido: 'Coordinadora' }],
+    ['p3', { nombre: 'Carla', apellido: 'Facilitadora' }],
+  ])
+  return {
+    fetchPartesNombresPersonas: async () => partes,
+    nombresDesdePartes: (porId: ReadonlyMap<string, { nombre: string; apellido: string }>) =>
+      new Map([...porId].map(([id, p]) => [id, `${p.nombre} ${p.apellido}`])),
+  }
+})
 
 import DreamTeamEstructuraPage from '@/app/(auth)/admin/dream-team/estructura/page'
 import { EstructuraClient, type EstructuraClientProps } from '@/components/dream-team/estructura/estructura-client'
@@ -159,7 +165,7 @@ beforeEach(() => {
     servicio('s3', 'eq-a1', 'facilitador', 'p3', 'retirado'),
   ]
   isDreamTeamEnabled.mockReturnValue(true)
-  requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
+  requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [] })
   hasDreamTeamReadCapability.mockReturnValue(true)
   hasDreamTeamOrgManageCapability.mockReturnValue(true)
   notFound.mockClear()
@@ -175,7 +181,7 @@ describe('estructura page — authorization', () => {
     requireDreamTeamSession.mockResolvedValue(null)
     await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
 
-    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer' })
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [] })
     hasDreamTeamReadCapability.mockReturnValue(false)
     await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
   })
@@ -184,6 +190,23 @@ describe('estructura page — authorization', () => {
     expect((await renderizar()).puedeEditar).toBe(true)
     hasDreamTeamOrgManageCapability.mockReturnValue(false)
     expect((await renderizar()).puedeEditar).toBe(false)
+  })
+
+  // T6 of odd/tasks/dream-team-estructura-correcciones.md: the same rule as
+  // dream_team_gestiona_equipo, so an admin or pastor without a grant sees the equipo actions.
+  it.each(['admin', 'pastor'])('gives an %s without a Dream Team grant every equipo to reshape', async (rol) => {
+    requireDreamTeamSession.mockImplementation(async (options?: { includeRoles?: boolean }) => ({
+      personaId: 'viewer',
+      capabilities: [],
+      globalRoles: options?.includeRoles ? [rol] : [],
+    }))
+    expect((await renderizar()).equiposGestionables).toEqual(['dir-a', 'eq-a1', 'dir-b', 'dir-vieja'])
+    expect(requireDreamTeamSession).toHaveBeenCalledWith({ includeRoles: true })
+  })
+
+  it('gives a viewer without roles nor grants no equipo to reshape', async () => {
+    requireDreamTeamSession.mockResolvedValue({ personaId: 'viewer', capabilities: [], globalRoles: [] })
+    expect((await renderizar()).equiposGestionables).toEqual([])
   })
 })
 

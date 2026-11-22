@@ -39,7 +39,8 @@ import {
 import { contarUso, crearVistaEstructura, type TallerVinculado } from '@/lib/platform/dream-team/estructura-vista'
 import { agruparTurnosPropios, leerFiltrosEstructura } from '@/lib/platform/dream-team/estructura-organigrama'
 import { fetchEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
-import { fetchNombresPersonas } from '@/lib/platform/dream-team/personas'
+import { equiposQueGestiona } from '@/lib/platform/dream-team/estructura-gestion'
+import { fetchPartesNombresPersonas, nombresDesdePartes } from '@/lib/platform/dream-team/personas'
 import type { DreamTeamRol } from '@/lib/platform/dream-team/types'
 import { rutaTaller } from '@/lib/platform/talleres/rutas'
 import { EstructuraClient, type TurnosEstructura } from '@/components/dream-team/estructura/estructura-client'
@@ -54,7 +55,10 @@ interface EstructuraPageProps {
 export default async function DreamTeamEstructuraPage({ searchParams }: EstructuraPageProps) {
   if (!isDreamTeamEnabled()) notFound()
 
-  const session = await requireDreamTeamSession()
+  // With the system roles: an admin or a pastor reshapes every equipo even
+  // without a Dream Team grant (equiposQueGestiona below, the same rule as
+  // dream_team_gestiona_equipo).
+  const session = await requireDreamTeamSession({ includeRoles: true })
   if (!session) redirect('/login')
 
   if (!hasDreamTeamReadCapability(session)) notFound()
@@ -99,8 +103,10 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   // This screen didn't load servicios before — it now needs them (plus
   // names) to derive who holds the director/coordinador role on each real
   // node (item 4 of this feature; see estructura-arbol.ts).
-  const nombrePorId = await fetchNombresPersonas(supabase, servicios.map((servicio) => servicio.personaId))
-  const responsablesDreamTeam = responsablesDreamTeamPorEquipo(servicios, roles, nombrePorId)
+  // nombre and apellido apart, so the chart shows first nombre + first apellido
+  // (S1 of odd/tasks/dream-team-estructura-correcciones.md); one lookup.
+  const partesPorId = await fetchPartesNombresPersonas(supabase, servicios.map((servicio) => servicio.personaId))
+  const responsablesDreamTeam = responsablesDreamTeamPorEquipo(servicios, roles, nombresDesdePartes(partesPorId), partesPorId)
 
   const arbol = construirArbol(construirNodosArbol(equipos, nodosGdv, responsablesDreamTeam))
 
@@ -110,6 +116,15 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   // extends to the virtual Grupos de Vida branch, which stays read-only for
   // everyone regardless of puedeEditar (see estructura-client.tsx).
   const puedeEditar = hasDreamTeamOrgManageCapability(session)
+  // Reshaping equipos (subequipo, rename, deactivate, move) also belongs to a
+  // director over their branch (odd/tasks/dream-team-estructura-correcciones.md,
+  // T3): the equipos the dream_team_equipo_* RPCs will accept from this viewer
+  // (admin and pastor through session.globalRoles: every equipo).
+  const equiposGestionables = equiposQueGestiona(session, equipos)
+  // The DPS anchors are resolved by label and parent: renaming, moving or
+  // deactivating one is refused for everyone, so the island hides those
+  // actions on them (T7, B2). Only asked when there is an action to hide.
+  const anclasDps = equiposGestionables.length > 0 ? await cargarAnclasDps(client) : []
 
   const talleres: Record<string, TallerVinculado> = Object.fromEntries(
     Object.entries(tallerPorEquipoId(talleresData ?? [])).map(([equipoId, taller]) => [
@@ -139,10 +154,25 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
       talleres={talleres}
       equipoId={equipoId}
       puedeEditar={puedeEditar}
+      equiposGestionables={equiposGestionables}
+      anclasDps={anclasDps}
       filtros={{ ...filtros, equipo: equipoId || null }}
       turnos={turnosEstructura}
     />
   )
+}
+
+/** The DPS anchor ids (dream_team_equipos_anclas_dps); none when they cannot be read (the RPCs still refuse). */
+async function cargarAnclasDps(client: Awaited<ReturnType<typeof createSupabaseServerClient>>): Promise<string[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the RPC is newer than the generated types
+    const { data, error } = await (client as any).rpc('dream_team_equipos_anclas_dps')
+    if (error) throw error
+    return Array.isArray(data) ? data.filter((id: unknown): id is string => typeof id === 'string') : []
+  } catch (error) {
+    console.error('[dream-team/estructura] DPS anchors lookup failed', error)
+    return []
+  }
 }
 
 async function cargarTurnos(

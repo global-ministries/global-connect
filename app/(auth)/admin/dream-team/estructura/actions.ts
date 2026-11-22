@@ -23,6 +23,12 @@ import {
   requireDreamTeamSession,
   hasDreamTeamOrgManageCapability,
 } from '@/lib/platform/dream-team/route-access'
+import { hasDreamTeamEquiposGestion } from '@/lib/platform/dream-team/capabilities'
+import {
+  resultadoRpcEquipo,
+  type AccionGestion,
+  type ResultadoRpcEquipo,
+} from '@/lib/platform/dream-team/estructura-gestion'
 import { createSupabaseDreamTeamRepository } from '@/lib/platform/dream-team/repository-supabase'
 import type { DreamTeamRepository } from '@/lib/platform/dream-team/repository'
 import { esNivelRol } from '@/lib/platform/dream-team/nivel-rol'
@@ -85,14 +91,68 @@ function internalErrorMessage(error: unknown): string | undefined {
 }
 
 // ── Equipos ────────────────────────────────────────────────────────────
+//
+// odd/tasks/dream-team-estructura-correcciones.md, T3 (S4, S5): a director
+// reshapes their own branch, not only org.manage. The writes go through the
+// dream_team_equipo_* RPCs (20261121100000), which check
+// dream_team_gestiona_equipo per equipo — the equipo RLS policies stay
+// org.manage-only, so a director never writes the table directly. The gate
+// below only refuses early whoever directs nothing.
+
+type EquipoContext =
+  | { readonly ok: true; readonly rpc: RpcSinTipos }
+  | { readonly ok: false; readonly error: ActionError }
+
+// The functions are not in the generated database types yet, so the calls are
+// untyped (the pattern of lib/platform/dream-team/cambiar-area.ts).
+type RpcSinTipos = (
+  fn: string,
+  args: Record<string, unknown>,
+) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
+
+async function resolveEquipoContext(): Promise<EquipoContext> {
+  if (!isDreamTeamEnabled()) return { ok: false, error: 'not-found' }
+
+  // With the system roles: an admin or a pastor passes without a Dream Team
+  // grant, as in dream_team_gestiona_equipo (T6). The RPC still decides per equipo.
+  const session = await requireDreamTeamSession({ includeRoles: true })
+  if (!session) return { ok: false, error: 'unauthorized' }
+
+  if (!hasDreamTeamEquiposGestion(session)) return { ok: false, error: 'forbidden' }
+
+  const supabase = await createSupabaseServerClient()
+  const client = supabase as unknown as { rpc: RpcSinTipos }
+  return { ok: true, rpc: (fn, args) => client.rpc(fn, args) }
+}
+
+async function llamarRpcEquipo(
+  ctx: { readonly rpc: RpcSinTipos },
+  fn: string,
+  args: Record<string, unknown>,
+  accion: AccionGestion,
+): Promise<ResultadoRpcEquipo> {
+  try {
+    const resultado = resultadoRpcEquipo(await ctx.rpc(fn, args), accion)
+    if (resultado.ok) revalidatePath(ESTRUCTURA_PATH)
+    return resultado
+  } catch {
+    return resultadoRpcEquipo({ data: null, error: { message: 'red' } }, accion)
+  }
+}
+
+function sinRuta(resultado: ResultadoRpcEquipo): EquipoActionResult {
+  return resultado.ok ? { ok: true, equipo: resultado.equipo } : resultado
+}
 
 export interface CrearEquipoInput {
   readonly parentEquipoId: string
   readonly label: string
 }
 
+// «+ Subequipo»: the new equipo inherits its parent's experiencia in the RPC,
+// never from the client.
 export async function crearEquipo(input: CrearEquipoInput): Promise<EquipoActionResult> {
-  const ctx = await resolveWriteContext()
+  const ctx = await resolveEquipoContext()
   if (!ctx.ok) return ctx
 
   const label = validarLabel(input.label)
@@ -102,28 +162,7 @@ export async function crearEquipo(input: CrearEquipoInput): Promise<EquipoAction
     return { ok: false, error: 'invalid-input', message: 'Falta el equipo padre.' }
   }
 
-  try {
-    // The new equipo always inherits its parent's experiencia — sub-equipos
-    // never switch experience branches, and re-deriving it here (instead of
-    // trusting a client-supplied value) keeps a tampered payload from
-    // planting a node under the wrong branch.
-    const equipos = await ctx.repo.listEquipos()
-    const padre = equipos.find((equipo) => equipo.id === input.parentEquipoId)
-    if (!padre) {
-      return { ok: false, error: 'not-found', message: 'El equipo padre no existe o no es visible.' }
-    }
-
-    const equipo = await ctx.repo.createEquipo({
-      label,
-      experiencia: padre.experiencia,
-      activo: true,
-      parentEquipoId: padre.id,
-    })
-    revalidatePath(ESTRUCTURA_PATH)
-    return { ok: true, equipo }
-  } catch (error) {
-    return { ok: false, error: 'internal', message: internalErrorMessage(error) }
-  }
+  return sinRuta(await llamarRpcEquipo(ctx, 'dream_team_equipo_crear', { p_padre: input.parentEquipoId, p_label: label }, 'crear'))
 }
 
 export interface RenombrarEquipoInput {
@@ -132,7 +171,7 @@ export interface RenombrarEquipoInput {
 }
 
 export async function renombrarEquipo(input: RenombrarEquipoInput): Promise<EquipoActionResult> {
-  const ctx = await resolveWriteContext()
+  const ctx = await resolveEquipoContext()
   if (!ctx.ok) return ctx
 
   const label = validarLabel(input.label)
@@ -142,16 +181,7 @@ export async function renombrarEquipo(input: RenombrarEquipoInput): Promise<Equi
     return { ok: false, error: 'invalid-input', message: 'Falta el equipo a renombrar.' }
   }
 
-  try {
-    const equipo = await ctx.repo.updateEquipo(input.id, { label })
-    revalidatePath(ESTRUCTURA_PATH)
-    return { ok: true, equipo }
-  } catch (error) {
-    if (isPostgrestNoRowsError(error)) {
-      return { ok: false, error: 'not-found', message: 'El equipo no existe o no es visible.' }
-    }
-    return { ok: false, error: 'internal', message: internalErrorMessage(error) }
-  }
+  return sinRuta(await llamarRpcEquipo(ctx, 'dream_team_equipo_renombrar', { p_equipo: input.id, p_label: label }, 'renombrar'))
 }
 
 export interface CambiarActivoEquipoInput {
@@ -160,23 +190,42 @@ export interface CambiarActivoEquipoInput {
 }
 
 export async function cambiarActivoEquipo(input: CambiarActivoEquipoInput): Promise<EquipoActionResult> {
-  const ctx = await resolveWriteContext()
+  const ctx = await resolveEquipoContext()
   if (!ctx.ok) return ctx
 
   if (!input.id?.trim()) {
     return { ok: false, error: 'invalid-input', message: 'Falta el equipo.' }
   }
 
-  try {
-    const equipo = await ctx.repo.updateEquipo(input.id, { activo: input.activo })
-    revalidatePath(ESTRUCTURA_PATH)
-    return { ok: true, equipo }
-  } catch (error) {
-    if (isPostgrestNoRowsError(error)) {
-      return { ok: false, error: 'not-found', message: 'El equipo no existe o no es visible.' }
-    }
-    return { ok: false, error: 'internal', message: internalErrorMessage(error) }
+  return sinRuta(
+    await llamarRpcEquipo(ctx, 'dream_team_equipo_cambiar_activo', { p_equipo: input.id, p_activo: input.activo }, 'activar'),
+  )
+}
+
+export interface MoverEquipoInput {
+  readonly id: string
+  readonly nuevoPadreId: string
+}
+
+export type MoverEquipoResult =
+  | { readonly ok: true; readonly equipo: DreamTeamEquipo; readonly ruta?: string }
+  | { readonly ok: false; readonly error: ActionError; readonly message?: string }
+
+// «Mover a…» (S5): the RPC needs authority over the current parent and the
+// destination, refuses roots, cycles and DPS anchors, keeps people and
+// servicios, and returns the new path.
+export async function moverEquipo(input: MoverEquipoInput): Promise<MoverEquipoResult> {
+  const ctx = await resolveEquipoContext()
+  if (!ctx.ok) return ctx
+
+  if (!input.id?.trim()) {
+    return { ok: false, error: 'invalid-input', message: 'Falta el equipo a mover.' }
   }
+  if (!input.nuevoPadreId?.trim()) {
+    return { ok: false, error: 'invalid-input', message: 'Elige el equipo de destino.' }
+  }
+
+  return llamarRpcEquipo(ctx, 'dream_team_equipo_mover', { p_equipo: input.id, p_nuevo_padre: input.nuevoPadreId }, 'mover')
 }
 
 // ── Roles ──────────────────────────────────────────────────────────────

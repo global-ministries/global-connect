@@ -62,6 +62,16 @@ export function accionesDeServicio(fila: DatosAccionesServicio): AccionesServici
 }
 
 /**
+ * "Quitar de este equipo" (S3 of odd/tasks/dream-team-estructura-correcciones.md):
+ * the same permission as "Cambiar etapa" (a servicio the viewer may change)
+ * and a stage that can still move to `retirado`. The PATCH of
+ * /api/dream-team/servicios/[id] checks it again.
+ */
+export function puedeQuitarServicio(fila: DatosAccionesServicio): boolean {
+  return accionesDeServicio(fila).servicio !== null && (TRANSICIONES_VALIDAS[fila.estado]?.has('retirado') ?? false)
+}
+
+/**
  * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2, T3): a Dream
  * Team servicio, not retired, whose equipo the viewer directs or coordinates
  * (`areaCambiable`, from dream_team_puede_solicitar_cambio_area on the

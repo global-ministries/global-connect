@@ -638,12 +638,13 @@ describe('ServidoresClient — detail drawer actions, each permission-gated (L3)
     expect(servicio('Luis Barrios').queryByRole('button', { name: 'Editar ficha' })).not.toBeInTheDocument()
   })
 
-  it('an editor gets "Cambiar etapa", "Turnos" and "Ver su equipo" per servicio; "Cambiar etapa" opens the stage dialog', async () => {
+  it('an editor gets "Cambiar etapa", "Turnos", "Ver su equipo" and "Quitar de este equipo" per servicio; "Cambiar etapa" opens the stage dialog', async () => {
     render(<ServidoresClient {...props({ filas: filasConexion, puedeEditar: true })} />)
     expect(screen.getAllByRole('button', { name: 'Asignar servicio' }).length).toBeGreaterThan(0)
     await abrirDetalle('Luis Barrios')
     const tarjetaServicio = within(servicio('Luis Barrios').getByRole('group', { name: 'De Hombre a Hombre' }))
-    expect(tarjetaServicio.getAllByRole('button').map((b) => b.textContent)).toEqual(['Cambiar etapa', 'Turnos'])
+    // «Quitar de este equipo»: odd/tasks/dream-team-estructura-correcciones.md, S3.
+    expect(tarjetaServicio.getAllByRole('button').map((b) => b.textContent)).toEqual(['Cambiar etapa', 'Turnos', 'Quitar de este equipo'])
     expect(tarjetaServicio.getByRole('link', { name: 'Ver su equipo' })).toHaveAttribute('href', '/dream-team/mi-equipo?direccion=dir-conexion')
     expect(tarjetaServicio.getByText('En orientación')).toBeInTheDocument()
     expect(tarjetaServicio.getByText('Facilitador')).toBeInTheDocument()

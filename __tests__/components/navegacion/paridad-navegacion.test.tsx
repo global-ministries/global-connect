@@ -101,6 +101,7 @@ const GRUPOS_VIDA_DIRECCION = [
 ]
 const GRUPOS_VIDA_ETAPA = GRUPOS_VIDA_DIRECCION.filter((href) => href !== '/grupos-vida/directores' && href !== '/grupos-vida/temporadas')
 const PIE = ['/actualizaciones', '/ayuda', '/perfil']
+const FUSIONAR = '/admin/personas/fusionar'
 
 /** Sidebar and the old mobile drawer (removed in S9.6) listed the same entries before the app shell. */
 const MENU_PRINCIPAL: Record<string, string[]> = {
@@ -108,12 +109,13 @@ const MENU_PRINCIPAL: Record<string, string[]> = {
   lider: ['/dashboard', '/users', '/grupos-vida', ...PIE],
   'director-etapa': ['/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_ETAPA, ...PIE],
   'director-general': ['/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/configuracion', ...PIE],
-  pastor: ['/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion', '/configuracion', '/configuracion', ...PIE],
-  admin: ['/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion', '/configuracion', '/configuracion', ...PIE],
+  // «Fusionar personas» (odd/tasks/dream-team-estructura-correcciones.md, T6) joined after Usuarios, admin and pastor only.
+  pastor: ['/dashboard', '/users', FUSIONAR, '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion', '/configuracion', '/configuracion', ...PIE],
+  admin: ['/dashboard', '/users', FUSIONAR, '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion', '/configuracion', '/configuracion', ...PIE],
   'staff-soporte': ['/dashboard', '/grupos-vida', '/ayuda/admin', ...PIE],
   'director-general-soporte': ['/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/configuracion', '/configuracion/soporte', '/ayuda/admin', ...PIE],
   'admin-dream-team-ninos': [
-    '/dashboard', '/users', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
+    '/dashboard', '/users', FUSIONAR, '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
     '/dream-team/mi-equipo', '/dream-team/mi-equipo', '/dream-team/pendientes', '/admin/dream-team/servidores', '/admin/dream-team/estructura',
     '/ninos/checkin', '/ninos/checkin', '/ninos/familias', '/ninos/eventos', '/ninos/salones', '/ninos/etiquetas', '/ninos/salon', '/ninos/cartel', '/ninos/reportes',
     '/configuracion', '/configuracion', ...PIE,
@@ -153,11 +155,11 @@ const SIDEBAR: Record<string, string[]> = {
   'director-general': ['/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/users', '/configuracion', ...PIE_SIDEBAR],
   pastor: [
     '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
-    '/users', '/configuracion', '/configuracion', ...PIE_SIDEBAR,
+    '/users', FUSIONAR, '/configuracion', '/configuracion', ...PIE_SIDEBAR,
   ],
   admin: [
     '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion',
-    '/users', '/configuracion', '/configuracion', ...PIE_SIDEBAR,
+    '/users', FUSIONAR, '/configuracion', '/configuracion', ...PIE_SIDEBAR,
   ],
   'staff-soporte': ['/dashboard', '/grupos-vida', '/ayuda/admin', ...PIE_SIDEBAR],
   'director-general-soporte': [
@@ -167,7 +169,7 @@ const SIDEBAR: Record<string, string[]> = {
   'admin-dream-team-ninos': [
     '/dashboard', '/grupos-vida', ...GRUPOS_VIDA_DIRECCION, '/grupos-vida/configuracion', ...NINOS,
     ...DREAM_TEAM,
-    '/users', '/configuracion', '/configuracion', ...PIE_SIDEBAR,
+    '/users', FUSIONAR, '/configuracion', '/configuracion', ...PIE_SIDEBAR,
   ],
   'lider-uno-a-uno': ['/dashboard', '/mis-uno-a-uno', '/grupos-vida', '/users', ...PIE_SIDEBAR],
   'plataforma-grupos-pastoral': [

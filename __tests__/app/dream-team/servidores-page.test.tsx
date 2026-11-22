@@ -4,411 +4,564 @@
  * the island, and the contract that only serializable data crosses the RSC
  * boundary.
  */
-import React from 'react'
+import React from "react";
 
-import type { DreamTeamEquipo, DreamTeamRol, DreamTeamServicio } from '@/lib/platform/dream-team/types'
-import { personaId } from '@/lib/platform/dream-team/types'
-import { nivelDesdeLabel } from '@/lib/platform/dream-team/nivel-rol'
-import type { DreamTeamLiderGdv } from '@/lib/platform/dream-team/lideres-gdv'
-import type { NodoEstructuraGdv } from '@/lib/platform/dream-team/estructura-gdv'
+import type {
+  DreamTeamEquipo,
+  DreamTeamRol,
+  DreamTeamServicio,
+} from "@/lib/platform/dream-team/types";
+import { personaId } from "@/lib/platform/dream-team/types";
+import { nivelDesdeLabel } from "@/lib/platform/dream-team/nivel-rol";
+import type { DreamTeamLiderGdv } from "@/lib/platform/dream-team/lideres-gdv";
+import type { NodoEstructuraGdv } from "@/lib/platform/dream-team/estructura-gdv";
 
 const notFound = jest.fn(() => {
-  throw new Error('NEXT_NOT_FOUND')
-})
+  throw new Error("NEXT_NOT_FOUND");
+});
 const redirect = jest.fn((to: string) => {
-  throw new Error(`NEXT_REDIRECT:${to}`)
-})
-jest.mock('next/navigation', () => ({ notFound: () => notFound(), redirect: (to: string) => redirect(to) }))
+  throw new Error(`NEXT_REDIRECT:${to}`);
+});
+jest.mock("next/navigation", () => ({
+  notFound: () => notFound(),
+  redirect: (to: string) => redirect(to),
+}));
 
-const isDreamTeamEnabled = jest.fn(() => true)
-const requireDreamTeamSession = jest.fn()
-const hasDreamTeamReadCapability = jest.fn(() => true)
-const hasDreamTeamWriteCapability = jest.fn(() => true)
-jest.mock('@/lib/platform/dream-team/route-access', () => ({
+const isDreamTeamEnabled = jest.fn(() => true);
+const requireDreamTeamSession = jest.fn();
+const hasDreamTeamReadCapability = jest.fn(() => true);
+const hasDreamTeamWriteCapability = jest.fn(() => true);
+jest.mock("@/lib/platform/dream-team/route-access", () => ({
   isDreamTeamEnabled: () => isDreamTeamEnabled(),
   requireDreamTeamSession: () => requireDreamTeamSession(),
   hasDreamTeamReadCapability: () => hasDreamTeamReadCapability(),
   hasDreamTeamWriteCapability: () => hasDreamTeamWriteCapability(),
-}))
+}));
 
 // The page's RPCs: `null` (default) = a client without rpc, every lookup fails.
 // dream_team_equipos_registrables answers mockRegistrables; dream_team_fichas_editables
 // answers mockFichasEditables (`null` = an error); anything else answers nothing.
-let mockRpc: boolean = false
-let mockRegistrables: { equipo_id: string }[] = []
-let mockFichasEditables: string[] | null = []
-jest.mock('@/lib/supabase/server', () => ({
+let mockRpc: boolean = false;
+let mockRegistrables: { equipo_id: string }[] = [];
+let mockFichasEditables: string[] | null = [];
+jest.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () =>
     mockRpc
       ? {
           rpc: async (nombre: string) => {
-            if (nombre === 'dream_team_equipos_registrables') return { data: mockRegistrables, error: null }
-            if (nombre === 'dream_team_fichas_editables') {
-              return mockFichasEditables === null ? { data: null, error: { code: 'XX000' } } : { data: mockFichasEditables, error: null }
+            if (nombre === "dream_team_equipos_registrables")
+              return { data: mockRegistrables, error: null };
+            if (nombre === "dream_team_fichas_editables") {
+              return mockFichasEditables === null
+                ? { data: null, error: { code: "XX000" } }
+                : { data: mockFichasEditables, error: null };
             }
-            return { data: [], error: null }
+            return { data: [], error: null };
           },
         }
       : {},
-}))
-jest.mock('@/lib/platform/dream-team/turnos', () => ({
-  ...jest.requireActual('@/lib/platform/dream-team/turnos'),
+}));
+jest.mock("@/lib/platform/dream-team/turnos", () => ({
+  ...jest.requireActual("@/lib/platform/dream-team/turnos"),
   fetchTurnos: async () => [],
   fetchTurnosDeServicios: async () => new Map(),
-}))
+}));
 
 const EQUIPOS: DreamTeamEquipo[] = [
-  { id: 'dir-a', experiencia: 'talleres_crecimiento', label: 'Dirección A', activo: true },
-  { id: 'eq-a1', experiencia: 'talleres_crecimiento', label: 'Equipo A1', parentEquipoId: 'dir-a', activo: true },
-  { id: 'dir-b', experiencia: 'talleres_crecimiento', label: 'Dirección B', activo: true },
-  { id: 'gdv-raiz', experiencia: 'grupos_vida', label: 'Dirección de Grupos de Vida', activo: true },
-]
-const ROLES: DreamTeamRol[] = ['director', 'coordinador', 'facilitador'].map((label) => ({
-  id: `rol-${label}`,
-  equipoId: 'x',
-  label,
-  nivel: nivelDesdeLabel(label),
-  activo: true,
-}))
-const servicio = (id: string, equipoId: string, rol: string, persona: string, estado: DreamTeamServicio['estado'] = 'activo'): DreamTeamServicio => ({
+  {
+    id: "dir-a",
+    experiencia: "talleres_crecimiento",
+    label: "Dirección A",
+    activo: true,
+  },
+  {
+    id: "eq-a1",
+    experiencia: "talleres_crecimiento",
+    label: "Equipo A1",
+    parentEquipoId: "dir-a",
+    activo: true,
+  },
+  {
+    id: "dir-b",
+    experiencia: "talleres_crecimiento",
+    label: "Dirección B",
+    activo: true,
+  },
+  {
+    id: "gdv-raiz",
+    experiencia: "grupos_vida",
+    label: "Dirección de Grupos de Vida",
+    activo: true,
+  },
+];
+const ROLES: DreamTeamRol[] = ["director", "coordinador", "facilitador"].map(
+  (label) => ({
+    id: `rol-${label}`,
+    equipoId: "x",
+    label,
+    nivel: nivelDesdeLabel(label),
+    activo: true,
+  }),
+);
+const servicio = (
+  id: string,
+  equipoId: string,
+  rol: string,
+  persona: string,
+  estado: DreamTeamServicio["estado"] = "activo",
+): DreamTeamServicio => ({
   id,
   personaId: personaId(persona),
   equipoId,
   rolId: `rol-${rol}`,
   estado,
-  fechaInicio: '2026-01-01T00:00:00.000Z',
-  motivoActual: 'admin_asignacion',
+  fechaInicio: "2026-01-01T00:00:00.000Z",
+  motivoActual: "admin_asignacion",
   version: 3,
-})
+});
 
-let mockServicios: DreamTeamServicio[] = []
-const mockListRoles = jest.fn(async () => ROLES)
-const mockListRolesPorEquipo = jest.fn(async (_equipoId: string) => ROLES)
-let mockLideres: DreamTeamLiderGdv[] = []
-let mockNodosGdv: NodoEstructuraGdv[] = []
-jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
+let mockServicios: DreamTeamServicio[] = [];
+const mockListRoles = jest.fn(async () => ROLES);
+const mockListRolesPorEquipo = jest.fn(async (_equipoId: string) => ROLES);
+let mockLideres: DreamTeamLiderGdv[] = [];
+let mockNodosGdv: NodoEstructuraGdv[] = [];
+jest.mock("@/lib/platform/dream-team/repository-supabase", () => ({
   createSupabaseDreamTeamRepository: () => ({
     listEquipos: async () => EQUIPOS,
     listServicios: async () => mockServicios,
     listRoles: () => mockListRoles(),
     listRolesPorEquipo: (equipoId: string) => mockListRolesPorEquipo(equipoId),
   }),
-}))
-jest.mock('@/lib/platform/dream-team/edad', () => ({
-  ...jest.requireActual('@/lib/platform/dream-team/edad'),
+}));
+jest.mock("@/lib/platform/dream-team/edad", () => ({
+  ...jest.requireActual("@/lib/platform/dream-team/edad"),
   fetchRangosEdad: async () => new Map(),
-}))
-jest.mock('@/lib/platform/dream-team/estructura-gdv', () => ({ fetchEstructuraGdv: async () => mockNodosGdv }))
-jest.mock('@/lib/platform/dream-team/lideres-gdv', () => ({ fetchLideresGdv: async () => mockLideres }))
-const fetchContactosPersonas = jest.fn()
-jest.mock('@/lib/platform/dream-team/personas', () => ({
-  fetchNombresPersonas: async () =>
-    new Map([
-      ['p1', 'Ana Directora'],
-      ['p2', 'Bea Coordinadora'],
-      ['p3', 'Carla Facilitadora'],
-      ['g1', 'Marta Lider'],
-      ['d1', 'Diego Etapa'],
-      ['d2', 'Dora General'],
-    ]),
-  fetchContactosPersonas: (...args: unknown[]) => fetchContactosPersonas(...args),
-}))
+}));
+jest.mock("@/lib/platform/dream-team/estructura-gdv", () => ({
+  fetchEstructuraGdv: async () => mockNodosGdv,
+}));
+jest.mock("@/lib/platform/dream-team/lideres-gdv", () => ({
+  fetchLideresGdv: async () => mockLideres,
+}));
+const fetchContactosPersonas = jest.fn();
+jest.mock("@/lib/platform/dream-team/personas", () => {
+  const NOMBRES = new Map([
+    ["p1", "Ana Directora"],
+    ["p2", "Bea Coordinadora"],
+    ["p3", "Carla Facilitadora"],
+    ["g1", "Marta Lider"],
+    ["d1", "Diego Etapa"],
+    ["d2", "Dora General"],
+  ]);
+  return {
+    fetchNombresPersonas: async () => NOMBRES,
+    // The page reads nombre and apellido apart (S1 of odd/tasks/dream-team-estructura-correcciones.md).
+    fetchPartesNombresPersonas: async () =>
+      new Map(
+        [...NOMBRES].map(([id, completo]) => {
+          const [nombre, ...resto] = completo.split(" ");
+          return [id, { nombre, apellido: resto.join(" ") }];
+        }),
+      ),
+    nombresDesdePartes: (
+      porId: ReadonlyMap<string, { nombre: string; apellido: string }>,
+    ) =>
+      new Map([...porId].map(([id, p]) => [id, `${p.nombre} ${p.apellido}`])),
+    fetchContactosPersonas: (...args: unknown[]) =>
+      fetchContactosPersonas(...args),
+  };
+});
 
-import DreamTeamServidoresPage from '@/app/(auth)/admin/dream-team/servidores/page'
-import { ServidoresClient, type ServidoresClientProps } from '@/components/dream-team/servidores/servidores-client'
-import { FILTROS_INICIALES } from '@/lib/platform/dream-team/servidores-vista'
+import DreamTeamServidoresPage from "@/app/(auth)/admin/dream-team/servidores/page";
+import {
+  ServidoresClient,
+  type ServidoresClientProps,
+} from "@/components/dream-team/servidores/servidores-client";
+import { FILTROS_INICIALES } from "@/lib/platform/dream-team/servidores-vista";
 
-async function renderizar(searchParams?: Record<string, string | string[] | undefined>): Promise<ServidoresClientProps> {
+async function renderizar(
+  searchParams?: Record<string, string | string[] | undefined>,
+): Promise<ServidoresClientProps> {
   const element = (await DreamTeamServidoresPage({
     searchParams: Promise.resolve(searchParams ?? {}),
-  })) as React.ReactElement<ServidoresClientProps>
-  expect(element.type).toBe(ServidoresClient)
-  return element.props
+  })) as React.ReactElement<ServidoresClientProps>;
+  expect(element.type).toBe(ServidoresClient);
+  return element.props;
 }
 
 /** Anything that is not JSON-safe data (functions, components, class instances) breaks an RSC boundary. */
 function esSerializable(valor: unknown): boolean {
-  if (valor === null || valor === undefined) return true
-  if (['string', 'number', 'boolean'].includes(typeof valor)) return true
-  if (Array.isArray(valor)) return valor.every(esSerializable)
-  if (typeof valor === 'object') {
-    const proto = Object.getPrototypeOf(valor)
-    if (proto !== Object.prototype && proto !== null) return false
-    return Object.values(valor as Record<string, unknown>).every(esSerializable)
+  if (valor === null || valor === undefined) return true;
+  if (["string", "number", "boolean"].includes(typeof valor)) return true;
+  if (Array.isArray(valor)) return valor.every(esSerializable);
+  if (typeof valor === "object") {
+    const proto = Object.getPrototypeOf(valor);
+    if (proto !== Object.prototype && proto !== null) return false;
+    return Object.values(valor as Record<string, unknown>).every(
+      esSerializable,
+    );
   }
-  return false
+  return false;
 }
 
 beforeEach(() => {
-  notFound.mockClear()
-  redirect.mockClear()
-  isDreamTeamEnabled.mockReturnValue(true)
-  hasDreamTeamReadCapability.mockReturnValue(true)
-  hasDreamTeamWriteCapability.mockReturnValue(true)
-  requireDreamTeamSession.mockResolvedValue({ personaId: 'me' })
+  notFound.mockClear();
+  redirect.mockClear();
+  isDreamTeamEnabled.mockReturnValue(true);
+  hasDreamTeamReadCapability.mockReturnValue(true);
+  hasDreamTeamWriteCapability.mockReturnValue(true);
+  requireDreamTeamSession.mockResolvedValue({ personaId: "me" });
   fetchContactosPersonas.mockReset().mockResolvedValue(
     new Map([
-      ['p1', { telefono: '04125457346', tieneCuenta: true }],
-      ['p2', { telefono: null, tieneCuenta: false }],
-      ['g1', { telefono: '04245551111', tieneCuenta: false }],
+      ["p1", { telefono: "04125457346", tieneCuenta: true }],
+      ["p2", { telefono: null, tieneCuenta: false }],
+      ["g1", { telefono: "04245551111", tieneCuenta: false }],
     ]),
-  )
+  );
   mockServicios = [
-    servicio('s1', 'dir-a', 'director', 'p1'),
-    servicio('s2', 'eq-a1', 'coordinador', 'p2', 'en_pausa'),
-    servicio('s3', 'eq-a1', 'facilitador', 'p3'),
-  ]
-  mockLideres = [{ personaId: personaId('g1'), equipoId: 'eq-a1', rol: 'lider', desde: '2026-03-01T00:00:00.000Z' }]
-  mockNodosGdv = []
-  mockRpc = false
-  mockRegistrables = []
-  mockFichasEditables = []
-})
+    servicio("s1", "dir-a", "director", "p1"),
+    servicio("s2", "eq-a1", "coordinador", "p2", "en_pausa"),
+    servicio("s3", "eq-a1", "facilitador", "p3"),
+  ];
+  mockLideres = [
+    {
+      personaId: personaId("g1"),
+      equipoId: "eq-a1",
+      rol: "lider",
+      desde: "2026-03-01T00:00:00.000Z",
+    },
+  ];
+  mockNodosGdv = [];
+  mockRpc = false;
+  mockRegistrables = [];
+  mockFichasEditables = [];
+});
 
-describe('authorization', () => {
-  it('404s when Dream Team is off or the session cannot read it, and redirects without a session', async () => {
-    isDreamTeamEnabled.mockReturnValue(false)
-    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
-    isDreamTeamEnabled.mockReturnValue(true)
-    hasDreamTeamReadCapability.mockReturnValue(false)
-    await expect(renderizar()).rejects.toThrow('NEXT_NOT_FOUND')
-    hasDreamTeamReadCapability.mockReturnValue(true)
-    requireDreamTeamSession.mockResolvedValue(null)
-    await expect(renderizar()).rejects.toThrow('NEXT_REDIRECT:/login')
-  })
-})
+describe("authorization", () => {
+  it("404s when Dream Team is off or the session cannot read it, and redirects without a session", async () => {
+    isDreamTeamEnabled.mockReturnValue(false);
+    await expect(renderizar()).rejects.toThrow("NEXT_NOT_FOUND");
+    isDreamTeamEnabled.mockReturnValue(true);
+    hasDreamTeamReadCapability.mockReturnValue(false);
+    await expect(renderizar()).rejects.toThrow("NEXT_NOT_FOUND");
+    hasDreamTeamReadCapability.mockReturnValue(true);
+    requireDreamTeamSession.mockResolvedValue(null);
+    await expect(renderizar()).rejects.toThrow("NEXT_REDIRECT:/login");
+  });
+});
 
-describe('rows', () => {
-  it('reads every role in one request, never one per equipo', async () => {
-    mockListRoles.mockClear()
-    mockListRolesPorEquipo.mockClear()
-    await renderizar()
-    expect(mockListRoles).toHaveBeenCalledTimes(1)
-    expect(mockListRolesPorEquipo).not.toHaveBeenCalled()
-  })
+describe("rows", () => {
+  it("reads every role in one request, never one per equipo", async () => {
+    mockListRoles.mockClear();
+    mockListRolesPorEquipo.mockClear();
+    await renderizar();
+    expect(mockListRoles).toHaveBeenCalledTimes(1);
+    expect(mockListRolesPorEquipo).not.toHaveBeenCalled();
+  });
 
-  it('builds one flat row per servicio and per Grupos de Vida leader, resolved server-side', async () => {
-    const { filas } = await renderizar()
-    expect(filas).toHaveLength(4)
+  it("builds one flat row per servicio and per Grupos de Vida leader, resolved server-side", async () => {
+    const { filas } = await renderizar();
+    expect(filas).toHaveLength(4);
     expect(filas[0]).toMatchObject({
-      clave: 's1',
-      nombre: 'Ana Directora',
-      equipoLabel: 'Dirección A',
-      equipoRuta: '',
-      direccionId: 'dir-a',
-      rolLabel: 'Director',
-      estado: 'activo',
-      origen: 'dream_team',
-      servicioId: 's1',
+      clave: "s1",
+      nombre: "Ana Directora",
+      equipoLabel: "Dirección A",
+      equipoRuta: "",
+      direccionId: "dir-a",
+      rolLabel: "Director",
+      estado: "activo",
+      origen: "dream_team",
+      servicioId: "s1",
       version: 3,
       editable: true,
-    })
-    expect(filas[1]).toMatchObject({ equipoLabel: 'Equipo A1', equipoRuta: 'Dirección A', direccionId: 'dir-a', estado: 'en_pausa' })
+    });
+    expect(filas[1]).toMatchObject({
+      equipoLabel: "Equipo A1",
+      equipoRuta: "Dirección A",
+      direccionId: "dir-a",
+      estado: "en_pausa",
+    });
     expect(filas[3]).toMatchObject({
-      clave: 'gdv:g1:eq-a1',
-      nombre: 'Marta Lider',
-      rolLabel: 'Líder de grupo',
-      estado: 'activo',
-      origen: 'grupos_vida',
+      clave: "gdv:g1:eq-a1",
+      nombre: "Marta Lider",
+      rolLabel: "Líder de grupo",
+      estado: "activo",
+      origen: "grupos_vida",
       editable: false,
-    })
-  })
+    });
+  });
 
-  it('adds the phone and account status of each persona from the scoped contacts RPC, once for everyone', async () => {
-    const { filas } = await renderizar()
-    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1)
-    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(['p1', 'p2', 'p3', 'g1'])
-    expect(filas[0]).toMatchObject({ telefono: '04125457346', tieneCuenta: true })
-    expect(filas[1]).toMatchObject({ telefono: null, tieneCuenta: false })
-  })
+  it("adds the phone and account status of each persona from the scoped contacts RPC, once for everyone", async () => {
+    const { filas } = await renderizar();
+    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1);
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual([
+      "p1",
+      "p2",
+      "p3",
+      "g1",
+    ]);
+    expect(filas[0]).toMatchObject({
+      telefono: "04125457346",
+      tieneCuenta: true,
+    });
+    expect(filas[1]).toMatchObject({ telefono: null, tieneCuenta: false });
+  });
 
-  it('gives a Grupos de Vida leader the same phone and account status as any other row (still read-only)', async () => {
-    const { filas } = await renderizar()
-    expect(filas[3]).toMatchObject({ origen: 'grupos_vida', telefono: '04245551111', tieneCuenta: false, editable: false })
-  })
+  it("gives a Grupos de Vida leader the same phone and account status as any other row (still read-only)", async () => {
+    const { filas } = await renderizar();
+    expect(filas[3]).toMatchObject({
+      origen: "grupos_vida",
+      telefono: "04245551111",
+      tieneCuenta: false,
+      editable: false,
+    });
+  });
 
   it('leaves phone and account status unknown for a persona the RPC does not return (never "sin cuenta")', async () => {
-    const { filas } = await renderizar()
+    const { filas } = await renderizar();
     // p3 is not returned by the RPC.
-    expect(filas[2]).toMatchObject({ telefono: null, tieneCuenta: null })
-  })
+    expect(filas[2]).toMatchObject({ telefono: null, tieneCuenta: null });
+  });
 
-  it('marks rows read-only for a viewer without write capability', async () => {
-    hasDreamTeamWriteCapability.mockReturnValue(false)
-    const props = await renderizar()
-    expect(props.puedeEditar).toBe(false)
-    expect(props.filas.every((f) => !f.editable)).toBe(true)
-  })
+  it("marks rows read-only for a viewer without write capability", async () => {
+    hasDreamTeamWriteCapability.mockReturnValue(false);
+    const props = await renderizar();
+    expect(props.puedeEditar).toBe(false);
+    expect(props.filas.every((f) => !f.editable)).toBe(true);
+  });
 
-  it('hands the island only serializable data', async () => {
-    const props = await renderizar({ equipo: 'eq-a1', q: 'ana' })
-    expect(esSerializable(props)).toBe(true)
-  })
-})
+  it("hands the island only serializable data", async () => {
+    const props = await renderizar({ equipo: "eq-a1", q: "ana" });
+    expect(esSerializable(props)).toBe(true);
+  });
+});
 
 // The directors of Grupos de Vida come from the same RPC as the leaders (rol
 // `director_etapa` on their `directores` node, `director_general` on their
 // segmento), and their team name resolves from the virtual branch.
-describe('Grupos de Vida directors', () => {
+describe("Grupos de Vida directors", () => {
   const NODOS: NodoEstructuraGdv[] = [
-    { nodoId: 'gdv-raiz', parentId: null, tipo: 'direccion', label: 'Dirección de Grupos de Vida', responsables: [] },
-    { nodoId: 'seg-1', parentId: 'gdv-raiz', tipo: 'segmento', label: 'Matrimonios', responsables: [] },
-    { nodoId: 'dir-etapa-1', parentId: 'seg-1', tipo: 'directores', label: 'Diego Etapa y Dana Etapa', responsables: [] },
-  ]
+    {
+      nodoId: "gdv-raiz",
+      parentId: null,
+      tipo: "direccion",
+      label: "Dirección de Grupos de Vida",
+      responsables: [],
+    },
+    {
+      nodoId: "seg-1",
+      parentId: "gdv-raiz",
+      tipo: "segmento",
+      label: "Matrimonios",
+      responsables: [],
+    },
+    {
+      nodoId: "dir-etapa-1",
+      parentId: "seg-1",
+      tipo: "directores",
+      label: "Diego Etapa y Dana Etapa",
+      responsables: [],
+    },
+  ];
   const LIDERES: DreamTeamLiderGdv[] = [
-    { personaId: personaId('d1'), equipoId: 'dir-etapa-1', rol: 'director_etapa', desde: null },
-    { personaId: personaId('d2'), equipoId: 'seg-1', rol: 'director_general', desde: '2026-05-01T00:00:00.000Z' },
-  ]
+    {
+      personaId: personaId("d1"),
+      equipoId: "dir-etapa-1",
+      rol: "director_etapa",
+      desde: null,
+    },
+    {
+      personaId: personaId("d2"),
+      equipoId: "seg-1",
+      rol: "director_general",
+      desde: "2026-05-01T00:00:00.000Z",
+    },
+  ];
 
   beforeEach(() => {
-    mockNodosGdv = NODOS
-    mockLideres = LIDERES
-    mockServicios = []
+    mockNodosGdv = NODOS;
+    mockLideres = LIDERES;
+    mockServicios = [];
     fetchContactosPersonas.mockResolvedValue(
       new Map([
-        ['d1', { telefono: '04245551111', tieneCuenta: false }],
-        ['d2', { telefono: '04125552222', tieneCuenta: true }],
+        ["d1", { telefono: "04245551111", tieneCuenta: false }],
+        ["d2", { telefono: "04125552222", tieneCuenta: true }],
       ]),
-    )
-  })
+    );
+  });
 
-  it('builds one row per director on the node of their team, with role, phone and account', async () => {
-    const { filas } = await renderizar()
-    expect(filas).toHaveLength(2)
+  it("builds one row per director on the node of their team, with role, phone and account", async () => {
+    const { filas } = await renderizar();
+    expect(filas).toHaveLength(2);
     expect(filas[0]).toMatchObject({
-      clave: 'gdv:d1:dir-etapa-1',
-      nombre: 'Diego Etapa',
-      equipoId: 'dir-etapa-1',
-      equipoLabel: 'Diego Etapa y Dana Etapa',
-      equipoRuta: 'Dirección de Grupos de Vida · Matrimonios',
-      direccionId: 'gdv-raiz',
-      rolLabel: 'Director de etapa',
-      estado: 'activo',
+      clave: "gdv:d1:dir-etapa-1",
+      nombre: "Diego Etapa",
+      equipoId: "dir-etapa-1",
+      equipoLabel: "Diego Etapa y Dana Etapa",
+      equipoRuta: "Dirección de Grupos de Vida · Matrimonios",
+      direccionId: "gdv-raiz",
+      rolLabel: "Director de etapa",
+      estado: "activo",
       fechaInicio: null,
-      telefono: '04245551111',
+      telefono: "04245551111",
       tieneCuenta: false,
-      origen: 'grupos_vida',
+      origen: "grupos_vida",
       editable: false,
-    })
+    });
     expect(filas[1]).toMatchObject({
-      clave: 'gdv:d2:seg-1',
-      nombre: 'Dora General',
-      equipoLabel: 'Matrimonios',
-      equipoRuta: 'Dirección de Grupos de Vida',
-      rolLabel: 'Director general',
-      fechaInicio: '2026-05-01T00:00:00.000Z',
-      telefono: '04125552222',
+      clave: "gdv:d2:seg-1",
+      nombre: "Dora General",
+      equipoLabel: "Matrimonios",
+      equipoRuta: "Dirección de Grupos de Vida",
+      rolLabel: "Director general",
+      fechaInicio: "2026-05-01T00:00:00.000Z",
+      telefono: "04125552222",
       tieneCuenta: true,
       editable: false,
-    })
-  })
+    });
+  });
 
-  it('resolves names and contacts of the directors in the same single bulk calls', async () => {
-    await renderizar()
-    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1)
-    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(['d1', 'd2'])
-  })
+  it("resolves names and contacts of the directors in the same single bulk calls", async () => {
+    await renderizar();
+    expect(fetchContactosPersonas).toHaveBeenCalledTimes(1);
+    expect(fetchContactosPersonas.mock.calls[0][1]).toEqual(["d1", "d2"]);
+  });
 
-  it('keeps a director who also leads a group as one row per team', async () => {
+  it("keeps a director who also leads a group as one row per team", async () => {
     mockLideres = [
       ...LIDERES,
-      { personaId: personaId('d1'), equipoId: 'seg-1', rol: 'lider', desde: '2026-03-01T00:00:00.000Z' },
-    ]
-    const { filas } = await renderizar()
-    expect(filas.filter((f) => f.personaId === 'd1').map((f) => [f.clave, f.rolLabel])).toEqual([
-      ['gdv:d1:dir-etapa-1', 'Director de etapa'],
-      ['gdv:d1:seg-1', 'Líder de grupo'],
-    ])
-  })
+      {
+        personaId: personaId("d1"),
+        equipoId: "seg-1",
+        rol: "lider",
+        desde: "2026-03-01T00:00:00.000Z",
+      },
+    ];
+    const { filas } = await renderizar();
+    expect(
+      filas
+        .filter((f) => f.personaId === "d1")
+        .map((f) => [f.clave, f.rolLabel]),
+    ).toEqual([
+      ["gdv:d1:dir-etapa-1", "Director de etapa"],
+      ["gdv:d1:seg-1", "Líder de grupo"],
+    ]);
+  });
 
-  it('falls back like a leader when the node of the director is not visible', async () => {
-    mockNodosGdv = []
-    const { filas } = await renderizar()
-    expect(filas[0]).toMatchObject({ nombre: 'Diego Etapa', equipoLabel: 'Equipo no encontrado', equipoRuta: '', direccionId: 'dir-etapa-1' })
-  })
+  it("falls back like a leader when the node of the director is not visible", async () => {
+    mockNodosGdv = [];
+    const { filas } = await renderizar();
+    expect(filas[0]).toMatchObject({
+      nombre: "Diego Etapa",
+      equipoLabel: "Equipo no encontrado",
+      equipoRuta: "",
+      direccionId: "dir-etapa-1",
+    });
+  });
 
-  it('hands the island only serializable data, a missing start date included', async () => {
-    expect(esSerializable(await renderizar())).toBe(true)
-  })
-})
+  it("hands the island only serializable data, a missing start date included", async () => {
+    expect(esSerializable(await renderizar())).toBe(true);
+  });
+});
 
-describe('filters from the URL', () => {
-  it('starts without filters for a bare URL', async () => {
-    expect((await renderizar()).filtrosIniciales).toEqual(FILTROS_INICIALES)
-  })
+describe("filters from the URL", () => {
+  it("starts without filters for a bare URL", async () => {
+    expect((await renderizar()).filtrosIniciales).toEqual(FILTROS_INICIALES);
+  });
 
-  it('reads every filter of the URL', async () => {
+  it("reads every filter of the URL", async () => {
     const { filtrosIniciales } = await renderizar({
-      etapa: 'activo',
-      direccion: 'dir-a',
-      area: 'eq-a',
-      equipo: 'eq-a1',
-      rol: 'Coordinador',
-      turno: 't-1',
-      inicio: 'mes',
-      sin_cuenta: '1',
-      varios: '1',
-      por_activar: '1',
-      q: 'ana',
-      agrupar: 'persona',
-      orden: 'equipo:desc',
-    })
+      etapa: "activo",
+      direccion: "dir-a",
+      area: "eq-a",
+      equipo: "eq-a1",
+      rol: "Coordinador",
+      turno: "t-1",
+      inicio: "mes",
+      sin_cuenta: "1",
+      varios: "1",
+      por_activar: "1",
+      q: "ana",
+      agrupar: "persona",
+      orden: "equipo:desc",
+    });
     expect(filtrosIniciales).toEqual({
-      etapa: 'activo',
-      direccion: 'dir-a',
-      area: 'eq-a',
-      equipo: 'eq-a1',
-      rol: 'Coordinador',
-      turno: 't-1',
-      inicio: 'mes',
+      etapa: "activo",
+      direccion: "dir-a",
+      area: "eq-a",
+      equipo: "eq-a1",
+      rol: "Coordinador",
+      turno: "t-1",
+      inicio: "mes",
       sinCuenta: true,
       invitacion: null,
       varios: true,
       porActivar: true,
-      q: 'ana',
-      agrupar: 'persona',
-      orden: { columna: 'equipo', sentido: 'desc' },
+      q: "ana",
+      agrupar: "persona",
+      orden: { columna: "equipo", sentido: "desc" },
       edad: null,
-    })
-  })
+    });
+  });
 
-  it('keeps the legacy ?equipo= and ?estado= working (links from Talleres and Estructura)', async () => {
-    const { filtrosIniciales } = await renderizar({ equipo: 'eq-a1', estado: 'en_pausa' })
-    expect(filtrosIniciales).toMatchObject({ equipo: 'eq-a1', etapa: 'en_pausa' })
-  })
+  it("keeps the legacy ?equipo= and ?estado= working (links from Talleres and Estructura)", async () => {
+    const { filtrosIniciales } = await renderizar({
+      equipo: "eq-a1",
+      estado: "en_pausa",
+    });
+    expect(filtrosIniciales).toMatchObject({
+      equipo: "eq-a1",
+      etapa: "en_pausa",
+    });
+  });
 
-  it('accepts a page rendered without searchParams', async () => {
-    const element = (await DreamTeamServidoresPage()) as React.ReactElement<ServidoresClientProps>
-    expect(element.props.filtrosIniciales).toEqual(FILTROS_INICIALES)
-  })
-})
+  it("accepts a page rendered without searchParams", async () => {
+    const element =
+      (await DreamTeamServidoresPage()) as React.ReactElement<ServidoresClientProps>;
+    expect(element.props.filtrosIniciales).toEqual(FILTROS_INICIALES);
+  });
+});
 
 describe('"Editar ficha" from the database (S5 of dream-team-directores-fichas)', () => {
-  const fichaPorNombre = (filas: ServidoresClientProps['filas']) =>
-    Object.fromEntries(filas.filter((f) => f.origen === 'dream_team').map((f) => [f.nombre, f.fichaEditable]))
+  const fichaPorNombre = (filas: ServidoresClientProps["filas"]) =>
+    Object.fromEntries(
+      filas
+        .filter((f) => f.origen === "dream_team")
+        .map((f) => [f.nombre, f.fichaEditable]),
+    );
 
-  it('marks editable the people dream_team_fichas_editables returns (an area director), and only them', async () => {
-    mockRpc = true
-    mockFichasEditables = ['p3']
-    const { filas } = await renderizar()
-    expect(fichaPorNombre(filas)).toEqual({ 'Ana Directora': false, 'Bea Coordinadora': false, 'Carla Facilitadora': true })
-  })
+  it("marks editable the people dream_team_fichas_editables returns (an area director), and only them", async () => {
+    mockRpc = true;
+    mockFichasEditables = ["p3"];
+    const { filas } = await renderizar();
+    expect(fichaPorNombre(filas)).toEqual({
+      "Ana Directora": false,
+      "Bea Coordinadora": false,
+      "Carla Facilitadora": true,
+    });
+  });
 
-  it('keeps the registrables rule when the lookup fails (fails closed for the rest)', async () => {
-    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
-    mockRpc = true
-    mockRegistrables = [{ equipo_id: 'eq-a1' }]
-    mockFichasEditables = null
-    const { filas } = await renderizar()
-    expect(fichaPorNombre(filas)).toEqual({ 'Ana Directora': false, 'Bea Coordinadora': true, 'Carla Facilitadora': true })
-    error.mockRestore()
-  })
+  it("keeps the registrables rule when the lookup fails (fails closed for the rest)", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    mockRpc = true;
+    mockRegistrables = [{ equipo_id: "eq-a1" }];
+    mockFichasEditables = null;
+    const { filas } = await renderizar();
+    expect(fichaPorNombre(filas)).toEqual({
+      "Ana Directora": false,
+      "Bea Coordinadora": true,
+      "Carla Facilitadora": true,
+    });
+    error.mockRestore();
+  });
 
-  it('never marks a retired servicio', async () => {
-    mockRpc = true
-    mockFichasEditables = ['p3']
-    mockServicios = [servicio('s3', 'eq-a1', 'facilitador', 'p3', 'retirado')]
-    const { filas } = await renderizar()
-    expect(fichaPorNombre(filas)).toEqual({ 'Carla Facilitadora': false })
-  })
-})
+  it("never marks a retired servicio", async () => {
+    mockRpc = true;
+    mockFichasEditables = ["p3"];
+    mockServicios = [servicio("s3", "eq-a1", "facilitador", "p3", "retirado")];
+    const { filas } = await renderizar();
+    expect(fichaPorNombre(filas)).toEqual({ "Carla Facilitadora": false });
+  });
+});

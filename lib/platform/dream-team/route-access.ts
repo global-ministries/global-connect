@@ -27,10 +27,12 @@ export const isDreamTeamEnabled = (env: NodeJS.ProcessEnv = process.env) =>
  * The server session of the caller, with their Dream Team capabilities.
  *
  * `globalRoles` stays EMPTY unless `includeRoles` is passed: the roles cost one
- * extra RPC and only /dream-team/mi-equipo needs them (a Grupos de Vida director
- * opens it by system role, see hasDreamTeamMiEquipoAccess). Every other caller
- * is gated on capabilities alone and keeps its session and its round trips as
- * they were. A failed role lookup yields no roles (the director rule then simply
+ * extra RPC and only a few callers need them — /dream-team and
+ * /dream-team/mi-equipo (a Grupos de Vida director opens them by system role,
+ * see hasDreamTeamMiEquipoAccess) and the Estructura page and equipo actions
+ * (an admin or pastor reshapes every equipo, see hasDreamTeamEquiposGestion).
+ * Every other caller is gated on capabilities alone and keeps its session and
+ * its round trips as they were. A failed role lookup yields no roles (the director rule then simply
  * does not apply), never an error.
  */
 export async function requireDreamTeamSession({ includeRoles = false }: { includeRoles?: boolean } = {}) {

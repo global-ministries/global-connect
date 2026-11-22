@@ -64,12 +64,6 @@ function hrefServidores(equipoId: string): string {
   return `/admin/dream-team/servidores?equipo=${encodeURIComponent(equipoId)}`
 }
 
-/** "Ana María Pérez Gómez" → "Ana Gómez"; couples ("Carlos y Ana") stay whole. */
-export function nombreCorto(nombre: string): string {
-  const partes = nombre.split(' ').filter(Boolean)
-  return partes.length > 2 && !nombre.includes(' y ') ? `${partes[0]} ${partes[partes.length - 1]}` : nombre
-}
-
 function Callout({ tono, titulo, children, arreglo }: {
   readonly tono: TonoEstado
   readonly titulo: string
@@ -97,13 +91,18 @@ function textoSinTurno(turnos: TurnosNodo | undefined): string {
 
 function Responsable({ responsable }: { readonly responsable: ResponsableEquipo | null }): ReactElement {
   if (!responsable) return <span className="text-warning-text">Sin responsable</span>
+  const { heredadoDe } = responsable
   return (
-    <>
-      <span className="block truncate" title={responsable.nombre}>{responsable.nombre}</span>
-      <span className="block text-sm font-normal text-muted-foreground">
-        {responsable.heredadoDe ? `${responsable.rol} · heredado de ${responsable.heredadoDe.label}` : responsable.rol}
-      </span>
-    </>
+    <ul aria-label="Responsables" className="grid gap-2">
+      {responsable.personas.map((persona, indice) => (
+        <li key={`${persona.nombre}-${indice}`} className="min-w-0">
+          <span className="block truncate" title={persona.nombre}>{persona.nombre}</span>
+          <span className="block text-sm font-normal text-muted-foreground">
+            {heredadoDe ? `${persona.rol} · heredado de ${heredadoDe.label}` : persona.rol}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -251,7 +250,7 @@ export function PanelNodoResumen({
                     <span className="flex min-w-0 flex-col gap-0.5">
                       <span className="truncate text-sm font-medium text-foreground">{hijo.label}</span>
                       <span className="truncate text-sm text-muted-foreground">
-                        {hijo.responsable ? nombreCorto(hijo.responsable.nombre) : 'Sin responsable'}
+                        {hijo.responsable ? hijo.responsable.texto : 'Sin responsable'}
                         {suyos.length > 0 && ` · ${suyos.map((problema) => SALUD_PROBLEMA[problema].corto).join(', ')}`}
                       </span>
                     </span>
