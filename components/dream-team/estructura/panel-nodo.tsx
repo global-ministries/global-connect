@@ -12,7 +12,10 @@
  * equipo. The quick actions (Subequipo · Renombrar · Desactivar) follow
  * `puedeGestionar`: whoever directs the equipo or one above it
  * (odd/tasks/dream-team-estructura-correcciones.md, T3, S4); «Mover a…» shows
- * when `mover` is given, i.e. they also direct its current parent (S5). A
+ * when `mover` is given, i.e. they also direct its current parent (S5). A DPS
+ * anchor (`esAnclaDps`: DPS, Global Music, Producción Creativa, Productores,
+ * Cantantes, resolved by label and parent) keeps only Subequipo (and Activar
+ * when inactive): the RPCs refuse renaming, deactivating or moving it (T7, B2). A
  * Grupos de Vida node is a read-only projection for everyone and only gets the
  * Resumen. Data and callbacks come
  * in; the mutations are the server actions in
@@ -79,6 +82,11 @@ export interface PanelNodoProps {
    * one above (S4). Absent: follows `puedeEditar`.
    */
   readonly puedeGestionar?: boolean
+  /**
+   * A DPS anchor (T7, B2): Renombrar, Desactivar and «Mover a…» are hidden —
+   * dream_team_equipo_renombrar / _cambiar_activo / _mover refuse them for everyone.
+   */
+  readonly esAnclaDps?: boolean
   /** «Mover a…» (S5): given when the viewer also directs the current parent. */
   readonly mover?: {
     /** Label of the current equipo above. */
@@ -125,6 +133,7 @@ export function PanelNodo({
   problemasDe,
   puedeEditar,
   puedeGestionar,
+  esAnclaDps = false,
   mover,
   turnos,
   pestana: pestanaControlada,
@@ -147,7 +156,11 @@ export function PanelNodo({
   const soloLectura = !detalle.editable
   const edita = puedeEditar && detalle.editable
   const gestiona = (puedeGestionar ?? puedeEditar) && detalle.editable
-  const mueve = gestiona && mover !== undefined
+  const mueve = gestiona && mover !== undefined && !esAnclaDps
+  const renombra = gestiona && !esAnclaDps
+  // An inactive anchor may be reactivated (T6); an active one is never deactivated.
+  const cambiaActivo = gestiona && (!esAnclaDps || !detalle.activo)
+  const acciones = 1 + Number(renombra) + Number(cambiaActivo) + Number(mueve)
   const pestana: PestanaNodo = soloLectura ? 'resumen' : (pestanaControlada ?? delNodo.pestana)
   const porRevisar = problemas.filter((problema) => problema !== 'inactivo').length
   const ruta = detalle.ruta.slice(0, -1).join(' › ')
@@ -212,22 +225,30 @@ export function PanelNodo({
         </div>
 
         {gestiona && (
-          <div className={cn('grid gap-2', mueve ? 'grid-cols-4' : 'grid-cols-3')}>
+          <div
+            className={cn(
+              'grid gap-2',
+              acciones === 4 ? 'grid-cols-4' : acciones === 3 ? 'grid-cols-3' : acciones === 2 ? 'grid-cols-2' : 'grid-cols-1',
+            )}
+          >
             <BotonSistema type="button" variante="outline" icono={Plus} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('subequipo')}>
               Subequipo
             </BotonSistema>
-            <BotonSistema type="button" variante="outline" icono={Pencil} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('renombrar')}>
-              Renombrar
-            </BotonSistema>
-            {detalle.activo ? (
-              <BotonSistema type="button" variante="outline" icono={Ban} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('desactivar')}>
-                Desactivar
-              </BotonSistema>
-            ) : (
-              <BotonSistema type="button" variante="outline" icono={Power} className={ACCION_RAPIDA} disabled={isPending} onClick={() => cambiarActivo(true)}>
-                Activar
+            {renombra && (
+              <BotonSistema type="button" variante="outline" icono={Pencil} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('renombrar')}>
+                Renombrar
               </BotonSistema>
             )}
+            {cambiaActivo &&
+              (detalle.activo ? (
+                <BotonSistema type="button" variante="outline" icono={Ban} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('desactivar')}>
+                  Desactivar
+                </BotonSistema>
+              ) : (
+                <BotonSistema type="button" variante="outline" icono={Power} className={ACCION_RAPIDA} disabled={isPending} onClick={() => cambiarActivo(true)}>
+                  Activar
+                </BotonSistema>
+              ))}
             {mueve && (
               <BotonSistema type="button" variante="outline" icono={FolderInput} className={ACCION_RAPIDA} disabled={isPending} onClick={() => setDialogo('mover')}>
                 Mover a…
@@ -285,7 +306,7 @@ export function PanelNodo({
         )}
       </div>
 
-      {dialogo === 'renombrar' && (
+      {dialogo === 'renombrar' && renombra && (
         <DialogoNombre
           titulo="Renombrar equipo"
           descripcion="El nuevo nombre se verá en todas las pantallas de Dream Team."
@@ -315,7 +336,7 @@ export function PanelNodo({
         />
       )}
 
-      {dialogo === 'mover' && mover && (
+      {dialogo === 'mover' && mover && mueve && (
         <MoverEquipoDialogo
           equipo={{
             id: detalle.id,

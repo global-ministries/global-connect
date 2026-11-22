@@ -173,4 +173,13 @@ describe('who sees what (criterion 6)', () => {
     render(<EstructuraClient {...props({ equipoId: ID_GDV })} />)
     expect(panel().getByRole('button', { name: 'Renombrar' })).toBeInTheDocument()
   })
+
+  // T7 (B2): a DPS anchor keeps only «+ Subequipo».
+  it('hides Renombrar, Desactivar and «Mover a…» on a DPS anchor', () => {
+    render(<EstructuraClient {...props({ anclasDps: [ID_DHAH] })} />)
+    expect(panel().getByRole('button', { name: 'Subequipo' })).toBeInTheDocument()
+    for (const accion of ['Renombrar', 'Desactivar', 'Mover a…']) {
+      expect(panel().queryByRole('button', { name: accion })).not.toBeInTheDocument()
+    }
+  })
 })

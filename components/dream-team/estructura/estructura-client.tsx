@@ -17,7 +17,8 @@
  * real equipos; `equiposGestionables` (directors and up,
  * odd/tasks/dream-team-estructura-correcciones.md T3) are the equipos whose
  * structure the viewer reshapes — subequipo, rename, deactivate, and «Mover
- * a…» when they also direct the parent. The virtual Grupos de Vida branch is
+ * a…» when they also direct the parent. `anclasDps` (T7, B2) are the DPS
+ * anchors, which keep only «+ Subequipo». The virtual Grupos de Vida branch is
  * read-only for everyone. The view model is
  * lib/platform/dream-team/estructura-organigrama.ts; the state lives in the
  * URL (use-estado-estructura.ts). Only serializable data crosses in.
@@ -66,6 +67,11 @@ export interface EstructuraClientProps {
    * equipo when `puedeEditar`, none otherwise.
    */
   readonly equiposGestionables?: readonly string[]
+  /**
+   * The DPS anchor equipos (dream_team_equipos_anclas_dps): no Renombrar,
+   * Desactivar nor «Mover a…» on them (T7, B2). Absent: none.
+   */
+  readonly anclasDps?: readonly string[]
   /** The rest of the URL state (leerFiltrosEstructura); defaults to none. */
   readonly filtros?: FiltrosEstructura
   /** Campus service shifts (D12); absent when they could not be loaded. */
@@ -104,6 +110,7 @@ function EstructuraConArbol({
   equipoId,
   puedeEditar,
   equiposGestionables,
+  anclasDps,
   filtros = FILTROS_ESTRUCTURA,
   turnos,
 }: EstructuraClientProps): ReactElement {
@@ -129,6 +136,7 @@ function EstructuraConArbol({
       new Set(equiposGestionables ?? (puedeEditar ? organigrama.nodos.filter((nodo) => nodo.editable).map((nodo) => nodo.id) : [])),
     [equiposGestionables, puedeEditar, organigrama],
   )
+  const anclas = useMemo<ReadonlySet<string>>(() => new Set(anclasDps ?? []), [anclasDps])
   const gestionaAlguno = gestionables.size > 0
   const [selector, setSelector] = useState(false)
   const [subequipoDe, setSubequipoDe] = useState<{ readonly id: string; readonly label: string } | null>(null)
@@ -159,7 +167,7 @@ function EstructuraConArbol({
   const nodoAbierto = detalle ? organigrama.nodo(detalle.id) : null
   const padreAbierto = nodoAbierto?.padreId ? organigrama.nodo(nodoAbierto.padreId) : null
   const mover =
-    nodoAbierto && padreAbierto && gestionables.has(padreAbierto.id)
+    nodoAbierto && padreAbierto && gestionables.has(padreAbierto.id) && !anclas.has(nodoAbierto.id)
       ? {
           origen: padreAbierto.label,
           subequipos: nodoAbierto.descendientes,
@@ -240,6 +248,7 @@ function EstructuraConArbol({
           problemasDe={problemasDe}
           puedeEditar={puedeEditar}
           puedeGestionar={gestionables.has(detalle.id)}
+          esAnclaDps={anclas.has(detalle.id)}
           mover={mover}
           turnos={turnosNodo}
           onAbrirNodo={estado.abrir}

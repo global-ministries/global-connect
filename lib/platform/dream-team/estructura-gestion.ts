@@ -183,6 +183,9 @@ export function mensajeErrorGestion(codigo: string, accion: AccionGestion): stri
   if (codigo === 'equipo_ancla' && accion === 'activar') {
     return 'Este equipo sostiene la planificación de DPS y no se puede desactivar.'
   }
+  if (codigo === 'equipo_ancla' && accion === 'renombrar') {
+    return 'Este equipo sostiene la planificación de DPS y no se puede renombrar.'
+  }
   return MENSAJES[codigo] ?? MENSAJE_INTERNO
 }
 

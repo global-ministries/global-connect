@@ -18,7 +18,10 @@
 --      «Desactivar» / «Activar». Need dream_team_gestiona_equipo(equipo).
 --      «Desactivar» refuses the DPS anchors ('equipo_ancla', for everyone,
 --      org.manage and admin included): the DPS planning resolves them by
---      label and parent. Reactivating one is allowed (T6).
+--      label and parent. Reactivating one is allowed (T6). «Renombrar»
+--      refuses them too, for everyone (T7, B2): a new label would lose them.
+--      dream_team_equipos_anclas_dps() hands their ids to the screen, which
+--      hides «Renombrar», «Mover a…» and «Desactivar» on them.
 --   4. dream_team_equipo_mover(equipo, nuevo_padre): «Mover a…» (S5). Needs
 --      dream_team_gestiona_equipo over the CURRENT parent and over the new
 --      one (authority over origin and destination). Refuses a root, the same
@@ -37,7 +40,10 @@
 --      like Próximo Paso under DPS, keeps its own). That change is refused
 --      ('experiencia_con_datos') when one of those nodes carries data bound
 --      to its experiencia: a taller, a talleres cohort or temporada, an
---      Estudiantes ámbito, year or grupo, or a Niños salón.
+--      Estudiantes ámbito, year or grupo, a Niños salón, or a frozen
+--      volunteer roster of Niños or Estudiantes
+--      (ninos_voluntarios_roster_servicios.area_id / equipo_id,
+--      estudiantes_voluntarios_roster_servicios.ambito_id / equipo_id).
 --      DPS: the DPS puestos of the moved equipos keep their equipo; inside
 --      DPS they simply show under the new path. When equipos LEAVE
 --      dps_equipos() (e.g. Bautizos to Dirección de Conexión) and a puesto of
@@ -60,10 +66,12 @@
 -- these functions are the only way a director writes the tree, and they
 -- never touch any column but label, activo, parent_equipo_id and experiencia.
 --
--- Blast radius: six new functions (four RPCs for authenticated, two closed
--- helpers) plus the gate. No table, policy or existing function changes.
+-- Blast radius: seven new functions (four RPCs and the anchor list for
+-- authenticated, two closed helpers) plus the gate. No table, policy or
+-- existing function changes.
 --
 -- Rollback:
+--   drop function if exists public.dream_team_equipos_anclas_dps();
 --   drop function if exists public.dream_team_equipo_mover(uuid, uuid);
 --   drop function if exists public.dream_team_equipo_cambiar_activo(uuid, boolean);
 --   drop function if exists public.dream_team_equipo_renombrar(uuid, text);
@@ -135,10 +143,35 @@ $$;
 
 comment on function public.dream_team_equipo_es_ancla_dps(uuid) is
   'Whether an equipo is a DPS anchor (dps_raiz, dps_raiz_musica, dps_equipo_produccion_creativa, '
-  'dps_equipo_productores, dps_equipo_cantantes). Internal to dream_team_equipo_mover and _cambiar_activo.';
+  'dps_equipo_productores, dps_equipo_cantantes). Internal to dream_team_equipo_mover, _renombrar and _cambiar_activo.';
 
 revoke all on function public.dream_team_equipo_es_ancla_dps(uuid) from public, anon, authenticated;
 grant execute on function public.dream_team_equipo_es_ancla_dps(uuid) to service_role;
+
+-- The anchor ids for /admin/dream-team/estructura, which hides «Renombrar»,
+-- «Mover a…» and «Desactivar» on them (the RPCs refuse them anyway). Five ids
+-- of equipos, nothing else; empty without a session.
+create or replace function public.dream_team_equipos_anclas_dps()
+returns uuid[]
+language sql
+stable
+security definer
+set search_path to ''
+as $$
+  select coalesce(array_agg(x order by x), '{}'::uuid[])
+    from unnest(array[public.dps_raiz(), public.dps_raiz_musica(),
+                      public.dps_equipo_produccion_creativa(),
+                      public.dps_equipo_productores(),
+                      public.dps_equipo_cantantes()]) as x
+   where x is not null and auth.uid() is not null
+$$;
+
+comment on function public.dream_team_equipos_anclas_dps() is
+  'The DPS anchor equipo ids (see dream_team_equipo_es_ancla_dps), for the Estructura screen to hide the actions '
+  'the RPCs refuse on them. Empty without a session.';
+
+revoke all on function public.dream_team_equipos_anclas_dps() from public, anon;
+grant execute on function public.dream_team_equipos_anclas_dps() to authenticated;
 
 -- ── 2. create ────────────────────────────────────────────────────────
 
@@ -212,6 +245,9 @@ begin
   if not public.dream_team_gestiona_equipo(p_equipo) then
     raise exception 'sin_autoridad' using errcode = '42501';
   end if;
+  if public.dream_team_equipo_es_ancla_dps(p_equipo) then
+    raise exception 'equipo_ancla' using errcode = '22023';
+  end if;
   if v_label = '' or char_length(v_label) > 120 then
     raise exception 'nombre_invalido' using errcode = '22023';
   end if;
@@ -232,7 +268,8 @@ end;
 $$;
 
 comment on function public.dream_team_equipo_renombrar(uuid, text) is
-  '«Renombrar» (S4): the caller needs dream_team_gestiona_equipo(p_equipo). Returns the equipo as jsonb.';
+  '«Renombrar» (S4): the caller needs dream_team_gestiona_equipo(p_equipo); a DPS anchor cannot be renamed '
+  '(equipo_ancla, for everyone). Returns the equipo as jsonb.';
 
 revoke all on function public.dream_team_equipo_renombrar(uuid, text) from public, anon;
 grant execute on function public.dream_team_equipo_renombrar(uuid, text) to authenticated;
@@ -351,7 +388,11 @@ begin
        or exists (select 1 from public.estudiantes_escala x where x.ambito_id = any (v_cambian))
        or exists (select 1 from public.estudiantes_grupos g
                    where g.ambito_id = any (v_cambian) or g.subarea_id = any (v_cambian))
-       or exists (select 1 from public.ninos_salones s where s.equipo_id = any (v_cambian)) then
+       or exists (select 1 from public.ninos_salones s where s.equipo_id = any (v_cambian))
+       or exists (select 1 from public.ninos_voluntarios_roster_servicios r
+                   where r.area_id = any (v_cambian) or r.equipo_id = any (v_cambian))
+       or exists (select 1 from public.estudiantes_voluntarios_roster_servicios r
+                   where r.ambito_id = any (v_cambian) or r.equipo_id = any (v_cambian)) then
       raise exception 'experiencia_con_datos' using errcode = '22023';
     end if;
   end if;

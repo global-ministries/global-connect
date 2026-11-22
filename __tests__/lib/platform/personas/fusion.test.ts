@@ -101,6 +101,23 @@ describe('mensajeErrorFusion', () => {
       { code: '22023', message: 'historial_inmutable' },
       'La ficha que se borra tiene historial que no se puede cambiar. No se cambió nada; avisa a soporte.',
     ],
+    // T7 (B1): a collision only a human settles names its area.
+    [
+      { code: '22023', message: 'fusion_conflicto', details: 'casas_anfitrionas' },
+      'Las dos fichas tienen una casa anfitriona y cada persona solo puede tener una. No se cambió nada; deja una sola casa en Casas anfitrionas y vuelve a intentarlo.',
+    ],
+    [
+      { code: '22023', message: 'fusion_conflicto', details: 'taller_inscripciones' },
+      'Las dos fichas están inscritas en la misma edición de un taller y una de esas inscripciones es en pareja. No se cambió nada; retira una de las dos inscripciones en Talleres y vuelve a intentarlo.',
+    ],
+    [
+      { code: '22023', message: 'fusion_conflicto', details: 'otra_tabla' },
+      'Las dos fichas tienen datos que no se pueden juntar solos. No se cambió nada; avisa a soporte.',
+    ],
+    [
+      { code: '22023', message: 'fusion_conflicto' },
+      'Las dos fichas tienen datos que no se pueden juntar solos. No se cambió nada; avisa a soporte.',
+    ],
     [{ code: '23505', message: 'duplicate key value violates unique constraint "x"' }, 'No se pudo fusionar. No se cambió nada; intenta de nuevo o avisa a soporte.'],
     [null, 'No se pudo fusionar. No se cambió nada; intenta de nuevo o avisa a soporte.'],
   ])('%j → %s', (error, mensaje) => {
@@ -194,6 +211,11 @@ describe('labels', () => {
     expect(etiquetaConteo('asistencia.usuario_id')).toBe('Asistencia a grupos')
     expect(etiquetaConteo('relaciones_usuarios.entre_ambas')).toBe('Vínculo familiar entre las dos fichas')
     expect(etiquetaConteo('otra.columna')).toBe('otra.columna')
+    // T7: the tables behind rule triggers read in Spanish too.
+    expect(etiquetaConteo('taller_inscripciones.persona_principal_id')).toBe('Inscripciones a talleres')
+    expect(etiquetaConteo('taller_reportes.firma_lider_persona_id')).toBe('Reportes de talleres que firmó')
+    expect(etiquetaConteo('taller_grupo_asignaciones.persona_id')).toBe('Grupos de talleres que acompañó')
+    expect(etiquetaConteo('estudiantes_grupos.created_by')).toBe('Grupos de Estudiantes que creó')
     expect(etiquetaConteo('operating_core_participation_eventos.subject_id')).toBe('Historial de participación')
     expect(etiquetaConteo('operating_core_participation_eventos.actor_persona_id')).toBe(
       'Historial de participación (registrado por esta ficha)',

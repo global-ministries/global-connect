@@ -9,7 +9,8 @@
  * campus), so a campus-level dream_team.org.manage does not open it. Anyone
  * else gets a 404; a signed-out visitor goes to /login.
  *
- * Not in the navigation yet: reached by URL.
+ * Linked from the Administración section of the navigation («Fusionar
+ * personas», admin and pastor only).
  */
 import { notFound, redirect } from 'next/navigation'
 

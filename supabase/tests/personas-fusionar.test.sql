@@ -42,6 +42,26 @@
 --   l. Privileges: authenticated executes the three RPCs, anon and PUBLIC do
 --      not; definer functions with an empty search_path; personas_fusiones is
 --      not readable by authenticated.
+--   T7 (B1) — rows behind rule triggers. SEVA is a member of a The Living
+--      Room grupo he created (estudiantes_grupo_miembros_validar,
+--      estudiantes_grupos_validar), signed a taller_reportes row in estado
+--      'enviado' (taller_reportes_lock_after_send), has a past
+--      taller_grupo_asignaciones row of a taller he no longer serves
+--      (taller_grupo_asignaciones_exige_servidor_activo), closed an edición
+--      (talleres_ediciones_cierre_solo_por_rpc) and has an individual
+--      taller_inscripciones row in the same edición as QUEDA
+--      (talleres_inscripciones_una_aparicion):
+--   d. the dry run counts them (the inscription: movidos 1, retirados 1);
+--   c. collisions only a human settles refuse the dry run and the merge
+--      (fusion_conflicto, DETAIL the table): both host a casa
+--      (casas_anfitrionas); SEVA's colliding inscription is a couple's
+--      (taller_inscripciones);
+--   t. the bypass is narrow: outside a merge the rules hold; with
+--      app.personas_fusion set, a change of another column, or towards
+--      someone else, still raises; only the bare SEVA -> QUEDA id goes
+--      through; after the merge the setting is empty and the rules hold;
+--   m. after the real merge each row is QUEDA's with the rest unchanged;
+--      SEVA's inscription is withdrawn (retirado, version 2) and QUEDA's kept.
 --
 -- Run against STAGING as postgres inside a transaction that is discarded:
 -- the last statement raises 'SUITE_RESULT: ALL OK' (or the failing cases),
@@ -54,8 +74,11 @@
 -- Casado, registered 2020; G1 and G2; E1 present and E2; servicios eq1/rol1
 -- and eq1/rol2; campus B principal and A; miembro; DPS planner; created
 -- usuario 15; family link with QUEDA; one operating_core_participation_eventos
--- row as subject and actor), 12 and 13 two people with accounts, 15 HIJO
--- (creado_por SEVA).
+-- row as subject and actor; T7: a retirado servicio in the taller node eq3,
+-- assignment ga1 (inactive) in grupo tg1, reporte tr1 enviado, inscripción
+-- ti2 in edición ed1, edición ed2 closed by him, TLR grupo eg1 created by
+-- him with him as miembro), 12 and 13 two people with accounts, 15 HIJO
+-- (creado_por SEVA). QUEDA also has inscripción ti1 in ed1.
 
 SET LOCAL search_path TO pg_temp, public;
 
@@ -116,7 +139,11 @@ CREATE OR REPLACE FUNCTION pg_temp.id(p_kind text, p_n int) RETURNS uuid LANGUAG
   SELECT format('e5c20000-0000-4000-%s-%s',
            CASE p_kind WHEN 'au' THEN 'c201' WHEN 'us' THEN 'c202' WHEN 'ca' THEN 'c203'
                        WHEN 'eq' THEN 'c204' WHEN 'ro' THEN 'c205' WHEN 'se' THEN 'c206'
-                       WHEN 'sg' THEN 'c207' WHEN 'gr' THEN 'c208' WHEN 'ev' THEN 'c209' END,
+                       WHEN 'sg' THEN 'c207' WHEN 'gr' THEN 'c208' WHEN 'ev' THEN 'c209'
+                       WHEN 'ta' THEN 'c20a' WHEN 'oc' THEN 'c20b' WHEN 'ed' THEN 'c20c'
+                       WHEN 'co' THEN 'c20d' WHEN 'tg' THEN 'c20e' WHEN 'ga' THEN 'c20f'
+                       WHEN 'tr' THEN 'c210' WHEN 'ti' THEN 'c211' WHEN 'eg' THEN 'c212'
+                       WHEN 'cs' THEN 'c213' END,
            lpad(to_hex(p_n), 12, '0'))::uuid;
 $$;
 
@@ -165,7 +192,20 @@ CREATE OR REPLACE FUNCTION pg_temp.foto() RETURNS text LANGUAGE sql STABLE AS $$
        FROM public.audit_grupo_miembros ag WHERE ag.usuario_id::text LIKE 'e5c20000-%'),
     (SELECT count(*) FROM public.personas_fusiones f WHERE f.se_va_id::text LIKE 'e5c20000-%'),
     (SELECT count(*) FROM public.operating_core_participation_eventos e
-      WHERE e.subject_id::text LIKE 'e5c20000-%' OR e.actor_persona_id::text LIKE 'e5c20000-%')));
+      WHERE e.subject_id::text LIKE 'e5c20000-%' OR e.actor_persona_id::text LIKE 'e5c20000-%'),
+    (SELECT string_agg(concat_ws(':', r.id, r.estado, r.firma_lider_persona_id, r.observaciones_generales), ',' ORDER BY r.id)
+       FROM public.taller_reportes r WHERE r.id::text LIKE 'e5c20000-%'),
+    (SELECT string_agg(concat_ws(':', a.id, a.persona_id, a.activo), ',' ORDER BY a.id)
+       FROM public.taller_grupo_asignaciones a WHERE a.id::text LIKE 'e5c20000-%'),
+    (SELECT string_agg(concat_ws(':', i.id, i.persona_principal_id, i.companero_id, i.estado, i.version), ',' ORDER BY i.id)
+       FROM public.taller_inscripciones i WHERE i.id::text LIKE 'e5c20000-%'),
+    (SELECT string_agg(concat_ws(':', e.id, e.cerrada_por), ',' ORDER BY e.id)
+       FROM public.taller_ediciones e WHERE e.id::text LIKE 'e5c20000-%'),
+    (SELECT string_agg(concat_ws(':', m.id, m.persona_id, m.estado), ',' ORDER BY m.id)
+       FROM public.estudiantes_grupo_miembros m WHERE m.grupo_id::text LIKE 'e5c20000-%'),
+    (SELECT string_agg(concat_ws(':', g.id, g.created_by), ',' ORDER BY g.id)
+       FROM public.estudiantes_grupos g WHERE g.id::text LIKE 'e5c20000-%'),
+    (SELECT count(*) FROM public.casas_anfitrionas ca WHERE ca.id::text LIKE 'e5c20000-%')));
 $$;
 
 -- ── fixtures (as postgres) ───────────────────────────────────────────
@@ -250,6 +290,75 @@ INSERT INTO public.dps_planificadores (persona_id, agregado_por) VALUES (pg_temp
 -- Append-only ledger (statement trigger enforce_*participation_append_only refuses any UPDATE/DELETE).
 INSERT INTO public.operating_core_participation_eventos (kind, subject_id, occurred_at, actor_persona_id, capture_source, experience)
 VALUES ('attendance', pg_temp.u(11), timestamptz '2020-06-01 12:00+00', pg_temp.u(11), 'manual', 'zz_pf_suite');
+
+-- T7 (B1): rows whose UPDATE triggers enforce business rules.
+-- A talleres node where SEVA served (needed to assign him to a grupo), then retired.
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
+VALUES (pg_temp.id('eq', 2), 'talleres_crecimiento', NULL, 'ZZ Dup Talleres', true);
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
+VALUES (pg_temp.id('eq', 3), 'talleres_crecimiento', pg_temp.id('eq', 2), 'ZZ Dup Nodo Taller', true);
+INSERT INTO public.dream_team_roles (id, equipo_id, label, nivel, activo)
+VALUES (pg_temp.id('ro', 3), pg_temp.id('eq', 3), 'Voluntario', 'voluntario', true);
+INSERT INTO public.dream_team_servicios (id, persona_id, equipo_id, rol_id, estado, fecha_inicio, motivo_actual)
+VALUES (pg_temp.id('se', 4), pg_temp.u(11), pg_temp.id('eq', 3), pg_temp.id('ro', 3), 'activo',
+        timestamptz '2025-06-01 12:00+00', 'admin_asignacion');
+INSERT INTO public.talleres (id, slug, nombre, dream_team_equipo_id, tipo, vinculo, regimen, cadencia_dias, cierre_inscripcion_offset_dias)
+VALUES (pg_temp.id('ta', 1), 'zz-dup-pf-taller', 'ZZ Dup Taller', pg_temp.id('eq', 3), 'pareja', NULL, 'cadencia', 7, 0);
+INSERT INTO public.operating_core_events (id, kind, estado, title, start_date, visibility_scope, metadata) VALUES
+  (pg_temp.id('oc', 1), 'workshop', 'active', 'ZZ Dup Evento 1', CURRENT_DATE - 30, 'talleres_crecimiento', '{}'::jsonb),
+  (pg_temp.id('oc', 2), 'workshop', 'active', 'ZZ Dup Evento 2', CURRENT_DATE - 90, 'talleres_crecimiento', '{}'::jsonb);
+INSERT INTO public.taller_ediciones (
+  id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+  nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+  fecha_inicio, cierre_inscripcion, fecha_fin, firmantes
+) VALUES
+  (pg_temp.id('ed', 1), pg_temp.id('oc', 1), pg_temp.id('ta', 1), 'pareja', NULL, 'permanente_custom', 'en_curso',
+   'ZZ Dup Edicion 1', 2, 60, 'permanente_custom', CURRENT_DATE - 30, CURRENT_DATE - 30, CURRENT_DATE + 30, '[]'::jsonb);
+-- Edición 2, closed by SEVA (the close is only accepted under the flag talleres_cerrar_edicion sets).
+SELECT set_config('talleres.cierre_autorizado', '1', true);
+INSERT INTO public.taller_ediciones (
+  id, operating_core_event_id, taller_id, tipo, link_type, modalidad_inscripcion, estado,
+  nombre_snapshot, sesiones_snapshot, duracion_estimada_minutos_snapshot, modalidad_inscripcion_snapshot,
+  fecha_inicio, cierre_inscripcion, fecha_fin, firmantes, cerrada_en, cerrada_por
+) VALUES
+  (pg_temp.id('ed', 2), pg_temp.id('oc', 2), pg_temp.id('ta', 1), 'pareja', NULL, 'permanente_custom', 'en_curso',
+   'ZZ Dup Edicion 2', 2, 60, 'permanente_custom', CURRENT_DATE - 90, CURRENT_DATE - 90, CURRENT_DATE - 60, '[]'::jsonb,
+   now() - interval '50 days', pg_temp.u(11));
+SELECT set_config('talleres.cierre_autorizado', '', true);
+INSERT INTO public.talleres_crecimiento_cohortes (id, taller_id, dream_team_equipo_id, edicion, started_at)
+VALUES (pg_temp.id('co', 1), pg_temp.id('ed', 1), pg_temp.id('eq', 3), 'ZZ Dup Cohorte 1', (CURRENT_DATE - 30)::timestamptz);
+INSERT INTO public.taller_grupos (id, cohorte_id, nombre, capacidad, estado, completed_at)
+VALUES (pg_temp.id('tg', 1), pg_temp.id('co', 1), 'ZZ Dup Grupo 1', 10, 'activo', NULL);
+-- Assigned while serving (the trigger checks it on insert too); the assignment is a past one.
+INSERT INTO public.taller_grupo_asignaciones (id, grupo_id, persona_id, rol, activo)
+VALUES (pg_temp.id('ga', 1), pg_temp.id('tg', 1), pg_temp.u(11), 'voluntario', false);
+INSERT INTO public.taller_reportes (id, grupo_id, estado, observaciones_generales, firma_lider_persona_id, firma_lider_fecha)
+VALUES (pg_temp.id('tr', 1), pg_temp.id('tg', 1), 'enviado', 'ZZ Dup reporte', pg_temp.u(11), now() - interval '7 days');
+INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, companero_id, link_type, estado)
+VALUES (pg_temp.id('ti', 1), pg_temp.id('ed', 1), pg_temp.id('co', 1), pg_temp.u(10), NULL, NULL, 'aprobado');
+INSERT INTO public.taller_inscripciones (id, taller_id, cohorte_id, persona_principal_id, companero_id, link_type, estado)
+VALUES (pg_temp.id('ti', 2), pg_temp.id('ed', 1), pg_temp.id('co', 1), pg_temp.u(11), NULL, NULL, 'aprobado');
+-- SEVA no longer serves in the taller: his assignment is history.
+UPDATE public.dream_team_servicios SET estado = 'retirado', fecha_fin = now() WHERE id = pg_temp.id('se', 4);
+
+-- A The Living Room grupo SEVA created and belongs to.
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
+VALUES (pg_temp.id('eq', 4), 'the_living_room', NULL, 'ZZ Dup TLR', true);
+INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo)
+VALUES (pg_temp.id('eq', 5), 'the_living_room', pg_temp.id('eq', 4), 'Grupos de Chicas', true);
+INSERT INTO public.estudiantes_grupos (id, campus_id, subarea_id, nombre, zona, activo, created_by)
+VALUES (pg_temp.id('eg', 1), pg_temp.id('ca', 1), pg_temp.id('eq', 5), 'ZZ Dup Grupo TLR', 'ZZ Centro', true, pg_temp.u(11));
+INSERT INTO public.estudiantes_grupo_miembros (grupo_id, persona_id, estado, activo)
+VALUES (pg_temp.id('eg', 1), pg_temp.u(11), 'miembro', true);
+
+SELECT pg_temp.assert_eq('fixture: SEVA no longer serves in the taller, his rows are in place',
+  $q$SELECT concat_ws('|',
+           (SELECT s.estado FROM public.dream_team_servicios s WHERE s.id = pg_temp.id('se', 4)),
+           (SELECT count(*) FROM public.taller_grupo_asignaciones a WHERE a.persona_id = pg_temp.u(11)),
+           (SELECT count(*) FROM public.taller_reportes r WHERE r.firma_lider_persona_id = pg_temp.u(11) AND r.estado = 'enviado'),
+           (SELECT count(*) FROM public.taller_inscripciones i WHERE i.taller_id = pg_temp.id('ed', 1) AND i.estado = 'aprobado'),
+           (SELECT count(*) FROM public.estudiantes_grupo_miembros m WHERE m.persona_id = pg_temp.u(11)))$q$,
+  'retirado|1|1|2|1');
 
 INSERT INTO t_pf_ctx (k, v) VALUES ('foto0', to_jsonb(pg_temp.foto()));
 
@@ -362,7 +471,126 @@ SELECT pg_temp.assert_eq('d: the append-only participation ledger is reported as
   '{"movidos": 0, "conservados": 1, "descartados": 0} {"movidos": 0, "conservados": 1, "descartados": 0} 2');
 SELECT pg_temp.assert_eq('d: the pastor''s dry run gives the same counts',
   $q$SELECT (pg_temp.ctx('simulacion_pastor') -> 'conteos' = pg_temp.ctx('simulacion') -> 'conteos')::text$q$, 'true');
+SELECT pg_temp.assert_eq('d: the dry run counts the rows behind rule triggers (T7)',
+  $q$SELECT concat_ws(' ', c -> 'estudiantes_grupo_miembros.persona_id', c -> 'estudiantes_grupos.created_by',
+                      c -> 'taller_reportes.firma_lider_persona_id', c -> 'taller_grupo_asignaciones.persona_id',
+                      c -> 'taller_inscripciones.persona_principal_id', c -> 'taller_ediciones.cerrada_por')
+       FROM (SELECT pg_temp.ctx('simulacion') -> 'conteos' AS c) x$q$,
+  '{"movidos": 1, "descartados": 0} {"movidos": 1, "descartados": 0} {"movidos": 1, "descartados": 0} '
+  || '{"movidos": 1, "descartados": 0} {"movidos": 1, "retirados": 1, "descartados": 0} {"movidos": 1, "descartados": 0}');
 SELECT pg_temp.assert_eq('d: the dry run changed nothing (no audit row either)',
+  $q$SELECT (pg_temp.foto() = (pg_temp.ctx('foto0') #>> '{}'))::text$q$, 'true');
+
+-- ── c. collisions only a human settles (T7) ───────────────────────────────
+-- Each block always raises at the end, so what it inserts or changes is rolled back with it.
+
+SELECT pg_temp.assert_raises('c: both fichas host a casa: the dry run and the merge refuse (casas_anfitrionas)',
+  $q$DO $d$
+  DECLARE
+    v_sim    boolean;
+    v_detail text;
+    v_r      text := '';
+  BEGIN
+    INSERT INTO public.casas_anfitrionas (id, usuario_id, nombre_lugar, capacidad_maxima, disponibilidad, activa, aprobada)
+    VALUES (pg_temp.id('cs', 1), pg_temp.u(11), 'ZZ Dup Casa Seva', 10, '[]'::jsonb, true, true);
+    INSERT INTO public.casas_anfitrionas (id, usuario_id, nombre_lugar, capacidad_maxima, disponibilidad, activa, aprobada)
+    VALUES (pg_temp.id('cs', 2), pg_temp.u(10), 'ZZ Dup Casa Queda', 10, '[]'::jsonb, true, true);
+    FOREACH v_sim IN ARRAY ARRAY[true, false] LOOP
+      BEGIN
+        PERFORM public.personas_fusionar(pg_temp.u(10), pg_temp.u(11), v_sim);
+        v_r := v_r || v_sim::text || ':none;';
+      EXCEPTION
+        WHEN OTHERS THEN
+          GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+          v_r := v_r || v_sim::text || ':' || SQLSTATE || ' ' || SQLERRM || ' ' || coalesce(v_detail, '') || ';';
+      END;
+    END LOOP;
+    RAISE EXCEPTION 'pf_resultado %', v_r;
+  END;
+  $d$$q$, 'P0001',
+  'pf_resultado true:22023 fusion_conflicto casas_anfitrionas;false:22023 fusion_conflicto casas_anfitrionas;');
+
+SELECT pg_temp.assert_raises('c: SEVA''s colliding inscription is a couple''s: the dry run and the merge refuse (taller_inscripciones)',
+  $q$DO $d$
+  DECLARE
+    v_sim    boolean;
+    v_detail text;
+    v_r      text := '';
+  BEGIN
+    UPDATE public.taller_inscripciones SET companero_id = pg_temp.u(15), link_type = 'matrimonio'
+     WHERE id = pg_temp.id('ti', 2);
+    FOREACH v_sim IN ARRAY ARRAY[true, false] LOOP
+      BEGIN
+        PERFORM public.personas_fusionar(pg_temp.u(10), pg_temp.u(11), v_sim);
+        v_r := v_r || v_sim::text || ':none;';
+      EXCEPTION
+        WHEN OTHERS THEN
+          GET STACKED DIAGNOSTICS v_detail = PG_EXCEPTION_DETAIL;
+          v_r := v_r || v_sim::text || ':' || SQLSTATE || ' ' || SQLERRM || ' ' || coalesce(v_detail, '') || ';';
+      END;
+    END LOOP;
+    RAISE EXCEPTION 'pf_resultado %', v_r;
+  END;
+  $d$$q$, 'P0001',
+  'pf_resultado true:22023 fusion_conflicto taller_inscripciones;false:22023 fusion_conflicto taller_inscripciones;');
+
+-- ── t. the bypass is narrow (T7) ───────────────────────────────────────────
+
+SELECT pg_temp.assert_raises('t: the rules hold outside a merge; with the flag only the bare SEVA -> QUEDA id goes through',
+  $q$DO $d$
+  DECLARE
+    v_r text := '';
+  BEGIN
+    BEGIN
+      UPDATE public.estudiantes_grupo_miembros SET persona_id = pg_temp.u(10) WHERE grupo_id = pg_temp.id('eg', 1);
+      v_r := v_r || 'fuera-miembro:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'fuera-miembro:' || SQLSTATE || ' ' || SQLERRM || ';';
+    END;
+    BEGIN
+      UPDATE public.taller_reportes SET firma_lider_persona_id = pg_temp.u(10) WHERE id = pg_temp.id('tr', 1);
+      v_r := v_r || 'fuera-reporte:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'fuera-reporte:' || SQLSTATE || ';';
+    END;
+    BEGIN
+      UPDATE public.taller_grupo_asignaciones SET persona_id = pg_temp.u(10) WHERE id = pg_temp.id('ga', 1);
+      v_r := v_r || 'fuera-asignacion:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'fuera-asignacion:' || SQLSTATE || ' ' || SQLERRM || ';';
+    END;
+    PERFORM set_config('app.personas_fusion', pg_temp.u(11)::text || '>' || pg_temp.u(10)::text, true);
+    BEGIN
+      UPDATE public.estudiantes_grupo_miembros SET persona_id = pg_temp.u(10), estado = 'visitante'
+       WHERE grupo_id = pg_temp.id('eg', 1);
+      v_r := v_r || 'flag-miembro-y-estado:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'flag-miembro-y-estado:' || SQLSTATE || ' ' || SQLERRM || ';';
+    END;
+    BEGIN
+      UPDATE public.estudiantes_grupo_miembros SET persona_id = pg_temp.u(12) WHERE grupo_id = pg_temp.id('eg', 1);
+      v_r := v_r || 'flag-otra-persona:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'flag-otra-persona:' || SQLSTATE || ' ' || SQLERRM || ';';
+    END;
+    BEGIN
+      UPDATE public.taller_reportes SET observaciones_generales = 'ZZ Dup cambio' WHERE id = pg_temp.id('tr', 1);
+      v_r := v_r || 'flag-reporte-texto:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'flag-reporte-texto:' || SQLSTATE || ';';
+    END;
+    BEGIN
+      UPDATE public.estudiantes_grupo_miembros SET persona_id = pg_temp.u(10) WHERE grupo_id = pg_temp.id('eg', 1);
+      v_r := v_r || 'flag-miembro:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'flag-miembro:' || SQLSTATE || ' ' || SQLERRM || ';';
+    END;
+    BEGIN
+      UPDATE public.taller_reportes SET firma_lider_persona_id = pg_temp.u(10) WHERE id = pg_temp.id('tr', 1);
+      v_r := v_r || 'flag-reporte:ok;';
+    EXCEPTION WHEN OTHERS THEN v_r := v_r || 'flag-reporte:' || SQLSTATE || ';';
+    END;
+    RAISE EXCEPTION 'pf_bypass %', v_r;
+  END;
+  $d$$q$, 'P0001',
+  'pf_bypass fuera-miembro:22023 miembro_invalido;fuera-reporte:23514;'
+  || 'fuera-asignacion:P0001 NO_ES_SERVIDOR_ACTIVO_DEL_TALLER;'
+  || 'flag-miembro-y-estado:22023 miembro_invalido;flag-otra-persona:22023 miembro_invalido;'
+  || 'flag-reporte-texto:23514;flag-miembro:ok;flag-reporte:ok;');
+SELECT pg_temp.assert_eq('c-t: the refused merges and the bypass checks changed nothing',
   $q$SELECT (pg_temp.foto() = (pg_temp.ctx('foto0') #>> '{}'))::text$q$, 'true');
 
 -- ── m. the real merge ────────────────────────────────────────────────
@@ -385,7 +613,7 @@ SELECT pg_temp.assert_eq('m: counts per table',
                       c -> 'usuarios.creado_por', c -> 'relaciones_usuarios.entre_ambas')
        FROM (SELECT pg_temp.ctx('fusion') -> 'conteos' AS c) x$q$,
   '{"movidos": 1, "descartados": 1} {"movidos": 1, "descartados": 1} '
-  || '{"movidos": 2, "retirados": 1, "descartados": 0} {"movidos": 1, "descartados": 0} '
+  || '{"movidos": 3, "retirados": 1, "descartados": 0} {"movidos": 1, "descartados": 0} '
   || '{"movidos": 1, "descartados": 0} {"movidos": 0, "descartados": 1}');
 SELECT pg_temp.assert_eq('m: the duplicate is deleted',
   $q$SELECT count(*)::text FROM public.usuarios WHERE id = pg_temp.u(11)$q$, '0');
@@ -407,7 +635,7 @@ SELECT pg_temp.assert_eq('m: asistencia: E1 keeps QUEDA''s own row (absent), E2 
 SELECT pg_temp.assert_eq('m: dream_team_servicios: the repeated one is retirado with fecha_fin, all are QUEDA''s',
   $q$SELECT string_agg(right(s.id::text, 1) || ':' || s.estado || ':' || (s.fecha_fin IS NOT NULL), ',' ORDER BY s.id)
        FROM public.dream_team_servicios s WHERE s.persona_id = pg_temp.u(10)$q$,
-  '1:activo:false,2:retirado:true,3:activo:false');
+  '1:activo:false,2:retirado:true,3:activo:false,4:retirado:true');
 SELECT pg_temp.assert_eq('m: usuario_campus: campus A principal, campus B kept, one principal',
   $q$SELECT concat_ws('|',
            (SELECT string_agg(DISTINCT c.nombre, ',' ORDER BY c.nombre) FROM public.usuario_campus uc
@@ -452,6 +680,36 @@ SELECT pg_temp.assert_eq('m: no row keeps the deleted id outside the append-only
            (SELECT count(*) FROM public.usuario_campus WHERE usuario_id = pg_temp.u(11)),
            (SELECT count(*) FROM public.dream_team_servicios WHERE persona_id = pg_temp.u(11)))$q$,
   '0,0,0,0,0,0');
+SELECT pg_temp.assert_eq('m: no row behind a rule trigger keeps the deleted id (T7)',
+  $q$SELECT concat_ws(',',
+           (SELECT count(*) FROM public.estudiantes_grupo_miembros WHERE persona_id = pg_temp.u(11)),
+           (SELECT count(*) FROM public.estudiantes_grupos WHERE created_by = pg_temp.u(11)),
+           (SELECT count(*) FROM public.taller_reportes WHERE pg_temp.u(11) IN (firma_lider_persona_id, reabierto_por_persona_id)),
+           (SELECT count(*) FROM public.taller_grupo_asignaciones WHERE persona_id = pg_temp.u(11)),
+           (SELECT count(*) FROM public.taller_inscripciones WHERE pg_temp.u(11) IN (persona_principal_id, companero_id)),
+           (SELECT count(*) FROM public.taller_ediciones WHERE cerrada_por = pg_temp.u(11)))$q$,
+  '0,0,0,0,0,0');
+SELECT pg_temp.assert_eq('m: those rows are QUEDA''s now, the rest of each row as it was (T7)',
+  $q$SELECT concat_ws('|',
+           (SELECT m.estado || ':' || m.activo FROM public.estudiantes_grupo_miembros m
+             WHERE m.grupo_id = pg_temp.id('eg', 1) AND m.persona_id = pg_temp.u(10)),
+           (SELECT (g.created_by = pg_temp.u(10))::text FROM public.estudiantes_grupos g WHERE g.id = pg_temp.id('eg', 1)),
+           (SELECT r.estado || ':' || r.observaciones_generales || ':' || (r.firma_lider_persona_id = pg_temp.u(10))
+              FROM public.taller_reportes r WHERE r.id = pg_temp.id('tr', 1)),
+           (SELECT a.activo || ':' || (a.persona_id = pg_temp.u(10)) FROM public.taller_grupo_asignaciones a WHERE a.id = pg_temp.id('ga', 1)),
+           (SELECT (e.cerrada_por = pg_temp.u(10))::text FROM public.taller_ediciones e WHERE e.id = pg_temp.id('ed', 2)))$q$,
+  'miembro:true|true|enviado:ZZ Dup reporte:true|false:true|true');
+SELECT pg_temp.assert_eq('m: taller_inscripciones: QUEDA keeps her active row; SEVA''s duplicate is withdrawn and moved',
+  $q$SELECT string_agg(right(i.id::text, 1) || ':' || i.estado || ':' || i.version, ',' ORDER BY i.id)
+       FROM public.taller_inscripciones i WHERE i.persona_principal_id = pg_temp.u(10)$q$,
+  '1:aprobado:1,2:retirado:2');
+SELECT pg_temp.assert_eq('t: the merge leaves app.personas_fusion empty',
+  $q$SELECT coalesce(current_setting('app.personas_fusion', true), '')$q$, '');
+SELECT pg_temp.assert_raises('t: after the merge a sent report still refuses other changes',
+  $q$UPDATE public.taller_reportes SET observaciones_generales = 'ZZ Dup cambio' WHERE id = pg_temp.id('tr', 1)$q$, '23514');
+SELECT pg_temp.assert_raises('t: and a member still cannot change person',
+  $q$UPDATE public.estudiantes_grupo_miembros SET persona_id = pg_temp.u(12) WHERE grupo_id = pg_temp.id('eg', 1)$q$,
+  '22023', 'miembro_invalido');
 
 -- ── f. fields ────────────────────────────────────────────────────────
 

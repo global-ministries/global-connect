@@ -109,10 +109,27 @@ const MENSAJES: Readonly<Record<string, string>> = {
   historial_inmutable: 'La ficha que se borra tiene historial que no se puede cambiar. No se cambió nada; avisa a soporte.',
 }
 
-/** The RPC error in Spanish. Never shows a database detail. */
-export function mensajeErrorFusion(error: { readonly code?: string; readonly message?: string } | null | undefined): string {
+/**
+ * 'fusion_conflicto' (T7, B1): a collision only a human settles; the RPC names
+ * the table in DETAIL (PostgREST `details`), the message names the area.
+ */
+const MENSAJES_CONFLICTO: Readonly<Record<string, string>> = {
+  casas_anfitrionas:
+    'Las dos fichas tienen una casa anfitriona y cada persona solo puede tener una. No se cambió nada; deja una sola casa en Casas anfitrionas y vuelve a intentarlo.',
+  taller_inscripciones:
+    'Las dos fichas están inscritas en la misma edición de un taller y una de esas inscripciones es en pareja. No se cambió nada; retira una de las dos inscripciones en Talleres y vuelve a intentarlo.',
+}
+const MENSAJE_CONFLICTO = 'Las dos fichas tienen datos que no se pueden juntar solos. No se cambió nada; avisa a soporte.'
+
+/** The RPC error in Spanish. Never shows a database detail (the table in `details` only picks the message). */
+export function mensajeErrorFusion(
+  error: { readonly code?: string; readonly message?: string; readonly details?: string | null } | null | undefined,
+): string {
   if (!error) return MENSAJE_GENERICO
   if (error.code === '42501') return MENSAJES.sin_autoridad
+  if (error.code === '22023' && error.message === 'fusion_conflicto') {
+    return (error.details && MENSAJES_CONFLICTO[error.details]) || MENSAJE_CONFLICTO
+  }
   if (error.code === '22023' && error.message && MENSAJES[error.message]) return MENSAJES[error.message]
   return MENSAJE_GENERICO
 }
@@ -134,6 +151,12 @@ const ETIQUETAS_CONTEO: Readonly<Record<string, string>> = {
   'estudiantes_grupo_miembros.persona_id': 'Grupos de Estudiantes',
   'estudiantes_asistencias.persona_id': 'Asistencia en Estudiantes',
   'taller_asistencias.persona_id': 'Asistencia a talleres',
+  'taller_inscripciones.persona_principal_id': 'Inscripciones a talleres',
+  'taller_inscripciones.companero_id': 'Inscripciones a talleres (en pareja)',
+  'taller_reportes.firma_lider_persona_id': 'Reportes de talleres que firmó',
+  'taller_grupo_asignaciones.persona_id': 'Grupos de talleres que acompañó',
+  'taller_ediciones.cerrada_por': 'Ediciones de talleres que cerró',
+  'estudiantes_grupos.created_by': 'Grupos de Estudiantes que creó',
   'audit_grupo_miembros.usuario_id': 'Historial de grupos',
   'operating_core_participation_eventos.subject_id': 'Historial de participación',
   'operating_core_participation_eventos.actor_persona_id': 'Historial de participación (registrado por esta ficha)',

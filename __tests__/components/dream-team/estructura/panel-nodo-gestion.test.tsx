@@ -129,6 +129,27 @@ describe('PanelNodo — no authority', () => {
   })
 })
 
+// T7 (B2): the DPS anchors (DPS, Global Music, Producción Creativa, Productores,
+// Cantantes) are resolved by label and parent; the RPCs refuse renaming, moving
+// and deactivating them, so the panel does not offer it.
+describe('PanelNodo — a DPS anchor', () => {
+  it('keeps «+ Subequipo» but offers neither Renombrar, Desactivar nor «Mover a…»', () => {
+    renderPanel({ puedeGestionar: true, mover: MOVER, esAnclaDps: true, detalle: { ...detalle, id: 'eq-dps', label: 'DPS' } })
+    const panel = screen.getByRole('dialog', { name: 'DPS' })
+    expect(within(panel).getByRole('button', { name: 'Subequipo' })).toBeInTheDocument()
+    for (const accion of ['Renombrar', 'Desactivar', 'Mover a…']) {
+      expect(within(panel).queryByRole('button', { name: accion })).not.toBeInTheDocument()
+    }
+  })
+
+  it('an ordinary equipo keeps all four', () => {
+    renderPanel({ puedeGestionar: true, mover: MOVER, esAnclaDps: false })
+    for (const accion of ['Subequipo', 'Renombrar', 'Desactivar', 'Mover a…']) {
+      expect(screen.getByRole('button', { name: accion })).toBeInTheDocument()
+    }
+  })
+})
+
 describe('PanelNodo — org.manage as before', () => {
   it('without puedeGestionar, puedeEditar still gives the quick actions', () => {
     renderPanel({ puedeEditar: true })

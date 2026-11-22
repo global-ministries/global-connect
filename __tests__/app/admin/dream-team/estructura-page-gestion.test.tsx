@@ -48,9 +48,11 @@ interface Consulta extends Promise<{ data: unknown; error: unknown }> {
 function consulta(data: unknown): Consulta {
   return Object.assign(Promise.resolve({ data, error: null }), { eq: () => consulta(data), order: () => consulta(data) })
 }
+let mockAnclas: { data: unknown; error: unknown } = { data: [], error: null }
+const rpc = jest.fn(async (fn: string) => (fn === 'dream_team_equipos_anclas_dps' ? mockAnclas : { data: [], error: null }))
 jest.mock('@/lib/supabase/server', () => ({
   createSupabaseServerClient: async () => ({
-    rpc: async () => ({ data: [], error: null }),
+    rpc: (fn: string) => rpc(fn),
     from: () => ({ select: () => consulta([]) }),
   }),
 }))
@@ -83,6 +85,38 @@ async function gestionables(): Promise<readonly string[] | undefined> {
 
 beforeEach(() => {
   requireDreamTeamSession.mockClear()
+  rpc.mockClear()
+  mockAnclas = { data: [], error: null }
+})
+
+async function props(): Promise<EstructuraClientProps> {
+  const element = (await DreamTeamEstructuraPage({ searchParams: Promise.resolve({}) })) as React.ReactElement<EstructuraClientProps>
+  return element.props
+}
+
+// T7 (B2): the DPS anchors cannot be renamed, moved nor deactivated, so the
+// island hides those actions on them; the ids come from dream_team_equipos_anclas_dps.
+describe('estructura page — DPS anchors', () => {
+  it('hands the anchor ids to the island when the viewer reshapes some equipo', async () => {
+    mockSesion = { personaId: 'viewer', capabilities: [{ key: 'dream_team.direct', scopeId: 'dir-a' }], globalRoles: [] }
+    mockAnclas = { data: ['dir-a'], error: null }
+    expect((await props()).anclasDps).toEqual(['dir-a'])
+    expect(rpc).toHaveBeenCalledWith('dream_team_equipos_anclas_dps')
+  })
+
+  it('hands none when they cannot be read (the RPCs still refuse)', async () => {
+    mockSesion = { personaId: 'viewer', capabilities: [], globalRoles: ['admin'] }
+    mockAnclas = { data: null, error: { message: 'boom' } }
+    const consola = jest.spyOn(console, 'error').mockImplementation(() => {})
+    expect((await props()).anclasDps).toEqual([])
+    consola.mockRestore()
+  })
+
+  it('does not ask for them when the viewer reshapes nothing', async () => {
+    mockSesion = { personaId: 'viewer', capabilities: [{ key: 'dream_team.read' }], globalRoles: [] }
+    expect((await props()).anclasDps).toEqual([])
+    expect(rpc).not.toHaveBeenCalledWith('dream_team_equipos_anclas_dps')
+  })
 })
 
 describe('estructura page — equipos the viewer may reshape', () => {

@@ -170,6 +170,8 @@ describe('mensajeErrorGestion', () => {
     ['ciclo', 'mover', 'No puedes moverlo dentro de sí mismo ni de uno de sus subequipos.'],
     ['equipo_ancla', 'mover', 'Este equipo sostiene la planificación de DPS y no se puede mover.'],
     ['equipo_ancla', 'activar', 'Este equipo sostiene la planificación de DPS y no se puede desactivar.'],
+    // T7 (B2): renaming an anchor is refused for everyone.
+    ['equipo_ancla', 'renombrar', 'Este equipo sostiene la planificación de DPS y no se puede renombrar.'],
     [
       'experiencia_con_datos',
       'mover',

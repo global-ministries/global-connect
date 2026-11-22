@@ -30,7 +30,11 @@
 --      equipo and its automatic director puesto is deactivated; the DPS root
 --      itself is an anchor and cannot move, nor be deactivated (an admin and
 --      an org.manage holder get 'equipo_ancla', the row is unchanged);
---      «Activar» on it is allowed (T6).
+--      «Activar» on it is allowed (T6). «Renombrar» on it is refused
+--      ('equipo_ancla') for the DPS director and for an admin, the row is
+--      unchanged, while the DPS director still renames an ordinary equipo
+--      below it (T7, B2). dream_team_equipos_anclas_dps() lists the DPS root
+--      for a session and nothing without one.
 --   h. Privileges and definer settings of the new functions.
 --   i. «Desactivar» outside the tree refused; activo NULL refused.
 --
@@ -49,6 +53,7 @@
 --   6 ADMIN     system admin
 --   7 ORG       dream_team.org.manage, global
 --   8 DIR_A     dream_team.direct on Raíz A
+--   9 DIR_DPS   dream_team.direct on the real DPS root (case g only)
 --   Volunteers (no account): 10 V1 in Mesa, 11 V2 in Cámaras, 12 V3 in
 --   Bautizos (case g).
 -- Tree: 1 Raíz A (dps) › 2 Rama › 3 Video › (4 Mesa › 10 Interno
@@ -519,6 +524,30 @@ BEGIN
 END;
 $$;
 
+-- The DPS director (9): dream_team.direct on the real DPS root.
+DO $$
+BEGIN
+  IF public.dps_raiz() IS NULL THEN
+    RETURN;
+  END IF;
+  INSERT INTO auth.users (id, aud, role, email, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+  VALUES (pg_temp.id('au', 9), 'authenticated', 'authenticated', 'deg-9@example.test', now(),
+          '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb, now(), now());
+  INSERT INTO public.usuarios (id, auth_id, nombre, apellido, email, estado_civil, genero)
+  VALUES (pg_temp.id('us', 9), pg_temp.id('au', 9), 'ZZ Deg', 'U9', 'deg-9@example.test', 'Soltero', 'Femenino');
+  INSERT INTO public.dream_team_capability_grants (persona_id, capability_key, experience, scope_type, scope_id, source)
+  VALUES (pg_temp.id('us', 9), 'dream_team.direct', 'dream_team', 'equipo', public.dps_raiz()::text, 'zz-test');
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(9);
+SELECT pg_temp.assert_eq('g0: the DPS director renames an ordinary equipo below DPS',
+  $q$SELECT pg_temp.renombrar(20, 'ZZ Deg Bautizos bis')$q$, 'ZZ Deg Bautizos bis');
+SELECT pg_temp.assert_eq('g0: and back',
+  $q$SELECT pg_temp.renombrar(20, 'ZZ Deg Bautizos')$q$, 'ZZ Deg Bautizos');
+RESET ROLE;
+
 SELECT pg_temp.assert_eq('g0: Bautizos and its child are DPS equipos with a director puesto',
   $q$SELECT (SELECT count(*) FROM public.dps_equipos() d WHERE d.equipo_id IN (pg_temp.id('eq', 20), pg_temp.id('eq', 21)))::text
             || '|' || (SELECT count(*) FROM public.dps_puestos pu WHERE pu.direccion_equipo_id = pg_temp.id('eq', 20) AND pu.activo)::text$q$,
@@ -562,10 +591,11 @@ SELECT pg_temp.assert_raises('g3: the DPS root is an anchor and cannot move',
 RESET ROLE;
 SELECT pg_temp.assert_eq('g3: nothing changed', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('g3.antes'));
 
--- The DPS root row (activo + updated_at) before «Desactivar».
+-- The DPS root row (label + activo + updated_at) before «Desactivar» and «Renombrar».
 CREATE OR REPLACE FUNCTION pg_temp.fila_dps() RETURNS text LANGUAGE sql AS $$
-  SELECT e.activo::text || '|' || e.updated_at::text FROM public.dream_team_equipos e WHERE e.id = pg_temp.ctx('dps.raiz')::uuid;
+  SELECT e.label || '|' || e.activo::text || '|' || e.updated_at::text FROM public.dream_team_equipos e WHERE e.id = pg_temp.ctx('dps.raiz')::uuid;
 $$;
+GRANT EXECUTE ON FUNCTION pg_temp.fila_dps() TO authenticated;
 INSERT INTO t_deg_ctx (k, v) VALUES ('g4.antes', pg_temp.fila_dps());
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(6);
@@ -576,6 +606,17 @@ SELECT pg_temp.assert_raises('g4: nor an org.manage holder',
   $q$SELECT pg_temp.activo_id(pg_temp.ctx('dps.raiz')::uuid, false)$q$, '22023', 'equipo_ancla');
 SELECT pg_temp.assert_eq('g4: «Activar» on an anchor is allowed',
   $q$SELECT pg_temp.activo_id(pg_temp.ctx('dps.raiz')::uuid, true)$q$, 'true');
+SELECT pg_temp.as_persona(6);
+SELECT pg_temp.assert_raises('g5: an admin cannot rename the DPS root (anchor)',
+  $q$SELECT public.dream_team_equipo_renombrar(pg_temp.ctx('dps.raiz')::uuid, 'ZZ Deg DPS renombrado')$q$, '22023', 'equipo_ancla');
+SELECT pg_temp.as_persona(9);
+SELECT pg_temp.assert_raises('g5: nor the DPS director',
+  $q$SELECT public.dream_team_equipo_renombrar(pg_temp.ctx('dps.raiz')::uuid, 'ZZ Deg DPS renombrado')$q$, '22023', 'equipo_ancla');
+SELECT pg_temp.assert_eq('g5: the anchor list holds the DPS root for a session',
+  $q$SELECT (pg_temp.ctx('dps.raiz')::uuid = ANY (public.dream_team_equipos_anclas_dps()))::text$q$, 'true');
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT pg_temp.assert_eq('g5: and nothing without one',
+  $q$SELECT cardinality(public.dream_team_equipos_anclas_dps())::text$q$, '0');
 RESET ROLE;
 SELECT pg_temp.assert_eq('g4: the DPS root row is unchanged', $q$SELECT pg_temp.fila_dps()$q$, pg_temp.ctx('g4.antes'));
 SELECT pg_temp.assert_eq('g4: the anchor helper sees the DPS root and not a fixture equipo',
@@ -593,13 +634,14 @@ SELECT pg_temp.assert_eq('h1: authenticated executes the RPCs and the gate, anon
       WHERE n.nspname = 'public'
         AND p.proname IN ('dream_team_gestiona_equipo', 'dream_team_equipo_crear', 'dream_team_equipo_renombrar',
                           'dream_team_equipo_cambiar_activo', 'dream_team_equipo_mover', 'dream_team_equipo_json',
-                          'dream_team_equipo_es_ancla_dps')$q$,
+                          'dream_team_equipo_es_ancla_dps', 'dream_team_equipos_anclas_dps')$q$,
   'dream_team_equipo_cambiar_activo(uuid,boolean)=true|false|false|true, '
   || 'dream_team_equipo_crear(uuid,text)=true|false|false|true, '
   || 'dream_team_equipo_es_ancla_dps(uuid)=false|false|false|true, '
   || 'dream_team_equipo_json(uuid)=false|false|false|true, '
   || 'dream_team_equipo_mover(uuid,uuid)=true|false|false|true, '
   || 'dream_team_equipo_renombrar(uuid,text)=true|false|false|true, '
+  || 'dream_team_equipos_anclas_dps()=true|false|false|true, '
   || 'dream_team_gestiona_equipo(uuid)=true|false|false|true');
 
 DO $$

@@ -124,6 +124,22 @@ describe('fusionarPersonas', () => {
     })
   })
 
+  // T7 (B1): the refusal of a collision only a human settles reaches the screen naming the area.
+  it('maps fusion_conflicto with the table in details to its area, on the dry run too', async () => {
+    cliente({ error: { code: '22023', message: 'fusion_conflicto', details: 'taller_inscripciones', hint: null } })
+    expect(await fusionarPersonas({ quedaId: A, seVaId: B, simular: true })).toEqual({
+      ok: false,
+      error:
+        'Las dos fichas están inscritas en la misma edición de un taller y una de esas inscripciones es en pareja. No se cambió nada; retira una de las dos inscripciones en Talleres y vuelve a intentarlo.',
+    })
+    cliente({ error: { code: '22023', message: 'fusion_conflicto', details: 'casas_anfitrionas', hint: null } })
+    expect(await fusionarPersonas({ quedaId: A, seVaId: B, simular: false })).toEqual({
+      ok: false,
+      error:
+        'Las dos fichas tienen una casa anfitriona y cada persona solo puede tener una. No se cambió nada; deja una sola casa en Casas anfitrionas y vuelve a intentarlo.',
+    })
+  })
+
   it('never leaks an unexpected database error', async () => {
     cliente({ error: { code: '23503', message: 'update or delete on table "usuarios" violates foreign key constraint' } })
     const consola = jest.spyOn(console, 'error').mockImplementation(() => {})

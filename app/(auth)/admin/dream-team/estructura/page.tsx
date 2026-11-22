@@ -121,6 +121,10 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
   // T3): the equipos the dream_team_equipo_* RPCs will accept from this viewer
   // (admin and pastor through session.globalRoles: every equipo).
   const equiposGestionables = equiposQueGestiona(session, equipos)
+  // The DPS anchors are resolved by label and parent: renaming, moving or
+  // deactivating one is refused for everyone, so the island hides those
+  // actions on them (T7, B2). Only asked when there is an action to hide.
+  const anclasDps = equiposGestionables.length > 0 ? await cargarAnclasDps(client) : []
 
   const talleres: Record<string, TallerVinculado> = Object.fromEntries(
     Object.entries(tallerPorEquipoId(talleresData ?? [])).map(([equipoId, taller]) => [
@@ -151,10 +155,24 @@ export default async function DreamTeamEstructuraPage({ searchParams }: Estructu
       equipoId={equipoId}
       puedeEditar={puedeEditar}
       equiposGestionables={equiposGestionables}
+      anclasDps={anclasDps}
       filtros={{ ...filtros, equipo: equipoId || null }}
       turnos={turnosEstructura}
     />
   )
+}
+
+/** The DPS anchor ids (dream_team_equipos_anclas_dps); none when they cannot be read (the RPCs still refuse). */
+async function cargarAnclasDps(client: Awaited<ReturnType<typeof createSupabaseServerClient>>): Promise<string[]> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the RPC is newer than the generated types
+    const { data, error } = await (client as any).rpc('dream_team_equipos_anclas_dps')
+    if (error) throw error
+    return Array.isArray(data) ? data.filter((id: unknown): id is string => typeof id === 'string') : []
+  } catch (error) {
+    console.error('[dream-team/estructura] DPS anchors lookup failed', error)
+    return []
+  }
 }
 
 async function cargarTurnos(
