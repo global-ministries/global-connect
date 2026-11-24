@@ -147,7 +147,12 @@ begin
   end if;
   v_id := public.dream_team_cambiar_area_mover(p_servicio, p_equipo_destino, p_rol_destino, p_motivo, p_nota, v_actor);
   -- S7, T8b: until 2027-01-01 (Caracas) the retired origin leaves no trace.
-  perform public.dream_team_servicio_borrar_si_sin_historial(p_servicio);
+  -- Best effort: if anything blocks the delete, the origin stays retirado as before.
+  begin
+    perform public.dream_team_servicio_borrar_si_sin_historial(p_servicio);
+  exception when foreign_key_violation or raise_exception then
+    null;
+  end;
   return v_id;
 end;
 $$;
@@ -227,7 +232,12 @@ begin
   update public.dream_team_solicitudes_cambio_area r set servicio_destino_id = v_id where r.id = p_solicitud;
   -- S7, T8b: until 2027-01-01 (Caracas) the retired origin leaves no trace;
   -- this request goes with it (ON DELETE CASCADE).
-  perform public.dream_team_servicio_borrar_si_sin_historial(v_r.servicio_id);
+  -- Best effort: if anything blocks the delete, the origin stays retirado as before.
+  begin
+    perform public.dream_team_servicio_borrar_si_sin_historial(v_r.servicio_id);
+  exception when foreign_key_violation or raise_exception then
+    null;
+  end;
   return v_id;
 end;
 $$;
