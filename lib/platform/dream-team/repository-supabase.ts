@@ -175,6 +175,30 @@ export function mapServiceGrantToRpcGrant(grant: DreamTeamServiceGrant): {
   }
 }
 
+/**
+ * Borra un servicio recién retirado sin dejar rastro (S7 de
+ * odd/tasks/dream-team-estructura-correcciones.md): su historial, verificaciones
+ * y eventos caen en cascada. Solo lo usa DELETE /api/dream-team/servicios/[id]
+ * hasta el 2027-01-01, DESPUÉS de retirarlo con el cliente del usuario (RLS
+ * decide ahí si puede tocar ese servicio) y de revocar sus capacidades.
+ *
+ * `authenticated` no tiene DELETE sobre dream_team_servicios, así que va con el
+ * cliente admin, y por eso no está en `DreamTeamRepository`. Solo borra la fila
+ * retirada con la versión que dejó el retiro; devuelve `false` si ya cambió.
+ */
+export async function borrarServicioRetirado(adminClient: DbClient, id: string, version: number): Promise<boolean> {
+  const { data, error } = await adminClient
+    .from('dream_team_servicios')
+    .delete()
+    .eq('id', id)
+    .eq('version', version)
+    .eq('estado', 'retirado')
+    .select('id')
+
+  if (error) throw error
+  return (data ?? []).length > 0
+}
+
 // ── Repository implementation ───────────────────────────────────────
 
 export function createSupabaseDreamTeamRepository(client: DbClient): DreamTeamRepository {

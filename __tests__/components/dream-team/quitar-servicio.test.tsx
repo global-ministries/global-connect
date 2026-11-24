@@ -1,10 +1,12 @@
 /**
- * «Quitar de este equipo» (S3 of odd/tasks/dream-team-estructura-correcciones.md):
+ * «Quitar de este equipo» (S3, S7 of odd/tasks/dream-team-estructura-correcciones.md):
  * in Servidores' «Dónde sirve», each servicio the viewer may change gets the
- * button; it asks first («¿Quitar a <nombre corto> de <equipo> como <rol>?
- * Su historial se conserva.»), then retires ONLY that servicio through the
- * existing stage change (PATCH /api/dream-team/servicios/[id] → retirado),
- * and refreshes. Same permission as «Cambiar etapa»; Mi equipo is unchanged.
+ * button; it asks first («¿Quitar a <nombre corto> de <equipo> como <rol>?»,
+ * then «Se borra sin dejar historial.» until 2027-01-01 Caracas and «Su
+ * historial se conserva.» from then on), then quits ONLY that servicio through
+ * DELETE /api/dream-team/servicios/[id] (the server retires it and, until that
+ * date, deletes it), and refreshes. Same permission as «Cambiar etapa»; Mi
+ * equipo is unchanged.
  *
  * jsdom has no matchMedia, so `DetalleResponsivo` renders the side panel.
  */
@@ -38,11 +40,30 @@ jest.mock('@/components/ui/desktop-header', () => ({
 jest.setTimeout(15_000)
 let user: ReturnType<typeof userEvent.setup>
 const fetchMock = jest.fn()
+
+const ANTES = '2026-12-31T23:59:00-04:00'
+const DESDE = '2027-01-01T00:00:00-04:00'
+// Only Date is faked: userEvent and React keep their real timers.
+function fijarFecha(iso: string) {
+  jest.useFakeTimers({
+    now: new Date(iso),
+    doNotFake: [
+      'nextTick', 'setImmediate', 'clearImmediate', 'setInterval', 'clearInterval', 'setTimeout', 'clearTimeout',
+      'queueMicrotask', 'hrtime', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame',
+      'requestIdleCallback', 'cancelIdleCallback',
+    ],
+  })
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
+  fijarFecha(ANTES)
   user = userEvent.setup({ delay: null })
-  fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200, json: async () => ({ servicio: {} }) })
+  fetchMock.mockReset().mockResolvedValue({ ok: true, status: 200, json: async () => ({ borrado: true }) })
   global.fetch = fetchMock as unknown as typeof fetch
+})
+afterEach(() => {
+  jest.useRealTimers()
 })
 
 const QUITAR = 'Quitar de este equipo'
@@ -144,19 +165,27 @@ describe('Servidores — «Quitar de este equipo»', () => {
     expect(boton.className).toContain('bg-danger')
   })
 
-  it('asks first, with the short name, the team and the rol', async () => {
+  it('asks first, with the short name, the team and the rol; until 2027 it says nothing is kept', async () => {
     const { panel } = renderDetalle()
     const dialogo = await pedirQuitar(panel, 'Cámaras')
-    // «¿Quitar a <nombre corto> de <equipo> como <rol>? Su historial se conserva.»: the question titles the dialog.
+    // «¿Quitar a <nombre corto> de <equipo> como <rol>? Se borra sin dejar historial.»: the question titles the dialog.
     expect(dialogo).toHaveAccessibleName('¿Quitar a Kelly Chaviel de Cámaras como Voluntario?')
-    expect(dialogo).toHaveAccessibleDescription('Su historial se conserva.')
+    expect(dialogo).toHaveAccessibleDescription('Se borra sin dejar historial.')
     expect(fetchMock).not.toHaveBeenCalled()
     await user.click(within(dialogo).getByRole('button', { name: 'Volver' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('retires only that servicio through the stage change and refreshes the list and the drawer', async () => {
+  it('from 2027-01-01 (Caracas) it says the history is kept', async () => {
+    fijarFecha(DESDE)
+    const { panel } = renderDetalle()
+    const dialogo = await pedirQuitar(panel, 'Cámaras')
+    expect(dialogo).toHaveAccessibleName('¿Quitar a Kelly Chaviel de Cámaras como Voluntario?')
+    expect(dialogo).toHaveAccessibleDescription('Su historial se conserva.')
+  })
+
+  it('quits only that servicio through DELETE and refreshes the list and the drawer', async () => {
     const { panel, onActualizado, onCambioAbierto } = renderDetalle()
     const dialogo = await pedirQuitar(panel, 'Cámaras')
     // The drawer closes while the question is open: two modals never fight for focus.
@@ -165,9 +194,9 @@ describe('Servidores — «Quitar de este equipo»', () => {
     await waitFor(() => expect(onActualizado).toHaveBeenCalledTimes(1))
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock).toHaveBeenCalledWith('/api/dream-team/servicios/s1', {
-      method: 'PATCH',
+      method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ estado: 'retirado', motivo: 'admin_retiro', expectedVersion: 3 }),
+      body: JSON.stringify({ expectedVersion: 3 }),
     })
     expect(toastSuccess).toHaveBeenCalledWith('Kelly Chaviel ya no está en Cámaras como Voluntario.')
     expect(toastError).not.toHaveBeenCalled()
@@ -182,7 +211,8 @@ describe('Servidores — «Quitar de este equipo»', () => {
     await user.click(within(dialogo).getByRole('button', { name: QUITAR }))
     await waitFor(() => expect(toastError).toHaveBeenCalledWith('Permiso denegado'))
     expect(fetchMock).toHaveBeenCalledWith('/api/dream-team/servicios/s2', expect.objectContaining({
-      body: JSON.stringify({ estado: 'retirado', motivo: 'admin_retiro', expectedVersion: 7 }),
+      method: 'DELETE',
+      body: JSON.stringify({ expectedVersion: 7 }),
     }))
     expect(onActualizado).not.toHaveBeenCalled()
     expect(toastSuccess).not.toHaveBeenCalled()

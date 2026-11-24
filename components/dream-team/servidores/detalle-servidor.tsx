@@ -19,8 +19,10 @@
  *
  * "Quitar de este equipo" (S3 of odd/tasks/dream-team-estructura-correcciones.md)
  * follows `puedeQuitarServicio` (the permission of "Cambiar etapa"), asks
- * first and retires only that servicio; closing the question brings the
- * drawer back, refreshed after a change.
+ * first and quits only that servicio; closing the question brings the
+ * drawer back, refreshed after a change. Until 2027-01-01 (Caracas) the
+ * question says it is deleted without a trace (S7); from then on, that its
+ * history is kept (`guardaHistorialServicio`).
  */
 import { useState, type ReactElement } from 'react'
 
@@ -31,6 +33,7 @@ import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-serv
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
 import { accionesDeServicio, puedeCambiarArea, puedeQuitarServicio } from '@/lib/platform/dream-team/acciones-servicio'
+import { guardaHistorialServicio } from '@/lib/platform/dream-team/historial-servicio'
 import type { FilaVista, PersonaLista } from '@/lib/platform/dream-team/servidores-vista'
 import { nombreCortoDeCompleto } from '@/lib/platform/nombres'
 import { EditarFichaPanel } from './editar-ficha-panel'
@@ -174,7 +177,7 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
       <DialogoCancelarInvitacion
         abierto={filaAccion !== null && accion?.tipo === 'quitar'}
         titulo={filaAccion ? `¿Quitar a ${nombreCorto} de ${filaAccion.equipoNombre} como ${filaAccion.rolLabel}?` : ''}
-        descripcion="Su historial se conserva."
+        descripcion={guardaHistorialServicio(new Date()) ? 'Su historial se conserva.' : 'Se borra sin dejar historial.'}
         confirmar="Quitar de este equipo"
         ocupado={ocupado}
         onConfirmar={() => {
