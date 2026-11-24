@@ -60,8 +60,6 @@ volatile
 security definer
 set search_path to ''
 as $$
-declare
-  v_hoy date := (p_ahora at time zone 'America/Caracas')::date;
 begin
   if p_servicio is null or p_ahora is null
      or p_ahora >= (timestamp '2027-01-01 00:00:00' at time zone 'America/Caracas') then
@@ -74,19 +72,15 @@ begin
      and not exists (select 1 from public.dream_team_asistencias a where a.servicio_id = s.id)
      and not exists (select 1 from public.ninos_voluntarios_roster_servicios n where n.servicio_id = s.id)
      and not exists (select 1 from public.estudiantes_voluntarios_roster_servicios e where e.servicio_id = s.id)
-     and not exists (select 1 from public.estudiantes_grupo_lideres l where l.servicio_id = s.id)
-     and not exists (select 1
-                       from public.dps_convocados c
-                       join public.dps_planes p on p.id = c.plan_id
-                      where c.servicio_id = s.id and p.fecha <= v_hoy);
+     and not exists (select 1 from public.estudiantes_grupo_lideres l where l.servicio_id = s.id);
   return found;
 end;
 $$;
 
 comment on function public.dream_team_servicio_borrar_si_sin_historial_en(uuid, timestamptz) is
   'Deletes a retirado servicio (its history and dependants cascade) when p_ahora is before 2027-01-01 00:00 '
-  'America/Caracas and it has no attendance, frozen roster, group leadership or DPS convocatoria up to that '
-  'day; returns whether it deleted. Internal; the date is a parameter for tests (S7, T8b).';
+  'America/Caracas and it has no attendance, frozen roster or group leadership (DPS convocatorias, past or future, '
+  'go with it: L18); returns whether it deleted. Internal; the date is a parameter for tests (S7, T8b).';
 
 revoke all on function public.dream_team_servicio_borrar_si_sin_historial_en(uuid, timestamptz) from public, anon, authenticated;
 grant execute on function public.dream_team_servicio_borrar_si_sin_historial_en(uuid, timestamptz) to service_role;

@@ -414,13 +414,13 @@ SELECT pg_temp.assert_eq('e1: volunteer attendance keeps it retired, with its hi
   $q$SELECT pg_temp.ctx('e1') || ' / ' || pg_temp.servicios(15) || ' / ' || pg_temp.historial_de(15) || ' / '
             || (SELECT count(*) FROM public.dream_team_asistencias a WHERE a.servicio_id = pg_temp.id('se', 15))::text$q$,
   'false / CAM:vol:retirado:admin_retiro:2:fin / activo>activo:admin_asignacion | activo>retirado:admin_retiro / 1');
-SELECT pg_temp.assert_eq('e2: a DPS convocatoria of a past plan keeps it retired',
+SELECT pg_temp.assert_eq('e2: a DPS convocatoria of a past plan does not keep it (L18): deleted, the convocatoria with it',
   $q$SELECT pg_temp.ctx('e2') || ' / ' || pg_temp.servicios(16) || ' / '
             || (SELECT count(*) FROM public.dps_convocados c WHERE c.servicio_id = pg_temp.id('se', 16))::text$q$,
-  'false / CAM:vol:retirado:admin_retiro:2:fin / 1');
-SELECT pg_temp.assert_eq('e3: a DPS convocatoria that same Caracas day keeps it retired',
+  'true /  / 0');
+SELECT pg_temp.assert_eq('e3: nor one that same Caracas day',
   $q$SELECT pg_temp.ctx('e3') || ' / ' || pg_temp.servicios(18)$q$,
-  'false / CAM:vol:retirado:admin_retiro:2:fin');
+  'true / ');
 SELECT pg_temp.assert_eq('e4: a convocatoria only in a future plan does not: deleted, the convocatoria with it',
   $q$SELECT pg_temp.ctx('e4') || ' / ' || pg_temp.servicios(17) || ' / ' || pg_temp.historial_de(17) || ' / '
             || (SELECT count(*) FROM public.dps_convocados c WHERE c.servicio_id = pg_temp.id('se', 17))::text$q$,
