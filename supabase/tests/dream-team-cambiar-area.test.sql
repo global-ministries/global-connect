@@ -45,6 +45,12 @@
 --      request; dream_team_puede_solicitar_cambio_area for the button; the
 --      privileges of the two new functions.
 --
+-- Until 2027-01-01 00:00 America/Caracas the retired origin of a move is
+-- deleted with its history (and an approved or anulada request with it) by
+-- dream_team_servicio_borrar_si_sin_historial (T8b of
+-- dream-team-estructura-correcciones, S7): cases a, b, e, i, j, l, m and p
+-- assert that before the date and today's retirado origin from then on.
+--
 -- Run against STAGING inside a transaction that is discarded. The last
 -- statement raises 'SUITE_RESULT: ALL OK' (or the failing cases), which also
 -- rolls everything back. Calls run under SET LOCAL ROLE authenticated with
@@ -346,14 +352,27 @@ RESET ROLE;
 SELECT pg_temp.assert_eq('a: returns the new servicio, in Estacionamiento',
   $q$SELECT pg_temp.lbl(s.equipo_id) || ':' || pg_temp.lbl(s.persona_id) FROM public.dream_team_servicios s WHERE s.id = pg_temp.ctx('a')::uuid$q$,
   'EST:' || pg_temp.id('us', 10)::text);
-SELECT pg_temp.assert_eq('a: origin retired, destination activo',
-  $q$SELECT pg_temp.servicios(10)$q$, 'CAM:vol:retirado:reasignacion:2:fin, EST:vol:activo:reasignacion:1:-');
-SELECT pg_temp.assert_eq('a: one history row each, signed by the director, with motivo, path and nota',
+SELECT pg_temp.assert_eq('a: origin retired (gone before 2027), destination activo',
+  $q$SELECT pg_temp.servicios(10)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:vol:activo:reasignacion:1:-'
+       ELSE 'CAM:vol:retirado:reasignacion:2:fin, EST:vol:activo:reasignacion:1:-' END);
+SELECT pg_temp.assert_eq('a: one history row each (only the destination''s before 2027), signed by the director, with motivo, path and nota',
   $q$SELECT pg_temp.historial(10)$q$,
-  'CAM:activo>retirado:reasignacion:ROSAURA:Corrección · Hacia ZZ DPS › Operaciones › Estacionamiento (Voluntario) · Estaba mal cargado'
-  || ' | EST:activo>activo:reasignacion:ROSAURA:Corrección · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Estaba mal cargado');
-SELECT pg_temp.assert_eq('a: verificaciones of the destination are pendiente, the origin keeps its own',
-  $q$SELECT pg_temp.verificaciones(10)$q$, 'CAM:induccion:completado, EST:chaleco:pendiente, EST:induccion:pendiente');
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:activo>activo:reasignacion:ROSAURA:Corrección · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Estaba mal cargado'
+       ELSE 'CAM:activo>retirado:reasignacion:ROSAURA:Corrección · Hacia ZZ DPS › Operaciones › Estacionamiento (Voluntario) · Estaba mal cargado'
+            || ' | ' || 'EST:activo>activo:reasignacion:ROSAURA:Corrección · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Estaba mal cargado' END);
+SELECT pg_temp.assert_eq('a: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 10)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
+SELECT pg_temp.assert_eq('a: verificaciones of the destination are pendiente, the origin keeps its own (none before 2027)',
+  $q$SELECT pg_temp.verificaciones(10)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:chaleco:pendiente, EST:induccion:pendiente'
+       ELSE 'CAM:induccion:completado, EST:chaleco:pendiente, EST:induccion:pendiente' END);
 SELECT pg_temp.assert_eq('a: Cámaras grants revoked, Estacionamiento grants minted',
   $q$SELECT pg_temp.grants(10)$q$, 'dps.team.serve@CAM~, dps.team.serve@EST, dream_team.serve@CAM~, dream_team.serve@EST');
 
@@ -364,16 +383,29 @@ SELECT pg_temp.as_persona(2);
 SELECT pg_temp.guardar('b', $q$SELECT pg_temp.mover(11, 4, 4, 'traslado', '  ')$q$);
 RESET ROLE;
 
-SELECT pg_temp.assert_eq('b: origin retired, destination activo in Audio',
-  $q$SELECT pg_temp.servicios(11)$q$, 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin');
+SELECT pg_temp.assert_eq('b: origin retired (gone before 2027), destination activo in Audio',
+  $q$SELECT pg_temp.servicios(11)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'AUD:vol:activo:reasignacion:1:-'
+       ELSE 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin' END);
 SELECT pg_temp.assert_eq('b: history without nota (blank nota is none)',
   $q$SELECT pg_temp.historial(11)$q$,
-  'AUD:activo>activo:reasignacion:PT_DIR:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario)'
-  || ' | CAM:activo>retirado:reasignacion:PT_DIR:Traslado · Hacia ZZ DPS › Producción Técnica › Audio (Voluntario)');
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'AUD:activo>activo:reasignacion:PT_DIR:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario)'
+       ELSE 'AUD:activo>activo:reasignacion:PT_DIR:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario)'
+            || ' | ' || 'CAM:activo>retirado:reasignacion:PT_DIR:Traslado · Hacia ZZ DPS › Producción Técnica › Audio (Voluntario)' END);
+SELECT pg_temp.assert_eq('b: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 11)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 SELECT pg_temp.assert_eq('b: grants moved to Audio',
   $q$SELECT pg_temp.grants(11)$q$, 'dps.team.serve@AUD, dps.team.serve@CAM~, dream_team.serve@AUD, dream_team.serve@CAM~');
-SELECT pg_temp.assert_eq('b: Audio has no requisito, so no verificación',
-  $q$SELECT pg_temp.verificaciones(11)$q$, 'CAM:induccion:pendiente');
+SELECT pg_temp.assert_eq('b: Audio has no requisito, so no verificación (and the origin''s is gone before 2027)',
+  $q$SELECT pg_temp.verificaciones(11)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN ''
+       ELSE 'CAM:induccion:pendiente' END);
 
 -- ── c. the PT director outside their subtree: request ────────────────
 
@@ -456,26 +488,48 @@ RESET ROLE;
 
 SELECT pg_temp.assert_eq('e: approving returns the new servicio',
   $q$SELECT pg_temp.lbl(s.equipo_id) || ':' || s.estado FROM public.dream_team_servicios s WHERE s.id = pg_temp.ctx('e')::uuid$q$, 'EST:activo');
-SELECT pg_temp.assert_eq('e: the request is aprobada, by the director, with her answer and the new servicio',
-  $q$SELECT pg_temp.solicitudes(12)$q$, 'aprobada:PT_DIR>EST:vol:traslado:Pasa a estacionamiento:ROSAURA:De acuerdo:at:nuevo');
-SELECT pg_temp.assert_eq('e: the stored new servicio is the returned one',
-  $q$SELECT (servicio_destino_id = pg_temp.ctx('e')::uuid)::text FROM public.dream_team_solicitudes_cambio_area WHERE id = pg_temp.ctx('c')::uuid$q$, 'true');
-SELECT pg_temp.assert_eq('e: origin retired, destination activo',
-  $q$SELECT pg_temp.servicios(12)$q$, 'CAM:vol:retirado:reasignacion:2:fin, EST:vol:activo:reasignacion:1:-');
+SELECT pg_temp.assert_eq('e: the request is aprobada, by the director, with her answer and the new servicio (gone with the origin before 2027)',
+  $q$SELECT pg_temp.solicitudes(12)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN ''
+       ELSE 'aprobada:PT_DIR>EST:vol:traslado:Pasa a estacionamiento:ROSAURA:De acuerdo:at:nuevo' END);
+SELECT pg_temp.assert_eq('e: the stored new servicio is the returned one (no request left before 2027)',
+  $q$SELECT coalesce((SELECT (servicio_destino_id = pg_temp.ctx('e')::uuid)::text FROM public.dream_team_solicitudes_cambio_area WHERE id = pg_temp.ctx('c')::uuid), 'none')$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'none'
+       ELSE 'true' END);
+SELECT pg_temp.assert_eq('e: origin retired (gone before 2027), destination activo',
+  $q$SELECT pg_temp.servicios(12)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:vol:activo:reasignacion:1:-'
+       ELSE 'CAM:vol:retirado:reasignacion:2:fin, EST:vol:activo:reasignacion:1:-' END);
 SELECT pg_temp.assert_eq('e: history signed by the approver, with the request nota',
   $q$SELECT pg_temp.historial(12)$q$,
-  'CAM:activo>retirado:reasignacion:ROSAURA:Traslado · Hacia ZZ DPS › Operaciones › Estacionamiento (Voluntario) · Pasa a estacionamiento'
-  || ' | EST:activo>activo:reasignacion:ROSAURA:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pasa a estacionamiento');
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:activo>activo:reasignacion:ROSAURA:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pasa a estacionamiento'
+       ELSE 'CAM:activo>retirado:reasignacion:ROSAURA:Traslado · Hacia ZZ DPS › Operaciones › Estacionamiento (Voluntario) · Pasa a estacionamiento'
+            || ' | ' || 'EST:activo>activo:reasignacion:ROSAURA:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pasa a estacionamiento' END);
+SELECT pg_temp.assert_eq('e: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 12)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 SELECT pg_temp.assert_eq('e: grants moved',
   $q$SELECT pg_temp.grants(12)$q$, 'dps.team.serve@CAM~, dps.team.serve@EST, dream_team.serve@CAM~, dream_team.serve@EST');
-SELECT pg_temp.assert_eq('e: verificaciones of the destination',
-  $q$SELECT pg_temp.verificaciones(12)$q$, 'CAM:induccion:pendiente, EST:chaleco:pendiente, EST:induccion:pendiente');
+SELECT pg_temp.assert_eq('e: verificaciones of the destination (the origin''s are gone before 2027)',
+  $q$SELECT pg_temp.verificaciones(12)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:chaleco:pendiente, EST:induccion:pendiente'
+       ELSE 'CAM:induccion:pendiente, EST:chaleco:pendiente, EST:induccion:pendiente' END);
 
 INSERT INTO t_ca_ctx (k, v) VALUES ('e2.antes', pg_temp.huella());
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
-SELECT pg_temp.assert_raises('e2: approving it again is refused',
-  $q$SELECT pg_temp.resolver('c', true, NULL)$q$, '22023', 'La solicitud ya fue resuelta.');
+SELECT pg_temp.assert_raises('e2: approving it again is refused (before 2027 the request no longer exists)',
+  $q$SELECT pg_temp.resolver('c', true, NULL)$q$, '22023',
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'La solicitud no existe.'
+       ELSE 'La solicitud ya fue resuelta.' END);
 RESET ROLE;
 SELECT pg_temp.assert_eq('e2: nothing changed', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('e2.antes'));
 
@@ -554,12 +608,22 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.guardar('i', $q$SELECT pg_temp.mover(15, 6, 6, 'correccion', NULL)$q$);
 RESET ROLE;
-SELECT pg_temp.assert_eq('i: the destination is en_orientacion',
-  $q$SELECT pg_temp.servicios(15)$q$, 'CAM:vol:retirado:reasignacion:2:fin, EST:vol:en_orientacion:reasignacion:1:-');
+SELECT pg_temp.assert_eq('i: the destination is en_orientacion (the origin gone before 2027)',
+  $q$SELECT pg_temp.servicios(15)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:vol:en_orientacion:reasignacion:1:-'
+       ELSE 'CAM:vol:retirado:reasignacion:2:fin, EST:vol:en_orientacion:reasignacion:1:-' END);
 SELECT pg_temp.assert_eq('i: history keeps the estado',
   $q$SELECT pg_temp.historial(15)$q$,
-  'CAM:en_orientacion>retirado:reasignacion:ROSAURA:Corrección · Hacia ZZ DPS › Operaciones › Estacionamiento (Voluntario)'
-  || ' | EST:en_orientacion>en_orientacion:reasignacion:ROSAURA:Corrección · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario)');
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'EST:en_orientacion>en_orientacion:reasignacion:ROSAURA:Corrección · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario)'
+       ELSE 'CAM:en_orientacion>retirado:reasignacion:ROSAURA:Corrección · Hacia ZZ DPS › Operaciones › Estacionamiento (Voluntario)'
+            || ' | ' || 'EST:en_orientacion>en_orientacion:reasignacion:ROSAURA:Corrección · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario)' END);
+SELECT pg_temp.assert_eq('i: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 15)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 SELECT pg_temp.assert_eq('i: no grant minted', $q$SELECT pg_temp.grants(15)$q$, '');
 
 -- ── j. another active servicio in the origin keeps its grants ────────
@@ -570,9 +634,16 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(2);
 SELECT pg_temp.guardar('j', $q$SELECT pg_temp.mover(16, 4, 4, 'traslado', NULL)$q$);
 RESET ROLE;
-SELECT pg_temp.assert_eq('j: the Líder servicio stays, the Voluntario one moves',
+SELECT pg_temp.assert_eq('j: the Líder servicio stays, the Voluntario one moves (its origin gone before 2027)',
   $q$SELECT pg_temp.servicios(16)$q$,
-  'AUD:vol:activo:reasignacion:1:-, CAM:lider:activo:admin_asignacion:1:-, CAM:vol:retirado:reasignacion:2:fin');
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'AUD:vol:activo:reasignacion:1:-, CAM:lider:activo:admin_asignacion:1:-'
+       ELSE 'AUD:vol:activo:reasignacion:1:-, CAM:lider:activo:admin_asignacion:1:-, CAM:vol:retirado:reasignacion:2:fin' END);
+SELECT pg_temp.assert_eq('j: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 16)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 SELECT pg_temp.assert_eq('j: dream_team.serve@CAM stays (the Líder servicio mints it), dps.team.serve@CAM is revoked',
   $q$SELECT pg_temp.grants(16)$q$,
   'dps.team.lead@CAM, dps.team.serve@AUD, dps.team.serve@CAM~, dream_team.lead@CAM, dream_team.serve@AUD, dream_team.serve@CAM');
@@ -623,10 +694,17 @@ SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(4);
 SELECT pg_temp.guardar('l', $q$SELECT pg_temp.mover(19, 9, 9, 'traslado', NULL)$q$);
 RESET ROLE;
-SELECT pg_temp.assert_eq('l: the admin moves Cámaras → Niños',
+SELECT pg_temp.assert_eq('l: the admin moves Cámaras → Niños (the origin gone before 2027)',
   $q$SELECT pg_temp.servicios(19) || ' / ' || pg_temp.grants(19)$q$,
-  'CAM:vol:retirado:reasignacion:2:fin, SALA:vol:activo:reasignacion:1:- / '
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'SALA:vol:activo:reasignacion:1:- / '
+       ELSE 'CAM:vol:retirado:reasignacion:2:fin, SALA:vol:activo:reasignacion:1:- / ' END
   || 'dps.team.serve@CAM~, dream_team.serve@CAM~, dream_team.serve@SALA, ninos.team.serve@SALA');
+SELECT pg_temp.assert_eq('l: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 19)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 
 -- ── m. a direct move cancels the pending request ─────────────────────
 
@@ -636,10 +714,21 @@ SELECT pg_temp.guardar('m', $q$SELECT pg_temp.solicitar(20, 6, 6, 'traslado', NU
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.guardar('m.mover', $q$SELECT pg_temp.mover(20, 4, 4, 'correccion', NULL)$q$);
 RESET ROLE;
-SELECT pg_temp.assert_eq('m: the request is anulada by the mover',
-  $q$SELECT pg_temp.solicitudes(20)$q$, 'anulada:PT_DIR>EST:vol:traslado:-:ROSAURA:El servicio cambió de área.:at:-');
-SELECT pg_temp.assert_eq('m: the servicio moved to Audio',
-  $q$SELECT pg_temp.servicios(20)$q$, 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin');
+SELECT pg_temp.assert_eq('m: the request is anulada by the mover (gone with the origin before 2027)',
+  $q$SELECT pg_temp.solicitudes(20)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN ''
+       ELSE 'anulada:PT_DIR>EST:vol:traslado:-:ROSAURA:El servicio cambió de área.:at:-' END);
+SELECT pg_temp.assert_eq('m: the servicio moved to Audio (the origin gone before 2027)',
+  $q$SELECT pg_temp.servicios(20)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'AUD:vol:activo:reasignacion:1:-'
+       ELSE 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin' END);
+SELECT pg_temp.assert_eq('m: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 20)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 
 -- ── n. privileges ────────────────────────────────────────────────────
 
@@ -859,14 +948,27 @@ SELECT pg_temp.guardar('p.ok', $q$SELECT pg_temp.resolver('p', true, 'Aprobado p
 RESET ROLE;
 SELECT pg_temp.assert_eq('p2: approving returns the new servicio, in Audio',
   $q$SELECT pg_temp.lbl(s.equipo_id) || ':' || s.estado FROM public.dream_team_servicios s WHERE s.id = pg_temp.ctx('p.ok')::uuid$q$, 'AUD:activo');
-SELECT pg_temp.assert_eq('p2: the request is aprobada by the AV coordinator, with the answer and the new servicio',
-  $q$SELECT pg_temp.solicitudes(21)$q$, 'aprobada:CAM_COORD>AUD:vol:traslado:Pide pasar a audio:AV_COORD:Aprobado por AV:at:nuevo');
-SELECT pg_temp.assert_eq('p2: origin retired, destination activo',
-  $q$SELECT pg_temp.servicios(21)$q$, 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin');
+SELECT pg_temp.assert_eq('p2: the request is aprobada by the AV coordinator, with the answer and the new servicio (gone with the origin before 2027)',
+  $q$SELECT pg_temp.solicitudes(21)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN ''
+       ELSE 'aprobada:CAM_COORD>AUD:vol:traslado:Pide pasar a audio:AV_COORD:Aprobado por AV:at:nuevo' END);
+SELECT pg_temp.assert_eq('p2: origin retired (gone before 2027), destination activo',
+  $q$SELECT pg_temp.servicios(21)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'AUD:vol:activo:reasignacion:1:-'
+       ELSE 'AUD:vol:activo:reasignacion:1:-, CAM:vol:retirado:reasignacion:2:fin' END);
 SELECT pg_temp.assert_eq('p2: history signed by the AV coordinator, with the request nota',
   $q$SELECT pg_temp.historial(21)$q$,
-  'AUD:activo>activo:reasignacion:AV_COORD:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pide pasar a audio'
-  || ' | CAM:activo>retirado:reasignacion:AV_COORD:Traslado · Hacia ZZ DPS › Producción Técnica › Audio (Voluntario) · Pide pasar a audio');
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN 'AUD:activo>activo:reasignacion:AV_COORD:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pide pasar a audio'
+       ELSE 'AUD:activo>activo:reasignacion:AV_COORD:Traslado · Desde ZZ DPS › Producción Técnica › Cámaras (Voluntario) · Pide pasar a audio'
+            || ' | ' || 'CAM:activo>retirado:reasignacion:AV_COORD:Traslado · Hacia ZZ DPS › Producción Técnica › Audio (Voluntario) · Pide pasar a audio' END);
+SELECT pg_temp.assert_eq('p2: no history row left for the origin before 2027 (T8b)',
+  $q$SELECT count(*)::text FROM public.dream_team_estados_historial h WHERE h.servicio_id = pg_temp.id('se', 21)$q$,
+  CASE WHEN now() < (timestamp '2027-01-01 00:00:00' AT TIME ZONE 'America/Caracas')
+       THEN '0'
+       ELSE '1' END);
 SELECT pg_temp.assert_eq('p2: grants moved',
   $q$SELECT pg_temp.grants(21)$q$, 'dps.team.serve@AUD, dps.team.serve@CAM~, dream_team.serve@AUD, dream_team.serve@CAM~');
 

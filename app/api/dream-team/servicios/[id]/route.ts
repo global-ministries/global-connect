@@ -130,10 +130,37 @@ async function transicionar(
   return { ok: true, servicio: updated }
 }
 
+/**
+ * Until 2027-01-01 (S7, T8/T8b of odd/tasks/dream-team-estructura-correcciones.md),
+ * a servicio this request just retired — grants already revoked — is deleted with
+ * the admin client (`authenticated` has no DELETE) through
+ * dream_team_servicio_borrar_si_sin_historial, the function the cambiar-área RPCs
+ * call too; its history cascades with it. `true` when deleted, `false` when the
+ * function kept it retired (attendance records, or the date passed), or the 500
+ * that says it stayed retired when the delete failed.
+ */
+async function borrarSinRastro(id: string, metodo: string, mensaje: string): Promise<boolean | NextResponse> {
+  try {
+    return await borrarServicioRetirado(createSupabaseAdminClient(), id)
+  } catch (error) {
+    console.error(`[dream-team/servicios/[id]] ${metodo}: servicio retired but the delete failed:`, error)
+    return NextResponse.json({ error: mensaje }, { status: 500 })
+  }
+}
+
+/**
+ * «Cambiar etapa». Body: `{ estado, motivo, detalleMotivo?, expectedVersion }` →
+ * `{ servicio, historial }`. Until 2027-01-01 00:00 Caracas a change to
+ * `retirado` then deletes the servicio (`borrarSinRastro`) and answers
+ * `{ servicio, historial: [], borrado: true }`: no retirado row nor history
+ * remains (S7, T8b). If it was kept, or from that date on, the answer is the
+ * usual one.
+ */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
   try {
     const s = await sesionDeEscritura()
     if (s instanceof NextResponse) return s
+    const sinRastro = !guardaHistorialServicio(new Date())
     const id = await resolveId(ctx)
     let body: unknown
     try { body = await req.json() } catch { return bad('Body inválido') }
@@ -150,6 +177,11 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
       expectedVersion,
     })
     if (!r.ok) return r.respuesta
+    if (sinRastro && r.servicio.estado === 'retirado') {
+      const borrado = await borrarSinRastro(id, 'PATCH', 'Se retiró, pero no se pudo borrar sin rastro: quedó como retirado.')
+      if (borrado instanceof NextResponse) return borrado
+      if (borrado) return NextResponse.json({ servicio: r.servicio, historial: [], borrado: true })
+    }
     return NextResponse.json({ servicio: r.servicio, historial: await repo.listHistorial(id) })
   } catch (error) {
     console.error('[dream-team/servicios/[id]] PATCH error:', error)
@@ -162,9 +194,10 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
  * Body: `{ expectedVersion }`. Retires the servicio exactly as the PATCH to
  * `retirado` (same permission, version check, history row and grants revocation).
  * Until 2027-01-01 00:00 Caracas (`guardaHistorialServicio`) the retired row is
- * then deleted with the admin client — `authenticated` has no DELETE — and its
- * history cascades with it: no trace. If that delete fails the row stays
- * retired, as before this change. From that date on it only retires.
+ * then deleted (`borrarSinRastro`) and the answer is `{ borrado: true }`: no
+ * trace. If the delete fails the row stays retired (500 that says so); if the
+ * SQL function keeps it (attendance records) the answer is the one from that
+ * date on: it only retires, `{ servicio, historial }`.
  */
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   try {
@@ -180,17 +213,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     const repo = createSupabaseDreamTeamRepository(await createSupabaseServerClient())
     const r = await transicionar(repo, s, id, { estado: 'retirado', motivo: 'admin_retiro', expectedVersion })
     if (!r.ok) return r.respuesta
-    if (!sinRastro) return NextResponse.json({ servicio: r.servicio, historial: await repo.listHistorial(id) })
-
-    let borrado: boolean
-    try {
-      borrado = await borrarServicioRetirado(createSupabaseAdminClient(), id, r.servicio.version)
-    } catch (error) {
-      console.error('[dream-team/servicios/[id]] DELETE: servicio retired but the delete failed:', error)
-      return NextResponse.json({ error: 'Se quitó de este equipo, pero no se pudo borrar sin rastro: quedó como retirado.' }, { status: 500 })
+    if (sinRastro) {
+      const borrado = await borrarSinRastro(id, 'DELETE', 'Se quitó de este equipo, pero no se pudo borrar sin rastro: quedó como retirado.')
+      if (borrado instanceof NextResponse) return borrado
+      if (borrado) return NextResponse.json({ borrado: true })
     }
-    if (!borrado) return conflicto()
-    return NextResponse.json({ borrado: true })
+    return NextResponse.json({ servicio: r.servicio, historial: await repo.listHistorial(id) })
   } catch (error) {
     console.error('[dream-team/servicios/[id]] DELETE error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

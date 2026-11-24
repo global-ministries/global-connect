@@ -176,27 +176,28 @@ export function mapServiceGrantToRpcGrant(grant: DreamTeamServiceGrant): {
 }
 
 /**
- * Borra un servicio recién retirado sin dejar rastro (S7 de
+ * Borra un servicio recién retirado sin dejar rastro (S7, T8 y T8b de
  * odd/tasks/dream-team-estructura-correcciones.md): su historial, verificaciones
- * y eventos caen en cascada. Solo lo usa DELETE /api/dream-team/servicios/[id]
- * hasta el 2027-01-01, DESPUÉS de retirarlo con el cliente del usuario (RLS
- * decide ahí si puede tocar ese servicio) y de revocar sus capacidades.
+ * y eventos caen en cascada. Lo usan DELETE («Quitar de este equipo») y PATCH a
+ * `retirado` («Cambiar etapa») de /api/dream-team/servicios/[id] hasta el
+ * 2027-01-01, DESPUÉS de retirarlo con el cliente del usuario (RLS decide ahí si
+ * puede tocar ese servicio) y de revocar sus capacidades.
  *
- * `authenticated` no tiene DELETE sobre dream_team_servicios, así que va con el
- * cliente admin, y por eso no está en `DreamTeamRepository`. Solo borra la fila
- * retirada con la versión que dejó el retiro; devuelve `false` si ya cambió.
+ * Va por dream_team_servicio_borrar_si_sin_historial, la misma función SQL que
+ * llaman los RPC de «Cambiar de área»: solo borra si el servicio está retirado,
+ * antes de esa fecha y sin asistencias, roster congelado, liderazgo de grupo ni
+ * convocatoria DPS ya pasada. Es interna (service_role), así que va con el
+ * cliente admin y no está en `DreamTeamRepository`. `false` = quedó retirado.
  */
-export async function borrarServicioRetirado(adminClient: DbClient, id: string, version: number): Promise<boolean> {
-  const { data, error } = await adminClient
-    .from('dream_team_servicios')
-    .delete()
-    .eq('id', id)
-    .eq('version', version)
-    .eq('estado', 'retirado')
-    .select('id')
+export async function borrarServicioRetirado(adminClient: DbClient, id: string): Promise<boolean> {
+  // Not in the generated types yet: same not-yet-generated-RPC pattern as applyServicioGrants.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (adminClient as any).rpc('dream_team_servicio_borrar_si_sin_historial', {
+    p_servicio: id,
+  })
 
   if (error) throw error
-  return (data ?? []).length > 0
+  return data === true
 }
 
 // ── Repository implementation ───────────────────────────────────────

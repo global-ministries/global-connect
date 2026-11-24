@@ -9,7 +9,12 @@ import { personaId } from '@/lib/platform/dream-team/types'
 
 jest.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: jest.fn() }))
 jest.mock('@/lib/auth/platformSessionReadOnly', () => ({ resolveReadOnlyPlatformSession: jest.fn() }))
-jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({ createSupabaseDreamTeamRepository: jest.fn() }))
+// A retire before 2027-01-01 also deletes the row (S7, T8b; servicios-id-retirar.test.ts); here it is a no-op.
+jest.mock('@/lib/supabase/admin', () => ({ createSupabaseAdminClient: jest.fn() }))
+jest.mock('@/lib/platform/dream-team/repository-supabase', () => ({
+  createSupabaseDreamTeamRepository: jest.fn(),
+  borrarServicioRetirado: jest.fn().mockResolvedValue(false),
+}))
 
 const createClient = jest.requireMock('@/lib/supabase/server').createSupabaseServerClient as jest.Mock
 const resolveSession = jest.requireMock('@/lib/auth/platformSessionReadOnly').resolveReadOnlyPlatformSession as jest.Mock

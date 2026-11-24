@@ -4,8 +4,10 @@
  * DELETE /api/dream-team/servicios/[id] — «Quitar de este equipo» (S3, S7 of
  * odd/tasks/dream-team-estructura-correcciones.md). Same permission, version
  * check and grants revocation as the PATCH to `retirado`; until 2027-01-01
- * 00:00 Caracas the retired row is then deleted (its history cascades with
- * it), from that moment on it stays retired with its history.
+ * 00:00 Caracas the retired row is then deleted through
+ * dream_team_servicio_borrar_si_sin_historial (its history cascades with it;
+ * a servicio with attendance records is kept retired, T8b), from that moment
+ * on it stays retired with its history.
  */
 
 import { NextRequest } from 'next/server'
@@ -121,11 +123,11 @@ describe('DELETE /api/dream-team/servicios/[id] — until 2027-01-01 (Caracas): 
     expect(calls[0].personaId).toBe(voluntarioPersonaId)
     expect(calls[0].accion).toBe('revoke')
     expect(calls[0].grants).toEqual(revocados)
-    // Retired first by the user's client (RLS decides), at the version the retire left.
+    // Retired first by the user's client (RLS decides), then deleted by the SQL function.
     expect(estadoAlBorrar).toBe('retirado')
     expect(createAdmin).toHaveBeenCalledTimes(1)
     expect(borrar).toHaveBeenCalledTimes(1)
-    expect(borrar).toHaveBeenCalledWith(adminClient, 'srv-activo', 2)
+    expect(borrar).toHaveBeenCalledWith(adminClient, 'srv-activo')
   })
 
   it('keeps the row retired, as today, when the delete fails', async () => {
@@ -142,15 +144,20 @@ describe('DELETE /api/dream-team/servicios/[id] — until 2027-01-01 (Caracas): 
     expect(fake.getAppliedServicioGrantsCalls()[0].accion).toBe('revoke')
   })
 
-  it('answers 409 when the retired row changed before the delete', async () => {
+  it('answers as after the date (retired, with its history) when the function keeps the row', async () => {
     auth([directorCap])
-    repo()
+    const fake = repo()
     borrar.mockResolvedValue(false)
 
     const res = await quitar('srv-activo')
 
-    expect(res.status).toBe(409)
-    expect(await res.json()).toEqual({ error: 'Conflicto de versión' })
+    expect(res.status).toBe(200)
+    const b = await res.json()
+    expect(b.borrado).toBeUndefined()
+    expect(b.servicio.estado).toBe('retirado')
+    expect(b.historial).toHaveLength(2)
+    expect(b.historial[1]).toEqual(expect.objectContaining({ estadoAnterior: 'activo', estadoNuevo: 'retirado', motivo: 'admin_retiro', actorPersonaId }))
+    expect((await fake.getServicioById('srv-activo'))?.estado).toBe('retirado')
   })
 
   it('does not delete when revoking the grants fails', async () => {
