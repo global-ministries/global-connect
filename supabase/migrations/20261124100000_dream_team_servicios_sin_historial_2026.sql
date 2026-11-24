@@ -69,18 +69,16 @@ begin
   delete from public.dream_team_servicios s
    where s.id = p_servicio
      and s.estado = 'retirado'
-     and not exists (select 1 from public.dream_team_asistencias a where a.servicio_id = s.id)
-     and not exists (select 1 from public.ninos_voluntarios_roster_servicios n where n.servicio_id = s.id)
-     and not exists (select 1 from public.estudiantes_voluntarios_roster_servicios e where e.servicio_id = s.id)
-     and not exists (select 1 from public.estudiantes_grupo_lideres l where l.servicio_id = s.id);
+     and not exists (select 1 from public.dream_team_equipos e
+                      where e.id = s.equipo_id and e.experiencia = 'grupos_vida');
   return found;
 end;
 $$;
 
 comment on function public.dream_team_servicio_borrar_si_sin_historial_en(uuid, timestamptz) is
   'Deletes a retirado servicio (its history and dependants cascade) when p_ahora is before 2027-01-01 00:00 '
-  'America/Caracas and it has no attendance, frozen roster or group leadership (DPS convocatorias, past or future, '
-  'go with it: L18); returns whether it deleted. Internal; the date is a parameter for tests (S7, T8b).';
+  'America/Caracas in every area except Grupos de Vida (L19: attendance, rosters, leadership and DPS convocatorias '
+  'go with it); returns whether it deleted. Internal; the date is a parameter for tests (S7, T8b).';
 
 revoke all on function public.dream_team_servicio_borrar_si_sin_historial_en(uuid, timestamptz) from public, anon, authenticated;
 grant execute on function public.dream_team_servicio_borrar_si_sin_historial_en(uuid, timestamptz) to service_role;

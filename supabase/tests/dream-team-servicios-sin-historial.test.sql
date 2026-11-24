@@ -410,10 +410,10 @@ SELECT pg_temp.guardar('e2', $q$SELECT pg_temp.borrar_en(16, '2026-12-01 12:00:0
 SELECT pg_temp.guardar('e3', $q$SELECT pg_temp.borrar_en(18, '2026-12-01 23:30:00-04')$q$);
 SELECT pg_temp.guardar('e4', $q$SELECT pg_temp.borrar_en(17, '2026-12-01 12:00:00-04')$q$);
 
-SELECT pg_temp.assert_eq('e1: volunteer attendance keeps it retired, with its history and attendance',
+SELECT pg_temp.assert_eq('e1: volunteer attendance does not keep it (L19): deleted, the attendance with it',
   $q$SELECT pg_temp.ctx('e1') || ' / ' || pg_temp.servicios(15) || ' / ' || pg_temp.historial_de(15) || ' / '
             || (SELECT count(*) FROM public.dream_team_asistencias a WHERE a.servicio_id = pg_temp.id('se', 15))::text$q$,
-  'false / CAM:vol:retirado:admin_retiro:2:fin / activo>activo:admin_asignacion | activo>retirado:admin_retiro / 1');
+  'true /  /  / 0');
 SELECT pg_temp.assert_eq('e2: a DPS convocatoria of a past plan does not keep it (L18): deleted, the convocatoria with it',
   $q$SELECT pg_temp.ctx('e2') || ' / ' || pg_temp.servicios(16) || ' / '
             || (SELECT count(*) FROM public.dps_convocados c WHERE c.servicio_id = pg_temp.id('se', 16))::text$q$,
@@ -459,6 +459,14 @@ SELECT pg_temp.assert_raises('f4: a session cannot call the dated helper',
 RESET ROLE;
 SELECT pg_temp.assert_eq('f5: the refused calls left the servicio as it was',
   $q$SELECT pg_temp.servicios(12)$q$, 'CAM:vol:activo:admin_asignacion:1:-');
+
+-- ── g. Grupos de Vida is the only area that keeps its history (L19) ──
+RESET ROLE;
+SELECT pg_temp.retirar(12);
+UPDATE public.dream_team_equipos SET experiencia = 'grupos_vida' WHERE id = pg_temp.id('eq', 3);
+SELECT pg_temp.assert_eq('g1: a retirado servicio in Grupos de Vida is never deleted',
+  $q$SELECT pg_temp.borrar_en(12, '2026-12-01 12:00:00-04') || ' / ' || pg_temp.servicios(12)$q$,
+  'false / CAM:vol:retirado:admin_retiro:2:fin');
 
 DO $$
 BEGIN
