@@ -126,3 +126,12 @@ it('shows why the roles could not load, without the form', async () => {
   expect(screen.queryByRole('combobox', { name: 'Rol nuevo' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
 })
+
+it('shows why a coordinator may not change the rol of a coordinator or a director (T2, S6), without the form', async () => {
+  const mensaje = 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.'
+  fetchMock.mockReturnValueOnce(respuesta(403, { error: mensaje }))
+  abrir()
+  expect(await screen.findByRole('alert')).toHaveTextContent(mensaje)
+  expect(screen.queryByRole('combobox', { name: 'Rol nuevo' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+})

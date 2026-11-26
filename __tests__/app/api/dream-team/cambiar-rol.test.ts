@@ -85,6 +85,12 @@ describe('GET /api/dream-team/servicios/[id]/cambiar-rol', () => {
     expect(res.status).toBe(403)
     expect((await res.json()).error).toBe('No puedes cambiar tu propio rol. Pídeselo a la dirección del área.')
   })
+  it('403 in plain Spanish for a coordinator’s or director’s servicio without director authority (T2, S6)', async () => {
+    setup({ error: { code: '42501', message: 'rol_superior' } })
+    const res = await get()
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.' })
+  })
 })
 
 describe('POST /api/dream-team/servicios/[id]/cambiar-rol', () => {
@@ -125,6 +131,7 @@ describe('POST /api/dream-team/servicios/[id]/cambiar-rol', () => {
   it.each([
     ['42501', 'rol_direccion', 403, 'Solo la dirección del área puede asignar un rol de dirección.'],
     ['42501', 'sin_autoridad', 403, 'No tienes permiso para cambiar roles en esta área.'],
+    ['42501', 'rol_superior', 403, 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.'],
     ['22023', 'mismo_rol', 422, 'Ese ya es su rol. Elige otro.'],
     ['22023', 'rol_invalido', 422, 'Elige un rol activo de esta misma área.'],
     ['22023', 'servicio_retirado', 422, 'Este servicio está retirado; no se le puede cambiar el rol.'],
