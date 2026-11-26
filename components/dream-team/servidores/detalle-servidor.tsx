@@ -7,8 +7,9 @@
  * (lib/platform/dream-team/acciones-servicio.ts), the same rule the menu
  * applied, so a Grupos de Vida row stays read-only and a retired servicio
  * offers no stage or shift change. "Cambiar de área" follows `puedeCambiarArea`
- * (director authority over the servicio's equipo, from the page). The server
- * checks each action again.
+ * (director authority over the servicio's equipo, from the page); «Cambiar
+ * rol» (odd/tasks/dream-team-cambiar-rol.md, T1) shows under the same
+ * condition and opens `CambiarRolDialog`. The server checks each action again.
  *
  * The action dialogs live outside the drawer: choosing one closes the drawer
  * and opens the dialog, so two modals never fight for focus.
@@ -29,6 +30,7 @@ import { useState, type ReactElement } from 'react'
 import { DetallePersona, type ServicioDetalle } from '@/components/dream-team/detalle-persona'
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
 import { CambiarAreaDialog } from '@/components/dream-team/cambiar-area-dialog'
+import { CambiarRolDialog } from '@/components/dream-team/cambiar-rol-dialog'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
 import { useNotificaciones } from '@/hooks/use-notificaciones'
@@ -43,7 +45,7 @@ import { quitarServicio } from './quitar-servicio'
 export { formatearFecha } from '@/components/dream-team/detalle-persona'
 
 type Accion =
-  | { readonly tipo: 'etapa' | 'turnos' | 'area' | 'quitar'; readonly fila: FilaVista }
+  | { readonly tipo: 'etapa' | 'turnos' | 'area' | 'rol' | 'quitar'; readonly fila: FilaVista }
   | { readonly tipo: 'ficha' | 'invitar' | 'cancelarInvitacion' }
   | null
 
@@ -99,7 +101,7 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
     setAccion(null)
     onActualizado()
   }
-  function elegirFila(tipo: 'etapa' | 'turnos' | 'area' | 'quitar', clave: string): void {
+  function elegirFila(tipo: 'etapa' | 'turnos' | 'area' | 'rol' | 'quitar', clave: string): void {
     const fila = filaDe(clave)
     if (fila) setAccion({ tipo, fila })
   }
@@ -171,6 +173,7 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
         onCancelarInvitacion={() => setAccion({ tipo: 'cancelarInvitacion' })}
         reenviandoInvitacion={ocupado}
         onCambiarArea={(clave) => elegirFila('area', clave)}
+        onCambiarRol={(clave) => elegirFila('rol', clave)}
         onQuitar={(clave) => elegirFila('quitar', clave)}
       />
 
@@ -211,6 +214,18 @@ export function DetalleServidor({ persona, abierto, onCambioAbierto, onActualiza
 
       {filaAccion?.servicioId && accion?.tipo === 'area' && (
         <CambiarAreaDialog
+          servicioId={filaAccion.servicioId}
+          nombre={persona.nombre}
+          equipoActual={filaAccion.equipoLabel}
+          abierto
+          onAbiertoChange={cerrarAccion}
+          onGuardado={guardado}
+          toast={toast}
+        />
+      )}
+
+      {filaAccion?.servicioId && accion?.tipo === 'rol' && (
+        <CambiarRolDialog
           servicioId={filaAccion.servicioId}
           nombre={persona.nombre}
           equipoActual={filaAccion.equipoLabel}
