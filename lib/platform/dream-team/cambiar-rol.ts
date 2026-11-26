@@ -4,9 +4,10 @@
  * people who open «Cambiar de área» (director or coordinator authority over
  * the equipo). Without director authority one cannot change one's own rol,
  * the rol of a coordinator or a director (T2, S6: 'rol_superior') nor assign
- * a director-level one.
+ * a coordinator- or director-level one (T3, S7: 'rol_direccion').
  *
- * The database is the one authority (20261125100000, 20261125110000):
+ * The database is the one authority (20261125100000, 20261125110000,
+ * 20261126100000):
  * dream_team_servicio_roles_cambiables lists the roles of the equipo with
  * `actual` and `asignable`, dream_team_servicio_cambiar_rol applies the change
  * (history, verificaciones and grants included). This module validates the
@@ -66,7 +67,7 @@ export function parseCambioRol(body: unknown): { readonly datos: CuerpoCambioRol
 /** The codes the cambiar-rol functions raise, in plain Spanish. */
 export const MENSAJES_CAMBIO_ROL = {
   sin_autoridad: 'No tienes permiso para cambiar roles en esta área.',
-  rol_direccion: 'Solo la dirección del área puede asignar un rol de dirección.',
+  rol_direccion: 'Solo la dirección del área puede nombrar coordinadores o directores.',
   propio_servicio: 'No puedes cambiar tu propio rol. Pídeselo a la dirección del área.',
   rol_superior: 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.',
   servicio_inexistente: 'Este servicio ya no existe. Actualiza la página.',
