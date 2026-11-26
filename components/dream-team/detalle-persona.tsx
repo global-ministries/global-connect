@@ -13,7 +13,8 @@
  * of the invitation to register, its history and actions, see
  * components/cuentas/aviso-invitacion-cuenta.tsx); then "Dónde sirve", one
  * card per servicio (Rol, Turno, Desde) with "Cambiar etapa", "Turnos",
- * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2), "Ver su
+ * "Cambiar de área" (odd/tasks/dream-team-cambiar-area.md, T2), «Cambiar rol»
+ * (same condition; odd/tasks/dream-team-cambiar-rol.md, T1), "Ver su
  * equipo" and, where the screen offers it, "Quitar de este equipo" (S3 of
  * odd/tasks/dream-team-estructura-correcciones.md; Servidores only).
  *
@@ -24,7 +25,7 @@
  */
 import type { ReactElement } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ArrowRightLeft, Clock, MessageCircle, Phone, Shuffle, UserMinus, UserPen } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, Clock, MessageCircle, Phone, Shuffle, UserCog, UserMinus, UserPen } from 'lucide-react'
 
 import { DetalleResponsivo } from '@/components/ui/detalle-responsivo'
 import { BotonSistema, TarjetaSistema } from '@/components/ui/sistema-diseno'
@@ -119,6 +120,8 @@ export interface DetallePersonaProps {
   readonly reenviandoInvitacion?: boolean
   /** "Cambiar de área" of a servicio with `cambiarArea`; absent hides it. */
   readonly onCambiarArea?: (clave: string) => void
+  /** «Cambiar rol» inside the same equipo, under the same `cambiarArea` condition; absent hides it. */
+  readonly onCambiarRol?: (clave: string) => void
   /** "Quitar de este equipo" of a servicio with `quitar`: the panel closes and the screen confirms; absent hides it. */
   readonly onQuitar?: (clave: string) => void
 }
@@ -147,6 +150,7 @@ function TarjetaServicio({
   onTurnos,
   onVerEquipo,
   onCambiarArea,
+  onCambiarRol,
   onQuitar,
 }: {
   readonly servicio: ServicioDetalle
@@ -154,11 +158,14 @@ function TarjetaServicio({
   readonly onTurnos: () => void
   readonly onVerEquipo?: () => void
   readonly onCambiarArea?: () => void
+  readonly onCambiarRol?: () => void
   readonly onQuitar?: () => void
 }): ReactElement {
   const { acciones } = servicio
   const irAEquipo = acciones.verEquipo === undefined && acciones.irAEquipo === true && onVerEquipo !== undefined
   const cambiarArea = acciones.cambiarArea === true && onCambiarArea !== undefined
+  // «Cambiar rol»: the people who change the área also change the rol (S2).
+  const cambiarRol = acciones.cambiarArea === true && onCambiarRol !== undefined
   const quitar = acciones.quitar === true && onQuitar !== undefined
   return (
     <TarjetaSistema role="group" aria-label={servicio.equipoNombre ?? servicio.equipoLabel} className="space-y-3 p-4">
@@ -178,7 +185,7 @@ function TarjetaServicio({
           <DatoServicio etiqueta="Desde" valor={formatearFecha(servicio.desde)} />
         )}
       </dl>
-      {(acciones.cambiarEtapa || acciones.turnos || cambiarArea || acciones.verEquipo !== undefined || irAEquipo) && (
+      {(acciones.cambiarEtapa || acciones.turnos || cambiarArea || cambiarRol || acciones.verEquipo !== undefined || irAEquipo) && (
         <div className="flex flex-wrap items-center gap-2">
           {acciones.cambiarEtapa && (
             <BotonSistema type="button" variante="outline" tamaño="sm" icono={ArrowRightLeft} onClick={onCambiarEtapa}>
@@ -193,6 +200,11 @@ function TarjetaServicio({
           {cambiarArea && (
             <BotonSistema type="button" variante="outline" tamaño="sm" icono={Shuffle} onClick={onCambiarArea}>
               Cambiar de área
+            </BotonSistema>
+          )}
+          {cambiarRol && (
+            <BotonSistema type="button" variante="outline" tamaño="sm" icono={UserCog} onClick={onCambiarRol}>
+              Cambiar rol
             </BotonSistema>
           )}
           {acciones.verEquipo !== undefined && (
@@ -230,6 +242,7 @@ export function DetallePersona({
   onCancelarInvitacion,
   reenviandoInvitacion = false,
   onCambiarArea,
+  onCambiarRol,
   onQuitar,
 }: DetallePersonaProps): ReactElement {
   const editarFicha = servicios.some((s) => s.acciones.editarFicha)
@@ -347,6 +360,7 @@ export function DetallePersona({
               onTurnos={() => elegir(() => onTurnos(servicio.clave))}
               onVerEquipo={onVerEquipo ? () => elegir(() => onVerEquipo(servicio.clave)) : undefined}
               onCambiarArea={onCambiarArea ? () => elegir(() => onCambiarArea(servicio.clave)) : undefined}
+              onCambiarRol={onCambiarRol ? () => elegir(() => onCambiarRol(servicio.clave)) : undefined}
               onQuitar={onQuitar ? () => elegir(() => onQuitar(servicio.clave)) : undefined}
             />
           ))}

@@ -10,7 +10,9 @@
  * the coordinador fixes fichas, shifts and invites but never the stage, and a
  * Grupos de Vida servicio stays read-only. "Cambiar de área" follows
  * `puedeCambiarArea` (director authority over the servicio's equipo, from the
- * page), so a coordinador never sees it. The server checks each action again.
+ * page), so a coordinador never sees it; «Cambiar rol»
+ * (odd/tasks/dream-team-cambiar-rol.md, T1) shows under the same condition and
+ * opens `CambiarRolDialog`. The server checks each action again.
  *
  * The dialogs are the ones the old menu opened (AvanceEtapaControl,
  * TurnosServicioDialog, EditarFichaPanel, InvitarCuentaPanel). They live
@@ -22,6 +24,7 @@ import { useState, type ReactElement } from 'react'
 import { DetallePersona, type ServicioDetalle } from '@/components/dream-team/detalle-persona'
 import { AvanceEtapaControl } from '@/components/dream-team/avance-etapa-control'
 import { CambiarAreaDialog } from '@/components/dream-team/cambiar-area-dialog'
+import { CambiarRolDialog } from '@/components/dream-team/cambiar-rol-dialog'
 import { TurnosServicioDialog } from '@/components/dream-team/turnos/turnos-servicio-dialog'
 import { EditarFichaPanel } from '@/components/dream-team/servidores/editar-ficha-panel'
 import { InvitarCuentaPanel } from '@/components/cuentas/invitar-cuenta-panel'
@@ -33,7 +36,7 @@ import { accionesPersonaMiEquipo, textoTurnosMiEquipo, type TurnoMiEquipo } from
 import type { PersonaAgrupada, PersonaVista } from '@/lib/platform/dream-team/mi-equipo-vista'
 
 type Accion =
-  | { readonly tipo: 'etapa' | 'turnos' | 'area'; readonly servicio: PersonaVista }
+  | { readonly tipo: 'etapa' | 'turnos' | 'area' | 'rol'; readonly servicio: PersonaVista }
   | { readonly tipo: 'ficha' | 'invitar' }
   | null
 
@@ -103,7 +106,7 @@ export function DetalleMiEquipo({
     setAccion(null)
     onActualizado()
   }
-  function elegirServicio(tipo: 'etapa' | 'turnos' | 'area', clave: string): void {
+  function elegirServicio(tipo: 'etapa' | 'turnos' | 'area' | 'rol', clave: string): void {
     const servicio = servicioDe(clave)
     if (servicio) setAccion({ tipo, servicio })
   }
@@ -129,6 +132,7 @@ export function DetalleMiEquipo({
         onInvitar={() => setAccion({ tipo: 'invitar' })}
         onVerEquipo={verEquipo}
         onCambiarArea={(clave) => elegirServicio('area', clave)}
+        onCambiarRol={(clave) => elegirServicio('rol', clave)}
       />
 
       {servicioAccion && permitidoAccion?.servicio && accion?.tipo === 'etapa' && (
@@ -156,6 +160,18 @@ export function DetalleMiEquipo({
 
       {servicioAccion?.servicioId && accion?.tipo === 'area' && (
         <CambiarAreaDialog
+          servicioId={servicioAccion.servicioId}
+          nombre={persona.nombre}
+          equipoActual={servicioAccion.equipoLabel}
+          abierto
+          onAbiertoChange={cerrarAccion}
+          onGuardado={guardado}
+          toast={toast}
+        />
+      )}
+
+      {servicioAccion?.servicioId && accion?.tipo === 'rol' && (
+        <CambiarRolDialog
           servicioId={servicioAccion.servicioId}
           nombre={persona.nombre}
           equipoActual={servicioAccion.equipoLabel}
