@@ -85,7 +85,7 @@ describe('stations', () => {
     expect(filas[0]).toHaveTextContent('102 × 51 mm · 203 dpi (por defecto)')
     expect(filas[0]).toHaveTextContent('Conectada')
     expect(filas[1]).toHaveTextContent('76 × 51 mm · 300 dpi')
-    expect(filas[1]).toHaveTextContent(/Sin conexión desde \d\d:\d\d/)
+    expect(filas[1]).toHaveTextContent(/Sin conexión desde (el .+, )?\d\d:\d\d/) // 40 min ago may fall on the previous day near midnight
     expect(filas[1]).toHaveTextContent('3 etiquetas en cola')
     expect(filas[2]).toHaveTextContent('Nunca se conectó')
     expect(filas[3]).toHaveTextContent('Desactivada')
