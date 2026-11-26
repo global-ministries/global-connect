@@ -1,5 +1,5 @@
 /**
- * «Cambiar rol» (odd/tasks/dream-team-cambiar-rol.md, T1, S1–S3): the pure
+ * «Cambiar rol» (odd/tasks/dream-team-cambiar-rol.md, T1, S1–S3; T2, S6): the pure
  * helpers of lib/platform/dream-team/cambiar-rol.ts — the body, the roles of
  * the dialog and the database codes in plain Spanish.
  */
@@ -53,6 +53,7 @@ describe('mapCambioRolError', () => {
     ['42501', 'sin_autoridad', 403, 'No tienes permiso para cambiar roles en esta área.'],
     ['42501', 'rol_direccion', 403, 'Solo la dirección del área puede asignar un rol de dirección.'],
     ['42501', 'propio_servicio', 403, 'No puedes cambiar tu propio rol. Pídeselo a la dirección del área.'],
+    ['42501', 'rol_superior', 403, 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.'],
     ['22023', 'servicio_inexistente', 422, 'Este servicio ya no existe. Actualiza la página.'],
     ['22023', 'servicio_retirado', 422, 'Este servicio está retirado; no se le puede cambiar el rol.'],
     ['22023', 'rol_invalido', 422, 'Elige un rol activo de esta misma área.'],

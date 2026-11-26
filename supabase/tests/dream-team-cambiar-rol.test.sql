@@ -33,6 +33,14 @@
 --      is closed.
 --   i. «Cambiar de área» unchanged (S4): its RPCs keep their signatures and
 --      grants, and its destinations still exclude the current equipo.
+--   k. T2, S6 (user, 2026-11-25: «un coordinador no puede editar rol ni de si
+--      ni de otros coordinadores ni de superiores»): without director
+--      authority the coordinator cannot change the rol of a servicio whose
+--      current rol is Coordinador or Director, whatever the new rol (42501
+--      rol_superior, before rol_invalido / mismo_rol / rol_direccion), nor
+--      read its roles list; nothing changes. Their own servicio still answers
+--      propio_servicio (c, g). The coordinator still changes a Líder; the
+--      director changes a Coordinador and a Director.
 --   j. The director demotes the coordinator (last: it ends their authority).
 --
 -- Run against STAGING inside a transaction that is discarded. The last
@@ -50,7 +58,7 @@
 --   Volunteers (no account), servicios in Cámaras: 10 V10 activo Voluntario
 --   (induccion completado, one turno), 11 V11 activo, 12 V12 activo, 13 V13
 --   activo, 14 V14 retirado, 15 V15 activo Voluntario and activo Líder (150),
---   16 V16 en_orientacion.
+--   16 V16 en_orientacion, 17 V17 activo Coordinador, 18 V18 activo Director.
 -- Tree: 1 ZZ DPS › 2 Producción Técnica › 3 Cámaras, 4 Audio. Cámaras roles:
 -- 3 Voluntario, 30 Líder (requisito liderazgo), 31 Coordinador, 32 Director,
 -- 33 Antiguo (inactive); Audio: 4 Voluntario.
@@ -217,7 +225,7 @@ SELECT pg_temp.id('us', n), pg_temp.id('au', n), 'ZZ Cr', 'U' || n, 'cr-' || n |
   FROM generate_series(1, 4) AS n;
 INSERT INTO public.usuarios (id, nombre, apellido, estado_civil, genero)
 SELECT pg_temp.id('us', n), 'ZZ Cr', 'V' || n, 'No especificado', 'Femenino'
-  FROM generate_series(10, 16) AS n;
+  FROM generate_series(10, 18) AS n;
 
 INSERT INTO public.dream_team_equipos (id, experiencia, parent_equipo_id, label, activo) VALUES
   (pg_temp.id('eq', 1), 'dps', NULL,                'ZZ DPS',             true),
@@ -248,7 +256,8 @@ SELECT pg_temp.id('se', v.se), pg_temp.id('us', v.us), pg_temp.id('eq', 3), pg_t
        CASE WHEN v.estado = 'retirado' THEN now() - interval '1 day' END, 'admin_asignacion'
   FROM (VALUES (1, 1, 3, 'activo'), (2, 2, 31, 'activo'), (10, 10, 3, 'activo'), (11, 11, 3, 'activo'),
                (12, 12, 3, 'activo'), (13, 13, 3, 'activo'), (14, 14, 3, 'retirado'), (15, 15, 3, 'activo'),
-               (150, 15, 30, 'activo'), (16, 16, 3, 'en_orientacion')) AS v(se, us, ro, estado);
+               (150, 15, 30, 'activo'), (16, 16, 3, 'en_orientacion'), (17, 17, 31, 'activo'),
+               (18, 18, 32, 'activo')) AS v(se, us, ro, estado);
 
 INSERT INTO public.dream_team_requisitos_verificacion (servicio_id, requisito_id, estado)
 SELECT s.id, pg_temp.id('rq', 3), CASE WHEN s.id = pg_temp.id('se', 10) THEN 'completado' ELSE 'pendiente' END::public.dream_team_requisito_estado
@@ -471,6 +480,50 @@ SELECT pg_temp.assert_eq('i: the button condition is the same function (coordina
   $q$SELECT public.dream_team_puede_solicitar_cambio_area(pg_temp.id('eq', 3)) || '|' || public.dream_team_puede_solicitar_cambio_area(pg_temp.id('eq', 4))$q$,
   'true|false');
 RESET ROLE;
+
+-- ── k. T2, S6: coordinators do not change coordinators nor directors ─
+
+INSERT INTO t_cr_ctx (k, v) VALUES ('k.antes', pg_temp.huella());
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_raises('k: the coordinator cannot change another coordinator''s rol',
+  $q$SELECT pg_temp.cambiar(17, 30)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: the coordinator cannot promote another coordinator to Director either',
+  $q$SELECT pg_temp.cambiar(17, 32)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: rol_superior comes before the rol checks (current rol)',
+  $q$SELECT pg_temp.cambiar(17, 31)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: the coordinator cannot change a director''s rol',
+  $q$SELECT pg_temp.cambiar(18, 31)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: the coordinator cannot demote a director to Voluntario',
+  $q$SELECT pg_temp.cambiar(18, 3)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: the coordinator does not read a coordinator''s roles',
+  $q$SELECT pg_temp.roles(17)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: the coordinator does not read a director''s roles',
+  $q$SELECT pg_temp.roles(18)$q$, '42501', 'rol_superior');
+SELECT pg_temp.assert_raises('k: their own servicio still answers propio_servicio',
+  $q$SELECT pg_temp.cambiar(2, 3)$q$, '42501', 'propio_servicio');
+RESET ROLE;
+SELECT pg_temp.assert_eq('k: the refused calls changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('k.antes'));
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.guardar('k.lider', $q$SELECT pg_temp.cambiar(11, 3)$q$);
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('k: the director reads a coordinator''s roles',
+  $q$SELECT pg_temp.roles(17)$q$, 'coord|true|false, dir|false|true, lider|false|true, vol|false|true');
+SELECT pg_temp.guardar('k.coord', $q$SELECT pg_temp.cambiar(17, 30)$q$);
+SELECT pg_temp.guardar('k.dir', $q$SELECT pg_temp.cambiar(18, 31)$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('k: the coordinator still changes a Líder (back to Voluntario)',
+  $q$SELECT pg_temp.servicio(11) || ' / ' || pg_temp.historial(11)$q$,
+  'CAM:vol:activo:admin_asignacion:3:inicio:- / activo>activo:reasignacion:COORD:Cambio de rol · De Líder a Voluntario'
+  || ' | activo>activo:reasignacion:COORD:Cambio de rol · De Voluntario a Líder');
+SELECT pg_temp.assert_eq('k: the director changes a coordinator''s rol',
+  $q$SELECT pg_temp.servicio(17) || ' / ' || pg_temp.historial(17)$q$,
+  'CAM:lider:activo:admin_asignacion:2:inicio:- / activo>activo:reasignacion:DIR:Cambio de rol · De Coordinador a Líder');
+SELECT pg_temp.assert_eq('k: the director changes a director''s rol',
+  $q$SELECT pg_temp.servicio(18) || ' / ' || pg_temp.historial(18)$q$,
+  'CAM:coord:activo:admin_asignacion:2:inicio:- / activo>activo:reasignacion:DIR:Cambio de rol · De Director a Coordinador');
 
 -- ── j. the director demotes the coordinator ─────────────────────────
 

@@ -10,7 +10,9 @@
  * opens, shows the current one and offers only the ones the server marked
  * `asignable` (a coordinator never sees a director-level rol). «Guardar»
  * changes it at once (no request step); the nota is optional. The database
- * decides; the route's plain-Spanish message is shown in the dialog.
+ * decides; the route's plain-Spanish message is shown in the dialog — also
+ * when opening is refused (one's own servicio, or a coordinator's or
+ * director's servicio for a coordinator: T2, S6).
  */
 import { useEffect, useMemo, useState, type ReactElement } from 'react'
 
