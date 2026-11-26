@@ -8,7 +8,7 @@
  *
  * Loads the roles from GET /api/dream-team/servicios/[id]/cambiar-rol when it
  * opens, shows the current one and offers only the ones the server marked
- * `asignable` (a coordinator never sees a director-level rol). «Guardar»
+ * `asignable` (a coordinator only sees voluntario and líder roles: T3, S7). «Guardar»
  * changes it at once (no request step); the nota is optional. The database
  * decides; the route's plain-Spanish message is shown in the dialog — also
  * when opening is refused (one's own servicio, or a coordinator's or

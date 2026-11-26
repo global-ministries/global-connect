@@ -129,7 +129,7 @@ describe('POST /api/dream-team/servicios/[id]/cambiar-rol', () => {
     expect(rpc).toHaveBeenCalledWith('dream_team_servicio_cambiar_rol', { p_servicio: SERVICIO, p_rol: ROL, p_nota: null })
   })
   it.each([
-    ['42501', 'rol_direccion', 403, 'Solo la dirección del área puede asignar un rol de dirección.'],
+    ['42501', 'rol_direccion', 403, 'Solo la dirección del área puede nombrar coordinadores o directores.'],
     ['42501', 'sin_autoridad', 403, 'No tienes permiso para cambiar roles en esta área.'],
     ['42501', 'rol_superior', 403, 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.'],
     ['22023', 'mismo_rol', 422, 'Ese ya es su rol. Elige otro.'],

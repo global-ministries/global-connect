@@ -99,7 +99,7 @@ it('sends a null nota when it is blank', async () => {
 })
 
 it('shows the plain-Spanish error and stays open', async () => {
-  const mensaje = 'Solo la dirección del área puede asignar un rol de dirección.'
+  const mensaje = 'Solo la dirección del área puede nombrar coordinadores o directores.'
   fetchMock.mockReturnValueOnce(respuesta(200, ROLES)).mockReturnValueOnce(respuesta(403, { error: mensaje }))
   const { onGuardado, onAbiertoChange } = abrir()
   await user.selectOptions(await screen.findByRole('combobox', { name: 'Rol nuevo' }), R_LID)

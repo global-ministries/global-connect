@@ -25,9 +25,10 @@
 --      servicio of the equipo (rol_duplicado).
 --   f. An en_orientacion servicio changes rol and mints nothing.
 --   g. The dialog read (dream_team_servicio_roles_cambiables): the current rol
---      marked actual, the inactive rol hidden, director-level roles not
---      asignable for a coordinator, a held rol not asignable; refused like (d)
---      and for one's own servicio without director authority.
+--      marked actual, the inactive rol hidden, coordinator- and director-level
+--      roles not asignable for a coordinator (T3, S7), a held rol not
+--      asignable; refused like (d) and for one's own servicio without director
+--      authority.
 --   h. Privileges: the two RPCs are SECURITY DEFINER with an empty
 --      search_path, executable by authenticated only; the validation helper
 --      is closed.
@@ -41,6 +42,12 @@
 --      read its roles list; nothing changes. Their own servicio still answers
 --      propio_servicio (c, g). The coordinator still changes a Líder; the
 --      director changes a Coordinador and a Director.
+--   l. T3, S7 (user, 2026-11-26: «Bloquearlo: solo la dirección nombra
+--      coordinadores»): without director authority the coordinator cannot
+--      promote a Voluntario nor a Líder to Coordinador (42501 rol_direccion,
+--      nothing changes) and their roles list offers neither Coordinador nor
+--      Director; they still move a servicio Voluntario ↔ Líder. The director
+--      names a Coordinador (who gets dream_team.coordinate) and a Director.
 --   j. The director demotes the coordinator (last: it ends their authority).
 --
 -- Run against STAGING inside a transaction that is discarded. The last
@@ -421,10 +428,10 @@ SELECT pg_temp.assert_eq('f: en_orientacion keeps its estado, mints nothing, add
 
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.as_persona(2);
-SELECT pg_temp.assert_eq('g: the coordinator: current marked, inactive hidden, Director not asignable',
-  $q$SELECT pg_temp.roles(13)$q$, 'coord|false|true, dir|false|false, lider|false|true, vol|true|false');
+SELECT pg_temp.assert_eq('g: the coordinator: current marked, inactive hidden, Coordinador and Director not asignable',
+  $q$SELECT pg_temp.roles(13)$q$, 'coord|false|false, dir|false|false, lider|false|true, vol|true|false');
 SELECT pg_temp.assert_eq('g: a rol the person holds elsewhere in the equipo is not asignable',
-  $q$SELECT pg_temp.roles(15)$q$, 'coord|false|true, dir|false|false, lider|false|false, vol|true|false');
+  $q$SELECT pg_temp.roles(15)$q$, 'coord|false|false, dir|false|false, lider|false|false, vol|true|false');
 SELECT pg_temp.as_persona(1);
 SELECT pg_temp.assert_eq('g: the director may assign the Director rol',
   $q$SELECT pg_temp.roles(13)$q$, 'coord|false|true, dir|false|true, lider|false|true, vol|true|false');
@@ -524,6 +531,48 @@ SELECT pg_temp.assert_eq('k: the director changes a coordinator''s rol',
 SELECT pg_temp.assert_eq('k: the director changes a director''s rol',
   $q$SELECT pg_temp.servicio(18) || ' / ' || pg_temp.historial(18)$q$,
   'CAM:coord:activo:admin_asignacion:2:inicio:- / activo>activo:reasignacion:DIR:Cambio de rol · De Director a Coordinador');
+
+-- ── l. T3, S7: only the dirección names coordinators ────────────────
+
+-- Here 13 is an activo Voluntario, 17 an activo Líder (k) and 16 an
+-- en_orientacion Líder (f).
+INSERT INTO t_cr_ctx (k, v) VALUES ('l.antes', pg_temp.huella());
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.assert_raises('l: the coordinator cannot promote a Voluntario to Coordinador',
+  $q$SELECT pg_temp.cambiar(13, 31)$q$, '42501', 'rol_direccion');
+SELECT pg_temp.assert_raises('l: the coordinator cannot promote a Líder to Coordinador',
+  $q$SELECT pg_temp.cambiar(17, 31)$q$, '42501', 'rol_direccion');
+SELECT pg_temp.assert_raises('l: the coordinator still cannot assign Director',
+  $q$SELECT pg_temp.cambiar(17, 32)$q$, '42501', 'rol_direccion');
+SELECT pg_temp.assert_eq('l: the coordinator''s list of a Líder offers only Voluntario',
+  $q$SELECT pg_temp.roles(17)$q$, 'coord|false|false, dir|false|false, lider|true|false, vol|false|true');
+RESET ROLE;
+SELECT pg_temp.assert_eq('l: the refused calls changed nothing', $q$SELECT pg_temp.huella()$q$, pg_temp.ctx('l.antes'));
+
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.as_persona(2);
+SELECT pg_temp.guardar('l.vol-lider', $q$SELECT pg_temp.cambiar(13, 30)$q$);
+SELECT pg_temp.guardar('l.lider-vol', $q$SELECT pg_temp.cambiar(13, 3)$q$);
+SELECT pg_temp.as_persona(1);
+SELECT pg_temp.assert_eq('l: the director''s list offers Coordinador and Director',
+  $q$SELECT pg_temp.roles(13)$q$, 'coord|false|true, dir|false|true, lider|false|true, vol|true|false');
+SELECT pg_temp.guardar('l.coord', $q$SELECT pg_temp.cambiar(13, 31)$q$);
+SELECT pg_temp.guardar('l.dir', $q$SELECT pg_temp.cambiar(16, 32)$q$);
+RESET ROLE;
+SELECT pg_temp.assert_eq('l: the coordinator moved Voluntario → Líder → Voluntario; the director named a Coordinador',
+  $q$SELECT pg_temp.servicio(13) || ' / ' || pg_temp.historial(13)$q$,
+  'CAM:coord:activo:admin_asignacion:4:inicio:- / activo>activo:reasignacion:COORD:Cambio de rol · De Líder a Voluntario'
+  || ' | activo>activo:reasignacion:COORD:Cambio de rol · De Voluntario a Líder'
+  || ' | activo>activo:reasignacion:DIR:Cambio de rol · De Voluntario a Coordinador');
+SELECT pg_temp.assert_eq('l: the new Coordinador coordinates Cámaras',
+  $q$SELECT count(*)::text FROM public.dream_team_capability_grants g
+      WHERE g.persona_id = pg_temp.id('us', 13) AND g.capability_key = 'dream_team.coordinate'
+        AND g.scope_id = pg_temp.id('eq', 3)::text AND g.revoked_at IS NULL$q$, '1');
+SELECT pg_temp.assert_eq('l: the director names a Director',
+  $q$SELECT pg_temp.servicio(16) || ' / ' || pg_temp.historial(16)$q$,
+  'CAM:dir:en_orientacion:admin_asignacion:3:inicio:- / en_orientacion>en_orientacion:reasignacion:COORD:Cambio de rol · De Voluntario a Líder'
+  || ' | en_orientacion>en_orientacion:reasignacion:DIR:Cambio de rol · De Líder a Director');
 
 -- ── j. the director demotes the coordinator ─────────────────────────
 

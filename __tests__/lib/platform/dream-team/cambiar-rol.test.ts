@@ -51,7 +51,7 @@ describe('mapRolesCambiables', () => {
 describe('mapCambioRolError', () => {
   it.each([
     ['42501', 'sin_autoridad', 403, 'No tienes permiso para cambiar roles en esta área.'],
-    ['42501', 'rol_direccion', 403, 'Solo la dirección del área puede asignar un rol de dirección.'],
+    ['42501', 'rol_direccion', 403, 'Solo la dirección del área puede nombrar coordinadores o directores.'],
     ['42501', 'propio_servicio', 403, 'No puedes cambiar tu propio rol. Pídeselo a la dirección del área.'],
     ['42501', 'rol_superior', 403, 'Solo la dirección del área puede cambiar el rol de un coordinador o de un director.'],
     ['22023', 'servicio_inexistente', 422, 'Este servicio ya no existe. Actualiza la página.'],
